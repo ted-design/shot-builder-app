@@ -36,7 +36,6 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Optional: upload build output as an artifact for quick inspection
       - name: Upload dist artifact
         if: ${{ always() && hashFiles('dist/**') != '' }}
         uses: actions/upload-artifact@v4
