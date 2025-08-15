@@ -28,3 +28,5 @@ firebase-debug.log
 .idea/
 .vscode/*
 !.vscode/extensions.json
+node_modules/
+firebase-debug.log
