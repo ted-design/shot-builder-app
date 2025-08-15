@@ -6,11 +6,14 @@ import { db } from "../firebase";
 import { ACTIVE_PROJECT_ID, projectPath } from "../lib/paths";
 import { arrayUnion, arrayRemove } from "firebase/firestore";
 
-const CLIENT_ID = "unbound-merino";
-const shotsPath = ["clients", CLIENT_ID, "projects", ACTIVE_PROJECT_ID, "shots"];
-const productsPath = ["clients", CLIENT_ID, "products"];
-const talentPath = ["clients", CLIENT_ID, "talent"];
-const locationsPath = ["clients", CLIENT_ID, "locations"];
+import {
+  CLIENT_ID,
+  getActiveProjectId,
+  shotsPath as getShotsPath,
+  productsPath,
+  talentPath,
+  locationsPath,
+} from "../lib/paths";
 
 const coll = (...p) => collection(db, ...p);
 const d = (...p) => doc(db, ...p);
@@ -48,9 +51,11 @@ export default function ShotsPage() {
   const [products, setProducts] = useState([]);
   const [talent, setTalent] = useState([]);
   const [locations, setLocations] = useState([]);
+  const projectId = getActiveProjectId();
+
 
   useEffect(() => {
-    const unsubS = onSnapshot(query(coll(...shotsPath), orderBy("date","asc")),
+    const unsubS = onSnapshot(query(coll(...getShotsPath(projectId)), orderBy("date","asc")),
       s => setShots(s.docs.map(d=>({id:d.id, ...d.data()}))));
     const unsubP = onSnapshot(query(coll(...productsPath), orderBy("name","asc")),
       s => setProducts(s.docs.map(d=>({id:d.id, ...d.data()}))));
