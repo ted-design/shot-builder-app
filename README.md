@@ -73,3 +73,6 @@ shot-builder-app/
 This starter kit intentionally leaves many implementation details up to you. You can tailor the UI components, pages, and Cloud Functions to suit your production workflow. Consult the architecture plan provided in the discussion to structure your Firestore collections and Cloud Functions.
 ## CI Status
 ![CI](https://github.com/ted-design/shot-builder-app/actions/workflows/ci.yml/badge.svg)
+
+## Deploy Status
+[![Deploy to Firebase Hosting (WIF)](https://github.com/ted-design/shot-builder-app/actions/workflows/deploy.yml/badge.svg)](https://github.com/ted-design/shot-builder-app/actions/workflows/deploy.yml)
