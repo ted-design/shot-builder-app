@@ -1,0 +1,30 @@
+# Node / tooling
+node_modules/
+dist/
+.build/
+.cache/
+.vite/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.log
+
+# Env & credentials
+.env
+.env.*
+!.env.sample
+
+# Firebase
+.firebase/
+.firestore/
+.storage/
+*.local
+firebase-debug.log
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
