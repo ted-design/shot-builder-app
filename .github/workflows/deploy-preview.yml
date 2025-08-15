@@ -1,0 +1,44 @@
+name: Deploy preview on PR
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Auth to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-actions-deploy@um-shotbuilder.iam.gserviceaccount.com
+          audience: https://github.com/ted-design/shot-builder-app
+
+      - name: Deploy preview channel
+        # Channel name uses PR number (stable across pushes)
+        run: npx firebase-tools hosting:channel:deploy pr-${{ github.event.number }} --project um-shotbuilder
+
+      - name: Output preview URL
+        run: |
+          npx firebase-tools hosting:channel:list --project um-shotbuilder --json \
+            | node -e "const j=require('fs').readFileSync(0,'utf8'); const o=JSON.parse(j); const pr='pr-${{ github.event.number }}'; const c=o.result.find(x=>x.name.endsWith('/'+pr)); if(c&&c.url){console.log('Preview URL:', c.url)} else {console.log('Preview deployed')}"
