@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    /* Utility functions for organisation and role checks */
+    function userOrg() { return request.auth != null ? request.auth.token.orgId : null; }
+    function orgMatches(pathOrg) { return userOrg() != null && userOrg() == pathOrg; }
+    function isAdmin() { return request.auth != null && request.auth.token.role == 'admin'; }
+    function hasProjectRole(projectId, roles) {
+      let membership = get(/databases/$(database)/documents/orgs/$(userOrg())/projects/$(projectId)/members/$(request.auth.uid));
+      return membership.data != null && roles.hasAny([membership.data.role]);
+    }
+
+    // Allow reading the organisation root if in the same org
+    match /orgs/{orgId}/{document=**} {
+      allow read: if orgMatches(orgId);
+    }
+
+    // Products (shared across projects within an org)
+    match /orgs/{orgId}/products/{productId} {
+      allow read: if orgMatches(orgId);
+      allow create, delete: if orgMatches(orgId) && isAdmin();
+      allow update: if orgMatches(orgId) && (isAdmin() || request.auth.token.role == 'wardrobe');
+    }
+
+    // Product families
+    match /orgs/{orgId}/productFamilies/{familyId} {
+      allow read: if orgMatches(orgId);
+      allow create, delete, update: if orgMatches(orgId) && (isAdmin() || request.auth.token.role == 'wardrobe');
+    }
+
+    // Projects
+    match /orgs/{orgId}/projects/{projectId}/{collectionId}/{docId} {
+      allow read: if orgMatches(orgId) && (hasProjectRole(projectId, ['producer','wardrobe','viewer']) || isAdmin());
+      allow create, update, delete: if orgMatches(orgId) && (
+        isAdmin() || hasProjectRole(projectId, ['producer','wardrobe'])
+      );
+    }
+  }
+}
