@@ -36,9 +36,60 @@ jobs:
 
       - name: Deploy preview channel
         # Channel name uses PR number (stable across pushes)
-        run: npx firebase-tools hosting:channel:deploy pr-${{ github.event.number }} --project um-shotbuilder
+        run: npx firebase-tools hosting:channel:deploy pr-${{ github.event.number }} --project um-shotbuilder --json > deploy.json
 
       - name: Output preview URL
         run: |
-          npx firebase-tools hosting:channel:list --project um-shotbuilder --json \
-            | node -e "const j=require('fs').readFileSync(0,'utf8'); const o=JSON.parse(j); const pr='pr-${{ github.event.number }}'; const c=o.result.find(x=>x.name.endsWith('/'+pr)); if(c&&c.url){console.log('Preview URL:', c.url)} else {console.log('Preview deployed')}"
+          set -e
+          echo "---- firebase-tools deploy output ----"
+          cat deploy.json || true
+          echo "--------------------------------------"
+
+          node - <<'NODE'
+          const fs = require('fs');
+
+          // load deploy output first (often includes URLs)
+          let url = null;
+          try {
+            const d = JSON.parse(fs.readFileSync('deploy.json', 'utf8'));
+            // Try common locations for the URL
+            // Newer CLIs often place it at deploys[0].url or result[0].url
+            const candidates = [];
+            if (Array.isArray(d.deploys)) candidates.push(...d.deploys);
+            if (Array.isArray(d.result))  candidates.push(...d.result);
+            if (d && d.result && d.result.previewUrl) candidates.push({ url: d.result.previewUrl });
+            const found = candidates.find(x => x && x.url);
+            if (found && found.url) url = found.url;
+          } catch (_) {}
+
+          // Fallback to channel list if not found in deploy output
+          if (!url) {
+            try {
+              const child = require('child_process');
+              const listJson = child.execSync('npx firebase-tools hosting:channel:list --project um-shotbuilder --json', { stdio: ['ignore', 'pipe', 'inherit'] }).toString();
+              const o = JSON.parse(listJson);
+              const pr = 'pr-${{ github.event.number }}';
+
+              const channels = Array.isArray(o.result) ? o.result
+                               : Array.isArray(o.channels) ? o.channels
+                               : [];
+
+              const match = channels.find(x => {
+                const name = x && (x.name || '');
+                return typeof name === 'string' && name.endsWith('/' + pr);
+              });
+
+              if (match && match.url) url = match.url;
+            } catch (e) {
+              console.log('Failed to query channel list:', e.message);
+            }
+          }
+
+          if (url) {
+            console.log('Preview URL:', url);
+            // also write to the GitHub Step Summary so it’s visible on the PR
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `**Preview URL:** ${url}\n`);
+          } else {
+            console.log('Preview deployed, but URL not found in CLI JSON.');
+          }
+          NODE
