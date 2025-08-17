@@ -1,13 +1,37 @@
 import { useState } from "react";
-import Papa from "papaparse";
+// Note: We removed the external papaparse dependency in favour of a simple CSV parser.
+// parseCSV splits CSV lines into objects with headers; it handles quoted fields with commas.
+function parseCSV(text) {
+  const rows = [];
+  const lines = text.trim().split(/\r?\n/);
+  if (!lines.length) return rows;
+  // Use regex to split by comma not enclosed in quotes
+  const splitter = /,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/;
+  const headers = lines[0].split(splitter).map((h) => h.trim().replace(/^\"|\"$/g, ""));
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const values = lines[i].split(splitter).map((c) => c.trim().replace(/^\"|\"$/g, ""));
+    const obj = {};
+    headers.forEach((h, idx) => {
+      obj[h] = values[idx] ?? "";
+    });
+    rows.push(obj);
+  }
+  return rows;
+}
 import {
   collection,
   setDoc,
   addDoc,
   doc as d,
 } from "firebase/firestore";
+// Import Firestore instance from the concrete Firebase config.  The
+// `lib/firebase` module expects environment variables; using the root
+// config ensures API keys are available.
 import { db } from "../firebase";
 import { CLIENT_ID, productsPath } from "../lib/paths";
+// Import simple UI primitives from our local implementation instead of using an
+// alias.  These components live under src/components/ui.
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -35,14 +59,22 @@ export default function ImportProducts() {
     const file = e.target.files?.[0];
     if (!file) return;
     setStatus("Parsing CSV...");
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: ({ data }) => {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const text = evt.target?.result || "";
+        const data = parseCSV(String(text));
         setRows(data);
         setStatus(`${data.length} rows parsed. Ready to import.`);
-      },
-    });
+      } catch (err) {
+        console.error(err);
+        setStatus("Failed to parse CSV");
+      }
+    };
+    reader.onerror = () => {
+      setStatus("Failed to read file");
+    };
+    reader.readAsText(file);
   }
 
   // Helpers for normalising and filtering
