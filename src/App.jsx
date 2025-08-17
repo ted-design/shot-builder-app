@@ -12,21 +12,35 @@ import TalentPage from "./pages/TalentPage";
 import LocationsPage from "./pages/LocationsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import PullsPage from "./pages/PullsPage";
+import ImportProducts from "./pages/ImportProducts"; // ✅ added importer route
 
-function Authed({ user, children }) {
-  if (!user) return <Navigate to="/login" replace />;
+// RequireAuth preserves the intended destination by passing `state.from` to /login
+function RequireAuth({ user, children }) {
+  const location = useLocation();
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
   return children;
 }
 
+// If already logged in and sitting on /login, return to the last intended page or /projects
 function MaybeRedirectLogin({ user }) {
-  const { pathname } = useLocation();
-  if (user && pathname === "/login") return <Navigate to="/projects" replace />;
+  const location = useLocation();
+  const { pathname } = location;
+  if (user && pathname === "/login") {
+    const from = location.state?.from?.pathname || "/projects";
+    return <Navigate to={from} replace />;
+  }
   return null;
 }
 
 export default function App() {
   const [user, setUser] = useState(null);
-  useEffect(() => onAuthStateChanged(auth, setUser), []);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, setUser);
+    return () => unsub();
+  }, []);
 
   return (
     <BrowserRouter>
@@ -35,13 +49,74 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<Navigate to="/projects" replace />} />
-        <Route path="/projects" element={<Authed user={user}><ProjectsPage /></Authed>} />
-        <Route path="/shots" element={<Authed user={user}><ShotsPage /></Authed>} />
-        <Route path="/planner" element={<Authed user={user}><PlannerPage /></Authed>} />
-        <Route path="/products" element={<Authed user={user}><ProductsPage /></Authed>} />
-        <Route path="/talent" element={<Authed user={user}><TalentPage /></Authed>} />
-        <Route path="/locations" element={<Authed user={user}><LocationsPage /></Authed>} />
-        <Route path="/pulls" element={<Authed user={user}><PullsPage /></Authed>} />
+
+        <Route
+          path="/projects"
+          element={
+            <RequireAuth user={user}>
+              <ProjectsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/shots"
+          element={
+            <RequireAuth user={user}>
+              <ShotsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/planner"
+          element={
+            <RequireAuth user={user}>
+              <PlannerPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/products"
+          element={
+            <RequireAuth user={user}>
+              <ProductsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/talent"
+          element={
+            <RequireAuth user={user}>
+              <TalentPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/locations"
+          element={
+            <RequireAuth user={user}>
+              <LocationsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/pulls"
+          element={
+            <RequireAuth user={user}>
+              <PullsPage />
+            </RequireAuth>
+          }
+        />
+        {/* ✅ New importer route */}
+        <Route
+          path="/import-products"
+          element={
+            <RequireAuth user={user}>
+              <ImportProducts />
+            </RequireAuth>
+          }
+        />
+
+        {/* Catch-all → projects */}
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
     </BrowserRouter>
