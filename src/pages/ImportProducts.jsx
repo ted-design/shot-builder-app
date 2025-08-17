@@ -53,6 +53,10 @@ export default function ImportProducts() {
   const [status, setStatus] = useState("Awaiting file upload...");
   const [useSkuAsId, setUseSkuAsId] = useState(true);
   const [loading, setLoading] = useState(false);
+  // Track progress of import. `progress` is the number of rows imported so far.
+  // `total` is set when the CSV is parsed to the total number of rows.
+  const [progress, setProgress] = useState(0);
+  const [total, setTotal] = useState(0);
 
   // Called when the user selects a CSV file
   function onFile(e) {
@@ -66,6 +70,9 @@ export default function ImportProducts() {
         const data = parseCSV(String(text));
         setRows(data);
         setStatus(`${data.length} rows parsed. Ready to import.`);
+        // initialise progress tracking
+        setTotal(data.length);
+        setProgress(0);
       } catch (err) {
         console.error(err);
         setStatus("Failed to parse CSV");
@@ -107,6 +114,7 @@ export default function ImportProducts() {
     if (!rows.length) return;
     setLoading(true);
     setStatus("Importing products...");
+    setProgress(0);
     let imported = 0;
     for (const row of rows) {
       const sku = (row.sku || "").trim();
@@ -132,6 +140,8 @@ export default function ImportProducts() {
           await addDoc(collection(db, ...productsPath), productData);
         }
         imported++;
+        // update progress after each successful import
+        setProgress(imported);
       } catch (err) {
         console.error("Error importing", sku, err);
       }
@@ -163,6 +173,15 @@ export default function ImportProducts() {
           <Button onClick={importRows} disabled={loading || !rows.length}>
             {loading ? "Importing..." : "Import"}
           </Button>
+          {/* Show a progress bar while importing */}
+          {loading && total > 0 && (
+            <div className="space-y-1">
+              <progress value={progress} max={total} className="w-full h-2" />
+              <p className="text-xs text-gray-600">
+                {progress}/{total} imported
+              </p>
+            </div>
+          )}
           <p className="text-sm text-gray-600">{status}</p>
         </CardContent>
       </Card>
