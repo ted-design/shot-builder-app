@@ -1,48 +1,51 @@
+import { useState } from "react";
 import Papa from "papaparse";
 import {
-  addDoc,
+  collection,
   setDoc,
+  addDoc,
   doc as d,
-  collection as coll,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { CLIENT_ID, productsPath } from "../lib/paths";
-import { useState } from "react";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 /**
- * ImportProducts
+ * ImportProductsPolished
  *
- * A simple importer for bulk creating product documents from a CSV.  The
- * expected input columns are:
- *   sku       – unique identifier, used as the Firestore document ID
- *   gender    – Men, Women or Unisex
- *   product   – full product name (e.g. "Men's Ultra Merino Crew T‑Shirt")
- *   color
- *   size
- *
- * The importer will normalise gender (case‑insensitive), strip leading
- * "Men's"/"Women's" from the product name, and filter out disallowed
- * products such as gift cards or packaging.  Each valid row will be
- * written to `clients/{CLIENT_ID}/products/{sku}`.  When `useSkuAsId`
- * is disabled, documents are created with a generated ID.
+ * A polished importer component for bulk creating product documents from a CSV.
+ * It expects the following columns: sku, gender, product, color and size.
+ * The importer normalises gender, strips leading gender from the product name
+ * and filters out disallowed products (gift cards, packaging, etc.).  Rows
+ * with missing SKU or missing name are ignored.  The Firestore document
+ * location is `clients/{CLIENT_ID}/products/{sku}` when `useSkuAsId` is
+ * enabled; otherwise a generated ID is used.  Progress and status are
+ * displayed to the user.
  */
 export default function ImportProducts() {
   const [rows, setRows] = useState([]);
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState("Awaiting file upload...");
   const [useSkuAsId, setUseSkuAsId] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  // Handle file upload and parse CSV data
+  // Called when the user selects a CSV file
   function onFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setStatus("Parsing CSV...");
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      complete: ({ data }) => setRows(data),
+      complete: ({ data }) => {
+        setRows(data);
+        setStatus(`${data.length} rows parsed. Ready to import.`);
+      },
     });
   }
 
-  // Basic helpers for normalising and filtering
+  // Helpers for normalising and filtering
   const disallowed = [
     "gift card",
     "digital gift card",
@@ -50,119 +53,87 @@ export default function ImportProducts() {
     "ddp cost",
     "packaging",
   ];
-
-  function normaliseGender(g) {
-    if (!g) return "Unisex";
-    const val = String(g).trim().toLowerCase();
-    if (val.startsWith("men")) return "Men";
-    if (val.startsWith("women")) return "Women";
+  const stripGenderPrefix = (name) => {
+    const lc = name.toLowerCase();
+    if (lc.startsWith("men's ")) return name.slice(7);
+    if (lc.startsWith("women's ")) return name.slice(9);
+    return name;
+  };
+  const normaliseGender = (g) => {
+    const lc = (g || "").toLowerCase();
+    if (lc.startsWith("m")) return "Men";
+    if (lc.startsWith("w")) return "Women";
     return "Unisex";
-  }
+  };
+  const isAllowed = (productName) => {
+    const lc = productName.toLowerCase();
+    return !disallowed.some((bad) => lc.includes(bad));
+  };
 
-  function stripGenderPrefix(name) {
-    if (!name) return "";
-    let n = String(name).trim();
-    // Remove leading "Men's", "Men", "Women's" etc.
-    n = n.replace(/^men['s]*\s+/i, "");
-    n = n.replace(/^women['s]*\s+/i, "");
-    return n;
-  }
-
-  function shouldSkip(product) {
-    if (!product) return true;
-    const n = String(product).toLowerCase();
-    return disallowed.some((bad) => n.includes(bad));
-  }
-
-  // Perform the import
-  async function runImport() {
-    if (!rows.length) {
-      setStatus("No rows parsed.");
-      return;
-    }
-    setStatus("Importing…");
-    const colRef = coll(db, ...productsPath);
-    let ok = 0;
-    let fail = 0;
-
-    for (const r of rows) {
+  // Import all rows to Firestore
+  async function importRows() {
+    if (!rows.length) return;
+    setLoading(true);
+    setStatus("Importing products...");
+    let imported = 0;
+    for (const row of rows) {
+      const sku = (row.sku || "").trim();
+      const productName = (row.product || row.name || "").trim();
+      if (!sku || !productName) continue;
+      if (!isAllowed(productName)) continue;
+      const docId = useSkuAsId ? sku : undefined;
+      const productData = {
+        gender: normaliseGender(row.gender),
+        name: stripGenderPrefix(productName),
+        color: (row.color || row.colour || "").trim(),
+        size: (row.size || "").trim(),
+        sku,
+        // add any other fields here as needed
+      };
+      const docPath = docId
+        ? d(...productsPath, docId)
+        : undefined;
       try {
-        const sku = (r.sku || "").trim();
-        const rawGender = (r.gender || "").trim();
-        const rawName = (r.product || "").trim();
-        const color = (r.color || "").trim();
-        const size = (r.size || "").trim();
-
-        // Validate required fields
-        if (!sku || !rawName) {
-          fail++;
-          continue;
-        }
-
-        // Filter disallowed products
-        if (shouldSkip(rawName)) {
-          continue;
-        }
-
-        const gender = normaliseGender(rawGender);
-        const name = stripGenderPrefix(rawName);
-
-        const record = {
-          sku,
-          gender,
-          name,
-          color,
-          size,
-          clientId: CLIENT_ID,
-          createdAt: new Date().toISOString(),
-        };
-
-        if (useSkuAsId) {
-          await setDoc(d(db, ...productsPath, sku), record, { merge: true });
+        if (docId) {
+          await setDoc(docPath, productData, { merge: true });
         } else {
-          await addDoc(colRef, record);
+          await addDoc(collection(db, ...productsPath), productData);
         }
-        ok++;
+        imported++;
       } catch (err) {
-        console.error(err);
-        fail++;
+        console.error("Error importing", sku, err);
       }
     }
-    setStatus(`Done. Imported: ${ok}, Failed: ${fail}`);
+    setLoading(false);
+    setStatus(`${imported} products imported successfully.`);
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-4">
-      <h1 className="text-xl font-semibold">Import Products (CSV)</h1>
-      <p className="text-sm text-gray-600">
-        CSV headers required: <code>sku</code>, <code>gender</code>,
-        <code>product</code>, <code>color</code>, <code>size</code>. Gender and
-        product are used to normalise names. All other columns will be
-        ignored. Products containing “Gift Card”, “Duster bag”, “DDP Cost”
-        or “Packaging” will be skipped.
-      </p>
-      <input
-        type="file"
-        accept=".csv"
-        onChange={onFile}
-        className="border p-2 rounded-lg"
-      />
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={useSkuAsId}
-          onChange={(e) => setUseSkuAsId(e.target.checked)}
-        />
-        Use <code>sku</code> as document ID
-      </label>
-      <button
-        className="rounded-lg px-4 py-2 border border-gray-300 hover:bg-gray-50 disabled:opacity-60"
-        onClick={runImport}
-        disabled={!rows.length}
-      >
-        Import {rows.length ? `(${rows.length})` : ""}
-      </button>
-      <div className="text-sm">{status}</div>
+    <div className="p-4 space-y-6">
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold">Import Products</h2>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input type="file" accept=".csv" onChange={onFile} />
+          <div className="flex items-center space-x-2">
+            <input
+              id="useSkuAsId"
+              type="checkbox"
+              checked={useSkuAsId}
+              onChange={(e) => setUseSkuAsId(e.target.checked)}
+              className="mr-2"
+            />
+            <label htmlFor="useSkuAsId" className="text-sm">
+              Use SKU as document ID
+            </label>
+          </div>
+          <Button onClick={importRows} disabled={loading || !rows.length}>
+            {loading ? "Importing..." : "Import"}
+          </Button>
+          <p className="text-sm text-gray-600">{status}</p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
