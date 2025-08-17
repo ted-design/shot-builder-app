@@ -11,7 +11,7 @@ import {
   arrayUnion,
   arrayRemove,
 } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { db } from "../firebase";
 import {
   getActiveProjectId,
   shotsPath as getShotsPath,
@@ -19,9 +19,9 @@ import {
   talentPath,
   locationsPath,
 } from "../lib/paths";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardContent } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
 
 /**
  * ShotsPage
@@ -163,7 +163,7 @@ export default function ShotsPage() {
     });
   };
 
-  // Update an existing shot.  Patch only fields provided in `patch`.
+  // Update an existing shot. Patch only fields provided in `patch`.
   const updateShot = async (shot, patch) => {
     const before = {
       productIds: shot.productIds || [],
