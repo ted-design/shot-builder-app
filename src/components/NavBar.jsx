@@ -16,7 +16,6 @@ export default function NavBar({ user }) {
       <Link to="/talent" style={active("/talent")}>Talent</Link>
       <Link to="/locations" style={active("/locations")}>Locations</Link>
       <Link to="/pulls" style={active("/pulls")}>Pulls</Link>
-      {/* ✅ New Import link */}
       <Link to="/import-products" style={active("/import-products")}>Import</Link>
       <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:12}}>
         {user && <span style={{opacity:0.8}}>{user.displayName || user.email}</span>}
