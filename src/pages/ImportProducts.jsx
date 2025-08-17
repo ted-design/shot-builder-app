@@ -6,11 +6,11 @@ import {
   addDoc,
   doc as d,
 } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { db } from "../firebase";
 import { CLIENT_ID, productsPath } from "../lib/paths";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardContent } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
 
 /**
  * ImportProductsPolished
