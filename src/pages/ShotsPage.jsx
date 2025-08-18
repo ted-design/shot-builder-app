@@ -1,3 +1,11 @@
+// src/pages/ShotsPage.jsx (global shots version)
+//
+// This version centralises all shots into a single collection at
+// `clients/{clientId}/shots` and adds a `projectId` field to each shot
+// document.  When fetching shots we filter on the active project ID using
+// a `where('projectId', '==', projectId)` clause.  This makes it easy to
+// reassign shots to other projects—simply update the `projectId` field.
+
 import { useEffect, useState } from "react";
 import {
   collection,
@@ -5,6 +13,7 @@ import {
   onSnapshot,
   query,
   orderBy,
+  where,
   doc,
   updateDoc,
   deleteDoc,
@@ -23,15 +32,6 @@ import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 
-/**
- * ShotsPage
- *
- * This page allows you to create and manage shots for the active project.  It
- * displays a simple form for capturing basic details (name, description,
- * type, date, location and associations with products and talent) and a list
- * of existing shots.  Each shot card includes quick actions to rename or
- * delete the shot as well as select dropdowns to update its associations.
- */
 export default function ShotsPage() {
   const [shots, setShots] = useState([]);
   const [draft, setDraft] = useState({
@@ -48,11 +48,17 @@ export default function ShotsPage() {
   const [locations, setLocations] = useState([]);
   const projectId = getActiveProjectId();
 
-  // Helper to build collection/document references
+  // Helper to build references
   const collRef = (...segments) => collection(db, ...segments);
   const docRef = (...segments) => doc(db, ...segments);
 
-  // Keep related reverse indexes up to date when products/talent/locations change on a shot
+  /**
+   * Keep related reverse indexes up to date when products/talent/locations change
+   * on a shot.  When a shot references a product, for example, we also add the
+   * shot ID to that product's `shotIds` array.  When removing a reference we
+   * remove the shot ID from the relevant document.  Errors are caught and
+   * ignored so that missing documents don't break the operation.
+   */
   async function updateReverseIndexes({ shotId, before, after }) {
     // Products
     const prevP = new Set(before.productIds || []);
@@ -61,12 +67,16 @@ export default function ShotsPage() {
     const remsP = [...prevP].filter((id) => !nextP.has(id));
     await Promise.all(
       addsP.map((id) =>
-        updateDoc(docRef(...productsPath, id), { shotIds: arrayUnion(shotId) }).catch(() => {})
+        updateDoc(docRef(...productsPath, id), { shotIds: arrayUnion(shotId) }).catch(
+          () => {}
+        )
       )
     );
     await Promise.all(
       remsP.map((id) =>
-        updateDoc(docRef(...productsPath, id), { shotIds: arrayRemove(shotId) }).catch(() => {})
+        updateDoc(docRef(...productsPath, id), { shotIds: arrayRemove(shotId) }).catch(
+          () => {}
+        )
       )
     );
     // Talent
@@ -99,14 +109,19 @@ export default function ShotsPage() {
     }
   }
 
-  // Subscribe to collections for shots, products, talent and locations
+  // Subscribe to collections.  We listen to the global shots collection but
+  // filter on projectId so that switching projects automatically updates
+  // the list without reloading.  Products, talent and locations remain
+  // unfiltered because they are global resources.
   useEffect(() => {
-    const unsubShots = onSnapshot(
-      query(collRef(...getShotsPath(projectId)), orderBy("date", "asc")),
-      (snapshot) => {
-        setShots(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      }
+    const shotsQuery = query(
+      collRef(...getShotsPath()),
+      where("projectId", "==", projectId),
+      orderBy("date", "asc")
     );
+    const unsubShots = onSnapshot(shotsQuery, (snapshot) => {
+      setShots(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    });
     const unsubProducts = onSnapshot(
       query(collRef(...productsPath), orderBy("name", "asc")),
       (snapshot) => {
@@ -133,18 +148,20 @@ export default function ShotsPage() {
     };
   }, [projectId]);
 
-  // Create a new shot
+  // Create a new shot.  We record projectId explicitly so that cross‑project
+  // queries can filter on it.  Other fields default to sensible values.
   const createShot = async () => {
     if (!draft.name) return;
-    const docRef = await addDoc(collRef(...getShotsPath(projectId)), {
+    const docRefSnap = await addDoc(collRef(...getShotsPath()), {
       ...draft,
+      projectId: projectId,
       productIds: draft.productIds || [],
       talentIds: draft.talentIds || [],
       locationId: draft.locationId || null,
       createdAt: Date.now(),
     });
     await updateReverseIndexes({
-      shotId: docRef.id,
+      shotId: docRefSnap.id,
       before: { productIds: [], talentIds: [], locationId: null },
       after: {
         productIds: draft.productIds,
@@ -163,7 +180,10 @@ export default function ShotsPage() {
     });
   };
 
-  // Update an existing shot. Patch only fields provided in `patch`.
+  // Update an existing shot.  We compute before/after arrays for reverse
+  // indexing and only update fields that have changed.  Note: If you allow
+  // editing the project assignment in the future, updating the `projectId`
+  // here will effectively reassign the shot.
   const updateShot = async (shot, patch) => {
     const before = {
       productIds: shot.productIds || [],
@@ -175,28 +195,19 @@ export default function ShotsPage() {
       talentIds: patch.talentIds ?? before.talentIds,
       locationId: patch.locationId ?? before.locationId,
     };
-    await updateDoc(docRef(...getShotsPath(projectId), shot.id), patch);
-    if (
-      patch.productIds !== undefined ||
-      patch.talentIds !== undefined ||
-      patch.locationId !== undefined
-    ) {
-      await updateReverseIndexes({ shotId: shot.id, before, after });
-    }
+    await updateDoc(docRef(...getShotsPath(), shot.id), patch);
+    await updateReverseIndexes({ shotId: shot.id, before, after });
   };
 
-  // Delete a shot
+  // Delete a shot.  We remove it from all reverse indexes before deleting
+  // the document itself.
   const removeShot = async (shot) => {
     await updateReverseIndexes({
       shotId: shot.id,
-      before: {
-        productIds: shot.productIds || [],
-        talentIds: shot.talentIds || [],
-        locationId: shot.locationId || null,
-      },
+      before: shot,
       after: { productIds: [], talentIds: [], locationId: null },
     });
-    await deleteDoc(docRef(...getShotsPath(projectId), shot.id));
+    await deleteDoc(docRef(...getShotsPath(), shot.id));
   };
 
   return (
@@ -216,9 +227,7 @@ export default function ShotsPage() {
             <Input
               placeholder="Description"
               value={draft.description}
-              onChange={(e) =>
-                setDraft({ ...draft, description: e.target.value })
-              }
+              onChange={(e) => setDraft({ ...draft, description: e.target.value })}
             />
             <Input
               placeholder="Type"
@@ -238,9 +247,7 @@ export default function ShotsPage() {
             <select
               className="w-full border rounded p-2"
               value={draft.locationId}
-              onChange={(e) =>
-                setDraft({ ...draft, locationId: e.target.value || "" })
-              }
+              onChange={(e) => setDraft({ ...draft, locationId: e.target.value || "" })}
             >
               <option value="">(none)</option>
               {locations.map((l) => (
@@ -262,9 +269,7 @@ export default function ShotsPage() {
               onChange={(e) =>
                 setDraft({
                   ...draft,
-                  productIds: Array.from(e.target.selectedOptions).map(
-                    (o) => o.value
-                  ),
+                  productIds: Array.from(e.target.selectedOptions).map((o) => o.value),
                 })
               }
             >
@@ -287,9 +292,7 @@ export default function ShotsPage() {
               onChange={(e) =>
                 setDraft({
                   ...draft,
-                  talentIds: Array.from(e.target.selectedOptions).map(
-                    (o) => o.value
-                  ),
+                  talentIds: Array.from(e.target.selectedOptions).map((o) => o.value),
                 })
               }
             >
@@ -321,11 +324,7 @@ export default function ShotsPage() {
                   >
                     Rename
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => removeShot(s)}
-                  >
+                  <Button size="sm" variant="destructive" onClick={() => removeShot(s)}>
                     Delete
                   </Button>
                 </div>
@@ -333,9 +332,27 @@ export default function ShotsPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               <p>{s.description || "–"}</p>
-              <p className="text-sm text-gray-600">
-                Type: {s.type || "–"} • Date: {s.date || "–"}
-              </p>
+              {/* Inline editors for type and date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                <div>
+                  <label className="text-sm font-medium mb-1">Type</label>
+                  <input
+                    className="w-full border rounded p-2"
+                    type="text"
+                    value={s.type || ""}
+                    onChange={(e) => updateShot(s, { type: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1">Date</label>
+                  <input
+                    className="w-full border rounded p-2"
+                    type="date"
+                    value={s.date || ""}
+                    onChange={(e) => updateShot(s, { date: e.target.value })}
+                  />
+                </div>
+              </div>
               {/* Quick editors for location, products, talent */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
                 <div>
@@ -343,11 +360,7 @@ export default function ShotsPage() {
                   <select
                     className="w-full border rounded p-2"
                     value={s.locationId || ""}
-                    onChange={(e) =>
-                      updateShot(s, {
-                        locationId: e.target.value || null,
-                      })
-                    }
+                    onChange={(e) => updateShot(s, { locationId: e.target.value || null })}
                   >
                     <option value="">(none)</option>
                     {locations.map((l) => (
@@ -358,27 +371,23 @@ export default function ShotsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1">
-                    Products
-                  </label>
-                    <select
-                      className="w-full border rounded p-2"
-                      multiple
-                      value={s.productIds || []}
-                      onChange={(e) =>
-                        updateShot(s, {
-                          productIds: Array.from(
-                            e.target.selectedOptions
-                          ).map((o) => o.value),
-                        })
-                      }
-                    >
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
+                  <label className="text-sm font-medium mb-1">Products</label>
+                  <select
+                    className="w-full border rounded p-2"
+                    multiple
+                    value={s.productIds || []}
+                    onChange={(e) =>
+                      updateShot(s, {
+                        productIds: Array.from(e.target.selectedOptions).map((o) => o.value),
+                      })
+                    }
+                  >
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-1">Talent</label>
@@ -388,9 +397,7 @@ export default function ShotsPage() {
                     value={s.talentIds || []}
                     onChange={(e) =>
                       updateShot(s, {
-                        talentIds: Array.from(
-                          e.target.selectedOptions
-                        ).map((o) => o.value),
+                        talentIds: Array.from(e.target.selectedOptions).map((o) => o.value),
                       })
                     }
                   >
