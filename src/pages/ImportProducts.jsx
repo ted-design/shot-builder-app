@@ -95,8 +95,11 @@ export default function ImportProducts() {
   ];
   const stripGenderPrefix = (name) => {
     const lc = name.toLowerCase();
-    if (lc.startsWith("men's ")) return name.slice(7);
-    if (lc.startsWith("women's ")) return name.slice(9);
+    // Remove gender prefixes, preserving the first letter of the product name.
+    // "Men's " is 6 characters (M e n ' s and space).  Using slice(6) keeps the first
+    // character of the actual name.  Similarly, "Women's " is 8 characters.
+    if (lc.startsWith("men's ")) return name.slice(6);
+    if (lc.startsWith("women's ")) return name.slice(8);
     return name;
   };
   const normaliseGender = (g) => {
