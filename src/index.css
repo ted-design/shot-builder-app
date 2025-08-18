@@ -1,8 +1,8 @@
+/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* app-level tweaks */
-html, body, #root {
-  height: 100%;
-}
+/* App-wide helpers */
+html { -webkit-text-size-adjust: 100%; }
+body { @apply bg-gray-50 text-gray-900; }
