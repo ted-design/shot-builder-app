@@ -34,6 +34,8 @@ export default function ProductsPage() {
   const [draft, setDraft] = useState({ name:"", sku:"", category:"", active:true });
   const [file, setFile] = useState(null);
   const [qText, setQText] = useState("");
+  // Toggle to show discontinued products. When false, only active items are shown.
+  const [showDiscontinued, setShowDiscontinued] = useState(false);
 
   useEffect(() => {
     const qy = query(collection(db, ...productsPath), orderBy("name","asc"));
@@ -87,16 +89,36 @@ export default function ProductsPage() {
     if (prevPath) { try { await deleteImageByPath(prevPath); } catch {} }
   };
 
-  const filtered = qText
-    ? items.filter(i => (i.name||"").toLowerCase().includes(qText.toLowerCase()))
-    : items;
+  // Apply search and discontinued filters. Show all items if showDiscontinued is true,
+  // otherwise hide items where active === false.
+  const filtered = items.filter(i => {
+    const matchesSearch = qText
+      ? (i.name || "").toLowerCase().includes(qText.toLowerCase())
+      : true;
+    const matchesActive = showDiscontinued || i.active;
+    return matchesSearch && matchesActive;
+  });
 
   return (
     <div style={{padding:24}}>
       <h1>Products</h1>
 
-      <div style={{display:"flex",gap:8,marginBottom:8}}>
-        <input placeholder="Search..." value={qText} onChange={e=>setQText(e.target.value)}/>
+      <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
+        <input
+          placeholder="Search..."
+          value={qText}
+          onChange={e => setQText(e.target.value)}
+          style={{flexGrow:1}}
+        />
+        <label style={{display:"flex",alignItems:"center",gap:4,fontSize:12}}>
+          <input
+            type="checkbox"
+            checked={showDiscontinued}
+            onChange={e => setShowDiscontinued(e.target.checked)}
+            style={{margin:0}}
+          />
+          Show discontinued
+        </label>
       </div>
 
       <div style={{display:"grid",gap:8,maxWidth:560,marginBottom:24}}>
