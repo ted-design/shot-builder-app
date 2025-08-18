@@ -23,9 +23,10 @@ jobs:
         with:
           node-version: 'lts/*'
           cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'  # optional but helps
 
-		- name: Install dep
-  		run: npm ci || npm install
+      - name: Install dependencies
+        run: npm ci || npm install
 
       - name: Lint (if available)
         run: npm run lint --if-present
@@ -37,8 +38,9 @@ jobs:
         run: npm run build
 
       - name: Upload dist artifact
-        if: ${{ always() && hashFiles('dist/**') != '' }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist
+          if-no-files-found: ignore   # avoids failure if dist doesn't exist
