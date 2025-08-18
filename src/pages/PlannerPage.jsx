@@ -134,17 +134,38 @@ export default function PlannerPage() {
   };
 
   // Assign a legacy shot (from default-project) to the current project.
+  //
+  // When migrating a shot, attempt to preserve its scheduled date.  If the
+  // shot has a `date` field, we look for a lane in the current project whose
+  // name matches that date (e.g. "2025-09-12").  If none exists, we create
+  // a new lane with that name and append it to the end of the lane list.  The
+  // shot is then inserted with its `laneId` set to the found/created lane and
+  // its `date` retained.  Shots without a date are left unassigned (laneId
+  // null).  Finally, the original document is removed from the legacy
+  // collection.
   const assignLegacyShot = async (sh) => {
-    // Copy the shot document into the current project's shots collection.  We remove
-    // the id field and laneId so the shot will appear in the Unassigned lane of
-    // the new project.  You may wish to retain other fields like date or add
-    // projectId to the document here.
-    const { id, laneId, ...data } = sh;
+    const { id, laneId: _oldLaneId, date, ...data } = sh;
+    let targetLaneId = null;
+    if (date) {
+      // Find an existing lane with the same name as the shot's date
+      const laneQuery = query(collection(db, ...lanesPath(projectId)), where("name", "==", date));
+      const laneSnap = await getDocs(laneQuery);
+      if (!laneSnap.empty) {
+        targetLaneId = laneSnap.docs[0].id;
+      } else {
+        // Create a new lane at the end with this date as its name
+        const newLaneRef = await addDoc(collection(db, ...lanesPath(projectId)), {
+          name: date,
+          order: lanes.length,
+        });
+        targetLaneId = newLaneRef.id;
+      }
+    }
     await addDoc(collection(db, ...projectPath(projectId), "shots"), {
       ...data,
-      laneId: null,
+      laneId: targetLaneId,
+      date: date || null,
     });
-    // Remove the original document from the legacy project.
     await deleteDoc(doc(db, ...projectPath(legacyProjectId), "shots", id));
   };
 
