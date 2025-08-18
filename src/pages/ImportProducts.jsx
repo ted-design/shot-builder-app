@@ -1,173 +1,132 @@
-import { useState } from "react";
-// Note: We removed the external papaparse dependency in favour of a simple CSV parser.
-// parseCSV splits CSV lines into objects with headers; it handles quoted fields with commas.
-function parseCSV(text) {
-  const rows = [];
-  const lines = text.trim().split(/\r?\n/);
-  if (!lines.length) return rows;
-  // Use regex to split by comma not enclosed in quotes
-  const splitter = /,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/;
-  const headers = lines[0].split(splitter).map((h) => h.trim().replace(/^\"|\"$/g, ""));
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const values = lines[i].split(splitter).map((c) => c.trim().replace(/^\"|\"$/g, ""));
-    const obj = {};
-    headers.forEach((h, idx) => {
-      obj[h] = values[idx] ?? "";
-    });
-    rows.push(obj);
-  }
-  return rows;
-}
-import {
-  collection,
-  setDoc,
-  addDoc,
-  doc as d,
-  writeBatch,
-} from "firebase/firestore";
-// Import Firestore instance from the concrete Firebase config.  The
-// `lib/firebase` module expects environment variables; using the root
-// config ensures API keys are available.
+// src/pages/ImportProducts.jsx
+import React, { useState } from "react";
 import { db } from "../firebase";
-import { CLIENT_ID, productsPath } from "../lib/paths";
-// Import simple UI primitives from our local implementation instead of using an
-// alias.  These components live under src/components/ui.
+import { collection, doc, writeBatch } from "firebase/firestore";
+import { productsPath } from "../lib/paths";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
-import { Input } from "../components/ui/input";
+import { Input, Checkbox } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 
-/**
- * ImportProductsPolished
- *
- * A polished importer component for bulk creating product documents from a CSV.
- * It expects the following columns: sku, gender, product, color and size.
- * The importer normalises gender, strips leading gender from the product name
- * and filters out disallowed products (gift cards, packaging, etc.).  Rows
- * with missing SKU or missing name are ignored.  The Firestore document
- * location is `clients/{CLIENT_ID}/products/{sku}` when `useSkuAsId` is
- * enabled; otherwise a generated ID is used.  Progress and status are
- * displayed to the user.
- */
+/** Utility: robust CSV parser for simple, comma-separated files with quoted fields. */
+function parseCSV(text) {
+  const rows = [];
+  let i = 0, field = "", row = [], inQuotes = false;
+  const pushField = () => { row.push(field); field = ""; };
+  const pushRow = () => { rows.push(row); row = []; };
+
+  while (i < text.length) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
+      }
+      field += c; i++; continue;
+    }
+    if (c === '"') { inQuotes = true; i++; continue; }
+    if (c === ",") { pushField(); i++; continue; }
+    if (c === "\n" || c === "\r") {
+      // Handle CRLF/CR
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      pushField(); pushRow(); i++; continue;
+    }
+    field += c; i++;
+  }
+  // flush last field/row
+  if (field.length || row.length) { pushField(); pushRow(); }
+
+  // Convert to array of objects using header row
+  if (rows.length === 0) return [];
+  const headers = rows[0].map(h => (h || "").trim());
+  return rows.slice(1).map(cols => {
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h] = (cols[idx] || "").trim(); });
+    return obj;
+  });
+}
+
+/** Safer gender prefix removal: removes only a leading “Men's ” or “Women's ”, case-insensitive. */
+function stripGenderPrefix(name) {
+  if (!name) return name;
+  return name.replace(/^(men's\s+|women's\s+)/i, "");
+}
+
 export default function ImportProducts() {
-  const [rows, setRows] = useState([]);
   const [status, setStatus] = useState("Awaiting file upload...");
+  const [rows, setRows] = useState([]);
   const [useSkuAsId, setUseSkuAsId] = useState(true);
   const [loading, setLoading] = useState(false);
-  // Track progress of import. `progress` is the number of rows imported so far.
-  // `total` is set when the CSV is parsed to the total number of rows.
   const [progress, setProgress] = useState(0);
   const [total, setTotal] = useState(0);
 
-  // Called when the user selects a CSV file
-  function onFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const onFile = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
     setStatus("Parsing CSV...");
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const text = evt.target?.result || "";
-        const data = parseCSV(String(text));
-        setRows(data);
-        setStatus(`${data.length} rows parsed. Ready to import.`);
-        // initialise progress tracking
-        setTotal(data.length);
-        setProgress(0);
-      } catch (err) {
-        console.error(err);
-        setStatus("Failed to parse CSV");
-      }
-    };
-    reader.onerror = () => {
-      setStatus("Failed to read file");
-    };
-    reader.readAsText(file);
-  }
-
-  // Helpers for normalising and filtering
-  const disallowed = [
-    "gift card",
-    "digital gift card",
-    "duster bag",
-    "ddp cost",
-    "packaging",
-  ];
-  const stripGenderPrefix = (name) => {
-    const lc = name.toLowerCase();
-    // Remove gender prefixes, preserving the first letter of the product name.
-    // "Men's " is 6 characters (M e n ' s and space).  Using slice(6) keeps the first
-    // character of the actual name.  Similarly, "Women's " is 8 characters.
-    if (lc.startsWith("men's ")) return name.slice(6);
-    if (lc.startsWith("women's ")) return name.slice(8);
-    return name;
-  };
-  const normaliseGender = (g) => {
-    const lc = (g || "").toLowerCase();
-    if (lc.startsWith("m")) return "Men";
-    if (lc.startsWith("w")) return "Women";
-    return "Unisex";
-  };
-  const isAllowed = (productName) => {
-    const lc = productName.toLowerCase();
-    return !disallowed.some((bad) => lc.includes(bad));
+    const text = await f.text();
+    const parsed = parseCSV(text);
+    setRows(parsed);
+    setTotal(parsed.length);
+    setProgress(0);
+    setStatus(`Parsed ${parsed.length} rows. Ready to import.`);
   };
 
-  // Import all rows to Firestore
   async function importRows() {
     if (!rows.length) return;
     setLoading(true);
     setStatus("Importing products...");
     setProgress(0);
-    // Pre-filter rows to avoid counting skipped rows in total
-    const validRows = [];
-    for (const row of rows) {
-      const skuValue = (row.sku || "").trim();
-      const productName = (row.product || row.name || "").trim();
-      if (!skuValue || !productName) continue;
-      if (!isAllowed(productName)) continue;
-      validRows.push(row);
+
+    // Prepare valid rows
+    const valid = [];
+    for (const r of rows) {
+      const sku = (r.sku || r.SKU || "").trim();
+      const name = stripGenderPrefix((r.product || r.name || r.Product || "").trim());
+      if (!sku || !name) continue;
+      valid.push({ sku, r, name });
     }
-    // Reset total based on valid rows
-    setTotal(validRows.length);
+    setTotal(valid.length);
+
+    // Batch in chunks of 50
+    const chunkSize = 50;
     let imported = 0;
-    const BATCH_SIZE = 50;
-    for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
-      const chunk = validRows.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < valid.length; i += chunkSize) {
+      const chunk = valid.slice(i, i + chunkSize);
       const batch = writeBatch(db);
-      for (const row of chunk) {
-        const sku = (row.sku || "").trim();
-        const productName = (row.product || row.name || "").trim();
-        const docId = useSkuAsId ? sku : undefined;
-        const productData = {
-          gender: normaliseGender(row.gender),
-          name: stripGenderPrefix(productName),
-          color: (row.color || row.colour || "").trim(),
-          size: (row.size || "").trim(),
+      for (const it of chunk) {
+        const { sku, name, r } = it;
+        const data = {
           sku,
+          name,
+          category: (r.category || r.Category || "").trim() || null,
+          color: (r.color || r.Color || "").trim() || null,
+          size: (r.size || r.Size || "").trim() || null,
+          gender: (r.gender || r.Gender || "").trim() || null,
+          active: String(r.active || r.Active || "").toLowerCase() !== "discontinued",
+          discontinued: String(r.active || r.Active || "").toLowerCase() === "discontinued",
+          updatedAt: new Date().toISOString(),
         };
-        let docRef;
-        if (docId) {
-          // When a SKU is used as the document ID, build the path relative to the root Firestore instance.
-          docRef = d(db, ...productsPath, docId);
+        const id = useSkuAsId ? sku : undefined;
+        if (id) {
+          const ref = doc(db, ...productsPath, id);
+          batch.set(ref, data, { merge: true });
         } else {
-          // Create a new document with a generated ID within the products collection.
-          const colRef = collection(db, ...productsPath);
-          docRef = d(colRef);
+          const col = collection(db, ...productsPath);
+          const ref = doc(col); // auto-ID
+          batch.set(ref, data, { merge: true });
         }
-        batch.set(docRef, productData, { merge: true });
       }
-      try {
-        await batch.commit();
-        imported += chunk.length;
-        setProgress(imported);
-      } catch (err) {
-        console.error("Error committing batch", err);
-      }
+      await batch.commit();
+      imported += chunk.length;
+      setProgress(imported);
+      setStatus(`Imported ${imported} / ${valid.length}`);
     }
+
     setLoading(false);
-    setStatus(`${imported} products imported successfully.`);
+    setStatus(`Done. Imported ${valid.length} products.`);
   }
+
+  const pct = total ? Math.round((progress / total) * 100) : 0;
 
   return (
     <div className="p-4 space-y-6">
@@ -177,31 +136,25 @@ export default function ImportProducts() {
         </CardHeader>
         <CardContent className="space-y-4">
           <Input type="file" accept=".csv" onChange={onFile} />
-          <div className="flex items-center space-x-2">
-            <input
-              id="useSkuAsId"
-              type="checkbox"
-              checked={useSkuAsId}
-              onChange={(e) => setUseSkuAsId(e.target.checked)}
-              className="mr-2"
-            />
-            <label htmlFor="useSkuAsId" className="text-sm">
-              Use SKU as document ID
-            </label>
+          <div className="flex items-center gap-2">
+            <Checkbox checked={useSkuAsId} onChange={e => setUseSkuAsId(e.target.checked)} />
+            <span className="text-sm text-gray-700">Use SKU as document ID</span>
           </div>
-          <Button onClick={importRows} disabled={loading || !rows.length}>
-            {loading ? "Importing..." : "Import"}
-          </Button>
-          {/* Show a progress bar while importing */}
-          {loading && total > 0 && (
-            <div className="space-y-1">
-              <progress value={progress} max={total} className="w-full h-2" />
-              <p className="text-xs text-gray-600">
-                {progress}/{total} imported
-              </p>
+
+          <div className="text-sm text-gray-600">{status}</div>
+
+          {(loading || progress > 0) && total > 0 && (
+            <div className="space-y-2">
+              <progress value={progress} max={total} className="w-full" />
+              <div className="text-xs text-gray-500">{progress} / {total} ({pct}%)</div>
             </div>
           )}
-          <p className="text-sm text-gray-600">{status}</p>
+
+          <div className="flex gap-2">
+            <Button onClick={importRows} disabled={!rows.length || loading}>
+              {loading ? "Importing..." : "Start Import"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
