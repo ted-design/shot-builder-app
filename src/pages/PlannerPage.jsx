@@ -1,4 +1,13 @@
-// src/pages/PlannerPage.jsx (enhanced with legacy shot assignment)
+// src/pages/PlannerPage.jsx (global shots version)
+//
+// This Planner subscribes to lanes under the active project and to a global
+// shots collection filtered by `projectId`.  Lanes are stored in
+// `projects/{projectId}/lanes` and maintain their per‑project scope.  Shots
+// live in `clients/{clientId}/shots` and include a `projectId` field so
+// they can be filtered per project.  Dragging a shot between lanes updates
+// its `laneId`, and if the lane name is a date (YYYY-MM-DD) the shot's
+// `date` field is updated as well.  All other behaviour matches the
+// previous Planner implementation.
 
 import { useEffect, useState } from "react";
 import {
@@ -23,15 +32,17 @@ import { db } from "../firebase";
 import {
   lanesPath,
   projectPath,
+  shotsPath,
   getActiveProjectId,
 } from "../lib/paths";
 
-// Reusable droppable and draggable components.
+// Simple droppable component for DnD kit
 function DroppableLane({ laneId, children }) {
   const { setNodeRef } = useDroppable({ id: `lane-${laneId}` });
   return <div ref={setNodeRef}>{children}</div>;
 }
 
+// Simple draggable shot card for DnD kit
 function DraggableShot({ shot }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: shot.id });
   const style = {
@@ -53,22 +64,21 @@ export default function PlannerPage() {
   const [lanes, setLanes] = useState([]);
   const [name, setName] = useState("");
   const [shotsByLane, setShotsByLane] = useState({});
-  const [legacyShots, setLegacyShots] = useState([]);
-
   const projectId = getActiveProjectId();
 
-  // ID of the legacy project where shots were created before a project was selected.
-  const legacyProjectId = "default-project";
-
   useEffect(() => {
-    // Subscribe to lanes and shots for the current project.
+    // Subscribe to lanes for the current project
     const laneRef = collection(db, ...lanesPath(projectId));
-    const shotsRef = collection(db, ...projectPath(projectId), "shots");
-
     const unsubL = onSnapshot(query(laneRef, orderBy("order", "asc")), (s) =>
       setLanes(s.docs.map((d) => ({ id: d.id, ...d.data() })))
     );
-    const unsubS = onSnapshot(shotsRef, (s) => {
+
+    // Subscribe to shots for the current project.  We query the global shots
+    // collection and filter by projectId.  Snapshots update the map of shots
+    // keyed by laneId, with "__unassigned__" used for null laneId.
+    const shotsRef = collection(db, ...shotsPath());
+    const shotsQuery = query(shotsRef, where("projectId", "==", projectId));
+    const unsubS = onSnapshot(shotsQuery, (s) => {
       const all = s.docs.map((d) => ({ id: d.id, ...d.data() }));
       const map = {};
       all.forEach((sh) => {
@@ -77,49 +87,52 @@ export default function PlannerPage() {
       });
       setShotsByLane(map);
     });
+
     return () => {
       unsubL();
       unsubS();
     };
   }, [projectId]);
 
-  useEffect(() => {
-    // Fetch shots from the legacy project (default-project) if it isn't the current one.
-    if (legacyProjectId === projectId) {
-      setLegacyShots([]);
-      return;
-    }
-    const legacyRef = collection(db, ...projectPath(legacyProjectId), "shots");
-    const unsubLegacy = onSnapshot(legacyRef, (s) => {
-      setLegacyShots(s.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-    return () => unsubLegacy();
-  }, [projectId]);
-
+  // Create a new lane with a given name.  Lanes are ordered sequentially
+  // based on the length of the current lane array.  Names are arbitrary but
+  // using a date format (YYYY-MM-DD) allows drag events to update shot dates.
   const addLane = async () => {
     if (!name) return;
     await addDoc(collection(db, ...lanesPath(projectId)), { name, order: lanes.length });
     setName("");
   };
 
+  // Prompt to rename a lane.  Empty input aborts the rename.
   const renameLane = async (lane) => {
     const newName = prompt("Lane name", lane.name);
     if (!newName) return;
     await updateDoc(doc(db, ...lanesPath(projectId), lane.id), { name: newName });
   };
 
+  // Remove a lane.  Before deleting the lane document we set laneId=null for
+  // all shots that currently reference this lane.  Because shots live in a
+  // central collection we need to query for the current project's shots with
+  // this laneId and update them.  Only then do we delete the lane.
   const removeLane = async (lane) => {
     if (!confirm("Delete lane?")) return;
-    const q = query(collection(db, ...projectPath(projectId), "shots"), where("laneId", "==", lane.id));
+    const q = query(
+      collection(db, ...shotsPath()),
+      where("projectId", "==", projectId),
+      where("laneId", "==", lane.id)
+    );
     const snap = await getDocs(q);
     await Promise.all(
       snap.docs.map((dref) =>
-        updateDoc(doc(db, ...projectPath(projectId), "shots", dref.id), { laneId: null })
+        updateDoc(doc(db, ...shotsPath(), dref.id), { laneId: null })
       )
     );
     await deleteDoc(doc(db, ...lanesPath(projectId), lane.id));
   };
 
+  // Handle drag end events.  Update the shot's laneId (and date if the lane
+  // name looks like a date).  Because shots are stored in a central
+  // collection we update via shotsPath().
   const onDragEnd = async (e) => {
     const shotId = e.active?.id;
     const overId = e.over?.id;
@@ -130,43 +143,7 @@ export default function PlannerPage() {
       const lane = lanes.find((l) => l.id === laneId);
       if (lane && /^\d{4}-\d{2}-\d{2}$/.test(lane.name)) patch.date = lane.name;
     }
-    await updateDoc(doc(db, ...projectPath(projectId), "shots", shotId), patch);
-  };
-
-  // Assign a legacy shot (from default-project) to the current project.
-  //
-  // When migrating a shot, attempt to preserve its scheduled date.  If the
-  // shot has a `date` field, we look for a lane in the current project whose
-  // name matches that date (e.g. "2025-09-12").  If none exists, we create
-  // a new lane with that name and append it to the end of the lane list.  The
-  // shot is then inserted with its `laneId` set to the found/created lane and
-  // its `date` retained.  Shots without a date are left unassigned (laneId
-  // null).  Finally, the original document is removed from the legacy
-  // collection.
-  const assignLegacyShot = async (sh) => {
-    const { id, laneId: _oldLaneId, date, ...data } = sh;
-    let targetLaneId = null;
-    if (date) {
-      // Find an existing lane with the same name as the shot's date
-      const laneQuery = query(collection(db, ...lanesPath(projectId)), where("name", "==", date));
-      const laneSnap = await getDocs(laneQuery);
-      if (!laneSnap.empty) {
-        targetLaneId = laneSnap.docs[0].id;
-      } else {
-        // Create a new lane at the end with this date as its name
-        const newLaneRef = await addDoc(collection(db, ...lanesPath(projectId)), {
-          name: date,
-          order: lanes.length,
-        });
-        targetLaneId = newLaneRef.id;
-      }
-    }
-    await addDoc(collection(db, ...projectPath(projectId), "shots"), {
-      ...data,
-      laneId: targetLaneId,
-      date: date || null,
-    });
-    await deleteDoc(doc(db, ...projectPath(legacyProjectId), "shots", id));
+    await updateDoc(doc(db, ...shotsPath(), shotId), patch);
   };
 
   return (
@@ -182,9 +159,18 @@ export default function PlannerPage() {
       </div>
       <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <div style={{ display: "grid", gridAutoFlow: "column", gap: 12, alignItems: "flex-start" }}>
-          {/* Unassigned */}
+          {/* Unassigned column */}
           <DroppableLane laneId="__unassigned__">
-            <div style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12, minWidth: 280, display: "grid", gap: 8 }}>
+            <div
+              style={{
+                border: "1px solid #ddd",
+                borderRadius: 10,
+                padding: 12,
+                minWidth: 280,
+                display: "grid",
+                gap: 8,
+              }}
+            >
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <strong>Unassigned</strong>
               </div>
@@ -195,9 +181,19 @@ export default function PlannerPage() {
               </div>
             </div>
           </DroppableLane>
+          {/* Project lanes */}
           {lanes.map((lane) => (
             <DroppableLane key={lane.id} laneId={lane.id}>
-              <div style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12, minWidth: 280, display: "grid", gap: 8 }}>
+              <div
+                style={{
+                  border: "1px solid #ddd",
+                  borderRadius: 10,
+                  padding: 12,
+                  minWidth: 280,
+                  display: "grid",
+                  gap: 8,
+                }}
+              >
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <strong>{lane.name}</strong>
                   <span style={{ display: "flex", gap: 6 }}>
@@ -215,23 +211,6 @@ export default function PlannerPage() {
           ))}
         </div>
       </DndContext>
-      {/* Legacy shots section */}
-      {legacyShots.length > 0 && (
-        <div style={{ marginTop: 32 }}>
-          <strong>Unassigned shots from previous sessions</strong>
-          <ul style={{ padding: 0, marginTop: 8, listStyle: "none", display: "grid", gap: 8 }}>
-            {legacyShots.map((sh) => (
-              <li key={sh.id} style={{ border: "1px solid #ddd", borderRadius: 10, padding: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{sh.name}</div>
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>{sh.type || "-"}</div>
-                </div>
-                <button onClick={() => assignLegacyShot(sh)}>Assign to current project</button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }
