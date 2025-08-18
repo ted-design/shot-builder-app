@@ -31,6 +31,7 @@ import {
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
+import ProductSelectorModal from "../components/ProductSelectorModal";
 
 export default function ShotsPage() {
   const [shots, setShots] = useState([]);
@@ -47,6 +48,11 @@ export default function ShotsPage() {
   const [talent, setTalent] = useState([]);
   const [locations, setLocations] = useState([]);
   const projectId = getActiveProjectId();
+
+  // Toggle for the product selection modal during shot creation.  When true,
+  // the ProductSelectorModal will be shown.  Use this only for creating new
+  // shots; editing existing shots still uses the multi-select for now.
+  const [showProductModal, setShowProductModal] = useState(false);
 
   // Helper to build references
   const collRef = (...segments) => collection(db, ...segments);
@@ -258,27 +264,36 @@ export default function ShotsPage() {
             </select>
           </div>
           {/* Products select */}
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Products (hold Ctrl/Cmd to multi-select)
-            </label>
-            <select
-              className="w-full border rounded p-2"
-              multiple
-              value={draft.productIds}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  productIds: Array.from(e.target.selectedOptions).map((o) => o.value),
-                })
-              }
+          {/* Products select: display chosen products with the ability to add
+              additional ones via a modal.  We no longer require users to
+              scroll through thousands of items; instead they click “Add
+              products” and search/facet through the list. */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Products</label>
+            {/* Show the names of selected products */}
+            <div className="flex flex-wrap gap-2">
+              {draft.productIds.map((pid) => {
+                const prod = products.find((p) => p.id === pid);
+                return (
+                  <span
+                    key={pid}
+                    className="bg-gray-200 text-sm px-2 py-1 rounded"
+                  >
+                    {prod ? prod.name : pid}
+                  </span>
+                );
+              })}
+              {!draft.productIds.length && (
+                <span className="text-sm text-gray-500">No products selected</span>
+              )}
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowProductModal(true)}
             >
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              Add Products
+            </Button>
           </div>
           {/* Talent select */}
           <div>
@@ -413,6 +428,23 @@ export default function ShotsPage() {
           </Card>
         ))}
       </div>
+      {/* Product selection modal for creating a new shot.  It only appears
+          when showProductModal is true.  We pass the full product list,
+          currently selected product IDs, a handler to add a product, and a
+          close callback. */}
+      {showProductModal && (
+        <ProductSelectorModal
+          products={products}
+          selectedIds={draft.productIds}
+          onAdd={(product) =>
+            setDraft((prev) => ({
+              ...prev,
+              productIds: Array.from(new Set([...prev.productIds, product.id])),
+            }))
+          }
+          onClose={() => setShowProductModal(false)}
+        />
+      )}
     </div>
   );
 }
