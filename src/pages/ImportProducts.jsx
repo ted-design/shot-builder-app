@@ -145,9 +145,10 @@ export default function ImportProducts() {
         };
         let docRef;
         if (docId) {
-          docRef = d(...productsPath, docId);
+          // When a SKU is used as the document ID, build the path relative to the root Firestore instance.
+          docRef = d(db, ...productsPath, docId);
         } else {
-          // Create a new document with a generated ID
+          // Create a new document with a generated ID within the products collection.
           const colRef = collection(db, ...productsPath);
           docRef = d(colRef);
         }
