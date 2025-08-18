@@ -1,15 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   collection,
   addDoc,
-  onSnapshot,
-  query,
-  orderBy,
   doc,
   updateDoc,
   deleteDoc,
+  orderBy,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { useFirestoreCollection } from "../hooks/useFirestoreCollection";
 import { CLIENT_ID } from "../lib/paths";
 
 // Import the shared UI primitives.  These provide consistent styling
@@ -21,37 +20,37 @@ import { Button } from "../components/ui/button";
 const projectsPath = ["clients", CLIENT_ID, "projects"];
 
 export default function ProjectsPage() {
-  const [items, setItems] = useState([]);
+  // Firestore subscription: listen for projects ordered by createdAt desc.
+  const projectsRef = collection(db, ...projectsPath);
+  const { data: itemsRaw, loading: loadingProjects, error: projectsError } =
+    useFirestoreCollection(projectsRef, [orderBy("createdAt", "desc")]);
+
+  // Derive a sorted list based on earliest shoot date so that upcoming shoots
+  // appear first.  This computation is memoised to avoid re‑sorting on
+  // every render when the list hasn't changed.
+  const items = useMemo(() => {
+    if (!itemsRaw) return [];
+    const list = [...itemsRaw];
+    list.sort((a, b) => {
+      const A = (a.shootDates && a.shootDates[0]) || "9999-12-31";
+      const B = (b.shootDates && b.shootDates[0]) || "9999-12-31";
+      return A.localeCompare(B);
+    });
+    return list;
+  }, [itemsRaw]);
   const [name, setName] = useState("");
   const [briefUrl, setBriefUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [dates, setDates] = useState([""]); // one date input to start
 
+  // Show an alert if the subscription reports an error.  This effect runs
+  // whenever `projectsError` changes.
   useEffect(() => {
-    // sort by first shoot date if available, else createdAt
-    const q = query(
-      collection(db, ...projectsPath),
-      orderBy("createdAt", "desc")
-    );
-    const unsub = onSnapshot(
-      q,
-      (s) => {
-        const list = s.docs.map((d) => ({ id: d.id, ...d.data() }));
-        // lightweight client sort: earliest shoot date asc
-        list.sort((a, b) => {
-          const A = (a.shootDates && a.shootDates[0]) || "9999-12-31";
-          const B = (b.shootDates && b.shootDates[0]) || "9999-12-31";
-          return A.localeCompare(B);
-        });
-        setItems(list);
-      },
-      (err) => {
-        alert("Error loading projects: " + err.message);
-        console.error(err);
-      }
-    );
-    return () => unsub();
-  }, []);
+    if (projectsError) {
+      alert("Error loading projects: " + projectsError.message);
+      console.error(projectsError);
+    }
+  }, [projectsError]);
 
   const addDateField = () => setDates([...dates, ""]);
   const changeDate = (i, v) => {
@@ -102,6 +101,12 @@ export default function ProjectsPage() {
 
   return (
     <div className="mx-auto max-w-screen-lg p-4 space-y-6">
+      {/* Show a simple loading state while the projects subscription is
+          initialising. A more sophisticated implementation could use a
+          skeleton loader component. */}
+      {loadingProjects && items.length === 0 && (
+        <div className="text-center text-sm text-gray-600">Loading projects…</div>
+      )}
       {/* Create project form */}
       <Card>
         <CardHeader className="text-lg font-medium">Create Project</CardHeader>
