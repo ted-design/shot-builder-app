@@ -1,11 +1,34 @@
+// updated ProductsPage.jsx
+//
+// This refactored version of the products page replaces inline CSS and
+// native form elements with the shared UI primitives (`Card`, `Input`,
+// `Checkbox`, `Button`) to achieve a consistent look across the app.  It
+// preserves all existing functionality: you can search products, create
+// new entries with optional thumbnails, toggle active status, and rename,
+// update images or delete items.  The layout is organised into a search
+// bar, a form card, and a list of product cards.
+
 import { useEffect, useState } from "react";
 import {
-  collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, query, orderBy
+  collection,
+  onSnapshot,
+  addDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
 } from "firebase/firestore";
 import { ref as storageRef, getDownloadURL } from "firebase/storage";
 import { db, storage, uploadImageFile, deleteImageByPath } from "../firebase";
 import { productsPath } from "../lib/paths";
+import { Card, CardHeader, CardContent } from "../components/ui/card";
+import { Input, Checkbox } from "../components/ui/input";
+import { Button } from "../components/ui/button";
 
+// Thumbnail component reused from the original implementation.  It shows a
+// placeholder while loading and automatically fetches a 200x200 variant if
+// available.  Styling is controlled via Tailwind classes.
 const resizedPath = (originalPath, size = 200) =>
   originalPath.replace(/(\.[^./]+)$/, `_${size}x${size}$1`);
 
@@ -23,138 +46,197 @@ function Thumb({ path, size = 64, alt = "" }) {
         if (alive) setUrl(u);
       }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [path, size]);
-  if (!url) return <div style={{width:size,height:size,background:"#eee",borderRadius:8}}/>;
-  return <img src={url} alt={alt} width={size} height={size} style={{objectFit:"cover",borderRadius:8}}/>;
+  if (!url)
+    return <div className="bg-gray-100 rounded" style={{ width: size, height: size }} />;
+  return (
+    <img
+      src={url}
+      alt={alt}
+      width={size}
+      height={size}
+      className="object-cover rounded"
+    />
+  );
 }
 
 export default function ProductsPage() {
   const [items, setItems] = useState([]);
-  const [draft, setDraft] = useState({ name:"", sku:"", category:"", active:true });
+  const [draft, setDraft] = useState({ name: "", sku: "", category: "", active: true });
   const [file, setFile] = useState(null);
   const [qText, setQText] = useState("");
-  // Toggle to show discontinued products. When false, only active items are shown.
   const [showDiscontinued, setShowDiscontinued] = useState(false);
 
+  // Subscribe to products collection
   useEffect(() => {
-    const qy = query(collection(db, ...productsPath), orderBy("name","asc"));
-    const unsub = onSnapshot(qy, s => setItems(s.docs.map(d => ({ id:d.id, ...d.data() }))));
+    const qy = query(collection(db, ...productsPath), orderBy("name", "asc"));
+    const unsub = onSnapshot(qy, (s) => setItems(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
     return () => unsub();
   }, []);
 
+  // Create a new product
   const create = async () => {
     if (!draft.name) return;
     const docRef = await addDoc(collection(db, ...productsPath), {
-      ...draft, shotIds: [], thumbnailPath: null, createdAt: Date.now()
+      ...draft,
+      shotIds: [],
+      thumbnailPath: null,
+      createdAt: Date.now(),
     });
     if (file) {
-      const { path } = await uploadImageFile(file, { folder:"products", id: docRef.id });
+      const { path } = await uploadImageFile(file, { folder: "products", id: docRef.id });
       await updateDoc(docRef, { thumbnailPath: path });
       setFile(null);
     }
-    setDraft({ name:"", sku:"", category:"", active:true });
+    setDraft({ name: "", sku: "", category: "", active: true });
   };
 
+  // Renaming and toggling helper functions
   const rename = async (item) => {
     const name = prompt("New name", item.name);
     if (!name) return;
     await updateDoc(doc(db, ...productsPath, item.id), { name });
   };
-
-  const changeImage = async (item) => {
-    const input = document.createElement("input");
-    input.type = "file"; input.accept = "image/*";
-    input.onchange = async (e) => {
-      const f = e.target.files?.[0]; if (!f) return;
-      const { path } = await uploadImageFile(f, { folder:"products", id: item.id });
-      await updateDoc(doc(db, ...productsPath, item.id), { thumbnailPath: path });
-      if (item.thumbnailPath) { try { await deleteImageByPath(item.thumbnailPath); } catch {} }
-    };
-    input.click();
-  };
-
-  const removeImage = async (item) => {
-    if (!item.thumbnailPath) return;
-    try { await deleteImageByPath(item.thumbnailPath); } catch {}
-    await updateDoc(doc(db, ...productsPath, item.id), { thumbnailPath: null });
-  };
-
   const toggleActive = async (item) => {
     await updateDoc(doc(db, ...productsPath, item.id), { active: !item.active });
   };
-
+  const changeImage = async (item) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = async (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      const { path } = await uploadImageFile(f, { folder: "products", id: item.id });
+      await updateDoc(doc(db, ...productsPath, item.id), { thumbnailPath: path });
+      if (item.thumbnailPath) {
+        try {
+          await deleteImageByPath(item.thumbnailPath);
+        } catch {}
+      }
+    };
+    input.click();
+  };
+  const removeImage = async (item) => {
+    if (!item.thumbnailPath) return;
+    try {
+      await deleteImageByPath(item.thumbnailPath);
+    } catch {}
+    await updateDoc(doc(db, ...productsPath, item.id), { thumbnailPath: null });
+  };
   const remove = async (id, prevPath) => {
     await deleteDoc(doc(db, ...productsPath, id));
-    if (prevPath) { try { await deleteImageByPath(prevPath); } catch {} }
+    if (prevPath) {
+      try {
+        await deleteImageByPath(prevPath);
+      } catch {}
+    }
   };
 
-  // Apply search and discontinued filters. Show all items if showDiscontinued is true,
-  // otherwise hide items where active === false.
-  const filtered = items.filter(i => {
-    const matchesSearch = qText
-      ? (i.name || "").toLowerCase().includes(qText.toLowerCase())
-      : true;
+  // Filter products based on search and discontinued toggle
+  const filtered = items.filter((i) => {
+    const matchesSearch = qText ? (i.name || "").toLowerCase().includes(qText.toLowerCase()) : true;
     const matchesActive = showDiscontinued || i.active;
     return matchesSearch && matchesActive;
   });
 
   return (
-    <div style={{padding:24}}>
-      <h1>Products</h1>
-
-      <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
-        <input
-          placeholder="Search..."
-          value={qText}
-          onChange={e => setQText(e.target.value)}
-          style={{flexGrow:1}}
-        />
-        <label style={{display:"flex",alignItems:"center",gap:4,fontSize:12}}>
-          <input
-            type="checkbox"
-            checked={showDiscontinued}
-            onChange={e => setShowDiscontinued(e.target.checked)}
-            style={{margin:0}}
+    <div className="p-4 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl font-bold">Products</h1>
+        {/* Search and discontinued toggle */}
+        <div className="flex items-center gap-4">
+          <Input
+            placeholder="Search…"
+            value={qText}
+            onChange={(e) => setQText(e.target.value)}
+            className="sm:max-w-xs"
           />
-          Show discontinued
-        </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <Checkbox
+              checked={showDiscontinued}
+              onChange={(e) => setShowDiscontinued(e.target.checked)}
+            />
+            Show discontinued
+          </label>
+        </div>
       </div>
 
-      <div style={{display:"grid",gap:8,maxWidth:560,marginBottom:24}}>
-        <input placeholder="Name" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})}/>
-        <input placeholder="SKU" value={draft.sku} onChange={e=>setDraft({...draft,sku:e.target.value})}/>
-        <input placeholder="Category" value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})}/>
-        <label style={{display:"flex",gap:8,alignItems:"center"}}>
-          <input type="checkbox" checked={draft.active} onChange={e=>setDraft({...draft,active:e.target.checked})}/>
-          Active
-        </label>
-        <input type="file" accept="image/*" onChange={e=>setFile(e.target.files?.[0]||null)}/>
-        <button onClick={create}>Add Product</button>
-      </div>
+      {/* Form to create a new product */}
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold">Create New Product</h2>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input
+            placeholder="Name"
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          />
+          <Input
+            placeholder="SKU"
+            value={draft.sku}
+            onChange={(e) => setDraft({ ...draft, sku: e.target.value })}
+          />
+          <Input
+            placeholder="Category"
+            value={draft.category}
+            onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+          />
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <Checkbox
+              checked={draft.active}
+              onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
+            />
+            Active
+          </label>
+          <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          <div>
+            <Button onClick={create}>Add Product</Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      <ul style={{display:"grid",gap:8}}>
-        {filtered.map(p => (
-          <li key={p.id}
-              style={{border:"1px solid #ddd",padding:12,borderRadius:8,display:"grid",
-                      gridTemplateColumns:"auto 1fr auto",gap:12,alignItems:"center"}}>
-            <Thumb path={p.thumbnailPath} size={64} alt={p.name}/>
-            <div>
-              <div><strong>{p.name}</strong> <span style={{opacity:0.6}}>{p.sku}</span></div>
-              <div style={{opacity:0.7,fontSize:12}}>
-                {p.category} • {p.active ? "Active" : "Discontinued"}
+      {/* List of existing products */}
+      <div className="space-y-4">
+        {filtered.map((p) => (
+          <Card key={p.id} className="overflow-hidden">
+            <CardContent className="p-4">
+              <div className="flex items-start sm:items-center gap-4">
+                <Thumb path={p.thumbnailPath} size={64} alt={p.name} />
+                <div className="flex-1 space-y-1">
+                  <div className="font-semibold text-base">
+                    {p.name} <span className="text-sm text-gray-500">{p.sku}</span>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {p.category || "–"} • {p.active ? "Active" : "Discontinued"}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => changeImage(p)}>
+                    Change Image
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => removeImage(p)}>
+                    Remove Image
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => toggleActive(p)}>
+                    {p.active ? "Set Discontinued" : "Set Active"}
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => rename(p)}>
+                    Rename
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => remove(p.id, p.thumbnailPath)}>
+                    Delete
+                  </Button>
+                </div>
               </div>
-            </div>
-            <div style={{display:"flex",gap:8}}>
-              <button onClick={()=>changeImage(p)}>Change Image</button>
-              <button onClick={()=>removeImage(p)}>Remove Image</button>
-              <button onClick={()=>toggleActive(p)}>{p.active ? "Set Discontinued" : "Set Active"}</button>
-              <button onClick={()=>rename(p)}>Rename</button>
-              <button onClick={()=>remove(p.id, p.thumbnailPath)}>Delete</button>
-            </div>
-          </li>
+            </CardContent>
+          </Card>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
