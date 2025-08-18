@@ -24,6 +24,7 @@ import {
   setDoc,
   addDoc,
   doc as d,
+  writeBatch,
 } from "firebase/firestore";
 // Import Firestore instance from the concrete Firebase config.  The
 // `lib/firebase` module expects environment variables; using the root
@@ -115,35 +116,49 @@ export default function ImportProducts() {
     setLoading(true);
     setStatus("Importing products...");
     setProgress(0);
-    let imported = 0;
+    // Pre-filter rows to avoid counting skipped rows in total
+    const validRows = [];
     for (const row of rows) {
-      const sku = (row.sku || "").trim();
+      const skuValue = (row.sku || "").trim();
       const productName = (row.product || row.name || "").trim();
-      if (!sku || !productName) continue;
+      if (!skuValue || !productName) continue;
       if (!isAllowed(productName)) continue;
-      const docId = useSkuAsId ? sku : undefined;
-      const productData = {
-        gender: normaliseGender(row.gender),
-        name: stripGenderPrefix(productName),
-        color: (row.color || row.colour || "").trim(),
-        size: (row.size || "").trim(),
-        sku,
-        // add any other fields here as needed
-      };
-      const docPath = docId
-        ? d(...productsPath, docId)
-        : undefined;
-      try {
+      validRows.push(row);
+    }
+    // Reset total based on valid rows
+    setTotal(validRows.length);
+    let imported = 0;
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
+      const chunk = validRows.slice(i, i + BATCH_SIZE);
+      const batch = writeBatch(db);
+      for (const row of chunk) {
+        const sku = (row.sku || "").trim();
+        const productName = (row.product || row.name || "").trim();
+        const docId = useSkuAsId ? sku : undefined;
+        const productData = {
+          gender: normaliseGender(row.gender),
+          name: stripGenderPrefix(productName),
+          color: (row.color || row.colour || "").trim(),
+          size: (row.size || "").trim(),
+          sku,
+        };
+        let docRef;
         if (docId) {
-          await setDoc(docPath, productData, { merge: true });
+          docRef = d(...productsPath, docId);
         } else {
-          await addDoc(collection(db, ...productsPath), productData);
+          // Create a new document with a generated ID
+          const colRef = collection(db, ...productsPath);
+          docRef = d(colRef);
         }
-        imported++;
-        // update progress after each successful import
+        batch.set(docRef, productData, { merge: true });
+      }
+      try {
+        await batch.commit();
+        imported += chunk.length;
         setProgress(imported);
       } catch (err) {
-        console.error("Error importing", sku, err);
+        console.error("Error committing batch", err);
       }
     }
     setLoading(false);
