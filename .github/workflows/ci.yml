@@ -24,9 +24,8 @@ jobs:
           node-version: 'lts/*'
           cache: 'npm'
 
-			- name: Install dependencies (prefer npm ci, fall back to npm install)
-  			run: |
-    		npm ci || npm install
+		- name: Install dep
+  		run: npm ci || npm install
 
       - name: Lint (if available)
         run: npm run lint --if-present
