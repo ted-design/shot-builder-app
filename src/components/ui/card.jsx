@@ -1,24 +1,15 @@
 // src/components/ui/card.jsx
-//
-// Basic Card components used throughout the application.  These are simple
-// presentational wrappers that encapsulate a white background, border and
-// padding.  They are intentionally minimalist to avoid a dependency on any
-// particular design system.  Consumers can extend the styles via the
-// `className` prop.  Additional props are spread onto the root element.
-
 import React from "react";
 
 /**
- * Card wrapper providing a border, rounded corners and shadow.  Use
- * CardHeader and CardContent components as children to structure the
- * content.
+ * Card component that wraps content in a white box with a border,
+ * rounded corners and a subtle shadow. Accepts a className prop
+ * to extend or override the styling.
  */
 export function Card({ className = "", children, ...props }) {
   return (
     <div
-      className={
-        `bg-white border border-gray-200 rounded-xl shadow ${className}`.trim()
-      }
+      className={`bg-white border border-gray-200 rounded-xl shadow ${className}`.trim()}
       {...props}
     >
       {children}
@@ -27,15 +18,14 @@ export function Card({ className = "", children, ...props }) {
 }
 
 /**
- * CardHeader wraps the header area of a card.  A bottom border separates
- * it from the body.  Useful for titles or action areas.
+ * CardHeader is a styled container for the top section of a card. It
+ * has a light gray background, bottom border, and extra padding. Use
+ * it for titles or actions.
  */
 export function CardHeader({ className = "", children, ...props }) {
   return (
     <div
-      className={
-        `px-4 py-3 bg-gray-50 border-b border-gray-100 rounded-t-xl ${className}`.trim()
-      }
+      className={`px-4 sm:px-6 py-3 bg-gray-50/60 border-b border-gray-200 rounded-t-xl ${className}`.trim()}
       {...props}
     >
       {children}
@@ -44,17 +34,14 @@ export function CardHeader({ className = "", children, ...props }) {
 }
 
 /**
- * CardContent wraps the main content of a card.  Provides padding but no
- * additional border styling.  Use this for forms, lists or other body
- * content.
+ * CardContent wraps the main content of a card with padding. It does
+ * not impose any additional styling, but you can pass a className to
+ * control the layout (e.g. grid or flex).
  */
 export function CardContent({ className = "", children, ...props }) {
   return (
-    <div className={`p-4 ${className}`.trim()} {...props}>
+    <div className={`px-4 sm:px-6 py-4 ${className}`.trim()} {...props}>
       {children}
     </div>
   );
 }
-
-// If additional card subcomponents (e.g. CardFooter) are needed in the
-// future, they can be added here following the same pattern.
