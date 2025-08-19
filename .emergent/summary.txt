@@ -1,0 +1,124 @@
+<analysis>
+The AI engineer was tasked with refactoring and building the Unbound Merino Shot Builder app from a basic scaffold, following a detailed Shot Builder App Build Guide. The work was conducted in three major phases: Foundation & Dependencies, Advanced Features & Search Integration, and Advanced Workflows & Administration. Initially, the AI engineer assessed the existing minimal codebase and confirmed with the user to proceed with a complete refactor, using Typesense for search and mock data.
+
+Key decisions included adopting modern React patterns (TanStack Query, React Hook Form, Zod), Shadcn/ui for components, and Firebase for authentication and data. The engineer incrementally built out features such as robust authentication, placeholder pages, Typesense search, Kanban-style shot management, and comprehensive admin/workflow modules. Challenges included persistent ESLint errors during file writes and an inability to provide live app previews due to the authentication system correctly redirecting to the login page, which was later clarified. The work is currently focused on implementing and testing a PDF export feature for shots and inventory.
+</analysis>
+
+<product_requirements>
+The Unbound Merino Shot Builder app requires a comprehensive refactor and build-out. Key features include:
+1.  **Authentication & Role Management**: Google Sign-In and passwordless email links, Firebase custom claims for RBAC, and organization scoping.
+2.  **Data Model**: Firestore collections and security rules, with RBAC enforcement.
+3.  **Search**: External search service (initially Typesense) with faceted search UI and card tree drill-down.
+4.  **Core Modules**: Projects, shots (with Kanban planner), products, talent, locations, and pull requests, including state transitions and event logs.
+5.  **Warehouse Workflow**: Generate pull requests, allow edits/quantity adjustments, capture substitutions, and handle approval.
+6.  **Technology Stack**: React with Vite, TanStack Query for state management, React Hook Form + Zod for forms, Tailwind/shadcn/ui for design. Emphasize keyboard shortcuts, accessibility, and responsive UX.
+7.  **Testing**: Automated tests, Firestore rules validation with Firebase Emulator Suite, and CI setup.
+8.  **New Feature Request**: PDF exports of selected shots with customization (field selection) and a PDF summary of inventory/product pulls.
+</product_requirements>
+
+<key_technical_concepts>
+-   **Frontend**: React (Vite), TanStack Query, React Hook Form, Zod, Tailwind CSS, shadcn/ui, @dnd-kit (drag-and-drop), react-pdf.
+-   **Backend/Auth**: Firebase (Authentication, Custom Claims, Cloud Functions, Firestore).
+-   **Search**: Typesense.
+-   **Tooling**: Yarn, ESLint, Supervisor.
+</key_technical_concepts>
+
+<code_architecture>
+The application follows a full-stack architecture, though the focus of the AI engineer's work has been entirely on the frontend (React) and its interaction with Firebase. The project structure is as follows:
+
+
+
+**Key Files and Changes:**
+
+-   :
+    -   **Importance**: Manages project dependencies and scripts for the React frontend.
+    -   **Changes**: Updated to include modern React, TanStack Query, React Hook Form, Zod, Tailwind, shadcn/ui components, Typesense client, and  for PDF generation.
+-   :
+    -   **Importance**: Main React component, setting up routing and integrating core contexts.
+    -   **Changes**: Refactored to integrate  and , defining application routes to various pages (Login, Projects, Shots, Products, Talent, Locations, Pull Requests, Admin, Planner).
+-   :
+    -   **Importance**: Entry point for the React application.
+    -   **Changes**: Wrapped the  component with  and  for global state management and authentication.
+-   :
+    -   **Importance**: Manages user authentication state and Firebase interactions.
+    -   **Changes**: Updated to use modern authentication hooks and functions, incorporating user initialization upon sign-in.
+-   :
+    -   **Importance**: Contains Firebase authentication utility functions.
+    -   **Changes**: Refactored to support Google Sign-In, passwordless email links, and handling of Firebase custom claims for RBAC.
+-   :
+    -   **Importance**: Defines Firebase project configuration, including Firestore security rules and Cloud Functions deployment.
+    -   **Changes**: Updated Firestore security rules to enforce  based access control and RBAC. Also updated Cloud Functions configuration.
+-   :
+    -   **Importance**: Initializes the Typesense client and handles search-related logic.
+    -   **Changes**: New file created to integrate Typesense for product data indexing and searching.
+-   :
+    -   **Importance**: Custom hook for product search functionality, leveraging Typesense.
+    -   **Changes**: New file created to encapsulate the product search logic.
+-   :
+    -   **Importance**: UI component for the faceted product search interface.
+    -   **Changes**: New file created to display search results and filters.
+-   :
+    -   **Importance**: Displays the product catalog with search and filtering capabilities.
+    -   **Changes**: Updated to integrate the  component and utilize the  hook.
+-   :
+    -   **Importance**: Implements the Kanban-style drag-and-drop interface for managing shots.
+    -   **Changes**: New file created for the Kanban board functionality.
+-   :
+    -   **Importance**: Main page for managing shots.
+    -   **Changes**: Updated to integrate the  component and also to include the new PDF export functionality.
+-   :
+    -   **Importance**: Manages warehouse pull requests.
+    -   **Changes**: Updated to include the  component and the new PDF export functionality.
+-   :
+    -   **Importance**: Implements the workflow for pull requests, including edits, quantity adjustments, and substitutions.
+    -   **Changes**: New file created.
+-   :
+    -   **Importance**: Administrative panel for user management and role assignment.
+    -   **Changes**: Updated to include the  component.
+-   :
+    -   **Importance**: UI for managing users and assigning roles.
+    -   **Changes**: New file created.
+-   :
+    -   **Importance**: Calendar-based scheduling for the advanced planner.
+    -   **Changes**: Updated to include the  component.
+-   :
+    -   **Importance**: Implements the calendar-based scheduling.
+    -   **Changes**: New file created.
+-   , , , :
+    -   **Importance**: Core application pages.
+    -   **Changes**: Created as placeholder pages and later populated with content.
+-   : (e.g., , , , , , , , )
+    -   **Importance**: Reusable UI components adopting shadcn/ui patterns.
+    -   **Changes**: Many new files created and existing ones updated for modern styling and functionality.
+-    & :
+    -   **Importance**: Tailwind CSS configuration and global styles.
+    -   **Changes**: Updated to support shadcn/ui theming and utility classes.
+-   :
+    -   **Importance**: Defines React components for rendering PDF content using .
+    -   **Changes**: New file created for customizable PDF templates for shots and inventory.
+-   :
+    -   **Importance**: UI component for triggering and configuring PDF exports.
+    -   **Changes**: New file created to allow user selection of fields for export.
+</code_architecture>
+
+<pending_tasks>
+-   **Firebase Configuration Finalization**: Resolve the reported Firebase configuration issues preventing proper demonstration of full application features.
+-   **ESLint Error Resolution**: Address persistent ESLint errors occurring during file writes.
+-   **Demo Mode Implementation**: Fully implement and test the temporary demo/bypass mode for previewing authenticated pages without full Firebase setup.
+</pending_tasks>
+
+<current_work>
+The AI engineer has just completed the implementation of the new PDF export functionality. This feature allows users to generate PDF exports of selected shots with customization options, including the ability to choose which fields to feature in the export. Additionally, it supports generating a PDF summary of inventory/product pulls.
+
+The implementation involved:
+1.  **Installing **: The necessary library for React-based PDF generation was installed.
+2.  **Creating PDF Templates**: A new file, , was created. This file contains React components specifically designed to render the data into a PDF format for both shots and inventory summaries.
+3.  **Developing the Export UI**: A  component was created in . This modal likely provides the user interface for selecting shots/inventory, customizing fields, and initiating the PDF export process.
+4.  **Integrating into Pages**: The PDF export functionality has been integrated into existing application pages:  and . This means users can now trigger the PDF export feature directly from these relevant sections of the application.
+
+The immediate next step for the AI engineer is to test this newly implemented PDF export functionality to ensure it works correctly as per the user's request, verifying that the PDFs are generated accurately with the selected customizations.
+</current_work>
+
+<optional_next_step>
+Test the newly implemented PDF export functionality for both shots and inventory pulls.
+</optional_next_step>

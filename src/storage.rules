@@ -1,0 +1,18 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function userOrg() { return request.auth != null ? request.auth.token.orgId : null; }
+    function isAdmin() { return request.auth != null && request.auth.token.role == 'admin'; }
+    function hasWardrobe() { return request.auth != null && request.auth.token.role == 'wardrobe'; }
+
+    // Allow public read of images (you may tighten this to enforce auth)
+    match /orgs/{orgId}/products/{familyId}/{file} {
+      allow read: if request.auth != null && orgId == userOrg();
+      allow write: if request.auth != null && orgId == userOrg() && (isAdmin() || hasWardrobe());
+    }
+    match /orgs/{orgId}/projects/{projectId}/shots/{shotId}/attachments/{file} {
+      allow read: if request.auth != null && orgId == userOrg();
+      allow write: if request.auth != null && orgId == userOrg() && (isAdmin() || hasWardrobe() || request.auth.token.role == 'producer');
+    }
+  }
+}

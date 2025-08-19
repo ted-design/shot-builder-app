@@ -1,0 +1,34 @@
+# Node / tooling
+node_modules/
+.build/
+.cache/
+.vite/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.log
+dev_server*.log
+deploy.log
+firebase-debug.log
+
+# Env & credentials (keep the configured firebase.js)
+.env.local
+.env.*.local
+
+# Firebase runtime
+.firebase/
+.firestore/
+.storage/
+*.local
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Temporary files
+*.tmp
+*.temp

@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserOrgId() {
+      return request.auth.token.orgId;
+    }
+    
+    function getUserRole() {
+      return request.auth.token.role;
+    }
+    
+    function isAdmin() {
+      return getUserRole() == 'admin';
+    }
+    
+    function belongsToUserOrg(orgId) {
+      return getUserOrgId() == orgId;
+    }
+    
+    function hasRole(roles) {
+      return getUserRole() in roles;
+    }
+    
+    // Organization-level access
+    match /orgs/{orgId} {
+      // Only members of the org can read org data
+      allow read: if isAuthenticated() && belongsToUserOrg(orgId);
+      // Only admins can modify org settings
+      allow write: if isAuthenticated() && belongsToUserOrg(orgId) && isAdmin();
+      
+      // Organization members
+      match /members/{userId} {
+        allow read: if isAuthenticated() && belongsToUserOrg(orgId);
+        allow write: if isAuthenticated() && belongsToUserOrg(orgId) && isAdmin();
+      }
+      
+      // Projects within organization
+      match /projects/{projectId} {
+        allow read: if isAuthenticated() && belongsToUserOrg(orgId);
+        allow create: if isAuthenticated() && belongsToUserOrg(orgId) && hasRole(['admin', 'producer', 'editor']);
+        allow update: if isAuthenticated() && belongsToUserOrg(orgId) && hasRole(['admin', 'producer', 'editor']);
+        allow delete: if isAuthenticated() && belongsToUserOrg(orgId) && hasRole(['admin', 'producer']);
+        
+        // Project sub-collections (shots, days, pull requests)
+        match /{collection}/{docId} {
+          allow read: if isAuthenticated() && belongsToUserOrg(orgId);
+          allow write: if isAuthenticated() && belongsToUserOrg(orgId) && hasRole(['admin', 'producer', 'editor']);
+        }
+      }
+      
+      // Products (shared across projects within org)
+      match /products/{productId} {
+        allow read: if isAuthenticated() && belongsToUserOrg(orgId);
+        allow create, update: if isAuthenticated() && belongsToUserOrg(orgId) && hasRole(['admin', 'catalog', 'producer']);
+        allow delete: if isAuthenticated() && belongsToUserOrg(orgId) && hasRole(['admin', 'catalog']);
+      }
+      
+      // Product families
+      match /productFamilies/{familyId} {
+        allow read: if isAuthenticated() && belongsToUserOrg(orgId);
+        allow create, update: if isAuthenticated() && belongsToUserOrg(orgId) && hasRole(['admin', 'catalog', 'producer']);
+        allow delete: if isAuthenticated() && belongsToUserOrg(orgId) && hasRole(['admin', 'catalog']);
+      }
+      
+      // Talent
+      match /talent/{talentId} {
+        allow read: if isAuthenticated() && belongsToUserOrg(orgId);
+        allow create, update: if isAuthenticated() && belongsToUserOrg(orgId) && hasRole(['admin', 'producer', 'editor']);
+        allow delete: if isAuthenticated() && belongsToUserOrg(orgId) && hasRole(['admin', 'producer']);
+      }
+      
+      // Locations
+      match /locations/{locationId} {
+        allow read: if isAuthenticated() && belongsToUserOrg(orgId);
+        allow create, update: if isAuthenticated() && belongsToUserOrg(orgId) && hasRole(['admin', 'producer', 'editor']);
+        allow delete: if isAuthenticated() && belongsToUserOrg(orgId) && hasRole(['admin', 'producer']);
+      }
+      
+      // Event logs (for auditing)
+      match /eventLogs/{logId} {
+        allow read: if isAuthenticated() && belongsToUserOrg(orgId) && hasRole(['admin', 'producer']);
+        allow create: if isAuthenticated() && belongsToUserOrg(orgId);
+        // Event logs are immutable after creation
+      }
+    }
+  }
+}

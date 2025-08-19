@@ -1,0 +1,91 @@
+name: Deploy (live) after CI
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout the exact commit CI built
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Auth to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-actions-deploy@um-shotbuilder.iam.gserviceaccount.com
+          audience: https://github.com/ted-design/shot-builder-app
+
+      # Capture deploy JSON so we can extract the live URL robustly
+      - name: Deploy to Firebase Hosting (live)
+        run: npx firebase-tools deploy --only hosting --project um-shotbuilder --json > deploy-live.json
+
+      - name: Output live URL
+        run: |
+          set -e
+          echo "---- firebase-tools deploy (live) output ----"
+          cat deploy-live.json || true
+          echo "--------------------------------------------"
+
+          node - <<'NODE'
+          const fs = require('fs');
+          let url = null;
+
+          // 1) Try to read URL from deploy output (works on many CLI versions)
+          try {
+            const d = JSON.parse(fs.readFileSync('deploy-live.json', 'utf8'));
+            const candidates = [];
+            if (Array.isArray(d.deploys)) candidates.push(...d.deploys);
+            if (Array.isArray(d.result))  candidates.push(...d.result);
+            if (d && d.result && d.result.hosting && Array.isArray(d.result.hosting))
+              candidates.push(...d.result.hosting);
+            const found = candidates.find(x => x && x.url);
+            if (found && found.url) url = found.url;
+          } catch (_) {}
+
+          // 2) If not found, derive from firebase.json hosting.site or projectId
+          if (!url) {
+            try {
+              const cfg = JSON.parse(fs.readFileSync('firebase.json','utf8'));
+              const hosting = cfg && cfg.hosting ? cfg.hosting : null;
+              const site = hosting && typeof hosting.site === 'string' ? hosting.site : null;
+              const fallbackSite = site || 'um-shotbuilder'; // project id fallback
+              // Prefer web.app; include firebaseapp.com as secondary
+              url = `https://${fallbackSite}.web.app`;
+              // Also write a secondary hint for humans
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Secondary: https://${fallbackSite}.firebaseapp.com\n`);
+            } catch (_) {}
+          }
+
+          if (url) {
+            console.log('Live URL:', url);
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `**Live URL:** ${url}\n`);
+          } else {
+            console.log('Deployed, but could not determine live URL.');
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Deployed, but could not determine live URL.\n`);
+          }
+          NODE
