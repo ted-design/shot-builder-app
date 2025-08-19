@@ -6,8 +6,8 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const { user, loading } = useAuth()
   
-  // Demo mode for preview - check if we're in demo mode
-  const isDemoMode = window.location.search.includes('demo=true') || true // Force demo mode for testing
+  // Demo mode for preview - only when explicitly requested
+  const isDemoMode = window.location.search.includes('demo=true')
   
   const contextValue = {
     user: isDemoMode ? {
