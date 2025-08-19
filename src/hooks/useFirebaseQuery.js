@@ -185,7 +185,7 @@ const MOCK_DATA = {
 
 // Check if we're in demo mode
 function isDemoMode() {
-  return window.location.search.includes('demo=true') || true // Force demo mode for testing
+  return window.location.search.includes('demo=true')
 }
 
 /**
