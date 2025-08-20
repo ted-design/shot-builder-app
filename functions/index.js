@@ -22,7 +22,7 @@ const ALLOWED_ADMINS = new Set([
  *   orgId: string 
  * }
  */
-exports.setUserClaims = onCall(async (request) => {
+exports.setUserClaims = functionsRegion.https.onCall(async (data, context) => {
   var auth = request.auth;
   var callerEmail = auth && auth.token ? auth.token.email : null;
   
