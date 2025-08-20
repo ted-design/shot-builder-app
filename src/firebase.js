@@ -34,7 +34,14 @@ provider.setCustomParameters({ prompt: "select_account" });
 
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-export const functions = getFunctions(app);
+// --- Firebase Functions (with correct region) ---
+// Initialize functions with the correct region to match Cloud Functions deployment
+export const functions = getFunctions(app, 'northamerica-northeast1');
+
+// Connect to emulator in development
+if (window.location.hostname === 'localhost') {
+  connectFunctionsEmulator(functions, 'localhost', 5001);
+}
 
 // 3) Helpers for uploads/deletes
 // - folder: "products" | "talent" | "locations" | etc.
