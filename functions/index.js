@@ -1,10 +1,12 @@
 // functions/index.js
-const { onCall } = require("firebase-functions/v2/https");
-const { setGlobalOptions } = require("firebase-functions/v2");
+const { onCall } = require("firebase-functions/v1/https");
+const { region } = require("firebase-functions");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
-setGlobalOptions({ region: "northamerica-northeast1" }); // use your region
+
+// Configure functions to run in specific region
+const functionsRegion = region("northamerica-northeast1");
 
 // Admin emails that can assign claims and manage organizations
 const ALLOWED_ADMINS = new Set([
