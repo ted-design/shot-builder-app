@@ -81,7 +81,7 @@ exports.setUserClaims = onCall(async (request) => {
  * This function automatically assigns default role and org when a user first signs in
  */
 exports.initializeUser = functionsRegion.https.onCall(async (data, context) => {
-  var auth = request.auth;
+  var auth = context.auth;
   if (!auth) {
     throw new Error("Not authenticated.");
   }
