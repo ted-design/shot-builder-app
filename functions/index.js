@@ -128,7 +128,7 @@ exports.initializeUser = functionsRegion.https.onCall(async (data, context) => {
 /**
  * Create organization and set caller as admin
  */
-exports.createOrganization = onCall(async (request) => {
+exports.createOrganization = functionsRegion.https.onCall(async (data, context) => {
   var auth = request.auth;
   if (!auth) {
     throw new Error("Not authenticated.");
