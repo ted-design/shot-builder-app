@@ -23,17 +23,14 @@ const ALLOWED_ADMINS = new Set([
  * }
  */
 exports.setUserClaims = functionsRegion.https.onCall(async (data, context) => {
-  var auth = request.auth;
+  var auth = context.auth;
   var callerEmail = auth && auth.token ? auth.token.email : null;
   
   if (!callerEmail || !ALLOWED_ADMINS.has(callerEmail)) {
     throw new Error("Not authorized to set user claims.");
   }
 
-  var data = request.data || {};
-  var targetEmail = data.targetEmail;
-  var role = data.role;
-  var orgId = data.orgId;
+  var { targetEmail, role, orgId } = data;
 
   var VALID_ROLES = { 
     admin: true, 
