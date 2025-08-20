@@ -5,8 +5,15 @@
  * Falls back to a default for development
  */
 export function getCurrentOrgId() {
-  // In production, this should come from Firebase custom claims
-  // For now, we'll use a default during development
+  // Check if we have a user with custom claims
+  if (typeof window !== 'undefined' && window.firebase && window.firebase.auth) {
+    const user = window.firebase.auth().currentUser;
+    if (user && user.customClaims && user.customClaims.orgId) {
+      return user.customClaims.orgId;
+    }
+  }
+  
+  // For demo mode or fallback
   return 'unbound-merino'
 }
 
