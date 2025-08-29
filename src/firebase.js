@@ -1,5 +1,4 @@
 // src/firebase.js
-// --- Firebase core ---
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
@@ -11,33 +10,31 @@ import {
   deleteObject,
 } from "firebase/storage";
 
-// 1) Replace with your actual config from Firebase Console > Project Settings > General
+// Ensure required env vars are defined.
+function required(name) {
+  const val = import.meta.env[name];
+  if (!val) throw new Error(`Missing ${name}. Add it to your .env or CI secrets.`);
+  return val;
+}
+
 const firebaseConfig = {
-  apiKey: "AIzaSyAMghXkDr-hJHSpzW-HYinKnv8f2F_-Yl0",
-  authDomain: "um-shotbuilder.firebaseapp.com",
-  projectId: "um-shotbuilder",
-  // IMPORTANT: this is the bucket NAME, not a URL
-  storageBucket: "um-shotbuilder.appspot.com",
-  messagingSenderId: "168065141847",
-  appId: "1:168065141847:web:be45c7303aa6f8aff4e712",
-  measurementId: "G-0M8WVWZ7PE",
+  apiKey: required("VITE_FIREBASE_API_KEY"),
+  authDomain: required("VITE_FIREBASE_AUTH_DOMAIN"),
+  projectId: required("VITE_FIREBASE_PROJECT_ID"),
+  storageBucket: required("VITE_FIREBASE_STORAGE_BUCKET"),
+  messagingSenderId: required("VITE_FIREBASE_MESSAGING_SENDER_ID"),
+  appId: required("VITE_FIREBASE_APP_ID"),
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID, // optional
 };
 
-// 2) Initialize SDKs
 const app = initializeApp(firebaseConfig);
-
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
-// Optional nicety: always show account chooser
 provider.setCustomParameters({ prompt: "select_account" });
-
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-// 3) Helpers for uploads/deletes
-// - folder: "products" | "talent" | "locations" | etc.
-// - id: Firestore doc id
-// Returns: { downloadURL, path } where path is a Storage path you can save on the doc
+// Upload helper: returns {downloadURL, path}.
 export async function uploadImageFile(file, { folder, id, filename }) {
   if (!file) throw new Error("No file provided");
   const safeName =
@@ -49,7 +46,7 @@ export async function uploadImageFile(file, { folder, id, filename }) {
   return { downloadURL, path };
 }
 
-// Delete by the Storage path you saved on the doc (e.g., "images/products/abc/file.jpg")
+// Delete helper: remove file by storage path.
 export async function deleteImageByPath(path) {
   if (!path) return;
   const ref = storageRef(storage, path);
