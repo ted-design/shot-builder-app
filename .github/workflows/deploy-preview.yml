@@ -5,6 +5,10 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened]
 
+defaults:
+  run:
+    shell: 'bash -Eeuo pipefail {0}'
+
 jobs:
   preview:
     runs-on: ubuntu-latest
