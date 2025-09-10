@@ -76,3 +76,7 @@ This starter kit intentionally leaves many implementation details up to you. You
 
 ## Deploy Status
 [![Deploy to Firebase Hosting (WIF)](https://github.com/ted-design/shot-builder-app/actions/workflows/deploy.yml/badge.svg)](https://github.com/ted-design/shot-builder-app/actions/workflows/deploy.yml)
+
+## Feature Flags & Rollout
+New features are gated in `src/lib/flags.js` and default to `false`.
+Enable flags only for testing/rollout; remove the flag once a feature is fully stable.
