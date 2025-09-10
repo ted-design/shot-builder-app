@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 
 import NavBar from "./components/NavBar";
+import { FLAGS } from "./lib/flags";
 import ImportProducts from "./pages/ImportProducts";
 import LoginPage from "./pages/LoginPage";
 import ShotsPage from "./pages/ShotsPage";
@@ -36,9 +37,26 @@ export default function App() {
   const [user, setUser] = useState(null);
   useEffect(() => onAuthStateChanged(auth, setUser), []);
 
+  const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
+
+  function PDFDemoMount() {
+    const location = useLocation();
+    const enabled =
+      FLAGS.pdfExport === true &&
+      new URLSearchParams(location.search).get("pdfDemo") === "1";
+    if (!enabled) return null;
+    return (
+      <Suspense fallback={null}>
+        <PDFExportModalLazy />
+      </Suspense>
+    );
+  }
+
   return (
     <BrowserRouter>
       {user && <NavBar user={user} />}
+      {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
+      <PDFDemoMount />
       <MaybeRedirectLogin user={user} />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
