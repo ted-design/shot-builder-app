@@ -8,6 +8,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: 'bash -Eeuo pipefail {0}'
+
 jobs:
   build:
     runs-on: ubuntu-latest
