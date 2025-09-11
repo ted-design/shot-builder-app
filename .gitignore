@@ -68,3 +68,8 @@ Thumbs.db
 # macOS
 .DS_Store
 src/.DS_Store
+
+# integration helper artifacts
+_phase0_*
+*.patch
+
