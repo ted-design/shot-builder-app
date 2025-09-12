@@ -6,6 +6,7 @@ import { auth } from "./firebase";
 import NavBar from "./components/NavBarWithAuth";
 import { FLAGS } from "./lib/flags";
 import { useAuth } from "./context/AuthContext";
+import { adaptUser } from "./auth/adapter";
 import ImportProducts from "./pages/ImportProducts";
 import LoginPage from "./pages/LoginPage";
 import ShotsPage from "./pages/ShotsPage";
@@ -41,7 +42,7 @@ export default function App() {
   // Read from new AuthContext (always call hook; only used when flag is ON)
   const authCtx = useAuth();
   const authSel = FLAGS.newAuthContext ? authCtx : { user: null, ready: false, initializing: false };
-  const userForNav = FLAGS.newAuthContext ? authSel.user : user; // legacyUser = user
+  const userForNav = FLAGS.newAuthContext ? adaptUser(authSel.user) : user; // legacyUser = user
   const authReady = FLAGS.newAuthContext ? (authSel.ready ?? !authSel.initializing) : true;
 
   const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
