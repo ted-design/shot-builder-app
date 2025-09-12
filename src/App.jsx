@@ -43,6 +43,8 @@ export default function App() {
   const authCtx = useAuth();
   const authSel = FLAGS.newAuthContext ? authCtx : { user: null, ready: false, initializing: false };
   const userForNav = FLAGS.newAuthContext ? adaptUser(authSel.user) : user; // legacyUser = user
+  // Second consumer behind flag: route guard truthiness
+  const userForGuard = FLAGS.newAuthContext ? (adaptUser(authSel.user)) : user;
   const authReady = FLAGS.newAuthContext ? (authSel.ready ?? !authSel.initializing) : true;
 
   const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
@@ -69,14 +71,14 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<Navigate to="/projects" replace />} />
-        <Route path="/projects" element={<RequireAuth user={user}><ProjectsPage /></RequireAuth>} />
-        <Route path="/shots" element={<RequireAuth user={user}><ShotsPage /></RequireAuth>} />
-        <Route path="/planner" element={<RequireAuth user={user}><PlannerPage /></RequireAuth>} />
-        <Route path="/products" element={<RequireAuth user={user}><ProductsPage /></RequireAuth>} />
-        <Route path="/import-products" element={<RequireAuth user={user}><ImportProducts /></RequireAuth>} />
-        <Route path="/talent" element={<RequireAuth user={user}><TalentPage /></RequireAuth>} />
-        <Route path="/locations" element={<RequireAuth user={user}><LocationsPage /></RequireAuth>} />
-        <Route path="/pulls" element={<RequireAuth user={user}><PullsPage /></RequireAuth>} />
+        <Route path="/projects" element={<RequireAuth user={userForGuard}><ProjectsPage /></RequireAuth>} />
+        <Route path="/shots" element={<RequireAuth user={userForGuard}><ShotsPage /></RequireAuth>} />
+        <Route path="/planner" element={<RequireAuth user={userForGuard}><PlannerPage /></RequireAuth>} />
+        <Route path="/products" element={<RequireAuth user={userForGuard}><ProductsPage /></RequireAuth>} />
+        <Route path="/import-products" element={<RequireAuth user={userForGuard}><ImportProducts /></RequireAuth>} />
+        <Route path="/talent" element={<RequireAuth user={userForGuard}><TalentPage /></RequireAuth>} />
+        <Route path="/locations" element={<RequireAuth user={userForGuard}><LocationsPage /></RequireAuth>} />
+        <Route path="/pulls" element={<RequireAuth user={userForGuard}><PullsPage /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
     </BrowserRouter>
