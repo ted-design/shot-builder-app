@@ -12,8 +12,8 @@ function Root() {
   return (
     <AuthProviderGated>
       <App />
-      {/* Gated debug badge: requires flag and ?authBadge=1 */}
-      {FLAGS.newAuthContext && <AuthDebugBadge />}
+      {/* Debug badge: shows only with ?authBadge=1; safe when flag OFF */}
+      <AuthDebugBadge />
     </AuthProviderGated>
   );
 }
