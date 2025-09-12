@@ -73,3 +73,6 @@ src/.DS_Store
 _phase0_*
 *.patch
 
+# local helper and backups
+codex_step.sh
+*.bak
