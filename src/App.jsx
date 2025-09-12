@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 
-import NavBar from "./components/NavBar";
+import NavBar from "./components/NavBarWithAuth";
 import { FLAGS } from "./lib/flags";
 import ImportProducts from "./pages/ImportProducts";
 import LoginPage from "./pages/LoginPage";
