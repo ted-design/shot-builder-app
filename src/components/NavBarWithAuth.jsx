@@ -1,39 +1,24 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import NavBar from "./NavBar";
-import { FLAGS } from "../lib/flags";
 import { useAuth } from "../context/AuthContext";
+import { FLAGS } from "../lib/flags";
 import { adaptUser } from "../auth/adapter";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../firebase";
 
 /**
- * Wraps the existing NavBar. When the feature flag is ON, it supplies `user`
- * from AuthContext; when OFF, it renders NavBar exactly as before.
- * No route/guard changes; no writes; read-only migration.
+ * Encapsulates NavBar auth sourcing behind FLAGS.newAuthContext.
+ * - Flag OFF: render legacy NavBar with user=null.
+ * - Flag ON: wait for auth ready, pass adapted user (or null).
  */
 export default function NavBarWithAuth() {
-  const flagOn = FLAGS.newAuthContext === true;
+  const ctx = (typeof useAuth === "function" ? useAuth() : { user: null, ready: false, initializing: true }) || {};
+  const { user, ready, initializing } = ctx;
+  const flagOn = !!(FLAGS && FLAGS.newAuthContext);
 
-  // Legacy path: mirror previous App.jsx behavior (render only when signed-in)
-  const [legacyUser, setLegacyUser] = useState(null);
-  useEffect(() => {
-    if (flagOn) return; // no legacy wire-up when flag is ON
-    const unsub = onAuthStateChanged(auth, setLegacyUser);
-    return () => {
-      if (unsub) unsub();
-    };
-  }, [flagOn]);
+  if (!flagOn) return <NavBar user={null} />;
 
-  if (!flagOn) {
-    // Render only when we have a legacy Firebase user, matching previous gating
-    if (!legacyUser) return null;
-    return <NavBar user={legacyUser} />;
-  }
+  const authReady = typeof ready === "boolean" ? ready : !initializing;
+  if (!authReady) return null;
 
-  // Flagged path: use new AuthContext; honor readiness; adapt to NavBar shape
-  const { user, ready, initializing } = useAuth();
-  const authReady = (typeof ready === "boolean") ? ready : !initializing;
-  if (!authReady || !user) return null;
-  const userForNav = adaptUser(user);
+  const userForNav = user ? adaptUser(user) : null;
   return <NavBar user={userForNav} />;
 }
