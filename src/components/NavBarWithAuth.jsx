@@ -1,26 +1,24 @@
 import React from "react";
 import NavBar from "./NavBar";
-import { FLAGS } from "../lib/flags";
 import { useAuth } from "../context/AuthContext";
+import { FLAGS } from "../lib/flags";
 import { adaptUser } from "../auth/adapter";
 
 /**
- * Wraps the existing NavBar. When the feature flag is ON, it supplies `user`
- * from AuthContext; when OFF, it renders NavBar exactly as before.
- * No route/guard changes; no writes; read-only migration.
+ * Encapsulates NavBar auth sourcing behind FLAGS.newAuthContext.
+ * - Flag OFF: render legacy NavBar with user=null.
+ * - Flag ON: wait for auth ready, pass adapted user (or null).
  */
 export default function NavBarWithAuth() {
-  const flagOn = FLAGS.newAuthContext === true;
+  const ctx = (typeof useAuth === "function" ? useAuth() : { user: null, ready: false, initializing: true }) || {};
+  const { user, ready, initializing } = ctx;
+  const flagOn = !!(FLAGS && FLAGS.newAuthContext);
 
-  if (!flagOn) {
-    // Legacy path unchanged for callers: render NavBar with null user
-    return <NavBar user={null} />;
-  }
+  if (!flagOn) return <NavBar user={null} />;
 
-  // Flagged path: use new AuthContext; honor readiness; adapt to NavBar shape
-  const { user, ready, initializing } = useAuth();
   const authReady = typeof ready === "boolean" ? ready : !initializing;
   if (!authReady) return null;
+
   const userForNav = user ? adaptUser(user) : null;
   return <NavBar user={userForNav} />;
 }
