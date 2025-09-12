@@ -39,13 +39,11 @@ export default function App() {
   const [user, setUser] = useState(null);
   useEffect(() => onAuthStateChanged(auth, setUser), []);
 
-  // Read from new AuthContext (always call hook; only used when flag is ON)
+  // Read from new AuthContext only for route guards when flag is ON
   const authCtx = useAuth();
   const authSel = FLAGS.newAuthContext ? authCtx : { user: null, ready: false, initializing: false };
-  const userForNav = FLAGS.newAuthContext ? adaptUser(authSel.user) : user; // legacyUser = user
-  // Second consumer behind flag: route guard truthiness
-  const userForGuard = FLAGS.newAuthContext ? (adaptUser(authSel.user)) : user;
-  const authReady = FLAGS.newAuthContext ? (authSel.ready ?? !authSel.initializing) : true;
+  // Route guard truthiness remains behind flag
+  const userForGuard = FLAGS.newAuthContext ? adaptUser(authSel.user) : user;
 
   const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
 
@@ -64,7 +62,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      {user && <NavBar user={userForNav} __authReady={authReady} />}
+      <NavBar />
       {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
       <PDFDemoMount />
       <MaybeRedirectLogin user={user} />
