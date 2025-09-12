@@ -14,14 +14,15 @@ export default function AuthDebugBadge() {
   const enabled = useMemo(() => parseEnabled(), []);
   if (!enabled) return null;
 
-  const label = initializing ? "Auth…" : user ? user.email || "Signed in" : "Signed out";
+  const status = initializing ? "LOADING" : user ? "SIGNED IN" : "SIGNED OUT";
+  const detail = initializing ? "" : (user?.email || user?.uid || "—");
 
   return (
     <div
       style={{
         position: "fixed",
         top: 8,
-        left: 8,
+        right: 8,
         zIndex: 10000,
         fontSize: 12,
         fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
@@ -34,8 +35,9 @@ export default function AuthDebugBadge() {
       }}
       aria-live="polite"
     >
-      {label}
+      <div style={{ fontWeight: 700 }}>Auth</div>
+      <div>{status}</div>
+      {detail && <div style={{ opacity: 0.85 }}>{detail}</div>}
     </div>
   );
 }
-
