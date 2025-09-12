@@ -3,8 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 
-import NavBar from "./components/NavBar";
+import NavBar from "./components/NavBarWithAuth";
 import { FLAGS } from "./lib/flags";
+import { useAuth } from "./context/AuthContext";
 import ImportProducts from "./pages/ImportProducts";
 import LoginPage from "./pages/LoginPage";
 import ShotsPage from "./pages/ShotsPage";
@@ -37,6 +38,12 @@ export default function App() {
   const [user, setUser] = useState(null);
   useEffect(() => onAuthStateChanged(auth, setUser), []);
 
+  // Read from new AuthContext (always call hook; only used when flag is ON)
+  const authCtx = useAuth();
+  const authSel = FLAGS.newAuthContext ? authCtx : { user: null, ready: false, initializing: false };
+  const userForNav = FLAGS.newAuthContext ? authSel.user : user; // legacyUser = user
+  const authReady = FLAGS.newAuthContext ? (authSel.ready ?? !authSel.initializing) : true;
+
   const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
 
   function PDFDemoMount() {
@@ -54,7 +61,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      {user && <NavBar user={user} />}
+      {user && <NavBar user={userForNav} __authReady={authReady} />}
       {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
       <PDFDemoMount />
       <MaybeRedirectLogin user={user} />
