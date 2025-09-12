@@ -8,6 +8,7 @@ import { FLAGS } from "./lib/flags";
 import { useAuth } from "./context/AuthContext";
 import { adaptUser } from "./auth/adapter";
 import ImportProducts from "./pages/ImportProducts";
+import AuthReadyGate from "./auth/AuthReadyGate";
 import LoginPage from "./pages/LoginPage";
 import ShotsPage from "./pages/ShotsPage";
 import PlannerPage from "./pages/PlannerPage";
@@ -71,7 +72,16 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<Navigate to="/projects" replace />} />
-        <Route path="/projects" element={<RequireAuth user={userForGuard}><ProjectsPage /></RequireAuth>} />
+        <Route
+          path="/projects"
+          element={
+            <AuthReadyGate fallback={null}>
+              <RequireAuth user={userForGuard}>
+                <ProjectsPage />
+              </RequireAuth>
+            </AuthReadyGate>
+          }
+        />
         <Route path="/shots" element={<RequireAuth user={userForGuard}><ShotsPage /></RequireAuth>} />
         <Route path="/planner" element={<RequireAuth user={userForGuard}><PlannerPage /></RequireAuth>} />
         <Route path="/products" element={<RequireAuth user={userForGuard}><ProductsPage /></RequireAuth>} />
