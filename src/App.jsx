@@ -68,7 +68,7 @@ export default function App() {
       {user && <NavBar user={userForNav} __authReady={authReady} />}
       {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
       <PDFDemoMount />
-      <MaybeRedirectLogin user={user} />
+      <MaybeRedirectLogin user={userForGuard} />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<Navigate to="/projects" replace />} />
