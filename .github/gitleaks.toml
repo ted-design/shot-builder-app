@@ -1,0 +1,27 @@
+title = "Shot Builder gitleaks config"
+
+# Minimal repo-tuned config to reduce false positives while still catching real leaks.
+# - Ignore doc/example files and test fixtures
+# - Ignore common build artifacts if ever committed
+
+[allowlist]
+description = "Ignore examples, docs, tests, and build outputs"
+files = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)README\.md$''',
+  '''(^|/)docs(/|$)''',
+  '''(^|/)src/routes/__tests__(/|$)''',
+  '''(^|/)vitest\.setup\.ts$''',
+  '''(^|/)vitest\.config\.ts$''',
+  '''(^|/)dist(/|$)''',
+  '''(^|/)build(/|$)''',
+  '''(^|/)coverage(/|$)''',
+  '''(^|/)node_modules(/|$)''',
+]
+regexes = [
+  # Common placeholders and sanitized markers
+  '''REDACTED''',
+  '''PLACEHOLDER''',
+  '''DUMMY''',
+]
+
