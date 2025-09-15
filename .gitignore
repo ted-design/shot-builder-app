@@ -72,6 +72,7 @@ src/.DS_Store
 # integration helper artifacts
 _phase0_*
 *.patch
+*.diff
 
 # local helper and backups
 codex_step.sh
