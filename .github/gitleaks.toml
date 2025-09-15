@@ -1,27 +1,10 @@
-title = "Shot Builder gitleaks config"
-
-# Minimal repo-tuned config to reduce false positives while still catching real leaks.
-# - Ignore doc/example files and test fixtures
-# - Ignore common build artifacts if ever committed
+# Minimal allowlist to reduce noise during initial rollout.
+# We will tighten rules and remove broad exclusions once signal stabilizes.
 
 [allowlist]
-description = "Ignore examples, docs, tests, and build outputs"
-files = [
-  '''(^|/)\.env\.example$''',
-  '''(^|/)README\.md$''',
-  '''(^|/)docs(/|$)''',
-  '''(^|/)src/routes/__tests__(/|$)''',
-  '''(^|/)vitest\.setup\.ts$''',
-  '''(^|/)vitest\.config\.ts$''',
-  '''(^|/)dist(/|$)''',
-  '''(^|/)build(/|$)''',
-  '''(^|/)coverage(/|$)''',
-  '''(^|/)node_modules(/|$)''',
-]
-regexes = [
-  # Common placeholders and sanitized markers
-  '''REDACTED''',
-  '''PLACEHOLDER''',
-  '''DUMMY''',
+description = "Temporary allowlist for known non-secret files"
+paths = [
+  "firebase-debug\\.log$",
+  "shot_builder_patch\\.diff$",
 ]
 
