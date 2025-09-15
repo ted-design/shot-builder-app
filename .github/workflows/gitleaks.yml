@@ -33,7 +33,7 @@ jobs:
             --redact \
             --report-format sarif \
             --report-path gitleaks-results.sarif \
-            --config-path .github/gitleaks.toml
+            --config .github/gitleaks.toml
 
       - name: Scan (push) — include history (non-blocking)
         if: ${{ github.event_name == 'push' }}
@@ -43,7 +43,7 @@ jobs:
             --redact \
             --report-format sarif \
             --report-path gitleaks-results.sarif \
-            --config-path .github/gitleaks.toml || true
+            --config .github/gitleaks.toml || true
 
       - name: Ensure SARIF exists
         if: ${{ always() }}
