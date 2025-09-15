@@ -8,7 +8,6 @@ jobs:
     permissions:
       contents: read
       security-events: write  # allow upload to code scanning
-    continue-on-error: true  # non-blocking during initial rollout
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,10 +24,9 @@ jobs:
           sudo mv gitleaks /usr/local/bin/gitleaks
           gitleaks version
 
-      - name: Scan (PR) — working tree only
+      - name: Scan (PR) — working tree only (blocking)
         if: ${{ github.event_name == 'pull_request' }}
         run: |
-          set +e
           gitleaks detect \
             --source . \
             --no-git \
@@ -36,21 +34,19 @@ jobs:
             --report-format sarif \
             --report-path gitleaks-results.sarif \
             --config-path .github/gitleaks.toml
-          echo "Exit code: $? (ignored)"
 
-      - name: Scan (push) — include history
+      - name: Scan (push) — include history (non-blocking)
         if: ${{ github.event_name == 'push' }}
         run: |
-          set +e
           gitleaks detect \
             --source . \
             --redact \
             --report-format sarif \
             --report-path gitleaks-results.sarif \
-            --config-path .github/gitleaks.toml
-          echo "Exit code: $? (ignored)"
+            --config-path .github/gitleaks.toml || true
 
       - name: Upload gitleaks SARIF (artifact)
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: gitleaks-results.sarif
