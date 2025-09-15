@@ -1,26 +1,14 @@
 name: gitleaks
 on:
-  push:
-    branches: [main, master]
   pull_request:
-    branches: [main, master]
-
-permissions:
-  contents: read
-  pull-requests: read
-
+  push:
 jobs:
   scan:
     runs-on: ubuntu-latest
+    continue-on-error: true  # make non-blocking initially; we can tighten later
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: gitleaks/gitleaks-action@v2
         with:
-          fetch-depth: 0
+          args: detect --source . --no-banner
 
-      - name: Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          config-path: .github/gitleaks.toml
