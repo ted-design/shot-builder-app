@@ -11,8 +11,9 @@ function parseEnabled() {
 
 export default function AuthDebugBadge() {
   const { user, initializing } = useAuth();
+  const DEV = import.meta.env.MODE !== "production";
   const enabled = useMemo(() => parseEnabled(), []);
-  if (!enabled) return null;
+  if (!DEV || !enabled) return null;
 
   const label = initializing ? "Auth…" : user ? user.email || "Signed in" : "Signed out";
 
@@ -38,4 +39,3 @@ export default function AuthDebugBadge() {
     </div>
   );
 }
-
