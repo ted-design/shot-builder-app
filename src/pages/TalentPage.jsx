@@ -235,7 +235,7 @@ export default function TalentPage() {
                       {t.sizing && <span>Sizing: {t.sizing}</span>}
                       {t.sizing && t.url ? " • " : ""}
                       {t.url && (
-                        <a href={t.url} target="_blank" rel="noreferrer" className="underline">
+                        <a href={t.url} target="_blank" rel="noopener noreferrer" className="underline">
                           {t.url}
                         </a>
                       )}

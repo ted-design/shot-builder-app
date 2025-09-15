@@ -178,7 +178,7 @@ export default function ProjectsPage() {
                       <a
                         href={p.briefUrl}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="text-primary underline"
                       >
                         Brief

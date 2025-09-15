@@ -12,10 +12,11 @@ import { FLAGS } from "../lib/flags";
  *    - signed-in → render children via <Outlet/>
  */
 export default function RequireAuth({ to = "/login" }) {
+  // Always call hooks first.
+  const { user, ready, initializing } = useAuth();
   const flagOn = !!(FLAGS && FLAGS.newAuthContext);
   if (!flagOn) return <Outlet />;
 
-  const { user, ready, initializing } = (typeof useAuth === "function" ? useAuth() : { user: null, ready: false, initializing: true });
   const authReady = typeof ready === "boolean" ? ready : !initializing;
   if (!authReady) return null;
   if (!user) return <Navigate to={to} replace />;

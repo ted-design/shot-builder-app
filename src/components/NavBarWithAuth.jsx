@@ -10,8 +10,8 @@ import { adaptUser } from "../auth/adapter";
  * - Flag ON: wait for auth ready, pass adapted user (or null).
  */
 export default function NavBarWithAuth() {
-  const ctx = (typeof useAuth === "function" ? useAuth() : { user: null, ready: false, initializing: true }) || {};
-  const { user, ready, initializing } = ctx;
+  // Always call hooks at the top-level to satisfy the hooks rules.
+  const { user, ready, initializing } = useAuth();
   const flagOn = !!(FLAGS && FLAGS.newAuthContext);
 
   if (!flagOn) return <NavBar user={null} />;
