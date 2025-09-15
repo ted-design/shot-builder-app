@@ -5,10 +5,51 @@ on:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    continue-on-error: true  # make non-blocking initially; we can tighten later
+    continue-on-error: true  # non-blocking during initial rollout
     steps:
-      - uses: actions/checkout@v4
-      - uses: gitleaks/gitleaks-action@v2
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          # Limit to working tree to reduce initial noise; we'll tighten later.
-          args: detect --source . --no-banner --no-git
+          fetch-depth: 0
+
+      - name: Install gitleaks CLI
+        run: |
+          set -euo pipefail
+          VER=8.24.3
+          URL="https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz"
+          curl -sSL "$URL" -o gitleaks.tgz
+          tar -xzf gitleaks.tgz
+          sudo mv gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Scan (PR) — working tree only
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set +e
+          gitleaks detect \
+            --source . \
+            --no-git \
+            --redact \
+            --report-format sarif \
+            --report-path gitleaks-results.sarif \
+            --config-path .github/gitleaks.toml
+          echo "Exit code: $? (ignored)"
+
+      - name: Scan (push) — include history
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          set +e
+          gitleaks detect \
+            --source . \
+            --redact \
+            --report-format sarif \
+            --report-path gitleaks-results.sarif \
+            --config-path .github/gitleaks.toml
+          echo "Exit code: $? (ignored)"
+
+      - name: Upload gitleaks SARIF (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-results.sarif
+          path: gitleaks-results.sarif
+          if-no-files-found: warn
