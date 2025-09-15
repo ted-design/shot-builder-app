@@ -80,3 +80,8 @@ This starter kit intentionally leaves many implementation details up to you. You
 ## Feature Flags & Rollout
 New features are gated in `src/lib/flags.js` and default to `false`.
 Enable flags only for testing/rollout; remove the flag once a feature is fully stable.
+
+### Auth Flag (newAuthContext)
+- Set `VITE_FLAG_NEW_AUTH_CONTEXT=1` in staging to enable new Firebase auth path.
+- Locally, toggle via `?auth=on` or `?auth=off` (persists to localStorage and reloads).
+- Precedence: localStorage override → env var → default `false`.

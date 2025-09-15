@@ -3,9 +3,12 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 
-import NavBar from "./components/NavBar";
+import NavBar from "./components/NavBarWithAuth";
 import { FLAGS } from "./lib/flags";
+import { useAuth } from "./context/AuthContext";
+import { adaptUser } from "./auth/adapter";
 import ImportProducts from "./pages/ImportProducts";
+import AuthReadyGate from "./auth/AuthReadyGate";
 import LoginPage from "./pages/LoginPage";
 import ShotsPage from "./pages/ShotsPage";
 import PlannerPage from "./pages/PlannerPage";
@@ -37,6 +40,12 @@ export default function App() {
   const [user, setUser] = useState(null);
   useEffect(() => onAuthStateChanged(auth, setUser), []);
 
+  // Read from new AuthContext only for route guards when flag is ON
+  const authCtx = useAuth();
+  const authSel = FLAGS.newAuthContext ? authCtx : { user: null, ready: false, initializing: false };
+  // Route guard truthiness remains behind flag
+  const userForGuard = FLAGS.newAuthContext ? adaptUser(authSel.user) : user;
+
   const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
 
   function PDFDemoMount() {
@@ -54,21 +63,30 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      {user && <NavBar user={user} />}
+      <NavBar />
       {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
       <PDFDemoMount />
-      <MaybeRedirectLogin user={user} />
+      <MaybeRedirectLogin user={userForGuard} />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<Navigate to="/projects" replace />} />
-        <Route path="/projects" element={<RequireAuth user={user}><ProjectsPage /></RequireAuth>} />
-        <Route path="/shots" element={<RequireAuth user={user}><ShotsPage /></RequireAuth>} />
-        <Route path="/planner" element={<RequireAuth user={user}><PlannerPage /></RequireAuth>} />
-        <Route path="/products" element={<RequireAuth user={user}><ProductsPage /></RequireAuth>} />
-        <Route path="/import-products" element={<RequireAuth user={user}><ImportProducts /></RequireAuth>} />
-        <Route path="/talent" element={<RequireAuth user={user}><TalentPage /></RequireAuth>} />
-        <Route path="/locations" element={<RequireAuth user={user}><LocationsPage /></RequireAuth>} />
-        <Route path="/pulls" element={<RequireAuth user={user}><PullsPage /></RequireAuth>} />
+        <Route
+          path="/projects"
+          element={
+            <AuthReadyGate fallback={null}>
+              <RequireAuth user={userForGuard}>
+                <ProjectsPage />
+              </RequireAuth>
+            </AuthReadyGate>
+          }
+        />
+        <Route path="/shots" element={<RequireAuth user={userForGuard}><ShotsPage /></RequireAuth>} />
+        <Route path="/planner" element={<RequireAuth user={userForGuard}><PlannerPage /></RequireAuth>} />
+        <Route path="/products" element={<RequireAuth user={userForGuard}><ProductsPage /></RequireAuth>} />
+        <Route path="/import-products" element={<RequireAuth user={userForGuard}><ImportProducts /></RequireAuth>} />
+        <Route path="/talent" element={<RequireAuth user={userForGuard}><TalentPage /></RequireAuth>} />
+        <Route path="/locations" element={<RequireAuth user={userForGuard}><LocationsPage /></RequireAuth>} />
+        <Route path="/pulls" element={<RequireAuth user={userForGuard}><PullsPage /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
     </BrowserRouter>
