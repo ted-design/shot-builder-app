@@ -45,6 +45,8 @@ jobs:
           # Creates a credentials file and exports env so Firebase CLI can use ADC.
           workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider
           service_account: github-actions-deploy@um-shotbuilder.iam.gserviceaccount.com
+          # Align with provider's Allowed audiences; commonly set to your repo URL.
+          audience: https://github.com/ted-design/shot-builder-app
           create_credentials_file: true
           export_environment_variables: true
 
