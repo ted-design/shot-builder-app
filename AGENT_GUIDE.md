@@ -69,9 +69,9 @@ VITE_FIREBASE_MEASUREMENT_ID=...
 ```
 
 Override precedence (agent must honor)
-1. `localStorage` developer overrides
-2. URL query `?auth=on|off` (and other flags analogously)
-3. `.env` / build-time default
+1. `localStorage` developer overrides (key: `flag.newAuthContext`)
+2. URL query `?auth=on|off|true|false|1|0|yes|no` (and `?auth=clear` to remove override)
+3. `.env` / build-time default (`VITE_FLAG_NEW_AUTH_CONTEXT`)
 
 Agent behavior
 - When a flag is overridden by localStorage or URL, log a single console.warn (include source of override)
@@ -128,4 +128,3 @@ Use the template below (see file in .github/).
 - Flags honoring precedence; OFF implies no change to legacy behavior
 - CI green; preview deploy either successful (with secrets) or gracefully skipped
 - Docs updated (this file and any touched feature docs)
-
