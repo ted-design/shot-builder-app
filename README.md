@@ -75,7 +75,8 @@ This starter kit intentionally leaves many implementation details up to you. You
 ![CI](https://github.com/ted-design/shot-builder-app/actions/workflows/ci.yml/badge.svg)
 
 ## Deploy Status
-[![Deploy to Firebase Hosting (WIF)](https://github.com/ted-design/shot-builder-app/actions/workflows/deploy.yml/badge.svg)](https://github.com/ted-design/shot-builder-app/actions/workflows/deploy.yml)
+[![Deploy (live) after CI](https://github.com/ted-design/shot-builder-app/actions/workflows/deploy-live.yml/badge.svg)](https://github.com/ted-design/shot-builder-app/actions/workflows/deploy-live.yml)
+[![Deploy preview on PR](https://github.com/ted-design/shot-builder-app/actions/workflows/deploy-preview.yml/badge.svg)](https://github.com/ted-design/shot-builder-app/actions/workflows/deploy-preview.yml)
 
 ## Feature Flags & Rollout
 New features are gated in `src/lib/flags.js` and default to `false`.

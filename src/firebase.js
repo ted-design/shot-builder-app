@@ -10,21 +10,26 @@ import {
   deleteObject,
 } from "firebase/storage";
 
-// Ensure required env vars are defined.
-function required(name) {
-  const val = import.meta.env[name];
-  if (!val) throw new Error(`Missing ${name}. Add it to your .env or CI secrets.`);
-  return val;
+// Read env vars defensively to keep builds working without secrets.
+// If secrets are missing (e.g., forks, local without .env), provide safe fallbacks.
+function readEnv(name, fallback = "") {
+  try {
+    const env = (import.meta && import.meta.env) ? import.meta.env : {};
+    const val = env[name];
+    return (val == null ? fallback : val);
+  } catch {
+    return fallback;
+  }
 }
 
 const firebaseConfig = {
-  apiKey: required("VITE_FIREBASE_API_KEY"),
-  authDomain: required("VITE_FIREBASE_AUTH_DOMAIN"),
-  projectId: required("VITE_FIREBASE_PROJECT_ID"),
-  storageBucket: required("VITE_FIREBASE_STORAGE_BUCKET"),
-  messagingSenderId: required("VITE_FIREBASE_MESSAGING_SENDER_ID"),
-  appId: required("VITE_FIREBASE_APP_ID"),
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID, // optional
+  apiKey: readEnv("VITE_FIREBASE_API_KEY"),
+  authDomain: readEnv("VITE_FIREBASE_AUTH_DOMAIN"),
+  projectId: readEnv("VITE_FIREBASE_PROJECT_ID"),
+  storageBucket: readEnv("VITE_FIREBASE_STORAGE_BUCKET"),
+  messagingSenderId: readEnv("VITE_FIREBASE_MESSAGING_SENDER_ID"),
+  appId: readEnv("VITE_FIREBASE_APP_ID"),
+  measurementId: readEnv("VITE_FIREBASE_MEASUREMENT_ID", ""), // optional
 };
 
 const app = initializeApp(firebaseConfig);

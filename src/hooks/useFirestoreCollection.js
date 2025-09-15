@@ -43,7 +43,6 @@ export function useFirestoreCollection(ref, constraints = [], mapFn) {
     return () => unsub();
     // We stringify the constraints array to create a stable dependency. Without
     // this, a new array instance on each render would trigger the effect again.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ref, JSON.stringify(constraints)]);
 
   return { data, loading, error };

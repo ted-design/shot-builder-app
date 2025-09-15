@@ -6,5 +6,6 @@ description = "Temporary allowlist for known non-secret files"
 paths = [
   "firebase-debug\\.log$",
   "shot_builder_patch\\.diff$",
+  # Test files may contain strings like "SECRET" or token-shaped fixtures.
+  "src/.*/__tests__/.*",
 ]
-

@@ -1,1 +1,1 @@
-- [ ] Migrate remaining NavBar consumers behind flag
+- [x] Migrate remaining NavBar consumers behind flag

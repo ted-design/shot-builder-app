@@ -21,7 +21,6 @@ export default function PDFExportModal() {
       URL.revokeObjectURL(url);
     } catch (e) {
       setError("Failed to generate PDF");
-      // eslint-disable-next-line no-console
       console.error(e);
     } finally {
       setDownloading(false);

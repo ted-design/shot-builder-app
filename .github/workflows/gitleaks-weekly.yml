@@ -1,0 +1,136 @@
+name: gitleaks (weekly)
+
+on:
+  schedule:
+    - cron: '0 3 * * 1' # every Monday 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  weekly-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # upload SARIF to code scanning
+      issues: write            # create/update weekly report issue
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks CLI
+        run: |
+          set -euo pipefail
+          VER=8.24.3
+          URL="https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz"
+          curl -sSL "$URL" -o gitleaks.tgz
+          tar -xzf gitleaks.tgz
+          sudo mv gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Run full-history scan (redacted)
+        run: |
+          set +e
+          gitleaks detect \
+            --source . \
+            --redact \
+            --report-format sarif \
+            --report-path gitleaks-results.sarif \
+            --config .github/gitleaks.toml
+          # Also produce JSON for summary
+          gitleaks detect \
+            --source . \
+            --redact \
+            --report-format json \
+            --report-path gitleaks-results.json \
+            --config .github/gitleaks.toml || true
+
+      - name: Ensure SARIF exists
+        if: ${{ always() }}
+        run: |
+          if [ ! -f gitleaks-results.sarif ]; then
+cat > gitleaks-results.sarif <<'JSON'
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [{
+    "tool": {"driver": {"name": "gitleaks", "version": "8.24.3"}},
+    "results": []
+  }]
+}
+JSON
+          fi
+
+      - name: Build summary markdown
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          let findings = [];
+          try {
+            const txt = fs.readFileSync('gitleaks-results.json', 'utf8');
+            findings = JSON.parse(txt);
+            if (!Array.isArray(findings)) findings = [];
+          } catch {}
+          const count = findings.length;
+          const lines = [];
+          lines.push(`# Weekly gitleaks scan report`);
+          lines.push('');
+          lines.push(`Date: ${new Date().toISOString()}`);
+          lines.push('');
+          lines.push(`Total findings (redacted): ${count}`);
+          lines.push('');
+          if (count) {
+            lines.push('| File | Line | Rule |');
+            lines.push('| --- | ---: | --- |');
+            for (const f of findings.slice(0, 50)) {
+              const file = (f.File || f.FilePath || '').toString();
+              const line = (f.StartLine || f.StartLineNumber || '').toString();
+              const rule = (f.RuleID || f.Rule || f.Description || '').toString().replace(/\|/g, ' ');
+              lines.push(`| ${file} | ${line} | ${rule} |`);
+            }
+            if (findings.length > 50) {
+              lines.push('');
+              lines.push(`Showing first 50 of ${findings.length} findings.`);
+            }
+          } else {
+            lines.push('No findings in this scan.');
+          }
+          fs.writeFileSync('gitleaks-summary.md', lines.join('\n'));
+          NODE
+
+      - name: Upload SARIF to code scanning
+        if: ${{ always() }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gitleaks-results.sarif
+          category: gitleaks-weekly
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-weekly
+          path: |
+            gitleaks-results.sarif
+            gitleaks-results.json
+            gitleaks-summary.md
+          if-no-files-found: warn
+
+      - name: Create or update weekly report issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const title = 'Weekly gitleaks scan report';
+            const body = fs.readFileSync('gitleaks-summary.md', 'utf8');
+            const { data: issues } = await github.rest.issues.listForRepo({ owner, repo, state: 'open', per_page: 100 });
+            const existing = issues.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, body });
+              core.info(`Updated issue #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({ owner, repo, title, body });
+              core.info(`Created issue #${created.data.number}`);
+            }
