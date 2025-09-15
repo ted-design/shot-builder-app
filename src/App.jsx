@@ -1,4 +1,5 @@
-import RequireAuth from "./routes/RequireAuth";
+// @@TODO-wire-RequireAuthRoute: replace inline <RequireAuth> uses with <RequireAuthRoute> behind FLAGS.newAuthContext
+import RequireAuthRoute from "./routes/RequireAuth";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
