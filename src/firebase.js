@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
 import {
   getStorage,
   ref as storageRef,
@@ -38,6 +39,7 @@ export const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app);
 
 // Upload helper: returns {downloadURL, path}.
 export async function uploadImageFile(file, { folder, id, filename }) {

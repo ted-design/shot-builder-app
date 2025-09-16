@@ -1,9 +1,8 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { onAuthStateChanged } from "firebase/auth";
+import { onIdTokenChanged } from "firebase/auth";
 import { auth } from "./firebase";
 
-import NavBar from "./components/NavBarWithAuth";
 import { FLAGS } from "./lib/flags";
 import { useAuth } from "./context/AuthContext";
 import { adaptUser } from "./auth/adapter";
@@ -17,14 +16,9 @@ import TalentPage from "./pages/TalentPage";
 import LocationsPage from "./pages/LocationsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import PullsPage from "./pages/PullsPage";
-
-function RequireAuth({ user, children }) {
-  const location = useLocation();
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-  return children;
-}
+import AdminPage from "./pages/AdminPage";
+import SidebarLayout from "./routes/SidebarLayout";
+import RequireRole from "./routes/RequireRole";
 
 function MaybeRedirectLogin({ user }) {
   const location = useLocation();
@@ -36,15 +30,31 @@ function MaybeRedirectLogin({ user }) {
   return null;
 }
 
+function AuthenticatedLayout({ guardUser, navUser, fallbackRole }) {
+  const location = useLocation();
+  if (!guardUser) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  return <SidebarLayout fallbackUser={navUser} fallbackRole={fallbackRole} />;
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
-  useEffect(() => onAuthStateChanged(auth, setUser), []);
+  useEffect(() => onIdTokenChanged(auth, setUser), []);
 
   // Read from new AuthContext only for route guards when flag is ON
   const authCtx = useAuth();
-  const authSel = FLAGS.newAuthContext ? authCtx : { user: null, ready: false, initializing: false };
+  const authSel = FLAGS.newAuthContext
+    ? authCtx
+    : { user: null, ready: true, initializing: false, loadingClaims: false, role: null, projectRoles: {} };
   // Route guard truthiness remains behind flag
   const userForGuard = FLAGS.newAuthContext ? adaptUser(authSel.user) : user;
+  const navUser = FLAGS.newAuthContext
+    ? adaptUser(authSel.user)
+    : user
+      ? adaptUser(user)
+      : null;
+  const navRole = FLAGS.newAuthContext ? authSel.role || null : null;
 
   const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
 
@@ -63,7 +73,6 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <NavBar />
       {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
       <PDFDemoMount />
       <MaybeRedirectLogin user={userForGuard} />
@@ -71,23 +80,31 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<Navigate to="/projects" replace />} />
         <Route
-          path="/projects"
           element={
             <AuthReadyGate fallback={null}>
-              <RequireAuth user={userForGuard}>
-                <ProjectsPage />
-              </RequireAuth>
+              <AuthenticatedLayout guardUser={userForGuard} navUser={navUser} fallbackRole={navRole} />
             </AuthReadyGate>
           }
-        />
-        <Route path="/shots" element={<RequireAuth user={userForGuard}><ShotsPage /></RequireAuth>} />
-        <Route path="/planner" element={<RequireAuth user={userForGuard}><PlannerPage /></RequireAuth>} />
-        <Route path="/products" element={<RequireAuth user={userForGuard}><ProductsPage /></RequireAuth>} />
-        <Route path="/import-products" element={<RequireAuth user={userForGuard}><ImportProducts /></RequireAuth>} />
-        <Route path="/talent" element={<RequireAuth user={userForGuard}><TalentPage /></RequireAuth>} />
-        <Route path="/locations" element={<RequireAuth user={userForGuard}><LocationsPage /></RequireAuth>} />
-        <Route path="/pulls" element={<RequireAuth user={userForGuard}><PullsPage /></RequireAuth>} />
-        <Route path="*" element={<Navigate to="/projects" replace />} />
+        >
+          <Route index element={<Navigate to="/projects" replace />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/shots" element={<ShotsPage />} />
+          <Route path="/planner" element={<PlannerPage />} />
+          <Route path="/products" element={<ProductsPage />} />
+          <Route path="/import-products" element={<ImportProducts />} />
+          <Route path="/talent" element={<TalentPage />} />
+          <Route path="/locations" element={<LocationsPage />} />
+          <Route path="/pulls" element={<PullsPage />} />
+          <Route
+            path="/admin"
+            element={
+              <RequireRole roles={["admin"]}>
+                <AdminPage />
+              </RequireRole>
+            }
+          />
+          <Route path="*" element={<Navigate to="/projects" replace />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );
