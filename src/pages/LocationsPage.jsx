@@ -93,6 +93,10 @@ export default function LocationsPage() {
   const change = (k, v) => setDraft({ ...draft, [k]: v });
 
   const create = async () => {
+    if (!canManage) {
+      alert("You do not have permission to add locations.");
+      return;
+    }
     if (!draft.name) return;
     const docRef = await addDoc(collection(db, ...locationsPath), {
       ...draft,
@@ -118,12 +122,14 @@ export default function LocationsPage() {
   };
 
   const rename = async (item) => {
+    if (!canManage) return;
     const name = prompt("New name", item.name);
     if (!name) return;
     await updateDoc(doc(db, ...locationsPath, item.id), { name });
   };
 
   const changeImage = async (item) => {
+    if (!canManage) return;
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
@@ -142,6 +148,7 @@ export default function LocationsPage() {
   };
 
   const removeImage = async (item) => {
+    if (!canManage) return;
     if (!item.photoPath) return;
     try {
       await deleteImageByPath(item.photoPath);
@@ -150,6 +157,7 @@ export default function LocationsPage() {
   };
 
   const remove = async (id, prevPath) => {
+    if (!canManage) return;
     await deleteDoc(doc(db, ...locationsPath, id));
     if (prevPath) {
       try {
@@ -164,7 +172,13 @@ export default function LocationsPage() {
     : items;
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold text-slate-900">Locations</h1>
+        <p className="text-sm text-slate-600">
+          Catalogue studios and on-site venues with reference photos and notes.
+        </p>
+      </div>
       {/* Page header and search */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold">Locations</h1>
@@ -177,65 +191,69 @@ export default function LocationsPage() {
       </div>
 
       {/* Form to create a new location */}
-      <Card>
-        <CardHeader>
-          <h2 className="text-lg font-semibold">Create New Location</h2>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Input
-            placeholder="Name"
-            value={draft.name}
-            onChange={(e) => change("name", e.target.value)}
-          />
-          <Input
-            placeholder="Street address"
-            value={draft.street}
-            onChange={(e) => change("street", e.target.value)}
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {canManage ? (
+        <Card>
+          <CardHeader>
+            <h2 className="text-lg font-semibold">Create New Location</h2>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <Input
-              placeholder="Unit (optional)"
-              value={draft.unit}
-              onChange={(e) => change("unit", e.target.value)}
+              placeholder="Name"
+              value={draft.name}
+              onChange={(e) => change("name", e.target.value)}
             />
             <Input
-              placeholder="City"
-              value={draft.city}
-              onChange={(e) => change("city", e.target.value)}
+              placeholder="Street address"
+              value={draft.street}
+              onChange={(e) => change("street", e.target.value)}
             />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                placeholder="Unit (optional)"
+                value={draft.unit}
+                onChange={(e) => change("unit", e.target.value)}
+              />
+              <Input
+                placeholder="City"
+                value={draft.city}
+                onChange={(e) => change("city", e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                placeholder="Province/State"
+                value={draft.province}
+                onChange={(e) => change("province", e.target.value)}
+              />
+              <Input
+                placeholder="Postal/ZIP"
+                value={draft.postal}
+                onChange={(e) => change("postal", e.target.value)}
+              />
+            </div>
             <Input
-              placeholder="Province/State"
-              value={draft.province}
-              onChange={(e) => change("province", e.target.value)}
+              placeholder="Phone (optional)"
+              value={draft.phone}
+              onChange={(e) => change("phone", e.target.value)}
             />
-            <Input
-              placeholder="Postal/ZIP"
-              value={draft.postal}
-              onChange={(e) => change("postal", e.target.value)}
+            <textarea
+              placeholder="Other notes / instructions (optional)"
+              value={draft.notes}
+              onChange={(e) => change("notes", e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              rows={3}
             />
-          </div>
-          <Input
-            placeholder="Phone (optional)"
-            value={draft.phone}
-            onChange={(e) => change("phone", e.target.value)}
-          />
-          {/* Notes field: we use a textarea since there is no Textarea component in
-              the UI library.  Tailwind classes mimic the Input styling. */}
-          <textarea
-            placeholder="Other notes / instructions (optional)"
-            value={draft.notes}
-            onChange={(e) => change("notes", e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-            rows={3}
-          />
-          <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <div>
-            <Button onClick={create}>Add Location</Button>
-          </div>
-        </CardContent>
-      </Card>
+            <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            <div>
+              <Button onClick={create}>Add Location</Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+          Locations are read-only for your role. Producers can create and update venue records.
+        </div>
+      )}
 
       {/* List of existing locations */}
       <div className="space-y-4">
@@ -264,20 +282,24 @@ export default function LocationsPage() {
                     <div className="text-sm text-gray-600 mt-1">{l.notes}</div>
                   )}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => changeImage(l)}>
-                    Change Image
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => removeImage(l)}>
-                    Remove Image
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => rename(l)}>
-                    Rename
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => remove(l.id, l.photoPath)}>
-                    Delete
-                  </Button>
-                </div>
+                {canManage ? (
+                  <div className="flex flex-col gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => changeImage(l)}>
+                      Change Image
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => removeImage(l)}>
+                      Remove Image
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => rename(l)}>
+                      Rename
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => remove(l.id, l.photoPath)}>
+                      Delete
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-500">Read only</div>
+                )}
               </div>
             </CardContent>
           </Card>
