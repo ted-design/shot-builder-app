@@ -58,6 +58,7 @@ export default function ShotsPage() {
   // the ProductSelectorModal will be shown.  Use this only for creating new
   // shots; editing existing shots still uses the multi-select for now.
   const [showProductModal, setShowProductModal] = useState(false);
+  const [editingProductsShot, setEditingProductsShot] = useState(null);
 
   // Helper to build references
   const collRef = (...segments) => collection(db, ...segments);
@@ -288,24 +289,31 @@ export default function ShotsPage() {
                 {draft.productIds.map((pid) => {
                   const prod = products.find((p) => p.id === pid);
                   return (
-                    <span
-                      key={pid}
-                      className="bg-gray-200 text-sm px-2 py-1 rounded"
-                    >
+                    <span key={pid} className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs">
                       {prod ? prod.name : pid}
+                      <button
+                        type="button"
+                        className="text-slate-500 hover:text-slate-700"
+                        onClick={() =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            productIds: prev.productIds.filter((id) => id !== pid),
+                          }))
+                        }
+                      >
+                        ×
+                      </button>
                     </span>
                   );
                 })}
-                {!draft.productIds.length && (
-                  <span className="text-sm text-gray-500">No products selected</span>
-                )}
+                {!draft.productIds.length && <span className="text-sm text-gray-500">No products selected</span>}
               </div>
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={() => setShowProductModal(true)}
               >
-                Add Products
+                Manage products
               </Button>
             </div>
             {/* Talent select */}
@@ -410,26 +418,27 @@ export default function ShotsPage() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="text-sm font-medium mb-1">Products</label>
-                  <select
-                    className="w-full border rounded p-2"
-                    multiple
-                    value={s.productIds || []}
-                    disabled={!canEditShots}
-                    onChange={(e) =>
-                      updateShot(s, {
-                        productIds: Array.from(e.target.selectedOptions).map((o) => o.value),
-                      })
-                    }
-                  >
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+              <div>
+                <label className="text-sm font-medium mb-1">Products</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {(s.productIds || []).map((pid) => {
+                    const product = products.find((p) => p.id === pid);
+                    return (
+                      <span key={pid} className="rounded-full bg-slate-100 px-3 py-1 text-xs">
+                        {product ? product.name : pid}
+                      </span>
+                    );
+                  })}
+                  {(!s.productIds || s.productIds.length === 0) && (
+                    <span className="text-xs text-slate-500">No products linked</span>
+                  )}
                 </div>
+                {canEditShots && (
+                  <Button size="sm" variant="secondary" onClick={() => setEditingProductsShot(s)}>
+                    Manage products
+                  </Button>
+                )}
+              </div>
                 <div>
                   <label className="text-sm font-medium mb-1">Talent</label>
                   <select
@@ -463,13 +472,23 @@ export default function ShotsPage() {
         <ProductSelectorModal
           products={products}
           selectedIds={draft.productIds}
-          onAdd={(product) =>
+          onSubmit={(ids) =>
             setDraft((prev) => ({
               ...prev,
-              productIds: Array.from(new Set([...prev.productIds, product.id])),
+              productIds: ids,
             }))
           }
           onClose={() => setShowProductModal(false)}
+          title="Select products for new shot"
+        />
+      )}
+      {canEditShots && editingProductsShot && (
+        <ProductSelectorModal
+          products={products}
+          selectedIds={editingProductsShot.productIds || []}
+          onSubmit={(ids) => updateShot(editingProductsShot, { productIds: ids })}
+          onClose={() => setEditingProductsShot(null)}
+          title={`Products for ${editingProductsShot.name}`}
         />
       )}
     </div>
