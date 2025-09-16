@@ -71,6 +71,20 @@ shot-builder-app/
 ## Next steps
 
 This starter kit intentionally leaves many implementation details up to you. You can tailor the UI components, pages, and Cloud Functions to suit your production workflow. Consult the architecture plan provided in the discussion to structure your Firestore collections and Cloud Functions.
+
+### Role management deployment checklist
+
+- Deploy the callable `setUserClaims` function so the Admin screen can assign roles:
+
+  ```bash
+  firebase deploy --only functions:setUserClaims
+  ```
+- Ensure each teammate signs in at least once; their profile document is created automatically and the Admin page can then adjust their claims.
+- Use the Admin “Invite or Update User” form to set roles for new emails—the function looks up the Firebase Auth user and writes the matching Firestore document.
+
+## Contributor Guide
+
+Review `AGENTS.md` for repository workflow, coding standards, and release expectations before opening a pull request.
 ## CI Status
 ![CI](https://github.com/ted-design/shot-builder-app/actions/workflows/ci.yml/badge.svg)
 
