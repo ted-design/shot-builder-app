@@ -7,7 +7,13 @@ function readBool(v) {
 
 // Env default (Vite-style)
 const ENV = (import.meta && import.meta.env) ? import.meta.env : {};
-const ENV_DEFAULT = readBool(ENV.VITE_FLAG_NEW_AUTH_CONTEXT);
+const envFlag =
+  ENV.VITE_FLAG_NEW_AUTH_CONTEXT != null
+    ? ENV.VITE_FLAG_NEW_AUTH_CONTEXT
+    : ENV.PROD
+      ? "1"
+      : undefined;
+const ENV_DEFAULT = readBool(envFlag);
 
 // Local override (set by URL helper)
 let OVERRIDE = null;
