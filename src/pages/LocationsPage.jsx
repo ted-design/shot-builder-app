@@ -26,6 +26,8 @@ import { locationsPath } from "../lib/paths";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
+import { useAuth } from "../context/AuthContext";
+import { canManageLocations, ROLE } from "../lib/rbac";
 
 // Reuse the existing thumbnail component.  It fetches a resized image
 // when available and falls back to the original.  No styling changes are
@@ -79,6 +81,9 @@ export default function LocationsPage() {
     notes: "",
   });
   const [file, setFile] = useState(null);
+  const { role: globalRole } = useAuth();
+  const role = globalRole || ROLE.VIEWER;
+  const canManage = canManageLocations(role);
 
   // Subscribe to locations collection
   useEffect(() => {
