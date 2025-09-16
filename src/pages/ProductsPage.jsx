@@ -25,6 +25,8 @@ import { productsPath } from "../lib/paths";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input, Checkbox } from "../components/ui/input";
 import { Button } from "../components/ui/button";
+import { useAuth } from "../context/AuthContext";
+import { canManageProducts, ROLE } from "../lib/rbac";
 
 // Thumbnail component reused from the original implementation.  It shows a
 // placeholder while loading and automatically fetches a 200x200 variant if
@@ -69,6 +71,9 @@ export default function ProductsPage() {
   const [file, setFile] = useState(null);
   const [qText, setQText] = useState("");
   const [showDiscontinued, setShowDiscontinued] = useState(false);
+  const { role: globalRole } = useAuth();
+  const role = globalRole || ROLE.VIEWER;
+  const canManage = canManageProducts(role);
 
   // Subscribe to products collection
   useEffect(() => {
@@ -79,6 +84,10 @@ export default function ProductsPage() {
 
   // Create a new product
   const create = async () => {
+    if (!canManage) {
+      alert("You do not have permission to add products.");
+      return;
+    }
     if (!draft.name) return;
     const docRef = await addDoc(collection(db, ...productsPath), {
       ...draft,
@@ -96,14 +105,17 @@ export default function ProductsPage() {
 
   // Renaming and toggling helper functions
   const rename = async (item) => {
+    if (!canManage) return;
     const name = prompt("New name", item.name);
     if (!name) return;
     await updateDoc(doc(db, ...productsPath, item.id), { name });
   };
   const toggleActive = async (item) => {
+    if (!canManage) return;
     await updateDoc(doc(db, ...productsPath, item.id), { active: !item.active });
   };
   const changeImage = async (item) => {
+    if (!canManage) return;
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
@@ -121,6 +133,7 @@ export default function ProductsPage() {
     input.click();
   };
   const removeImage = async (item) => {
+    if (!canManage) return;
     if (!item.thumbnailPath) return;
     try {
       await deleteImageByPath(item.thumbnailPath);
@@ -128,6 +141,7 @@ export default function ProductsPage() {
     await updateDoc(doc(db, ...productsPath, item.id), { thumbnailPath: null });
   };
   const remove = async (id, prevPath) => {
+    if (!canManage) return;
     await deleteDoc(doc(db, ...productsPath, id));
     if (prevPath) {
       try {
@@ -144,7 +158,13 @@ export default function ProductsPage() {
   });
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold text-slate-900">Products</h1>
+        <p className="text-sm text-slate-600">
+          Manage the wardrobe catalogue, toggle availability, and attach thumbnails.
+        </p>
+      </div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold">Products</h1>
         {/* Search and discontinued toggle */}
@@ -166,39 +186,46 @@ export default function ProductsPage() {
       </div>
 
       {/* Form to create a new product */}
-      <Card>
-        <CardHeader>
-          <h2 className="text-lg font-semibold">Create New Product</h2>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Input
-            placeholder="Name"
-            value={draft.name}
-            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-          />
-          <Input
-            placeholder="SKU"
-            value={draft.sku}
-            onChange={(e) => setDraft({ ...draft, sku: e.target.value })}
-          />
-          <Input
-            placeholder="Category"
-            value={draft.category}
-            onChange={(e) => setDraft({ ...draft, category: e.target.value })}
-          />
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <Checkbox
-              checked={draft.active}
-              onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
+      {canManage ? (
+        <Card>
+          <CardHeader>
+            <h2 className="text-lg font-semibold">Create New Product</h2>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Input
+              placeholder="Name"
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
             />
-            Active
-          </label>
-          <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <div>
-            <Button onClick={create}>Add Product</Button>
-          </div>
-        </CardContent>
-      </Card>
+            <Input
+              placeholder="SKU"
+              value={draft.sku}
+              onChange={(e) => setDraft({ ...draft, sku: e.target.value })}
+            />
+            <Input
+              placeholder="Category"
+              value={draft.category}
+              onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+            />
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <Checkbox
+                checked={draft.active}
+                onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
+              />
+              Active
+            </label>
+            <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            <div>
+              <Button onClick={create}>Add Product</Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+          Your role has read-only access to the product catalogue. Producers can update inventory
+          metadata and images.
+        </div>
+      )}
 
       {/* List of existing products */}
       <div className="space-y-4">
@@ -215,23 +242,27 @@ export default function ProductsPage() {
                     {p.category || "–"} • {p.active ? "Active" : "Discontinued"}
                   </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => changeImage(p)}>
-                    Change Image
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => removeImage(p)}>
-                    Remove Image
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => toggleActive(p)}>
-                    {p.active ? "Set Discontinued" : "Set Active"}
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => rename(p)}>
-                    Rename
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => remove(p.id, p.thumbnailPath)}>
-                    Delete
-                  </Button>
-                </div>
+                {canManage ? (
+                  <div className="flex flex-col gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => changeImage(p)}>
+                      Change Image
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => removeImage(p)}>
+                      Remove Image
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => toggleActive(p)}>
+                      {p.active ? "Set Discontinued" : "Set Active"}
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => rename(p)}>
+                      Rename
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => remove(p.id, p.thumbnailPath)}>
+                      Delete
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-500">Read only</div>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -35,6 +35,8 @@ import {
   shotsPath,
   getActiveProjectId,
 } from "../lib/paths";
+import { useAuth } from "../context/AuthContext";
+import { canManagePlanner, ROLE } from "../lib/rbac";
 
 // Simple droppable component for DnD kit
 function DroppableLane({ laneId, children }) {
@@ -43,8 +45,8 @@ function DroppableLane({ laneId, children }) {
 }
 
 // Simple draggable shot card for DnD kit
-function DraggableShot({ shot }) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: shot.id });
+function DraggableShot({ shot, disabled }) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: shot.id, disabled });
   const style = {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     border: "1px solid #eee",
@@ -52,8 +54,9 @@ function DraggableShot({ shot }) {
     borderRadius: 8,
     background: "#fff",
   };
+  const dragProps = disabled ? {} : { ...listeners, ...attributes };
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+    <div ref={setNodeRef} style={style} {...dragProps}>
       <div style={{ fontWeight: 600 }}>{shot.name}</div>
       <div style={{ fontSize: 12, opacity: 0.7 }}>{shot.type || "-"} • {shot.date || "-"}</div>
     </div>
@@ -65,6 +68,9 @@ export default function PlannerPage() {
   const [name, setName] = useState("");
   const [shotsByLane, setShotsByLane] = useState({});
   const projectId = getActiveProjectId();
+  const { role: globalRole } = useAuth();
+  const userRole = globalRole || ROLE.VIEWER;
+  const canEditPlanner = canManagePlanner(userRole);
 
   useEffect(() => {
     // Subscribe to lanes for the current project
@@ -98,6 +104,10 @@ export default function PlannerPage() {
   // based on the length of the current lane array.  Names are arbitrary but
   // using a date format (YYYY-MM-DD) allows drag events to update shot dates.
   const addLane = async () => {
+    if (!canEditPlanner) {
+      alert("You do not have permission to modify the planner.");
+      return;
+    }
     if (!name) return;
     await addDoc(collection(db, ...lanesPath(projectId)), { name, order: lanes.length });
     setName("");
@@ -105,6 +115,7 @@ export default function PlannerPage() {
 
   // Prompt to rename a lane.  Empty input aborts the rename.
   const renameLane = async (lane) => {
+    if (!canEditPlanner) return;
     const newName = prompt("Lane name", lane.name);
     if (!newName) return;
     await updateDoc(doc(db, ...lanesPath(projectId), lane.id), { name: newName });
@@ -115,6 +126,7 @@ export default function PlannerPage() {
   // central collection we need to query for the current project's shots with
   // this laneId and update them.  Only then do we delete the lane.
   const removeLane = async (lane) => {
+    if (!canEditPlanner) return;
     if (!confirm("Delete lane?")) return;
     const q = query(
       collection(db, ...shotsPath()),
@@ -134,6 +146,7 @@ export default function PlannerPage() {
   // name looks like a date).  Because shots are stored in a central
   // collection we update via shotsPath().
   const onDragEnd = async (e) => {
+    if (!canEditPlanner) return;
     const shotId = e.active?.id;
     const overId = e.over?.id;
     if (!shotId || !overId) return;
@@ -147,36 +160,41 @@ export default function PlannerPage() {
   };
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1>Planner</h1>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold text-slate-900">Planner</h1>
+        <p className="text-sm text-slate-600">
+          Arrange shots into lanes for the active project. Drag cards between lanes to
+          update assignments and keep shoot days organised.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <input
           placeholder="New lane (e.g., 2025-09-12 or Unassigned)"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          className="h-10 min-w-[220px] flex-1 rounded-md border border-slate-200 px-3 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+          disabled={!canEditPlanner}
         />
-        <button onClick={addLane}>Add Lane</button>
+        <button
+          onClick={addLane}
+          className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-white transition hover:bg-primary/90 disabled:opacity-60"
+          disabled={!canEditPlanner}
+        >
+          Add lane
+        </button>
       </div>
       <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <div style={{ display: "grid", gridAutoFlow: "column", gap: 12, alignItems: "flex-start" }}>
+        <div className="flex gap-4 overflow-x-auto pb-6">
           {/* Unassigned column */}
           <DroppableLane laneId="__unassigned__">
-            <div
-              style={{
-                border: "1px solid #ddd",
-                borderRadius: 10,
-                padding: 12,
-                minWidth: 280,
-                display: "grid",
-                gap: 8,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <strong>Unassigned</strong>
+            <div className="flex min-w-[280px] flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-slate-900">Unassigned</span>
               </div>
-              <div style={{ display: "grid", gap: 8 }}>
+              <div className="flex flex-col gap-3">
                 {(shotsByLane["__unassigned__"] || []).map((sh) => (
-                  <DraggableShot key={sh.id} shot={sh} />
+                  <DraggableShot key={sh.id} shot={sh} disabled={!canEditPlanner} />
                 ))}
               </div>
             </div>
@@ -184,26 +202,23 @@ export default function PlannerPage() {
           {/* Project lanes */}
           {lanes.map((lane) => (
             <DroppableLane key={lane.id} laneId={lane.id}>
-              <div
-                style={{
-                  border: "1px solid #ddd",
-                  borderRadius: 10,
-                  padding: 12,
-                  minWidth: 280,
-                  display: "grid",
-                  gap: 8,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <strong>{lane.name}</strong>
-                  <span style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => renameLane(lane)}>Rename</button>
-                    <button onClick={() => removeLane(lane)}>Delete</button>
-                  </span>
+              <div className="flex min-w-[280px] flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-slate-900">{lane.name}</span>
+                  {canEditPlanner && (
+                    <span className="flex items-center gap-2 text-xs text-primary">
+                      <button onClick={() => renameLane(lane)} className="hover:underline">
+                        Rename
+                      </button>
+                      <button onClick={() => removeLane(lane)} className="hover:underline">
+                        Delete
+                      </button>
+                    </span>
+                  )}
                 </div>
-                <div style={{ display: "grid", gap: 8 }}>
+                <div className="flex flex-col gap-3">
                   {(shotsByLane[lane.id] || []).map((sh) => (
-                    <DraggableShot key={sh.id} shot={sh} />
+                    <DraggableShot key={sh.id} shot={sh} disabled={!canEditPlanner} />
                   ))}
                 </div>
               </div>
@@ -211,6 +226,11 @@ export default function PlannerPage() {
           ))}
         </div>
       </DndContext>
+      {!canEditPlanner && (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+          Planner actions are read-only for your role. Producers or crew can organise shot lanes.
+        </div>
+      )}
     </div>
   );
 }

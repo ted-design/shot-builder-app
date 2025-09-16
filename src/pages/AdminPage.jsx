@@ -1,0 +1,224 @@
+import { useEffect, useMemo, useState } from "react";
+import { collection, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "../firebase";
+import { CLIENT_ID } from "../lib/paths";
+import { ROLE, roleLabel } from "../lib/rbac";
+import { useAuth } from "../context/AuthContext";
+import { Card, CardHeader, CardContent } from "../components/ui/card";
+
+const ROLE_OPTIONS = [ROLE.ADMIN, ROLE.PRODUCER, ROLE.CREW, ROLE.WAREHOUSE, ROLE.VIEWER];
+
+export default function AdminPage() {
+  const [users, setUsers] = useState([]);
+  const [status, setStatus] = useState("");
+  const [updatingId, setUpdatingId] = useState(null);
+  const [newEmail, setNewEmail] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newRole, setNewRole] = useState(ROLE.PRODUCER);
+  const [adding, setAdding] = useState(false);
+  const { refreshToken, user: authUser } = useAuth();
+
+  useEffect(() => {
+    const ref = collection(db, "clients", CLIENT_ID, "users");
+    const unsub = onSnapshot(ref, (snapshot) => {
+      setUsers(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  const setUserClaims = useMemo(() => httpsCallable(functions, "setUserClaims"), []);
+
+  const handleAddUser = async (event) => {
+    event.preventDefault();
+    const email = newEmail.trim();
+    if (!email) {
+      setStatus("Enter an email to invite or update a user.");
+      return;
+    }
+    setAdding(true);
+    setStatus("");
+    try {
+      const response = await setUserClaims({ targetEmail: email, role: newRole, clientId: CLIENT_ID });
+      const data = response?.data || {};
+      const uid = data.uid;
+      if (!uid) throw new Error("Callable did not return a user id.");
+
+      await setDoc(
+        doc(db, "clients", CLIENT_ID, "users", uid),
+        {
+          email,
+          displayName: newName.trim() || null,
+          role: newRole,
+          projects: data.projects || {},
+          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      if (authUser && authUser.uid === uid) {
+        await refreshToken?.();
+      }
+
+      setStatus(`Updated claims for ${email}. They will appear in the roster once they sign in.`);
+      setNewEmail("");
+      setNewName("");
+      setNewRole(ROLE.PRODUCER);
+    } catch (err) {
+      console.error("Failed to add/update user", err);
+      setStatus(err.message || String(err));
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleRoleChange = async (userDoc, nextRole) => {
+    setUpdatingId(userDoc.id);
+    setStatus("");
+    try {
+      await setDoc(
+        doc(db, "clients", CLIENT_ID, "users", userDoc.id),
+        {
+          role: nextRole,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      if (userDoc.email) {
+        await setUserClaims({ targetEmail: userDoc.email, role: nextRole, clientId: CLIENT_ID });
+        if (authUser && authUser.uid === userDoc.id) {
+          await refreshToken?.();
+        }
+      }
+
+      setStatus(`Updated ${userDoc.email || userDoc.id} to ${roleLabel(nextRole)}.`);
+    } catch (err) {
+      console.error("Failed to update role", err);
+      setStatus(err.message || String(err));
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold text-slate-900">Admin</h1>
+        <p className="text-sm text-slate-600">
+          Manage team roles and project access. Updates sync to Firebase custom claims so security
+          rules stay in lockstep.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold">Team Members</h2>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={handleAddUser}
+            className="mb-6 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
+          >
+            <div className="font-medium text-slate-800">Invite or Update User</div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                type="email"
+                required
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="Email"
+                className="rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/60"
+              />
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Display name (optional)"
+                className="rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/60"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="text-xs uppercase tracking-wide text-slate-500">Role</label>
+              <select
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value)}
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/60"
+              >
+                {ROLE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {roleLabel(option)}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                disabled={adding}
+                className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary/90 disabled:opacity-60"
+              >
+                {adding ? "Saving..." : "Apply role"}
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              The user must sign in at least once before appearing in the roster. Claims take effect
+              immediately after this action.
+            </p>
+          </form>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 text-left">Name</th>
+                  <th className="px-3 py-2 text-left">Email</th>
+                  <th className="px-3 py-2 text-left">Role</th>
+                  <th className="px-3 py-2 text-left">Projects</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {users.map((user) => {
+                  const projectCount = user.projects ? Object.keys(user.projects).length : 0;
+                  const roleValue = user.role || ROLE.VIEWER;
+                  return (
+                    <tr key={user.id} className="whitespace-nowrap">
+                      <td className="px-3 py-2 text-slate-800">{user.displayName || "—"}</td>
+                      <td className="px-3 py-2 text-slate-600">{user.email || "—"}</td>
+                      <td className="px-3 py-2">
+                        <select
+                          className="min-w-[140px] rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/60"
+                          value={roleValue}
+                          disabled={updatingId === user.id}
+                          onChange={(e) => handleRoleChange(user, e.target.value)}
+                        >
+                          {ROLE_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {roleLabel(option)}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">{projectCount}</td>
+                    </tr>
+                  );
+                })}
+                {!users.length && (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-6 text-center text-slate-500">
+                      No users found for this client yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {status && (
+        <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          {status}
+        </div>
+      )}
+    </div>
+  );
+}

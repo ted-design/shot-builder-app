@@ -23,6 +23,8 @@ import { db } from "../firebase";
 // Pull in the dynamic project helper instead of a constant.  The function
 // returns whatever project ID is currently stored in localStorage.
 import { pullsPath, getActiveProjectId } from "../lib/paths";
+import { useAuth } from "../context/AuthContext";
+import { canManagePulls, ROLE } from "../lib/rbac";
 // Optional: if you've created UI primitives (Card, Input, Button), import
 // them here.  Otherwise, plain HTML elements will work fine.
 
@@ -34,6 +36,9 @@ export default function PullsPage() {
   // projects via your UI (which writes to localStorage), we listen for the
   // storage event and update this state accordingly.
   const [projectId, setProjectId] = useState(getActiveProjectId());
+  const { role: globalRole } = useAuth();
+  const role = globalRole || ROLE.VIEWER;
+  const canManage = canManagePulls(role);
 
   // Listen for changes to localStorage so we can update the project ID
   // without reloading the entire page.  This allows the planner to react to
@@ -67,6 +72,10 @@ export default function PullsPage() {
   // Add a new pull to the current project's pulls collection.  We call
   // serverTimestamp() to populate the createdAt field so that ordering works.
   async function handleAddPull() {
+    if (!canManage) {
+      alert("You do not have permission to create pulls.");
+      return;
+    }
     const trimmed = title.trim();
     if (!trimmed) return;
     const pathSegments = pullsPath(projectId);
@@ -80,6 +89,7 @@ export default function PullsPage() {
   // Update an existing pull's title.  You can extend this function to
   // support other fields as needed.
   async function handleUpdateTitle(id, newTitle) {
+    if (!canManage) return;
     const trimmed = newTitle.trim();
     if (!trimmed) return;
     const pathSegments = pullsPath(projectId);
@@ -88,7 +98,13 @@ export default function PullsPage() {
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold text-slate-900">Pulls</h1>
+        <p className="text-sm text-slate-600">
+          Aggregate products needed for shoots, publish to the warehouse, and track fulfilment.
+        </p>
+      </div>
       <h1 className="text-2xl font-bold">Pulls</h1>
       {/* Render existing pulls.  For brevity, this example uses simple
           inputs to edit titles in place.  You can replace this with your
@@ -102,26 +118,33 @@ export default function PullsPage() {
             <input
               className="flex-1 mr-2 p-1 border rounded"
               value={pull.title || ""}
+              disabled={!canManage}
               onChange={(e) => handleUpdateTitle(pull.id, e.target.value)}
             />
           </li>
         ))}
       </ul>
       {/* Form to create a new pull */}
-      <div className="flex space-x-2">
-        <input
-          className="flex-1 p-1 border rounded"
-          placeholder="New pull title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <button
-          className="px-4 py-2 bg-primary text-white rounded"
-          onClick={handleAddPull}
-        >
-          Add
-        </button>
-      </div>
+      {canManage ? (
+        <div className="flex space-x-2">
+          <input
+            className="flex-1 p-1 border rounded"
+            placeholder="New pull title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <button
+            className="px-4 py-2 bg-primary text-white rounded"
+            onClick={handleAddPull}
+          >
+            Add
+          </button>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+          Pulls are read-only for your role. Producers or warehouse staff can create and update them.
+        </div>
+      )}
     </div>
   );
 }

@@ -13,11 +13,11 @@ import { FLAGS } from "../lib/flags";
  */
 export default function RequireAuth({ to = "/login" }) {
   // Always call hooks first.
-  const { user, ready, initializing } = useAuth();
+  const { user, ready, initializing, loadingClaims } = useAuth();
   const flagOn = !!(FLAGS && FLAGS.newAuthContext);
   if (!flagOn) return <Outlet />;
 
-  const authReady = typeof ready === "boolean" ? ready : !initializing;
+  const authReady = typeof ready === "boolean" ? ready : !(initializing || loadingClaims);
   if (!authReady) return null;
   if (!user) return <Navigate to={to} replace />;
   return <Outlet />;
