@@ -1,7 +1,7 @@
 # Flags
 
 ## VITE_FLAG_NEW_AUTH_CONTEXT
-Default OFF. Enables new auth context + route guard.
+Defaults to ON for production builds (off for local/dev unless explicitly set). Enables the new auth context + route guard.
 
 ### Override precedence
 1. localStorage key `flag.newAuthContext`
