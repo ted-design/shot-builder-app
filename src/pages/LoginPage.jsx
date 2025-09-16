@@ -1,31 +1,70 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signInWithPopup, signInWithRedirect } from "firebase/auth";
+import {
+  signInWithPopup,
+  signInWithRedirect,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  updateProfile,
+} from "firebase/auth";
 import { auth, provider } from "../firebase";
+
+const mapAuthError = (error) => {
+  const code = error?.code;
+  switch (code) {
+    case "auth/invalid-email":
+      return "Enter a valid email address.";
+    case "auth/user-not-found":
+    case "auth/wrong-password":
+      return "Incorrect email or password.";
+    case "auth/email-already-in-use":
+      return "An account with this email already exists. Try signing in instead.";
+    case "auth/weak-password":
+      return "Choose a stronger password (at least 6 characters).";
+    case "auth/too-many-requests":
+      return "Too many attempts. Try again in a few minutes.";
+    default:
+      return error?.message || "Authentication failed.";
+  }
+};
 
 export default function LoginPage() {
   const nav = useNavigate();
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [name, setName] = useState("");
 
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged(u => {
+    const unsub = auth.onIdTokenChanged((u) => {
       if (u) nav("/projects", { replace: true });  // go to Projects after sign-in
     });
     return () => unsub();
   }, [nav]);
 
+  const toggleMode = () => {
+    setMode((prev) => (prev === "signin" ? "signup" : "signin"));
+    setError("");
+    setInfo("");
+    setPassword("");
+    setConfirm("");
+  };
+
   const login = async () => {
     setError("");
+    setInfo("");
     setBusy(true);
     try {
       await signInWithPopup(auth, provider);
-      // onAuthStateChanged above will do the redirect
+      // onIdTokenChanged above will redirect after sign-in.
     } catch (e) {
       const code = e && e.code ? String(e.code) : "unknown";
-      // Common cases where popup fails: third-party cookies blocked, Safari, or popup blockers.
-      // Environments like Safari/ITP or hardened privacy settings often
-      // break popup flows. In those cases, fall back to redirect.
       const shouldRedirect = [
         "auth/popup-blocked",
         "auth/operation-not-supported-in-this-environment",
@@ -37,7 +76,7 @@ export default function LoginPage() {
       if (shouldRedirect) {
         try {
           await signInWithRedirect(auth, provider);
-          return; // page will redirect
+          return;
         } catch (e2) {
           setError(`Sign-in failed (redirect): ${e2.message || e2}`);
         }
@@ -57,26 +96,180 @@ export default function LoginPage() {
 
   const loginRedirect = async () => {
     setError("");
+    setInfo("");
     setBusy(true);
     try {
       await signInWithRedirect(auth, provider);
     } catch (e) {
       setError(`Sign-in (redirect) failed: ${e.message || e}`);
+    } finally {
       setBusy(false);
     }
   };
 
-  // If user is already signed in, we’ll immediately navigate away in the effect.
+  const handleEmailSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+    setInfo("");
+    if (!email || !password) {
+      setError("Email and password are required.");
+      return;
+    }
+    if (mode === "signup" && password !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+    setBusy(true);
+    try {
+      if (mode === "signin") {
+        await signInWithEmailAndPassword(auth, email.trim(), password);
+      } else {
+        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        if (name.trim()) {
+          try {
+            await updateProfile(cred.user, { displayName: name.trim() });
+          } catch (profileErr) {
+            console.warn("Failed to update display name", profileErr);
+          }
+        }
+        try {
+          await sendEmailVerification(cred.user);
+          setInfo("Verification email sent. You can continue once it's received.");
+        } catch (verifyErr) {
+          console.warn("Failed to send verification email", verifyErr);
+        }
+      }
+    } catch (err) {
+      setError(mapAuthError(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleReset = async () => {
+    setError("");
+    setInfo("");
+    if (!email) {
+      setError("Enter your email first, then request a reset link.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setInfo("Password reset email sent. Check your inbox.");
+    } catch (err) {
+      setError(mapAuthError(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div style={{display:"grid",placeItems:"center",height:"100vh"}}>
-      <div style={{display:"grid",gap:12,padding:24,border:"1px solid #ddd",borderRadius:12,minWidth:320}}>
-        <h1>Sign in</h1>
-        <button onClick={login} disabled={busy}>Continue with Google</button>
-        <button onClick={loginRedirect} disabled={busy} style={{opacity:0.85}}>
-          Use redirect sign‑in (fallback)
-        </button>
-        {error && (
-          <div style={{color:"#b91c1c", fontSize:12}}>{error}</div>
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="space-y-2 text-center">
+          <h1 className="text-2xl font-semibold text-slate-900">Welcome back</h1>
+          <p className="text-sm text-slate-600">
+            Sign in with Google or email to access Shot Builder.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <button
+            onClick={login}
+            disabled={busy}
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
+          >
+            Continue with Google
+          </button>
+          <button
+            onClick={loginRedirect}
+            disabled={busy}
+            className="w-full rounded-md border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:opacity-60"
+          >
+            Use redirect sign-in (fallback)
+          </button>
+        </div>
+
+        <div className="border-t border-slate-200 pt-6">
+          <div className="flex items-center justify-between text-sm font-medium text-slate-700">
+            <span>{mode === "signin" ? "Sign in with email" : "Create an email account"}</span>
+            <button
+              type="button"
+              onClick={toggleMode}
+              className="text-primary transition hover:underline"
+            >
+              {mode === "signin" ? "Need an account?" : "Have an account?"}
+            </button>
+          </div>
+          <form className="mt-4 space-y-3" onSubmit={handleEmailSubmit}>
+            {mode === "signup" && (
+              <input
+                type="text"
+                placeholder="Name (optional)"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                autoComplete="name"
+              />
+            )}
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+              autoComplete="email"
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+              autoComplete={mode === "signin" ? "current-password" : "new-password"}
+              required
+            />
+            {mode === "signup" && (
+              <input
+                type="password"
+                placeholder="Confirm password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                autoComplete="new-password"
+                required
+              />
+            )}
+            <button
+              type="submit"
+              disabled={busy}
+              className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary/90 disabled:opacity-60"
+            >
+              {mode === "signin" ? "Sign in" : "Create account"}
+            </button>
+          </form>
+          {mode === "signin" && (
+            <button
+              onClick={handleReset}
+              disabled={busy}
+              className="mt-3 text-sm text-primary transition hover:underline disabled:opacity-60"
+              type="button"
+            >
+              Forgot your password?
+            </button>
+          )}
+        </div>
+
+        {(error || info) && (
+          <div
+            className={`rounded-md px-3 py-2 text-sm ${
+              error ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
+            }`}
+          >
+            {error || info}
+          </div>
         )}
       </div>
     </div>
