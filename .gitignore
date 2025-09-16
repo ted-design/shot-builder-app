@@ -76,3 +76,4 @@ _phase0_*
 # local helper and backups
 codex_step.sh
 *.bak
+shot_builder_materials.zip
