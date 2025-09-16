@@ -1,10 +1,16 @@
 import React, { useState } from "react";
 import { pdf } from "@react-pdf/renderer";
 import { ProjectPDF, mockProject } from "../lib/pdfTemplates";
+import { Modal } from "./ui/modal";
+import { Card, CardHeader, CardContent } from "./ui/card";
+import { Button } from "./ui/button";
 
 export default function PDFExportModal() {
+  const [open, setOpen] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
+
+  if (!open) return null;
 
   const handleDownload = async () => {
     setError("");
@@ -28,40 +34,41 @@ export default function PDFExportModal() {
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: "fixed",
-        bottom: 16,
-        right: 16,
-        zIndex: 60,
-        background: "#111827",
-        color: "#fff",
-        padding: "10px 12px",
-        borderRadius: 8,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-      }}
+    <Modal
+      open={open}
+      onClose={() => setOpen(false)}
+      labelledBy="pdf-export-title"
+      contentClassName="max-w-md"
     >
-      <button
-        type="button"
-        onClick={handleDownload}
-        disabled={downloading}
-        style={{
-          padding: "6px 10px",
-          background: downloading ? "#6b7280" : "#10b981",
-          color: "#111827",
-          borderRadius: 6,
-          fontWeight: 600,
-        }}
-      >
-        {downloading ? "Preparing…" : "Download PDF"}
-      </button>
-      {error && (
-        <span style={{ marginLeft: 8, color: "#fecaca" }}>
-          {error}
-        </span>
-      )}
-    </div>
+      <Card className="border-0 shadow-none">
+        <CardHeader className="flex items-center justify-between">
+          <h2 id="pdf-export-title" className="text-lg font-semibold">
+            Demo PDF Export
+          </h2>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            Close
+          </button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-slate-600">
+            Download a sample pull sheet to validate the PDF rendering pipeline. Replace the mock
+            data with real pulls when the export feature goes live.
+          </p>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleDownload} disabled={downloading}>
+              {downloading ? "Preparing…" : "Download PDF"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </Modal>
   );
 }

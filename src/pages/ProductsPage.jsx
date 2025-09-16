@@ -1,14 +1,14 @@
-// updated ProductsPage.jsx
+// ProductsPage.jsx
 //
-// This refactored version of the products page replaces inline CSS and
-// native form elements with the shared UI primitives (`Card`, `Input`,
-// `Checkbox`, `Button`) to achieve a consistent look across the app.  It
-// preserves all existing functionality: you can search products, create
-// new entries with optional thumbnails, toggle active status, and rename,
-// update images or delete items.  The layout is organised into a search
-// bar, a form card, and a list of product cards.
+// The products catalogue supports optional advanced search (controlled via
+// FLAGS.productSearch). When enabled, Fuse.js provides fuzzy matching across
+// name, SKU and category, and additional dropdowns allow filtering by status,
+// category and shot usage. The default experience remains lightweight: a
+// search box with simple status filtering. Creation and management actions
+// continue to use shared UI primitives for consistency with the rest of the
+// app.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   collection,
   onSnapshot,
@@ -23,10 +23,12 @@ import { ref as storageRef, getDownloadURL } from "firebase/storage";
 import { db, storage, uploadImageFile, deleteImageByPath } from "../firebase";
 import { productsPath } from "../lib/paths";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
-import { Input, Checkbox } from "../components/ui/input";
+import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useAuth } from "../context/AuthContext";
 import { canManageProducts, ROLE } from "../lib/rbac";
+import { FLAGS } from "../lib/flags";
+import Fuse from "fuse.js";
 
 // Thumbnail component reused from the original implementation.  It shows a
 // placeholder while loading and automatically fetches a 200x200 variant if
@@ -69,11 +71,106 @@ export default function ProductsPage() {
   const [items, setItems] = useState([]);
   const [draft, setDraft] = useState({ name: "", sku: "", category: "", active: true });
   const [file, setFile] = useState(null);
-  const [qText, setQText] = useState("");
-  const [showDiscontinued, setShowDiscontinued] = useState(false);
+  const advancedSearch = FLAGS.productSearch;
+  const [queryText, setQueryText] = useState("");
+  const [statusFilter, setStatusFilter] = useState("active");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [usageFilter, setUsageFilter] = useState("all");
+  const [sortKey, setSortKey] = useState("name");
   const { role: globalRole } = useAuth();
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManageProducts(role);
+
+  const categories = useMemo(() => {
+    const set = new Set();
+    items.forEach((item) => {
+      if (item.category) set.add(item.category);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [items]);
+
+  const fuse = useMemo(() => {
+    if (!advancedSearch) return null;
+    return new Fuse(items, {
+      keys: ["name", "sku", "category"],
+      threshold: 0.32,
+      ignoreLocation: true,
+    });
+  }, [items, advancedSearch]);
+
+  const searchedItems = useMemo(() => {
+    const queryValue = queryText.trim();
+    if (!advancedSearch) {
+      if (!queryValue) return items;
+      const lower = queryValue.toLowerCase();
+      return items.filter((item) =>
+        (item.name || "").toLowerCase().includes(lower) ||
+        (item.sku || "").toLowerCase().includes(lower)
+      );
+    }
+    if (!queryValue || !fuse) return items;
+    return fuse.search(queryValue).map((result) => result.item);
+  }, [items, queryText, advancedSearch, fuse]);
+
+  const filteredItems = useMemo(() => {
+    return searchedItems.filter((item) => {
+      const isActive = item.active !== false;
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && isActive) ||
+        (statusFilter === "discontinued" && !isActive);
+      const matchesCategory =
+        categoryFilter === "all" || (item.category || "") === categoryFilter;
+      const usageCount = Array.isArray(item.shotIds) ? item.shotIds.length : 0;
+      const matchesUsage =
+        usageFilter === "all" ||
+        (usageFilter === "used" && usageCount > 0) ||
+        (usageFilter === "unused" && usageCount === 0);
+      return matchesStatus && matchesCategory && matchesUsage;
+    });
+  }, [searchedItems, statusFilter, categoryFilter, usageFilter]);
+
+  const getTimestamp = (value) => {
+    if (!value) return 0;
+    if (typeof value === "number") return value;
+    if (value instanceof Date) return value.getTime();
+    if (typeof value.toMillis === "function") return value.toMillis();
+    if (value.seconds) return value.seconds * 1000;
+    return 0;
+  };
+
+  const visibleItems = useMemo(() => {
+    const list = [...filteredItems];
+    switch (sortKey) {
+      case "created":
+        return list.sort((a, b) => getTimestamp(b.createdAt) - getTimestamp(a.createdAt));
+      case "updated":
+        return list.sort((a, b) => getTimestamp(b.updatedAt) - getTimestamp(a.updatedAt));
+      case "usage":
+        return list.sort(
+          (a, b) => (Array.isArray(b.shotIds) ? b.shotIds.length : 0) - (Array.isArray(a.shotIds) ? a.shotIds.length : 0)
+        );
+      case "name":
+      default:
+        return list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }
+  }, [filteredItems, sortKey]);
+
+  const resetFilters = () => {
+    setQueryText("");
+    setStatusFilter("active");
+    setCategoryFilter("all");
+    setUsageFilter("all");
+    setSortKey("name");
+  };
+
+  const formatDateLabel = (value) => {
+    const ts = getTimestamp(value);
+    if (!ts) return null;
+    const date = new Date(ts);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  };
 
   // Subscribe to products collection
   useEffect(() => {
@@ -150,13 +247,6 @@ export default function ProductsPage() {
     }
   };
 
-  // Filter products based on search and discontinued toggle
-  const filtered = items.filter((i) => {
-    const matchesSearch = qText ? (i.name || "").toLowerCase().includes(qText.toLowerCase()) : true;
-    const matchesActive = showDiscontinued || i.active;
-    return matchesSearch && matchesActive;
-  });
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
@@ -165,23 +255,69 @@ export default function ProductsPage() {
           Manage the wardrobe catalogue, toggle availability, and attach thumbnails.
         </p>
       </div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold">Products</h1>
-        {/* Search and discontinued toggle */}
-        <div className="flex items-center gap-4">
+      <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <Input
-            placeholder="Search…"
-            value={qText}
-            onChange={(e) => setQText(e.target.value)}
-            className="sm:max-w-xs"
+            placeholder="Search by name, SKU, or category…"
+            value={queryText}
+            onChange={(event) => setQueryText(event.target.value)}
+            className="md:max-w-md"
           />
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <Checkbox
-              checked={showDiscontinued}
-              onChange={(e) => setShowDiscontinued(e.target.checked)}
-            />
-            Show discontinued
-          </label>
+          <div className="flex flex-wrap items-center gap-2 md:justify-end">
+            <select
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+            >
+              <option value="active">Active only</option>
+              <option value="all">All statuses</option>
+              <option value="discontinued">Discontinued</option>
+            </select>
+            {advancedSearch && (
+              <>
+                <select
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  value={categoryFilter}
+                  onChange={(event) => setCategoryFilter(event.target.value)}
+                >
+                  <option value="all">All categories</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  value={usageFilter}
+                  onChange={(event) => setUsageFilter(event.target.value)}
+                >
+                  <option value="all">All usage</option>
+                  <option value="used">Attached to shots</option>
+                  <option value="unused">Unused</option>
+                </select>
+              </>
+            )}
+            <select
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+              value={sortKey}
+              onChange={(event) => setSortKey(event.target.value)}
+            >
+              <option value="name">Name A–Z</option>
+              <option value="created">Newest first</option>
+              <option value="updated">Recently updated</option>
+              <option value="usage">Most used</option>
+            </select>
+            <Button variant="secondary" size="sm" onClick={resetFilters}>
+              Reset
+            </Button>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+          <span>
+            Showing {visibleItems.length} of {items.length} products
+          </span>
+          {advancedSearch && <span>Fuzzy search matches names, SKUs, and categories.</span>}
         </div>
       </div>
 
@@ -229,44 +365,61 @@ export default function ProductsPage() {
 
       {/* List of existing products */}
       <div className="space-y-4">
-        {filtered.map((p) => (
-          <Card key={p.id} className="overflow-hidden">
-            <CardContent className="p-4">
-              <div className="flex items-start sm:items-center gap-4">
-                <Thumb path={p.thumbnailPath} size={64} alt={p.name} />
-                <div className="flex-1 space-y-1">
-                  <div className="font-semibold text-base">
-                    {p.name} <span className="text-sm text-gray-500">{p.sku}</span>
+        {visibleItems.map((p) => {
+          const usageCount = Array.isArray(p.shotIds) ? p.shotIds.length : 0;
+          const updatedLabel = formatDateLabel(p.updatedAt || p.createdAt);
+          return (
+            <Card key={p.id} className="overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-start sm:items-center gap-4">
+                  <Thumb path={p.thumbnailPath} size={64} alt={p.name} />
+                  <div className="flex-1 space-y-2">
+                    <div className="font-semibold text-base">
+                      {p.name} <span className="text-sm text-gray-500">{p.sku}</span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {p.category || "–"} • {p.active ? "Active" : "Discontinued"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {usageCount > 0
+                        ? `Used in ${usageCount} shot${usageCount === 1 ? "" : "s"}`
+                        : "Not attached to shots"}
+                      {updatedLabel && ` • Updated ${updatedLabel}`}
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">
-                    {p.category || "–"} • {p.active ? "Active" : "Discontinued"}
-                  </div>
+                  {canManage ? (
+                    <div className="flex flex-col gap-2">
+                      <Button size="sm" variant="secondary" onClick={() => changeImage(p)}>
+                        Change Image
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => removeImage(p)}>
+                        Remove Image
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => toggleActive(p)}>
+                        {p.active ? "Set Discontinued" : "Set Active"}
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => rename(p)}>
+                        Rename
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => remove(p.id, p.thumbnailPath)}>
+                        Delete
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-500">Read only</div>
+                  )}
                 </div>
-                {canManage ? (
-                  <div className="flex flex-col gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => changeImage(p)}>
-                      Change Image
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => removeImage(p)}>
-                      Remove Image
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => toggleActive(p)}>
-                      {p.active ? "Set Discontinued" : "Set Active"}
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => rename(p)}>
-                      Rename
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => remove(p.id, p.thumbnailPath)}>
-                      Delete
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-xs text-slate-500">Read only</div>
-                )}
-              </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+        {!visibleItems.length && (
+          <Card>
+            <CardContent className="p-6 text-center text-sm text-slate-500">
+              No products match the current filters.
             </CardContent>
           </Card>
-        ))}
+        )}
       </div>
     </div>
   );
