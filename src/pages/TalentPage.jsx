@@ -1,161 +1,326 @@
-// updated TalentPage.jsx
-//
-// This version of the talent page adopts the shared UI primitives (`Card`,
-// `Input`, `Checkbox`, `Button`) to unify styling with other pages.  The
-// functionality remains the same: you can search talent, add new entries
-// (with optional headshots), and edit or delete existing talent.  Each
-// talent entry is displayed in its own card with action buttons.  The
-// search bar and new-entry form are presented at the top of the page.
-
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  collection,
-  onSnapshot,
   addDoc,
-  doc,
-  updateDoc,
+  collection,
   deleteDoc,
-  query,
+  doc,
+  onSnapshot,
   orderBy,
+  query,
+  updateDoc,
 } from "firebase/firestore";
-import { ref as storageRef, getDownloadURL } from "firebase/storage";
-import { db, storage, uploadImageFile, deleteImageByPath } from "../firebase";
-import { talentPath } from "../lib/paths";
-import { Card, CardHeader, CardContent } from "../components/ui/card";
-import { Input } from "../components/ui/input";
+import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import TalentEditModal from "../components/talent/TalentEditModal";
 import { useAuth } from "../context/AuthContext";
-import { canManageTalent, ROLE } from "../lib/rbac";
+import { db, deleteImageByPath, uploadImageFile } from "../firebase";
+import { useFilePreview } from "../hooks/useFilePreview";
+import { useStorageImage } from "../hooks/useStorageImage";
+import { talentPath } from "../lib/paths";
+import { ROLE, canManageTalent } from "../lib/rbac";
 
-const resizedPath = (originalPath, size = 200) =>
-  originalPath.replace(/(\.[^./]+)$/, `_${size}x${size}$1`);
+const initialDraft = {
+  firstName: "",
+  lastName: "",
+  agency: "",
+  phone: "",
+  email: "",
+  sizing: "",
+  url: "",
+  gender: "",
+};
 
-function Thumb({ path, size = 64, alt = "" }) {
-  const [url, setUrl] = useState(null);
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      if (!path) return setUrl(null);
-      try {
-        const u200 = await getDownloadURL(storageRef(storage, resizedPath(path, size)));
-        if (alive) setUrl(u200);
-      } catch {
-        const u = await getDownloadURL(storageRef(storage, path));
-        if (alive) setUrl(u);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [path, size]);
-  if (!url)
-    return <div className="bg-gray-100 rounded" style={{ width: size, height: size }} />;
+function buildDisplayName(firstName, lastName) {
+  const first = (firstName || "").trim();
+  const last = (lastName || "").trim();
+  const combined = `${first} ${last}`.trim();
+  return combined || "Unnamed talent";
+}
+
+function formatContact(info = {}) {
+  return [info.phone, info.email].filter(Boolean).join(" • ");
+}
+
+function TalentCard({ talent, canManage, onEdit, onDelete, editDisabled, deleteDisabled }) {
+  const imageUrl = useStorageImage(talent.headshotPath, { preferredSize: 480 });
+  const displayName = talent.name || buildDisplayName(talent.firstName, talent.lastName);
+  const contactLine = formatContact(talent);
+  const sizingLine = talent.sizing ? `Sizing: ${talent.sizing}` : "";
+
   return (
-    <img
-      src={url}
-      alt={alt}
-      width={size}
-      height={size}
-      className="object-cover rounded"
-    />
+    <Card className="flex h-full flex-col overflow-hidden">
+      <div className="aspect-[3/4] w-full overflow-hidden bg-slate-100">
+        {imageUrl ? (
+          <img src={imageUrl} alt={displayName} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-slate-400">No image</div>
+        )}
+      </div>
+      <CardContent className="flex flex-1 flex-col gap-3">
+        <div className="space-y-1">
+          <div className="text-base font-semibold text-slate-900" title={displayName}>
+            <span className="block truncate">{displayName}</span>
+          </div>
+          {talent.agency && (
+            <div className="text-sm text-slate-600" title={talent.agency}>
+              <span className="block truncate">{talent.agency}</span>
+            </div>
+          )}
+          {contactLine && (
+            <div className="text-sm text-slate-600" title={contactLine}>
+              <span className="block truncate">{contactLine}</span>
+            </div>
+          )}
+          {talent.gender && (
+            <div className="text-xs uppercase tracking-wide text-slate-500">{talent.gender}</div>
+          )}
+          {sizingLine && (
+            <div className="text-xs text-slate-500" title={sizingLine}>
+              <span className="block truncate">{sizingLine}</span>
+            </div>
+          )}
+          {talent.url && (
+            <a
+              href={talent.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline"
+              title={talent.url}
+            >
+              <span className="block truncate">{talent.url}</span>
+            </a>
+          )}
+        </div>
+        <div className="mt-auto flex flex-wrap gap-2">
+          {canManage ? (
+            <>
+              <Button size="sm" variant="secondary" onClick={() => onEdit(talent)} disabled={editDisabled}>
+                Edit
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => onDelete(talent)}
+                disabled={deleteDisabled}
+              >
+                Delete
+              </Button>
+            </>
+          ) : (
+            <div className="text-xs text-slate-500">Read only</div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
 export default function TalentPage() {
-  const [items, setItems] = useState([]);
-  const [qText, setQText] = useState("");
-  const [file, setFile] = useState(null);
-  const [draft, setDraft] = useState({
-    firstName: "",
-    lastName: "",
-    agency: "",
-    phone: "",
-    email: "",
-    sizing: "",
-    url: "",
-    gender: "",
-  });
+  const [talent, setTalent] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [queryText, setQueryText] = useState("");
+  const [draft, setDraft] = useState(initialDraft);
+  const [draftFile, setDraftFile] = useState(null);
+  const [formError, setFormError] = useState("");
+  const [feedback, setFeedback] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+
   const { role: globalRole } = useAuth();
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManageTalent(role);
 
-  // Subscribe to talent collection
+  const draftPreview = useFilePreview(draftFile);
+
   useEffect(() => {
+    setLoading(true);
     const qy = query(collection(db, ...talentPath), orderBy("lastName", "asc"));
-    const unsub = onSnapshot(qy, (s) => setItems(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
-    return () => unsub();
+    const unsubscribe = onSnapshot(
+      qy,
+      (snapshot) => {
+        setTalent(snapshot.docs.map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() })));
+        setLoading(false);
+      },
+      (error) => {
+        setFeedback({ type: "error", text: error?.message || "Unable to load talent." });
+        setLoading(false);
+      }
+    );
+    return () => unsubscribe();
   }, []);
 
-  const change = (k, v) => setDraft({ ...draft, [k]: v });
+  const filteredTalent = useMemo(() => {
+    const term = queryText.trim().toLowerCase();
+    if (!term) return talent;
+    return talent.filter((entry) => {
+      const haystack = [
+        entry.name,
+        entry.firstName,
+        entry.lastName,
+        entry.agency,
+        entry.email,
+        entry.phone,
+        entry.sizing,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [talent, queryText]);
 
-  const create = async () => {
+  useEffect(() => {
+    if (!editTarget) return;
+    const latest = talent.find((entry) => entry.id === editTarget.id);
+    if (latest && latest !== editTarget) {
+      setEditTarget(latest);
+    }
+  }, [talent, editTarget]);
+
+  const resetDraft = () => {
+    setDraft(initialDraft);
+    setDraftFile(null);
+  };
+
+  const handleDraftChange = (field) => (event) => {
+    setDraft((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleCreate = async (event) => {
+    event.preventDefault();
     if (!canManage) {
-      alert("You do not have permission to add talent.");
+      setFormError("You do not have permission to add talent.");
       return;
     }
-    if (!draft.firstName && !draft.lastName) return alert("Enter a name");
-    const name = `${draft.firstName || ""} ${draft.lastName || ""}`.trim();
-    const docRef = await addDoc(collection(db, ...talentPath), {
-      ...draft,
-      name,
-      shotIds: [],
-      headshotPath: null,
-      createdAt: Date.now(),
-    });
-    if (file) {
-      const { path } = await uploadImageFile(file, { folder: "talent", id: docRef.id });
-      await updateDoc(docRef, { headshotPath: path });
-      setFile(null);
+    const first = (draft.firstName || "").trim();
+    const last = (draft.lastName || "").trim();
+    if (!first && !last) {
+      setFormError("Enter at least a first or last name.");
+      return;
     }
-    setDraft({ firstName: "", lastName: "", agency: "", phone: "", email: "", sizing: "", url: "", gender: "" });
-  };
 
-  const rename = async (t) => {
-    if (!canManage) return;
-    const first = prompt("First name", t.firstName || "");
-    const last = prompt("Last name", t.lastName || "");
-    const name = `${(first || "").trim()} ${(last || "").trim()}`.trim();
-    await updateDoc(doc(db, ...talentPath, t.id), { firstName: first, lastName: last, name });
-  };
-  const changeImage = async (t) => {
-    if (!canManage) return;
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.onchange = async (e) => {
-      const f = e.target.files?.[0];
-      if (!f) return;
-      const { path } = await uploadImageFile(f, { folder: "talent", id: t.id });
-      await updateDoc(doc(db, ...talentPath, t.id), { headshotPath: path });
-      if (t.headshotPath) {
-        try {
-          await deleteImageByPath(t.headshotPath);
-        } catch {}
-      }
-    };
-    input.click();
-  };
-  const removeImage = async (t) => {
-    if (!canManage) return;
-    if (!t.headshotPath) return;
+    setFormError("");
+    setCreating(true);
+    const name = buildDisplayName(first, last);
+
     try {
-      await deleteImageByPath(t.headshotPath);
-    } catch {}
-    await updateDoc(doc(db, ...talentPath, t.id), { headshotPath: null });
-  };
-  const remove = async (id, prevPath) => {
-    if (!canManage) return;
-    await deleteDoc(doc(db, ...talentPath, id));
-    if (prevPath) {
-      try {
-        await deleteImageByPath(prevPath);
-      } catch {}
+      const docRef = await addDoc(collection(db, ...talentPath), {
+        ...draft,
+        firstName: first,
+        lastName: last,
+        name,
+        shotIds: [],
+        headshotPath: null,
+        createdAt: Date.now(),
+      });
+
+      let uploadError = null;
+      if (draftFile) {
+        try {
+          const { path } = await uploadImageFile(draftFile, { folder: "talent", id: docRef.id });
+          await updateDoc(docRef, { headshotPath: path });
+        } catch (error) {
+          uploadError = error;
+        }
+      }
+
+      resetDraft();
+      if (uploadError) {
+        setFeedback({
+          type: "error",
+          text: `${name} was added, but the headshot failed to upload. Try again from the edit dialog.`,
+        });
+      } else {
+        setFeedback({ type: "success", text: `${name} was added to talent.` });
+      }
+    } catch (error) {
+      setFormError(error?.message || "Unable to create talent. Check your connection and try again.");
+    } finally {
+      setCreating(false);
     }
   };
 
-  const filtered = qText
-    ? items.filter((i) => ((i.name || "") + " " + (i.agency || "")).toLowerCase().includes(qText.toLowerCase()))
-    : items;
+  const handleDelete = async (talentRecord) => {
+    if (!canManage) {
+      setFeedback({ type: "error", text: "You do not have permission to delete talent." });
+      return;
+    }
+    const displayName = talentRecord.name || buildDisplayName(talentRecord.firstName, talentRecord.lastName);
+    const confirmed = window.confirm(`Delete ${displayName}? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    setPendingDeleteId(talentRecord.id);
+    try {
+      await deleteDoc(doc(db, ...talentPath, talentRecord.id));
+      if (talentRecord.headshotPath) {
+        try {
+          await deleteImageByPath(talentRecord.headshotPath);
+        } catch (error) {
+          setFeedback({
+            type: "error",
+            text: `${displayName} was removed, but the headshot cleanup failed: ${error?.message || error}`,
+          });
+          setPendingDeleteId(null);
+          if (editTarget?.id === talentRecord.id) setEditTarget(null);
+          return;
+        }
+      }
+      setFeedback({ type: "success", text: `${displayName} was deleted.` });
+      if (editTarget?.id === talentRecord.id) setEditTarget(null);
+    } catch (error) {
+      setFeedback({ type: "error", text: error?.message || "Unable to delete talent." });
+    } finally {
+      setPendingDeleteId(null);
+    }
+  };
+
+  const handleSaveTalent = async ({ updates, newImageFile, removeImage }) => {
+    if (!canManage) {
+      throw new Error("You do not have permission to edit talent.");
+    }
+    if (!editTarget?.id) {
+      throw new Error("No talent selected for editing.");
+    }
+
+    const targetId = editTarget.id;
+    const docRef = doc(db, ...talentPath, targetId);
+    setEditBusy(true);
+    try {
+      await updateDoc(docRef, updates);
+
+      if (newImageFile) {
+        const { path } = await uploadImageFile(newImageFile, { folder: "talent", id: targetId });
+        await updateDoc(docRef, { headshotPath: path });
+        if (editTarget.headshotPath) {
+          try {
+            await deleteImageByPath(editTarget.headshotPath);
+          } catch {
+            // Ignore cleanup failure; stale file can be removed later.
+          }
+        }
+      } else if (removeImage && editTarget.headshotPath) {
+        await updateDoc(docRef, { headshotPath: null });
+        try {
+          await deleteImageByPath(editTarget.headshotPath);
+        } catch {
+          // Ignore cleanup failure; stale file can be removed later.
+        }
+      }
+
+      const name = updates.name || buildDisplayName(updates.firstName, updates.lastName);
+      setFeedback({ type: "success", text: `Saved changes for ${name}.` });
+    } catch (error) {
+      setFeedback({ type: "error", text: error?.message || "Unable to update talent." });
+      throw error;
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  const closeEditModal = () => setEditTarget(null);
 
   return (
     <div className="space-y-6">
@@ -165,73 +330,170 @@ export default function TalentPage() {
           Track models, their agencies, and wardrobe notes for the active project.
         </p>
       </div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold">Talent</h1>
+
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <Input
-          placeholder="Search…"
-          value={qText}
-          onChange={(e) => setQText(e.target.value)}
-          className="sm:max-w-xs"
+          placeholder="Search talent by name, agency, or contact…"
+          value={queryText}
+          onChange={(event) => setQueryText(event.target.value)}
+          className="md:max-w-sm"
         />
+        {feedback && (
+          <div
+            className={`rounded-md px-4 py-2 text-sm ${
+              feedback.type === "success"
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-red-50 text-red-600"
+            }`}
+          >
+            {feedback.text}
+          </div>
+        )}
       </div>
 
-      {/* Form to create a new talent */}
       {canManage ? (
         <Card>
           <CardHeader>
-            <h2 className="text-lg font-semibold">Create New Talent</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Add talent</h2>
+            <p className="text-sm text-slate-500">
+              Provide at least a first or last name. Headshots are optional and can be uploaded later.
+            </p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                placeholder="First name"
-                value={draft.firstName}
-                onChange={(e) => change("firstName", e.target.value)}
-              />
-              <Input
-                placeholder="Last name"
-                value={draft.lastName}
-                onChange={(e) => change("lastName", e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                placeholder="Agency (optional)"
-                value={draft.agency}
-                onChange={(e) => change("agency", e.target.value)}
-              />
-              <Input
-                placeholder="Gender (optional)"
-                value={draft.gender}
-                onChange={(e) => change("gender", e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                placeholder="Phone (optional)"
-                value={draft.phone}
-                onChange={(e) => change("phone", e.target.value)}
-              />
-              <Input
-                placeholder="Email (optional)"
-                value={draft.email}
-                onChange={(e) => change("email", e.target.value)}
-              />
-            </div>
-            <Input
-              placeholder="Sizing info (optional)"
-              value={draft.sizing}
-              onChange={(e) => change("sizing", e.target.value)}
-            />
-            <Input
-              placeholder="URL (optional)"
-              value={draft.url}
-              onChange={(e) => change("url", e.target.value)}
-            />
-            <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-            <div>
-              <Button onClick={create}>Add Talent</Button>
-            </div>
+          <CardContent>
+            <form className="space-y-5" onSubmit={handleCreate}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-first">
+                    First name
+                  </label>
+                  <Input
+                    id="talent-create-first"
+                    value={draft.firstName}
+                    onChange={handleDraftChange("firstName")}
+                    placeholder="First name"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-last">
+                    Last name
+                  </label>
+                  <Input
+                    id="talent-create-last"
+                    value={draft.lastName}
+                    onChange={handleDraftChange("lastName")}
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-agency">
+                    Agency
+                  </label>
+                  <Input
+                    id="talent-create-agency"
+                    value={draft.agency}
+                    onChange={handleDraftChange("agency")}
+                    placeholder="Agency (optional)"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-gender">
+                    Gender
+                  </label>
+                  <Input
+                    id="talent-create-gender"
+                    value={draft.gender}
+                    onChange={handleDraftChange("gender")}
+                    placeholder="Gender (optional)"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-phone">
+                    Phone
+                  </label>
+                  <Input
+                    id="talent-create-phone"
+                    value={draft.phone}
+                    onChange={handleDraftChange("phone")}
+                    placeholder="Phone (optional)"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-email">
+                    Email
+                  </label>
+                  <Input
+                    id="talent-create-email"
+                    type="email"
+                    value={draft.email}
+                    onChange={handleDraftChange("email")}
+                    placeholder="Email (optional)"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-sizing">
+                  Sizing notes
+                </label>
+                <Input
+                  id="talent-create-sizing"
+                  value={draft.sizing}
+                  onChange={handleDraftChange("sizing")}
+                  placeholder="Sizing info (optional)"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-url">
+                  Reference URL
+                </label>
+                <Input
+                  id="talent-create-url"
+                  type="url"
+                  value={draft.url}
+                  onChange={handleDraftChange("url")}
+                  placeholder="URL (optional)"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-headshot">
+                  Headshot
+                </label>
+                {draftPreview ? (
+                  <img
+                    src={draftPreview}
+                    alt="Selected headshot preview"
+                    className="h-40 w-32 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="flex h-40 w-32 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
+                    Optional 4:5 image
+                  </div>
+                )}
+                <Input
+                  id="talent-create-headshot"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => {
+                    const nextFile = event.target.files?.[0] || null;
+                    setDraftFile(nextFile);
+                    if (event.target) {
+                      event.target.value = "";
+                    }
+                  }}
+                />
+              </div>
+              {formError && (
+                <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">{formError}</div>
+              )}
+              <div className="flex justify-end">
+                <Button type="submit" disabled={creating}>
+                  {creating ? "Saving…" : "Add Talent"}
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
       ) : (
@@ -240,56 +502,37 @@ export default function TalentPage() {
         </div>
       )}
 
-      {/* List of existing talent */}
-      <div className="space-y-4">
-        {filtered.map((t) => (
-          <Card key={t.id} className="overflow-hidden">
-            <CardContent className="p-4">
-              <div className="flex items-start sm:items-center gap-4">
-                <Thumb path={t.headshotPath} size={64} alt={t.name} />
-                <div className="flex-1 space-y-1">
-                  <div className="font-semibold text-base">
-                    {t.name}
-                    {t.agency && <span className="text-sm text-gray-600"> • {t.agency}</span>}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {[t.phone, t.email].filter(Boolean).join(" • ")}
-                  </div>
-                  {(t.sizing || t.url) && (
-                    <div className="text-sm text-gray-600 mt-1">
-                      {t.sizing && <span>Sizing: {t.sizing}</span>}
-                      {t.sizing && t.url ? " • " : ""}
-                      {t.url && (
-                        <a href={t.url} target="_blank" rel="noopener noreferrer" className="underline">
-                          {t.url}
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {canManage ? (
-                  <div className="flex flex-col gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => changeImage(t)}>
-                      Change Image
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => removeImage(t)}>
-                      Remove Image
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => rename(t)}>
-                      Rename
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => remove(t.id, t.headshotPath)}>
-                      Delete
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-xs text-slate-500">Read only</div>
-                )}
-              </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        {filteredTalent.map((entry) => (
+          <TalentCard
+            key={entry.id}
+            talent={entry}
+            canManage={canManage}
+            onEdit={setEditTarget}
+            onDelete={handleDelete}
+            editDisabled={editBusy && editTarget?.id === entry.id}
+            deleteDisabled={pendingDeleteId === entry.id}
+          />
+        ))}
+        {!loading && !filteredTalent.length && (
+          <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-4 2xl:col-span-5">
+            <CardContent className="p-8 text-center text-sm text-slate-500">
+              No talent matches the current filters.
             </CardContent>
           </Card>
-        ))}
+        )}
       </div>
+
+      {editTarget && (
+        <TalentEditModal
+          open={!!editTarget}
+          talent={editTarget}
+          busy={editBusy}
+          onClose={closeEditModal}
+          onSave={handleSaveTalent}
+          onDelete={handleDelete}
+        />
+      )}
     </div>
   );
 }
