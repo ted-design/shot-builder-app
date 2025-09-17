@@ -41,7 +41,12 @@ export const shotsPath = () => ["clients", CLIENT_ID, "shots"];
 // Paths to other top‑level collections.  These remain unchanged from the
 // original app because products, talent and locations are not scoped to a
 // project.
-export const productsPath = ["clients", CLIENT_ID, "products"];
+export const legacyProductsPath = ["clients", CLIENT_ID, "products"];
+export const productFamiliesPath = ["clients", CLIENT_ID, "productFamilies"];
+export const productsPath = productFamiliesPath;
+export const productFamilyPath = (familyId) => [...productsPath, familyId];
+export const productFamilySkusPath = (familyId) => [...productFamiliesPath, familyId, "skus"];
+export const productFamilySkuPath = (familyId, skuId) => [...productFamiliesPath, familyId, "skus", skuId];
 export const talentPath = ["clients", CLIENT_ID, "talent"];
 export const locationsPath = ["clients", CLIENT_ID, "locations"];
 
