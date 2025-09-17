@@ -3,7 +3,7 @@ import { Input } from "../ui/input";
 import { formatFileSize } from "../../lib/images";
 
 export default function ColorListEditor({
-  colors,
+  colors = [],
   onAddColor,
   onRemoveColor,
   onFieldChange,

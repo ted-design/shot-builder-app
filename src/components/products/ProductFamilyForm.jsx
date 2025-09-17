@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { storage } from "../../firebase";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
 import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+import { Input, Checkbox } from "../ui/input";
 import SizeListInput from "./SizeListInput";
 import ColorListEditor from "./ColorListEditor";
 import { compressImageFile, formatFileSize } from "../../lib/images";
@@ -709,8 +709,7 @@ export default function ProductFamilyForm({
             </div>
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={familyState.archived}
                   onChange={(event) => updateFamily({ archived: event.target.checked })}
                 />
