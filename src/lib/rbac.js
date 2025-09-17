@@ -40,10 +40,19 @@ export const canManagePlanner = (role) => {
   return r === ROLE.ADMIN || r === ROLE.PRODUCER || r === ROLE.CREW;
 };
 
-export const canManageProducts = (role) => {
+export const canEditProducts = (role) => {
   const r = normalize(role);
   return r === ROLE.ADMIN || r === ROLE.PRODUCER;
 };
+
+export const canArchiveProducts = (role) => {
+  const r = normalize(role);
+  return r === ROLE.ADMIN || r === ROLE.PRODUCER;
+};
+
+export const canDeleteProducts = (role) => normalize(role) === ROLE.ADMIN;
+
+export const canManageProducts = (role) => canEditProducts(role);
 
 export const canManageTalent = (role) => {
   const r = normalize(role);
