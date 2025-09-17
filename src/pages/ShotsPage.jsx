@@ -6,10 +6,11 @@
 // a `where('projectId', '==', projectId)` clause.  This makes it easy to
 // reassign shots to other projects—simply update the `projectId` field.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   addDoc,
+  getDocs,
   onSnapshot,
   query,
   orderBy,
@@ -24,14 +25,17 @@ import { db } from "../firebase";
 import {
   getActiveProjectId,
   shotsPath as getShotsPath,
-  productsPath,
+  productFamiliesPath,
+  productFamilyPath,
+  productFamilySkusPath,
   talentPath,
   locationsPath,
 } from "../lib/paths";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import ProductSelectorModal from "../components/ProductSelectorModal";
+import { Modal } from "../components/ui/modal";
+import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import { useAuth } from "../context/AuthContext";
 import { canManageShots, ROLE } from "../lib/rbac";
 
@@ -43,10 +47,10 @@ export default function ShotsPage() {
     type: "",
     date: "",
     locationId: "",
-    productIds: [],
+    products: [],
     talentIds: [],
   });
-  const [products, setProducts] = useState([]);
+  const [families, setFamilies] = useState([]);
   const [talent, setTalent] = useState([]);
   const [locations, setLocations] = useState([]);
   const projectId = getActiveProjectId();
@@ -54,15 +58,25 @@ export default function ShotsPage() {
   const userRole = globalRole || ROLE.VIEWER;
   const canEditShots = canManageShots(userRole);
 
-  // Toggle for the product selection modal during shot creation.  When true,
-  // the ProductSelectorModal will be shown.  Use this only for creating new
-  // shots; editing existing shots still uses the multi-select for now.
-  const [showProductModal, setShowProductModal] = useState(false);
-  const [editingProductsShot, setEditingProductsShot] = useState(null);
+  const familyDetailCacheRef = useRef(new Map());
+  const [editingShotProducts, setEditingShotProducts] = useState(null);
 
   // Helper to build references
   const collRef = (...segments) => collection(db, ...segments);
   const docRef = (...segments) => doc(db, ...segments);
+
+  const toFamilyIdSet = (source) => {
+    const ids = new Set();
+    if (Array.isArray(source?.productIds)) {
+      source.productIds.forEach((id) => id && ids.add(id));
+    }
+    if (Array.isArray(source?.products)) {
+      source.products.forEach((item) => {
+        if (item?.familyId) ids.add(item.familyId);
+      });
+    }
+    return ids;
+  };
 
   /**
    * Keep related reverse indexes up to date when products/talent/locations change
@@ -73,20 +87,20 @@ export default function ShotsPage() {
    */
   async function updateReverseIndexes({ shotId, before, after }) {
     // Products
-    const prevP = new Set(before.productIds || []);
-    const nextP = new Set(after.productIds || []);
+    const prevP = toFamilyIdSet(before);
+    const nextP = toFamilyIdSet(after);
     const addsP = [...nextP].filter((id) => !prevP.has(id));
     const remsP = [...prevP].filter((id) => !nextP.has(id));
     await Promise.all(
       addsP.map((id) =>
-        updateDoc(docRef(...productsPath, id), { shotIds: arrayUnion(shotId) }).catch(
+        updateDoc(docRef(...productFamilyPath(id)), { shotIds: arrayUnion(shotId) }).catch(
           () => {}
         )
       )
     );
     await Promise.all(
       remsP.map((id) =>
-        updateDoc(docRef(...productsPath, id), { shotIds: arrayRemove(shotId) }).catch(
+        updateDoc(docRef(...productFamilyPath(id)), { shotIds: arrayRemove(shotId) }).catch(
           () => {}
         )
       )
@@ -121,6 +135,80 @@ export default function ShotsPage() {
     }
   }
 
+  const generateProductId = () => Math.random().toString(36).slice(2, 10);
+
+  const computeProductIds = (products) => {
+    const set = new Set();
+    (products || []).forEach((product) => {
+      if (product?.familyId) set.add(product.familyId);
+    });
+    return Array.from(set);
+  };
+
+  const normaliseShotProducts = useCallback(
+    (shot) => {
+      if (Array.isArray(shot?.products) && shot.products.length) return shot.products;
+      if (!Array.isArray(shot?.productIds)) return [];
+      return shot.productIds
+        .map((familyId) => {
+          const family = families.find((entry) => entry.id === familyId);
+          if (!family) return null;
+          return {
+            id: `legacy-${familyId}`,
+            familyId,
+            familyName: family.styleName,
+            styleNumber: family.styleNumber || null,
+            thumbnailImagePath: family.thumbnailImagePath || family.headerImagePath || null,
+            colourId: null,
+            colourName: "Any colour",
+            colourImagePath: null,
+            skuCode: null,
+            size: null,
+            sizeList: Array.isArray(family.sizes) ? family.sizes : [],
+          };
+        })
+        .filter(Boolean);
+    },
+    [families]
+  );
+
+  const buildShotProduct = useCallback((selection, previous = null) => {
+    const { family, colour, size } = selection;
+    return {
+      id: previous?.id || generateProductId(),
+      familyId: family.id,
+      familyName: family.styleName,
+      styleNumber: family.styleNumber || null,
+      thumbnailImagePath:
+        family.thumbnailImagePath || family.headerImagePath || colour.imagePath || null,
+      colourId: colour.id || null,
+      colourName: colour.colorName || "",
+      colourImagePath: colour.imagePath || null,
+      skuCode: colour.skuCode || null,
+      size: size,
+      sizeList: Array.isArray(family.sizes) ? family.sizes : [],
+    };
+  }, []);
+
+  const loadFamilyDetails = useCallback(
+    async (familyId) => {
+      if (familyDetailCacheRef.current.has(familyId)) {
+        return familyDetailCacheRef.current.get(familyId);
+      }
+      const snapshot = await getDocs(
+        query(collection(db, ...productFamilySkusPath(familyId)), orderBy("colorName", "asc"))
+      );
+      const colours = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+      const details = {
+        colours,
+        sizes: families.find((family) => family.id === familyId)?.sizes || [],
+      };
+      familyDetailCacheRef.current.set(familyId, details);
+      return details;
+    },
+    [families]
+  );
+
   // Subscribe to collections.  We listen to the global shots collection but
   // filter on projectId so that switching projects automatically updates
   // the list without reloading.  Products, talent and locations remain
@@ -134,10 +222,10 @@ export default function ShotsPage() {
     const unsubShots = onSnapshot(shotsQuery, (snapshot) => {
       setShots(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
-    const unsubProducts = onSnapshot(
-      query(collRef(...productsPath), orderBy("name", "asc")),
+    const unsubFamilies = onSnapshot(
+      query(collRef(...productFamiliesPath), orderBy("styleName", "asc")),
       (snapshot) => {
-        setProducts(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setFamilies(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       }
     );
     const unsubTalent = onSnapshot(
@@ -154,7 +242,7 @@ export default function ShotsPage() {
     );
     return () => {
       unsubShots();
-      unsubProducts();
+      unsubFamilies();
       unsubTalent();
       unsubLocations();
     };
@@ -168,19 +256,22 @@ export default function ShotsPage() {
       return;
     }
     if (!draft.name) return;
+    const productIds = computeProductIds(draft.products);
     const docRefSnap = await addDoc(collRef(...getShotsPath()), {
       ...draft,
       projectId: projectId,
-      productIds: draft.productIds || [],
+      products: draft.products || [],
+      productIds,
       talentIds: draft.talentIds || [],
       locationId: draft.locationId || null,
       createdAt: Date.now(),
     });
     await updateReverseIndexes({
       shotId: docRefSnap.id,
-      before: { productIds: [], talentIds: [], locationId: null },
+      before: { productIds: [], products: [], talentIds: [], locationId: null },
       after: {
-        productIds: draft.productIds,
+        productIds,
+        products: draft.products,
         talentIds: draft.talentIds,
         locationId: draft.locationId,
       },
@@ -191,7 +282,7 @@ export default function ShotsPage() {
       type: "",
       date: "",
       locationId: "",
-      productIds: [],
+      products: [],
       talentIds: [],
     });
   };
@@ -203,16 +294,22 @@ export default function ShotsPage() {
   const updateShot = async (shot, patch) => {
     if (!canEditShots) return;
     const before = {
-      productIds: shot.productIds || [],
+      productIds: shot.productIds || computeProductIds(shot.products),
+      products: shot.products || [],
       talentIds: shot.talentIds || [],
       locationId: shot.locationId || null,
     };
+    const docPatch = { ...patch };
+    if (patch.products != null) {
+      docPatch.productIds = computeProductIds(patch.products);
+    }
     const after = {
-      productIds: patch.productIds ?? before.productIds,
-      talentIds: patch.talentIds ?? before.talentIds,
-      locationId: patch.locationId ?? before.locationId,
+      productIds: docPatch.productIds ?? before.productIds,
+      products: docPatch.products ?? before.products,
+      talentIds: docPatch.talentIds ?? before.talentIds,
+      locationId: docPatch.locationId ?? before.locationId,
     };
-    await updateDoc(docRef(...getShotsPath(), shot.id), patch);
+    await updateDoc(docRef(...getShotsPath(), shot.id), docPatch);
     await updateReverseIndexes({ shotId: shot.id, before, after });
   };
 
@@ -222,8 +319,13 @@ export default function ShotsPage() {
     if (!canEditShots) return;
     await updateReverseIndexes({
       shotId: shot.id,
-      before: shot,
-      after: { productIds: [], talentIds: [], locationId: null },
+      before: {
+        productIds: shot.productIds || computeProductIds(shot.products),
+        products: shot.products || [],
+        talentIds: shot.talentIds || [],
+        locationId: shot.locationId || null,
+      },
+      after: { productIds: [], products: [], talentIds: [], locationId: null },
     });
     await deleteDoc(docRef(...getShotsPath(), shot.id));
   };
@@ -282,39 +384,16 @@ export default function ShotsPage() {
                 ))}
               </select>
             </div>
-            {/* Products select */}
             <div className="space-y-2">
               <label className="block text-sm font-medium">Products</label>
-              <div className="flex flex-wrap gap-2">
-                {draft.productIds.map((pid) => {
-                  const prod = products.find((p) => p.id === pid);
-                  return (
-                    <span key={pid} className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs">
-                      {prod ? prod.name : pid}
-                      <button
-                        type="button"
-                        className="text-slate-500 hover:text-slate-700"
-                        onClick={() =>
-                          setDraft((prev) => ({
-                            ...prev,
-                            productIds: prev.productIds.filter((id) => id !== pid),
-                          }))
-                        }
-                      >
-                        ×
-                      </button>
-                    </span>
-                  );
-                })}
-                {!draft.productIds.length && <span className="text-sm text-gray-500">No products selected</span>}
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowProductModal(true)}
-              >
-                Manage products
-              </Button>
+              <ShotProductsEditor
+                value={draft.products}
+                onChange={(next) => setDraft((prev) => ({ ...prev, products: next }))}
+                families={families}
+                loadFamilyDetails={loadFamilyDetails}
+                createProduct={buildShotProduct}
+                emptyHint="No products selected"
+              />
             </div>
             {/* Talent select */}
             <div>
@@ -349,8 +428,10 @@ export default function ShotsPage() {
       )}
       {/* List of existing shots */}
       <div className="space-y-4">
-        {shots.map((s) => (
-          <Card key={s.id} className="border p-4">
+        {shots.map((s) => {
+          const shotProducts = normaliseShotProducts(s);
+          return (
+            <Card key={s.id} className="border p-4">
             <CardHeader>
               <div className="flex justify-between items-center">
                 <h3 className="text-base font-semibold">{s.name}</h3>
@@ -418,27 +499,38 @@ export default function ShotsPage() {
                     ))}
                   </select>
                 </div>
-              <div>
-                <label className="text-sm font-medium mb-1">Products</label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {(s.productIds || []).map((pid) => {
-                    const product = products.find((p) => p.id === pid);
-                    return (
-                      <span key={pid} className="rounded-full bg-slate-100 px-3 py-1 text-xs">
-                        {product ? product.name : pid}
-                      </span>
-                    );
-                  })}
-                  {(!s.productIds || s.productIds.length === 0) && (
+                <div>
+                  <label className="text-sm font-medium mb-1">Products</label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {shotProducts.map((product) => (
+                      <span
+                        key={product.id}
+                        className="rounded-full bg-slate-100 px-3 py-1 text-xs"
+                    >
+                      {product.familyName}
+                      {product.colourName ? ` – ${product.colourName}` : ""}
+                      {product.size ? ` (${product.size})` : ""}
+                    </span>
+                  ))}
+                  {!shotProducts.length && (
                     <span className="text-xs text-slate-500">No products linked</span>
                   )}
+                  </div>
+                  {canEditShots && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() =>
+                        setEditingShotProducts({
+                          shot: s,
+                          products: shotProducts,
+                        })
+                      }
+                    >
+                      Manage products
+                    </Button>
+                  )}
                 </div>
-                {canEditShots && (
-                  <Button size="sm" variant="secondary" onClick={() => setEditingProductsShot(s)}>
-                    Manage products
-                  </Button>
-                )}
-              </div>
                 <div>
                   <label className="text-sm font-medium mb-1">Talent</label>
                   <select
@@ -461,35 +553,65 @@ export default function ShotsPage() {
                 </div>
               </div>
             </CardContent>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
       </div>
-      {/* Product selection modal for creating a new shot.  It only appears
-          when showProductModal is true.  We pass the full product list,
-          currently selected product IDs, a handler to add a product, and a
-          close callback. */}
-      {canEditShots && showProductModal && (
-        <ProductSelectorModal
-          products={products}
-          selectedIds={draft.productIds}
-          onSubmit={(ids) =>
-            setDraft((prev) => ({
-              ...prev,
-              productIds: ids,
-            }))
-          }
-          onClose={() => setShowProductModal(false)}
-          title="Select products for new shot"
-        />
-      )}
-      {canEditShots && editingProductsShot && (
-        <ProductSelectorModal
-          products={products}
-          selectedIds={editingProductsShot.productIds || []}
-          onSubmit={(ids) => updateShot(editingProductsShot, { productIds: ids })}
-          onClose={() => setEditingProductsShot(null)}
-          title={`Products for ${editingProductsShot.name}`}
-        />
+      {canEditShots && editingShotProducts && (
+        <Modal
+          open
+          onClose={() => setEditingShotProducts(null)}
+          labelledBy="manage-shot-products-title"
+          contentClassName="p-0 max-h-[90vh] overflow-hidden"
+        >
+          <Card className="border-0 shadow-none">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 id="manage-shot-products-title" className="text-lg font-semibold">
+                    Products for {editingShotProducts.shot.name}
+                  </h2>
+                  <p className="text-sm text-slate-500">Update colourways and sizes, then save to refresh the shot.</p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  className="text-xl text-slate-400 hover:text-slate-600"
+                  onClick={() => setEditingShotProducts(null)}
+                >
+                  ×
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ShotProductsEditor
+                value={editingShotProducts.products}
+                onChange={(next) =>
+                  setEditingShotProducts((prev) => ({ ...prev, products: next }))
+                }
+                families={families}
+                loadFamilyDetails={loadFamilyDetails}
+                createProduct={buildShotProduct}
+                emptyHint="No products linked"
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setEditingShotProducts(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    await updateShot(editingShotProducts.shot, {
+                      products: editingShotProducts.products,
+                    });
+                    setEditingShotProducts(null);
+                  }}
+                >
+                  Save products
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </Modal>
       )}
     </div>
   );
