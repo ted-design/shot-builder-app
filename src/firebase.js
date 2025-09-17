@@ -13,13 +13,30 @@ import {
 
 // Read env vars defensively to keep builds working without secrets.
 // If secrets are missing (e.g., forks, local without .env), provide safe fallbacks.
-function readEnv(name, fallback = "") {
+const FALLBACK_ENV = {
+  VITE_FIREBASE_API_KEY: "demo-api-key",
+  VITE_FIREBASE_AUTH_DOMAIN: "demo.firebaseapp.com",
+  VITE_FIREBASE_PROJECT_ID: "demo-project",
+  VITE_FIREBASE_STORAGE_BUCKET: "demo.appspot.com",
+  VITE_FIREBASE_MESSAGING_SENDER_ID: "000000000000",
+  VITE_FIREBASE_APP_ID: "1:000000000000:web:demo",
+  VITE_FIREBASE_MEASUREMENT_ID: "",
+};
+
+const missingEnv = new Set();
+
+function readEnv(name, fallbackKey = name) {
   try {
     const env = (import.meta && import.meta.env) ? import.meta.env : {};
     const val = env[name];
-    return (val == null ? fallback : val);
+    if (val == null || val === "") {
+      missingEnv.add(name);
+      return FALLBACK_ENV[fallbackKey] ?? "";
+    }
+    return val;
   } catch {
-    return fallback;
+    missingEnv.add(name);
+    return FALLBACK_ENV[fallbackKey] ?? "";
   }
 }
 
@@ -30,8 +47,15 @@ const firebaseConfig = {
   storageBucket: readEnv("VITE_FIREBASE_STORAGE_BUCKET"),
   messagingSenderId: readEnv("VITE_FIREBASE_MESSAGING_SENDER_ID"),
   appId: readEnv("VITE_FIREBASE_APP_ID"),
-  measurementId: readEnv("VITE_FIREBASE_MEASUREMENT_ID", ""), // optional
+  measurementId: readEnv("VITE_FIREBASE_MEASUREMENT_ID"),
 };
+
+if (missingEnv.size) {
+  console.warn(
+    "Firebase config is using fallback credentials. Set the following env vars to connect to real services:",
+    Array.from(missingEnv)
+  );
+}
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
