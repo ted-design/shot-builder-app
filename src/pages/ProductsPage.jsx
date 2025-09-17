@@ -23,7 +23,7 @@ import { ref as storageRef, getDownloadURL } from "firebase/storage";
 import { db, storage, uploadImageFile, deleteImageByPath } from "../firebase";
 import { productsPath } from "../lib/paths";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
-import { Input } from "../components/ui/input";
+import { Input, Checkbox } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useAuth } from "../context/AuthContext";
 import { canManageProducts, ROLE } from "../lib/rbac";
