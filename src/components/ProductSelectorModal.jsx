@@ -19,6 +19,19 @@ export default function ProductSelectorModal({
   onClose,
   title = "Select Products",
 }) {
+  const enrichedProducts = useMemo(
+    () =>
+      products
+        .filter((product) => !product.archived)
+        .map((product) => ({
+          ...product,
+          skuCodes: Array.isArray(product.skuCodes) ? product.skuCodes : [],
+          colorNames: Array.isArray(product.colorNames) ? product.colorNames : [],
+          sizeOptions: Array.isArray(product.sizeOptions) ? product.sizeOptions : [],
+        })),
+    [products]
+  );
+
   const [query, setQuery] = useState("");
   const [gender, setGender] = useState("");
   const [category, setCategory] = useState("");
@@ -30,31 +43,46 @@ export default function ProductSelectorModal({
 
   const genders = useMemo(() => {
     const set = new Set();
-    products.forEach((p) => p.gender && set.add(p.gender));
+    enrichedProducts.forEach((p) => p.gender && set.add(p.gender));
     return Array.from(set);
-  }, [products]);
+  }, [enrichedProducts]);
   const categories = useMemo(() => {
     const set = new Set();
-    products.forEach((p) => p.category && set.add(p.category));
+    enrichedProducts.forEach((p) => p.category && set.add(p.category));
     return Array.from(set);
-  }, [products]);
+  }, [enrichedProducts]);
 
   const productsById = useMemo(() => {
     const map = new Map();
-    products.forEach((p) => map.set(p.id, p));
+    enrichedProducts.forEach((p) => map.set(p.id, p));
     return map;
-  }, [products]);
+  }, [enrichedProducts]);
 
-  const fuse = useMemo(() => new Fuse(products, { keys: ["name", "category", "sku"], threshold: 0.32 }), [products]);
+  const fuse = useMemo(
+    () =>
+      new Fuse(enrichedProducts, {
+        keys: [
+          { name: "styleName", weight: 0.5 },
+          { name: "styleNumber", weight: 0.4 },
+          { name: "gender", weight: 0.2 },
+          { name: "skuCodes", weight: 0.3 },
+          { name: "colorNames", weight: 0.2 },
+          { name: "sizeOptions", weight: 0.2 },
+        ],
+        threshold: 0.32,
+        ignoreLocation: true,
+      }),
+    [enrichedProducts]
+  );
 
   const filtered = useMemo(() => {
-    let subset = products;
+    let subset = enrichedProducts;
     if (gender) subset = subset.filter((p) => p.gender === gender);
     if (category) subset = subset.filter((p) => p.category === category);
     if (!query.trim()) return subset;
     const matches = fuse.search(query.trim()).map((result) => result.item);
     return matches.filter((item) => subset.includes(item));
-  }, [products, gender, category, query, fuse]);
+  }, [enrichedProducts, gender, category, query, fuse]);
 
   const toggleProduct = (id) => {
     setSelection((prev) => (prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]));
@@ -97,7 +125,7 @@ export default function ProductSelectorModal({
                     key={id}
                     className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs"
                   >
-                    {product ? product.name : id}
+                    {product ? product.styleName : id}
                     <button
                       type="button"
                       onClick={() => toggleProduct(id)}
@@ -154,8 +182,10 @@ export default function ProductSelectorModal({
                   }`}
                 >
                   <div className="text-sm">
-                    <div className="font-medium">{product.name}</div>
-                    <div className="text-xs text-slate-500">{product.category || "Uncategorised"}</div>
+                    <div className="font-medium">{product.styleName}</div>
+                    <div className="text-xs text-slate-500">
+                      {product.styleNumber} • {product.activeSkuCount || 0} active of {product.skuCount || 0} SKUs
+                    </div>
                   </div>
                   <Button size="sm" variant={added ? "secondary" : "primary"} onClick={() => toggleProduct(product.id)}>
                     {added ? "Remove" : "Add"}

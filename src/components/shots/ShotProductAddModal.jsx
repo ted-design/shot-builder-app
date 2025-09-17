@@ -84,7 +84,7 @@ export default function ShotProductAddModal({
     return () => {
       cancelled = true;
     };
-  }, [selectedFamilyId, loadFamilyDetails]);
+  }, [selectedFamilyId, loadFamilyDetails, initialProduct]);
 
   useEffect(() => {
     if (!open) {
@@ -161,10 +161,10 @@ export default function ShotProductAddModal({
       open={open}
       onClose={onClose}
       labelledBy="shot-product-picker-title"
-      contentClassName="p-0 max-h-[90vh] overflow-hidden"
+      contentClassName="flex max-h-[90vh] flex-col p-0"
     >
-      <Card className="border-0 shadow-none">
-        <CardHeader className="flex items-center justify-between">
+      <Card className="flex h-full flex-col border-0 shadow-none">
+        <CardHeader className="flex items-center justify-between border-b border-slate-200">
           <div>
             <h2 id="shot-product-picker-title" className="text-lg font-semibold">
               {view === "list" ? "Select product family" : "Choose colour & size"}
@@ -189,20 +189,20 @@ export default function ShotProductAddModal({
             </button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex-1 space-y-4 overflow-y-auto">
           {view === "list" ? (
-            <>
+            <div className="space-y-4">
               <Input
                 placeholder="Search products by name or number…"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
-              <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+              <div className="space-y-2">
                 {filteredFamilies.map((family) => (
                   <button
                     key={family.id}
                     type="button"
-                    className="w-full rounded-lg border border-slate-200 p-3 text-left hover:border-primary"
+                    className="w-full rounded-lg border border-slate-200 p-3 text-left transition hover:border-primary"
                     onClick={() => handleFamilySelect(family)}
                   >
                     <div className="text-sm font-medium text-slate-800">{family.styleName}</div>
@@ -221,16 +221,16 @@ export default function ShotProductAddModal({
                   </div>
                 )}
               </div>
-            </>
+            </div>
           ) : (
-            <>
+            <div className="space-y-4">
               {loadingDetails ? (
                 <div className="py-12 text-center text-sm text-slate-500">Loading colourways…</div>
               ) : (
                 <>
                   <div className="space-y-3">
                     <div className="text-sm font-medium text-slate-700">Colourway</div>
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {colours.map((colour) => (
                         <ColourOption
                           key={colour.id}
@@ -266,17 +266,17 @@ export default function ShotProductAddModal({
                   </div>
                 </>
               )}
-            </>
+            </div>
           )}
-          <div className="flex items-center justify-end gap-2">
-            <Button variant="ghost" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} disabled={disableSave || loadingDetails}>
-              {initialProduct ? "Save" : "Add product"}
-            </Button>
-          </div>
         </CardContent>
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-4 py-3 sm:px-6">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={disableSave || loadingDetails}>
+            {initialProduct ? "Save" : "Add product"}
+          </Button>
+        </div>
       </Card>
     </Modal>
   );

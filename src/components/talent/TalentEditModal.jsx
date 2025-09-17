@@ -1,0 +1,290 @@
+import { useEffect, useMemo, useState } from "react";
+import { Modal } from "../ui/modal";
+import { Card, CardContent, CardHeader } from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { useStorageImage } from "../../hooks/useStorageImage";
+import { useFilePreview } from "../../hooks/useFilePreview";
+
+function buildDisplayName(firstName, lastName) {
+  const first = (firstName || "").trim();
+  const last = (lastName || "").trim();
+  return `${first} ${last}`.trim();
+}
+
+export default function TalentEditModal({
+  open,
+  talent,
+  busy = false,
+  onClose,
+  onSave,
+  onDelete,
+}) {
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    agency: "",
+    phone: "",
+    email: "",
+    sizing: "",
+    url: "",
+    gender: "",
+  });
+  const [file, setFile] = useState(null);
+  const [removeImage, setRemoveImage] = useState(false);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const storedHeadshotUrl = useStorageImage(talent?.headshotPath, { preferredSize: 512 });
+  const previewUrl = useFilePreview(file);
+  const displayName = buildDisplayName(form.firstName, form.lastName) || talent?.name || "Edit talent";
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      firstName: talent?.firstName || "",
+      lastName: talent?.lastName || "",
+      agency: talent?.agency || "",
+      phone: talent?.phone || "",
+      email: talent?.email || "",
+      sizing: talent?.sizing || "",
+      url: talent?.url || "",
+      gender: talent?.gender || "",
+    });
+    setFile(null);
+    setRemoveImage(false);
+    setError("");
+    setSaving(false);
+  }, [open, talent]);
+
+  const currentImage = useMemo(() => {
+    if (previewUrl) return previewUrl;
+    if (removeImage) return null;
+    return storedHeadshotUrl || null;
+  }, [previewUrl, removeImage, storedHeadshotUrl]);
+
+  const handleFieldChange = (field) => (event) => {
+    setForm((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleFileChange = (event) => {
+    const nextFile = event.target.files?.[0] || null;
+    setFile(nextFile);
+    setRemoveImage(false);
+    if (event.target) {
+      event.target.value = "";
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setFile(null);
+    setRemoveImage(true);
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const first = (form.firstName || "").trim();
+    const last = (form.lastName || "").trim();
+    if (!first && !last) {
+      setError("Enter at least a first or last name before saving.");
+      return;
+    }
+    setError("");
+    setSaving(true);
+    try {
+      await onSave?.({
+        updates: {
+          ...form,
+          firstName: first,
+          lastName: last,
+          name: buildDisplayName(first, last),
+        },
+        newImageFile: file,
+        removeImage: removeImage && !file,
+      });
+      onClose?.();
+    } catch (err) {
+      setError(err?.message || "Unable to update talent. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const titleId = "talent-edit-title";
+
+  return (
+    <Modal open={open} onClose={onClose} labelledBy={titleId} contentClassName="p-0 max-h-[90vh] overflow-y-auto">
+      <Card className="border-0 shadow-none">
+        <CardHeader>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 id={titleId} className="text-lg font-semibold text-slate-900">
+                {displayName}
+              </h2>
+              {talent?.agency && <p className="text-sm text-slate-500">{talent.agency}</p>}
+            </div>
+            <div className="flex items-center gap-2">
+              {onDelete && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => onDelete(talent)}
+                  disabled={saving || busy}
+                >
+                  Delete
+                </Button>
+              )}
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={onClose}
+                className="text-xl text-slate-400 hover:text-slate-600"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pb-6">
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div className="grid gap-4 md:grid-cols-[160px_1fr]">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-40 w-32 overflow-hidden rounded-lg bg-slate-100 text-slate-400">
+                  {currentImage ? (
+                    <img src={currentImage} alt={displayName} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm">No image</div>
+                  )}
+                </div>
+                <div className="flex flex-col items-center gap-2 text-sm">
+                  <Input type="file" accept="image/*" onChange={handleFileChange} />
+                  {(talent?.headshotPath || file) && (
+                    <Button type="button" variant="secondary" size="sm" onClick={handleRemoveImage}>
+                      Remove headshot
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700" htmlFor="talent-first-name">
+                      First name
+                    </label>
+                    <Input
+                      id="talent-first-name"
+                      value={form.firstName}
+                      onChange={handleFieldChange("firstName")}
+                      placeholder="First name"
+                      disabled={saving || busy}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700" htmlFor="talent-last-name">
+                      Last name
+                    </label>
+                    <Input
+                      id="talent-last-name"
+                      value={form.lastName}
+                      onChange={handleFieldChange("lastName")}
+                      placeholder="Last name"
+                      disabled={saving || busy}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700" htmlFor="talent-agency">
+                      Agency
+                    </label>
+                    <Input
+                      id="talent-agency"
+                      value={form.agency}
+                      onChange={handleFieldChange("agency")}
+                      placeholder="Agency"
+                      disabled={saving || busy}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700" htmlFor="talent-gender">
+                      Gender
+                    </label>
+                    <Input
+                      id="talent-gender"
+                      value={form.gender}
+                      onChange={handleFieldChange("gender")}
+                      placeholder="Gender"
+                      disabled={saving || busy}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700" htmlFor="talent-phone">
+                      Phone
+                    </label>
+                    <Input
+                      id="talent-phone"
+                      value={form.phone}
+                      onChange={handleFieldChange("phone")}
+                      placeholder="Phone"
+                      disabled={saving || busy}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700" htmlFor="talent-email">
+                      Email
+                    </label>
+                    <Input
+                      id="talent-email"
+                      type="email"
+                      value={form.email}
+                      onChange={handleFieldChange("email")}
+                      placeholder="Email"
+                      disabled={saving || busy}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-sizing">
+                    Sizing notes
+                  </label>
+                  <Input
+                    id="talent-sizing"
+                    value={form.sizing}
+                    onChange={handleFieldChange("sizing")}
+                    placeholder="Sizing details"
+                    disabled={saving || busy}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-url">
+                    Reference URL
+                  </label>
+                  <Input
+                    id="talent-url"
+                    type="url"
+                    value={form.url}
+                    onChange={handleFieldChange("url")}
+                    placeholder="https://"
+                    disabled={saving || busy}
+                  />
+                </div>
+              </div>
+            </div>
+            {error && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving || busy}>
+                {saving ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </Modal>
+  );
+}
