@@ -9,7 +9,7 @@
 // `date` field is updated as well.  All other behaviour matches the
 // previous Planner implementation.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -48,6 +48,7 @@ import { Button } from "../components/ui/button";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { toast } from "../lib/toast";
+import { useStorageImage } from "../hooks/useStorageImage";
 
 const PLANNER_VIEW_STORAGE_KEY = "planner:viewMode";
 const PLANNER_FIELDS_STORAGE_KEY = "planner:visibleFields";
@@ -101,6 +102,51 @@ const readStoredVisibleFields = () => {
   }
 };
 
+class PlannerErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+    this.handleReset = this.handleReset.bind(this);
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, info) {
+    console.error("[Planner] Unhandled rendering error", error, info);
+  }
+
+  handleReset() {
+    this.setState({ hasError: false, error: null });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="space-y-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="text-base font-semibold text-red-800">
+            Something went wrong loading the planner.
+          </div>
+          <p>
+            Try refreshing the page. If the issue continues, please contact support with the
+            steps that caused this error.
+          </p>
+          <button
+            type="button"
+            onClick={this.handleReset}
+            className="inline-flex items-center rounded-md border border-red-200 bg-white px-3 py-1 text-sm font-medium text-red-700 transition hover:bg-red-100"
+          >
+            Dismiss error
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 // Simple droppable component for DnD kit
 function DroppableLane({ laneId, children }) {
   const { setNodeRef } = useDroppable({ id: `lane-${laneId}` });
@@ -142,6 +188,7 @@ function DraggableShot({
   );
 }
 
+
 function ShotCard({ shot, viewMode, visibleFields, onEdit, canEdit, products }) {
   const typeLabel = shot.type || "–";
   const dateLabel = formatShotDate(shot.date) || "—";
@@ -175,6 +222,8 @@ function ShotCard({ shot, viewMode, visibleFields, onEdit, canEdit, products }) 
       : null) ||
     null;
   const thumbnailSrc = visibleFields.products ? derivedThumbnail : null;
+  const thumbnailUrl = useStorageImage(thumbnailSrc);
+  const showThumbnailFrame = Boolean(visibleFields.products && firstProduct);
   const locationLabel = shot.locationName || "–";
   const showDetailsSection =
     visibleFields.location || visibleFields.talent || visibleFields.products;
@@ -193,13 +242,19 @@ function ShotCard({ shot, viewMode, visibleFields, onEdit, canEdit, products }) 
     <div className={`${cardBaseClass} transition hover:border-primary/40 hover:shadow-md`}>
       <div className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
-          {thumbnailSrc && (
-            <img
-              src={thumbnailSrc}
-              alt={`${shot.name} thumbnail`}
-              className="h-12 w-12 flex-none rounded-md object-cover"
-              loading="lazy"
-            />
+          {showThumbnailFrame && (
+            thumbnailUrl ? (
+              <img
+                src={thumbnailUrl}
+                alt={`${shot.name} thumbnail`}
+                className="h-12 w-12 flex-none rounded-md object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex h-12 w-12 flex-none items-center justify-center rounded-md bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500">
+                No image
+              </div>
+            )
           )}
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3">
@@ -264,7 +319,7 @@ function ShotCard({ shot, viewMode, visibleFields, onEdit, canEdit, products }) 
   );
 }
 
-export default function PlannerPage() {
+function PlannerPageContent() {
   const [lanes, setLanes] = useState([]);
   const [name, setName] = useState("");
   const [shotsByLane, setShotsByLane] = useState({});
@@ -274,10 +329,13 @@ export default function PlannerPage() {
   const [fieldSettingsOpen, setFieldSettingsOpen] = useState(false);
   const fieldSettingsRef = useRef(null);
   const [activeShot, setActiveShot] = useState(null);
+  const [subscriptionError, setSubscriptionError] = useState(null);
   const familyDetailCacheRef = useRef(new Map());
+  const subscriptionErrorNotifiedRef = useRef(false);
   const projectId = getActiveProjectId();
-  const { clientId, role: globalRole } = useAuth();
-  const userRole = globalRole || ROLE.VIEWER;
+  const { clientId, role: globalRole, projectRoles = {} } = useAuth();
+  const projectRole = projectRoles?.[projectId] || null;
+  const userRole = globalRole || projectRole || ROLE.VIEWER;
   const canEditPlanner = canManagePlanner(userRole);
   const canEditShots = canManageShots(userRole);
   const currentLanesPath = useMemo(() => lanesPath(projectId, clientId), [projectId, clientId]);
@@ -295,11 +353,28 @@ export default function PlannerPage() {
     [clientId]
   );
 
+  const handleSubscriptionError = useCallback(
+    (scope) => (error) => {
+      console.error(`[Planner] Failed to subscribe to ${scope}`, error);
+      setSubscriptionError(error);
+      if (!subscriptionErrorNotifiedRef.current) {
+        toast.error("We hit a problem loading planner data. Try refreshing the page.");
+        subscriptionErrorNotifiedRef.current = true;
+      }
+    },
+    [setSubscriptionError, subscriptionErrorNotifiedRef]
+  );
+
   useEffect(() => {
+    setSubscriptionError(null);
+    subscriptionErrorNotifiedRef.current = false;
+
     // Subscribe to lanes for the current project
     const laneRef = collection(db, ...currentLanesPath);
-    const unsubL = onSnapshot(query(laneRef, orderBy("order", "asc")), (s) =>
-      setLanes(s.docs.map((d) => ({ id: d.id, ...d.data() })))
+    const unsubL = onSnapshot(
+      query(laneRef, orderBy("order", "asc")),
+      (s) => setLanes(s.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      handleSubscriptionError("lanes")
     );
 
     // Subscribe to shots for the current project.  We query the global shots
@@ -307,15 +382,19 @@ export default function PlannerPage() {
     // keyed by laneId, with "__unassigned__" used for null laneId.
     const shotsRef = collection(db, ...currentShotsPath);
     const shotsQuery = query(shotsRef, where("projectId", "==", projectId));
-    const unsubS = onSnapshot(shotsQuery, (s) => {
-      const all = s.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const map = {};
-      all.forEach((sh) => {
-        const key = sh.laneId || "__unassigned__";
-        (map[key] ||= []).push(sh);
-      });
-      setShotsByLane(map);
-    });
+    const unsubS = onSnapshot(
+      shotsQuery,
+      (s) => {
+        const all = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const map = {};
+        all.forEach((sh) => {
+          const key = sh.laneId || "__unassigned__";
+          (map[key] ||= []).push(sh);
+        });
+        setShotsByLane(map);
+      },
+      handleSubscriptionError("shots")
+    );
 
     // Subscribe to product families so the edit modal can reuse shared data.
     const familiesRef = collection(db, ...currentProductFamiliesPath);
@@ -323,7 +402,8 @@ export default function PlannerPage() {
       query(familiesRef, orderBy("styleName", "asc")),
       (snapshot) => {
         setFamilies(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      }
+      },
+      handleSubscriptionError("product families")
     );
 
     return () => {
@@ -331,7 +411,15 @@ export default function PlannerPage() {
       unsubS();
       unsubFamilies();
     };
-  }, [projectId, currentLanesPath, currentShotsPath, currentProductFamiliesPath]);
+  }, [
+    projectId,
+    currentLanesPath,
+    currentShotsPath,
+    currentProductFamiliesPath,
+    handleSubscriptionError,
+    setSubscriptionError,
+    subscriptionErrorNotifiedRef,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -363,67 +451,19 @@ export default function PlannerPage() {
   // using a date format (YYYY-MM-DD) allows drag events to update shot dates.
   const addLane = async () => {
     if (!canEditPlanner) {
-      alert("You do not have permission to modify the planner.");
+      toast.error("You do not have permission to modify the planner.");
       return;
     }
-    if (!name) return;
-    await addDoc(collection(db, ...currentLanesPath), { name, order: lanes.length });
-    setName("");
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      await addDoc(collection(db, ...currentLanesPath), { name: trimmed, order: lanes.length });
+      setName("");
+    } catch (error) {
+      console.error("[Planner] Failed to add lane", error);
+      toast.error("Could not create lane");
+    }
   };
-
-  const handleOpenShotEdit = useCallback(
-    (shot) => {
-      if (!canEditShots) return;
-      setActiveShot({
-        shot,
-        products: normaliseShotProducts(shot),
-      });
-    },
-    [canEditShots, normaliseShotProducts]
-  );
-
-  const closeShotEdit = () => setActiveShot(null);
-
-  const isListView = viewMode === "list";
-  const laneWrapperClass = isListView
-    ? "flex w-full flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-    : "flex min-w-[280px] flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm";
-  const shotListClass = isListView ? "flex flex-col gap-3" : "flex flex-col gap-3";
-  const unassignedShots = shotsByLane["__unassigned__"] || [];
-
-  const renderLaneBlock = (laneId, title, laneShots, laneMeta = null) => (
-    <DroppableLane key={laneId} laneId={laneId}>
-      <div className={laneWrapperClass}>
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-slate-900">{title}</span>
-          {laneMeta && canEditPlanner && (
-            <span className="flex items-center gap-2 text-xs text-primary">
-              <button onClick={() => renameLane(laneMeta)} className="hover:underline">
-                Rename
-              </button>
-              <button onClick={() => removeLane(laneMeta)} className="hover:underline">
-                Delete
-              </button>
-            </span>
-          )}
-        </div>
-        <div className={shotListClass}>
-          {laneShots.map((sh) => (
-            <DraggableShot
-              key={sh.id}
-              shot={sh}
-              disabled={!canEditPlanner}
-              viewMode={viewMode}
-              visibleFields={visibleFields}
-              onEdit={handleOpenShotEdit}
-              canEditShots={canEditShots}
-              normaliseProducts={normaliseShotProducts}
-            />
-          ))}
-        </div>
-      </div>
-    </DroppableLane>
-  );
 
   const generateProductId = useCallback(() => Math.random().toString(36).slice(2, 10), []);
 
@@ -517,6 +557,71 @@ export default function PlannerPage() {
     [families, withDerivedProductFields]
   );
 
+  const handleOpenShotEdit = useCallback(
+    (shot) => {
+      if (!canEditShots || !shot) return;
+      try {
+        const products = normaliseShotProducts(shot);
+        setActiveShot({ shot, products });
+      } catch (error) {
+        console.error("[Planner] Failed to prepare shot for editing", error);
+        toast.error("Unable to open shot editor");
+      }
+    },
+    [canEditShots, normaliseShotProducts]
+  );
+
+  const closeShotEdit = useCallback(() => setActiveShot(null), []);
+
+  const updateViewMode = useCallback(
+    (nextMode) =>
+      setViewMode((previousMode) => (previousMode === nextMode ? previousMode : nextMode)),
+    []
+  );
+
+  const isListView = viewMode === "list";
+  const laneWrapperClass = isListView
+    ? "flex w-full flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+    : "flex min-w-[280px] flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm";
+  const shotListClass = isListView
+    ? "flex flex-col gap-3"
+    : "flex flex-col gap-3";
+  const unassignedShots = shotsByLane["__unassigned__"] || [];
+
+  const renderLaneBlock = (laneId, title, laneShots, laneMeta = null) => (
+    <DroppableLane key={laneId} laneId={laneId}>
+      <div className={laneWrapperClass}>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-slate-900">{title}</span>
+          {laneMeta && canEditPlanner && (
+            <span className="flex items-center gap-2 text-xs text-primary">
+              <button onClick={() => renameLane(laneMeta)} className="hover:underline">
+                Rename
+              </button>
+              <button onClick={() => removeLane(laneMeta)} className="hover:underline">
+                Delete
+              </button>
+            </span>
+          )}
+        </div>
+        <div className={shotListClass}>
+          {laneShots.map((sh) => (
+            <DraggableShot
+              key={sh.id}
+              shot={sh}
+              disabled={!canEditPlanner}
+              viewMode={viewMode}
+              visibleFields={visibleFields}
+              onEdit={handleOpenShotEdit}
+              canEditShots={canEditShots}
+              normaliseProducts={normaliseShotProducts}
+            />
+          ))}
+        </div>
+      </div>
+    </DroppableLane>
+  );
+
   const buildShotProduct = useCallback(
     (selection, previous = null) => {
       const { family, colour, size, status: requestedStatus, sizeScope } = selection;
@@ -570,20 +675,27 @@ export default function PlannerPage() {
 
   const loadFamilyDetails = useCallback(
     async (familyId) => {
+      if (!familyId) return { colours: [], sizes: [] };
       if (familyDetailCacheRef.current.has(familyId)) {
         return familyDetailCacheRef.current.get(familyId);
       }
-      const skusPath = productFamilySkusPathForClient(familyId);
-      const snapshot = await getDocs(
-        query(collection(db, ...skusPath), orderBy("colorName", "asc"))
-      );
-      const colours = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-      const details = {
-        colours,
-        sizes: families.find((family) => family.id === familyId)?.sizes || [],
-      };
-      familyDetailCacheRef.current.set(familyId, details);
-      return details;
+      try {
+        const skusPath = productFamilySkusPathForClient(familyId);
+        const snapshot = await getDocs(
+          query(collection(db, ...skusPath), orderBy("colorName", "asc"))
+        );
+        const colours = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        const details = {
+          colours,
+          sizes: families.find((family) => family.id === familyId)?.sizes || [],
+        };
+        familyDetailCacheRef.current.set(familyId, details);
+        return details;
+      } catch (error) {
+        console.error("[Planner] Failed to load family details", error);
+        toast.error("Unable to load product information");
+        throw error;
+      }
     },
     [families, productFamilySkusPathForClient]
   );
@@ -661,7 +773,14 @@ export default function PlannerPage() {
     if (!canEditPlanner) return;
     const newName = prompt("Lane name", lane.name);
     if (!newName) return;
-    await updateDoc(doc(db, ...currentLanesPath, lane.id), { name: newName });
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    try {
+      await updateDoc(doc(db, ...currentLanesPath, lane.id), { name: trimmed });
+    } catch (error) {
+      console.error("[Planner] Failed to rename lane", error);
+      toast.error("Could not rename lane");
+    }
   };
 
   // Remove a lane.  Before deleting the lane document we set laneId=null for
@@ -671,18 +790,23 @@ export default function PlannerPage() {
   const removeLane = async (lane) => {
     if (!canEditPlanner) return;
     if (!confirm("Delete lane?")) return;
-    const q = query(
-      collection(db, ...currentShotsPath),
-      where("projectId", "==", projectId),
-      where("laneId", "==", lane.id)
-    );
-    const snap = await getDocs(q);
-    await Promise.all(
-      snap.docs.map((dref) =>
-        updateDoc(doc(db, ...currentShotsPath, dref.id), { laneId: null })
-      )
-    );
-    await deleteDoc(doc(db, ...currentLanesPath, lane.id));
+    try {
+      const q = query(
+        collection(db, ...currentShotsPath),
+        where("projectId", "==", projectId),
+        where("laneId", "==", lane.id)
+      );
+      const snap = await getDocs(q);
+      await Promise.all(
+        snap.docs.map((dref) =>
+          updateDoc(doc(db, ...currentShotsPath, dref.id), { laneId: null })
+        )
+      );
+      await deleteDoc(doc(db, ...currentLanesPath, lane.id));
+    } catch (error) {
+      console.error("[Planner] Failed to remove lane", error);
+      toast.error("Could not delete lane");
+    }
   };
 
   // Handle drag end events.  Update the shot's laneId (and date if the lane
@@ -699,7 +823,12 @@ export default function PlannerPage() {
       const lane = lanes.find((l) => l.id === laneId);
       if (lane && /^\d{4}-\d{2}-\d{2}$/.test(lane.name)) patch.date = lane.name;
     }
-    await updateDoc(doc(db, ...currentShotsPath, shotId), patch);
+    try {
+      await updateDoc(doc(db, ...currentShotsPath, shotId), patch);
+    } catch (error) {
+      console.error("[Planner] Failed to move shot", error);
+      toast.error("Could not move shot");
+    }
   };
 
   return (
@@ -711,6 +840,11 @@ export default function PlannerPage() {
           update assignments and keep shoot days organised.
         </p>
       </div>
+      {subscriptionError && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+          We could not refresh all planner data. Try again shortly or reload the page.
+        </div>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -719,7 +853,7 @@ export default function PlannerPage() {
           <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
             <button
               type="button"
-              onClick={() => setViewMode("board")}
+              onClick={() => updateViewMode("board")}
               className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
                 viewMode === "board" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
               }`}
@@ -730,7 +864,7 @@ export default function PlannerPage() {
             </button>
             <button
               type="button"
-              onClick={() => setViewMode("list")}
+              onClick={() => updateViewMode("list")}
               className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
                 viewMode === "list" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
               }`}
@@ -886,3 +1020,17 @@ export default function PlannerPage() {
     </div>
   );
 }
+
+export default function PlannerPage() {
+  return (
+    <PlannerErrorBoundary>
+      <PlannerPageContent />
+    </PlannerErrorBoundary>
+  );
+}
+
+export const __test = {
+  readStoredPlannerView,
+  readStoredVisibleFields,
+  ShotCard,
+};
