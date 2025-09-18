@@ -14,8 +14,15 @@ vi.mock("../../hooks/useStorageImage", () => ({
 const { __test } = await import("../PlannerPage.jsx");
 const { useStorageImage } = await import("../../hooks/useStorageImage");
 
+const {
+  readStoredPlannerView,
+  readStoredVisibleFields,
+  ShotCard,
+  groupShotsByLane,
+  UNASSIGNED_LANE_ID,
+} = __test;
+
 describe("Planner view preferences", () => {
-  const { readStoredPlannerView, readStoredVisibleFields } = __test;
 
   beforeEach(() => {
     window.localStorage.clear();
@@ -43,7 +50,6 @@ describe("Planner view preferences", () => {
 });
 
 describe("ShotCard thumbnails", () => {
-  const { ShotCard } = __test;
   const baseShot = {
     id: "shot-1",
     name: "Test Shot",
@@ -113,5 +119,35 @@ describe("ShotCard thumbnails", () => {
     );
 
     expect(screen.getByText(/no image/i)).toBeInTheDocument();
+  });
+});
+
+describe("groupShotsByLane", () => {
+  const ts = (seconds) => ({ seconds, nanoseconds: 0 });
+
+  it("groups shots by lane and preserves stable ordering", () => {
+    const grouped = groupShotsByLane([
+      { id: "unassigned-late", laneId: null, name: "Later", createdAt: ts(200) },
+      { id: "lane-a-second", laneId: "lane-a", order: 2, name: "Lane A Second" },
+      { id: "lane-b-second", laneId: "lane-b", sortOrder: 5, date: "2024-04-01", name: "Lane B Second" },
+      { id: "unassigned-early", laneId: null, name: "Earlier", createdAt: ts(100) },
+      { id: "lane-a-first", laneId: "lane-a", order: 1, name: "Lane A First" },
+      { id: "lane-b-first", laneId: "lane-b", sortOrder: 5, date: "2024-03-01", name: "Lane B First" },
+    ]);
+
+    expect(grouped[UNASSIGNED_LANE_ID].map((shot) => shot.id)).toEqual([
+      "unassigned-early",
+      "unassigned-late",
+    ]);
+
+    expect(grouped["lane-a"].map((shot) => shot.id)).toEqual([
+      "lane-a-first",
+      "lane-a-second",
+    ]);
+
+    expect(grouped["lane-b"].map((shot) => shot.id)).toEqual([
+      "lane-b-first",
+      "lane-b-second",
+    ]);
   });
 });
