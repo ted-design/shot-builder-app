@@ -145,15 +145,77 @@ export default function ShotsPage() {
     return Array.from(set);
   };
 
+  const withDerivedProductFields = useCallback(
+    (product) => {
+      const family = families.find((entry) => entry.id === product.familyId);
+      const fallbackSizes = Array.isArray(family?.sizes) ? family.sizes : [];
+      const sizeList = Array.isArray(product.sizeList) ? product.sizeList : fallbackSizes;
+      const rawStatus = product.status;
+      const rawScope = product.sizeScope;
+      const hasExplicitSize = product.size != null && product.size !== "";
+      const derivedStatus =
+        rawStatus === "pending-size"
+          ? "pending-size"
+          : rawStatus === "complete"
+          ? "complete"
+          : rawScope === "pending"
+          ? "pending-size"
+          : hasExplicitSize
+          ? "complete"
+          : "complete";
+      const derivedScope =
+        derivedStatus === "pending-size"
+          ? "pending"
+          : rawScope === "all"
+          ? "all"
+          : hasExplicitSize
+          ? "single"
+          : rawScope === "single"
+          ? "single"
+          : "all";
+      const effectiveSize = derivedStatus === "pending-size" ? null : product.size || null;
+      const colourImage = product.colourImagePath || product.colourThumbnail || null;
+      const imageCandidates = Array.isArray(product.images)
+        ? product.images
+        : colourImage
+        ? [colourImage]
+        : [];
+
+      return {
+        ...product,
+        familyId: product.familyId || family?.id || null,
+        familyName: product.familyName || family?.styleName || "",
+        styleNumber: product.styleNumber || family?.styleNumber || null,
+        thumbnailImagePath:
+          product.thumbnailImagePath || family?.thumbnailImagePath || family?.headerImagePath || null,
+        colourId: product.colourId || product.colourwayId || null,
+        colourwayId: product.colourwayId || product.colourId || null,
+        colourName: product.colourName || "",
+        colourImagePath: colourImage || null,
+        images: imageCandidates,
+        skuCode: product.skuCode || null,
+        skuId: product.skuId || null,
+        size: effectiveSize,
+        sizeId: product.sizeId || (effectiveSize ? effectiveSize : null),
+        sizeScope: derivedScope,
+        status: derivedStatus,
+        sizeList,
+      };
+    },
+    [families]
+  );
+
   const normaliseShotProducts = useCallback(
     (shot) => {
-      if (Array.isArray(shot?.products) && shot.products.length) return shot.products;
+      if (Array.isArray(shot?.products) && shot.products.length) {
+        return shot.products.map((product) => withDerivedProductFields(product));
+      }
       if (!Array.isArray(shot?.productIds)) return [];
       return shot.productIds
         .map((familyId) => {
           const family = families.find((entry) => entry.id === familyId);
           if (!family) return null;
-          return {
+          return withDerivedProductFields({
             id: `legacy-${familyId}`,
             familyId,
             familyName: family.styleName,
@@ -165,30 +227,65 @@ export default function ShotsPage() {
             skuCode: null,
             size: null,
             sizeList: Array.isArray(family.sizes) ? family.sizes : [],
-          };
+            status: "complete",
+            sizeScope: "all",
+          });
         })
         .filter(Boolean);
     },
-    [families]
+    [families, withDerivedProductFields]
   );
 
-  const buildShotProduct = useCallback((selection, previous = null) => {
-    const { family, colour, size } = selection;
-    return {
-      id: previous?.id || generateProductId(),
-      familyId: family.id,
-      familyName: family.styleName,
-      styleNumber: family.styleNumber || null,
-      thumbnailImagePath:
-        family.thumbnailImagePath || family.headerImagePath || colour.imagePath || null,
-      colourId: colour.id || null,
-      colourName: colour.colorName || "",
-      colourImagePath: colour.imagePath || null,
-      skuCode: colour.skuCode || null,
-      size: size,
-      sizeList: Array.isArray(family.sizes) ? family.sizes : [],
-    };
-  }, []);
+  const buildShotProduct = useCallback(
+    (selection, previous = null) => {
+      const { family, colour, size, status: requestedStatus, sizeScope } = selection;
+      const baseStatus = requestedStatus === "pending-size" ? "pending-size" : "complete";
+      const resolvedScope =
+        baseStatus === "pending-size"
+          ? "pending"
+          : sizeScope === "all"
+          ? "all"
+          : size
+          ? "single"
+          : sizeScope === "single"
+          ? "single"
+          : "all";
+      const resolvedSize =
+        baseStatus === "pending-size"
+          ? null
+          : resolvedScope === "all"
+          ? null
+          : size || null;
+      const colourImage = colour.imagePath || colour.thumbnailImagePath || null;
+      const colourImages = Array.isArray(colour.images)
+        ? colour.images
+        : colourImage
+        ? [colourImage]
+        : [];
+
+      return {
+        id: previous?.id || generateProductId(),
+        familyId: family.id,
+        familyName: family.styleName,
+        styleNumber: family.styleNumber || null,
+        thumbnailImagePath:
+          family.thumbnailImagePath || family.headerImagePath || colourImage || null,
+        colourId: colour.id || null,
+        colourwayId: colour.id || null,
+        colourName: colour.colorName || "",
+        colourImagePath: colourImage || null,
+        images: colourImages,
+        skuCode: colour.skuCode || null,
+        skuId: colour.skuId || null,
+        size: resolvedSize,
+        sizeId: resolvedSize || null,
+        sizeScope: resolvedScope,
+        status: baseStatus,
+        sizeList: Array.isArray(family.sizes) ? family.sizes : [],
+      };
+    },
+    []
+  );
 
   const loadFamilyDetails = useCallback(
     async (familyId) => {
@@ -502,16 +599,27 @@ export default function ShotsPage() {
                 <div>
                   <label className="text-sm font-medium mb-1">Products</label>
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {shotProducts.map((product) => (
-                      <span
-                        key={product.id}
-                        className="rounded-full bg-slate-100 px-3 py-1 text-xs"
-                    >
-                      {product.familyName}
-                      {product.colourName ? ` – ${product.colourName}` : ""}
-                      {product.size ? ` (${product.size})` : ""}
-                    </span>
-                  ))}
+                    {shotProducts.map((product) => {
+                      const sizeDescriptor =
+                        product.status === "pending-size"
+                          ? "size pending"
+                          : product.sizeScope === "all"
+                          ? "all sizes"
+                          : product.size
+                          ? product.size
+                          : "";
+                      const chipClass =
+                        product.status === "pending-size"
+                          ? "rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-800"
+                          : "rounded-full bg-slate-100 px-3 py-1 text-xs";
+                      return (
+                        <span key={product.id} className={chipClass}>
+                          {product.familyName}
+                          {product.colourName ? ` – ${product.colourName}` : ""}
+                          {sizeDescriptor ? ` (${sizeDescriptor})` : ""}
+                        </span>
+                      );
+                    })}
                   {!shotProducts.length && (
                     <span className="text-xs text-slate-500">No products linked</span>
                   )}

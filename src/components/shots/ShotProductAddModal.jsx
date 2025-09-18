@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Fuse from "fuse.js";
 import { Modal } from "../ui/modal";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useStorageImage } from "../../hooks/useStorageImage";
+
+const ALL_SIZES_VALUE = "__ALL_SIZES__";
+
+const deriveInitialSizeValue = (product) => {
+  if (!product) return "";
+  if (product.sizeScope === "all") return ALL_SIZES_VALUE;
+  return product.size || "";
+};
 
 function ColourOption({ colour, selected, onSelect }) {
   const imageUrl = useStorageImage(colour.imagePath);
@@ -58,7 +66,8 @@ export default function ShotProductAddModal({
   const [familyDetails, setFamilyDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [selectedColourId, setSelectedColourId] = useState(initialProduct?.colourId || null);
-  const [selectedSize, setSelectedSize] = useState(initialProduct?.size || "");
+  const [selectedSize, setSelectedSize] = useState(deriveInitialSizeValue(initialProduct));
+  const scrollRegionRef = useRef(null);
 
   useEffect(() => {
     if (!selectedFamilyId) {
@@ -75,7 +84,7 @@ export default function ShotProductAddModal({
         setLoadingDetails(false);
         if (initialProduct && initialProduct.familyId === selectedFamilyId) {
           setSelectedColourId(initialProduct.colourId || null);
-          setSelectedSize(initialProduct.size || "");
+          setSelectedSize(deriveInitialSizeValue(initialProduct));
         }
       })
       .catch(() => {
@@ -93,7 +102,7 @@ export default function ShotProductAddModal({
       setSelectedFamilyId(initialProduct?.familyId || null);
       setFamilyDetails(null);
       setSelectedColourId(initialProduct?.colourId || null);
-      setSelectedSize(initialProduct?.size || "");
+      setSelectedSize(deriveInitialSizeValue(initialProduct));
     }
   }, [open, initialProduct]);
 
@@ -135,6 +144,7 @@ export default function ShotProductAddModal({
   const handleFamilySelect = (family) => {
     setSelectedFamilyId(family.id);
     setView("details");
+    setSelectedSize(deriveInitialSizeValue(null));
   };
 
   const handleBack = () => {
@@ -144,24 +154,52 @@ export default function ShotProductAddModal({
     setSelectedColourId(null);
   };
 
-  const handleSubmit = () => {
+  const submitSelection = ({ status }) => {
     if (disableSave) return;
     const family = families.find((entry) => entry.id === selectedFamilyId);
     if (!family || !selectedColour) return;
+    const sizeValue =
+      status === "pending-size"
+        ? null
+        : selectedSize === ALL_SIZES_VALUE
+        ? null
+        : selectedSize
+        ? selectedSize
+        : null;
+    const sizeScope =
+      status === "pending-size"
+        ? "pending"
+        : selectedSize === ALL_SIZES_VALUE
+        ? "all"
+        : selectedSize
+        ? "single"
+        : "pending";
     onSubmit?.({
       family,
       colour: selectedColour,
-      size: selectedSize ? selectedSize : null,
+      size: sizeValue,
+      status,
+      sizeScope,
     });
     onClose?.();
   };
+
+  useEffect(() => {
+    if (!open) return;
+    const node = scrollRegionRef.current;
+    if (!node) return;
+    requestAnimationFrame(() => {
+      node?.focus?.({ preventScroll: true });
+    });
+  }, [open, view]);
 
   return (
     <Modal
       open={open}
       onClose={onClose}
       labelledBy="shot-product-picker-title"
-      contentClassName="flex max-h-[90vh] flex-col p-0"
+      contentClassName="flex h-[100vh] max-h-[100vh] flex-col overflow-hidden p-0 sm:h-auto sm:max-h-[85vh]"
+      initialFocusRef={scrollRegionRef}
     >
       <Card className="flex h-full flex-col border-0 shadow-none">
         <CardHeader className="flex items-center justify-between border-b border-slate-200">
@@ -189,93 +227,118 @@ export default function ShotProductAddModal({
             </button>
           </div>
         </CardHeader>
-        <CardContent className="flex-1 space-y-4 overflow-y-auto">
-          {view === "list" ? (
-            <div className="space-y-4">
-              <Input
-                placeholder="Search products by name or number…"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-              <div className="space-y-2">
-                {filteredFamilies.map((family) => (
-                  <button
-                    key={family.id}
-                    type="button"
-                    className="w-full rounded-lg border border-slate-200 p-3 text-left transition hover:border-primary"
-                    onClick={() => handleFamilySelect(family)}
-                  >
-                    <div className="text-sm font-medium text-slate-800">{family.styleName}</div>
-                    <div className="text-xs text-slate-500">Style #{family.styleNumber}</div>
-                    {family.colorNames?.length ? (
-                      <div className="mt-1 text-xs text-slate-500">
-                        Colours: {family.colorNames.slice(0, 3).join(", ")}
-                        {family.colorNames.length > 3 && "…"}
+        <div
+          ref={scrollRegionRef}
+          tabIndex={0}
+          className="flex-1 overflow-y-auto overscroll-contain focus-visible:outline-none"
+        >
+          <CardContent className="space-y-4 pb-28">
+            {view === "list" ? (
+              <div className="space-y-4">
+                <Input
+                  placeholder="Search products by name or number…"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+                <div className="space-y-2">
+                  {filteredFamilies.map((family) => (
+                    <button
+                      key={family.id}
+                      type="button"
+                      className="w-full rounded-lg border border-slate-200 p-3 text-left transition hover:border-primary"
+                      onClick={() => handleFamilySelect(family)}
+                    >
+                      <div className="text-sm font-medium text-slate-800">{family.styleName}</div>
+                      <div className="text-xs text-slate-500">Style #{family.styleNumber}</div>
+                      {family.colorNames?.length ? (
+                        <div className="mt-1 text-xs text-slate-500">
+                          Colours: {family.colorNames.slice(0, 3).join(", ")}
+                          {family.colorNames.length > 3 && "…"}
+                        </div>
+                      ) : null}
+                    </button>
+                  ))}
+                  {!filteredFamilies.length && (
+                    <div className="rounded border border-slate-200 p-6 text-center text-sm text-slate-500">
+                      No matching product families.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {loadingDetails ? (
+                  <div className="py-12 text-center text-sm text-slate-500">Loading colourways…</div>
+                ) : (
+                  <>
+                    <div className="space-y-3">
+                      <div className="text-sm font-medium text-slate-700">Colourway</div>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {colours.map((colour) => (
+                          <ColourOption
+                            key={colour.id}
+                            colour={colour}
+                            selected={colour.id === selectedColourId}
+                            onSelect={() => setSelectedColourId(colour.id)}
+                          />
+                        ))}
                       </div>
-                    ) : null}
-                  </button>
-                ))}
-                {!filteredFamilies.length && (
-                  <div className="rounded border border-slate-200 p-6 text-center text-sm text-slate-500">
-                    No matching product families.
-                  </div>
+                      {!colours.length && (
+                        <div className="rounded border border-slate-200 p-4 text-sm text-slate-500">
+                          No colourways available for this family.
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-700">Size selection</label>
+                      <select
+                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                        value={selectedSize}
+                        onChange={(event) => setSelectedSize(event.target.value)}
+                      >
+                        <option value="">Decide later</option>
+                        <option value={ALL_SIZES_VALUE}>All sizes</option>
+                        {sizes.map((size) => (
+                          <option key={size} value={size}>
+                            {size}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-slate-500">
+                        Add the colourway now or pick a specific size to lock it in.
+                      </p>
+                    </div>
+                  </>
                 )}
               </div>
+            )}
+          </CardContent>
+          <div className="sticky bottom-0 flex flex-col gap-2 border-t border-slate-200 bg-white/90 px-4 py-3 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-6">
+            <Button variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={disableSave || loadingDetails}
+                onClick={() => submitSelection({ status: "pending-size" })}
+              >
+                {initialProduct ? "Save without size" : "Add colourway"}
+              </Button>
+              <Button
+                type="button"
+                disabled={
+                  disableSave ||
+                  loadingDetails ||
+                  (!selectedSize || selectedSize === "")
+                }
+                onClick={() => submitSelection({ status: "complete" })}
+              >
+                {initialProduct ? "Save with size" : "Add & choose size now"}
+              </Button>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {loadingDetails ? (
-                <div className="py-12 text-center text-sm text-slate-500">Loading colourways…</div>
-              ) : (
-                <>
-                  <div className="space-y-3">
-                    <div className="text-sm font-medium text-slate-700">Colourway</div>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                      {colours.map((colour) => (
-                        <ColourOption
-                          key={colour.id}
-                          colour={colour}
-                          selected={colour.id === selectedColourId}
-                          onSelect={() => setSelectedColourId(colour.id)}
-                        />
-                      ))}
-                    </div>
-                    {!colours.length && (
-                      <div className="rounded border border-slate-200 p-4 text-sm text-slate-500">
-                        No colourways available for this family.
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Size selection</label>
-                    <select
-                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                      value={selectedSize}
-                      onChange={(event) => setSelectedSize(event.target.value)}
-                    >
-                      <option value="">Use all sizes</option>
-                      {sizes.map((size) => (
-                        <option key={size} value={size}>
-                          {size}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-slate-500">
-                      Select a specific size to override the family default for this shot.
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </CardContent>
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-4 py-3 sm:px-6">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={disableSave || loadingDetails}>
-            {initialProduct ? "Save" : "Add product"}
-          </Button>
+          </div>
         </div>
       </Card>
     </Modal>
