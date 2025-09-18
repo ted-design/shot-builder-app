@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addDoc,
   collection,
@@ -133,11 +133,23 @@ export default function TalentPage() {
   const [editBusy, setEditBusy] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
-  const { role: globalRole, user } = useAuth();
+  const { role: globalRole, user, claims } = useAuth();
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManageTalent(role);
 
   const draftPreview = useFilePreview(draftFile);
+
+  const buildAuthDebugInfo = useCallback(
+    () => ({
+      uid: user?.uid ?? null,
+      claims: {
+        role: claims?.role ?? null,
+        clientId: claims?.clientId ?? null,
+        orgId: claims?.orgId ?? null,
+      },
+    }),
+    [user, claims]
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -184,12 +196,6 @@ export default function TalentPage() {
     }
   }, [talent, editTarget]);
 
-  const notifyError = (title, error, fallbackMessage) => {
-    const { code, message } = describeFirebaseError(error, fallbackMessage);
-    console.error(title, error);
-    toast.error({ title, description: `${code}: ${message}` });
-  };
-
   const notifySuccess = (message) => {
     toast.success(message);
   };
@@ -205,10 +211,30 @@ export default function TalentPage() {
 
   const handleCreate = async (event) => {
     event.preventDefault();
+    const pathSegments = Array.isArray(talentPath) ? talentPath : [talentPath];
+    const targetPath = `/${pathSegments.join("/")}`;
+
+    if (!user) {
+      const authInfo = buildAuthDebugInfo();
+      console.warn("[Talent] Create blocked: no authenticated user", {
+        path: targetPath,
+        ...authInfo,
+      });
+      setFormError("You must be signed in to add talent.");
+      return;
+    }
+
     if (!canManage) {
+      const authInfo = buildAuthDebugInfo();
+      console.warn("[Talent] Create blocked: role lacks manage permission", {
+        path: targetPath,
+        ...authInfo,
+      });
       setFormError("You do not have permission to add talent.");
       return;
     }
+
+    const authInfo = buildAuthDebugInfo();
     const first = (draft.firstName || "").trim();
     const last = (draft.lastName || "").trim();
     if (!first && !last) {
@@ -219,6 +245,11 @@ export default function TalentPage() {
     setFormError("");
     setCreating(true);
     const name = buildDisplayName(first, last);
+
+    console.info("[Talent] Attempting to create talent", {
+      path: targetPath,
+      ...authInfo,
+    });
 
     try {
       const docRef = await writeDoc("create talent", () =>
@@ -233,6 +264,12 @@ export default function TalentPage() {
           createdBy: user?.uid || null,
         })
       );
+
+      console.info("[Talent] Talent created", {
+        path: targetPath,
+        docId: docRef.id,
+        ...authInfo,
+      });
 
       let uploadError = null;
       if (draftFile) {
@@ -250,6 +287,14 @@ export default function TalentPage() {
           uploadError,
           "Headshot upload failed."
         );
+        console.error("[Talent] Headshot upload failed", {
+          path: targetPath,
+          docId: docRef.id,
+          ...authInfo,
+          code,
+          message,
+          error: uploadError,
+        });
         const text = `${name} was added, but the headshot upload failed (${code}: ${message}). Try again from the edit dialog.`;
         setFeedback({ type: "error", text });
         toast.error({ title: "Headshot upload failed", description: `${code}: ${message}` });
@@ -258,12 +303,20 @@ export default function TalentPage() {
         notifySuccess(`${name} was added to talent.`);
       }
     } catch (error) {
-      const { message } = describeFirebaseError(
+      const { code, message } = describeFirebaseError(
         error,
         "Unable to create talent. Check your connection and try again."
       );
-      setFormError(message);
-      notifyError("Failed to create talent", error, message);
+      const description = `${code}: ${message}`;
+      setFormError(`${message} (path: ${targetPath})`);
+      console.error("[Talent] Failed to create talent", {
+        path: targetPath,
+        ...authInfo,
+        code,
+        message,
+        error,
+      });
+      toast.error({ title: "Failed to create talent", description: `${description} (${targetPath})` });
     } finally {
       setCreating(false);
     }

@@ -52,6 +52,21 @@ service cloud.firestore {
       allow create, update, delete: if isAuthed();
     }
 
+    match /clients/{clientId}/talent/{docId} {
+      allow read: if clientMatches(clientId);
+      allow create, update, delete: if clientMatches(clientId) && isAuthed();
+    }
+
+    match /clients/{clientId}/locations/{docId} {
+      allow read: if clientMatches(clientId);
+      allow create, update, delete: if clientMatches(clientId) && isAuthed();
+    }
+
+    match /clients/{clientId}/shots/{docId} {
+      allow read: if clientMatches(clientId);
+      allow create, update, delete: if clientMatches(clientId) && isAuthed();
+    }
+
     match /clients/{clientId}/{document=**} {
       allow read: if clientMatches(clientId);
     }
