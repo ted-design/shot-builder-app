@@ -63,6 +63,26 @@ const defaultVisibleFields = {
 
 const toLaneKey = (laneId) => (laneId ? String(laneId) : UNASSIGNED_LANE_ID);
 
+const resolveRoleValue = (input) => {
+  if (!input) return null;
+  if (typeof input === "string") return input;
+  if (Array.isArray(input)) {
+    for (const entry of input) {
+      const resolved = resolveRoleValue(entry);
+      if (resolved) return resolved;
+    }
+    return null;
+  }
+  if (typeof input === "object") {
+    if (typeof input.role === "string") return input.role;
+    if ("role" in input && input.role == null && typeof input.default === "string") {
+      return input.default;
+    }
+    if (typeof input.type === "string") return input.type;
+  }
+  return null;
+};
+
 const timestampToMillis = (value) => {
   if (!value) return 0;
   if (typeof value === "number") return value;
@@ -405,8 +425,12 @@ function PlannerPageContent() {
     ready: authReady,
     loadingClaims,
   } = useAuth();
-  const projectRole = projectRoles?.[projectId] ?? null;
-  const userRole = projectRole ?? globalRole ?? ROLE.VIEWER;
+  const projectRole = useMemo(
+    () => resolveRoleValue(projectRoles?.[projectId]) ?? null,
+    [projectId, projectRoles]
+  );
+  const globalResolvedRole = resolveRoleValue(globalRole);
+  const userRole = projectRole ?? globalResolvedRole ?? ROLE.VIEWER;
   const canEditPlanner = canManagePlanner(userRole);
   const canEditShots = canManageShots(userRole);
   const isAuthLoading = !authReady || loadingClaims;
