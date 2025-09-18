@@ -42,6 +42,7 @@ export default function ShotProductTile({ product, onEdit, onRemove }) {
         )}
         <div className="mt-auto flex items-center gap-2 pt-1">
           <Button
+            type="button"
             variant={primaryActionVariant}
             size="sm"
             className="px-2 py-1 text-xs"
@@ -49,7 +50,13 @@ export default function ShotProductTile({ product, onEdit, onRemove }) {
           >
             {primaryActionLabel}
           </Button>
-          <Button variant="ghost" size="sm" className="px-2 py-1 text-xs" onClick={onRemove}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="px-2 py-1 text-xs"
+            onClick={onRemove}
+          >
             Remove
           </Button>
         </div>

@@ -16,7 +16,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import NewProductModal from "../components/products/NewProductModal";
 import EditProductModal from "../components/products/EditProductModal";
-import { db, deleteImageByPath, uploadImageFile } from "../firebase";
+import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import { useStorageImage } from "../hooks/useStorageImage";
 import {
   productFamiliesPath,

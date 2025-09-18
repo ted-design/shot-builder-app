@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth } from "../lib/firebase";
 
 /**
  * Navigation bar component. Provides responsive layout: a hamburger menu on

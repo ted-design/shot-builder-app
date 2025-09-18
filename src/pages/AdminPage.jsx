@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { collection, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import { addDoc, collection, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
-import { db, functions } from "../firebase";
-import { CLIENT_ID } from "../lib/paths";
+import { db, functions } from "../lib/firebase";
+import { CLIENT_ID, talentPath, locationsPath } from "../lib/paths";
 import { ROLE, roleLabel } from "../lib/rbac";
 import { useAuth } from "../context/AuthContext";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
+import { toast } from "../lib/toast";
+import { writeDoc } from "../lib/firestoreWrites";
+import { describeFirebaseError } from "../lib/firebaseErrors";
 
 const ROLE_OPTIONS = [ROLE.ADMIN, ROLE.PRODUCER, ROLE.CREW, ROLE.WAREHOUSE, ROLE.VIEWER];
 
@@ -17,7 +20,9 @@ export default function AdminPage() {
   const [newName, setNewName] = useState("");
   const [newRole, setNewRole] = useState(ROLE.PRODUCER);
   const [adding, setAdding] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const { refreshToken, user: authUser } = useAuth();
+  const devToolsEnabled = import.meta.env.VITE_DEV_TOOLS === "true";
 
   useEffect(() => {
     const ref = collection(db, "clients", CLIENT_ID, "users");
@@ -99,6 +104,78 @@ export default function AdminPage() {
       setStatus(err.message || String(err));
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleSeedSamples = async () => {
+    setSeeding(true);
+    try {
+      const talentSeeds = [
+        {
+          firstName: "Alex",
+          lastName: "Rivera",
+          name: "Alex Rivera",
+          agency: "North Collective",
+          phone: "555-0112",
+          email: "alex.rivera@example.com",
+        },
+        {
+          firstName: "Morgan",
+          lastName: "Lee",
+          name: "Morgan Lee",
+          agency: "Freelance",
+          email: "morgan.lee@example.com",
+        },
+      ];
+
+      const locationSeeds = [
+        {
+          name: "Studio 22",
+          street: "22 Front St W",
+          city: "Toronto",
+          province: "ON",
+          notes: "Drive-in access, blackout curtains",
+        },
+        {
+          name: "Warehouse B",
+          street: "410 Industrial Rd",
+          city: "Hamilton",
+          province: "ON",
+          notes: "Roll-up doors, forklift on site",
+        },
+      ];
+
+      await Promise.all([
+        ...talentSeeds.map((seed) =>
+          writeDoc("seed talent", () =>
+            addDoc(collection(db, ...talentPath), {
+              ...seed,
+              shotIds: [],
+              headshotPath: null,
+              createdAt: serverTimestamp(),
+              createdBy: authUser?.uid || null,
+            })
+          )
+        ),
+        ...locationSeeds.map((seed) =>
+          writeDoc("seed location", () =>
+            addDoc(collection(db, ...locationsPath), {
+              ...seed,
+              shotIds: [],
+              photoPath: null,
+              createdAt: serverTimestamp(),
+              createdBy: authUser?.uid || null,
+            })
+          )
+        ),
+      ]);
+
+      toast.success("Sample talent and locations created.");
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Unable to seed samples.");
+      toast.error({ title: "Seed failed", description: `${code}: ${message}` });
+    } finally {
+      setSeeding(false);
     }
   };
 
@@ -213,6 +290,27 @@ export default function AdminPage() {
           </div>
         </CardContent>
       </Card>
+
+      {devToolsEnabled && (
+        <Card>
+          <CardHeader>
+            <h2 className="text-lg font-semibold">Development Utilities</h2>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-slate-600">
+              Seed sample talent and locations to verify permissions in a sandbox environment.
+            </p>
+            <button
+              type="button"
+              onClick={handleSeedSamples}
+              disabled={seeding}
+              className="inline-flex items-center rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-50"
+            >
+              {seeding ? "Seeding…" : "Seed sample talent & locations"}
+            </button>
+          </CardContent>
+        </Card>
+      )}
 
       {status && (
         <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">

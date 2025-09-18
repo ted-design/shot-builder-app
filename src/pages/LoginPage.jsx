@@ -9,7 +9,7 @@ import {
   sendEmailVerification,
   updateProfile,
 } from "firebase/auth";
-import { auth, provider } from "../firebase";
+import { auth, provider } from "../lib/firebase";
 
 const mapAuthError = (error) => {
   const code = error?.code;

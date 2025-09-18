@@ -1,7 +1,7 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { onIdTokenChanged } from "firebase/auth";
-import { auth } from "./firebase";
+import { auth } from "./lib/firebase";
 
 import { FLAGS } from "./lib/flags";
 import { useAuth } from "./context/AuthContext";

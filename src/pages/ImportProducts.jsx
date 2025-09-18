@@ -1,13 +1,18 @@
 // src/pages/ImportProducts.jsx
 import React, { useState } from "react";
-import { db } from "../firebase";
-import { collection, doc, writeBatch } from "firebase/firestore";
-import { productsPath } from "../lib/paths";
+import { db } from "../lib/firebase";
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import {
+  productFamiliesPath,
+  productFamilyPath,
+  productFamilySkuPath,
+  productFamilySkusPath,
+} from "../lib/paths";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input, Checkbox } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useAuth } from "../context/AuthContext";
-import { canManageProducts, ROLE } from "../lib/rbac";
+import { canEditProducts, ROLE } from "../lib/rbac";
 
 /** Utility: robust CSV parser for simple, comma-separated files with quoted fields. */
 function parseCSV(text) {
@@ -56,13 +61,13 @@ function stripGenderPrefix(name) {
 export default function ImportProducts() {
   const [status, setStatus] = useState("Awaiting file upload...");
   const [rows, setRows] = useState([]);
-  const [useSkuAsId, setUseSkuAsId] = useState(true);
+  const [useStyleNumberAsId, setUseStyleNumberAsId] = useState(true);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [total, setTotal] = useState(0);
   const { role: globalRole } = useAuth();
   const role = globalRole || ROLE.VIEWER;
-  const canManage = canManageProducts(role);
+  const canManage = canEditProducts(role);
 
   const onFile = async (e) => {
     if (!canManage) {
@@ -80,60 +85,154 @@ export default function ImportProducts() {
     setStatus(`Parsed ${parsed.length} rows. Ready to import.`);
   };
 
+  const normaliseGender = (value) => {
+    if (!value) return null;
+    const lower = value.trim().toLowerCase();
+    if (lower.startsWith("men")) return "men";
+    if (lower.startsWith("women")) return "women";
+    if (lower === "unisex") return "unisex";
+    return lower || null;
+  };
+
+  const buildSkuEntries = (group) => {
+    const entries = [];
+    group.colorways.forEach((sizeMap, colourName) => {
+      sizeMap.forEach((info, sizeValue) => {
+        const skuCode = (info && info.sku ? info.sku.trim() : "");
+        if (!skuCode) return;
+        const sizes = sizeValue ? [sizeValue] : [];
+        entries.push({
+          colorName: colourName || "Default",
+          skuCode,
+          sizes,
+          status: "active",
+          oldSku: info?.oldSku || null,
+        });
+      });
+    });
+    return entries;
+  };
+
   async function importRows() {
-    if (!canManage) return;
-    if (!rows.length) return;
+    if (!canManage || !rows.length) return;
     setLoading(true);
-    setStatus("Importing products...");
+    setStatus("Importing product families…");
     setProgress(0);
 
-    // Prepare valid rows
-    const valid = [];
-    for (const r of rows) {
-      const sku = (r.sku || r.SKU || "").trim();
-      const name = stripGenderPrefix((r.product || r.name || r.Product || "").trim());
-      if (!sku || !name) continue;
-      valid.push({ sku, r, name });
-    }
-    setTotal(valid.length);
+    const groups = new Map();
 
-    // Batch in chunks of 50
-    const chunkSize = 50;
-    let imported = 0;
-    for (let i = 0; i < valid.length; i += chunkSize) {
-      const chunk = valid.slice(i, i + chunkSize);
-      const batch = writeBatch(db);
-      for (const it of chunk) {
-        const { sku, name, r } = it;
-        const data = {
-          sku,
-          name,
-          category: (r.category || r.Category || "").trim() || null,
-          color: (r.color || r.Color || "").trim() || null,
-          size: (r.size || r.Size || "").trim() || null,
-          gender: (r.gender || r.Gender || "").trim() || null,
-          active: String(r.active || r.Active || "").toLowerCase() !== "discontinued",
-          discontinued: String(r.active || r.Active || "").toLowerCase() === "discontinued",
-          updatedAt: new Date().toISOString(),
-        };
-        const id = useSkuAsId ? sku : undefined;
-        if (id) {
-          const ref = doc(db, ...productsPath, id);
-          batch.set(ref, data, { merge: true });
-        } else {
-          const col = collection(db, ...productsPath);
-          const ref = doc(col); // auto-ID
-          batch.set(ref, data, { merge: true });
-        }
+    rows.forEach((r) => {
+      const genderRaw = (r.gender || r.Gender || "").trim();
+      const styleName = stripGenderPrefix((r["STYLE NAME"] || r["Style Name"] || r.product || r.Product || r.name || "").trim());
+      const styleNumber = (r["CURRENT STYLE #"] || r["Style Number"] || r.style_number || r.styleNumber || "").trim();
+      const previousStyle = (r["PREVIOUS STYLE #"] || r.previousStyleNumber || "").trim();
+      const colorway = (r.COLORWAY || r.Colorway || r["COLOR WAY"] || r.Color || "").trim();
+      const size = (r.SIZE || r.Size || "").trim();
+      const newSku = (r["NEW SKU #"] || r["New SKU"] || r.sku || r.SKU || "").trim();
+      const oldSku = (r["OLD SKU #"] || r["Old SKU"] || r.oldSku || "").trim();
+
+      if (!styleName || !styleNumber || !newSku) {
+        return;
       }
-      await batch.commit();
-      imported += chunk.length;
-      setProgress(imported);
-      setStatus(`Imported ${imported} / ${valid.length}`);
+
+      if (!groups.has(styleNumber)) {
+        groups.set(styleNumber, {
+          name: styleName,
+          styleNumber,
+          gender: normaliseGender(genderRaw),
+          previousStyleNumber: previousStyle || null,
+          category: (r.category || r.Category || "").trim() || null,
+          colorways: new Map(),
+        });
+      }
+      const group = groups.get(styleNumber);
+      const colourKey = colorway || "Default";
+      if (!group.colorways.has(colourKey)) {
+        group.colorways.set(colourKey, new Map());
+      }
+      const sizeMap = group.colorways.get(colourKey);
+      sizeMap.set(size || "", { sku: newSku, oldSku: oldSku || null });
+    });
+
+    const grouped = Array.from(groups.values());
+    setTotal(grouped.length);
+
+    const familiesCollection = collection(db, ...productFamiliesPath);
+    let imported = 0;
+    let errors = 0;
+
+    for (const group of grouped) {
+      try {
+        const familyRef = useStyleNumberAsId && group.styleNumber
+          ? doc(db, ...productFamilyPath(group.styleNumber))
+          : doc(familiesCollection);
+        const familyId = familyRef.id;
+        const now = Date.now();
+        const existingSnap = await getDoc(familyRef);
+        const existingData = existingSnap.exists() ? existingSnap.data() : null;
+
+        const skuEntries = buildSkuEntries(group);
+        const skuCodes = Array.from(new Set(skuEntries.map((entry) => entry.skuCode).filter(Boolean)));
+        const colorNames = Array.from(new Set(skuEntries.map((entry) => entry.colorName).filter(Boolean)));
+        const sizeOptions = Array.from(new Set(skuEntries.flatMap((entry) => entry.sizes).filter(Boolean)));
+        const activeSkuCount = skuEntries.filter((entry) => entry.status === "active").length;
+
+        const familyData = {
+          styleName: group.name,
+          styleNumber: group.styleNumber,
+          previousStyleNumber: group.previousStyleNumber || existingData?.previousStyleNumber || null,
+          gender: group.gender || existingData?.gender || null,
+          category: group.category || existingData?.category || null,
+          status: existingData?.status || "active",
+          archived: existingData?.archived || false,
+          notes: existingData?.notes || [],
+          headerImagePath: existingData?.headerImagePath || null,
+          shotIds: existingData?.shotIds || [],
+          skuCodes,
+          colorNames,
+          sizeOptions,
+          skuCount: skuEntries.length,
+          activeSkuCount,
+          createdAt: existingData?.createdAt || now,
+          updatedAt: now,
+        };
+
+        await setDoc(familyRef, familyData, { merge: true });
+
+        const existingSkus = await getDocs(collection(db, ...productFamilySkusPath(familyId)));
+        for (const docSnap of existingSkus.docs) {
+          await deleteDoc(doc(db, ...productFamilySkuPath(familyId, docSnap.id)));
+        }
+
+        for (const entry of skuEntries) {
+          const skuRef = doc(collection(db, ...productFamilySkusPath(familyId)));
+          await setDoc(skuRef, {
+            colorName: entry.colorName,
+            skuCode: entry.skuCode,
+            sizes: entry.sizes,
+            status: entry.status,
+            archived: false,
+            imagePath: null,
+            oldSku: entry.oldSku || null,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+
+        imported += 1;
+        setProgress(imported);
+        setStatus(`Imported ${imported} / ${grouped.length} families`);
+      } catch (err) {
+        console.error("Failed to import product family", err);
+        errors += 1;
+        setStatus(`Error importing ${group.styleNumber || group.name}: ${err?.message || err}`);
+      }
     }
 
     setLoading(false);
-    setStatus(`Done. Imported ${valid.length} products.`);
+    setStatus(
+      `Done. Imported ${imported} families${errors ? ` with ${errors} error${errors === 1 ? "" : "s"}.` : "."}`
+    );
   }
 
   const pct = total ? Math.round((progress / total) * 100) : 0;
@@ -155,8 +254,11 @@ export default function ImportProducts() {
           <CardContent className="space-y-4">
             <Input type="file" accept=".csv" onChange={onFile} />
             <div className="flex items-center gap-2">
-              <Checkbox checked={useSkuAsId} onChange={(e) => setUseSkuAsId(e.target.checked)} />
-              <span className="text-sm text-gray-700">Use SKU as document ID</span>
+              <Checkbox
+                checked={useStyleNumberAsId}
+                onChange={(e) => setUseStyleNumberAsId(e.target.checked)}
+              />
+              <span className="text-sm text-gray-700">Use style number as document ID</span>
             </div>
 
             <div className="text-sm text-gray-600">{status}</div>

@@ -7,6 +7,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
@@ -14,7 +15,10 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import TalentEditModal from "../components/talent/TalentEditModal";
 import { useAuth } from "../context/AuthContext";
-import { db, deleteImageByPath, uploadImageFile } from "../firebase";
+import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
+import { describeFirebaseError } from "../lib/firebaseErrors";
+import { writeDoc } from "../lib/firestoreWrites";
+import { toast } from "../lib/toast";
 import { useFilePreview } from "../hooks/useFilePreview";
 import { useStorageImage } from "../hooks/useStorageImage";
 import { talentPath } from "../lib/paths";
@@ -129,7 +133,7 @@ export default function TalentPage() {
   const [editBusy, setEditBusy] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
-  const { role: globalRole } = useAuth();
+  const { role: globalRole, user } = useAuth();
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManageTalent(role);
 
@@ -180,6 +184,16 @@ export default function TalentPage() {
     }
   }, [talent, editTarget]);
 
+  const notifyError = (title, error, fallbackMessage) => {
+    const { code, message } = describeFirebaseError(error, fallbackMessage);
+    console.error(title, error);
+    toast.error({ title, description: `${code}: ${message}` });
+  };
+
+  const notifySuccess = (message) => {
+    toast.success(message);
+  };
+
   const resetDraft = () => {
     setDraft(initialDraft);
     setDraftFile(null);
@@ -207,15 +221,18 @@ export default function TalentPage() {
     const name = buildDisplayName(first, last);
 
     try {
-      const docRef = await addDoc(collection(db, ...talentPath), {
-        ...draft,
-        firstName: first,
-        lastName: last,
-        name,
-        shotIds: [],
-        headshotPath: null,
-        createdAt: Date.now(),
-      });
+      const docRef = await writeDoc("create talent", () =>
+        addDoc(collection(db, ...talentPath), {
+          ...draft,
+          firstName: first,
+          lastName: last,
+          name,
+          shotIds: [],
+          headshotPath: null,
+          createdAt: serverTimestamp(),
+          createdBy: user?.uid || null,
+        })
+      );
 
       let uploadError = null;
       if (draftFile) {
@@ -229,15 +246,24 @@ export default function TalentPage() {
 
       resetDraft();
       if (uploadError) {
-        setFeedback({
-          type: "error",
-          text: `${name} was added, but the headshot failed to upload. Try again from the edit dialog.`,
-        });
+        const { code, message } = describeFirebaseError(
+          uploadError,
+          "Headshot upload failed."
+        );
+        const text = `${name} was added, but the headshot upload failed (${code}: ${message}). Try again from the edit dialog.`;
+        setFeedback({ type: "error", text });
+        toast.error({ title: "Headshot upload failed", description: `${code}: ${message}` });
       } else {
         setFeedback({ type: "success", text: `${name} was added to talent.` });
+        notifySuccess(`${name} was added to talent.`);
       }
     } catch (error) {
-      setFormError(error?.message || "Unable to create talent. Check your connection and try again.");
+      const { message } = describeFirebaseError(
+        error,
+        "Unable to create talent. Check your connection and try again."
+      );
+      setFormError(message);
+      notifyError("Failed to create talent", error, message);
     } finally {
       setCreating(false);
     }
