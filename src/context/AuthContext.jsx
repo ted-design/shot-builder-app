@@ -15,6 +15,14 @@ import {
 import { auth, provider, db } from "../lib/firebase";
 import { CLIENT_ID } from "../lib/paths";
 
+const LAST_ROLE_STORAGE_KEY = "auth:last-known-role";
+
+const readStoredRole = () => {
+  if (typeof window === "undefined") return null;
+  const stored = window.localStorage.getItem(LAST_ROLE_STORAGE_KEY);
+  return stored || null;
+};
+
 export const AuthContext = createContext({
   user: null,
   initializing: true,
@@ -37,21 +45,35 @@ export function AuthProvider({ children }) {
   const [loadingClaims, setLoadingClaims] = useState(false);
   const [clientId, setClientId] = useState(null);
   const [projectRoles, setProjectRoles] = useState({});
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState(() => readStoredRole());
   const [claimsError, setClaimsError] = useState(null);
 
   useEffect(() => {
     const unsub = onIdTokenChanged(auth, (u) => {
       setUser(u || null);
       setClaims(null);
-      setRole(null);
-      setProjectRoles({});
-      setClientId(null);
       setClaimsError(null);
+      if (!u) {
+        setRole(null);
+        setProjectRoles({});
+        setClientId(null);
+        setLoadingClaims(false);
+      } else {
+        setLoadingClaims(true);
+      }
       setInitializing(false);
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (role) {
+      window.localStorage.setItem(LAST_ROLE_STORAGE_KEY, role);
+    } else {
+      window.localStorage.removeItem(LAST_ROLE_STORAGE_KEY);
+    }
+  }, [role]);
 
   useEffect(() => {
     if (!user) {
@@ -76,7 +98,9 @@ export function AuthProvider({ children }) {
         const claimRole = tokenClaims.role || null;
         const claimClient = tokenClaims.clientId || CLIENT_ID;
         setClaims(tokenClaims);
-        setRole(claimRole);
+        if (claimRole) {
+          setRole(claimRole);
+        }
         setClientId(claimClient);
 
         const userDocRef = doc(db, "clients", claimClient, "users", user.uid);
@@ -114,6 +138,9 @@ export function AuthProvider({ children }) {
             setProjectRoles(data.projects || {});
             if (!claimRole && data.role) {
               setRole(data.role);
+            }
+            if (!claimRole && !data.role) {
+              setRole(null);
             }
             setLoadingClaims(false);
           },
