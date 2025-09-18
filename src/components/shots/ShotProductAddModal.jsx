@@ -16,10 +16,33 @@ const deriveInitialSizeValue = (product) => {
 
 function ColourOption({ colour, selected, onSelect }) {
   const imageUrl = useStorageImage(colour.imagePath);
+  
+  const handleClick = (e) => {
+    console.log('🎨 ColourOption clicked:', {
+      colourId: colour.id,
+      colorName: colour.colorName,
+      selected,
+      onSelectFunction: typeof onSelect,
+      event: e.type,
+      target: e.target.tagName
+    });
+    
+    // Ensure the event doesn't bubble up
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (typeof onSelect === 'function') {
+      onSelect();
+      console.log('✅ onSelect called successfully for:', colour.colorName);
+    } else {
+      console.error('❌ onSelect is not a function:', onSelect);
+    }
+  };
+  
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={handleClick}
       className={`flex flex-col gap-2 rounded-lg border ${
         selected ? "border-primary ring-2 ring-primary/40" : "border-slate-200"
       } bg-white p-3 text-left transition hover:border-primary`}
@@ -67,6 +90,20 @@ export default function ShotProductAddModal({
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [selectedColourId, setSelectedColourId] = useState(initialProduct?.colourId || null);
   const [selectedSize, setSelectedSize] = useState(deriveInitialSizeValue(initialProduct));
+
+  // Debug component renders
+  console.log('🔄 ShotProductAddModal render:', {
+    open,
+    view,
+    selectedFamilyId,
+    selectedColourId,
+    timestamp: new Date().toISOString()
+  });
+
+  // Debug logging for state changes
+  useEffect(() => {
+    console.log('🔄 selectedColourId changed:', selectedColourId);
+  }, [selectedColourId]);
   const scrollRegionRef = useRef(null);
 
   useEffect(() => {
@@ -132,17 +169,53 @@ export default function ShotProductAddModal({
     return familyDetails.colours.filter((colour) => colour.status !== "archived");
   }, [familyDetails]);
 
+  // Debug colours array updates
+  useEffect(() => {
+    console.log('🎨 colours array updated:', colours.length, colours.map(c => ({ id: c.id, name: c.colorName })));
+  }, [colours]);
+
   useEffect(() => {
     if (!initialProduct && !selectedColourId && colours.length) {
       setSelectedColourId(colours[0].id);
     }
   }, [colours, initialProduct, selectedColourId]);
-  const selectedColour = colours.find((colour) => colour.id === selectedColourId) || null;
+  const selectedColour = useMemo(() => {
+    const found = colours.find((colour) => colour.id === selectedColourId) || null;
+    console.log('🎯 selectedColour derived:', {
+      selectedColourId,
+      coloursCount: colours.length,
+      foundColour: found ? { id: found.id, name: found.colorName } : null,
+      allColourIds: colours.map(c => c.id)
+    });
+    return found;
+  }, [selectedColourId, colours]);
+
+  // Debug selectedColour changes
+  useEffect(() => {
+    console.log('🔄 selectedColour state changed:', {
+      selectedColour: selectedColour ? { id: selectedColour.id, name: selectedColour.colorName } : null,
+      selectedColourId,
+      timestamp: new Date().toISOString()
+    });
+  }, [selectedColour, selectedColourId]);
 
   // Enhanced button state logic for improved workflow
   const hasValidSelection = selectedFamilyId && selectedColour;
   const canAddColourway = hasValidSelection && !loadingDetails;
   const canAddWithSize = hasValidSelection && selectedSize && selectedSize !== "" && !loadingDetails;
+
+  // Debug button state logic
+  useEffect(() => {
+    console.log('🔘 Button states:', {
+      selectedFamilyId,
+      selectedColour: selectedColour ? selectedColour.colorName : null,
+      selectedSize,
+      loadingDetails,
+      hasValidSelection,
+      canAddColourway,
+      canAddWithSize
+    });
+  }, [selectedFamilyId, selectedColour, selectedSize, loadingDetails, hasValidSelection, canAddColourway, canAddWithSize]);
 
   const handleFamilySelect = (family) => {
     setSelectedFamilyId(family.id);
@@ -201,7 +274,7 @@ export default function ShotProductAddModal({
       open={open}
       onClose={onClose}
       labelledBy="shot-product-picker-title"
-      contentClassName="flex h-[100vh] max-h-[100vh] flex-col overflow-hidden p-0 sm:h-auto sm:max-h-[85vh]"
+      contentClassName="flex max-h-[90vh] h-auto flex-col overflow-hidden p-0"
       initialFocusRef={scrollRegionRef}
     >
       <Card className="flex h-full flex-col border-0 shadow-none">
@@ -233,9 +306,13 @@ export default function ShotProductAddModal({
         <div
           ref={scrollRegionRef}
           tabIndex={0}
+          data-testid="shot-product-scroll-region"
           className="flex-1 overflow-y-auto overscroll-contain focus-visible:outline-none"
         >
-          <CardContent className="space-y-4 pb-32">
+          <CardContent
+            data-testid="shot-product-card-content"
+            className="space-y-4 pb-32"
+          >
             {view === "list" ? (
               <div className="space-y-4">
                 <Input
@@ -296,7 +373,16 @@ export default function ShotProductAddModal({
                             key={colour.id}
                             colour={colour}
                             selected={colour.id === selectedColourId}
-                            onSelect={() => setSelectedColourId(colour.id)}
+                            onSelect={() => {
+                              console.log('🎨 Color selection handler called:', {
+                                previousSelectedColourId: selectedColourId,
+                                newColourId: colour.id,
+                                colorName: colour.colorName,
+                                timestamp: new Date().toISOString()
+                              });
+                              setSelectedColourId(colour.id);
+                              console.log('🔄 setSelectedColourId called with:', colour.id);
+                            }}
                           />
                         ))}
                       </div>
@@ -361,7 +447,10 @@ export default function ShotProductAddModal({
               </div>
             )}
           </CardContent>
-          <div className="sticky bottom-0 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur-sm shadow-lg sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-6">
+          <div
+            data-testid="shot-product-modal-footer"
+            className="sticky bottom-0 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur-sm shadow-lg sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-6"
+          >
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>

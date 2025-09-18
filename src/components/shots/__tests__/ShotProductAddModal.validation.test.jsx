@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "../../../test-utils/userEvent";
 import ShotProductAddModal from "../ShotProductAddModal";
 
 // Mock the useStorageImage hook
@@ -48,8 +49,11 @@ const defaultProps = {
 };
 
 describe("ShotProductAddModal - Task 4 Validation Tests", () => {
+    let user;
+
     beforeEach(() => {
         vi.clearAllMocks();
+        user = userEvent.setup();
     });
 
     describe("Button State Logic Tests (Requirements 2.1, 2.2, 2.4, 3.1, 3.2, 3.5)", () => {
@@ -58,7 +62,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -83,7 +87,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -96,7 +100,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Select a specific size
             const sizeSelect = screen.getByRole("combobox");
-            fireEvent.change(sizeSelect, { target: { value: "M" } });
+            await user.selectOptions(sizeSelect, "M");
 
             const addColourwayButton = screen.getByText("Add colourway");
             const addWithSizeButton = screen.getByText("Add with M");
@@ -113,7 +117,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -126,7 +130,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Select "All sizes"
             const sizeSelect = screen.getByRole("combobox");
-            fireEvent.change(sizeSelect, { target: { value: "__ALL_SIZES__" } });
+            await user.selectOptions(sizeSelect, "__ALL_SIZES__");
 
             const addColourwayButton = screen.getByText("Add colourway");
             const addWithSizeButton = screen.getByText("Add all sizes");
@@ -148,7 +152,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             // Wait for loading state to appear
             await waitFor(() => {
@@ -168,7 +172,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -198,7 +202,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -211,7 +215,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Click "Add colourway" (should be enabled with auto-selected color)
             const addColourwayButton = screen.getByText("Add colourway");
-            fireEvent.click(addColourwayButton);
+            await user.click(addColourwayButton);
 
             // Verify correct data is submitted (Requirement 2.5)
             expect(defaultProps.onSubmit).toHaveBeenCalledWith({
@@ -231,7 +235,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -244,11 +248,11 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Select a specific size
             const sizeSelect = screen.getByRole("combobox");
-            fireEvent.change(sizeSelect, { target: { value: "M" } });
+            await user.selectOptions(sizeSelect, "M");
 
             // Click "Add with M"
             const addWithSizeButton = screen.getByText("Add with M");
-            fireEvent.click(addWithSizeButton);
+            await user.click(addWithSizeButton);
 
             // Verify correct data is submitted
             expect(defaultProps.onSubmit).toHaveBeenCalledWith({
@@ -268,7 +272,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -281,11 +285,11 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Select "All sizes"
             const sizeSelect = screen.getByRole("combobox");
-            fireEvent.change(sizeSelect, { target: { value: "__ALL_SIZES__" } });
+            await user.selectOptions(sizeSelect, "__ALL_SIZES__");
 
             // Click "Add all sizes"
             const addWithSizeButton = screen.getByText("Add all sizes");
-            fireEvent.click(addWithSizeButton);
+            await user.click(addWithSizeButton);
 
             // Verify correct data is submitted
             expect(defaultProps.onSubmit).toHaveBeenCalledWith({
@@ -305,7 +309,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -320,7 +324,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
             const blueButton = screen.getByText("Blue");
             
             // Switch to Blue
-            fireEvent.click(blueButton);
+            await user.click(blueButton);
 
             // Verify buttons are still properly enabled/disabled
             const addColourwayButton = screen.getByText("Add colourway");
@@ -331,7 +335,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Add a size
             const sizeSelect = screen.getByRole("combobox");
-            fireEvent.change(sizeSelect, { target: { value: "L" } });
+            await user.selectOptions(sizeSelect, "L");
 
             // Now both buttons should be enabled
             expect(addColourwayButton).not.toBeDisabled();
@@ -343,44 +347,46 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
         it("renders with proper scrollable container structure", () => {
             render(<ShotProductAddModal {...defaultProps} />);
 
-            // Check that the scrollable container exists with proper attributes
-            const scrollContainer = screen.getByRole("dialog").querySelector('[tabindex="0"]');
+            const dialog = screen.getByRole("dialog");
+            const scrollContainer = within(dialog).getByTestId("shot-product-scroll-region");
+
             expect(scrollContainer).toBeInTheDocument();
-            expect(scrollContainer).toHaveClass("flex-1", "overflow-y-auto", "overscroll-contain");
+            expect(scrollContainer).toHaveClass("flex-1");
+            expect(scrollContainer).toHaveClass("overflow-y-auto");
+            expect(scrollContainer).toHaveClass("overscroll-contain");
             expect(scrollContainer).toHaveAttribute("tabindex", "0");
         });
 
         it("has sufficient bottom padding to clear sticky footer (Requirement 1.2)", async () => {
             render(<ShotProductAddModal {...defaultProps} />);
 
-            // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
             });
 
-            // Check that content has proper bottom padding
-            const cardContent = screen.getByRole("dialog").querySelector('.space-y-4.pb-32');
-            expect(cardContent).toBeInTheDocument();
+            const dialog = screen.getByRole("dialog");
+            const cardContent = within(dialog).getByTestId("shot-product-card-content");
+
+            expect(cardContent).toHaveClass("space-y-4");
             expect(cardContent).toHaveClass("pb-32");
         });
 
         it("renders sticky footer with proper styling and accessibility (Requirement 1.2)", async () => {
             render(<ShotProductAddModal {...defaultProps} />);
 
-            // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
             });
 
-            // Check sticky footer exists and has proper classes
-            const stickyFooter = screen.getByRole("dialog").querySelector('.sticky.bottom-0');
-            expect(stickyFooter).toBeInTheDocument();
+            const dialog = screen.getByRole("dialog");
+            const stickyFooter = within(dialog).getByTestId("shot-product-modal-footer");
+
             expect(stickyFooter).toHaveClass(
                 "sticky",
                 "bottom-0",
@@ -394,37 +400,31 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
         it("action buttons are accessible in the sticky footer (Requirement 1.2)", async () => {
             render(<ShotProductAddModal {...defaultProps} />);
 
-            // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
             });
 
-            // Check that action buttons are present and accessible
-            const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
-            const cancelButton = screen.getByText("Cancel");
+            const dialog = screen.getByRole("dialog");
+            const stickyFooter = within(dialog).getByTestId("shot-product-modal-footer");
+
+            const addColourwayButton = within(stickyFooter).getByRole("button", { name: /add colourway/i });
+            const addWithSizeButton = within(stickyFooter).getByRole("button", { name: /add & choose size now/i });
+            const cancelButton = within(stickyFooter).getByRole("button", { name: /cancel/i });
 
             expect(addColourwayButton).toBeInTheDocument();
             expect(addWithSizeButton).toBeInTheDocument();
             expect(cancelButton).toBeInTheDocument();
-
-            // Verify buttons are in the sticky footer
-            const stickyFooter = screen.getByRole("dialog").querySelector('.sticky.bottom-0');
-            expect(stickyFooter).toContainElement(addColourwayButton);
-            expect(stickyFooter).toContainElement(addWithSizeButton);
-            expect(stickyFooter).toContainElement(cancelButton);
         });
 
         it("handles different content heights properly with many colourways (Requirement 1.4)", async () => {
-            // Create a family with many colors to test scrolling with more content
             const manyColorsFamilyDetails = {
                 colours: Array.from({ length: 20 }, (_, i) => ({
                     id: `color${i}`,
                     colorName: `Color ${i}`,
-                    skuCode: `COL${i.toString().padStart(3, '0')}`,
+                    skuCode: `COL${i.toString().padStart(3, "0")}`,
                     status: "active",
                     imagePath: `path/to/color${i}.jpg`,
                 })),
@@ -438,39 +438,37 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             render(<ShotProductAddModal {...propsWithManyColors} />);
 
-            // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
             });
 
-            // Wait for colors to load
             await waitFor(() => {
                 expect(screen.getByText("Color 0")).toBeInTheDocument();
             });
 
-            // Verify that with many colors, the layout still works
-            const colorButtons = screen.getAllByRole("button").filter(btn =>
-                btn.textContent.startsWith("Color ")
-            );
+            const dialog = screen.getByRole("dialog");
+            const colorButtons = within(dialog)
+                .getAllByRole("button")
+                .filter((btn) => btn.textContent?.startsWith("Color "));
             expect(colorButtons.length).toBe(20);
 
-            // Verify sticky footer is still accessible
-            const addColourwayButton = screen.getByText("Add colourway");
+            const stickyFooter = within(dialog).getByTestId("shot-product-modal-footer");
+            const addColourwayButton = within(stickyFooter).getByRole("button", { name: /add colourway/i });
             expect(addColourwayButton).toBeInTheDocument();
 
-            // Verify scrollable container maintains proper structure
-            const scrollContainer = screen.getByRole("dialog").querySelector('[tabindex="0"]');
+            const scrollContainer = within(dialog).getByTestId("shot-product-scroll-region");
             expect(scrollContainer).toHaveClass("overflow-y-auto");
         });
 
         it("maintains focus management with scrollable container (Requirement 1.3)", () => {
             render(<ShotProductAddModal {...defaultProps} />);
 
-            // Check that the scrollable container can receive focus
-            const scrollContainer = screen.getByRole("dialog").querySelector('[tabindex="0"]');
+            const dialog = screen.getByRole("dialog");
+            const scrollContainer = within(dialog).getByTestId("shot-product-scroll-region");
+
             expect(scrollContainer).toHaveAttribute("tabindex", "0");
             expect(scrollContainer).toHaveClass("focus-visible:outline-none");
         });
@@ -482,7 +480,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -495,7 +493,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Click "Add colourway" to save with pending size
             const addColourwayButton = screen.getByText("Add colourway");
-            fireEvent.click(addColourwayButton);
+            await user.click(addColourwayButton);
 
             // Verify the exact data structure matches requirements
             expect(defaultProps.onSubmit).toHaveBeenCalledWith({
@@ -521,7 +519,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -534,11 +532,11 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Select a specific size
             const sizeSelect = screen.getByRole("combobox");
-            fireEvent.change(sizeSelect, { target: { value: "M" } });
+            await user.selectOptions(sizeSelect, "M");
 
             // Click "Add with M"
             const addWithSizeButton = screen.getByText("Add with M");
-            fireEvent.click(addWithSizeButton);
+            await user.click(addWithSizeButton);
 
             // Verify the exact data structure for complete status
             expect(defaultProps.onSubmit).toHaveBeenCalledWith({
@@ -561,7 +559,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -574,11 +572,11 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Select "All sizes"
             const sizeSelect = screen.getByRole("combobox");
-            fireEvent.change(sizeSelect, { target: { value: "__ALL_SIZES__" } });
+            await user.selectOptions(sizeSelect, "__ALL_SIZES__");
 
             // Click "Add all sizes"
             const addWithSizeButton = screen.getByText("Add all sizes");
-            fireEvent.click(addWithSizeButton);
+            await user.click(addWithSizeButton);
 
             // Verify the exact data structure for all sizes
             expect(defaultProps.onSubmit).toHaveBeenCalledWith({
@@ -603,7 +601,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -642,7 +640,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             // Wait for loading state to appear
             await waitFor(() => {
@@ -666,7 +664,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -682,7 +680,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Switch to Blue
             const blueButton = screen.getByText("Blue");
-            fireEvent.click(blueButton);
+            await user.click(blueButton);
 
             // Check that selection feedback updates
             expect(screen.getByText("✓ Blue selected")).toBeInTheDocument();
@@ -693,7 +691,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -710,14 +708,14 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Select a size
             const sizeSelect = screen.getByRole("combobox");
-            fireEvent.change(sizeSelect, { target: { value: "M" } });
+            await user.selectOptions(sizeSelect, "M");
 
             // Check that size selection feedback appears
             expect(screen.getByText("✓ M selected")).toBeInTheDocument();
             expect(screen.getByText("Only size M will be added to the shot")).toBeInTheDocument();
 
             // Select all sizes
-            fireEvent.change(sizeSelect, { target: { value: "__ALL_SIZES__" } });
+            await user.selectOptions(sizeSelect, "__ALL_SIZES__");
 
             // Check all sizes feedback
             expect(screen.getByText("✓ All sizes selected")).toBeInTheDocument();
@@ -743,18 +741,19 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Navigate to details view
             const familyButton = screen.getByText("Test Style");
-            fireEvent.click(familyButton);
+            await user.click(familyButton);
 
             await waitFor(() => {
                 expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
             });
 
-            // Verify scrollable container still works on mobile
-            const scrollContainer = screen.getByRole("dialog").querySelector('[tabindex="0"]');
+            const dialog = screen.getByRole("dialog");
+            const scrollContainer = within(dialog).getByTestId("shot-product-scroll-region");
             expect(scrollContainer).toHaveClass("overflow-y-auto");
 
             // Verify buttons are still accessible
-            const addColourwayButton = screen.getByText("Add colourway");
+            const addColourwayButton = within(dialog)
+                .getByRole("button", { name: /add colourway/i });
             expect(addColourwayButton).toBeInTheDocument();
         });
     });
