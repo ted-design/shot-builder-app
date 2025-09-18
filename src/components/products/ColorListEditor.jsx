@@ -15,20 +15,15 @@ export default function ColorListEditor({
   skuHelper,
 }) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-700">Colours</h3>
-        <Button type="button" variant="secondary" size="sm" onClick={onAddColor}>
-          Add colour
-        </Button>
-      </div>
+    <div className="relative space-y-3">
+      <h3 className="text-sm font-semibold text-slate-700">Colours</h3>
       {sizeNote && <p className="text-sm text-slate-500">{sizeNote}</p>}
       {skuHelper && <p className="text-xs text-slate-500">{skuHelper}</p>}
       <div className="space-y-4">
         {colors.map((color) => (
           <fieldset key={color.localId} className="space-y-4 rounded-lg border border-slate-200 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-              <div className="flex-1 space-y-2">
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">Colour name</label>
                 <Input
                   value={color.colorName}
@@ -36,7 +31,7 @@ export default function ColorListEditor({
                   placeholder="e.g. Black"
                 />
               </div>
-              <div className="flex-1 space-y-2">
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">SKU (optional)</label>
                 <Input
                   value={color.skuCode}
@@ -44,20 +39,20 @@ export default function ColorListEditor({
                   placeholder="e.g. UM-3021-BLK"
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Status</label>
-              <select
-                value={color.status}
-                onChange={(event) => onFieldChange(color.localId, { status: event.target.value })}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-              >
-                {statusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Status</label>
+                <select
+                  value={color.status}
+                  onChange={(event) => onFieldChange(color.localId, { status: event.target.value })}
+                  className="w-full rounded border border-gray-300 px-2 py-2 text-sm md:max-w-[180px]"
+                >
+                  {statusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Colour image</label>
@@ -104,6 +99,11 @@ export default function ColorListEditor({
             </div>
           </fieldset>
         ))}
+      </div>
+      <div className="sticky bottom-0 flex justify-end border-t border-slate-200 bg-white/95 px-2 py-3 backdrop-blur">
+        <Button type="button" variant="secondary" onClick={onAddColor}>
+          Add colour
+        </Button>
       </div>
     </div>
   );

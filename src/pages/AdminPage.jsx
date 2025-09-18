@@ -21,16 +21,19 @@ export default function AdminPage() {
   const [newRole, setNewRole] = useState(ROLE.PRODUCER);
   const [adding, setAdding] = useState(false);
   const [seeding, setSeeding] = useState(false);
-  const { refreshToken, user: authUser } = useAuth();
+  const { clientId, refreshToken, user: authUser } = useAuth();
+  const resolvedClientId = clientId || CLIENT_ID;
+  const currentTalentPath = useMemo(() => talentPath(resolvedClientId), [resolvedClientId]);
+  const currentLocationsPath = useMemo(() => locationsPath(resolvedClientId), [resolvedClientId]);
   const devToolsEnabled = import.meta.env.VITE_DEV_TOOLS === "true";
 
   useEffect(() => {
-    const ref = collection(db, "clients", CLIENT_ID, "users");
+    const ref = collection(db, "clients", resolvedClientId, "users");
     const unsub = onSnapshot(ref, (snapshot) => {
       setUsers(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })));
     });
     return () => unsub();
-  }, []);
+  }, [resolvedClientId]);
 
   const setUserClaims = useMemo(() => httpsCallable(functions, "setUserClaims"), []);
 
@@ -44,13 +47,17 @@ export default function AdminPage() {
     setAdding(true);
     setStatus("");
     try {
-      const response = await setUserClaims({ targetEmail: email, role: newRole, clientId: CLIENT_ID });
+      const response = await setUserClaims({
+        targetEmail: email,
+        role: newRole,
+        clientId: resolvedClientId,
+      });
       const data = response?.data || {};
       const uid = data.uid;
       if (!uid) throw new Error("Callable did not return a user id.");
 
       await setDoc(
-        doc(db, "clients", CLIENT_ID, "users", uid),
+        doc(db, "clients", resolvedClientId, "users", uid),
         {
           email,
           displayName: newName.trim() || null,
@@ -83,7 +90,7 @@ export default function AdminPage() {
     setStatus("");
     try {
       await setDoc(
-        doc(db, "clients", CLIENT_ID, "users", userDoc.id),
+        doc(db, "clients", resolvedClientId, "users", userDoc.id),
         {
           role: nextRole,
           updatedAt: serverTimestamp(),
@@ -92,7 +99,11 @@ export default function AdminPage() {
       );
 
       if (userDoc.email) {
-        await setUserClaims({ targetEmail: userDoc.email, role: nextRole, clientId: CLIENT_ID });
+        await setUserClaims({
+          targetEmail: userDoc.email,
+          role: nextRole,
+          clientId: resolvedClientId,
+        });
         if (authUser && authUser.uid === userDoc.id) {
           await refreshToken?.();
         }
@@ -148,7 +159,7 @@ export default function AdminPage() {
       await Promise.all([
         ...talentSeeds.map((seed) =>
           writeDoc("seed talent", () =>
-            addDoc(collection(db, ...talentPath), {
+            addDoc(collection(db, ...currentTalentPath), {
               ...seed,
               shotIds: [],
               headshotPath: null,
@@ -159,7 +170,7 @@ export default function AdminPage() {
         ),
         ...locationSeeds.map((seed) =>
           writeDoc("seed location", () =>
-            addDoc(collection(db, ...locationsPath), {
+            addDoc(collection(db, ...currentLocationsPath), {
               ...seed,
               shotIds: [],
               photoPath: null,

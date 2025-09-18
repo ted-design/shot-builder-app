@@ -113,9 +113,10 @@ export default function LocationsPage() {
   const [editBusy, setEditBusy] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
-  const { role: globalRole, user, claims } = useAuth();
+  const { clientId, role: globalRole, user, claims } = useAuth();
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManageLocations(role);
+  const currentLocationsPath = useMemo(() => locationsPath(clientId), [clientId]);
 
   const draftPreview = useFilePreview(draftFile);
 
@@ -133,7 +134,7 @@ export default function LocationsPage() {
 
   useEffect(() => {
     setLoading(true);
-    const qy = query(collection(db, ...locationsPath), orderBy("name", "asc"));
+    const qy = query(collection(db, ...currentLocationsPath), orderBy("name", "asc"));
     const unsubscribe = onSnapshot(
       qy,
       (snapshot) => {
@@ -146,7 +147,7 @@ export default function LocationsPage() {
       }
     );
     return () => unsubscribe();
-  }, []);
+  }, [currentLocationsPath]);
 
   const filteredLocations = useMemo(() => {
     const term = queryText.trim().toLowerCase();
@@ -192,7 +193,7 @@ export default function LocationsPage() {
 
   const handleCreate = async (event) => {
     event.preventDefault();
-    const pathSegments = Array.isArray(locationsPath) ? locationsPath : [locationsPath];
+    const pathSegments = currentLocationsPath;
     const targetPath = `/${pathSegments.join("/")}`;
 
     if (!user) {
@@ -232,7 +233,7 @@ export default function LocationsPage() {
 
     try {
       const docRef = await writeDoc("create location", () =>
-        addDoc(collection(db, ...locationsPath), {
+        addDoc(collection(db, ...currentLocationsPath), {
           ...draft,
           name,
           shotIds: [],
@@ -307,7 +308,7 @@ export default function LocationsPage() {
 
     setPendingDeleteId(locationRecord.id);
     try {
-      await deleteDoc(doc(db, ...locationsPath, locationRecord.id));
+      await deleteDoc(doc(db, ...currentLocationsPath, locationRecord.id));
       if (locationRecord.photoPath) {
         try {
           await deleteImageByPath(locationRecord.photoPath);
@@ -339,7 +340,7 @@ export default function LocationsPage() {
     }
 
     const targetId = editTarget.id;
-    const docRef = doc(db, ...locationsPath, targetId);
+    const docRef = doc(db, ...currentLocationsPath, targetId);
     setEditBusy(true);
     try {
       await updateDoc(docRef, updates);

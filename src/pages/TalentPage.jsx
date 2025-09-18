@@ -133,9 +133,10 @@ export default function TalentPage() {
   const [editBusy, setEditBusy] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
-  const { role: globalRole, user, claims } = useAuth();
+  const { clientId, role: globalRole, user, claims } = useAuth();
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManageTalent(role);
+  const currentTalentPath = useMemo(() => talentPath(clientId), [clientId]);
 
   const draftPreview = useFilePreview(draftFile);
 
@@ -153,7 +154,7 @@ export default function TalentPage() {
 
   useEffect(() => {
     setLoading(true);
-    const qy = query(collection(db, ...talentPath), orderBy("lastName", "asc"));
+    const qy = query(collection(db, ...currentTalentPath), orderBy("lastName", "asc"));
     const unsubscribe = onSnapshot(
       qy,
       (snapshot) => {
@@ -166,7 +167,7 @@ export default function TalentPage() {
       }
     );
     return () => unsubscribe();
-  }, []);
+  }, [currentTalentPath]);
 
   const filteredTalent = useMemo(() => {
     const term = queryText.trim().toLowerCase();
@@ -211,7 +212,7 @@ export default function TalentPage() {
 
   const handleCreate = async (event) => {
     event.preventDefault();
-    const pathSegments = Array.isArray(talentPath) ? talentPath : [talentPath];
+    const pathSegments = currentTalentPath;
     const targetPath = `/${pathSegments.join("/")}`;
 
     if (!user) {
@@ -253,7 +254,7 @@ export default function TalentPage() {
 
     try {
       const docRef = await writeDoc("create talent", () =>
-        addDoc(collection(db, ...talentPath), {
+        addDoc(collection(db, ...currentTalentPath), {
           ...draft,
           firstName: first,
           lastName: last,
@@ -333,7 +334,7 @@ export default function TalentPage() {
 
     setPendingDeleteId(talentRecord.id);
     try {
-      await deleteDoc(doc(db, ...talentPath, talentRecord.id));
+      await deleteDoc(doc(db, ...currentTalentPath, talentRecord.id));
       if (talentRecord.headshotPath) {
         try {
           await deleteImageByPath(talentRecord.headshotPath);
@@ -365,7 +366,7 @@ export default function TalentPage() {
     }
 
     const targetId = editTarget.id;
-    const docRef = doc(db, ...talentPath, targetId);
+    const docRef = doc(db, ...currentTalentPath, targetId);
     setEditBusy(true);
     try {
       await updateDoc(docRef, updates);

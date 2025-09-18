@@ -5,6 +5,8 @@
 // referenced by various Firestore path helpers.
 export const CLIENT_ID = "unbound-merino";
 
+const resolveClientId = (explicitClientId) => explicitClientId ?? CLIENT_ID;
+
 /**
  * Return the currently active project ID.  We read from localStorage on
  * demand rather than caching the value at import time.  This allows the
@@ -28,34 +30,54 @@ export function getActiveProjectId() {
 
 // Top‑level path to a project document.  Pass a project ID (not optional)
 // because project documents still live under the `projects` subcollection.
-export const projectPath = (projectId) => [
+export const projectPath = (projectId, clientId) => [
   "clients",
-  CLIENT_ID,
+  resolveClientId(clientId),
   "projects",
   projectId,
 ];
 
 // Path to the global shots collection.  Do not pass a project ID here.
-export const shotsPath = () => ["clients", CLIENT_ID, "shots"];
+export const shotsPath = (clientId) => ["clients", resolveClientId(clientId), "shots"];
 
 // Paths to other top‑level collections.  These remain unchanged from the
 // original app because products, talent and locations are not scoped to a
 // project.
-export const legacyProductsPath = ["clients", CLIENT_ID, "products"];
-export const productFamiliesPath = ["clients", CLIENT_ID, "productFamilies"];
-export const productsPath = productFamiliesPath;
-export const productFamilyPath = (familyId) => [...productsPath, familyId];
-export const productFamilySkusPath = (familyId) => [...productFamiliesPath, familyId, "skus"];
-export const productFamilySkuPath = (familyId, skuId) => [...productFamiliesPath, familyId, "skus", skuId];
-export const talentPath = ["clients", CLIENT_ID, "talent"];
-export const locationsPath = ["clients", CLIENT_ID, "locations"];
+export const legacyProductsPath = (clientId) => [
+  "clients",
+  resolveClientId(clientId),
+  "products",
+];
+export const productFamiliesPath = (clientId) => [
+  "clients",
+  resolveClientId(clientId),
+  "productFamilies",
+];
+export const productsPath = (clientId) => productFamiliesPath(clientId);
+export const productFamilyPath = (familyId, clientId) => [
+  ...productFamiliesPath(clientId),
+  familyId,
+];
+export const productFamilySkusPath = (familyId, clientId) => [
+  ...productFamiliesPath(clientId),
+  familyId,
+  "skus",
+];
+export const productFamilySkuPath = (familyId, skuId, clientId) => [
+  ...productFamiliesPath(clientId),
+  familyId,
+  "skus",
+  skuId,
+];
+export const talentPath = (clientId) => ["clients", resolveClientId(clientId), "talent"];
+export const locationsPath = (clientId) => ["clients", resolveClientId(clientId), "locations"];
 
 // Lanes (for the planner) remain scoped to the project.  They are stored
 // under `projects/{projectId}/lanes` because each project maintains its own
 // set of lanes (e.g. shoot dates).  These helpers take a project ID so you
 // can explicitly target a project or call them with getActiveProjectId().
-export const lanesPath = (projectId) => [...projectPath(projectId), "lanes"];
+export const lanesPath = (projectId, clientId) => [...projectPath(projectId, clientId), "lanes"];
 
 // Pulls continue to live under a project as well.  In the future you might
 // centralise pulls like shots, but for now we leave the existing structure.
-export const pullsPath = (projectId) => [...projectPath(projectId), "pulls"];
+export const pullsPath = (projectId, clientId) => [...projectPath(projectId, clientId), "pulls"];

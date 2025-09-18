@@ -39,11 +39,13 @@ import { Button } from "../components/ui/button";
 import { Modal } from "../components/ui/modal";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
+import NotesEditor from "../components/shots/NotesEditor";
 import { useAuth } from "../context/AuthContext";
 import { canManageShots, ROLE } from "../lib/rbac";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import { toast } from "../lib/toast";
+import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { z } from "zod";
 
 const shotProductPayloadSchema = z.object({
@@ -152,9 +154,21 @@ export default function ShotsPage() {
   const [talentLoadError, setTalentLoadError] = useState(null);
   const [isCreatingShot, setIsCreatingShot] = useState(false);
   const projectId = getActiveProjectId();
-  const { role: globalRole, user, claims } = useAuth();
+  const { clientId, role: globalRole, user, claims } = useAuth();
   const userRole = globalRole || ROLE.VIEWER;
   const canEditShots = canManageShots(userRole);
+  const currentShotsPath = useMemo(() => getShotsPath(clientId), [clientId]);
+  const currentProductFamiliesPath = useMemo(() => productFamiliesPath(clientId), [clientId]);
+  const currentTalentPath = useMemo(() => talentPath(clientId), [clientId]);
+  const currentLocationsPath = useMemo(() => locationsPath(clientId), [clientId]);
+  const productFamilyPathForClient = useCallback(
+    (familyId) => productFamilyPath(familyId, clientId),
+    [clientId]
+  );
+  const productFamilySkusPathForClient = useCallback(
+    (familyId) => productFamilySkusPath(familyId, clientId),
+    [clientId]
+  );
   const buildAuthDebugInfo = useCallback(
     () => ({
       uid: user?.uid ?? null,
@@ -215,14 +229,14 @@ export default function ShotsPage() {
     const remsP = [...prevP].filter((id) => !nextP.has(id));
     await Promise.all(
       addsP.map((id) =>
-        updateDoc(docRef(...productFamilyPath(id)), { shotIds: arrayUnion(shotId) }).catch(
+        updateDoc(docRef(...productFamilyPathForClient(id)), { shotIds: arrayUnion(shotId) }).catch(
           () => {}
         )
       )
     );
     await Promise.all(
       remsP.map((id) =>
-        updateDoc(docRef(...productFamilyPath(id)), { shotIds: arrayRemove(shotId) }).catch(
+        updateDoc(docRef(...productFamilyPathForClient(id)), { shotIds: arrayRemove(shotId) }).catch(
           () => {}
         )
       )
@@ -234,26 +248,30 @@ export default function ShotsPage() {
     const remsT = [...prevT].filter((id) => !nextT.has(id));
     await Promise.all(
       addsT.map((id) =>
-        updateDoc(docRef(...talentPath, id), { shotIds: arrayUnion(shotId) }).catch(() => {})
+        updateDoc(docRef(...currentTalentPath, id), { shotIds: arrayUnion(shotId) }).catch(
+          () => {}
+        )
       )
     );
     await Promise.all(
       remsT.map((id) =>
-        updateDoc(docRef(...talentPath, id), { shotIds: arrayRemove(shotId) }).catch(() => {})
+        updateDoc(docRef(...currentTalentPath, id), { shotIds: arrayRemove(shotId) }).catch(
+          () => {}
+        )
       )
     );
     // Location
     const prevL = before.locationId || null;
     const nextL = after.locationId || null;
     if (prevL && prevL !== nextL) {
-      await updateDoc(docRef(...locationsPath, prevL), { shotIds: arrayRemove(shotId) }).catch(
-        () => {}
-      );
+      await updateDoc(docRef(...currentLocationsPath, prevL), {
+        shotIds: arrayRemove(shotId),
+      }).catch(() => {});
     }
     if (nextL && prevL !== nextL) {
-      await updateDoc(docRef(...locationsPath, nextL), { shotIds: arrayUnion(shotId) }).catch(
-        () => {}
-      );
+      await updateDoc(docRef(...currentLocationsPath, nextL), {
+        shotIds: arrayUnion(shotId),
+      }).catch(() => {});
     }
   }
 
@@ -442,8 +460,9 @@ export default function ShotsPage() {
       if (familyDetailCacheRef.current.has(familyId)) {
         return familyDetailCacheRef.current.get(familyId);
       }
+      const skusPath = productFamilySkusPathForClient(familyId);
       const snapshot = await getDocs(
-        query(collection(db, ...productFamilySkusPath(familyId)), orderBy("colorName", "asc"))
+        query(collection(db, ...skusPath), orderBy("colorName", "asc"))
       );
       const colours = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
       const details = {
@@ -453,7 +472,7 @@ export default function ShotsPage() {
       familyDetailCacheRef.current.set(familyId, details);
       return details;
     },
-    [families]
+    [families, productFamilySkusPathForClient]
   );
 
   // Subscribe to collections.  We listen to the global shots collection but
@@ -462,7 +481,7 @@ export default function ShotsPage() {
   // unfiltered because they are global resources.
   useEffect(() => {
     const shotsQuery = query(
-      collRef(...getShotsPath()),
+      collRef(...currentShotsPath),
       where("projectId", "==", projectId),
       orderBy("date", "asc")
     );
@@ -470,13 +489,13 @@ export default function ShotsPage() {
       setShots(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
     const unsubFamilies = onSnapshot(
-      query(collRef(...productFamiliesPath), orderBy("styleName", "asc")),
+      query(collRef(...currentProductFamiliesPath), orderBy("styleName", "asc")),
       (snapshot) => {
         setFamilies(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       }
     );
     const unsubTalent = onSnapshot(
-      query(collRef(...talentPath), orderBy("name", "asc")),
+      query(collRef(...currentTalentPath), orderBy("name", "asc")),
       (snapshot) => {
         setTalent(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
         setTalentLoadError(null);
@@ -493,7 +512,7 @@ export default function ShotsPage() {
       }
     );
     const unsubLocations = onSnapshot(
-      query(collRef(...locationsPath), orderBy("name", "asc")),
+      query(collRef(...currentLocationsPath), orderBy("name", "asc")),
       (snapshot) => {
         setLocations(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       }
@@ -504,12 +523,12 @@ export default function ShotsPage() {
       unsubTalent();
       unsubLocations();
     };
-  }, [projectId]);
+  }, [projectId, currentShotsPath, currentProductFamiliesPath, currentTalentPath, currentLocationsPath]);
 
   // Create a new shot with validation and error handling.
   const handleCreateShot = async (event) => {
     event.preventDefault();
-    const shotPathSegments = getShotsPath();
+    const shotPathSegments = currentShotsPath;
     const targetPath = `/${shotPathSegments.join("/")}`;
     const authInfo = buildAuthDebugInfo();
 
@@ -556,9 +575,11 @@ export default function ShotsPage() {
         ? locations.find((location) => location.id === locationId)?.name || null
         : null;
 
+      const notesHtml = sanitizeNotesHtml(validation.data.description || "");
+
       const payload = {
         name: validation.data.name,
-        description: validation.data.description || "",
+        description: notesHtml,
         type: validation.data.type || "",
         date: parseDateToTimestamp(validation.data.date) || null,
         locationId,
@@ -631,6 +652,10 @@ export default function ShotsPage() {
 
     const docPatch = { ...patch };
 
+    if (Object.prototype.hasOwnProperty.call(patch, "description")) {
+      docPatch.description = sanitizeNotesHtml(patch.description || "");
+    }
+
     if (Object.prototype.hasOwnProperty.call(patch, "products") && patch.products != null) {
       const productsForWrite = patch.products.map((product) => mapProductForWrite(product));
       docPatch.products = productsForWrite;
@@ -663,7 +688,7 @@ export default function ShotsPage() {
     };
 
     try {
-      await writeDoc("update shot", () => updateDoc(docRef(...getShotsPath(), shot.id), docPatch));
+      await writeDoc("update shot", () => updateDoc(docRef(...currentShotsPath, shot.id), docPatch));
       await updateReverseIndexes({ shotId: shot.id, before, after });
     } catch (error) {
       const { code, message } = describeFirebaseError(error, "Unable to update shot.");
@@ -686,7 +711,7 @@ export default function ShotsPage() {
       },
       after: { productIds: [], products: [], talentIds: [], locationId: null },
     });
-    await writeDoc("delete shot", () => deleteDoc(docRef(...getShotsPath(), shot.id)));
+    await writeDoc("delete shot", () => deleteDoc(docRef(...currentShotsPath, shot.id)));
   };
 
   return (
@@ -714,12 +739,6 @@ export default function ShotsPage() {
                   required
                 />
                 <Input
-                  placeholder="Description"
-                  value={draft.description}
-                  disabled={isCreatingShot}
-                  onChange={(event) => setDraft({ ...draft, description: event.target.value })}
-                />
-                <Input
                   placeholder="Type"
                   value={draft.type}
                   disabled={isCreatingShot}
@@ -732,6 +751,15 @@ export default function ShotsPage() {
                   disabled={isCreatingShot}
                   onChange={(event) => setDraft({ ...draft, date: event.target.value })}
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Notes</label>
+                <NotesEditor
+                  value={draft.description}
+                  onChange={(next) => setDraft((prev) => ({ ...prev, description: next }))}
+                  disabled={isCreatingShot}
+                />
+                <p className="text-xs text-slate-500">Use bold, italics, or colour highlights to capture key reminders.</p>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Location</label>
@@ -809,6 +837,7 @@ export default function ShotsPage() {
             : [];
           const talentNoOptionsMessage =
             talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available");
+          const notesHtml = formatNotesForDisplay(s.description);
           return (
             <Card key={s.id} className="border p-4">
             <CardHeader>
@@ -837,7 +866,14 @@ export default function ShotsPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              <p>{s.description || "–"}</p>
+              {notesHtml ? (
+                <div
+                  className="rounded-md bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-700"
+                  dangerouslySetInnerHTML={{ __html: notesHtml }}
+                />
+              ) : (
+                <p className="text-sm text-slate-400">No notes added yet.</p>
+              )}
               {/* Inline editors for type and date */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
                 <div>

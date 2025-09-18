@@ -1,5 +1,5 @@
 // src/pages/ImportProducts.jsx
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { db } from "../lib/firebase";
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import {
@@ -65,9 +65,10 @@ export default function ImportProducts() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [total, setTotal] = useState(0);
-  const { role: globalRole } = useAuth();
+  const { clientId, role: globalRole } = useAuth();
   const role = globalRole || ROLE.VIEWER;
   const canManage = canEditProducts(role);
+  const currentProductFamiliesPath = useMemo(() => productFamiliesPath(clientId), [clientId]);
 
   const onFile = async (e) => {
     if (!canManage) {
@@ -157,14 +158,14 @@ export default function ImportProducts() {
     const grouped = Array.from(groups.values());
     setTotal(grouped.length);
 
-    const familiesCollection = collection(db, ...productFamiliesPath);
+    const familiesCollection = collection(db, ...currentProductFamiliesPath);
     let imported = 0;
     let errors = 0;
 
     for (const group of grouped) {
       try {
         const familyRef = useStyleNumberAsId && group.styleNumber
-          ? doc(db, ...productFamilyPath(group.styleNumber))
+          ? doc(db, ...productFamilyPath(group.styleNumber, clientId))
           : doc(familiesCollection);
         const familyId = familyRef.id;
         const now = Date.now();
@@ -199,13 +200,15 @@ export default function ImportProducts() {
 
         await setDoc(familyRef, familyData, { merge: true });
 
-        const existingSkus = await getDocs(collection(db, ...productFamilySkusPath(familyId)));
+        const existingSkus = await getDocs(
+          collection(db, ...productFamilySkusPath(familyId, clientId))
+        );
         for (const docSnap of existingSkus.docs) {
-          await deleteDoc(doc(db, ...productFamilySkuPath(familyId, docSnap.id)));
+          await deleteDoc(doc(db, ...productFamilySkuPath(familyId, docSnap.id, clientId)));
         }
 
         for (const entry of skuEntries) {
-          const skuRef = doc(collection(db, ...productFamilySkusPath(familyId)));
+          const skuRef = doc(collection(db, ...productFamilySkusPath(familyId, clientId)));
           await setDoc(skuRef, {
             colorName: entry.colorName,
             skuCode: entry.skuCode,
