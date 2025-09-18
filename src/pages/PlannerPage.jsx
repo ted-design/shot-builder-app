@@ -52,12 +52,73 @@ import { useStorageImage } from "../hooks/useStorageImage";
 
 const PLANNER_VIEW_STORAGE_KEY = "planner:viewMode";
 const PLANNER_FIELDS_STORAGE_KEY = "planner:visibleFields";
+const UNASSIGNED_LANE_ID = "__unassigned__";
 
 const defaultVisibleFields = {
   notes: true,
   location: true,
   talent: true,
   products: true,
+};
+
+const toLaneKey = (laneId) => (laneId ? String(laneId) : UNASSIGNED_LANE_ID);
+
+const timestampToMillis = (value) => {
+  if (!value) return 0;
+  if (typeof value === "number") return value;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  if (value && typeof value.toMillis === "function") return value.toMillis();
+  if (value && typeof value.seconds === "number") {
+    const nanos = typeof value.nanoseconds === "number" ? value.nanoseconds : 0;
+    return value.seconds * 1000 + Math.floor(nanos / 1e6);
+  }
+  return 0;
+};
+
+const resolveLaneSortIndex = (shot) => {
+  if (typeof shot?.order === "number") return shot.order;
+  if (typeof shot?.sortOrder === "number") return shot.sortOrder;
+  if (typeof shot?.sortIndex === "number") return shot.sortIndex;
+  return Number.MAX_SAFE_INTEGER;
+};
+
+const sortShotsForDisplay = (a, b) => {
+  const laneDelta = resolveLaneSortIndex(a) - resolveLaneSortIndex(b);
+  if (laneDelta !== 0) return laneDelta;
+
+  const dateA = timestampToMillis(a?.date) || Number.POSITIVE_INFINITY;
+  const dateB = timestampToMillis(b?.date) || Number.POSITIVE_INFINITY;
+  if (dateA !== dateB) return dateA - dateB;
+
+  const createdA = timestampToMillis(a?.createdAt);
+  const createdB = timestampToMillis(b?.createdAt);
+  if (createdA !== createdB) return createdA - createdB;
+
+  const updatedA = timestampToMillis(a?.updatedAt);
+  const updatedB = timestampToMillis(b?.updatedAt);
+  if (updatedA !== updatedB) return updatedB - updatedA;
+
+  const nameA = (a?.name || "").localeCompare(b?.name || "");
+  if (nameA !== 0) return nameA;
+
+  return (a?.id || "").localeCompare(b?.id || "");
+};
+
+const groupShotsByLane = (shots) => {
+  const grouped = {};
+  shots.forEach((shot) => {
+    const laneKey = toLaneKey(shot?.laneId);
+    if (!grouped[laneKey]) grouped[laneKey] = [];
+    grouped[laneKey].push(shot);
+  });
+  Object.keys(grouped).forEach((laneId) => {
+    grouped[laneId].sort(sortShotsForDisplay);
+  });
+  return grouped;
 };
 
 const formatShotDate = (value) => {
@@ -264,7 +325,7 @@ function ShotCard({ shot, viewMode, visibleFields, onEdit, canEdit, products }) 
                   <span>{typeLabel}</span>
                   <span>•</span>
                   <span>{dateLabel}</span>
-                  {shot.laneId && shot.laneId === "__unassigned__" && (
+                  {shot.laneId && shot.laneId === UNASSIGNED_LANE_ID && (
                     <span className="rounded-full bg-slate-100 px-2 py-0.5">Unassigned</span>
                   )}
                 </div>
@@ -324,6 +385,9 @@ function PlannerPageContent() {
   const [name, setName] = useState("");
   const [shotsByLane, setShotsByLane] = useState({});
   const [families, setFamilies] = useState([]);
+  const [lanesLoading, setLanesLoading] = useState(true);
+  const [shotsLoading, setShotsLoading] = useState(true);
+  const [familiesLoading, setFamiliesLoading] = useState(true);
   const [viewMode, setViewMode] = useState(() => readStoredPlannerView());
   const [visibleFields, setVisibleFields] = useState(() => readStoredVisibleFields());
   const [fieldSettingsOpen, setFieldSettingsOpen] = useState(false);
@@ -331,13 +395,21 @@ function PlannerPageContent() {
   const [activeShot, setActiveShot] = useState(null);
   const [subscriptionError, setSubscriptionError] = useState(null);
   const familyDetailCacheRef = useRef(new Map());
+  const pendingShotEditRef = useRef(null);
   const subscriptionErrorNotifiedRef = useRef(false);
   const projectId = getActiveProjectId();
-  const { clientId, role: globalRole, projectRoles = {} } = useAuth();
-  const projectRole = projectRoles?.[projectId] || null;
-  const userRole = globalRole || projectRole || ROLE.VIEWER;
+  const {
+    clientId,
+    role: globalRole,
+    projectRoles = {},
+    ready: authReady,
+    loadingClaims,
+  } = useAuth();
+  const projectRole = projectRoles?.[projectId] ?? null;
+  const userRole = projectRole ?? globalRole ?? ROLE.VIEWER;
   const canEditPlanner = canManagePlanner(userRole);
   const canEditShots = canManageShots(userRole);
+  const isAuthLoading = !authReady || loadingClaims;
   const currentLanesPath = useMemo(() => lanesPath(projectId, clientId), [projectId, clientId]);
   const currentShotsPath = useMemo(() => shotsPath(clientId), [clientId]);
   const currentProductFamiliesPath = useMemo(
@@ -353,6 +425,20 @@ function PlannerPageContent() {
     [clientId]
   );
 
+  const familiesById = useMemo(() => {
+    const map = new Map();
+    families.forEach((family) => {
+      if (family?.id) {
+        map.set(family.id, family);
+      }
+    });
+    return map;
+  }, [families]);
+
+  useEffect(() => {
+    familyDetailCacheRef.current.clear();
+  }, [clientId]);
+
   const handleSubscriptionError = useCallback(
     (scope) => (error) => {
       console.error(`[Planner] Failed to subscribe to ${scope}`, error);
@@ -366,59 +452,103 @@ function PlannerPageContent() {
   );
 
   useEffect(() => {
+    if (!authReady) {
+      return undefined;
+    }
+
+    if (!projectId || !clientId) {
+      setLanes([]);
+      setShotsByLane({});
+      setFamilies([]);
+      setLanesLoading(false);
+      setShotsLoading(false);
+      setFamiliesLoading(false);
+      return undefined;
+    }
+
     setSubscriptionError(null);
     subscriptionErrorNotifiedRef.current = false;
+    setLanesLoading(true);
+    setShotsLoading(true);
+    setFamiliesLoading(true);
+    setLanes([]);
+    setShotsByLane({});
 
-    // Subscribe to lanes for the current project
+    let cancelled = false;
+
     const laneRef = collection(db, ...currentLanesPath);
-    const unsubL = onSnapshot(
-      query(laneRef, orderBy("order", "asc")),
-      (s) => setLanes(s.docs.map((d) => ({ id: d.id, ...d.data() }))),
-      handleSubscriptionError("lanes")
-    );
-
-    // Subscribe to shots for the current project.  We query the global shots
-    // collection and filter by projectId.  Snapshots update the map of shots
-    // keyed by laneId, with "__unassigned__" used for null laneId.
+    const lanesQuery = query(laneRef, orderBy("order", "asc"));
     const shotsRef = collection(db, ...currentShotsPath);
     const shotsQuery = query(shotsRef, where("projectId", "==", projectId));
-    const unsubS = onSnapshot(
-      shotsQuery,
-      (s) => {
-        const all = s.docs.map((d) => ({ id: d.id, ...d.data() }));
-        const map = {};
-        all.forEach((sh) => {
-          const key = sh.laneId || "__unassigned__";
-          (map[key] ||= []).push(sh);
-        });
-        setShotsByLane(map);
+    const familiesRef = collection(db, ...currentProductFamiliesPath);
+    const familiesQuery = query(familiesRef, orderBy("styleName", "asc"));
+
+    const handleLanesError = (error) => {
+      if (cancelled) return;
+      setLanes([]);
+      setLanesLoading(false);
+      handleSubscriptionError("lanes")(error);
+    };
+
+    const handleShotsError = (error) => {
+      if (cancelled) return;
+      setShotsByLane({});
+      setShotsLoading(false);
+      handleSubscriptionError("shots")(error);
+    };
+
+    const handleFamiliesError = (error) => {
+      if (cancelled) return;
+      setFamilies([]);
+      setFamiliesLoading(false);
+      handleSubscriptionError("product families")(error);
+    };
+
+    const unsubLanes = onSnapshot(
+      lanesQuery,
+      (snapshot) => {
+        if (cancelled) return;
+        setLanes(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setLanesLoading(false);
       },
-      handleSubscriptionError("shots")
+      handleLanesError
     );
 
-    // Subscribe to product families so the edit modal can reuse shared data.
-    const familiesRef = collection(db, ...currentProductFamiliesPath);
-    const unsubFamilies = onSnapshot(
-      query(familiesRef, orderBy("styleName", "asc")),
+    const unsubShots = onSnapshot(
+      shotsQuery,
       (snapshot) => {
-        setFamilies(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        if (cancelled) return;
+        const allShots = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setShotsByLane(groupShotsByLane(allShots));
+        setShotsLoading(false);
       },
-      handleSubscriptionError("product families")
+      handleShotsError
+    );
+
+    const unsubFamilies = onSnapshot(
+      familiesQuery,
+      (snapshot) => {
+        if (cancelled) return;
+        setFamilies(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setFamiliesLoading(false);
+      },
+      handleFamiliesError
     );
 
     return () => {
-      unsubL();
-      unsubS();
+      cancelled = true;
+      unsubLanes();
+      unsubShots();
       unsubFamilies();
     };
   }, [
+    authReady,
+    clientId,
     projectId,
     currentLanesPath,
     currentShotsPath,
     currentProductFamiliesPath,
     handleSubscriptionError,
-    setSubscriptionError,
-    subscriptionErrorNotifiedRef,
   ]);
 
   useEffect(() => {
@@ -469,16 +599,21 @@ function PlannerPageContent() {
 
   const withDerivedProductFields = useCallback(
     (product) => {
-      const family = families.find((entry) => entry.id === product.familyId);
-      const fallbackSizes = Array.isArray(family?.sizes) ? family.sizes : [];
-      const sizeList = Array.isArray(product.sizeList) ? product.sizeList : fallbackSizes;
+      if (!product) return null;
+
+      const resolvedFamilyId =
+        product.familyId || product.productId || product.productIdRef || product.id || null;
+      const family = resolvedFamilyId ? familiesById.get(resolvedFamilyId) : null;
+      const fallbackSizes = Array.isArray(product.sizeList)
+        ? product.sizeList
+        : Array.isArray(family?.sizes)
+        ? family.sizes
+        : [];
       const rawStatus = product.status;
       const rawScope = product.sizeScope;
       const hasExplicitSize = product.size != null && product.size !== "";
       const derivedStatus =
-        rawStatus === "pending-size"
-          ? "pending-size"
-          : rawScope === "pending"
+        rawStatus === "pending-size" || rawScope === "pending"
           ? "pending-size"
           : hasExplicitSize
           ? "complete"
@@ -494,57 +629,69 @@ function PlannerPageContent() {
           ? "single"
           : "all";
       const effectiveSize = derivedStatus === "pending-size" ? null : product.size || null;
+      const familyThumbnail = family?.thumbnailImagePath || family?.headerImagePath || null;
       const colourImage = product.colourImagePath || product.colourThumbnail || null;
-      const imageCandidates = Array.isArray(product.images)
-        ? product.images
-        : colourImage
-        ? [colourImage]
-        : [];
+      const thumbnailImage = product.thumbnailImagePath || colourImage || familyThumbnail || null;
+      const baseImages = Array.isArray(product.images) ? product.images : [];
+      const imageCandidates = [
+        ...baseImages,
+        colourImage,
+        product.thumbnailImagePath || null,
+        familyThumbnail,
+      ].filter(Boolean);
+      const uniqueImages = [...new Set(imageCandidates)];
+      const resolvedFamilyName =
+        product.familyName || product.productName || family?.styleName || "";
+      const resolvedColourName = product.colourName || product.colour || "";
 
       return {
         ...product,
-        familyId: product.familyId || family?.id || null,
-        familyName: product.familyName || family?.styleName || "",
+        familyId: resolvedFamilyId,
+        productId: product.productId || resolvedFamilyId || null,
+        familyName: resolvedFamilyName,
+        productName: product.productName || resolvedFamilyName || "Product",
         styleNumber: product.styleNumber || family?.styleNumber || null,
-        thumbnailImagePath:
-          product.thumbnailImagePath || family?.thumbnailImagePath || family?.headerImagePath || null,
+        thumbnailImagePath: thumbnailImage,
         colourId: product.colourId || product.colourwayId || null,
         colourwayId: product.colourwayId || product.colourId || null,
-        colourName: product.colourName || "",
-        colourImagePath: colourImage || null,
-        images: imageCandidates,
+        colourName: resolvedColourName,
+        colourImagePath: colourImage || familyThumbnail || null,
+        images: uniqueImages,
         skuCode: product.skuCode || null,
         skuId: product.skuId || null,
         size: effectiveSize,
         sizeId: product.sizeId || (effectiveSize ? effectiveSize : null),
         sizeScope: derivedScope,
         status: derivedStatus,
-        sizeList,
+        sizeList: fallbackSizes,
       };
     },
-    [families]
+    [familiesById]
   );
 
   const normaliseShotProducts = useCallback(
     (shot) => {
-      if (Array.isArray(shot?.products) && shot.products.length) {
+      if (!shot) return [];
+      if (Array.isArray(shot.products) && shot.products.length) {
         return shot.products.map((product) => withDerivedProductFields(product)).filter(Boolean);
       }
-      if (!Array.isArray(shot?.productIds)) return [];
+      if (!Array.isArray(shot.productIds) || !shot.productIds.length) return [];
       return shot.productIds
         .map((familyId) => {
-          const family = families.find((entry) => entry.id === familyId);
+          const family = familyId ? familiesById.get(familyId) : null;
           if (!family) return null;
           return withDerivedProductFields({
             id: `legacy-${familyId}`,
             familyId,
+            productId: familyId,
             familyName: family.styleName,
+            productName: family.styleName,
             styleNumber: family.styleNumber || null,
             thumbnailImagePath: family.thumbnailImagePath || family.headerImagePath || null,
             colourId: null,
             colourwayId: null,
             colourName: "Any colour",
-            colourImagePath: null,
+            colourImagePath: family.thumbnailImagePath || family.headerImagePath || null,
             skuCode: null,
             size: null,
             sizeList: Array.isArray(family.sizes) ? family.sizes : [],
@@ -554,12 +701,12 @@ function PlannerPageContent() {
         })
         .filter(Boolean);
     },
-    [families, withDerivedProductFields]
+    [familiesById, withDerivedProductFields]
   );
 
-  const handleOpenShotEdit = useCallback(
+  const openShotEditor = useCallback(
     (shot) => {
-      if (!canEditShots || !shot) return;
+      if (!shot) return;
       try {
         const products = normaliseShotProducts(shot);
         setActiveShot({ shot, products });
@@ -568,15 +715,57 @@ function PlannerPageContent() {
         toast.error("Unable to open shot editor");
       }
     },
-    [canEditShots, normaliseShotProducts]
+    [normaliseShotProducts]
+  );
+
+  const handleOpenShotEdit = useCallback(
+    (shot) => {
+      if (!shot) return;
+      if (!canEditShots) {
+        if (isAuthLoading) {
+          pendingShotEditRef.current = shot;
+          return;
+        }
+        toast.error("You do not have permission to edit shots.");
+        return;
+      }
+      openShotEditor(shot);
+    },
+    [canEditShots, isAuthLoading, openShotEditor]
   );
 
   const closeShotEdit = useCallback(() => setActiveShot(null), []);
+
+  useEffect(() => {
+    if (canEditShots && pendingShotEditRef.current) {
+      const shotToOpen = pendingShotEditRef.current;
+      pendingShotEditRef.current = null;
+      openShotEditor(shotToOpen);
+    } else if (!isAuthLoading && !canEditShots) {
+      pendingShotEditRef.current = null;
+    }
+  }, [canEditShots, isAuthLoading, openShotEditor]);
+
+  useEffect(() => {
+    if (!canEditShots && activeShot) {
+      setActiveShot(null);
+    }
+  }, [canEditShots, activeShot]);
 
   const updateViewMode = useCallback(
     (nextMode) =>
       setViewMode((previousMode) => (previousMode === nextMode ? previousMode : nextMode)),
     []
+  );
+
+  const isPlannerLoading = isAuthLoading || lanesLoading || shotsLoading || familiesLoading;
+  const totalShots = useMemo(
+    () =>
+      Object.values(shotsByLane).reduce(
+        (acc, laneShots) => acc + (Array.isArray(laneShots) ? laneShots.length : 0),
+        0
+      ),
+    [shotsByLane]
   );
 
   const isListView = viewMode === "list";
@@ -586,7 +775,7 @@ function PlannerPageContent() {
   const shotListClass = isListView
     ? "flex flex-col gap-3"
     : "flex flex-col gap-3";
-  const unassignedShots = shotsByLane["__unassigned__"] || [];
+  const unassignedShots = shotsByLane[UNASSIGNED_LANE_ID] || [];
 
   const renderLaneBlock = (laneId, title, laneShots, laneMeta = null) => (
     <DroppableLane key={laneId} laneId={laneId}>
@@ -685,9 +874,10 @@ function PlannerPageContent() {
           query(collection(db, ...skusPath), orderBy("colorName", "asc"))
         );
         const colours = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        const family = familiesById.get(familyId);
         const details = {
           colours,
-          sizes: families.find((family) => family.id === familyId)?.sizes || [],
+          sizes: Array.isArray(family?.sizes) ? family.sizes : [],
         };
         familyDetailCacheRef.current.set(familyId, details);
         return details;
@@ -697,7 +887,7 @@ function PlannerPageContent() {
         throw error;
       }
     },
-    [families, productFamilySkusPathForClient]
+    [familiesById, productFamilySkusPathForClient]
   );
 
   const extractProductIds = useCallback((products = []) => {
@@ -756,14 +946,19 @@ function PlannerPageContent() {
     async (shot, products) => {
       if (!canEditShots) return;
       const docRef = doc(db, ...currentShotsPath, shot.id);
-      const prepared = products.map((product) => prepareProductForWrite(product));
+      const nextProducts = Array.isArray(products) ? products : [];
+      const prepared = nextProducts.map((product) => prepareProductForWrite(product));
       const nextProductIds = extractProductIds(prepared);
       await updateDoc(docRef, {
         products: prepared,
         productIds: nextProductIds,
         updatedAt: Date.now(),
       });
-      await updateProductIndexes(shot.id, shot.products || [], prepared);
+      await updateProductIndexes(
+        shot.id,
+        Array.isArray(shot.products) ? shot.products : [],
+        prepared
+      );
     },
     [canEditShots, currentShotsPath, extractProductIds, prepareProductForWrite, updateProductIndexes]
   );
@@ -934,23 +1129,35 @@ function PlannerPageContent() {
           Add lane
         </button>
       </div>
-      <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        {isListView ? (
-          <div className="flex flex-col gap-4 pb-6">
-            {renderLaneBlock("__unassigned__", "Unassigned", unassignedShots)}
-            {lanes.map((lane) =>
-              renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane)
-            )}
-          </div>
-        ) : (
-          <div className="flex gap-4 overflow-x-auto pb-6">
-            {renderLaneBlock("__unassigned__", "Unassigned", unassignedShots)}
-            {lanes.map((lane) =>
-              renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane)
-            )}
-          </div>
-        )}
-      </DndContext>
+      {isPlannerLoading ? (
+        <div className="flex min-h-[200px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+          Loading planner…
+        </div>
+      ) : (
+        <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          {isListView ? (
+            <div className="flex flex-col gap-4 pb-6">
+              {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots)}
+              {lanes.map((lane) =>
+                renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane)
+              )}
+            </div>
+          ) : (
+            <div className="flex gap-4 overflow-x-auto pb-6">
+              {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots)}
+              {lanes.map((lane) =>
+                renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane)
+              )}
+            </div>
+          )}
+        </DndContext>
+      )}
+      {!isPlannerLoading && lanes.length === 0 && totalShots === 0 && (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+          No shots have been scheduled for this project yet. Create shots from the Shots page or
+          drag existing shots into lanes once they appear here.
+        </div>
+      )}
       {canEditShots && activeShot && (
         <Modal
           open
@@ -1033,4 +1240,6 @@ export const __test = {
   readStoredPlannerView,
   readStoredVisibleFields,
   ShotCard,
+  groupShotsByLane,
+  UNASSIGNED_LANE_ID,
 };
