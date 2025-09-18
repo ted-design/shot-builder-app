@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Fuse from "fuse.js";
 import { Modal } from "../ui/modal";
 import { Card, CardContent, CardHeader } from "../ui/card";
@@ -139,7 +139,10 @@ export default function ShotProductAddModal({
   }, [colours, initialProduct, selectedColourId]);
   const selectedColour = colours.find((colour) => colour.id === selectedColourId) || null;
 
-  const disableSave = !selectedFamilyId || !selectedColour;
+  // Enhanced button state logic for improved workflow
+  const hasValidSelection = selectedFamilyId && selectedColour;
+  const canAddColourway = hasValidSelection && !loadingDetails;
+  const canAddWithSize = hasValidSelection && selectedSize && selectedSize !== "" && !loadingDetails;
 
   const handleFamilySelect = (family) => {
     setSelectedFamilyId(family.id);
@@ -155,7 +158,7 @@ export default function ShotProductAddModal({
   };
 
   const submitSelection = ({ status }) => {
-    if (disableSave) return;
+    if (!hasValidSelection) return;
     const family = families.find((entry) => entry.id === selectedFamilyId);
     if (!family || !selectedColour) return;
     const sizeValue =
@@ -232,7 +235,7 @@ export default function ShotProductAddModal({
           tabIndex={0}
           className="flex-1 overflow-y-auto overscroll-contain focus-visible:outline-none"
         >
-          <CardContent className="space-y-4 pb-28">
+          <CardContent className="space-y-4 pb-32">
             {view === "list" ? (
               <div className="space-y-4">
                 <Input
@@ -272,8 +275,22 @@ export default function ShotProductAddModal({
                 ) : (
                   <>
                     <div className="space-y-3">
-                      <div className="text-sm font-medium text-slate-700">Colourway</div>
-                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium text-slate-700">
+                          Colourway
+                          {!selectedColour && colours.length > 0 && (
+                            <span className="text-red-500 ml-1">*</span>
+                          )}
+                        </div>
+                        {selectedColour && (
+                          <div className="text-xs text-green-600 font-medium">
+                            ✓ {selectedColour.colorName} selected
+                          </div>
+                        )}
+                      </div>
+                      <div className={`grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+                        !selectedColour && colours.length > 0 ? 'ring-1 ring-red-200 rounded-lg p-2' : ''
+                      }`}>
                         {colours.map((colour) => (
                           <ColourOption
                             key={colour.id}
@@ -288,11 +305,27 @@ export default function ShotProductAddModal({
                           No colourways available for this family.
                         </div>
                       )}
+                      {!selectedColour && colours.length > 0 && (
+                        <p className="text-xs text-red-600">
+                          Please select a colourway to continue
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">Size selection</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium text-slate-700">Size selection</label>
+                        {selectedSize && selectedSize !== "" && (
+                          <div className="text-xs text-green-600 font-medium">
+                            ✓ {selectedSize === ALL_SIZES_VALUE ? "All sizes" : selectedSize} selected
+                          </div>
+                        )}
+                      </div>
                       <select
-                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                        className={`w-full rounded border px-3 py-2 text-sm transition-colors ${
+                          selectedSize === "" 
+                            ? "border-amber-300 bg-amber-50" 
+                            : "border-slate-300"
+                        }`}
                         value={selectedSize}
                         onChange={(event) => setSelectedSize(event.target.value)}
                       >
@@ -304,39 +337,88 @@ export default function ShotProductAddModal({
                           </option>
                         ))}
                       </select>
-                      <p className="text-xs text-slate-500">
-                        Add the colourway now or pick a specific size to lock it in.
-                      </p>
+                      <div className="space-y-1">
+                        <p className="text-xs text-slate-500">
+                          Add the colourway now or pick a specific size to lock it in.
+                        </p>
+                        {selectedSize === "" && (
+                          <p className="text-xs text-amber-600">
+                            Size will be marked as "pending" - you can specify it later
+                          </p>
+                        )}
+                        {selectedSize && selectedSize !== "" && (
+                          <p className="text-xs text-green-600">
+                            {selectedSize === ALL_SIZES_VALUE 
+                              ? "All available sizes will be added to the shot"
+                              : `Only size ${selectedSize} will be added to the shot`
+                            }
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </>
                 )}
               </div>
             )}
           </CardContent>
-          <div className="sticky bottom-0 flex flex-col gap-2 border-t border-slate-200 bg-white/90 px-4 py-3 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-6">
+          <div className="sticky bottom-0 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur-sm shadow-lg sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-6">
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
             <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={disableSave || loadingDetails}
-                onClick={() => submitSelection({ status: "pending-size" })}
-              >
-                {initialProduct ? "Save without size" : "Add colourway"}
-              </Button>
-              <Button
-                type="button"
-                disabled={
-                  disableSave ||
-                  loadingDetails ||
-                  (!selectedSize || selectedSize === "")
-                }
-                onClick={() => submitSelection({ status: "complete" })}
-              >
-                {initialProduct ? "Save with size" : "Add & choose size now"}
-              </Button>
+              <div className="flex flex-col gap-1">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={!canAddColourway}
+                  onClick={() => submitSelection({ status: "pending-size" })}
+                  className={!canAddColourway ? "opacity-40" : ""}
+                >
+                  {initialProduct ? "Save without size" : "Add colourway"}
+                </Button>
+                {!canAddColourway && !loadingDetails && (
+                  <p className="text-xs text-slate-500 text-center">
+                    Select a colourway to enable
+                  </p>
+                )}
+                {loadingDetails && (
+                  <p className="text-xs text-slate-500 text-center">
+                    Loading...
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <Button
+                  type="button"
+                  disabled={!canAddWithSize}
+                  onClick={() => submitSelection({ status: "complete" })}
+                  className={!canAddWithSize ? "opacity-40" : ""}
+                >
+                  {initialProduct 
+                    ? "Save with size" 
+                    : selectedSize === ALL_SIZES_VALUE 
+                      ? "Add all sizes"
+                      : selectedSize && selectedSize !== ""
+                        ? `Add with ${selectedSize}`
+                        : "Add & choose size now"
+                  }
+                </Button>
+                {!canAddWithSize && !loadingDetails && hasValidSelection && (
+                  <p className="text-xs text-slate-500 text-center">
+                    {selectedSize === "" ? "Select a size to enable" : "Choose a specific size"}
+                  </p>
+                )}
+                {!canAddWithSize && !hasValidSelection && !loadingDetails && (
+                  <p className="text-xs text-slate-500 text-center">
+                    Select colourway and size
+                  </p>
+                )}
+                {loadingDetails && (
+                  <p className="text-xs text-slate-500 text-center">
+                    Loading...
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
