@@ -41,7 +41,7 @@ import {
 } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { canManagePlanner, canManageShots, ROLE } from "../lib/rbac";
-import { LayoutGrid, Rows3, Settings2, PencilLine } from "lucide-react";
+import { LayoutGrid, List, Settings2, PencilLine } from "lucide-react";
 import { formatNotesForDisplay } from "../lib/sanitize";
 import { Modal } from "../components/ui/modal";
 import { Button } from "../components/ui/button";
@@ -665,7 +665,7 @@ export default function PlannerPage() {
               }`}
               aria-pressed={viewMode === "list"}
             >
-              <Rows3 className="h-4 w-4" aria-hidden="true" />
+              <List className="h-4 w-4" aria-hidden="true" />
               List
             </button>
           </div>
