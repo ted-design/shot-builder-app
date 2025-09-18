@@ -40,7 +40,7 @@ import {
   productFamilyPath,
 } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
-import { canManagePlanner, canManageShots, ROLE } from "../lib/rbac";
+import { canManagePlanner, canManageShots, ROLE, resolveEffectiveRole } from "../lib/rbac";
 import { LayoutGrid, List, Settings2, PencilLine } from "lucide-react";
 import { formatNotesForDisplay } from "../lib/sanitize";
 import { Modal } from "../components/ui/modal";
@@ -63,25 +63,6 @@ const defaultVisibleFields = {
 
 const toLaneKey = (laneId) => (laneId ? String(laneId) : UNASSIGNED_LANE_ID);
 
-const resolveRoleValue = (input) => {
-  if (!input) return null;
-  if (typeof input === "string") return input;
-  if (Array.isArray(input)) {
-    for (const entry of input) {
-      const resolved = resolveRoleValue(entry);
-      if (resolved) return resolved;
-    }
-    return null;
-  }
-  if (typeof input === "object") {
-    if (typeof input.role === "string") return input.role;
-    if ("role" in input && input.role == null && typeof input.default === "string") {
-      return input.default;
-    }
-    if (typeof input.type === "string") return input.type;
-  }
-  return null;
-};
 
 const timestampToMillis = (value) => {
   if (!value) return 0;
@@ -425,12 +406,10 @@ function PlannerPageContent() {
     ready: authReady,
     loadingClaims,
   } = useAuth();
-  const projectRole = useMemo(
-    () => resolveRoleValue(projectRoles?.[projectId]) ?? null,
-    [projectId, projectRoles]
+  const userRole = useMemo(
+    () => resolveEffectiveRole(globalRole, projectRoles, projectId),
+    [globalRole, projectRoles, projectId]
   );
-  const globalResolvedRole = resolveRoleValue(globalRole);
-  const userRole = projectRole ?? globalResolvedRole ?? ROLE.VIEWER;
   const canEditPlanner = canManagePlanner(userRole);
   const canEditShots = canManageShots(userRole);
   const isAuthLoading = !authReady || loadingClaims;
