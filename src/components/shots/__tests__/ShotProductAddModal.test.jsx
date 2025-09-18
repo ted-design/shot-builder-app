@@ -289,7 +289,7 @@ describe("ShotProductAddModal - Scrolling and Layout", () => {
         const cardContent = within(dialog).getByTestId("shot-product-card-content");
 
         expect(cardContent).toHaveClass("space-y-4");
-        expect(cardContent).toHaveClass("pb-32");
+        expect(cardContent).toHaveClass("pb-6");
     });
 
     it("renders sticky footer with proper styling", async () => {
@@ -307,12 +307,17 @@ describe("ShotProductAddModal - Scrolling and Layout", () => {
         const stickyFooter = within(dialog).getByTestId("shot-product-modal-footer");
 
         expect(stickyFooter).toHaveClass(
-            "sticky",
-            "bottom-0",
-            "bg-white/95",
-            "backdrop-blur-sm",
-            "shadow-lg",
-            "py-4"
+            "shrink-0",
+            "border-t",
+            "border-slate-200",
+            "bg-white",
+            "px-4",
+            "pt-4",
+            "sm:px-6",
+            "pb-[max(env(safe-area-inset-bottom),1rem)]"
+        );
+        expect(stickyFooter).toHaveClass(
+            "shadow-[0_-4px_12px_rgba(15,23,42,0.08)]"
         );
     });
 
