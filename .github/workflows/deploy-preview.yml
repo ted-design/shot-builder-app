@@ -121,4 +121,4 @@ jobs:
         if: always()
         run: |
           # Remove preview channels older than 7 days to avoid hitting quota limits.
-          npx firebase-tools hosting:channel:prune --project um-shotbuilder --expiration 7d || true
+          npx firebase-tools hosting:channel:prune --project um-shotbuilder --age 7d || true
