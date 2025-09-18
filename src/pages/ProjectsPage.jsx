@@ -23,14 +23,17 @@ import { Button } from "../components/ui/button";
 import { Modal } from "../components/ui/modal";
 import ProjectForm from "../components/ProjectForm";
 
-const projectsPath = ["clients", CLIENT_ID, "projects"];
-
 export default function ProjectsPage() {
+  const { clientId, user: authUser, role: globalRole } = useAuth();
+  const resolvedClientId = clientId || CLIENT_ID;
+  const projectsPath = useMemo(
+    () => ["clients", resolvedClientId, "projects"],
+    [resolvedClientId]
+  );
   // Firestore subscription: listen for projects ordered by createdAt desc.
-  const projectsRef = collection(db, ...projectsPath);
+  const projectsRef = useMemo(() => collection(db, ...projectsPath), [projectsPath]);
   const { data: itemsRaw, loading: loadingProjects, error: projectsError } =
     useFirestoreCollection(projectsRef, [orderBy("createdAt", "desc")]);
-  const { user: authUser, role: globalRole } = useAuth();
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManageProjects(role);
   const canDelete = role === ROLE.ADMIN;
@@ -92,7 +95,7 @@ export default function ProjectsPage() {
       if (memberId) {
         try {
           await setDoc(
-            doc(db, "clients", CLIENT_ID, "users", memberId),
+            doc(db, "clients", resolvedClientId, "users", memberId),
             {
               [`projects.${projectDoc.id}`]: defaultRole,
               updatedAt: serverTimestamp(),
@@ -150,7 +153,7 @@ export default function ProjectsPage() {
     if (memberId) {
       try {
         await setDoc(
-          doc(db, "clients", CLIENT_ID, "users", memberId),
+          doc(db, "clients", resolvedClientId, "users", memberId),
           {
             [`projects.${p.id}`]: deleteField(),
             updatedAt: serverTimestamp(),

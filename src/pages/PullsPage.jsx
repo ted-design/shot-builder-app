@@ -54,7 +54,7 @@ export default function PullsPage() {
   // projects via your UI (which writes to localStorage), we listen for the
   // storage event and update this state accordingly.
   const [projectId, setProjectId] = useState(getActiveProjectId());
-  const { role: globalRole, user: authUser } = useAuth();
+  const { clientId, role: globalRole, user: authUser } = useAuth();
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManagePulls(role);
 
@@ -77,7 +77,7 @@ export default function PullsPage() {
   // derived from pullsPath(projectId), which returns an array of path
   // segments.  We include orderBy('createdAt') to preserve ordering.
   useEffect(() => {
-    const pathSegments = pullsPath(projectId);
+    const pathSegments = pullsPath(projectId, clientId);
     const q = query(collection(db, ...pathSegments), orderBy("createdAt"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setPulls(
@@ -85,7 +85,7 @@ export default function PullsPage() {
       );
     });
     return () => unsubscribe();
-  }, [projectId]);
+  }, [projectId, clientId]);
 
   // Add a new pull to the current project's pulls collection.  We call
   // serverTimestamp() to populate the createdAt field so that ordering works.
@@ -96,7 +96,7 @@ export default function PullsPage() {
     }
     const trimmed = title.trim();
     if (!trimmed) return;
-    const pathSegments = pullsPath(projectId);
+    const pathSegments = pullsPath(projectId, clientId);
     await addDoc(collection(db, ...pathSegments), {
       title: trimmed,
       createdAt: serverTimestamp(),
@@ -113,7 +113,7 @@ export default function PullsPage() {
     if (!canManage) return;
     const trimmed = newTitle.trim();
     if (!trimmed) return;
-    const pathSegments = pullsPath(projectId);
+    const pathSegments = pullsPath(projectId, clientId);
     const docRef = doc(db, ...pathSegments, id);
     await updateDoc(docRef, { title: trimmed, updatedAt: serverTimestamp() });
   }
@@ -207,6 +207,7 @@ export default function PullsPage() {
         <PullDetailsModal
           pull={activePull}
           projectId={projectId}
+          clientId={clientId}
           onClose={() => setActivePull(null)}
           canManage={canManage}
           role={role}
@@ -224,7 +225,7 @@ const STATUS_OPTIONS = [
   { value: "fulfilled", label: "Fulfilled" },
 ];
 
-function PullDetailsModal({ pull, projectId, onClose, canManage, role, user }) {
+function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role, user }) {
   const [items, setItems] = useState(pull.items || []);
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState("");
@@ -238,18 +239,18 @@ function PullDetailsModal({ pull, projectId, onClose, canManage, role, user }) {
 
   useEffect(() => {
     const messagesRef = query(
-      collection(db, ...pullsPath(projectId), pull.id, "messages"),
+      collection(db, ...pullsPath(projectId, clientId), pull.id, "messages"),
       orderBy("createdAt", "asc")
     );
     const unsub = onSnapshot(messagesRef, (snapshot) => {
       setMessages(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })));
     });
     return () => unsub();
-  }, [projectId, pull.id]);
+  }, [projectId, clientId, pull.id]);
 
   const handleStatusChange = async (event) => {
     const nextStatus = event.target.value;
-    await updateDoc(doc(db, ...pullsPath(projectId), pull.id), {
+    await updateDoc(doc(db, ...pullsPath(projectId, clientId), pull.id), {
       status: nextStatus,
       updatedAt: serverTimestamp(),
     });
@@ -268,7 +269,7 @@ function PullDetailsModal({ pull, projectId, onClose, canManage, role, user }) {
     const updated = [...items, item];
     setItems(updated);
     setSavingItems(true);
-    await updateDoc(doc(db, ...pullsPath(projectId), pull.id), {
+    await updateDoc(doc(db, ...pullsPath(projectId, clientId), pull.id), {
       items: updated,
       updatedAt: serverTimestamp(),
     });
@@ -280,7 +281,7 @@ function PullDetailsModal({ pull, projectId, onClose, canManage, role, user }) {
     const updated = items.filter((item) => item.id !== itemId);
     setItems(updated);
     setSavingItems(true);
-    await updateDoc(doc(db, ...pullsPath(projectId), pull.id), {
+    await updateDoc(doc(db, ...pullsPath(projectId, clientId), pull.id), {
       items: updated,
       updatedAt: serverTimestamp(),
     });
@@ -291,7 +292,7 @@ function PullDetailsModal({ pull, projectId, onClose, canManage, role, user }) {
     const trimmed = messageText.trim();
     if (!trimmed) return;
     setSavingMessage(true);
-    await addDoc(collection(db, ...pullsPath(projectId), pull.id, "messages"), {
+    await addDoc(collection(db, ...pullsPath(projectId, clientId), pull.id, "messages"), {
       text: trimmed,
       createdAt: serverTimestamp(),
       authorId: user?.uid || null,

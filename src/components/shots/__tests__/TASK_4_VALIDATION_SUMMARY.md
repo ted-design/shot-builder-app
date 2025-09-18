@@ -35,7 +35,7 @@ This document summarizes the comprehensive testing and validation performed for 
 
 **Validated Layout Features:**
 1. Proper scrollable container structure with correct attributes
-2. Sufficient bottom padding (pb-32) to clear sticky footer
+2. Sufficient bottom padding (pb-20) to clear sticky footer
 3. Sticky footer with proper styling and accessibility
 4. Action buttons accessible in sticky footer
 5. Handles different content heights with many colourways (tested with 20 colors)
@@ -111,7 +111,7 @@ Tests  23 passed (23)
 
 ### ✅ Scrolling Accessibility (Requirements 1.1-1.4)
 - Verified scrollable container has proper `overflow-y-auto` and `tabindex="0"`
-- Confirmed bottom padding of `pb-32` provides sufficient clearance for sticky footer
+- Confirmed bottom padding of `pb-20` provides sufficient clearance for sticky footer
 - Tested with 20 colourways to ensure layout works with extensive content
 - Validated sticky footer positioning and backdrop blur styling
 
