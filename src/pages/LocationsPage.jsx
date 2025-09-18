@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addDoc,
   collection,
@@ -113,11 +113,23 @@ export default function LocationsPage() {
   const [editBusy, setEditBusy] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
-  const { role: globalRole, user } = useAuth();
+  const { role: globalRole, user, claims } = useAuth();
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManageLocations(role);
 
   const draftPreview = useFilePreview(draftFile);
+
+  const buildAuthDebugInfo = useCallback(
+    () => ({
+      uid: user?.uid ?? null,
+      claims: {
+        role: claims?.role ?? null,
+        clientId: claims?.clientId ?? null,
+        orgId: claims?.orgId ?? null,
+      },
+    }),
+    [user, claims]
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -165,12 +177,6 @@ export default function LocationsPage() {
     }
   }, [locations, editTarget]);
 
-  const notifyError = (title, error, fallbackMessage) => {
-    const { code, message } = describeFirebaseError(error, fallbackMessage);
-    console.error(title, error);
-    toast.error({ title, description: `${code}: ${message}` });
-  };
-
   const notifySuccess = (message) => {
     toast.success(message);
   };
@@ -186,10 +192,30 @@ export default function LocationsPage() {
 
   const handleCreate = async (event) => {
     event.preventDefault();
+    const pathSegments = Array.isArray(locationsPath) ? locationsPath : [locationsPath];
+    const targetPath = `/${pathSegments.join("/")}`;
+
+    if (!user) {
+      const authInfo = buildAuthDebugInfo();
+      console.warn("[Locations] Create blocked: no authenticated user", {
+        path: targetPath,
+        ...authInfo,
+      });
+      setFormError("You must be signed in to add locations.");
+      return;
+    }
+
     if (!canManage) {
+      const authInfo = buildAuthDebugInfo();
+      console.warn("[Locations] Create blocked: role lacks manage permission", {
+        path: targetPath,
+        ...authInfo,
+      });
       setFormError("You do not have permission to add locations.");
       return;
     }
+
+    const authInfo = buildAuthDebugInfo();
     const name = (draft.name || "").trim();
     if (!name) {
       setFormError("Enter a location name.");
@@ -198,6 +224,11 @@ export default function LocationsPage() {
 
     setFormError("");
     setCreating(true);
+
+    console.info("[Locations] Attempting to create location", {
+      path: targetPath,
+      ...authInfo,
+    });
 
     try {
       const docRef = await writeDoc("create location", () =>
@@ -210,6 +241,12 @@ export default function LocationsPage() {
           createdBy: user?.uid || null,
         })
       );
+
+      console.info("[Locations] Location created", {
+        path: targetPath,
+        docId: docRef.id,
+        ...authInfo,
+      });
 
       let uploadError = null;
       if (draftFile) {
@@ -224,6 +261,14 @@ export default function LocationsPage() {
       resetDraft();
       if (uploadError) {
         const { code, message } = describeFirebaseError(uploadError, "Photo upload failed.");
+        console.error("[Locations] Photo upload failed", {
+          path: targetPath,
+          docId: docRef.id,
+          ...authInfo,
+          code,
+          message,
+          error: uploadError,
+        });
         const text = `${name} was added, but the photo upload failed (${code}: ${message}). Try again from the edit dialog.`;
         setFeedback({ type: "error", text });
         toast.error({ title: "Photo upload failed", description: `${code}: ${message}` });
@@ -232,12 +277,20 @@ export default function LocationsPage() {
         notifySuccess(`${name} was added to locations.`);
       }
     } catch (error) {
-      const { message } = describeFirebaseError(
+      const { code, message } = describeFirebaseError(
         error,
         "Unable to create location. Check your connection and try again."
       );
-      setFormError(message);
-      notifyError("Failed to create location", error, message);
+      const description = `${code}: ${message}`;
+      setFormError(`${message} (path: ${targetPath})`);
+      console.error("[Locations] Failed to create location", {
+        path: targetPath,
+        ...authInfo,
+        code,
+        message,
+        error,
+      });
+      toast.error({ title: "Failed to create location", description: `${description} (${targetPath})` });
     } finally {
       setCreating(false);
     }

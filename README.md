@@ -48,6 +48,24 @@ This repository contains a starter implementation for a shot‑planning and ward
 
    The project ID in `.env.local` should match the hosting site declared in `firebase.json`. If it does not, the app will warn about a project mismatch on startup.
 
+   The Firebase bootstrap in `src/lib/firebase.ts` validates these keys on load. Missing values log a loud warning in development and throw during production builds, so keep `.env.local` complete before running `npm run build` or deploying.
+
+### Configure custom claims (role/clientId)
+
+Shot Builder relies on Firebase Auth custom claims to determine permissions and match the active client/tenant. Every user who needs write access must have a `role` (for example `producer` or `admin`) and either a `clientId` or `orgId` that matches the Firestore data they operate on.
+
+1. Create or locate the Firebase Auth user (they must sign in at least once).
+2. Use the admin helper script to grant claims:
+
+   ```bash
+   cd functions
+   node scripts/setCustomClaims.js --uid="<firebase-uid>" --role=producer --clientId=unbound-merino
+   ```
+
+   Provide `--orgId=<value>` if your tenant mapping uses `orgId` instead of `clientId`. Pass `--project=<your-project-id>` when the default credentials do not include the target project.
+
+3. After the script runs, ask the user to sign out/in or trigger the in-app refresh from the auth menu so the client calls `getIdToken(true)` and pulls the new claims.
+
    For day-to-day development, sign in through the app's Google/email authentication flow using an account that already exists in the project. When you need to test in isolation, start the Firebase emulators locally with `firebase emulators:start --only auth,firestore,functions,storage` and launch Vite with `VITE_USE_FIREBASE_EMULATORS=1`. Override the default ports (`9099`, `8080`, `5001`, `9199`) by setting the corresponding `VITE_FIREBASE_*_EMULATOR_PORT` variables if your local environment requires it.
 
 3. **Run locally**

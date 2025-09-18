@@ -152,9 +152,20 @@ export default function ShotsPage() {
   const [talentLoadError, setTalentLoadError] = useState(null);
   const [isCreatingShot, setIsCreatingShot] = useState(false);
   const projectId = getActiveProjectId();
-  const { role: globalRole, user } = useAuth();
+  const { role: globalRole, user, claims } = useAuth();
   const userRole = globalRole || ROLE.VIEWER;
   const canEditShots = canManageShots(userRole);
+  const buildAuthDebugInfo = useCallback(
+    () => ({
+      uid: user?.uid ?? null,
+      claims: {
+        role: claims?.role ?? null,
+        clientId: claims?.clientId ?? null,
+        orgId: claims?.orgId ?? null,
+      },
+    }),
+    [user, claims]
+  );
 
   const talentOptions = useMemo(
     () =>
@@ -498,10 +509,30 @@ export default function ShotsPage() {
   // Create a new shot with validation and error handling.
   const handleCreateShot = async (event) => {
     event.preventDefault();
+    const shotPathSegments = getShotsPath();
+    const targetPath = `/${shotPathSegments.join("/")}`;
+    const authInfo = buildAuthDebugInfo();
+
+    if (!user) {
+      console.warn("[Shots] Create blocked: no authenticated user", {
+        path: targetPath,
+        projectId,
+        ...authInfo,
+      });
+      toast.error("You must be signed in to create shots.");
+      return;
+    }
+
     if (!canEditShots) {
+      console.warn("[Shots] Create blocked: insufficient role", {
+        path: targetPath,
+        projectId,
+        ...authInfo,
+      });
       toast.error("You do not have permission to create shots.");
       return;
     }
+
     if (isCreatingShot) return;
 
     const validation = shotDraftSchema.safeParse(draft);
@@ -512,6 +543,11 @@ export default function ShotsPage() {
     }
 
     setIsCreatingShot(true);
+    console.info("[Shots] Attempting to create shot", {
+      path: targetPath,
+      projectId,
+      ...authInfo,
+    });
     try {
       const productsForWrite = validation.data.products.map((product) => mapProductForWrite(product));
       const talentForWrite = mapTalentForWrite(validation.data.talent);
@@ -536,7 +572,13 @@ export default function ShotsPage() {
         createdBy: user?.uid || null,
       };
 
-      const docRefSnap = await writeDoc("create shot", () => addDoc(collRef(...getShotsPath()), payload));
+      const docRefSnap = await writeDoc("create shot", () => addDoc(collRef(...shotPathSegments), payload));
+      console.info("[Shots] Shot created", {
+        path: targetPath,
+        projectId,
+        docId: docRefSnap.id,
+        ...authInfo,
+      });
       await updateReverseIndexes({
         shotId: docRefSnap.id,
         before: { productIds: [], products: [], talentIds: [], locationId: null },
@@ -556,7 +598,18 @@ export default function ShotsPage() {
         toast.error({ title: "Invalid product selection", description: message });
       } else {
         const { code, message } = describeFirebaseError(error, "Unable to create shot.");
-        toast.error({ title: "Failed to create shot", description: `${code}: ${message}` });
+        console.error("[Shots] Failed to create shot", {
+          path: targetPath,
+          projectId,
+          ...authInfo,
+          code,
+          message,
+          error,
+        });
+        toast.error({
+          title: "Failed to create shot",
+          description: `${code}: ${message} (${targetPath})`,
+        });
       }
     } finally {
       setIsCreatingShot(false);
