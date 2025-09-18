@@ -2,9 +2,16 @@ import { Button } from "../ui/button";
 import { useStorageImage } from "../../hooks/useStorageImage";
 
 export default function ShotProductTile({ product, onEdit, onRemove }) {
-  const imagePath = product.colourImagePath || product.thumbnailImagePath || null;
+  const imagePath = product.images?.[0] || product.colourImagePath || product.thumbnailImagePath || null;
   const imageUrl = useStorageImage(imagePath);
-  const sizeLabel = product.size ? product.size : "All sizes";
+  const sizeLabel =
+    product.status === "pending-size"
+      ? "Pending"
+      : product.sizeScope === "all"
+      ? "All sizes"
+      : product.size || "All sizes";
+  const primaryActionLabel = product.status === "pending-size" ? "Choose size" : "Edit";
+  const primaryActionVariant = product.status === "pending-size" ? "default" : "secondary";
 
   return (
     <div className="flex w-full max-w-xs flex-col gap-2 overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -26,11 +33,21 @@ export default function ShotProductTile({ product, onEdit, onRemove }) {
             </div>
           )}
         </div>
-        <div className="text-xs text-slate-600">Colour: {product.colourName}</div>
+        <div className="text-xs text-slate-600">Colour: {product.colourName || "Any"}</div>
         <div className="text-xs text-slate-600">Size: {sizeLabel}</div>
+        {product.status === "pending-size" && (
+          <div className="inline-flex w-fit items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+            Pending size
+          </div>
+        )}
         <div className="mt-auto flex items-center gap-2 pt-1">
-          <Button variant="secondary" size="sm" className="px-2 py-1 text-xs" onClick={onEdit}>
-            Edit
+          <Button
+            variant={primaryActionVariant}
+            size="sm"
+            className="px-2 py-1 text-xs"
+            onClick={onEdit}
+          >
+            {primaryActionLabel}
           </Button>
           <Button variant="ghost" size="sm" className="px-2 py-1 text-xs" onClick={onRemove}>
             Remove
