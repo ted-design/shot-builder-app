@@ -8,8 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "firebase deploy --only hosting,functions",
-    "test": "vitest run --pool threads --poolOptions.threads.singleThread",
-    "test:watch": "vitest --pool threads --poolOptions.threads.singleThread",
+    "test": "node ./scripts/run-vitest.cjs",
+    "test:watch": "node ./scripts/run-vitest-watch.cjs",
     "test:ui": "vitest --ui --pool threads --poolOptions.threads.singleThread",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --max-warnings=0"
   },

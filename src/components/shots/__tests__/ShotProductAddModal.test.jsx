@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "../../../test-utils/userEvent";
 import ShotProductAddModal from "../ShotProductAddModal";
 
 // Mock the useStorageImage hook
@@ -53,17 +54,16 @@ describe("ShotProductAddModal - Button State Logic", () => {
     });
 
     it("disables both buttons when no colourway is selected", async () => {
+        const user = userEvent.setup();
         render(<ShotProductAddModal {...defaultProps} />);
 
-        // Navigate to details view
         const familyButton = screen.getByText("Test Style");
-        fireEvent.click(familyButton);
+        await user.click(familyButton);
 
         await waitFor(() => {
             expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
         });
 
-        // Wait for colors to load and check initial state
         await waitFor(() => {
             expect(screen.getByText("Red")).toBeInTheDocument();
         });
@@ -77,11 +77,11 @@ describe("ShotProductAddModal - Button State Logic", () => {
     });
 
     it("enables 'Add colourway' button when colourway is selected, keeps 'Add & choose size' disabled when no size selected", async () => {
+        const user = userEvent.setup();
         render(<ShotProductAddModal {...defaultProps} />);
 
-        // Navigate to details view
         const familyButton = screen.getByText("Test Style");
-        fireEvent.click(familyButton);
+        await user.click(familyButton);
 
         await waitFor(() => {
             expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -92,9 +92,8 @@ describe("ShotProductAddModal - Button State Logic", () => {
             expect(screen.getByText("Red")).toBeInTheDocument();
         });
 
-        // Select a colourway explicitly
         const redColorButton = screen.getByText("Red");
-        fireEvent.click(redColorButton);
+        await user.click(redColorButton);
 
         const addColourwayButton = screen.getByText("Add colourway");
         const addWithSizeButton = screen.getByText("Add & choose size now");
@@ -105,11 +104,11 @@ describe("ShotProductAddModal - Button State Logic", () => {
     });
 
     it("enables both buttons when colourway and specific size are selected", async () => {
+        const user = userEvent.setup();
         render(<ShotProductAddModal {...defaultProps} />);
 
-        // Navigate to details view
         const familyButton = screen.getByText("Test Style");
-        fireEvent.click(familyButton);
+        await user.click(familyButton);
 
         await waitFor(() => {
             expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -120,13 +119,11 @@ describe("ShotProductAddModal - Button State Logic", () => {
             expect(screen.getByText("Red")).toBeInTheDocument();
         });
 
-        // Select a colourway
         const redColorButton = screen.getByText("Red");
-        fireEvent.click(redColorButton);
+        await user.click(redColorButton);
 
-        // Select a specific size
         const sizeSelect = screen.getByRole("combobox");
-        fireEvent.change(sizeSelect, { target: { value: "M" } });
+        await user.selectOptions(sizeSelect, "M");
 
         const addColourwayButton = screen.getByText("Add colourway");
         const addWithSizeButton = screen.getByText("Add with M");
@@ -137,11 +134,11 @@ describe("ShotProductAddModal - Button State Logic", () => {
     });
 
     it("enables both buttons when colourway is selected and 'All sizes' is chosen", async () => {
+        const user = userEvent.setup();
         render(<ShotProductAddModal {...defaultProps} />);
 
-        // Navigate to details view
         const familyButton = screen.getByText("Test Style");
-        fireEvent.click(familyButton);
+        await user.click(familyButton);
 
         await waitFor(() => {
             expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -152,13 +149,11 @@ describe("ShotProductAddModal - Button State Logic", () => {
             expect(screen.getByText("Red")).toBeInTheDocument();
         });
 
-        // Select a colourway
         const redColorButton = screen.getByText("Red");
-        fireEvent.click(redColorButton);
+        await user.click(redColorButton);
 
-        // Select "All sizes"
         const sizeSelect = screen.getByRole("combobox");
-        fireEvent.change(sizeSelect, { target: { value: "__ALL_SIZES__" } });
+        await user.selectOptions(sizeSelect, "__ALL_SIZES__");
 
         const addColourwayButton = screen.getByText("Add colourway");
         const addWithSizeButton = screen.getByText("Add all sizes");
@@ -176,11 +171,11 @@ describe("ShotProductAddModal - Button State Logic", () => {
             loadFamilyDetails: vi.fn(() => loadingPromise),
         };
 
+        const user = userEvent.setup();
         render(<ShotProductAddModal {...loadingProps} />);
 
-        // Navigate to details view
         const familyButton = screen.getByText("Test Style");
-        fireEvent.click(familyButton);
+        await user.click(familyButton);
 
         // Wait for loading state to appear
         await waitFor(() => {
@@ -196,11 +191,11 @@ describe("ShotProductAddModal - Button State Logic", () => {
     });
 
     it("calls onSubmit with correct data when 'Add colourway' is clicked", async () => {
+        const user = userEvent.setup();
         render(<ShotProductAddModal {...defaultProps} />);
 
-        // Navigate to details view
         const familyButton = screen.getByText("Test Style");
-        fireEvent.click(familyButton);
+        await user.click(familyButton);
 
         await waitFor(() => {
             expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -211,13 +206,11 @@ describe("ShotProductAddModal - Button State Logic", () => {
             expect(screen.getByText("Red")).toBeInTheDocument();
         });
 
-        // Select a colourway
         const redColorButton = screen.getByText("Red");
-        fireEvent.click(redColorButton);
+        await user.click(redColorButton);
 
-        // Click "Add colourway"
         const addColourwayButton = screen.getByText("Add colourway");
-        fireEvent.click(addColourwayButton);
+        await user.click(addColourwayButton);
 
         expect(defaultProps.onSubmit).toHaveBeenCalledWith({
             family: mockFamilies[0],
@@ -229,11 +222,11 @@ describe("ShotProductAddModal - Button State Logic", () => {
     });
 
     it("calls onSubmit with correct data when dynamic button is clicked with specific size", async () => {
+        const user = userEvent.setup();
         render(<ShotProductAddModal {...defaultProps} />);
 
-        // Navigate to details view
         const familyButton = screen.getByText("Test Style");
-        fireEvent.click(familyButton);
+        await user.click(familyButton);
 
         await waitFor(() => {
             expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
@@ -244,17 +237,14 @@ describe("ShotProductAddModal - Button State Logic", () => {
             expect(screen.getByText("Red")).toBeInTheDocument();
         });
 
-        // Select a colourway
         const redColorButton = screen.getByText("Red");
-        fireEvent.click(redColorButton);
+        await user.click(redColorButton);
 
-        // Select a specific size
         const sizeSelect = screen.getByRole("combobox");
-        fireEvent.change(sizeSelect, { target: { value: "M" } });
+        await user.selectOptions(sizeSelect, "M");
 
-        // Click the dynamic button text "Add with M"
         const addWithSizeButton = screen.getByText("Add with M");
-        fireEvent.click(addWithSizeButton);
+        await user.click(addWithSizeButton);
 
         expect(defaultProps.onSubmit).toHaveBeenCalledWith({
             family: mockFamilies[0],
@@ -274,42 +264,48 @@ describe("ShotProductAddModal - Scrolling and Layout", () => {
     it("renders with proper scrollable container structure", () => {
         render(<ShotProductAddModal {...defaultProps} />);
 
-        // Check that the scrollable container exists
-        const scrollContainer = screen.getByRole("dialog").querySelector('[tabindex="0"]');
+        const dialog = screen.getByRole("dialog");
+        const scrollContainer = within(dialog).getByTestId("shot-product-scroll-region");
+
         expect(scrollContainer).toBeInTheDocument();
-        expect(scrollContainer).toHaveClass("flex-1", "overflow-y-auto", "overscroll-contain");
+        expect(scrollContainer).toHaveClass("flex-1");
+        expect(scrollContainer).toHaveClass("overflow-y-auto");
+        expect(scrollContainer).toHaveClass("overscroll-contain");
+        expect(scrollContainer).toHaveAttribute("tabindex", "0");
     });
 
     it("has sufficient bottom padding to clear sticky footer", async () => {
+        const user = userEvent.setup();
         render(<ShotProductAddModal {...defaultProps} />);
 
-        // Navigate to details view
         const familyButton = screen.getByText("Test Style");
-        fireEvent.click(familyButton);
+        await user.click(familyButton);
 
         await waitFor(() => {
             expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
         });
 
-        // Check that content has proper bottom padding
-        const cardContent = screen.getByRole("dialog").querySelector('.space-y-4');
+        const dialog = screen.getByRole("dialog");
+        const cardContent = within(dialog).getByTestId("shot-product-card-content");
+
+        expect(cardContent).toHaveClass("space-y-4");
         expect(cardContent).toHaveClass("pb-32");
     });
 
     it("renders sticky footer with proper styling", async () => {
+        const user = userEvent.setup();
         render(<ShotProductAddModal {...defaultProps} />);
 
-        // Navigate to details view
         const familyButton = screen.getByText("Test Style");
-        fireEvent.click(familyButton);
+        await user.click(familyButton);
 
         await waitFor(() => {
             expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
         });
 
-        // Check sticky footer exists and has proper classes
-        const stickyFooter = screen.getByRole("dialog").querySelector('.sticky.bottom-0');
-        expect(stickyFooter).toBeInTheDocument();
+        const dialog = screen.getByRole("dialog");
+        const stickyFooter = within(dialog).getByTestId("shot-product-modal-footer");
+
         expect(stickyFooter).toHaveClass(
             "sticky",
             "bottom-0",
@@ -321,48 +317,44 @@ describe("ShotProductAddModal - Scrolling and Layout", () => {
     });
 
     it("action buttons are accessible in the sticky footer", async () => {
+        const user = userEvent.setup();
         render(<ShotProductAddModal {...defaultProps} />);
 
-        // Navigate to details view
         const familyButton = screen.getByText("Test Style");
-        fireEvent.click(familyButton);
+        await user.click(familyButton);
 
         await waitFor(() => {
             expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
         });
 
-        // Check that action buttons are present and accessible
-        const addColourwayButton = screen.getByText("Add colourway");
-        const addWithSizeButton = screen.getByText("Add & choose size now");
-        const cancelButton = screen.getByText("Cancel");
+        const dialog = screen.getByRole("dialog");
+        const stickyFooter = within(dialog).getByTestId("shot-product-modal-footer");
+
+        const addColourwayButton = within(stickyFooter).getByRole("button", { name: /add colourway/i });
+        const addWithSizeButton = within(stickyFooter).getByRole("button", { name: /add & choose size now/i });
+        const cancelButton = within(stickyFooter).getByRole("button", { name: /cancel/i });
 
         expect(addColourwayButton).toBeInTheDocument();
         expect(addWithSizeButton).toBeInTheDocument();
         expect(cancelButton).toBeInTheDocument();
-
-        // Verify buttons are in the sticky footer
-        const stickyFooter = screen.getByRole("dialog").querySelector('.sticky.bottom-0');
-        expect(stickyFooter).toContainElement(addColourwayButton);
-        expect(stickyFooter).toContainElement(addWithSizeButton);
-        expect(stickyFooter).toContainElement(cancelButton);
     });
 
     it("maintains focus management with scrollable container", () => {
         render(<ShotProductAddModal {...defaultProps} />);
 
-        // Check that the scrollable container can receive focus
-        const scrollContainer = screen.getByRole("dialog").querySelector('[tabindex="0"]');
+        const dialog = screen.getByRole("dialog");
+        const scrollContainer = within(dialog).getByTestId("shot-product-scroll-region");
+
         expect(scrollContainer).toHaveAttribute("tabindex", "0");
         expect(scrollContainer).toHaveClass("focus-visible:outline-none");
     });
 
     it("handles different content heights properly", async () => {
-        // Create a family with many colors to test scrolling with more content
         const manyColorsFamilyDetails = {
             colours: Array.from({ length: 20 }, (_, i) => ({
                 id: `color${i}`,
                 colorName: `Color ${i}`,
-                skuCode: `COL${i.toString().padStart(3, '0')}`,
+                skuCode: `COL${i.toString().padStart(3, "0")}`,
                 status: "active",
                 imagePath: `path/to/color${i}.jpg`,
             })),
@@ -374,24 +366,28 @@ describe("ShotProductAddModal - Scrolling and Layout", () => {
             loadFamilyDetails: vi.fn(() => Promise.resolve(manyColorsFamilyDetails)),
         };
 
+        const user = userEvent.setup();
         render(<ShotProductAddModal {...propsWithManyColors} />);
 
-        // Navigate to details view
         const familyButton = screen.getByText("Test Style");
-        fireEvent.click(familyButton);
+        await user.click(familyButton);
 
         await waitFor(() => {
             expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
         });
 
-        // Verify that with many colors, the layout still works
-        const colorButtons = screen.getAllByRole("button").filter(btn =>
-            btn.textContent.startsWith("Color ")
-        );
+        await waitFor(() => {
+            expect(screen.getByText("Color 0")).toBeInTheDocument();
+        });
+
+        const dialog = screen.getByRole("dialog");
+        const colorButtons = within(dialog)
+            .getAllByRole("button")
+            .filter((btn) => btn.textContent?.startsWith("Color "));
         expect(colorButtons.length).toBe(20);
 
-        // Verify sticky footer is still accessible
-        const addColourwayButton = screen.getByText("Add colourway");
+        const stickyFooter = within(dialog).getByTestId("shot-product-modal-footer");
+        const addColourwayButton = within(stickyFooter).getByRole("button", { name: /add colourway/i });
         expect(addColourwayButton).toBeInTheDocument();
     });
 });

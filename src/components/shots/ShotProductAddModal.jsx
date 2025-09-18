@@ -306,9 +306,13 @@ export default function ShotProductAddModal({
         <div
           ref={scrollRegionRef}
           tabIndex={0}
+          data-testid="shot-product-scroll-region"
           className="flex-1 overflow-y-auto overscroll-contain focus-visible:outline-none"
         >
-          <CardContent className="space-y-4 pb-20">
+          <CardContent
+            data-testid="shot-product-card-content"
+            className="space-y-4 pb-32"
+          >
             {view === "list" ? (
               <div className="space-y-4">
                 <Input
@@ -443,7 +447,10 @@ export default function ShotProductAddModal({
               </div>
             )}
           </CardContent>
-          <div className="sticky bottom-0 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur-sm shadow-lg sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-6">
+          <div
+            data-testid="shot-product-modal-footer"
+            className="sticky bottom-0 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur-sm shadow-lg sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-6"
+          >
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
