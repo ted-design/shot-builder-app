@@ -12,7 +12,7 @@ import {
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
-import { auth, provider, db } from "../firebase";
+import { auth, provider, db } from "../lib/firebase";
 import { CLIENT_ID } from "../lib/paths";
 
 export const AuthContext = createContext({

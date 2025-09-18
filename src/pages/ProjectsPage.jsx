@@ -10,7 +10,7 @@ import {
   serverTimestamp,
   deleteField,
 } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import { auth, db } from "../lib/firebase";
 import { useFirestoreCollection } from "../hooks/useFirestoreCollection";
 import { CLIENT_ID } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";

@@ -16,29 +16,18 @@ const deriveInitialSizeValue = (product) => {
 
 function ColourOption({ colour, selected, onSelect }) {
   const imageUrl = useStorageImage(colour.imagePath);
-  
-  const handleClick = (e) => {
-    console.log('🎨 ColourOption clicked:', {
-      colourId: colour.id,
-      colorName: colour.colorName,
-      selected,
-      onSelectFunction: typeof onSelect,
-      event: e.type,
-      target: e.target.tagName
-    });
-    
-    // Ensure the event doesn't bubble up
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (typeof onSelect === 'function') {
+
+  const handleClick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (typeof onSelect === "function") {
       onSelect();
-      console.log('✅ onSelect called successfully for:', colour.colorName);
     } else {
-      console.error('❌ onSelect is not a function:', onSelect);
+      console.error("onSelect is not a function:", onSelect);
     }
   };
-  
+
   return (
     <button
       type="button"
@@ -91,19 +80,6 @@ export default function ShotProductAddModal({
   const [selectedColourId, setSelectedColourId] = useState(initialProduct?.colourId || null);
   const [selectedSize, setSelectedSize] = useState(deriveInitialSizeValue(initialProduct));
 
-  // Debug component renders
-  console.log('🔄 ShotProductAddModal render:', {
-    open,
-    view,
-    selectedFamilyId,
-    selectedColourId,
-    timestamp: new Date().toISOString()
-  });
-
-  // Debug logging for state changes
-  useEffect(() => {
-    console.log('🔄 selectedColourId changed:', selectedColourId);
-  }, [selectedColourId]);
   const scrollRegionRef = useRef(null);
 
   useEffect(() => {
@@ -170,9 +146,6 @@ export default function ShotProductAddModal({
   }, [familyDetails]);
 
   // Debug colours array updates
-  useEffect(() => {
-    console.log('🎨 colours array updated:', colours.length, colours.map(c => ({ id: c.id, name: c.colorName })));
-  }, [colours]);
 
   useEffect(() => {
     if (!initialProduct && !selectedColourId && colours.length) {
@@ -181,23 +154,8 @@ export default function ShotProductAddModal({
   }, [colours, initialProduct, selectedColourId]);
   const selectedColour = useMemo(() => {
     const found = colours.find((colour) => colour.id === selectedColourId) || null;
-    console.log('🎯 selectedColour derived:', {
-      selectedColourId,
-      coloursCount: colours.length,
-      foundColour: found ? { id: found.id, name: found.colorName } : null,
-      allColourIds: colours.map(c => c.id)
-    });
     return found;
   }, [selectedColourId, colours]);
-
-  // Debug selectedColour changes
-  useEffect(() => {
-    console.log('🔄 selectedColour state changed:', {
-      selectedColour: selectedColour ? { id: selectedColour.id, name: selectedColour.colorName } : null,
-      selectedColourId,
-      timestamp: new Date().toISOString()
-    });
-  }, [selectedColour, selectedColourId]);
 
   // Enhanced button state logic for improved workflow
   const hasValidSelection = selectedFamilyId && selectedColour;
@@ -205,17 +163,6 @@ export default function ShotProductAddModal({
   const canAddWithSize = hasValidSelection && selectedSize && selectedSize !== "" && !loadingDetails;
 
   // Debug button state logic
-  useEffect(() => {
-    console.log('🔘 Button states:', {
-      selectedFamilyId,
-      selectedColour: selectedColour ? selectedColour.colorName : null,
-      selectedSize,
-      loadingDetails,
-      hasValidSelection,
-      canAddColourway,
-      canAddWithSize
-    });
-  }, [selectedFamilyId, selectedColour, selectedSize, loadingDetails, hasValidSelection, canAddColourway, canAddWithSize]);
 
   const handleFamilySelect = (family) => {
     setSelectedFamilyId(family.id);
@@ -289,7 +236,7 @@ export default function ShotProductAddModal({
           </div>
           <div className="flex items-center gap-2">
             {view === "details" && (
-              <Button variant="secondary" size="sm" onClick={handleBack}>
+              <Button type="button" variant="secondary" size="sm" onClick={handleBack}>
                 Back
               </Button>
             )}
@@ -374,14 +321,7 @@ export default function ShotProductAddModal({
                             colour={colour}
                             selected={colour.id === selectedColourId}
                             onSelect={() => {
-                              console.log('🎨 Color selection handler called:', {
-                                previousSelectedColourId: selectedColourId,
-                                newColourId: colour.id,
-                                colorName: colour.colorName,
-                                timestamp: new Date().toISOString()
-                              });
                               setSelectedColourId(colour.id);
-                              console.log('🔄 setSelectedColourId called with:', colour.id);
                             }}
                           />
                         ))}
@@ -451,7 +391,7 @@ export default function ShotProductAddModal({
             data-testid="shot-product-modal-footer"
             className="sticky bottom-0 flex flex-col gap-2 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur-sm shadow-lg sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-6"
           >
-            <Button variant="ghost" onClick={onClose}>
+            <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
             <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">

@@ -1,5 +1,5 @@
 // src/lib/deleteImage.js
-import { uploadImageFile, deleteImageByPath } from "../firebase";
+import { uploadImageFile, deleteImageByPath } from "./firebase";
 
 /**
  * Upload a new image, update the Firestore doc with its path,

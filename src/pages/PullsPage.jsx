@@ -16,7 +16,7 @@ import {
   updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db } from "../lib/firebase";
 // Pull in the dynamic project helper instead of a constant.  The function
 // returns whatever project ID is currently stored in localStorage.
 import { pullsPath, getActiveProjectId } from "../lib/paths";

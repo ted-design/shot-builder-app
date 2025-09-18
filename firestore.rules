@@ -1,39 +1,93 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    /* Utility functions for organisation and role checks */
-    function userOrg() { return request.auth != null ? request.auth.token.orgId : null; }
-    function orgMatches(pathOrg) { return userOrg() != null && userOrg() == pathOrg; }
-    function isAdmin() { return request.auth != null && request.auth.token.role == 'admin'; }
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function userClient() {
+      return request.auth != null
+        ? (request.auth.token.clientId != null
+            ? request.auth.token.clientId
+            : request.auth.token.orgId)
+        : null;
+    }
+
+    function clientMatches(pathClient) {
+      let clientId = userClient();
+      return clientId != null && clientId == pathClient;
+    }
+
+    function isAdmin() {
+      return request.auth != null && request.auth.token.role == 'admin';
+    }
+
+    function isProducer() {
+      return request.auth != null &&
+        (request.auth.token.role == 'producer' || request.auth.token.role == 'wardrobe');
+    }
+
     function hasProjectRole(projectId, roles) {
-      let membership = get(/databases/$(database)/documents/orgs/$(userOrg())/projects/$(projectId)/members/$(request.auth.uid));
-      return membership.data != null && roles.hasAny([membership.data.role]);
+      let clientId = userClient();
+      return clientId != null &&
+        request.auth != null &&
+        exists(/databases/$(database)/documents/clients/$(clientId)/projects/$(projectId)/members/$(request.auth.uid)) &&
+        roles.hasAny([
+          get(/databases/$(database)/documents/clients/$(clientId)/projects/$(projectId)/members/$(request.auth.uid)).data.role
+        ]);
     }
 
-    // Allow reading the organisation root if in the same org
-    match /orgs/{orgId}/{document=**} {
-      allow read: if orgMatches(orgId);
+    match /talent/{docId} {
+      allow read: if isAuthed();
+      allow create, update, delete: if isAuthed();
     }
 
-    // Products (shared across projects within an org)
-    match /orgs/{orgId}/products/{productId} {
-      allow read: if orgMatches(orgId);
-      allow create, delete: if orgMatches(orgId) && isAdmin();
-      allow update: if orgMatches(orgId) && (isAdmin() || request.auth.token.role == 'wardrobe');
+    match /locations/{docId} {
+      allow read: if isAuthed();
+      allow create, update, delete: if isAuthed();
     }
 
-    // Product families
-    match /orgs/{orgId}/productFamilies/{familyId} {
-      allow read: if orgMatches(orgId);
-      allow create, delete, update: if orgMatches(orgId) && (isAdmin() || request.auth.token.role == 'wardrobe');
+    match /shots/{docId} {
+      allow read: if isAuthed();
+      allow create, update, delete: if isAuthed();
     }
 
-    // Projects
-    match /orgs/{orgId}/projects/{projectId}/{collectionId}/{docId} {
-      allow read: if orgMatches(orgId) && (hasProjectRole(projectId, ['producer','wardrobe','viewer']) || isAdmin());
-      allow create, update, delete: if orgMatches(orgId) && (
-        isAdmin() || hasProjectRole(projectId, ['producer','wardrobe'])
-      );
+    match /clients/{clientId}/{document=**} {
+      allow read: if clientMatches(clientId);
+    }
+
+    match /clients/{clientId}/products/{productId} {
+      allow read: if clientMatches(clientId);
+      allow create, delete: if clientMatches(clientId) && isAdmin();
+      allow update: if clientMatches(clientId) &&
+        (isAdmin() || request.auth.token.role == 'wardrobe');
+    }
+
+    match /clients/{clientId}/productFamilies/{familyId} {
+      allow read: if clientMatches(clientId);
+      allow create, update: if clientMatches(clientId) && (isAdmin() || isProducer());
+      allow delete: if clientMatches(clientId) && isAdmin();
+
+      match /skus/{skuId} {
+        allow read: if clientMatches(clientId);
+        allow create, update: if clientMatches(clientId) && (isAdmin() || isProducer());
+        allow delete: if clientMatches(clientId) && isAdmin();
+      }
+    }
+
+    match /clients/{clientId}/projects/{projectId} {
+      allow read: if clientMatches(clientId) &&
+        (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+      allow create: if clientMatches(clientId) && (isAdmin() || isProducer());
+      allow update, delete: if clientMatches(clientId) &&
+        (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+
+      match /{collectionId}/{docId} {
+        allow read: if clientMatches(clientId) &&
+          (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+        allow create, update, delete: if clientMatches(clientId) &&
+          (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+      }
     }
   }
 }

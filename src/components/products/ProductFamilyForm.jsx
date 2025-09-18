@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { storage } from "../../firebase";
+import { storage } from "../../lib/firebase";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
 import { Button } from "../ui/button";
 import { Input, Checkbox } from "../ui/input";

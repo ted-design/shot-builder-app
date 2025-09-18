@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import { adaptUser } from "../auth/adapter";
 import { roleLabel } from "../lib/rbac";

@@ -1,5 +1,5 @@
 // src/lib/images.js
-import { storage } from "../firebase";
+import { storage } from "./firebase";
 import { ref, getDownloadURL } from "firebase/storage";
 
 const DEFAULT_MAX_DIMENSION = 1600;

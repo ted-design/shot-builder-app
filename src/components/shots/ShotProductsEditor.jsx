@@ -55,7 +55,7 @@ export default function ShotProductsEditor({
           </div>
         )}
       </div>
-      <Button variant="secondary" onClick={handleAdd}>
+      <Button variant="secondary" type="button" onClick={handleAdd}>
         Add product
       </Button>
       {modalOpen && (

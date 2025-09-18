@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
-import { storage } from "../firebase";
+import { storage } from "../lib/firebase";
 
 export const buildSizedPath = (path, size = 480) =>
   path.replace(/(\.[^./]+)$/, `_${size}x${Math.round(size * 1.25)}$1`);
