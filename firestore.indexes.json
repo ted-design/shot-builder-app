@@ -1,0 +1,14 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "shots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "projectId", "mode": "ASCENDING" },
+        { "fieldPath": "date", "mode": "ASCENDING" },
+        { "fieldPath": "__name__", "mode": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

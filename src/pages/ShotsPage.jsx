@@ -483,19 +483,41 @@ export default function ShotsPage() {
   // the list without reloading.  Products, talent and locations remain
   // unfiltered because they are global resources.
   useEffect(() => {
+    if (!projectId) {
+      setShots([]);
+      return undefined;
+    }
+
+    const handleSubscriptionError = (scope) => (error) => {
+      const { code, message } = describeFirebaseError(
+        error,
+        `Unable to load ${scope}.`
+      );
+      console.error(`[Shots] Failed to subscribe to ${scope}`, error);
+      toast.error({ title: `Failed to load ${scope}`, description: `${code}: ${message}` });
+      if (scope === "shots") {
+        setShots([]);
+      }
+    };
+
     const shotsQuery = query(
       collRef(...currentShotsPath),
       where("projectId", "==", projectId),
       orderBy("date", "asc")
     );
-    const unsubShots = onSnapshot(shotsQuery, (snapshot) => {
-      setShots(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-    });
+    const unsubShots = onSnapshot(
+      shotsQuery,
+      (snapshot) => {
+        setShots(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      },
+      handleSubscriptionError("shots")
+    );
     const unsubFamilies = onSnapshot(
       query(collRef(...currentProductFamiliesPath), orderBy("styleName", "asc")),
       (snapshot) => {
         setFamilies(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      }
+      },
+      handleSubscriptionError("product families")
     );
     const unsubTalent = onSnapshot(
       query(collRef(...currentTalentPath), orderBy("name", "asc")),
@@ -518,7 +540,8 @@ export default function ShotsPage() {
       query(collRef(...currentLocationsPath), orderBy("name", "asc")),
       (snapshot) => {
         setLocations(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      }
+      },
+      handleSubscriptionError("locations")
     );
     return () => {
       unsubShots();
