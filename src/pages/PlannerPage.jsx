@@ -339,6 +339,13 @@ function ShotCard({ shot, viewMode, visibleFields, onEdit, canEdit, products }) 
                     event.stopPropagation();
                     onEdit?.(shot);
                   }}
+                  onPointerDownCapture={(event) => {
+                    // Prevent the parent draggable from hijacking pointer events.
+                    event.stopPropagation();
+                  }}
+                  onPointerUpCapture={(event) => {
+                    event.stopPropagation();
+                  }}
                   className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900"
                   aria-label={`Edit ${shot.name}`}
                 >
