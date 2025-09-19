@@ -14,13 +14,14 @@ import {
 } from "firebase/firestore";
 import { auth, provider, db } from "../lib/firebase";
 import { CLIENT_ID } from "../lib/paths";
+import { normalizeRole } from "../lib/rbac";
 
 const LAST_ROLE_STORAGE_KEY = "auth:last-known-role";
 
 const readStoredRole = () => {
   if (typeof window === "undefined") return null;
   const stored = window.localStorage.getItem(LAST_ROLE_STORAGE_KEY);
-  return stored || null;
+  return normalizeRole(stored) || null;
 };
 
 export const AuthContext = createContext({
@@ -95,7 +96,7 @@ export function AuthProvider({ children }) {
         const tokenResult = await getIdTokenResult(user, true);
         if (cancelled) return;
         const tokenClaims = tokenResult.claims || {};
-        const claimRole = tokenClaims.role || null;
+        const claimRole = normalizeRole(tokenClaims.role);
         const claimClient = tokenClaims.clientId || CLIENT_ID;
         setClaims(tokenClaims);
         if (claimRole) {
@@ -136,11 +137,9 @@ export function AuthProvider({ children }) {
             }
             const data = snap.data() || {};
             setProjectRoles(data.projects || {});
-            if (!claimRole && data.role) {
-              setRole(data.role);
-            }
-            if (!claimRole && !data.role) {
-              setRole(null);
+            if (!claimRole) {
+              const profileRole = normalizeRole(data.role);
+              setRole(profileRole);
             }
             setLoadingClaims(false);
           },

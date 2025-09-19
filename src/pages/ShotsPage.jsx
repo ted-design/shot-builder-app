@@ -41,7 +41,7 @@ import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
 import { useAuth } from "../context/AuthContext";
-import { canManageShots, ROLE } from "../lib/rbac";
+import { canManageShots, resolveEffectiveRole } from "../lib/rbac";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import { toast } from "../lib/toast";
@@ -154,8 +154,11 @@ export default function ShotsPage() {
   const [talentLoadError, setTalentLoadError] = useState(null);
   const [isCreatingShot, setIsCreatingShot] = useState(false);
   const projectId = getActiveProjectId();
-  const { clientId, role: globalRole, user, claims } = useAuth();
-  const userRole = globalRole || ROLE.VIEWER;
+  const { clientId, role: globalRole, projectRoles = {}, user, claims } = useAuth();
+  const userRole = useMemo(
+    () => resolveEffectiveRole(globalRole, projectRoles, projectId),
+    [globalRole, projectRoles, projectId]
+  );
   const canEditShots = canManageShots(userRole);
   const currentShotsPath = useMemo(() => getShotsPath(clientId), [clientId]);
   const currentProductFamiliesPath = useMemo(() => productFamiliesPath(clientId), [clientId]);

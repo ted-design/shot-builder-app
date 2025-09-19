@@ -6,7 +6,65 @@ export const ROLE = {
   VIEWER: "viewer",
 };
 
-const normalize = (role) => (role ? String(role).toLowerCase() : null);
+const preferObjectKeys = ["role", "default", "value", "type"];
+
+export const resolveRoleValue = (input) => {
+  const seen = new Set();
+
+  const visit = (value) => {
+    if (!value) return null;
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : null;
+    }
+
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        const resolved = visit(entry);
+        if (resolved) return resolved;
+      }
+      return null;
+    }
+
+    if (typeof value === "object") {
+      if (seen.has(value)) return null;
+      seen.add(value);
+
+      for (const key of preferObjectKeys) {
+        if (key in value) {
+          const resolved = visit(value[key]);
+          if (resolved) return resolved;
+        }
+      }
+
+      for (const entry of Object.values(value)) {
+        const resolved = visit(entry);
+        if (resolved) return resolved;
+      }
+    }
+
+    return null;
+  };
+
+  return visit(input);
+};
+
+export const normalizeRole = (role) => {
+  const resolved = resolveRoleValue(role);
+  return resolved ? resolved.toLowerCase() : null;
+};
+
+const normalize = normalizeRole;
+
+export const resolveEffectiveRole = (globalRole, projectRoles = {}, projectId = null) => {
+  const projectValue = projectId ? projectRoles?.[projectId] : null;
+  const projectRole = normalize(projectValue);
+  if (projectRole) return projectRole;
+
+  const globalResolved = normalize(globalRole);
+  return globalResolved ?? ROLE.VIEWER;
+};
 
 export const roleLabel = (role) => {
   const r = normalize(role);

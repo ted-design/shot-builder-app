@@ -40,7 +40,7 @@ import {
   productFamilyPath,
 } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
-import { canManagePlanner, canManageShots, ROLE } from "../lib/rbac";
+import { canManagePlanner, canManageShots, ROLE, resolveEffectiveRole } from "../lib/rbac";
 import { LayoutGrid, List, Settings2, PencilLine } from "lucide-react";
 import { formatNotesForDisplay } from "../lib/sanitize";
 import { Modal } from "../components/ui/modal";
@@ -62,6 +62,7 @@ const defaultVisibleFields = {
 };
 
 const toLaneKey = (laneId) => (laneId ? String(laneId) : UNASSIGNED_LANE_ID);
+
 
 const timestampToMillis = (value) => {
   if (!value) return 0;
@@ -405,8 +406,10 @@ function PlannerPageContent() {
     ready: authReady,
     loadingClaims,
   } = useAuth();
-  const projectRole = projectRoles?.[projectId] ?? null;
-  const userRole = projectRole ?? globalRole ?? ROLE.VIEWER;
+  const userRole = useMemo(
+    () => resolveEffectiveRole(globalRole, projectRoles, projectId),
+    [globalRole, projectRoles, projectId]
+  );
   const canEditPlanner = canManagePlanner(userRole);
   const canEditShots = canManageShots(userRole);
   const isAuthLoading = !authReady || loadingClaims;
