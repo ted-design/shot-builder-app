@@ -1518,42 +1518,39 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="sticky top-14 z-20 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <h1 className="text-2xl font-semibold text-slate-900">Products</h1>
-          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 lg:w-auto">
-            <Input
-              placeholder="Search by style, number, colour, or SKU..."
-              aria-label="Search products"
-              value={queryText}
-              onChange={(event) => setQueryText(event.target.value)}
-              className="w-full sm:w-64 lg:w-80"
-            />
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Sort
-                </span>
-                <select
-                  className="w-full rounded border border-slate-300 px-3 py-2 text-sm sm:w-52"
-                  value={sortOrder}
-                  onChange={(event) => setSortOrder(event.target.value)}
-                  aria-label="Sort products"
-                >
-                  {SORT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {canEdit && (
-                <Button onClick={() => setNewModalOpen(true)} className="w-full sm:w-auto">
-                  New product
-                </Button>
-              )}
-            </div>
-          </div>
+      <div className="sticky inset-x-0 top-0 z-30 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="flex-none text-2xl font-semibold text-slate-900">Products</h1>
+          <Input
+            placeholder="Search by style, number, colour, or SKU..."
+            aria-label="Search products"
+            value={queryText}
+            onChange={(event) => setQueryText(event.target.value)}
+            className="min-w-[200px] flex-1"
+          />
+          <label
+            className="flex flex-none items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500"
+            htmlFor="products-sort-order"
+          >
+            <span className="whitespace-nowrap">Sort</span>
+            <select
+              id="products-sort-order"
+              className="h-10 rounded border border-slate-300 px-3 text-sm"
+              value={sortOrder}
+              onChange={(event) => setSortOrder(event.target.value)}
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {canEdit && (
+            <Button onClick={() => setNewModalOpen(true)} className="flex-none whitespace-nowrap">
+              New product
+            </Button>
+          )}
         </div>
       </div>
 

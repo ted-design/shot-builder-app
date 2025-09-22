@@ -401,23 +401,21 @@ export default function LocationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="sticky top-14 z-20 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-semibold text-slate-900">Locations</h1>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-            <Input
-              placeholder="Search locations by name, address, or notes..."
-              aria-label="Search locations"
-              value={queryText}
-              onChange={(event) => setQueryText(event.target.value)}
-              className="w-full sm:w-72 lg:w-96"
-            />
-            {canManage && (
-              <Button type="button" onClick={scrollToCreateLocation} className="w-full sm:w-auto">
-                New location
-              </Button>
-            )}
-          </div>
+      <div className="sticky inset-x-0 top-0 z-30 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="flex-none text-2xl font-semibold text-slate-900">Locations</h1>
+          <Input
+            placeholder="Search locations by name, address, or notes..."
+            aria-label="Search locations"
+            value={queryText}
+            onChange={(event) => setQueryText(event.target.value)}
+            className="min-w-[200px] flex-1"
+          />
+          {canManage && (
+            <Button type="button" onClick={scrollToCreateLocation} className="flex-none whitespace-nowrap">
+              New location
+            </Button>
+          )}
         </div>
       </div>
 
