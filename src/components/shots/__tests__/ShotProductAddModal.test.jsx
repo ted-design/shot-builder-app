@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "../../../test-utils/userEvent";
 import ShotProductAddModal from "../ShotProductAddModal";
 
@@ -266,6 +266,86 @@ describe("ShotProductAddModal - Button State Logic", () => {
         );
 
         expect(screen.getByText("Create new product")).toBeInTheDocument();
+    });
+
+    it("shows add new colourway button in detail view when creation is allowed", async () => {
+        const user = userEvent.setup();
+        render(
+            <ShotProductAddModal
+                {...defaultProps}
+                canCreateProduct
+                onCreateProduct={vi.fn()}
+                onCreateColourway={vi.fn(() => Promise.resolve({
+                    id: "color3",
+                    colorName: "Green",
+                    skuCode: "",
+                    status: "active",
+                    sizes: mockFamilyDetails.sizes,
+                }))}
+            />
+        );
+
+        await user.click(screen.getByText("Test Style"));
+        await waitFor(() => {
+            expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
+        });
+
+        expect(await screen.findByText("Add new colourway")).toBeInTheDocument();
+    });
+
+    it("creates a new colourway and selects it", async () => {
+        const user = userEvent.setup();
+        const onCreateColourway = vi.fn(() =>
+            Promise.resolve({
+                id: "color3",
+                colorName: "Green",
+                skuCode: "GREEN001",
+                status: "active",
+                imagePath: null,
+                sizes: mockFamilyDetails.sizes,
+            })
+        );
+
+        render(
+            <ShotProductAddModal
+                {...defaultProps}
+                canCreateProduct
+                onCreateProduct={vi.fn()}
+                onCreateColourway={onCreateColourway}
+            />
+        );
+
+        await user.click(screen.getByText("Test Style"));
+        await waitFor(() => {
+            expect(screen.getByText("Choose colour & size")).toBeInTheDocument();
+        });
+
+        const addNewColourwayButton = await screen.findByText("Add new colourway");
+        await user.click(addNewColourwayButton);
+
+        const colourwayDialog = await screen.findByRole("dialog", { name: "Add colourway" });
+        const nameInput = within(colourwayDialog).getByLabelText("Colour name");
+        fireEvent.change(nameInput, { target: { value: "Green" } });
+
+        const skuInput = within(colourwayDialog).getByLabelText("SKU (optional)");
+        fireEvent.change(skuInput, { target: { value: "GREEN001" } });
+
+        const modalSubmit = within(colourwayDialog).getByRole("button", { name: "Add colourway" });
+        await user.click(modalSubmit);
+
+        await waitFor(() => {
+            expect(onCreateColourway).toHaveBeenCalledWith("family1", {
+                colorName: "Green",
+                skuCode: "GREEN001",
+                status: "active",
+                imageFile: null,
+            });
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText("Green")).toBeInTheDocument();
+        });
+        expect(screen.getByText("✓ Green selected")).toBeInTheDocument();
     });
 
     it("filters product families by gender", async () => {

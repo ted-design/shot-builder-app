@@ -6,6 +6,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useStorageImage } from "../../hooks/useStorageImage";
 import NewProductModal from "../products/NewProductModal";
+import NewColourwayModal from "../products/NewColourwayModal";
 import { genderLabel } from "../../lib/productMutations";
 
 const ALL_SIZES_VALUE = "__ALL_SIZES__";
@@ -71,6 +72,7 @@ export default function ShotProductAddModal({
   initialProduct = null,
   canCreateProduct = false,
   onCreateProduct,
+  onCreateColourway,
 }) {
   const availableFamilies = useMemo(
     () => families.filter((family) => !family.archived),
@@ -85,6 +87,7 @@ export default function ShotProductAddModal({
   const [selectedSize, setSelectedSize] = useState(deriveInitialSizeValue(initialProduct));
   const [genderFilter, setGenderFilter] = useState("all");
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createColourwayOpen, setCreateColourwayOpen] = useState(false);
 
   const scrollRegionRef = useRef(null);
 
@@ -124,6 +127,7 @@ export default function ShotProductAddModal({
       setSelectedSize(deriveInitialSizeValue(initialProduct));
       setGenderFilter("all");
       setCreateModalOpen(false);
+      setCreateColourwayOpen(false);
     }
   }, [open, initialProduct]);
 
@@ -216,6 +220,42 @@ export default function ShotProductAddModal({
 
   const handleCloseCreateModal = () => {
     setCreateModalOpen(false);
+  };
+
+  const handleOpenCreateColourway = () => {
+    if (
+      !canCreateProduct ||
+      typeof onCreateColourway !== "function" ||
+      !selectedFamilyId
+    )
+      return;
+    setCreateColourwayOpen(true);
+  };
+
+  const handleCloseCreateColourway = () => {
+    setCreateColourwayOpen(false);
+  };
+
+  const handleColourwaySubmit = async (payload) => {
+    if (!selectedFamilyId || typeof onCreateColourway !== "function") {
+      throw new Error("Select a product family before creating a colourway.");
+    }
+    const newColour = await onCreateColourway(selectedFamilyId, payload);
+    if (newColour) {
+      const fallbackSizes = familyDetails?.sizes || activeFamily?.sizes || [];
+      setFamilyDetails((prev) => {
+        const existingColours = prev?.colours || [];
+        const nextColours = existingColours.filter((colour) => colour.id !== newColour.id);
+        nextColours.push(newColour);
+        return {
+          sizes: prev?.sizes || fallbackSizes,
+          colours: nextColours,
+        };
+      });
+      setSelectedColourId(newColour.id || null);
+    }
+    setCreateColourwayOpen(false);
+    return newColour;
   };
 
   const submitSelection = ({ status }) => {
@@ -378,18 +418,32 @@ export default function ShotProductAddModal({
                   ) : (
                     <>
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div className="text-sm font-medium text-slate-700">
                             Colourway
                             {!selectedColour && colours.length > 0 && (
                               <span className="ml-1 text-red-500">*</span>
                             )}
                           </div>
-                          {selectedColour && (
-                            <div className="text-xs font-medium text-green-600">
-                              ✓ {selectedColour.colorName} selected
-                            </div>
-                          )}
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            {selectedColour && (
+                              <div className="text-xs font-medium text-green-600">
+                                ✓ {selectedColour.colorName} selected
+                              </div>
+                            )}
+                            {selectedFamilyId &&
+                              canCreateProduct &&
+                              typeof onCreateColourway === "function" && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleOpenCreateColourway}
+                                >
+                                  Add new colourway
+                                </Button>
+                              )}
+                          </div>
                         </div>
                         <div
                           className={`grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
@@ -532,6 +586,16 @@ export default function ShotProductAddModal({
           onSubmit={onCreateProduct}
         />
       )}
+      {createColourwayOpen &&
+        canCreateProduct &&
+        typeof onCreateColourway === "function" && (
+          <NewColourwayModal
+            open={createColourwayOpen}
+            onClose={handleCloseCreateColourway}
+            onSubmit={handleColourwaySubmit}
+            family={activeFamily || families.find((entry) => entry.id === selectedFamilyId) || null}
+          />
+        )}
     </>
   );
 }

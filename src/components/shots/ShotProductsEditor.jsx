@@ -11,6 +11,7 @@ export default function ShotProductsEditor({
   createProduct,
   canCreateProduct = false,
   onCreateProduct,
+  onCreateColourway,
   emptyHint,
 }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -72,6 +73,7 @@ export default function ShotProductsEditor({
           initialProduct={editingIndex != null ? value[editingIndex] : null}
           canCreateProduct={canCreateProduct}
           onCreateProduct={onCreateProduct}
+          onCreateColourway={onCreateColourway}
           onSubmit={(selection) => {
             handleSubmit(selection);
             setModalOpen(false);
