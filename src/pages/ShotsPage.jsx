@@ -147,6 +147,7 @@ const initialShotDraft = {
 
 export default function ShotsPage() {
   const [shots, setShots] = useState([]);
+  const [queryText, setQueryText] = useState("");
   const [draft, setDraft] = useState({ ...initialShotDraft });
   const [families, setFamilies] = useState([]);
   const [talent, setTalent] = useState([]);
@@ -196,7 +197,45 @@ export default function ShotsPage() {
     [talent]
   );
 
+  const filteredShots = useMemo(() => {
+    const term = queryText.trim().toLowerCase();
+    if (!term) return shots;
+    return shots.filter((shot) => {
+      const talentNames = Array.isArray(shot.talent)
+        ? shot.talent.map((entry) => entry.name)
+        : Array.isArray(shot.talentIds)
+        ? shot.talentIds
+            .map((id) => talentOptions.find((option) => option.talentId === id)?.name)
+            .filter(Boolean)
+        : [];
+      const productNames = Array.isArray(shot.products)
+        ? shot.products
+            .map((product) =>
+              [product.productName, product.styleNumber].filter(Boolean).join(" ")
+            )
+            .filter(Boolean)
+        : [];
+      const plainNotes = typeof shot.description === "string"
+        ? shot.description.replace(/<[^>]+>/g, " ")
+        : "";
+      const haystack = [
+        shot.name,
+        shot.type,
+        shot.locationName,
+        ...talentNames,
+        ...productNames,
+        plainNotes,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [shots, queryText, talentOptions]);
+
   const familyDetailCacheRef = useRef(new Map());
+  const createFormRef = useRef(null);
+  const createNameInputRef = useRef(null);
   const [editingShotProducts, setEditingShotProducts] = useState(null);
 
   // Helper to build references
@@ -740,17 +779,55 @@ export default function ShotsPage() {
     await writeDoc("delete shot", () => deleteDoc(docRef(...currentShotsPath, shot.id)));
   };
 
+  const scrollToCreateShot = () => {
+    if (!canEditShots) return;
+    if (createFormRef.current) {
+      createFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    const focusField = () => {
+      if (createNameInputRef.current) {
+        try {
+          createNameInputRef.current.focus({ preventScroll: true });
+        } catch {
+          createNameInputRef.current.focus();
+        }
+      }
+    };
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(focusField);
+    } else {
+      focusField();
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold text-slate-900">Shots</h1>
-        <p className="text-sm text-slate-600">
-          Build and manage the shot list for the active project. Set the active project from the Dashboard.
-        </p>
+      <div className="sticky top-14 z-20 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-semibold text-slate-900">Shots</h1>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+            <Input
+              placeholder="Search shots by name, talent, product, or location..."
+              aria-label="Search shots"
+              value={queryText}
+              onChange={(event) => setQueryText(event.target.value)}
+              className="w-full sm:w-72 lg:w-96"
+            />
+            {canEditShots && (
+              <Button type="button" onClick={scrollToCreateShot} className="w-full sm:w-auto">
+                New shot
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
+      <p className="text-sm text-slate-600">
+        Build and manage the shot list for the active project. Set the active project from the Dashboard.
+      </p>
       {/* Form to create a new shot */}
       {canEditShots ? (
-        <Card>
+        <div ref={createFormRef}>
+          <Card>
           <CardHeader>
             <h2 className="text-lg font-semibold">Create New Shot</h2>
           </CardHeader>
@@ -762,6 +839,7 @@ export default function ShotsPage() {
                   value={draft.name}
                   disabled={isCreatingShot}
                   onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                  ref={createNameInputRef}
                   required
                 />
                 <Input
@@ -837,7 +915,8 @@ export default function ShotsPage() {
               </div>
             </form>
           </CardContent>
-        </Card>
+          </Card>
+        </div>
       ) : (
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
           You can browse shots but need producer or crew access to create or edit them.
@@ -845,10 +924,17 @@ export default function ShotsPage() {
       )}
       {/* List of existing shots */}
       <div className="space-y-4">
-        {shots.map((s) => {
-          const shotProducts = normaliseShotProducts(s);
-          const shotTalentSelection = Array.isArray(s.talent)
-            ? s.talent.map((entry) => {
+        {filteredShots.length === 0 ? (
+          <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+            {shots.length
+              ? `No shots match "${queryText.trim()}".`
+              : "No shots have been added yet."}
+          </div>
+        ) : (
+          filteredShots.map((s) => {
+            const shotProducts = normaliseShotProducts(s);
+            const shotTalentSelection = Array.isArray(s.talent)
+              ? s.talent.map((entry) => {
                 const fallback = talentOptions.find((opt) => opt.talentId === entry.talentId);
                 return {
                   talentId: entry.talentId,
@@ -861,8 +947,8 @@ export default function ShotsPage() {
                 return { talentId: id, name: fallback?.name || "Unnamed talent" };
               })
             : [];
-          const talentNoOptionsMessage =
-            talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available");
+            const talentNoOptionsMessage =
+              talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available");
           const notesHtml = formatNotesForDisplay(s.description);
           return (
             <Card key={s.id} className="border p-4">
@@ -1003,7 +1089,8 @@ export default function ShotsPage() {
             </CardContent>
             </Card>
           );
-        })}
+          })
+        )}
       </div>
       {canEditShots && editingShotProducts && (
         <Modal

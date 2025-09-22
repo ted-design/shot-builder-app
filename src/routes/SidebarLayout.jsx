@@ -133,7 +133,7 @@ export default function SidebarLayout({ fallbackUser = null, fallbackRole = null
         </aside>
 
         <div className="flex flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:justify-end">
+          <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur md:justify-end">
             <button
               onClick={toggleMobile}
               className="inline-flex items-center rounded-md border border-slate-200 px-2.5 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 md:hidden"
