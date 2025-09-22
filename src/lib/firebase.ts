@@ -41,10 +41,14 @@ const REQUIRED_ENV_KEYS: RequiredEnvKey[] = [
   "VITE_FIREBASE_APP_ID",
 ];
 
-const rawEnv = (typeof import.meta !== "undefined" ? import.meta.env : {}) as Record<
-  string,
-  string | undefined
->;
+const importMetaEnv =
+  (typeof import.meta !== "undefined" && import.meta?.env)
+    ? import.meta.env
+    : ({} as Record<string, unknown>);
+
+const rawEnv = importMetaEnv as Record<string, string | undefined>;
+const isProd = Boolean(importMetaEnv.PROD);
+const isDev = Boolean(importMetaEnv.DEV);
 
 function readRawEnv(key: string): string | undefined {
   const value = rawEnv?.[key];
@@ -107,7 +111,7 @@ const { options: firebaseConfig, missing } = getFirebaseOptions();
 
 if (missing.missing.length > 0) {
   const warning = `Missing Firebase env vars: ${missing.missing.join(", ")}.`;
-  if (import.meta.env.PROD) {
+  if (isProd) {
     throw new Error(`${warning} Production builds require all Firebase keys.`);
   }
   console.warn(
@@ -115,7 +119,7 @@ if (missing.missing.length > 0) {
   );
 }
 
-if (missing.optionalMissing.length > 0 && import.meta.env.DEV) {
+if (missing.optionalMissing.length > 0 && isDev) {
   console.info(
     `[Firebase] Optional env vars missing: ${missing.optionalMissing.join(", ")}. Analytics remains disabled.`,
   );
@@ -130,7 +134,7 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
 
-const useEmulators = import.meta.env.DEV && readBoolEnv("VITE_USE_FIREBASE_EMULATORS");
+const useEmulators = isDev && readBoolEnv("VITE_USE_FIREBASE_EMULATORS");
 
 if (useEmulators) {
   const host = readRawEnv("VITE_FIREBASE_EMULATOR_HOST") ?? "localhost";
