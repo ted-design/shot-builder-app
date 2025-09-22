@@ -41,7 +41,7 @@ import {
 } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { canManagePlanner, canManageShots, ROLE, resolveEffectiveRole } from "../lib/rbac";
-import { LayoutGrid, List, Settings2, PencilLine } from "lucide-react";
+import { Download, LayoutGrid, List, Settings2, PencilLine } from "lucide-react";
 import { formatNotesForDisplay } from "../lib/sanitize";
 import { Modal } from "../components/ui/modal";
 import { Button } from "../components/ui/button";
@@ -49,6 +49,8 @@ import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { toast } from "../lib/toast";
 import { useStorageImage } from "../hooks/useStorageImage";
+import PlannerSummary from "../components/planner/PlannerSummary";
+import PlannerExportModal from "../components/planner/PlannerExportModal";
 
 const PLANNER_VIEW_STORAGE_KEY = "planner:viewMode";
 const PLANNER_FIELDS_STORAGE_KEY = "planner:visibleFields";
@@ -60,6 +62,8 @@ const defaultVisibleFields = {
   talent: true,
   products: true,
 };
+
+const TALENT_UNASSIGNED_ID = "__talent_unassigned__";
 
 const toLaneKey = (laneId) => (laneId ? String(laneId) : UNASSIGNED_LANE_ID);
 
@@ -130,6 +134,198 @@ const formatShotDate = (value) => {
   }
   if (typeof value === "string") return value.slice(0, 10);
   return "";
+};
+
+const stripHtml = (value) => {
+  if (typeof value !== "string" || !value) return "";
+  const withBreaks = value
+    .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+    .replace(/<\/(p|div|li)>/gi, "\n")
+    .replace(/<li>/gi, "• ");
+  const withoutTags = withBreaks.replace(/<[^>]*>/g, " ");
+  return withoutTags
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\r+/g, "")
+    .replace(/\s*\n\s*/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[\t ]+/g, " ")
+    .trim();
+};
+
+const normaliseShotTalent = (shot) => {
+  if (!shot) return [];
+  const deduped = new Map();
+  if (Array.isArray(shot.talent)) {
+    shot.talent.forEach((entry) => {
+      if (!entry) return;
+      if (typeof entry === "string") {
+        const key = entry.trim();
+        if (!key) return;
+        if (!deduped.has(key)) deduped.set(key, { id: key, name: key });
+        return;
+      }
+      const rawId = entry.talentId || entry.id || null;
+      const name =
+        entry.name || entry.fullName || entry.label || (typeof entry.displayName === "string" ? entry.displayName : "");
+      const key = rawId || name || null;
+      if (!key) return;
+      if (!deduped.has(key)) {
+        deduped.set(key, { id: rawId || key, name: name || key });
+      }
+    });
+  }
+
+  if (Array.isArray(shot.talentIds)) {
+    shot.talentIds.forEach((rawId) => {
+      if (!rawId) return;
+      if (deduped.has(rawId)) return;
+      let derivedName = null;
+      if (Array.isArray(shot.talent)) {
+        const match = shot.talent.find((entry) => entry?.talentId === rawId || entry?.id === rawId);
+        derivedName =
+          match?.name || match?.fullName || match?.label || (typeof match?.displayName === "string" ? match.displayName : null);
+      }
+      deduped.set(rawId, { id: rawId, name: derivedName || String(rawId) });
+    });
+  }
+
+  if (Array.isArray(shot.talentNames)) {
+    shot.talentNames.forEach((name) => {
+      if (typeof name !== "string") return;
+      const key = name.trim();
+      if (!key) return;
+      if (!deduped.has(key)) deduped.set(key, { id: key, name: key });
+    });
+  }
+
+  return Array.from(deduped.values());
+};
+
+const resolveShotImageForExport = (shot, products = []) => {
+  const candidates = [];
+  if (shot) {
+    candidates.push(shot.previewImageUrl);
+    candidates.push(shot.thumbnailUrl);
+    candidates.push(shot.thumbnailImagePath);
+    candidates.push(shot.imageUrl);
+  }
+  const firstProduct = Array.isArray(products) && products.length ? products[0] : null;
+  if (firstProduct) {
+    candidates.push(firstProduct.colourImagePath);
+    candidates.push(firstProduct.thumbnailImagePath);
+    if (Array.isArray(firstProduct.images)) {
+      candidates.push(...firstProduct.images);
+    }
+  }
+  const httpCandidate = candidates.find((value) => typeof value === "string" && /^https?:\/\//i.test(value));
+  return httpCandidate || null;
+};
+
+const buildPlannerExportLanes = (shotsByLane, lanes, normaliseShotProductsFn) => {
+  const orderedLanes = [
+    { id: UNASSIGNED_LANE_ID, name: "Unassigned" },
+    ...lanes.map((lane) => ({ id: lane.id, name: lane.name || "Untitled lane" })),
+  ];
+
+  return orderedLanes.map((lane) => {
+    const laneShots = Array.isArray(shotsByLane[lane.id]) ? shotsByLane[lane.id] : [];
+    const exportShots = laneShots.map((shot) => {
+      const normalisedProducts =
+        typeof normaliseShotProductsFn === "function"
+          ? normaliseShotProductsFn(shot) || []
+          : Array.isArray(shot.products)
+          ? shot.products
+          : [];
+      const productLabels = Array.isArray(normalisedProducts)
+        ? normalisedProducts
+            .map((product) => {
+              if (!product) return null;
+              const name = product.familyName || product.productName || "Product";
+              const colour = product.colourName ? ` – ${product.colourName}` : "";
+              return `${name}${colour}`.trim();
+            })
+            .filter(Boolean)
+        : [];
+      const talentNames = normaliseShotTalent(shot).map((entry) => entry.name).filter(Boolean);
+      return {
+        id: shot.id,
+        laneId: lane.id,
+        laneName: lane.name,
+        name: shot.name || "Untitled shot",
+        type: shot.type || "",
+        date: formatShotDate(shot.date) || "",
+        location: shot.locationName || shot.location || "",
+        talent: talentNames,
+        products: productLabels,
+        notes: stripHtml(shot.description || ""),
+        image: resolveShotImageForExport(shot, normalisedProducts),
+      };
+    });
+    return { ...lane, shots: exportShots };
+  });
+};
+
+const calculateLaneSummaries = (lanesForExport) => {
+  const lanes = lanesForExport || [];
+  const summaries = lanes.map((lane) => ({
+    id: lane.id,
+    name: lane.name,
+    shotCount: Array.isArray(lane.shots) ? lane.shots.length : 0,
+  }));
+  const totalShots = summaries.reduce((acc, lane) => acc + lane.shotCount, 0);
+  return { totalShots, lanes: summaries };
+};
+
+const calculateTalentSummaries = (lanesForExport) => {
+  const laneOrder = Array.isArray(lanesForExport) ? lanesForExport : [];
+  const baseByLane = laneOrder.reduce((acc, lane) => ({ ...acc, [lane.id]: 0 }), {});
+  const tally = new Map();
+
+  const ensureTalent = (id, name) => {
+    if (!tally.has(id)) {
+      tally.set(id, {
+        id,
+        name,
+        total: 0,
+        byLane: { ...baseByLane },
+      });
+    }
+    return tally.get(id);
+  };
+
+  ensureTalent(TALENT_UNASSIGNED_ID, "Unassigned");
+
+  laneOrder.forEach((lane) => {
+    const laneId = lane.id;
+    const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+    laneShots.forEach((shot) => {
+      const assignments = Array.isArray(shot.talent) ? shot.talent : [];
+      if (!assignments.length) {
+        const unassigned = ensureTalent(TALENT_UNASSIGNED_ID, "Unassigned");
+        unassigned.total += 1;
+        unassigned.byLane[laneId] = (unassigned.byLane[laneId] || 0) + 1;
+        return;
+      }
+      const seen = new Set();
+      assignments.forEach((name) => {
+        const key = name || "Unnamed talent";
+        if (seen.has(key)) return;
+        seen.add(key);
+        const entry = ensureTalent(key, name || "Unnamed talent");
+        entry.total += 1;
+        entry.byLane[laneId] = (entry.byLane[laneId] || 0) + 1;
+      });
+    });
+  });
+
+  const rows = Array.from(tally.values()).sort((a, b) => {
+    if (a.id === TALENT_UNASSIGNED_ID) return 1;
+    if (b.id === TALENT_UNASSIGNED_ID) return -1;
+    if (b.total !== a.total) return b.total - a.total;
+    return a.name.localeCompare(b.name);
+  });
+
+  return { lanes: laneOrder.map((lane) => ({ id: lane.id, name: lane.name })), rows };
 };
 
 const readStoredPlannerView = () => {
@@ -398,6 +594,7 @@ function PlannerPageContent() {
   const [familiesLoading, setFamiliesLoading] = useState(true);
   const [viewMode, setViewMode] = useState(() => readStoredPlannerView());
   const [visibleFields, setVisibleFields] = useState(() => readStoredVisibleFields());
+  const [exportOpen, setExportOpen] = useState(false);
   const [fieldSettingsOpen, setFieldSettingsOpen] = useState(false);
   const fieldSettingsRef = useRef(null);
   const [activeShot, setActiveShot] = useState(null);
@@ -768,15 +965,15 @@ function PlannerPageContent() {
     []
   );
 
-  const isPlannerLoading = isAuthLoading || lanesLoading || shotsLoading || familiesLoading;
-  const totalShots = useMemo(
-    () =>
-      Object.values(shotsByLane).reduce(
-        (acc, laneShots) => acc + (Array.isArray(laneShots) ? laneShots.length : 0),
-        0
-      ),
-    [shotsByLane]
+  const lanesForExport = useMemo(
+    () => buildPlannerExportLanes(shotsByLane, lanes, normaliseShotProducts),
+    [shotsByLane, lanes, normaliseShotProducts]
   );
+  const laneSummary = useMemo(() => calculateLaneSummaries(lanesForExport), [lanesForExport]);
+  const talentSummary = useMemo(() => calculateTalentSummaries(lanesForExport), [lanesForExport]);
+
+  const isPlannerLoading = isAuthLoading || lanesLoading || shotsLoading || familiesLoading;
+  const totalShots = laneSummary.totalShots;
 
   const isListView = viewMode === "list";
   const laneWrapperClass = isListView
@@ -1080,49 +1277,65 @@ function PlannerPageContent() {
             </button>
           </div>
         </div>
-        <div className="relative" ref={fieldSettingsRef}>
-          <button
+        <div className="flex items-center gap-2">
+          <Button
             type="button"
-            onClick={() => setFieldSettingsOpen((prev) => !prev)}
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-100"
-            aria-haspopup="menu"
-            aria-expanded={fieldSettingsOpen}
-            aria-label="Select visible fields"
+            onClick={() => setExportOpen(true)}
+            className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800"
+            aria-haspopup="dialog"
           >
-            <Settings2 className="h-4 w-4" aria-hidden="true" />
-          </button>
-          {fieldSettingsOpen && (
-            <div className="absolute right-0 z-20 mt-2 w-52 rounded-md border border-slate-200 bg-white p-3 shadow-lg">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Shot details
-              </p>
-              {[
-                { key: "notes", label: "Notes" },
-                { key: "location", label: "Location" },
-                { key: "talent", label: "Talent" },
-                { key: "products", label: "Products" },
-              ].map((option) => (
-                <label
-                  key={option.key}
-                  className="mt-2 flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  <input
-                    type="checkbox"
-                    checked={visibleFields[option.key]}
-                    onChange={(event) =>
-                      setVisibleFields((prev) => ({
-                        ...prev,
-                        [option.key]: event.target.checked,
-                      }))
-                    }
-                  />
-                  {option.label}
-                </label>
-              ))}
-            </div>
-          )}
+            <Download className="h-4 w-4" aria-hidden="true" />
+            Export
+          </Button>
+          <div className="relative" ref={fieldSettingsRef}>
+            <button
+              type="button"
+              onClick={() => setFieldSettingsOpen((prev) => !prev)}
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-100"
+              aria-haspopup="menu"
+              aria-expanded={fieldSettingsOpen}
+              aria-label="Select visible fields"
+            >
+              <Settings2 className="h-4 w-4" aria-hidden="true" />
+            </button>
+            {fieldSettingsOpen && (
+              <div className="absolute right-0 z-20 mt-2 w-52 rounded-md border border-slate-200 bg-white p-3 shadow-lg">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Shot details
+                </p>
+                {[
+                  { key: "notes", label: "Notes" },
+                  { key: "location", label: "Location" },
+                  { key: "talent", label: "Talent" },
+                  { key: "products", label: "Products" },
+                ].map((option) => (
+                  <label
+                    key={option.key}
+                    className="mt-2 flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={visibleFields[option.key]}
+                      onChange={(event) =>
+                        setVisibleFields((prev) => ({
+                          ...prev,
+                          [option.key]: event.target.checked,
+                        }))
+                      }
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+      <PlannerSummary
+        isLoading={isPlannerLoading}
+        laneSummary={laneSummary}
+        talentSummary={talentSummary}
+      />
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <input
           placeholder="New lane (e.g., 2025-09-12 or Unassigned)"
@@ -1234,6 +1447,15 @@ function PlannerPageContent() {
           Planner actions are read-only for your role. Producers or crew can organise shot lanes.
         </div>
       )}
+      <PlannerExportModal
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        lanes={lanesForExport}
+        laneSummary={laneSummary}
+        talentSummary={talentSummary}
+        defaultVisibleFields={visibleFields}
+        isLoading={isPlannerLoading}
+      />
     </div>
   );
 }
@@ -1252,4 +1474,10 @@ export const __test = {
   ShotCard,
   groupShotsByLane,
   UNASSIGNED_LANE_ID,
+  stripHtml,
+  normaliseShotTalent,
+  buildPlannerExportLanes,
+  calculateLaneSummaries,
+  calculateTalentSummaries,
+  TALENT_UNASSIGNED_ID,
 };

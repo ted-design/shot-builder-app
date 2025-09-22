@@ -20,6 +20,12 @@ const {
   ShotCard,
   groupShotsByLane,
   UNASSIGNED_LANE_ID,
+  stripHtml,
+  normaliseShotTalent,
+  buildPlannerExportLanes,
+  calculateLaneSummaries,
+  calculateTalentSummaries,
+  TALENT_UNASSIGNED_ID,
 } = __test;
 
 describe("Planner view preferences", () => {
@@ -149,5 +155,118 @@ describe("groupShotsByLane", () => {
       "lane-b-first",
       "lane-b-second",
     ]);
+  });
+});
+
+describe("Planner export helpers", () => {
+  it("strips markup while preserving breaks", () => {
+    const input = "<p>Hello<br/>world</p><ul><li>First</li><li>Second</li></ul>";
+    expect(stripHtml(input)).toBe("Hello\nworld\n• First\n• Second");
+  });
+
+  it("normalises talent data without duplicates", () => {
+    const shot = {
+      talent: [
+        { talentId: "tal-1", name: "Alex" },
+        { talentId: "tal-1", name: "Alex" },
+        "Guest",
+      ],
+      talentIds: ["tal-2"],
+      talentNames: ["Guest"],
+    };
+    expect(normaliseShotTalent(shot)).toEqual([
+      { id: "tal-1", name: "Alex" },
+      { id: "Guest", name: "Guest" },
+      { id: "tal-2", name: "tal-2" },
+    ]);
+  });
+
+  it("prepares lanes, totals, and talent summaries for export", () => {
+    const shotsByLane = {
+      [UNASSIGNED_LANE_ID]: [
+        {
+          id: "shot-unassigned",
+          name: "Loose shot",
+          description: "<p>Unassigned</p>",
+          products: [],
+        },
+      ],
+      "lane-a": [
+        {
+          id: "shot-a1",
+          name: "Shot A1",
+          type: "Beauty",
+          date: "2025-02-01",
+          locationName: "Studio",
+          description: "<p>Line 1<br/>Line 2</p>",
+          talent: [{ talentId: "tal-1", name: "Alex" }],
+          products: [
+            { familyName: "Dress", colourName: "Blue" },
+          ],
+        },
+        {
+          id: "shot-a2",
+          name: "Shot A2",
+          type: "Editorial",
+          date: "2025-02-02",
+          description: "<p>Hello<br/>World</p>",
+          talent: [{ name: "Jamie" }],
+          talentIds: ["tal-extra"],
+          products: [],
+        },
+      ],
+      "lane-b": [
+        {
+          id: "shot-b1",
+          name: "Shot B1",
+          description: "<div>Something</div>",
+          talent: ["Jamie"],
+          products: [],
+        },
+      ],
+    };
+
+    const lanes = [
+      { id: "lane-a", name: "Lane A" },
+      { id: "lane-b", name: "Lane B" },
+    ];
+
+    const lanesForExport = buildPlannerExportLanes(shotsByLane, lanes, (shot) => shot.products);
+
+    expect(lanesForExport).toHaveLength(3);
+    expect(lanesForExport[0]).toMatchObject({ id: UNASSIGNED_LANE_ID, name: "Unassigned" });
+    expect(lanesForExport[1]).toMatchObject({ id: "lane-a", name: "Lane A" });
+    expect(lanesForExport[1].shots[0]).toMatchObject({
+      name: "Shot A1",
+      type: "Beauty",
+      date: "2025-02-01",
+      location: "Studio",
+      talent: ["Alex"],
+      products: ["Dress – Blue"],
+      notes: "Line 1\nLine 2",
+    });
+    expect(lanesForExport[1].shots[1].talent).toEqual(["Jamie", "tal-extra"]);
+
+    const laneSummary = calculateLaneSummaries(lanesForExport);
+    expect(laneSummary.totalShots).toBe(4);
+    expect(laneSummary.lanes).toEqual([
+      { id: UNASSIGNED_LANE_ID, name: "Unassigned", shotCount: 1 },
+      { id: "lane-a", name: "Lane A", shotCount: 2 },
+      { id: "lane-b", name: "Lane B", shotCount: 1 },
+    ]);
+
+    const talentSummary = calculateTalentSummaries(lanesForExport);
+    const byId = Object.fromEntries(talentSummary.rows.map((row) => [row.id, row]));
+    expect(byId[TALENT_UNASSIGNED_ID]).toMatchObject({
+      total: 1,
+      byLane: {
+        [UNASSIGNED_LANE_ID]: 1,
+        "lane-a": 0,
+        "lane-b": 0,
+      },
+    });
+    expect(byId["Alex"]).toMatchObject({ total: 1, byLane: { "lane-a": 1 } });
+    expect(byId["Jamie"]).toMatchObject({ total: 2, byLane: { "lane-a": 1, "lane-b": 1 } });
+    expect(byId["tal-extra"]).toMatchObject({ total: 1, byLane: { "lane-a": 1 } });
   });
 });
