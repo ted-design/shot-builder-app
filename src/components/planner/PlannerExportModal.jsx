@@ -113,6 +113,8 @@ const fieldOptions = [
   { key: "image", label: "Image" },
 ];
 
+const UNASSIGNED_TALENT_FILTER_VALUE = "__planner_unassigned__";
+
 const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
   const orientation = options.orientation === "landscape" ? "landscape" : "portrait";
   const visibleFields = options.fields || {};
@@ -241,20 +243,7 @@ const escapeCsv = (value) => {
   return stringValue;
 };
 
-const PlannerExportModal = ({
-  open,
-  onClose,
-  lanes,
-  laneSummary,
-  talentSummary,
-  defaultVisibleFields,
-  isLoading,
-}) => {
-  const hasShots = useMemo(
-    () => Array.isArray(lanes) && lanes.some((lane) => Array.isArray(lane.shots) && lane.shots.length > 0),
-    [lanes]
-  );
-
+const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoading }) => {
   const [title, setTitle] = useState("Planner export");
   const [subtitle, setSubtitle] = useState("");
   const [orientation, setOrientation] = useState("portrait");
@@ -262,6 +251,62 @@ const PlannerExportModal = ({
   const [includeLaneSummary, setIncludeLaneSummary] = useState(true);
   const [includeTalentSummary, setIncludeTalentSummary] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [laneFilterMode, setLaneFilterMode] = useState("all");
+  const [selectedLaneIds, setSelectedLaneIds] = useState([]);
+  const [selectedTalentNames, setSelectedTalentNames] = useState([]);
+  const [dateFilterMode, setDateFilterMode] = useState("any");
+  const [selectedDate, setSelectedDate] = useState("");
+
+  const laneOptions = useMemo(() => {
+    if (!Array.isArray(lanes)) return [];
+    return lanes.map((lane) => ({
+      id: lane.id,
+      name: lane.name || "Untitled lane",
+    }));
+  }, [lanes]);
+
+  const talentOptions = useMemo(() => {
+    const collected = new Map();
+    let hasUnassigned = false;
+    if (Array.isArray(lanes)) {
+      lanes.forEach((lane) => {
+        const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+        laneShots.forEach((shot) => {
+          const talents = Array.isArray(shot.talent) ? shot.talent : [];
+          const trimmed = talents.map((name) => (typeof name === "string" ? name.trim() : "")).filter(Boolean);
+          if (!trimmed.length) {
+            hasUnassigned = true;
+            return;
+          }
+          trimmed.forEach((name) => {
+            if (!collected.has(name)) {
+              collected.set(name, { value: name, label: name });
+            }
+          });
+        });
+      });
+    }
+    const entries = Array.from(collected.values()).sort((a, b) => a.label.localeCompare(b.label));
+    if (hasUnassigned) {
+      entries.push({ value: UNASSIGNED_TALENT_FILTER_VALUE, label: "Unassigned" });
+    }
+    return entries;
+  }, [lanes]);
+
+  const availableDates = useMemo(() => {
+    const values = new Set();
+    if (Array.isArray(lanes)) {
+      lanes.forEach((lane) => {
+        const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+        laneShots.forEach((shot) => {
+          if (shot?.date) {
+            values.add(shot.date);
+          }
+        });
+      });
+    }
+    return Array.from(values).sort();
+  }, [lanes]);
 
   useEffect(() => {
     if (!open) return;
@@ -271,6 +316,11 @@ const PlannerExportModal = ({
     setOrientation("portrait");
     setIncludeLaneSummary(true);
     setIncludeTalentSummary(true);
+    setLaneFilterMode("all");
+    setSelectedLaneIds(laneOptions.map((lane) => lane.id));
+    setSelectedTalentNames([]);
+    setDateFilterMode("any");
+    setSelectedDate("");
     setFields({
       name: true,
       type: true,
@@ -281,7 +331,135 @@ const PlannerExportModal = ({
       notes: defaultVisibleFields?.notes ?? true,
       image: false,
     });
-  }, [open, defaultVisibleFields]);
+  }, [open, defaultVisibleFields, laneOptions]);
+
+  const selectedLaneIdSet = useMemo(() => new Set(selectedLaneIds), [selectedLaneIds]);
+
+  const filteredLanes = useMemo(() => {
+    if (!Array.isArray(lanes)) return [];
+    const limitToSelected = laneFilterMode === "selected";
+    const includeUnassigned = selectedTalentNames.includes(UNASSIGNED_TALENT_FILTER_VALUE);
+    const explicitTalent = selectedTalentNames.filter((value) => value !== UNASSIGNED_TALENT_FILTER_VALUE);
+    const talentSet = new Set(explicitTalent);
+    const hasTalentFilter = talentSet.size > 0 || includeUnassigned;
+    const usingSpecificDate = dateFilterMode === "specific" && selectedDate;
+
+    return lanes
+      .filter((lane) => !limitToSelected || selectedLaneIdSet.has(lane.id))
+      .map((lane) => {
+        const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+        const filteredShots = laneShots.filter((shot) => {
+          const shotTalent = Array.isArray(shot.talent) ? shot.talent : [];
+          const trimmedTalent = shotTalent
+            .map((name) => (typeof name === "string" ? name.trim() : ""))
+            .filter(Boolean);
+
+          if (hasTalentFilter) {
+            const matchesExplicit = trimmedTalent.some((name) => talentSet.has(name));
+            const matchesUnassigned = includeUnassigned && trimmedTalent.length === 0;
+            if (!matchesExplicit && !matchesUnassigned) {
+              return false;
+            }
+          }
+
+          if (usingSpecificDate && shot.date !== selectedDate) {
+            return false;
+          }
+
+          return true;
+        });
+
+        return {
+          ...lane,
+          shots: filteredShots,
+        };
+      });
+  }, [
+    lanes,
+    laneFilterMode,
+    selectedLaneIdSet,
+    selectedTalentNames,
+    dateFilterMode,
+    selectedDate,
+  ]);
+
+  const hasShots = useMemo(
+    () =>
+      Array.isArray(filteredLanes) &&
+      filteredLanes.some((lane) => Array.isArray(lane.shots) && lane.shots.length > 0),
+    [filteredLanes]
+  );
+
+  const derivedLaneSummary = useMemo(() => {
+    const summaries = Array.isArray(filteredLanes)
+      ? filteredLanes.map((lane) => ({
+          id: lane.id,
+          name: lane.name || "Untitled lane",
+          shotCount: Array.isArray(lane.shots) ? lane.shots.length : 0,
+        }))
+      : [];
+    const totalShots = summaries.reduce((acc, lane) => acc + lane.shotCount, 0);
+    return { totalShots, lanes: summaries };
+  }, [filteredLanes]);
+
+  const derivedTalentSummary = useMemo(() => {
+    const laneOrder = Array.isArray(filteredLanes) ? filteredLanes : [];
+    const baseByLane = laneOrder.reduce((acc, lane) => ({ ...acc, [lane.id]: 0 }), {});
+    const tally = new Map();
+
+    const ensureTalent = (id, name) => {
+      if (!tally.has(id)) {
+        tally.set(id, {
+          id,
+          name,
+          total: 0,
+          byLane: { ...baseByLane },
+        });
+      }
+      return tally.get(id);
+    };
+
+    ensureTalent(UNASSIGNED_TALENT_FILTER_VALUE, "Unassigned");
+
+    laneOrder.forEach((lane) => {
+      const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+      laneShots.forEach((shot) => {
+        const shotTalent = Array.isArray(shot.talent) ? shot.talent : [];
+        const trimmedTalent = shotTalent
+          .map((name) => (typeof name === "string" ? name.trim() : ""))
+          .filter(Boolean);
+
+        if (!trimmedTalent.length) {
+          const unassigned = ensureTalent(UNASSIGNED_TALENT_FILTER_VALUE, "Unassigned");
+          unassigned.total += 1;
+          unassigned.byLane[lane.id] = (unassigned.byLane[lane.id] || 0) + 1;
+          return;
+        }
+
+        const seen = new Set();
+        trimmedTalent.forEach((name) => {
+          const key = name || "Unnamed talent";
+          if (seen.has(key)) return;
+          seen.add(key);
+          const entry = ensureTalent(key, name || "Unnamed talent");
+          entry.total += 1;
+          entry.byLane[lane.id] = (entry.byLane[lane.id] || 0) + 1;
+        });
+      });
+    });
+
+    const rows = Array.from(tally.values()).sort((a, b) => {
+      if (a.id === UNASSIGNED_TALENT_FILTER_VALUE) return 1;
+      if (b.id === UNASSIGNED_TALENT_FILTER_VALUE) return -1;
+      if (b.total !== a.total) return b.total - a.total;
+      return a.name.localeCompare(b.name);
+    });
+
+    return {
+      lanes: laneOrder.map((lane) => ({ id: lane.id, name: lane.name || "Untitled lane" })),
+      rows,
+    };
+  }, [filteredLanes]);
 
   const selectedOptions = useMemo(
     () => ({
@@ -295,18 +473,44 @@ const PlannerExportModal = ({
     [title, subtitle, orientation, fields, includeLaneSummary, includeTalentSummary]
   );
 
+  const handleToggleLane = useCallback((laneId) => {
+    setSelectedLaneIds((previous) => {
+      if (previous.includes(laneId)) {
+        return previous.filter((id) => id !== laneId);
+      }
+      return [...previous, laneId];
+    });
+  }, []);
+
+  const handleToggleTalent = useCallback((talentValue) => {
+    setSelectedTalentNames((previous) => {
+      if (previous.includes(talentValue)) {
+        return previous.filter((value) => value !== talentValue);
+      }
+      return [...previous, talentValue];
+    });
+  }, []);
+
+  const handleSelectAllLanes = useCallback(() => {
+    setSelectedLaneIds(laneOptions.map((lane) => lane.id));
+  }, [laneOptions]);
+
+  const clearTalentFilters = useCallback(() => setSelectedTalentNames([]), []);
+
+  const isLaneSelectionMode = laneFilterMode === "selected";
+
   const handleDownloadPdf = useCallback(async () => {
     if (!hasShots) {
-      toast.error("There are no shots to export yet.");
+      toast.error("No shots match your current filters.");
       return;
     }
     try {
       setIsGenerating(true);
       const blob = await pdf(
         <PlannerPdfDocument
-          lanes={lanes}
-          laneSummary={laneSummary}
-          talentSummary={talentSummary}
+          lanes={filteredLanes}
+          laneSummary={derivedLaneSummary}
+          talentSummary={derivedTalentSummary}
           options={selectedOptions}
         />
       ).toBlob();
@@ -327,11 +531,19 @@ const PlannerExportModal = ({
     } finally {
       setIsGenerating(false);
     }
-  }, [hasShots, lanes, laneSummary, talentSummary, selectedOptions, title, onClose]);
+  }, [
+    hasShots,
+    filteredLanes,
+    derivedLaneSummary,
+    derivedTalentSummary,
+    selectedOptions,
+    title,
+    onClose,
+  ]);
 
   const handleDownloadCsv = useCallback(() => {
     if (!hasShots) {
-      toast.error("There are no shots to export yet.");
+      toast.error("No shots match your current filters.");
       return;
     }
     const headers = ["Lane"];
@@ -345,8 +557,9 @@ const PlannerExportModal = ({
     if (fields.image) headers.push("Image");
 
     const rows = [];
-    lanes.forEach((lane) => {
-      lane.shots.forEach((shot) => {
+    filteredLanes.forEach((lane) => {
+      const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+      laneShots.forEach((shot) => {
         const row = [lane.name];
         if (fields.name) row.push(shot.name || "");
         if (fields.type) row.push(shot.type || "");
@@ -373,7 +586,7 @@ const PlannerExportModal = ({
     URL.revokeObjectURL(url);
     toast.success("CSV export saved");
     onClose?.();
-  }, [fields, hasShots, lanes, title, onClose]);
+  }, [fields, hasShots, filteredLanes, title, onClose]);
 
   return (
     <Modal
@@ -473,6 +686,154 @@ const PlannerExportModal = ({
                   </label>
                 </div>
               </div>
+              <div>
+                <span className="text-sm font-medium text-slate-700">Filter shots</span>
+                <p className="text-xs text-slate-500">
+                  Choose which lanes, talent, and dates to include in your export.
+                </p>
+                <div className="mt-3 space-y-4">
+                  <div>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Lanes</span>
+                    <div className="mt-2 space-y-2 text-sm text-slate-700">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="planner-export-lane-filter"
+                          value="all"
+                          checked={laneFilterMode === "all"}
+                          onChange={() => setLaneFilterMode("all")}
+                        />
+                        All lanes
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="planner-export-lane-filter"
+                          value="selected"
+                          checked={laneFilterMode === "selected"}
+                          onChange={() => {
+                            setLaneFilterMode("selected");
+                            if (selectedLaneIds.length === 0) {
+                              handleSelectAllLanes();
+                            }
+                          }}
+                        />
+                        Specific lanes
+                      </label>
+                    </div>
+                    {isLaneSelectionMode ? (
+                      <div className="mt-2 space-y-2">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {laneOptions.map((lane) => (
+                            <label key={lane.id} className="flex items-center gap-2 text-sm text-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={selectedLaneIdSet.has(lane.id)}
+                                onChange={() => handleToggleLane(lane.id)}
+                              />
+                              {lane.name}
+                            </label>
+                          ))}
+                        </div>
+                        {laneOptions.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                            <button
+                              type="button"
+                              className="text-primary hover:underline"
+                              onClick={handleSelectAllLanes}
+                            >
+                              Select all lanes
+                            </button>
+                            <span aria-hidden="true">•</span>
+                            <span>{selectedLaneIds.length} selected</span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-500">No lanes available.</p>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Talent</span>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Leave blank to include every talent. Select one or more names to limit the export.
+                    </p>
+                    {talentOptions.length ? (
+                      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {talentOptions.map((option) => (
+                          <label key={option.value} className="flex items-center gap-2 text-sm text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={selectedTalentNames.includes(option.value)}
+                              onChange={() => handleToggleTalent(option.value)}
+                            />
+                            {option.label}
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-slate-500">No talent assignments yet.</p>
+                    )}
+                    {selectedTalentNames.length ? (
+                      <button
+                        type="button"
+                        className="mt-2 text-xs text-primary hover:underline"
+                        onClick={clearTalentFilters}
+                      >
+                        Clear talent filters
+                      </button>
+                    ) : null}
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Dates</span>
+                    <div className="mt-2 space-y-2 text-sm text-slate-700">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="planner-export-date-filter"
+                          value="any"
+                          checked={dateFilterMode === "any"}
+                          onChange={() => {
+                            setDateFilterMode("any");
+                            setSelectedDate("");
+                          }}
+                        />
+                        Any date
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="planner-export-date-filter"
+                          value="specific"
+                          checked={dateFilterMode === "specific"}
+                          onChange={() => {
+                            setDateFilterMode("specific");
+                            if (!selectedDate && availableDates.length) {
+                              setSelectedDate(availableDates[0]);
+                            }
+                          }}
+                        />
+                        Specific date
+                      </label>
+                    </div>
+                    {dateFilterMode === "specific" ? (
+                      <div className="mt-2">
+                        <input
+                          type="date"
+                          value={selectedDate}
+                          onChange={(event) => setSelectedDate(event.target.value)}
+                          className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                        />
+                        {availableDates.length ? (
+                          <p className="mt-1 text-xs text-slate-500">
+                            Available dates: {availableDates.join(", ")}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
           <Card>
@@ -508,8 +869,8 @@ const PlannerExportModal = ({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-500">
             {hasShots
-              ? "Exports include every visible lane and shot. CSV files can be opened in spreadsheet tools like Excel or Google Sheets."
-              : "Add shots to the planner to enable exports."}
+              ? "Exports include shots that match your filters. CSV files can be opened in spreadsheet tools like Excel or Google Sheets."
+              : "Adjust your filters or add shots to the planner to enable exports."}
           </p>
           <div className="flex items-center gap-2">
             <Button
