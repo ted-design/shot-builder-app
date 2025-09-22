@@ -9,7 +9,7 @@
 // `date` field is updated as well.  All other behaviour matches the
 // previous Planner implementation.
 
-import React, { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -45,7 +45,6 @@ import { LayoutGrid, List, Settings2, PencilLine } from "lucide-react";
 import { formatNotesForDisplay } from "../lib/sanitize";
 import { Modal } from "../components/ui/modal";
 import { Button } from "../components/ui/button";
-import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { toast } from "../lib/toast";
 import { useStorageImage } from "../hooks/useStorageImage";
@@ -53,6 +52,8 @@ import { useStorageImage } from "../hooks/useStorageImage";
 const PLANNER_VIEW_STORAGE_KEY = "planner:viewMode";
 const PLANNER_FIELDS_STORAGE_KEY = "planner:visibleFields";
 const UNASSIGNED_LANE_ID = "__unassigned__";
+
+const ShotProductsEditor = React.lazy(() => import("../components/shots/ShotProductsEditor"));
 
 const defaultVisibleFields = {
   notes: true,
@@ -1197,14 +1198,16 @@ function PlannerPageContent() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <ShotProductsEditor
-                value={activeShot.products}
-                onChange={(next) => setActiveShot((prev) => ({ ...prev, products: next }))}
-                families={families}
-                loadFamilyDetails={loadFamilyDetails}
-                createProduct={buildShotProduct}
-                emptyHint="No products linked"
-              />
+              <Suspense fallback={<div className="p-6 text-sm text-slate-500">Loading shot editor…</div>}>
+                <ShotProductsEditor
+                  value={activeShot.products}
+                  onChange={(next) => setActiveShot((prev) => ({ ...prev, products: next }))}
+                  families={families}
+                  loadFamilyDetails={loadFamilyDetails}
+                  createProduct={buildShotProduct}
+                  emptyHint="No products linked"
+                />
+              </Suspense>
               <div className="flex justify-end gap-2">
                 <Button variant="ghost" onClick={closeShotEdit}>
                   Cancel
