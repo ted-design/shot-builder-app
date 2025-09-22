@@ -17,6 +17,7 @@ const mockFamilies = [
         colorNames: ["Red", "Blue"],
         archived: false,
         sizes: ["S", "M", "L"],
+        gender: "women",
     },
 ];
 
@@ -253,6 +254,63 @@ describe("ShotProductAddModal - Button State Logic", () => {
             status: "complete",
             sizeScope: "single",
         });
+    });
+
+    it("shows create new product button when creation is allowed", () => {
+        render(
+            <ShotProductAddModal
+                {...defaultProps}
+                canCreateProduct
+                onCreateProduct={vi.fn()}
+            />
+        );
+
+        expect(screen.getByText("Create new product")).toBeInTheDocument();
+    });
+
+    it("filters product families by gender", async () => {
+        const user = userEvent.setup();
+        const extraFamilies = [
+            {
+                id: "family2",
+                styleName: "Mens Jacket",
+                styleNumber: "MJ002",
+                colorNames: ["Black"],
+                archived: false,
+                sizes: ["M", "L"],
+                gender: "men",
+            },
+            {
+                id: "family3",
+                styleName: "Unisex Tee",
+                styleNumber: "UT003",
+                colorNames: ["White"],
+                archived: false,
+                sizes: ["S", "M", "L"],
+                gender: "unisex",
+            },
+        ];
+
+        render(
+            <ShotProductAddModal
+                {...defaultProps}
+                families={[...mockFamilies, ...extraFamilies]}
+            />
+        );
+
+        const genderSelect = screen.getByLabelText("Gender");
+        expect(genderSelect).toBeInTheDocument();
+        expect(screen.getByText("Test Style")).toBeInTheDocument();
+        expect(screen.getByText("Mens Jacket")).toBeInTheDocument();
+        expect(screen.getByText("Unisex Tee")).toBeInTheDocument();
+
+        await user.selectOptions(genderSelect, "men");
+
+        await waitFor(() => {
+            expect(screen.getByText("Mens Jacket")).toBeInTheDocument();
+        });
+        expect(screen.queryByText("Test Style")).not.toBeInTheDocument();
+        expect(screen.queryByText("Unisex Tee")).not.toBeInTheDocument();
     });
 });
 

@@ -9,6 +9,8 @@ export default function ShotProductsEditor({
   families,
   loadFamilyDetails,
   createProduct,
+  canCreateProduct = false,
+  onCreateProduct,
   emptyHint,
 }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -68,6 +70,8 @@ export default function ShotProductsEditor({
           families={families}
           loadFamilyDetails={loadFamilyDetails}
           initialProduct={editingIndex != null ? value[editingIndex] : null}
+          canCreateProduct={canCreateProduct}
+          onCreateProduct={onCreateProduct}
           onSubmit={(selection) => {
             handleSubmit(selection);
             setModalOpen(false);

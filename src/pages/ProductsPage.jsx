@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -30,23 +29,7 @@ import { useAuth } from "../context/AuthContext";
 import { ROLE, canArchiveProducts, canDeleteProducts, canEditProducts } from "../lib/rbac";
 import Modal from "../components/ui/modal";
 import { toast } from "../lib/toast";
-
-const genderLabel = (value) => {
-  switch ((value || "").toLowerCase()) {
-    case "men":
-    case "mens":
-      return "Men's";
-    case "women":
-    case "womens":
-      return "Women's";
-    case "unisex":
-      return "Unisex";
-    case "other":
-      return "Other";
-    default:
-      return "Unspecified";
-  }
-};
+import { buildSkuAggregates, createProductFamily, genderLabel } from "../lib/productMutations";
 
 const statusLabel = (status) => {
   if (status === "discontinued") return "Discontinued";
@@ -137,26 +120,6 @@ const readStoredColumns = () => {
     console.warn("[Products] Failed to parse list column preferences", error);
     return { ...defaultListColumns };
   }
-};
-
-const buildSkuAggregates = (skus, familySizes = []) => {
-  const skuCodes = new Set();
-  const colorNames = new Set();
-  const sizes = new Set((familySizes || []).filter(Boolean));
-  let activeSkuCount = 0;
-  skus.forEach((sku) => {
-    if (sku.skuCode) skuCodes.add(sku.skuCode);
-    if (sku.colorName) colorNames.add(sku.colorName);
-    (sku.sizes || []).forEach((size) => size && sizes.add(size));
-    if (sku.status === "active") activeSkuCount += 1;
-  });
-  return {
-    skuCodes: Array.from(skuCodes),
-    colorNames: Array.from(colorNames),
-    sizeOptions: Array.from(sizes),
-    skuCount: skus.length,
-    activeSkuCount,
-  };
 };
 
 const formatUpdatedAt = (value) => {
@@ -555,100 +518,14 @@ export default function ProductsPage() {
   const handleCreateFamily = useCallback(
     async (payload) => {
       if (!canEdit) throw new Error("You do not have permission to create products.");
-      const now = Date.now();
-      const familySizes = Array.isArray(payload.family.sizes) ? payload.family.sizes : [];
-      const aggregates = buildSkuAggregates(payload.skus, familySizes);
-      const baseData = {
-        styleName: payload.family.styleName,
-        styleNumber: payload.family.styleNumber,
-        previousStyleNumber: payload.family.previousStyleNumber,
-        gender: payload.family.gender,
-        status: payload.family.status,
-        archived: payload.family.archived,
-        notes: payload.family.notes,
-        headerImagePath: null,
-        thumbnailImagePath: null,
-        sizes: familySizes,
-        skuCount: aggregates.skuCount,
-        activeSkuCount: aggregates.activeSkuCount,
-        skuCodes: aggregates.skuCodes,
-        colorNames: aggregates.colorNames,
-        sizeOptions: aggregates.sizeOptions,
-        shotIds: [],
-        createdAt: now,
-        updatedAt: now,
-        createdBy: user?.uid || null,
-        updatedBy: user?.uid || null,
-      };
-      const familiesCollection = collection(db, ...currentProductFamiliesPath);
-      const familyRef = await addDoc(familiesCollection, baseData);
-      const familyId = familyRef.id;
-
-      let thumbnailPath = null;
-
-      if (payload.family.thumbnailImageFile) {
-        const { path } = await uploadImageFile(payload.family.thumbnailImageFile, {
-          folder: "productFamilies",
-          id: `${familyId}/thumbnail`,
-        });
-        thumbnailPath = path;
-        await updateDoc(familyRef, {
-          thumbnailImagePath: path,
-          updatedAt: Date.now(),
-          updatedBy: user?.uid || null,
-        });
-      }
-
-      if (payload.family.headerImageFile) {
-        const { path } = await uploadImageFile(payload.family.headerImageFile, {
-          folder: "productFamilies",
-          id: familyId,
-        });
-        await updateDoc(familyRef, {
-          headerImagePath: path,
-          updatedAt: Date.now(),
-          updatedBy: user?.uid || null,
-        });
-      }
-
-      const skuCollection = collection(db, ...productFamilySkusPathForClient(familyId));
-      let fallbackImagePath = null;
-      for (const sku of payload.skus) {
-        const skuRef = doc(skuCollection);
-        let imagePath = sku.imagePath || null;
-        if (sku.imageFile) {
-          const result = await uploadImageFile(sku.imageFile, {
-            folder: `productFamilies/${familyId}/skus`,
-            id: skuRef.id,
-          });
-          imagePath = result.path;
-        }
-        if (!fallbackImagePath && imagePath && !sku.removeImage) {
-          fallbackImagePath = imagePath;
-        }
-        await setDoc(skuRef, {
-          colorName: sku.colorName,
-          skuCode: sku.skuCode,
-          sizes: sku.sizes,
-          status: sku.status,
-          archived: sku.archived,
-          imagePath,
-          createdAt: now,
-          updatedAt: now,
-          createdBy: user?.uid || null,
-          updatedBy: user?.uid || null,
-        });
-      }
-
-      if (!thumbnailPath && fallbackImagePath) {
-        await updateDoc(familyRef, {
-          thumbnailImagePath: fallbackImagePath,
-          updatedAt: Date.now(),
-          updatedBy: user?.uid || null,
-        });
-      }
+      await createProductFamily({
+        db,
+        clientId,
+        payload,
+        userId: user?.uid || null,
+      });
     },
-    [canEdit, user]
+    [canEdit, clientId, user]
   );
 
   const loadFamilyForEdit = useCallback(
