@@ -1406,7 +1406,7 @@ export default function ShotsPage() {
           open
           onClose={closeShotEditor}
           labelledBy="edit-shot-modal-title"
-          contentClassName="p-0 max-h-[90vh] overflow-hidden"
+          contentClassName="p-0 max-h-[90vh] overflow-y-auto"
         >
           <Card className="border-0 shadow-none">
             <CardHeader>
