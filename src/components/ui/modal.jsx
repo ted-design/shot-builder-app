@@ -33,6 +33,11 @@ export function Modal({
   const contentRef = useRef(null);
   const lastActiveRef = useRef(null);
   const mouseDownTarget = useRef(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -70,7 +75,7 @@ export function Modal({
       if (event.key === "Escape") {
         event.stopPropagation();
         event.preventDefault();
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
       if (event.key !== "Tab") return;
@@ -100,7 +105,7 @@ export function Modal({
       lastActiveRef.current?.focus?.({ preventScroll: true });
       lastActiveRef.current = null;
     };
-  }, [open, onClose, initialFocusRef, mountNode]);
+  }, [open, initialFocusRef, mountNode]);
 
   const overlayProps = useMemo(
     () => ({
