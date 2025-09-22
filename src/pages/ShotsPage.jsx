@@ -50,7 +50,7 @@ import { toast } from "../lib/toast";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { useStorageImage } from "../hooks/useStorageImage";
 import { z } from "zod";
-import { createProductFamily } from "../lib/productMutations";
+import { createProductFamily, createProductColourway } from "../lib/productMutations";
 
 const shotProductPayloadSchema = z.object({
   productId: z.string().min(1, "Missing product identifier"),
@@ -735,6 +735,51 @@ export default function ShotsPage() {
     [families, productFamilySkusPathForClient]
   );
 
+  const handleCreateColourway = useCallback(
+    async (familyId, payload) => {
+      if (!canManageProducts) {
+        throw new Error("You do not have permission to create colourways.");
+      }
+      const family = families.find((entry) => entry.id === familyId);
+      if (!family) {
+        throw new Error("Product family is no longer available.");
+      }
+      const cachedDetails = familyDetailCacheRef.current.get(familyId);
+      const existingSkus = cachedDetails?.colours || [];
+      try {
+        const colour = await createProductColourway({
+          db,
+          clientId,
+          familyId,
+          payload,
+          userId: user?.uid || null,
+          family,
+          existingSkus,
+        });
+        const nextColours = existingSkus.filter((entry) => entry.id !== colour.id);
+        nextColours.push(colour);
+        const nextDetails = {
+          sizes: cachedDetails?.sizes || family.sizes || [],
+          colours: nextColours,
+        };
+        familyDetailCacheRef.current.set(familyId, nextDetails);
+        toast.success({
+          title: "Colourway created",
+          description: `${colour.colorName} is ready to use.`,
+        });
+        return colour;
+      } catch (error) {
+        console.error("[Shots] Failed to create colourway", error);
+        toast.error({
+          title: "Colourway creation failed",
+          description: error?.message || "Unable to save the colourway.",
+        });
+        throw error;
+      }
+    },
+    [canManageProducts, families, clientId, user, db]
+  );
+
   // Subscribe to collections.  We listen to the global shots collection but
   // filter on projectId so that switching projects automatically updates
   // the list without reloading.  Products, talent and locations remain
@@ -1337,6 +1382,7 @@ export default function ShotsPage() {
                     createProduct={buildShotProduct}
                     canCreateProduct={canManageProducts}
                     onCreateProduct={handleCreateProductFamily}
+                    onCreateColourway={handleCreateColourway}
                     emptyHint="No products selected"
                   />
                 </div>
@@ -1526,6 +1572,7 @@ export default function ShotsPage() {
                     createProduct={buildShotProduct}
                     canCreateProduct={canManageProducts}
                     onCreateProduct={handleCreateProductFamily}
+                    onCreateColourway={handleCreateColourway}
                     emptyHint="No products linked"
                   />
                 </div>

@@ -1,6 +1,6 @@
 import { addDoc, collection, doc, setDoc, updateDoc } from "firebase/firestore";
 import { uploadImageFile } from "./firebase";
-import { productFamiliesPath, productFamilySkusPath } from "./paths";
+import { productFamiliesPath, productFamilyPath, productFamilySkusPath } from "./paths";
 
 const buildSkuAggregates = (skus, familySizes = []) => {
   const skuCodes = new Set();
@@ -143,6 +143,94 @@ export const createProductFamily = async ({ db, clientId, payload, userId }) => 
   }
 
   return familyId;
+};
+
+export const createProductColourway = async ({
+  db,
+  clientId,
+  familyId,
+  payload,
+  userId,
+  family,
+  existingSkus = [],
+}) => {
+  if (!db) throw new Error("Database instance is required to create a colourway.");
+  if (!clientId) throw new Error("Missing client identifier for colourway creation.");
+  if (!familyId) throw new Error("Product family identifier is required.");
+
+  const colourName = (payload?.colorName || "").trim();
+  if (!colourName) {
+    throw new Error("Colour name is required.");
+  }
+
+  const skuCode = (payload?.skuCode || "").trim();
+  const status = payload?.status || "active";
+  const familySizes = Array.isArray(family?.sizes)
+    ? family.sizes.filter(Boolean)
+    : Array.isArray(payload?.sizes)
+    ? payload.sizes.filter(Boolean)
+    : [];
+  const sizes = Array.isArray(payload?.sizes)
+    ? payload.sizes.filter(Boolean)
+    : familySizes;
+
+  const now = Date.now();
+  const skuCollection = collection(db, ...productFamilySkusPath(familyId, clientId));
+  const skuRef = doc(skuCollection);
+  let imagePath = payload?.imagePath || null;
+
+  if (payload?.imageFile) {
+    const result = await uploadImageFile(payload.imageFile, {
+      folder: `productFamilies/${familyId}/skus`,
+      id: skuRef.id,
+    });
+    imagePath = result.path;
+  }
+
+  const newSkuData = {
+    colorName: colourName,
+    skuCode,
+    sizes,
+    status,
+    archived: status === "archived",
+    imagePath,
+    createdAt: now,
+    updatedAt: now,
+    createdBy: userId || null,
+    updatedBy: userId || null,
+  };
+
+  await setDoc(skuRef, newSkuData);
+
+  const aggregateSource = [
+    ...existingSkus.map((sku) => ({
+      colorName: sku.colorName,
+      skuCode: sku.skuCode,
+      sizes: Array.isArray(sku.sizes) && sku.sizes.length ? sku.sizes : familySizes,
+      status: sku.status || "active",
+    })),
+    newSkuData,
+  ];
+  const aggregates = buildSkuAggregates(aggregateSource, familySizes);
+
+  const familyRef = doc(db, ...productFamilyPath(familyId, clientId));
+  const familyUpdates = {
+    skuCount: aggregates.skuCount,
+    activeSkuCount: aggregates.activeSkuCount,
+    skuCodes: aggregates.skuCodes,
+    colorNames: aggregates.colorNames,
+    sizeOptions: aggregates.sizeOptions,
+    updatedAt: now,
+    updatedBy: userId || null,
+  };
+
+  if (!family?.thumbnailImagePath && !family?.headerImagePath && imagePath) {
+    familyUpdates.thumbnailImagePath = imagePath;
+  }
+
+  await updateDoc(familyRef, familyUpdates);
+
+  return { id: skuRef.id, ...newSkuData };
 };
 
 export { buildSkuAggregates };
