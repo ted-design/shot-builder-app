@@ -40,6 +40,15 @@ export const projectPath = (projectId, clientId) => [
 // Path to the global shots collection.  Do not pass a project ID here.
 export const shotsPath = (clientId) => ["clients", resolveClientId(clientId), "shots"];
 
+// Legacy project-scoped shots path retained for backwards compatibility. Older
+// installs stored shots under each project (`projects/{projectId}/shots`).
+// Planner and shot management screens can subscribe to this collection to
+// surface pre-migration data alongside the new global shots collection.
+export const legacyProjectShotsPath = (projectId, clientId) => [
+  ...projectPath(projectId, clientId),
+  "shots",
+];
+
 // Paths to other top‑level collections.  These remain unchanged from the
 // original app because products, talent and locations are not scoped to a
 // project.

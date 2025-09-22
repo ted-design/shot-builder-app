@@ -26,6 +26,8 @@ const {
   calculateLaneSummaries,
   calculateTalentSummaries,
   TALENT_UNASSIGNED_ID,
+  mergeShotSources,
+  normaliseShotForPlanner,
 } = __test;
 
 describe("Planner view preferences", () => {
@@ -268,5 +270,47 @@ describe("Planner export helpers", () => {
     expect(byId["Alex"]).toMatchObject({ total: 1, byLane: { "lane-a": 1 } });
     expect(byId["Jamie"]).toMatchObject({ total: 2, byLane: { "lane-a": 1, "lane-b": 1 } });
     expect(byId["tal-extra"]).toMatchObject({ total: 1, byLane: { "lane-a": 1 } });
+  });
+});
+
+describe("shot merging helpers", () => {
+  it("normalises lane and project identifiers for legacy shots", () => {
+    const legacyShot = {
+      id: "legacy-1",
+      lane: { id: "lane-legacy" },
+      projectId: "",
+      name: "Legacy Shot",
+    };
+    expect(normaliseShotForPlanner(legacyShot, "project-fallback")).toEqual(
+      expect.objectContaining({
+        id: "legacy-1",
+        laneId: "lane-legacy",
+        projectId: "project-fallback",
+      })
+    );
+  });
+
+  it("prefers primary shots while including unmatched legacy entries", () => {
+    const primary = [
+      { id: "shot-1", laneId: "lane-primary", projectId: "proj-new", name: "Primary" },
+    ];
+    const legacy = [
+      { id: "shot-1", laneId: "lane-legacy", name: "Legacy copy" },
+      { id: "shot-2", lane: { id: "lane-legacy-2" }, name: "Legacy extra" },
+    ];
+    const merged = mergeShotSources(primary, legacy, "proj-fallback");
+    expect(merged).toHaveLength(2);
+    expect(merged[0]).toMatchObject({
+      id: "shot-1",
+      laneId: "lane-primary",
+      projectId: "proj-new",
+      name: "Primary",
+    });
+    expect(merged[1]).toMatchObject({
+      id: "shot-2",
+      laneId: "lane-legacy-2",
+      projectId: "proj-fallback",
+      name: "Legacy extra",
+    });
   });
 });
