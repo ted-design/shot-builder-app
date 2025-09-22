@@ -34,6 +34,7 @@ import { db } from "../lib/firebase";
 import {
   lanesPath,
   shotsPath,
+  legacyProjectShotsPath,
   getActiveProjectId,
   productFamiliesPath,
   productFamilySkusPath,
@@ -135,6 +136,39 @@ const groupShotsByLane = (shots) => {
     grouped[laneId].sort(sortShotsForDisplay);
   });
   return grouped;
+};
+
+const normaliseShotForPlanner = (shot, fallbackProjectId = null) => {
+  if (!shot || typeof shot !== "object") return null;
+  const laneId =
+    shot.laneId != null
+      ? shot.laneId
+      : shot.lane && typeof shot.lane === "object"
+      ? shot.lane.id ?? null
+      : null;
+  const projectId = shot.projectId || fallbackProjectId || null;
+  return { ...shot, laneId, projectId };
+};
+
+const mergeShotSources = (primaryShots = [], legacyShots = [], fallbackProjectId = null) => {
+  const merged = new Map();
+  if (Array.isArray(legacyShots)) {
+    legacyShots.forEach((shot) => {
+      const normalised = normaliseShotForPlanner(shot, fallbackProjectId);
+      if (normalised?.id) {
+        merged.set(normalised.id, normalised);
+      }
+    });
+  }
+  if (Array.isArray(primaryShots)) {
+    primaryShots.forEach((shot) => {
+      const normalised = normaliseShotForPlanner(shot, fallbackProjectId);
+      if (normalised?.id) {
+        merged.set(normalised.id, normalised);
+      }
+    });
+  }
+  return Array.from(merged.values());
 };
 
 const formatShotDate = (value) => {
@@ -634,6 +668,10 @@ function PlannerPageContent() {
   const isAuthLoading = !authReady || loadingClaims;
   const currentLanesPath = useMemo(() => lanesPath(projectId, clientId), [projectId, clientId]);
   const currentShotsPath = useMemo(() => shotsPath(clientId), [clientId]);
+  const currentLegacyShotsPath = useMemo(
+    () => legacyProjectShotsPath(projectId, clientId),
+    [projectId, clientId]
+  );
   const currentProductFamiliesPath = useMemo(
     () => productFamiliesPath(clientId),
     [clientId]
@@ -719,6 +757,7 @@ function PlannerPageContent() {
     const lanesQuery = query(laneRef, orderBy("order", "asc"));
     const shotsRef = collection(db, ...currentShotsPath);
     const shotsQuery = query(shotsRef, where("projectId", "==", projectId));
+    const legacyShotsRef = collection(db, ...currentLegacyShotsPath);
     const familiesRef = collection(db, ...currentProductFamiliesPath);
     const familiesQuery = query(familiesRef, orderBy("styleName", "asc"));
 
@@ -729,11 +768,39 @@ function PlannerPageContent() {
       handleSubscriptionError("lanes")(error);
     };
 
-    const handleShotsError = (error) => {
+    let primaryLoaded = false;
+    let legacyLoaded = false;
+    let latestPrimaryShots = [];
+    let latestLegacyShots = [];
+
+    const applyCombinedShots = () => {
       if (cancelled) return;
-      setShotsByLane({});
+      const merged = mergeShotSources(latestPrimaryShots, latestLegacyShots, projectId);
+      setShotsByLane(groupShotsByLane(merged));
+    };
+
+    const updateShotsLoading = () => {
+      if (!cancelled && primaryLoaded && legacyLoaded) {
+        setShotsLoading(false);
+      }
+    };
+
+    const handlePrimaryShotsError = (error) => {
+      if (cancelled) return;
+      latestPrimaryShots = [];
+      primaryLoaded = true;
+      applyCombinedShots();
       setShotsLoading(false);
       handleSubscriptionError("shots")(error);
+    };
+
+    const handleLegacyShotsError = (error) => {
+      if (cancelled) return;
+      latestLegacyShots = [];
+      legacyLoaded = true;
+      applyCombinedShots();
+      setShotsLoading(false);
+      handleSubscriptionError("legacy shots")(error);
     };
 
     const handleFamiliesError = (error) => {
@@ -757,11 +824,24 @@ function PlannerPageContent() {
       shotsQuery,
       (snapshot) => {
         if (cancelled) return;
-        const allShots = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setShotsByLane(groupShotsByLane(allShots));
-        setShotsLoading(false);
+        latestPrimaryShots = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        primaryLoaded = true;
+        applyCombinedShots();
+        updateShotsLoading();
       },
-      handleShotsError
+      handlePrimaryShotsError
+    );
+
+    const unsubLegacyShots = onSnapshot(
+      legacyShotsRef,
+      (snapshot) => {
+        if (cancelled) return;
+        latestLegacyShots = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        legacyLoaded = true;
+        applyCombinedShots();
+        updateShotsLoading();
+      },
+      handleLegacyShotsError
     );
 
     const unsubFamilies = onSnapshot(
@@ -778,6 +858,7 @@ function PlannerPageContent() {
       cancelled = true;
       unsubLanes();
       unsubShots();
+      unsubLegacyShots();
       unsubFamilies();
     };
   }, [
@@ -786,8 +867,10 @@ function PlannerPageContent() {
     projectId,
     currentLanesPath,
     currentShotsPath,
+    currentLegacyShotsPath,
     currentProductFamiliesPath,
     handleSubscriptionError,
+    mergeShotSources,
   ]);
 
   useEffect(() => {
@@ -1691,4 +1774,6 @@ export const __test = {
   calculateLaneSummaries,
   calculateTalentSummaries,
   TALENT_UNASSIGNED_ID,
+  mergeShotSources,
+  normaliseShotForPlanner,
 };
