@@ -10,14 +10,15 @@ vi.mock("../../../hooks/useStorageImage", () => ({
 }));
 
 const mockFamilies = [
-    {
-        id: "family1",
-        styleName: "Test Style",
-        styleNumber: "TS001",
-        colorNames: ["Red", "Blue"],
-        archived: false,
-        sizes: ["S", "M", "L"],
-    },
+  {
+    id: "family1",
+    styleName: "Test Style",
+    styleNumber: "TS001",
+    colorNames: ["Red", "Blue"],
+    archived: false,
+    sizes: ["S", "M", "L"],
+    gender: "women",
+  },
 ];
 
 const mockFamilyDetails = {

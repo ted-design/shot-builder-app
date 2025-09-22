@@ -43,13 +43,14 @@ import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
 import { useAuth } from "../context/AuthContext";
-import { canManageShots, resolveEffectiveRole } from "../lib/rbac";
+import { canEditProducts, canManageShots, resolveEffectiveRole } from "../lib/rbac";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import { toast } from "../lib/toast";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { useStorageImage } from "../hooks/useStorageImage";
 import { z } from "zod";
+import { createProductFamily } from "../lib/productMutations";
 
 const shotProductPayloadSchema = z.object({
   productId: z.string().min(1, "Missing product identifier"),
@@ -236,6 +237,7 @@ export default function ShotsPage() {
     [globalRole, projectRoles, projectId]
   );
   const canEditShots = canManageShots(userRole);
+  const canManageProducts = canEditProducts(userRole);
   const currentShotsPath = useMemo(() => getShotsPath(clientId), [clientId]);
   const currentProductFamiliesPath = useMemo(() => productFamiliesPath(clientId), [clientId]);
   const currentTalentPath = useMemo(() => talentPath(clientId), [clientId]);
@@ -688,6 +690,29 @@ export default function ShotsPage() {
       };
     },
     []
+  );
+
+  const handleCreateProductFamily = useCallback(
+    async (payload) => {
+      if (!canManageProducts) throw new Error("You do not have permission to create products.");
+      try {
+        await createProductFamily({
+          db,
+          clientId,
+          payload,
+          userId: user?.uid || null,
+        });
+        toast.success({ title: "Product created", description: "The new product family is now available." });
+      } catch (error) {
+        console.error("[Shots] Failed to create product", error);
+        toast.error({
+          title: "Product creation failed",
+          description: error?.message || "Unable to save the new product.",
+        });
+        throw error;
+      }
+    },
+    [canManageProducts, clientId, user]
   );
 
   const loadFamilyDetails = useCallback(
@@ -1310,6 +1335,8 @@ export default function ShotsPage() {
                     families={families}
                     loadFamilyDetails={loadFamilyDetails}
                     createProduct={buildShotProduct}
+                    canCreateProduct={canManageProducts}
+                    onCreateProduct={handleCreateProductFamily}
                     emptyHint="No products selected"
                   />
                 </div>
@@ -1497,6 +1524,8 @@ export default function ShotsPage() {
                     families={families}
                     loadFamilyDetails={loadFamilyDetails}
                     createProduct={buildShotProduct}
+                    canCreateProduct={canManageProducts}
+                    onCreateProduct={handleCreateProductFamily}
                     emptyHint="No products linked"
                   />
                 </div>

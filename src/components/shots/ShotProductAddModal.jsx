@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useStorageImage } from "../../hooks/useStorageImage";
+import NewProductModal from "../products/NewProductModal";
+import { genderLabel } from "../../lib/productMutations";
 
 const ALL_SIZES_VALUE = "__ALL_SIZES__";
 
@@ -67,6 +69,8 @@ export default function ShotProductAddModal({
   onSubmit,
   onClose,
   initialProduct = null,
+  canCreateProduct = false,
+  onCreateProduct,
 }) {
   const availableFamilies = useMemo(
     () => families.filter((family) => !family.archived),
@@ -79,6 +83,8 @@ export default function ShotProductAddModal({
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [selectedColourId, setSelectedColourId] = useState(initialProduct?.colourId || null);
   const [selectedSize, setSelectedSize] = useState(deriveInitialSizeValue(initialProduct));
+  const [genderFilter, setGenderFilter] = useState("all");
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   const scrollRegionRef = useRef(null);
 
@@ -116,6 +122,8 @@ export default function ShotProductAddModal({
       setFamilyDetails(null);
       setSelectedColourId(initialProduct?.colourId || null);
       setSelectedSize(deriveInitialSizeValue(initialProduct));
+      setGenderFilter("all");
+      setCreateModalOpen(false);
     }
   }, [open, initialProduct]);
 
@@ -126,6 +134,7 @@ export default function ShotProductAddModal({
           { name: "styleName", weight: 0.6 },
           { name: "styleNumber", weight: 0.4 },
           { name: "colorNames", weight: 0.2 },
+          { name: "gender", weight: 0.1 },
         ],
         threshold: 0.32,
         ignoreLocation: true,
@@ -133,10 +142,33 @@ export default function ShotProductAddModal({
     [availableFamilies]
   );
 
+  const genders = useMemo(() => {
+    const map = new Map();
+    availableFamilies.forEach((family) => {
+      const raw = family.gender;
+      if (!raw) return;
+      const value = raw.toLowerCase();
+      if (!map.has(value)) {
+        map.set(value, genderLabel(raw));
+      }
+    });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [availableFamilies]);
+
   const filteredFamilies = useMemo(() => {
-    if (!query.trim()) return availableFamilies;
-    return fuse.search(query.trim()).map((result) => result.item);
-  }, [availableFamilies, fuse, query]);
+    const normalisedGender = genderFilter.toLowerCase();
+    const base =
+      normalisedGender === "all"
+        ? availableFamilies
+        : availableFamilies.filter(
+            (family) => (family.gender || "").toLowerCase() === normalisedGender
+          );
+    if (!query.trim()) return base;
+    const matches = fuse.search(query.trim()).map((result) => result.item);
+    return matches.filter((item) => base.includes(item));
+  }, [availableFamilies, fuse, query, genderFilter]);
 
   const activeFamily = familyDetails ? families.find((entry) => entry.id === selectedFamilyId) : null;
   const sizes = familyDetails?.sizes || activeFamily?.sizes || [];
@@ -175,6 +207,15 @@ export default function ShotProductAddModal({
     setSelectedFamilyId(null);
     setFamilyDetails(null);
     setSelectedColourId(null);
+  };
+
+  const handleOpenCreateModal = () => {
+    if (!canCreateProduct || typeof onCreateProduct !== "function") return;
+    setCreateModalOpen(true);
+  };
+
+  const handleCloseCreateModal = () => {
+    setCreateModalOpen(false);
   };
 
   const submitSelection = ({ status }) => {
@@ -217,13 +258,14 @@ export default function ShotProductAddModal({
   }, [open, view]);
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      labelledBy="shot-product-picker-title"
-      contentClassName="p-0"
-      initialFocusRef={scrollRegionRef}
-    >
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        labelledBy="shot-product-picker-title"
+        contentClassName="p-0"
+        initialFocusRef={scrollRegionRef}
+      >
       <Card className="flex h-full flex-col border-0 shadow-none">
         <CardHeader className="flex items-center justify-between border-b border-slate-200">
           <div>
@@ -266,6 +308,39 @@ export default function ShotProductAddModal({
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                   />
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="flex flex-col gap-1">
+                      <label
+                        htmlFor="shot-product-gender-filter"
+                        className="text-xs font-medium uppercase tracking-wide text-slate-500"
+                      >
+                        Gender
+                      </label>
+                      <select
+                        id="shot-product-gender-filter"
+                        className="w-full rounded border border-slate-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={genderFilter}
+                        onChange={(event) => setGenderFilter(event.target.value)}
+                      >
+                        <option value="all">All genders</option>
+                        {genders.map((genderOption) => (
+                          <option key={genderOption.value} value={genderOption.value}>
+                            {genderOption.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {canCreateProduct && typeof onCreateProduct === "function" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleOpenCreateModal}
+                        className="self-start sm:self-auto"
+                      >
+                        Create new product
+                      </Button>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     {filteredFamilies.map((family) => (
                       <button
@@ -276,6 +351,11 @@ export default function ShotProductAddModal({
                       >
                         <div className="text-sm font-medium text-slate-800">{family.styleName}</div>
                         <div className="text-xs text-slate-500">Style #{family.styleNumber}</div>
+                        {family.gender && (
+                          <div className="mt-1 text-xs text-slate-500">
+                            Gender: {genderLabel(family.gender)}
+                          </div>
+                        )}
                         {family.colorNames?.length ? (
                           <div className="mt-1 text-xs text-slate-500">
                             Colours: {family.colorNames.slice(0, 3).join(", ")}
@@ -444,6 +524,14 @@ export default function ShotProductAddModal({
           </footer>
         </div>
       </Card>
-    </Modal>
+      </Modal>
+      {createModalOpen && canCreateProduct && typeof onCreateProduct === "function" && (
+        <NewProductModal
+          open={createModalOpen}
+          onClose={handleCloseCreateModal}
+          onSubmit={onCreateProduct}
+        />
+      )}
+    </>
   );
 }
