@@ -21,7 +21,6 @@ import {
   arrayUnion,
   arrayRemove,
   serverTimestamp,
-  Timestamp,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import {
@@ -38,10 +37,10 @@ import Select from "react-select";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Modal } from "../components/ui/modal";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
+import ShotEditModal from "../components/shots/ShotEditModal";
 import { useAuth } from "../context/AuthContext";
 import { canEditProducts, canManageShots, resolveEffectiveRole } from "../lib/rbac";
 import { describeFirebaseError } from "../lib/firebaseErrors";
@@ -51,103 +50,15 @@ import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { useStorageImage } from "../hooks/useStorageImage";
 import { z } from "zod";
 import { createProductFamily, createProductColourway } from "../lib/productMutations";
-
-const shotProductPayloadSchema = z.object({
-  productId: z.string().min(1, "Missing product identifier"),
-  productName: z.string().min(1, "Missing product name"),
-  styleNumber: z.string().nullable().optional(),
-  colourId: z.string().nullable().optional(),
-  colourName: z.string().nullable().optional(),
-  colourImagePath: z.string().nullable().optional(),
-  thumbnailImagePath: z.string().nullable().optional(),
-  size: z.string().nullable().optional(),
-  sizeScope: z.enum(["all", "single", "pending"]),
-  status: z.enum(["pending-size", "complete"]),
-});
-
-const shotDraftSchema = z.object({
-  name: z.string().trim().min(1, "Name is required"),
-  description: z.string().trim().optional(),
-  type: z.string().trim().optional(),
-  date: z
-    .string()
-    .trim()
-    .optional()
-    .refine((value) => !value || !Number.isNaN(Date.parse(value)), {
-      message: "Enter date as YYYY-MM-DD",
-    }),
-  locationId: z.string().optional(),
-  products: z.array(z.any()),
-  talent: z.array(
-    z.object({
-      talentId: z.string().min(1),
-      name: z.string().trim().min(1),
-    })
-  ),
-});
-
-const toDateInputValue = (value) => {
-  if (!value) return "";
-  if (value instanceof Timestamp) {
-    return value.toDate().toISOString().slice(0, 10);
-  }
-  if (value && typeof value === "object" && typeof value.toDate === "function") {
-    return value.toDate().toISOString().slice(0, 10);
-  }
-  if (typeof value === "string") {
-    return value.slice(0, 10);
-  }
-  return "";
-};
-
-const parseDateToTimestamp = (value) => {
-  if (!value) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return Timestamp.fromDate(parsed);
-};
-
-const mapProductForWrite = (product) => {
-  const payload = {
-    productId: product.familyId || product.productId || "",
-    productName: (product.familyName || product.productName || "Product").trim(),
-    styleNumber: product.styleNumber ?? null,
-    colourId: product.colourId ?? null,
-    colourName: product.colourName ?? null,
-    colourImagePath: product.colourImagePath ?? null,
-    thumbnailImagePath: product.thumbnailImagePath ?? null,
-    size: product.size ?? null,
-    sizeScope:
-      product.sizeScope ||
-      (product.status === "pending-size" ? "pending" : product.size ? "single" : "all"),
-    status: product.status === "pending-size" ? "pending-size" : "complete",
-  };
-  return shotProductPayloadSchema.parse(payload);
-};
-
-const extractProductIds = (products = []) => {
-  const ids = new Set();
-  products.forEach((product) => {
-    const id = product.familyId || product.productId || product.productIdRef;
-    if (id) ids.add(id);
-  });
-  return Array.from(ids);
-};
-
-const mapTalentForWrite = (talentEntries = []) =>
-  talentEntries
-    .filter((entry) => entry && entry.talentId)
-    .map((entry) => ({ talentId: entry.talentId, name: entry.name }));
-
-const initialShotDraft = {
-  name: "",
-  description: "",
-  type: "",
-  date: "",
-  locationId: "",
-  products: [],
-  talent: [],
-};
+import {
+  shotDraftSchema,
+  initialShotDraft,
+  toDateInputValue,
+  parseDateToTimestamp,
+  mapProductForWrite,
+  extractProductIds,
+  mapTalentForWrite,
+} from "../lib/shotDraft";
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
@@ -1475,133 +1386,27 @@ export default function ShotsPage() {
         </div>
       )}
       {canEditShots && editingShot && (
-        <Modal
+        <ShotEditModal
           open
+          titleId="edit-shot-modal-title"
+          shotName={editingShot.shot.name}
+          draft={editingShot.draft}
+          onChange={updateEditingDraft}
           onClose={closeShotEditor}
-          labelledBy="edit-shot-modal-title"
-          contentClassName="p-0 max-h-[90vh] overflow-y-auto"
-        >
-          <Card className="border-0 shadow-none">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 id="edit-shot-modal-title" className="text-lg font-semibold">
-                    Edit {editingShot.shot.name}
-                  </h2>
-                  <p className="text-sm text-slate-500">
-                    Update shot details, linked products, and talent assignments.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Close"
-                  className="text-xl text-slate-400 transition hover:text-slate-600"
-                  onClick={closeShotEditor}
-                >
-                  ×
-                </button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <form
-                className="space-y-4"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  handleSaveShot();
-                }}
-              >
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Name</label>
-                    <Input
-                      value={editingShot.draft.name}
-                      onChange={(event) => updateEditingDraft({ name: event.target.value })}
-                      required
-                      disabled={isSavingShot}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Type</label>
-                    <Input
-                      value={editingShot.draft.type}
-                      onChange={(event) => updateEditingDraft({ type: event.target.value })}
-                      disabled={isSavingShot}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Date</label>
-                    <Input
-                      type="date"
-                      value={editingShot.draft.date || ""}
-                      onChange={(event) => updateEditingDraft({ date: event.target.value })}
-                      disabled={isSavingShot}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">Notes</label>
-                  <NotesEditor
-                    value={editingShot.draft.description}
-                    onChange={(next) => updateEditingDraft({ description: next })}
-                    disabled={isSavingShot}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Location</label>
-                  <select
-                    className="w-full rounded-md border border-slate-200 p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
-                    value={editingShot.draft.locationId}
-                    disabled={isSavingShot}
-                    onChange={(event) => updateEditingDraft({ locationId: event.target.value || "" })}
-                  >
-                    <option value="">(none)</option>
-                    {locations.map((location) => (
-                      <option key={location.id} value={location.id}>
-                        {location.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">Products</label>
-                  <ShotProductsEditor
-                    value={editingShot.draft.products}
-                    onChange={(next) => updateEditingDraft({ products: next })}
-                    families={families}
-                    loadFamilyDetails={loadFamilyDetails}
-                    createProduct={buildShotProduct}
-                    canCreateProduct={canManageProducts}
-                    onCreateProduct={handleCreateProductFamily}
-                    onCreateColourway={handleCreateColourway}
-                    emptyHint="No products linked"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">Talent</label>
-                  <TalentMultiSelect
-                    options={talentOptions}
-                    value={editingShot.draft.talent}
-                    onChange={(next) => updateEditingDraft({ talent: next })}
-                    isDisabled={isSavingShot}
-                    placeholder={talentLoadError ? "Talent unavailable" : "Select talent"}
-                    noOptionsMessage={talentNoOptionsMessage}
-                  />
-                  {talentLoadError && (
-                    <p className="text-xs text-red-600">{talentLoadError}</p>
-                  )}
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="ghost" onClick={closeShotEditor}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isSavingShot}>
-                    {isSavingShot ? "Saving…" : "Save changes"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </Modal>
+          onSubmit={handleSaveShot}
+          isSaving={isSavingShot}
+          families={families}
+          loadFamilyDetails={loadFamilyDetails}
+          createProduct={buildShotProduct}
+          allowProductCreation={canManageProducts}
+          onCreateProduct={handleCreateProductFamily}
+          onCreateColourway={handleCreateColourway}
+          locations={locations}
+          talentOptions={talentOptions}
+          talentPlaceholder="Select talent"
+          talentNoOptionsMessage={talentNoOptionsMessage}
+          talentLoadError={talentLoadError}
+        />
       )}
     </div>
   );
