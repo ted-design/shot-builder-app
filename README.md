@@ -34,7 +34,7 @@ This repository contains a starter implementation for a shot‑planning and ward
 
    Select **Hosting**, **Functions**, and **Firestore**. Use the existing `firebase.json`, `firestore.rules`, and `storage.rules` files when prompted. Choose TypeScript for functions if you prefer.
 
-   Create a `.env.local` file (git-ignored) with the Firebase config copied from the **same project** you plan to deploy to. All keys must use the Vite `VITE_FIREBASE_*` prefix that our app reads at build time:
+  Create a `.env.local` file (git-ignored) with the Firebase config copied from the **same project** you plan to deploy to. Start by copying `.env.example` and then fill in the values from Firebase. All keys must use the Vite `VITE_FIREBASE_*` prefix that our app reads at build time:
 
    ```bash
    VITE_FIREBASE_API_KEY=...
