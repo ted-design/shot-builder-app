@@ -33,6 +33,8 @@ import {
   talentPath,
   locationsPath,
 } from "../lib/paths";
+import { LayoutGrid, List, SlidersHorizontal } from "lucide-react";
+import Select from "react-select";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -46,6 +48,7 @@ import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import { toast } from "../lib/toast";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
+import { useStorageImage } from "../hooks/useStorageImage";
 import { z } from "zod";
 
 const shotProductPayloadSchema = z.object({
@@ -145,6 +148,74 @@ const initialShotDraft = {
   talent: [],
 };
 
+const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
+const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
+
+const defaultShotFilters = {
+  locationId: "",
+  talentIds: [],
+  productFamilyIds: [],
+};
+
+const filterSelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    minHeight: 38,
+    borderRadius: 6,
+    borderColor: state.isFocused ? "#2563eb" : "#cbd5f5",
+    boxShadow: state.isFocused ? "0 0 0 1px rgba(37, 99, 235, 0.35)" : "none",
+    "&:hover": {
+      borderColor: state.isFocused ? "#2563eb" : "#94a3b8",
+    },
+  }),
+  multiValue: (base) => ({
+    ...base,
+    backgroundColor: "#e2e8f0",
+    borderRadius: 9999,
+  }),
+  multiValueLabel: (base) => ({
+    ...base,
+    color: "#0f172a",
+    fontWeight: 500,
+  }),
+  multiValueRemove: (base) => ({
+    ...base,
+    color: "#475569",
+    ":hover": {
+      backgroundColor: "#cbd5f5",
+      color: "#1d4ed8",
+    },
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 40 }),
+};
+
+const readStoredShotsView = () => {
+  if (typeof window === "undefined") return "gallery";
+  const stored = window.localStorage.getItem(SHOTS_VIEW_STORAGE_KEY);
+  return stored === "list" ? "list" : "gallery";
+};
+
+const readStoredShotFilters = () => {
+  if (typeof window === "undefined") return { ...defaultShotFilters };
+  try {
+    const raw = window.localStorage.getItem(SHOTS_FILTERS_STORAGE_KEY);
+    if (!raw) return { ...defaultShotFilters };
+    const parsed = JSON.parse(raw);
+    return {
+      locationId: typeof parsed.locationId === "string" ? parsed.locationId : "",
+      talentIds: Array.isArray(parsed.talentIds)
+        ? parsed.talentIds.filter((value) => typeof value === "string" && value)
+        : [],
+      productFamilyIds: Array.isArray(parsed.productFamilyIds)
+        ? parsed.productFamilyIds.filter((value) => typeof value === "string" && value)
+        : [],
+    };
+  } catch (error) {
+    console.warn("[Shots] Failed to parse stored filters", error);
+    return { ...defaultShotFilters };
+  }
+};
+
 export default function ShotsPage() {
   const [shots, setShots] = useState([]);
   const [queryText, setQueryText] = useState("");
@@ -154,6 +225,10 @@ export default function ShotsPage() {
   const [locations, setLocations] = useState([]);
   const [talentLoadError, setTalentLoadError] = useState(null);
   const [isCreatingShot, setIsCreatingShot] = useState(false);
+  const [viewMode, setViewMode] = useState(() => readStoredShotsView());
+  const [filters, setFilters] = useState(() => readStoredShotFilters());
+  const [editingShot, setEditingShot] = useState(null);
+  const [isSavingShot, setIsSavingShot] = useState(false);
   const projectId = getActiveProjectId();
   const { clientId, role: globalRole, projectRoles = {}, user, claims } = useAuth();
   const userRole = useMemo(
@@ -197,10 +272,81 @@ export default function ShotsPage() {
     [talent]
   );
 
+  const locationById = useMemo(() => {
+    const lookup = new Map();
+    locations.forEach((entry) => {
+      if (!entry) return;
+      lookup.set(entry.id, entry.name || "Unnamed location");
+    });
+    return lookup;
+  }, [locations]);
+
+  const talentFilterOptions = useMemo(
+    () => talentOptions.map((entry) => ({ value: entry.talentId, label: entry.name })),
+    [talentOptions]
+  );
+  const productFilterOptions = useMemo(
+    () =>
+      families.map((family) => ({
+        value: family.id,
+        label: family.styleName || "Untitled product",
+      })),
+    [families]
+  );
+
+  const talentFilterValue = useMemo(
+    () =>
+      (filters.talentIds || []).map((id) =>
+        talentFilterOptions.find((option) => option.value === id) || {
+          value: id,
+          label: "Unknown talent",
+        }
+      ),
+    [filters.talentIds, talentFilterOptions]
+  );
+
+  const productFilterValue = useMemo(
+    () =>
+      (filters.productFamilyIds || []).map((id) =>
+        productFilterOptions.find((option) => option.value === id) || {
+          value: id,
+          label: "Unknown product",
+        }
+      ),
+    [filters.productFamilyIds, productFilterOptions]
+  );
+
   const filteredShots = useMemo(() => {
     const term = queryText.trim().toLowerCase();
-    if (!term) return shots;
+    const selectedLocation = filters.locationId || "";
+    const selectedTalentIds = new Set(filters.talentIds || []);
+    const selectedProductIds = new Set(filters.productFamilyIds || []);
+
     return shots.filter((shot) => {
+      if (selectedLocation && (shot.locationId || "") !== selectedLocation) {
+        return false;
+      }
+
+      if (selectedTalentIds.size) {
+        const shotTalentIds = Array.isArray(shot.talent)
+          ? shot.talent.map((entry) => entry.talentId).filter(Boolean)
+          : Array.isArray(shot.talentIds)
+          ? shot.talentIds.filter(Boolean)
+          : [];
+        const hasTalentMatch = shotTalentIds.some((id) => selectedTalentIds.has(id));
+        if (!hasTalentMatch) return false;
+      }
+
+      if (selectedProductIds.size) {
+        const shotProductIds = extractProductIds(shot.products || [])
+          .concat(Array.isArray(shot.productIds) ? shot.productIds : [])
+          .filter(Boolean);
+        const hasProductMatch = shotProductIds.some((id) => selectedProductIds.has(id));
+        if (!hasProductMatch) return false;
+      }
+
+      if (!term) return true;
+
       const talentNames = Array.isArray(shot.talent)
         ? shot.talent.map((entry) => entry.name)
         : Array.isArray(shot.talentIds)
@@ -221,7 +367,7 @@ export default function ShotsPage() {
       const haystack = [
         shot.name,
         shot.type,
-        shot.locationName,
+        shot.locationName || locationById.get(shot.locationId || ""),
         ...talentNames,
         ...productNames,
         plainNotes,
@@ -231,12 +377,30 @@ export default function ShotsPage() {
         .toLowerCase();
       return haystack.includes(term);
     });
-  }, [shots, queryText, talentOptions]);
+  }, [shots, queryText, filters, talentOptions, locationById]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(SHOTS_VIEW_STORAGE_KEY, viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      SHOTS_FILTERS_STORAGE_KEY,
+      JSON.stringify({
+        locationId: filters.locationId || "",
+        talentIds: Array.isArray(filters.talentIds) ? filters.talentIds : [],
+        productFamilyIds: Array.isArray(filters.productFamilyIds)
+          ? filters.productFamilyIds
+          : [],
+      })
+    );
+  }, [filters]);
 
   const familyDetailCacheRef = useRef(new Map());
   const createFormRef = useRef(null);
   const createNameInputRef = useRef(null);
-  const [editingShotProducts, setEditingShotProducts] = useState(null);
 
   // Helper to build references
   const collRef = (...segments) => collection(db, ...segments);
@@ -444,6 +608,35 @@ export default function ShotsPage() {
         .filter(Boolean);
     },
     [families, withDerivedProductFields]
+  );
+
+  const mapShotTalentToSelection = useCallback(
+    (shot) => {
+      if (!shot) return [];
+      if (Array.isArray(shot.talent) && shot.talent.length) {
+        return shot.talent
+          .map((entry) => {
+            if (!entry || !entry.talentId) return null;
+            const fallback = talentOptions.find((opt) => opt.talentId === entry.talentId);
+            return {
+              talentId: entry.talentId,
+              name: entry.name || fallback?.name || "Unnamed talent",
+            };
+          })
+          .filter(Boolean);
+      }
+      if (Array.isArray(shot.talentIds) && shot.talentIds.length) {
+        return shot.talentIds
+          .map((id) => {
+            if (!id) return null;
+            const fallback = talentOptions.find((opt) => opt.talentId === id);
+            return { talentId: id, name: fallback?.name || "Unnamed talent" };
+          })
+          .filter(Boolean);
+      }
+      return [];
+    },
+    [talentOptions]
   );
 
   const buildShotProduct = useCallback(
@@ -800,282 +993,333 @@ export default function ShotsPage() {
     }
   };
 
+  const handleLocationFilterChange = useCallback((nextId) => {
+    setFilters((previous) => ({
+      ...previous,
+      locationId: nextId || "",
+    }));
+  }, []);
+
+  const handleTalentFilterChange = useCallback((selected) => {
+    const ids = Array.isArray(selected) ? selected.map((option) => option.value) : [];
+    setFilters((previous) => ({
+      ...previous,
+      talentIds: ids,
+    }));
+  }, []);
+
+  const handleProductFilterChange = useCallback((selected) => {
+    const ids = Array.isArray(selected) ? selected.map((option) => option.value) : [];
+    setFilters((previous) => ({
+      ...previous,
+      productFamilyIds: ids,
+    }));
+  }, []);
+
+  const clearFilters = useCallback(
+    () => setFilters({ ...defaultShotFilters }),
+    []
+  );
+
+  const updateViewMode = useCallback(
+    (nextMode) =>
+      setViewMode((previousMode) => (previousMode === nextMode ? previousMode : nextMode)),
+    []
+  );
+
+  const openShotEditor = useCallback(
+    (shot) => {
+      if (!shot) return;
+      try {
+        const products = normaliseShotProducts(shot);
+        const talentSelection = mapShotTalentToSelection(shot);
+        setEditingShot({
+          shot,
+          draft: {
+            name: shot.name || "",
+            description: shot.description || "",
+            type: shot.type || "",
+            date: toDateInputValue(shot.date),
+            locationId: shot.locationId || "",
+            talent: talentSelection,
+            products,
+          },
+        });
+      } catch (error) {
+        console.error("[Shots] Failed to prepare shot for editing", error);
+        toast.error("Unable to open shot editor");
+      }
+    },
+    [mapShotTalentToSelection, normaliseShotProducts]
+  );
+
+  const handleEditShot = useCallback(
+    (shot) => {
+      if (!canEditShots) return;
+      openShotEditor(shot);
+    },
+    [canEditShots, openShotEditor]
+  );
+
+  const updateEditingDraft = useCallback((patch) => {
+    setEditingShot((previous) => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        draft: {
+          ...previous.draft,
+          ...patch,
+        },
+      };
+    });
+  }, []);
+
+  const closeShotEditor = useCallback(() => {
+    setEditingShot(null);
+    setIsSavingShot(false);
+  }, []);
+
+  const handleSaveShot = useCallback(async () => {
+    if (!editingShot) return;
+    if (!canEditShots) {
+      toast.error("You do not have permission to edit shots.");
+      return;
+    }
+
+    setIsSavingShot(true);
+    try {
+      const parsed = shotDraftSchema.parse({
+        ...editingShot.draft,
+        locationId: editingShot.draft.locationId || "",
+      });
+      await updateShot(editingShot.shot, {
+        name: parsed.name,
+        description: parsed.description || "",
+        type: parsed.type || "",
+        date: parsed.date || "",
+        locationId: parsed.locationId || null,
+        talent: parsed.talent,
+        products: parsed.products,
+      });
+      toast.success(`Shot "${parsed.name}" updated.`);
+      setEditingShot(null);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const message = error.issues.map((issue) => issue.message).join("; ");
+        toast.error({ title: "Invalid shot details", description: message });
+      } else {
+        const { code, message } = describeFirebaseError(error, "Unable to update shot.");
+        toast.error({ title: "Failed to update shot", description: `${code}: ${message}` });
+      }
+      console.error("[Shots] Failed to save shot", error);
+    } finally {
+      setIsSavingShot(false);
+    }
+  }, [editingShot, canEditShots, updateShot]);
+
+  const selectPortalTarget =
+    typeof window === "undefined" ? undefined : window.document.body;
+  const filtersApplied = Boolean(
+    (filters.locationId && filters.locationId.length) ||
+      (Array.isArray(filters.talentIds) && filters.talentIds.length) ||
+      (Array.isArray(filters.productFamilyIds) && filters.productFamilyIds.length)
+  );
+  const isGalleryView = viewMode === "gallery";
+  const isListView = viewMode === "list";
+  const talentNoOptionsMessage =
+    talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available");
+
   return (
     <div className="space-y-6">
       <div className="sticky inset-x-0 top-14 z-20 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="flex-none text-2xl font-semibold text-slate-900">Shots</h1>
-          <Input
-            placeholder="Search shots by name, talent, product, or location..."
-            aria-label="Search shots"
-            value={queryText}
-            onChange={(event) => setQueryText(event.target.value)}
-            className="min-w-[200px] flex-1"
-          />
-          {canEditShots && (
-            <Button type="button" onClick={scrollToCreateShot} className="flex-none whitespace-nowrap">
-              New shot
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="flex-none text-2xl font-semibold text-slate-900">Shots</h1>
+            <Input
+              placeholder="Search shots by name, talent, product, or location..."
+              aria-label="Search shots"
+              value={queryText}
+              onChange={(event) => setQueryText(event.target.value)}
+              className="min-w-[200px] flex-1"
+            />
+            {canEditShots && (
+              <Button type="button" onClick={scrollToCreateShot} className="flex-none whitespace-nowrap">
+                New shot
+              </Button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">View</span>
+              <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => updateViewMode("gallery")}
+                  className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
+                    isGalleryView ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                  aria-pressed={isGalleryView}
+                >
+                  <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+                  Gallery
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateViewMode("list")}
+                  className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
+                    isListView ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                  aria-pressed={isListView}
+                >
+                  <List className="h-4 w-4" aria-hidden="true" />
+                  List
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+              Filters
+            </div>
+            <select
+              className="h-9 rounded-md border border-slate-200 px-3 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+              value={filters.locationId}
+              onChange={(event) => handleLocationFilterChange(event.target.value)}
+            >
+              <option value="">All locations</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
+            <div className="min-w-[200px] flex-1 sm:flex-none">
+              <Select
+                isMulti
+                classNamePrefix="filter-select"
+                styles={filterSelectStyles}
+                options={talentFilterOptions}
+                value={talentFilterValue}
+                onChange={handleTalentFilterChange}
+                placeholder={talentOptions.length ? "Filter talent" : "No talent available"}
+                isDisabled={!talentOptions.length}
+                noOptionsMessage={() =>
+                  talentOptions.length ? "No matching talent" : "No talent available"
+                }
+                menuPortalTarget={selectPortalTarget}
+                closeMenuOnSelect={false}
+              />
+            </div>
+            <div className="min-w-[200px] flex-1 sm:flex-none">
+              <Select
+                isMulti
+                classNamePrefix="filter-select"
+                styles={filterSelectStyles}
+                options={productFilterOptions}
+                value={productFilterValue}
+                onChange={handleProductFilterChange}
+                placeholder={productFilterOptions.length ? "Filter products" : "No products available"}
+                isDisabled={!productFilterOptions.length}
+                noOptionsMessage={() =>
+                  productFilterOptions.length ? "No matching products" : "No products available"
+                }
+                menuPortalTarget={selectPortalTarget}
+                closeMenuOnSelect={false}
+              />
+            </div>
+            <Button type="button" variant="ghost" size="sm" onClick={clearFilters} disabled={!filtersApplied}>
+              Clear
             </Button>
-          )}
+          </div>
         </div>
       </div>
       <p className="text-sm text-slate-600">
         Build and manage the shot list for the active project. Set the active project from the Dashboard.
       </p>
-      {/* Form to create a new shot */}
       {canEditShots ? (
         <div ref={createFormRef}>
           <Card>
-          <CardHeader>
-            <h2 className="text-lg font-semibold">Create New Shot</h2>
-          </CardHeader>
-          <CardContent>
-            <form className="space-y-4" onSubmit={handleCreateShot}>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Input
-                  placeholder="Name"
-                  value={draft.name}
-                  disabled={isCreatingShot}
-                  onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-                  ref={createNameInputRef}
-                  required
-                />
-                <Input
-                  placeholder="Type"
-                  value={draft.type}
-                  disabled={isCreatingShot}
-                  onChange={(event) => setDraft({ ...draft, type: event.target.value })}
-                />
-                <Input
-                  placeholder="Date (YYYY-MM-DD)"
-                  value={draft.date}
-                  type="date"
-                  disabled={isCreatingShot}
-                  onChange={(event) => setDraft({ ...draft, date: event.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Notes</label>
-                <NotesEditor
-                  value={draft.description}
-                  onChange={(next) => setDraft((prev) => ({ ...prev, description: next }))}
-                  disabled={isCreatingShot}
-                />
-                <p className="text-xs text-slate-500">Use bold, italics, or colour highlights to capture key reminders.</p>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Location</label>
-                <select
-                  className="w-full rounded border border-slate-200 p-2"
-                  value={draft.locationId}
-                  disabled={isCreatingShot}
-                  onChange={(event) => setDraft({ ...draft, locationId: event.target.value || "" })}
-                >
-                  <option value="">(none)</option>
-                  {locations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Products</label>
-                <ShotProductsEditor
-                  value={draft.products}
-                  onChange={(next) => setDraft((prev) => ({ ...prev, products: next }))}
-                  families={families}
-                  loadFamilyDetails={loadFamilyDetails}
-                  createProduct={buildShotProduct}
-                  emptyHint="No products selected"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Talent</label>
-                <TalentMultiSelect
-                  options={talentOptions}
-                  value={draft.talent}
-                  onChange={(next) => setDraft((prev) => ({ ...prev, talent: next }))}
-                  isDisabled={isCreatingShot}
-                  placeholder={talentLoadError ? "Talent unavailable" : "Select talent"}
-                  noOptionsMessage={
-                    talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available")
-                  }
-                />
-                {talentLoadError && (
-                  <p className="text-xs text-red-600">{talentLoadError}</p>
-                )}
-              </div>
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isCreatingShot}>
-                  {isCreatingShot ? "Saving…" : "Add Shot"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
-          You can browse shots but need producer or crew access to create or edit them.
-        </div>
-      )}
-      {/* List of existing shots */}
-      <div className="space-y-4">
-        {filteredShots.length === 0 ? (
-          <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
-            {shots.length
-              ? `No shots match "${queryText.trim()}".`
-              : "No shots have been added yet."}
-          </div>
-        ) : (
-          filteredShots.map((s) => {
-            const shotProducts = normaliseShotProducts(s);
-            const shotTalentSelection = Array.isArray(s.talent)
-              ? s.talent.map((entry) => {
-                const fallback = talentOptions.find((opt) => opt.talentId === entry.talentId);
-                return {
-                  talentId: entry.talentId,
-                  name: entry.name || fallback?.name || "Unnamed talent",
-                };
-              })
-            : Array.isArray(s.talentIds)
-            ? s.talentIds.map((id) => {
-                const fallback = talentOptions.find((opt) => opt.talentId === id);
-                return { talentId: id, name: fallback?.name || "Unnamed talent" };
-              })
-            : [];
-            const talentNoOptionsMessage =
-              talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available");
-          const notesHtml = formatNotesForDisplay(s.description);
-          return (
-            <Card key={s.id} className="border p-4">
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <h3 className="text-base font-semibold">{s.name}</h3>
-                <div className="space-x-2">
-                  {canEditShots && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        const newName = prompt("New name", s.name) || s.name;
-                        if (newName !== s.name) updateShot(s, { name: newName });
-                      }}
-                    >
-                      Rename
-                    </Button>
-                  )}
-                  {canEditShots && (
-                    <Button type="button" size="sm" variant="destructive" onClick={() => removeShot(s)}>
-                      Delete
-                    </Button>
-                  )}
-                </div>
-              </div>
+              <h2 className="text-lg font-semibold">Create New Shot</h2>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {notesHtml ? (
-                <div
-                  className="rounded-md bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-700"
-                  dangerouslySetInnerHTML={{ __html: notesHtml }}
-                />
-              ) : (
-                <p className="text-sm text-slate-400">No notes added yet.</p>
-              )}
-              {/* Inline editors for type and date */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-                <div>
-                  <label className="text-sm font-medium mb-1">Type</label>
-                  <input
-                    className="w-full border rounded p-2"
-                    type="text"
-                    value={s.type || ""}
-                    disabled={!canEditShots}
-                    onChange={(e) => updateShot(s, { type: e.target.value })}
+            <CardContent>
+              <form className="space-y-4" onSubmit={handleCreateShot}>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">Name</label>
+                    <Input
+                      placeholder="Name"
+                      value={draft.name}
+                      disabled={isCreatingShot}
+                      onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                      ref={createNameInputRef}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">Type</label>
+                    <Input
+                      placeholder="Type"
+                      value={draft.type}
+                      disabled={isCreatingShot}
+                      onChange={(event) => setDraft({ ...draft, type: event.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">Date</label>
+                    <Input
+                      placeholder="Date"
+                      value={draft.date}
+                      type="date"
+                      disabled={isCreatingShot}
+                      onChange={(event) => setDraft({ ...draft, date: event.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Notes</label>
+                  <NotesEditor
+                    value={draft.description}
+                    onChange={(next) => setDraft((prev) => ({ ...prev, description: next }))}
+                    disabled={isCreatingShot}
                   />
+                  <p className="text-xs text-slate-500">
+                    Use bold, italics, or colour highlights to capture key reminders.
+                  </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1">Date</label>
-                  <input
-                    className="w-full border rounded p-2"
-                    type="date"
-                    value={toDateInputValue(s.date)}
-                    disabled={!canEditShots}
-                    onChange={(e) => updateShot(s, { date: e.target.value })}
-                  />
-                </div>
-              </div>
-              {/* Quick editors for location, products, talent */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
-                <div>
-                  <label className="text-sm font-medium mb-1">Location</label>
+                  <label className="mb-1 block text-sm font-medium">Location</label>
                   <select
-                    className="w-full border rounded p-2"
-                    value={s.locationId || ""}
-                    disabled={!canEditShots}
-                    onChange={(e) => updateShot(s, { locationId: e.target.value || null })}
+                    className="w-full rounded-md border border-slate-200 p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                    value={draft.locationId}
+                    disabled={isCreatingShot}
+                    onChange={(event) => setDraft({ ...draft, locationId: event.target.value || "" })}
                   >
                     <option value="">(none)</option>
-                    {locations.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name}
+                    {locations.map((location) => (
+                      <option key={location.id} value={location.id}>
+                        {location.name}
                       </option>
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="text-sm font-medium mb-1">Products</label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {shotProducts.map((product) => {
-                      const sizeDescriptor =
-                        product.status === "pending-size"
-                          ? "size pending"
-                          : product.sizeScope === "all"
-                          ? "all sizes"
-                          : product.size
-                          ? product.size
-                          : "";
-                      const chipClass =
-                        product.status === "pending-size"
-                          ? "rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-800"
-                          : "rounded-full bg-slate-100 px-3 py-1 text-xs";
-                      return (
-                        <span key={product.id} className={chipClass}>
-                          {product.familyName}
-                          {product.colourName ? ` – ${product.colourName}` : ""}
-                          {sizeDescriptor ? ` (${sizeDescriptor})` : ""}
-                        </span>
-                      );
-                    })}
-                  {!shotProducts.length && (
-                    <span className="text-xs text-slate-500">No products linked</span>
-                  )}
-                  </div>
-                  {canEditShots && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      onClick={() =>
-                        setEditingShotProducts({
-                          shot: s,
-                          products: shotProducts,
-                        })
-                      }
-                    >
-                      Manage products
-                    </Button>
-                  )}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Products</label>
+                  <ShotProductsEditor
+                    value={draft.products}
+                    onChange={(next) => setDraft((prev) => ({ ...prev, products: next }))}
+                    families={families}
+                    loadFamilyDetails={loadFamilyDetails}
+                    createProduct={buildShotProduct}
+                    emptyHint="No products selected"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium mb-1">Talent</label>
+                  <label className="block text-sm font-medium">Talent</label>
                   <TalentMultiSelect
                     options={talentOptions}
-                    value={shotTalentSelection}
-                    isDisabled={!canEditShots}
-                    onChange={(next) => updateShot(s, { talent: next })}
+                    value={draft.talent}
+                    onChange={(next) => setDraft((prev) => ({ ...prev, talent: next }))}
+                    isDisabled={isCreatingShot}
                     placeholder={talentLoadError ? "Talent unavailable" : "Select talent"}
                     noOptionsMessage={talentNoOptionsMessage}
                   />
@@ -1083,69 +1327,405 @@ export default function ShotsPage() {
                     <p className="text-xs text-red-600">{talentLoadError}</p>
                   )}
                 </div>
-              </div>
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isCreatingShot}>
+                    {isCreatingShot ? "Saving…" : "Add Shot"}
+                  </Button>
+                </div>
+              </form>
             </CardContent>
-            </Card>
-          );
-          })
+          </Card>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+          You can browse shots but need producer or crew access to create or edit them.
+        </div>
+      )}
+      <div className="space-y-4">
+        {filteredShots.length === 0 ? (
+          <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+            {shots.length
+              ? "No shots match the current search or filters."
+              : "No shots have been added yet."}
+          </div>
+        ) : isGalleryView ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {filteredShots.map((shot) => {
+              const shotProducts = normaliseShotProducts(shot);
+              const shotTalentSelection = mapShotTalentToSelection(shot);
+              const notesHtml = formatNotesForDisplay(shot.description);
+              const locationName =
+                shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
+              return (
+                <ShotGalleryCard
+                  key={shot.id}
+                  shot={shot}
+                  locationName={locationName}
+                  products={shotProducts}
+                  talent={shotTalentSelection}
+                  notesHtml={notesHtml}
+                  canEditShots={canEditShots}
+                  onEdit={() => handleEditShot(shot)}
+                  onDelete={() => removeShot(shot)}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredShots.map((shot) => {
+              const shotProducts = normaliseShotProducts(shot);
+              const shotTalentSelection = mapShotTalentToSelection(shot);
+              const notesHtml = formatNotesForDisplay(shot.description);
+              const locationName =
+                shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
+              return (
+                <ShotListCard
+                  key={shot.id}
+                  shot={shot}
+                  locationName={locationName}
+                  products={shotProducts}
+                  talent={shotTalentSelection}
+                  notesHtml={notesHtml}
+                  canEditShots={canEditShots}
+                  onEdit={() => handleEditShot(shot)}
+                  onDelete={() => removeShot(shot)}
+                />
+              );
+            })}
+          </div>
         )}
       </div>
-      {canEditShots && editingShotProducts && (
+      {!canEditShots && (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+          Shot actions are read-only for your role.
+        </div>
+      )}
+      {canEditShots && editingShot && (
         <Modal
           open
-          onClose={() => setEditingShotProducts(null)}
-          labelledBy="manage-shot-products-title"
+          onClose={closeShotEditor}
+          labelledBy="edit-shot-modal-title"
           contentClassName="p-0 max-h-[90vh] overflow-hidden"
         >
           <Card className="border-0 shadow-none">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 id="manage-shot-products-title" className="text-lg font-semibold">
-                    Products for {editingShotProducts.shot.name}
+                  <h2 id="edit-shot-modal-title" className="text-lg font-semibold">
+                    Edit {editingShot.shot.name}
                   </h2>
-                  <p className="text-sm text-slate-500">Update colourways and sizes, then save to refresh the shot.</p>
+                  <p className="text-sm text-slate-500">
+                    Update shot details, linked products, and talent assignments.
+                  </p>
                 </div>
                 <button
                   type="button"
                   aria-label="Close"
-                  className="text-xl text-slate-400 hover:text-slate-600"
-                  onClick={() => setEditingShotProducts(null)}
+                  className="text-xl text-slate-400 transition hover:text-slate-600"
+                  onClick={closeShotEditor}
                 >
                   ×
                 </button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <ShotProductsEditor
-                value={editingShotProducts.products}
-                onChange={(next) =>
-                  setEditingShotProducts((prev) => ({ ...prev, products: next }))
-                }
-                families={families}
-                loadFamilyDetails={loadFamilyDetails}
-                createProduct={buildShotProduct}
-                emptyHint="No products linked"
-              />
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => setEditingShotProducts(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={async () => {
-                    await updateShot(editingShotProducts.shot, {
-                      products: editingShotProducts.products,
-                    });
-                    setEditingShotProducts(null);
-                  }}
-                >
-                  Save products
-                </Button>
-              </div>
+              <form
+                className="space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleSaveShot();
+                }}
+              >
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">Name</label>
+                    <Input
+                      value={editingShot.draft.name}
+                      onChange={(event) => updateEditingDraft({ name: event.target.value })}
+                      required
+                      disabled={isSavingShot}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">Type</label>
+                    <Input
+                      value={editingShot.draft.type}
+                      onChange={(event) => updateEditingDraft({ type: event.target.value })}
+                      disabled={isSavingShot}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">Date</label>
+                    <Input
+                      type="date"
+                      value={editingShot.draft.date || ""}
+                      onChange={(event) => updateEditingDraft({ date: event.target.value })}
+                      disabled={isSavingShot}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Notes</label>
+                  <NotesEditor
+                    value={editingShot.draft.description}
+                    onChange={(next) => updateEditingDraft({ description: next })}
+                    disabled={isSavingShot}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Location</label>
+                  <select
+                    className="w-full rounded-md border border-slate-200 p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                    value={editingShot.draft.locationId}
+                    disabled={isSavingShot}
+                    onChange={(event) => updateEditingDraft({ locationId: event.target.value || "" })}
+                  >
+                    <option value="">(none)</option>
+                    {locations.map((location) => (
+                      <option key={location.id} value={location.id}>
+                        {location.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Products</label>
+                  <ShotProductsEditor
+                    value={editingShot.draft.products}
+                    onChange={(next) => updateEditingDraft({ products: next })}
+                    families={families}
+                    loadFamilyDetails={loadFamilyDetails}
+                    createProduct={buildShotProduct}
+                    emptyHint="No products linked"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Talent</label>
+                  <TalentMultiSelect
+                    options={talentOptions}
+                    value={editingShot.draft.talent}
+                    onChange={(next) => updateEditingDraft({ talent: next })}
+                    isDisabled={isSavingShot}
+                    placeholder={talentLoadError ? "Talent unavailable" : "Select talent"}
+                    noOptionsMessage={talentNoOptionsMessage}
+                  />
+                  {talentLoadError && (
+                    <p className="text-xs text-red-600">{talentLoadError}</p>
+                  )}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="ghost" onClick={closeShotEditor}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSavingShot}>
+                    {isSavingShot ? "Saving…" : "Save changes"}
+                  </Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </Modal>
       )}
     </div>
+  );
+}
+
+
+function selectShotImage(products = []) {
+  for (const product of products) {
+    if (!product) continue;
+    if (product.thumbnailImagePath) return product.thumbnailImagePath;
+    if (Array.isArray(product.images)) {
+      const candidate = product.images.find(Boolean);
+      if (candidate) return candidate;
+    }
+    if (product.colourImagePath) return product.colourImagePath;
+  }
+  return null;
+}
+
+function ShotProductChips({ products }) {
+  if (!Array.isArray(products) || products.length === 0) {
+    return <p className="mt-1 text-xs text-slate-500">No products linked</p>;
+  }
+  return (
+    <div className="mt-1 flex flex-wrap gap-2">
+      {products.map((product, index) => {
+        if (!product) return null;
+        const sizeDescriptor =
+          product.status === "pending-size"
+            ? "size pending"
+            : product.sizeScope === "all"
+            ? "all sizes"
+            : product.size
+            ? product.size
+            : "";
+        const chipClass =
+          product.status === "pending-size"
+            ? "rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-800"
+            : "rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700";
+        const key =
+          product.id ||
+          `${product.familyId || "family"}-${product.colourId || "colour"}-${index}`;
+        return (
+          <span key={key} className={chipClass}>
+            {product.familyName}
+            {product.colourName ? ` – ${product.colourName}` : ""}
+            {sizeDescriptor ? ` (${sizeDescriptor})` : ""}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function ShotTalentList({ talent }) {
+  if (!Array.isArray(talent) || talent.length === 0) {
+    return <p className="mt-1 text-xs text-slate-500">No talent assigned</p>;
+  }
+  return (
+    <div className="mt-1 flex flex-wrap gap-2">
+      {talent.map((entry) => {
+        if (!entry) return null;
+        const key = entry.talentId || entry.name;
+        return (
+          <span key={key} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
+            {entry.name}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function ShotListCard({
+  shot,
+  locationName,
+  products,
+  talent,
+  notesHtml,
+  canEditShots,
+  onEdit,
+  onDelete,
+}) {
+  const formattedDate = toDateInputValue(shot.date);
+  return (
+    <Card className="border">
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-base font-semibold text-slate-900">{shot.name}</h3>
+            <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-500">
+              {formattedDate && <span>Date: {formattedDate}</span>}
+              {shot.type && <span>Type: {shot.type}</span>}
+              {locationName && <span>Location: {locationName}</span>}
+            </div>
+          </div>
+          {canEditShots && (
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="secondary" onClick={onEdit}>
+                Edit
+              </Button>
+              <Button type="button" size="sm" variant="destructive" onClick={onDelete}>
+                Delete
+              </Button>
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {notesHtml ? (
+          <div
+            className="rounded-md bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-700"
+            dangerouslySetInnerHTML={{ __html: notesHtml }}
+          />
+        ) : (
+          <p className="text-sm text-slate-400">No notes added yet.</p>
+        )}
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Products
+          </span>
+          <ShotProductChips products={products} />
+        </div>
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Talent
+          </span>
+          <ShotTalentList talent={talent} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ShotGalleryCard({
+  shot,
+  locationName,
+  products,
+  talent,
+  notesHtml,
+  canEditShots,
+  onEdit,
+  onDelete,
+}) {
+  const imagePath = useMemo(() => selectShotImage(products), [products]);
+  const imageUrl = useStorageImage(imagePath || null, { preferredSize: 640 });
+  const displayImage = imageUrl || imagePath;
+  const formattedDate = toDateInputValue(shot.date);
+  const plainNotes = notesHtml
+    ? notesHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+    : "";
+
+  return (
+    <Card className="overflow-hidden border">
+      <div className="relative h-48 bg-slate-100">
+        {displayImage ? (
+          <img src={displayImage} alt={`${shot.name} preview`} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
+            No preview available
+          </div>
+        )}
+        {canEditShots && (
+          <div className="absolute right-3 top-3 flex gap-2">
+            <Button type="button" size="sm" variant="secondary" onClick={onEdit}>
+              Edit
+            </Button>
+            <Button type="button" size="sm" variant="destructive" onClick={onDelete}>
+              Delete
+            </Button>
+          </div>
+        )}
+      </div>
+      <CardContent className="space-y-3 pt-4">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-base font-semibold text-slate-900">{shot.name}</h3>
+          {shot.type && <span className="text-xs uppercase tracking-wide text-primary">{shot.type}</span>}
+        </div>
+        <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+          {formattedDate && <span>{formattedDate}</span>}
+          {locationName && <span>{locationName}</span>}
+        </div>
+        {plainNotes ? (
+          <p className="text-sm text-slate-600">{plainNotes}</p>
+        ) : (
+          <p className="text-sm text-slate-400">No notes added yet.</p>
+        )}
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Products
+          </span>
+          <ShotProductChips products={products} />
+        </div>
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Talent
+          </span>
+          <ShotTalentList talent={talent} />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
