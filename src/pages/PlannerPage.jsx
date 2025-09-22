@@ -38,19 +38,30 @@ import {
   productFamiliesPath,
   productFamilySkusPath,
   productFamilyPath,
+  talentPath,
+  locationsPath,
 } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { canManagePlanner, canManageShots, ROLE, resolveEffectiveRole } from "../lib/rbac";
 import { Download, LayoutGrid, List, Settings2, PencilLine } from "lucide-react";
-import { formatNotesForDisplay } from "../lib/sanitize";
-import { Modal } from "../components/ui/modal";
+import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { Button } from "../components/ui/button";
-import ShotProductsEditor from "../components/shots/ShotProductsEditor";
-import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { toast } from "../lib/toast";
 import { useStorageImage } from "../hooks/useStorageImage";
 import PlannerSummary from "../components/planner/PlannerSummary";
 import PlannerExportModal from "../components/planner/PlannerExportModal";
+import ShotEditModal from "../components/shots/ShotEditModal";
+import { describeFirebaseError } from "../lib/firebaseErrors";
+import { writeDoc } from "../lib/firestoreWrites";
+import {
+  shotDraftSchema,
+  toDateInputValue,
+  parseDateToTimestamp,
+  mapProductForWrite,
+  extractProductIds,
+  mapTalentForWrite,
+} from "../lib/shotDraft";
+import { z } from "zod";
 
 const PLANNER_VIEW_STORAGE_KEY = "planner:viewMode";
 const PLANNER_FIELDS_STORAGE_KEY = "planner:visibleFields";
@@ -589,6 +600,9 @@ function PlannerPageContent() {
   const [name, setName] = useState("");
   const [shotsByLane, setShotsByLane] = useState({});
   const [families, setFamilies] = useState([]);
+  const [talent, setTalent] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [talentLoadError, setTalentLoadError] = useState(null);
   const [lanesLoading, setLanesLoading] = useState(true);
   const [shotsLoading, setShotsLoading] = useState(true);
   const [familiesLoading, setFamiliesLoading] = useState(true);
@@ -597,7 +611,8 @@ function PlannerPageContent() {
   const [exportOpen, setExportOpen] = useState(false);
   const [fieldSettingsOpen, setFieldSettingsOpen] = useState(false);
   const fieldSettingsRef = useRef(null);
-  const [activeShot, setActiveShot] = useState(null);
+  const [editingShot, setEditingShot] = useState(null);
+  const [isSavingShot, setIsSavingShot] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState(null);
   const familyDetailCacheRef = useRef(new Map());
   const pendingShotEditRef = useRef(null);
@@ -623,6 +638,8 @@ function PlannerPageContent() {
     () => productFamiliesPath(clientId),
     [clientId]
   );
+  const currentTalentPath = useMemo(() => talentPath(clientId), [clientId]);
+  const currentLocationsPath = useMemo(() => locationsPath(clientId), [clientId]);
   const productFamilySkusPathForClient = useCallback(
     (familyId) => productFamilySkusPath(familyId, clientId),
     [clientId]
@@ -641,6 +658,21 @@ function PlannerPageContent() {
     });
     return map;
   }, [families]);
+
+  const talentOptions = useMemo(
+    () =>
+      talent.map((entry) => {
+        const name =
+          entry?.name ||
+          [entry?.firstName, entry?.lastName].filter(Boolean).join(" ").trim() ||
+          "Unnamed talent";
+        return { talentId: entry.id, name };
+      }),
+    [talent]
+  );
+
+  const talentNoOptionsMessage =
+    talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available");
 
   useEffect(() => {
     familyDetailCacheRef.current.clear();
@@ -757,6 +789,53 @@ function PlannerPageContent() {
     currentProductFamiliesPath,
     handleSubscriptionError,
   ]);
+
+  useEffect(() => {
+    if (!clientId) {
+      setTalent([]);
+      setLocations([]);
+      setTalentLoadError(null);
+      return undefined;
+    }
+
+    const talentQuery = query(collection(db, ...currentTalentPath), orderBy("name", "asc"));
+    const locationsQuery = query(collection(db, ...currentLocationsPath), orderBy("name", "asc"));
+
+    const unsubTalent = onSnapshot(
+      talentQuery,
+      (snapshot) => {
+        setTalent(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })));
+        setTalentLoadError(null);
+      },
+      (error) => {
+        const { code, message } = describeFirebaseError(error, "Unable to load talent.");
+        setTalent([]);
+        setTalentLoadError(
+          code === "permission-denied"
+            ? "You don't have permission to load talent."
+            : message
+        );
+        toast.error({ title: "Failed to load talent", description: `${code}: ${message}` });
+      }
+    );
+
+    const unsubLocations = onSnapshot(
+      locationsQuery,
+      (snapshot) => {
+        setLocations(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })));
+      },
+      (error) => {
+        const { code, message } = describeFirebaseError(error, "Unable to load locations.");
+        setLocations([]);
+        toast.error({ title: "Failed to load locations", description: `${code}: ${message}` });
+      }
+    );
+
+    return () => {
+      unsubTalent();
+      unsubLocations();
+    };
+  }, [clientId, currentTalentPath, currentLocationsPath]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -911,18 +990,59 @@ function PlannerPageContent() {
     [familiesById, withDerivedProductFields]
   );
 
+  const mapShotTalentToSelection = useCallback(
+    (shot) => {
+      if (!shot) return [];
+      if (Array.isArray(shot.talent) && shot.talent.length) {
+        return shot.talent
+          .map((entry) => {
+            if (!entry || !entry.talentId) return null;
+            const fallback = talentOptions.find((opt) => opt.talentId === entry.talentId);
+            return {
+              talentId: entry.talentId,
+              name: entry.name || fallback?.name || "Unnamed talent",
+            };
+          })
+          .filter(Boolean);
+      }
+      if (Array.isArray(shot.talentIds) && shot.talentIds.length) {
+        return shot.talentIds
+          .map((id) => {
+            if (!id) return null;
+            const fallback = talentOptions.find((opt) => opt.talentId === id);
+            return { talentId: id, name: fallback?.name || "Unnamed talent" };
+          })
+          .filter(Boolean);
+      }
+      return [];
+    },
+    [talentOptions]
+  );
+
   const openShotEditor = useCallback(
     (shot) => {
       if (!shot) return;
       try {
         const products = normaliseShotProducts(shot);
-        setActiveShot({ shot, products });
+        const talentSelection = mapShotTalentToSelection(shot);
+        setEditingShot({
+          shot,
+          draft: {
+            name: shot.name || "",
+            description: shot.description || "",
+            type: shot.type || "",
+            date: toDateInputValue(shot.date),
+            locationId: shot.locationId || "",
+            talent: talentSelection,
+            products,
+          },
+        });
       } catch (error) {
         console.error("[Planner] Failed to prepare shot for editing", error);
         toast.error("Unable to open shot editor");
       }
     },
-    [normaliseShotProducts]
+    [mapShotTalentToSelection, normaliseShotProducts]
   );
 
   const handleOpenShotEdit = useCallback(
@@ -941,7 +1061,61 @@ function PlannerPageContent() {
     [canEditShots, isAuthLoading, openShotEditor]
   );
 
-  const closeShotEdit = useCallback(() => setActiveShot(null), []);
+  const updateEditingDraft = useCallback((patch) => {
+    setEditingShot((previous) => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        draft: {
+          ...previous.draft,
+          ...patch,
+        },
+      };
+    });
+  }, []);
+
+  const closeShotEditor = useCallback(() => {
+    setEditingShot(null);
+    setIsSavingShot(false);
+  }, []);
+
+  const handleSaveShot = useCallback(async () => {
+    if (!editingShot) return;
+    if (!canEditShots) {
+      toast.error("You do not have permission to edit shots.");
+      return;
+    }
+
+    setIsSavingShot(true);
+    try {
+      const parsed = shotDraftSchema.parse({
+        ...editingShot.draft,
+        locationId: editingShot.draft.locationId || "",
+      });
+      await updateShot(editingShot.shot, {
+        name: parsed.name,
+        description: parsed.description || "",
+        type: parsed.type || "",
+        date: parsed.date || "",
+        locationId: parsed.locationId || null,
+        talent: parsed.talent,
+        products: parsed.products,
+      });
+      toast.success(`Shot "${parsed.name}" updated.`);
+      setEditingShot(null);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const message = error.issues.map((issue) => issue.message).join("; ");
+        toast.error({ title: "Invalid shot details", description: message });
+      } else {
+        const { code, message } = describeFirebaseError(error, "Unable to update shot.");
+        toast.error({ title: "Failed to update shot", description: `${code}: ${message}` });
+      }
+      console.error("[Planner] Failed to save shot", error);
+    } finally {
+      setIsSavingShot(false);
+    }
+  }, [editingShot, canEditShots, updateShot]);
 
   useEffect(() => {
     if (canEditShots && pendingShotEditRef.current) {
@@ -954,10 +1128,11 @@ function PlannerPageContent() {
   }, [canEditShots, isAuthLoading, openShotEditor]);
 
   useEffect(() => {
-    if (!canEditShots && activeShot) {
-      setActiveShot(null);
+    if (!canEditShots && editingShot) {
+      setEditingShot(null);
+      setIsSavingShot(false);
     }
-  }, [canEditShots, activeShot]);
+  }, [canEditShots, editingShot]);
 
   const updateViewMode = useCallback(
     (nextMode) =>
@@ -1097,77 +1272,152 @@ function PlannerPageContent() {
     [familiesById, productFamilySkusPathForClient]
   );
 
-  const extractProductIds = useCallback((products = []) => {
+  const toFamilyIdSet = (source = {}) => {
     const ids = new Set();
-    products.forEach((product) => {
-      const id = product.familyId || product.productId || product.productIdRef;
-      if (id) ids.add(id);
-    });
-    return Array.from(ids);
-  }, []);
+    if (Array.isArray(source?.productIds)) {
+      source.productIds.forEach((id) => {
+        if (id) ids.add(id);
+      });
+    }
+    if (Array.isArray(source?.products)) {
+      source.products.forEach((item) => {
+        const id = item?.familyId || item?.productId;
+        if (id) ids.add(id);
+      });
+    }
+    return ids;
+  };
 
-  const prepareProductForWrite = useCallback((product) => {
-    const sizeScope =
-      product.sizeScope ||
-      (product.status === "pending-size" ? "pending" : product.size ? "single" : "all");
-    return {
-      productId: product.familyId || product.productId || "",
-      productName: (product.familyName || product.productName || "Product").trim(),
-      styleNumber: product.styleNumber || null,
-      colourId: product.colourId || null,
-      colourName: product.colourName || null,
-      colourImagePath: product.colourImagePath || null,
-      thumbnailImagePath: product.thumbnailImagePath || null,
-      size: product.size || null,
-      sizeScope,
-      status: product.status === "pending-size" ? "pending-size" : "complete",
-    };
-  }, []);
-
-  const updateProductIndexes = useCallback(
-    async (shotId, beforeProducts, afterProducts) => {
-      const beforeIds = new Set(extractProductIds(beforeProducts));
-      const afterIds = new Set(extractProductIds(afterProducts));
-      const adds = [...afterIds].filter((id) => !beforeIds.has(id));
-      const removals = [...beforeIds].filter((id) => !afterIds.has(id));
+  const updateReverseIndexes = useCallback(
+    async ({ shotId, before, after }) => {
+      const prevProductIds = toFamilyIdSet(before);
+      const nextProductIds = toFamilyIdSet(after);
+      const productAdds = [...nextProductIds].filter((id) => !prevProductIds.has(id));
+      const productRemovals = [...prevProductIds].filter((id) => !nextProductIds.has(id));
 
       await Promise.all(
-        adds.map((id) =>
+        productAdds.map((id) =>
           updateDoc(doc(db, ...productFamilyPathForClient(id)), {
             shotIds: arrayUnion(shotId),
           }).catch(() => {})
         )
       );
+
       await Promise.all(
-        removals.map((id) =>
+        productRemovals.map((id) =>
           updateDoc(doc(db, ...productFamilyPathForClient(id)), {
             shotIds: arrayRemove(shotId),
           }).catch(() => {})
         )
       );
+
+      const prevTalentIds = new Set(before.talentIds || []);
+      const nextTalentIds = new Set(after.talentIds || []);
+      const talentAdds = [...nextTalentIds].filter((id) => !prevTalentIds.has(id));
+      const talentRemovals = [...prevTalentIds].filter((id) => !nextTalentIds.has(id));
+
+      await Promise.all(
+        talentAdds.map((id) =>
+          updateDoc(doc(db, ...currentTalentPath, id), {
+            shotIds: arrayUnion(shotId),
+          }).catch(() => {})
+        )
+      );
+
+      await Promise.all(
+        talentRemovals.map((id) =>
+          updateDoc(doc(db, ...currentTalentPath, id), {
+            shotIds: arrayRemove(shotId),
+          }).catch(() => {})
+        )
+      );
+
+      const prevLocationId = before.locationId || null;
+      const nextLocationId = after.locationId || null;
+
+      if (prevLocationId && prevLocationId !== nextLocationId) {
+        await updateDoc(doc(db, ...currentLocationsPath, prevLocationId), {
+          shotIds: arrayRemove(shotId),
+        }).catch(() => {});
+      }
+
+      if (nextLocationId && prevLocationId !== nextLocationId) {
+        await updateDoc(doc(db, ...currentLocationsPath, nextLocationId), {
+          shotIds: arrayUnion(shotId),
+        }).catch(() => {});
+      }
     },
-    [extractProductIds, productFamilyPathForClient]
+    [productFamilyPathForClient, currentTalentPath, currentLocationsPath]
   );
 
-  const saveShotProducts = useCallback(
-    async (shot, products) => {
+  const updateShot = useCallback(
+    async (shot, patch) => {
       if (!canEditShots) return;
-      const docRef = doc(db, ...currentShotsPath, shot.id);
-      const nextProducts = Array.isArray(products) ? products : [];
-      const prepared = nextProducts.map((product) => prepareProductForWrite(product));
-      const nextProductIds = extractProductIds(prepared);
-      await updateDoc(docRef, {
-        products: prepared,
-        productIds: nextProductIds,
-        updatedAt: Date.now(),
-      });
-      await updateProductIndexes(
-        shot.id,
-        Array.isArray(shot.products) ? shot.products : [],
-        prepared
-      );
+
+      const before = {
+        productIds: shot.productIds || extractProductIds(shot.products),
+        products: shot.products || [],
+        talentIds: shot.talentIds || [],
+        locationId: shot.locationId || null,
+      };
+
+      const docPatch = { ...patch };
+
+      if (Object.prototype.hasOwnProperty.call(patch, "description")) {
+        docPatch.description = sanitizeNotesHtml(patch.description || "");
+      }
+
+      if (Object.prototype.hasOwnProperty.call(patch, "products") && patch.products != null) {
+        const productsForWrite = patch.products.map((product) => mapProductForWrite(product));
+        docPatch.products = productsForWrite;
+        docPatch.productIds = extractProductIds(productsForWrite);
+      }
+
+      if (Object.prototype.hasOwnProperty.call(patch, "date")) {
+        docPatch.date = patch.date ? parseDateToTimestamp(patch.date) : null;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(patch, "talent") && patch.talent != null) {
+        const talentForWrite = mapTalentForWrite(patch.talent);
+        docPatch.talent = talentForWrite;
+        docPatch.talentIds = talentForWrite.map((entry) => entry.talentId);
+      }
+
+      if (Object.prototype.hasOwnProperty.call(patch, "locationId")) {
+        const locationId = patch.locationId || null;
+        docPatch.locationId = locationId;
+        docPatch.locationName = locationId
+          ? locations.find((location) => location.id === locationId)?.name || null
+          : null;
+      }
+
+      const after = {
+        productIds: docPatch.productIds ?? before.productIds,
+        products: docPatch.products ?? before.products,
+        talentIds: docPatch.talentIds ?? before.talentIds,
+        locationId: docPatch.locationId ?? before.locationId,
+      };
+
+      try {
+        await writeDoc("update shot", () => updateDoc(doc(db, ...currentShotsPath, shot.id), docPatch));
+        await updateReverseIndexes({ shotId: shot.id, before, after });
+      } catch (error) {
+        const { code, message } = describeFirebaseError(error, "Unable to update shot.");
+        toast.error({ title: "Failed to update shot", description: `${code}: ${message}` });
+        throw error;
+      }
     },
-    [canEditShots, currentShotsPath, extractProductIds, prepareProductForWrite, updateProductIndexes]
+    [
+      canEditShots,
+      currentShotsPath,
+      locations,
+      updateReverseIndexes,
+      mapProductForWrite,
+      extractProductIds,
+      mapTalentForWrite,
+      sanitizeNotesHtml,
+      parseDateToTimestamp,
+    ]
   );
 
   // Prompt to rename a lane.  Empty input aborts the rename.
@@ -1381,66 +1631,27 @@ function PlannerPageContent() {
           drag existing shots into lanes once they appear here.
         </div>
       )}
-      {canEditShots && activeShot && (
-        <Modal
+      {canEditShots && editingShot && (
+        <ShotEditModal
           open
-          onClose={closeShotEdit}
-          labelledBy="planner-shot-edit-title"
-          contentClassName="p-0 max-h-[90vh] overflow-y-auto"
-        >
-          <Card className="border-0 shadow-none">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 id="planner-shot-edit-title" className="text-lg font-semibold">
-                    Edit products for {activeShot.shot.name}
-                  </h2>
-                  <p className="text-sm text-slate-500">
-                    Adjust linked colours and sizes, then save to update the shot.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Close"
-                  className="text-xl text-slate-400 hover:text-slate-600"
-                  onClick={closeShotEdit}
-                >
-                  ×
-                </button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ShotProductsEditor
-                value={activeShot.products}
-                onChange={(next) => setActiveShot((prev) => ({ ...prev, products: next }))}
-                families={families}
-                loadFamilyDetails={loadFamilyDetails}
-                createProduct={buildShotProduct}
-                emptyHint="No products linked"
-              />
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={closeShotEdit}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={async () => {
-                    try {
-                      await saveShotProducts(activeShot.shot, activeShot.products);
-                      toast.success("Shot products updated");
-                      closeShotEdit();
-                    } catch (error) {
-                      console.error("[Planner] Failed to update shot products", error);
-                      toast.error("Unable to save products");
-                    }
-                  }}
-                  disabled={!activeShot.products}
-                >
-                  Save changes
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </Modal>
+          titleId="planner-shot-edit-title"
+          shotName={editingShot.shot.name}
+          description="Update shot details, linked products, and talent assignments."
+          draft={editingShot.draft}
+          onChange={updateEditingDraft}
+          onClose={closeShotEditor}
+          onSubmit={handleSaveShot}
+          isSaving={isSavingShot}
+          families={families}
+          loadFamilyDetails={loadFamilyDetails}
+          createProduct={buildShotProduct}
+          allowProductCreation={false}
+          locations={locations}
+          talentOptions={talentOptions}
+          talentPlaceholder="Select talent"
+          talentNoOptionsMessage={talentNoOptionsMessage}
+          talentLoadError={talentLoadError}
+        />
       )}
       {!canEditPlanner && (
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
