@@ -59,6 +59,7 @@ import {
   extractProductIds,
   mapTalentForWrite,
 } from "../lib/shotDraft";
+import { readStorage, writeStorage } from "../lib/safeStorage";
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
@@ -102,15 +103,13 @@ const filterSelectStyles = {
 };
 
 const readStoredShotsView = () => {
-  if (typeof window === "undefined") return "gallery";
-  const stored = window.localStorage.getItem(SHOTS_VIEW_STORAGE_KEY);
+  const stored = readStorage(SHOTS_VIEW_STORAGE_KEY);
   return stored === "list" ? "list" : "gallery";
 };
 
 const readStoredShotFilters = () => {
-  if (typeof window === "undefined") return { ...defaultShotFilters };
   try {
-    const raw = window.localStorage.getItem(SHOTS_FILTERS_STORAGE_KEY);
+    const raw = readStorage(SHOTS_FILTERS_STORAGE_KEY);
     if (!raw) return { ...defaultShotFilters };
     const parsed = JSON.parse(raw);
     return {
@@ -293,13 +292,11 @@ export default function ShotsPage() {
   }, [shots, queryText, filters, talentOptions, locationById]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(SHOTS_VIEW_STORAGE_KEY, viewMode);
+    writeStorage(SHOTS_VIEW_STORAGE_KEY, viewMode);
   }, [viewMode]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(
+    writeStorage(
       SHOTS_FILTERS_STORAGE_KEY,
       JSON.stringify({
         locationId: filters.locationId || "",

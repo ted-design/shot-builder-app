@@ -15,14 +15,11 @@ import {
 import { auth, provider, db } from "../lib/firebase";
 import { CLIENT_ID } from "../lib/paths";
 import { normalizeRole } from "../lib/rbac";
+import { readStorage, removeStorage, writeStorage } from "../lib/safeStorage";
 
 const LAST_ROLE_STORAGE_KEY = "auth:last-known-role";
 
-const readStoredRole = () => {
-  if (typeof window === "undefined") return null;
-  const stored = window.localStorage.getItem(LAST_ROLE_STORAGE_KEY);
-  return normalizeRole(stored) || null;
-};
+const readStoredRole = () => normalizeRole(readStorage(LAST_ROLE_STORAGE_KEY)) || null;
 
 export const AuthContext = createContext({
   user: null,
@@ -68,11 +65,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
     if (role) {
-      window.localStorage.setItem(LAST_ROLE_STORAGE_KEY, role);
+      writeStorage(LAST_ROLE_STORAGE_KEY, role);
     } else {
-      window.localStorage.removeItem(LAST_ROLE_STORAGE_KEY);
+      removeStorage(LAST_ROLE_STORAGE_KEY);
     }
   }, [role]);
 

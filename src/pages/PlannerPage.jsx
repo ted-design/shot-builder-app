@@ -63,6 +63,7 @@ import {
   mapTalentForWrite,
 } from "../lib/shotDraft";
 import { z } from "zod";
+import { readStorage, writeStorage } from "../lib/safeStorage";
 
 const PLANNER_VIEW_STORAGE_KEY = "planner:viewMode";
 const PLANNER_FIELDS_STORAGE_KEY = "planner:visibleFields";
@@ -374,15 +375,13 @@ const calculateTalentSummaries = (lanesForExport) => {
 };
 
 const readStoredPlannerView = () => {
-  if (typeof window === "undefined") return "board";
-  const stored = window.localStorage.getItem(PLANNER_VIEW_STORAGE_KEY);
+  const stored = readStorage(PLANNER_VIEW_STORAGE_KEY);
   return stored === "list" ? "list" : "board";
 };
 
 const readStoredVisibleFields = () => {
-  if (typeof window === "undefined") return { ...defaultVisibleFields };
   try {
-    const raw = window.localStorage.getItem(PLANNER_FIELDS_STORAGE_KEY);
+    const raw = readStorage(PLANNER_FIELDS_STORAGE_KEY);
     if (!raw) return { ...defaultVisibleFields };
     const parsed = JSON.parse(raw);
     return {
@@ -921,16 +920,11 @@ function PlannerPageContent() {
   }, [clientId, currentTalentPath, currentLocationsPath]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(PLANNER_VIEW_STORAGE_KEY, viewMode);
+    writeStorage(PLANNER_VIEW_STORAGE_KEY, viewMode);
   }, [viewMode]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-      PLANNER_FIELDS_STORAGE_KEY,
-      JSON.stringify(visibleFields)
-    );
+    writeStorage(PLANNER_FIELDS_STORAGE_KEY, JSON.stringify(visibleFields));
   }, [visibleFields]);
 
   useEffect(() => {

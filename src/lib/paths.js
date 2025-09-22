@@ -1,5 +1,7 @@
 // src/lib/paths.js (global shots version)
 
+import { readStorage } from "./safeStorage";
+
 // Identifier for the client/tenant collection.  If you support multiple
 // organisations you can parameterise this as needed.  This constant is
 // referenced by various Firestore path helpers.
@@ -17,17 +19,11 @@ const resolveClientId = (explicitClientId) => explicitClientId ?? CLIENT_ID;
 const DEFAULT_PROJECT_ID = "default-project";
 
 export function getActiveProjectId() {
-  if (typeof window === "undefined") {
-    return DEFAULT_PROJECT_ID;
+  const stored = readStorage("ACTIVE_PROJECT_ID", DEFAULT_PROJECT_ID);
+  if (stored && typeof stored === "string") {
+    return stored;
   }
-
-  try {
-    const stored = window.localStorage?.getItem("ACTIVE_PROJECT_ID");
-    return stored || DEFAULT_PROJECT_ID;
-  } catch (error) {
-    console.warn("[paths] Unable to read ACTIVE_PROJECT_ID from storage", error);
-    return DEFAULT_PROJECT_ID;
-  }
+  return DEFAULT_PROJECT_ID;
 }
 
 // -----------------------------------------------------------------------------
