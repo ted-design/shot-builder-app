@@ -138,8 +138,15 @@ export default function ProjectsPage() {
     }
   };
   const setActive = (id) => {
-    localStorage.setItem("ACTIVE_PROJECT_ID", id);
-    alert(`Active project set to ${id}. Planner/Shots will use this.`);
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem("ACTIVE_PROJECT_ID", id);
+      }
+      alert(`Active project set to ${id}. Planner/Shots will use this.`);
+    } catch (error) {
+      console.error("Failed to persist active project", error);
+      alert("We couldn't save the active project selection. Try again.");
+    }
   };
   const remove = async (p) => {
     if (!canDelete) {

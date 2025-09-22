@@ -14,8 +14,20 @@ const resolveClientId = (explicitClientId) => explicitClientId ?? CLIENT_ID;
  * Active” in the Projects page) without requiring a full reload of the
  * module.
  */
+const DEFAULT_PROJECT_ID = "default-project";
+
 export function getActiveProjectId() {
-  return localStorage.getItem("ACTIVE_PROJECT_ID") || "default-project";
+  if (typeof window === "undefined") {
+    return DEFAULT_PROJECT_ID;
+  }
+
+  try {
+    const stored = window.localStorage?.getItem("ACTIVE_PROJECT_ID");
+    return stored || DEFAULT_PROJECT_ID;
+  } catch (error) {
+    console.warn("[paths] Unable to read ACTIVE_PROJECT_ID from storage", error);
+    return DEFAULT_PROJECT_ID;
+  }
 }
 
 // -----------------------------------------------------------------------------
