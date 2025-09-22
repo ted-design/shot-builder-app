@@ -176,7 +176,7 @@ describe("ProductsPage", () => {
       expect(readOrder()).toEqual(["Alpha Jacket", "Bravo Coat"]);
     });
 
-    const sortSelect = screen.getByLabelText("Sort products");
+    const sortSelect = screen.getByLabelText(/Sort/i);
 
     fireEvent.change(sortSelect, { target: { value: "styleNameDesc" } });
     await waitFor(() => {
