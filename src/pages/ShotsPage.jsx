@@ -802,7 +802,7 @@ export default function ShotsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="sticky inset-x-0 top-0 z-30 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
+      <div className="sticky inset-x-0 top-14 z-20 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="flex-none text-2xl font-semibold text-slate-900">Shots</h1>
           <Input
