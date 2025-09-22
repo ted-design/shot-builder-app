@@ -1173,7 +1173,7 @@ function PlannerPageContent() {
           open
           onClose={closeShotEdit}
           labelledBy="planner-shot-edit-title"
-          contentClassName="p-0 max-h-[90vh] overflow-hidden"
+          contentClassName="p-0 max-h-[90vh] overflow-y-auto"
         >
           <Card className="border-0 shadow-none">
             <CardHeader>
