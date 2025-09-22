@@ -15,6 +15,7 @@ import { useFirestoreCollection } from "../hooks/useFirestoreCollection";
 import { CLIENT_ID } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { canManageProjects, ROLE } from "../lib/rbac";
+import { readStorage, writeStorage } from "../lib/safeStorage";
 
 // Import the shared UI primitives.  These provide consistent styling
 // out of the box using your Tailwind palette and spacing tokens.
@@ -36,6 +37,7 @@ export default function ProjectsPage() {
     useFirestoreCollection(projectsRef, [orderBy("createdAt", "desc")]);
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManageProjects(role);
+  const activeProjectId = readStorage("ACTIVE_PROJECT_ID");
   const canDelete = role === ROLE.ADMIN;
 
   // Derive a sorted list based on earliest shoot date so that upcoming shoots
@@ -138,13 +140,10 @@ export default function ProjectsPage() {
     }
   };
   const setActive = (id) => {
-    try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        window.localStorage.setItem("ACTIVE_PROJECT_ID", id);
-      }
+    const stored = writeStorage("ACTIVE_PROJECT_ID", id);
+    if (stored) {
       alert(`Active project set to ${id}. Planner/Shots will use this.`);
-    } catch (error) {
-      console.error("Failed to persist active project", error);
+    } else {
       alert("We couldn't save the active project selection. Try again.");
     }
   };
@@ -218,8 +217,7 @@ export default function ProjectsPage() {
       {/* Project list */}
       <div className="grid gap-4">
         {items.map((p) => {
-          const activeId = typeof window !== "undefined" ? localStorage.getItem("ACTIVE_PROJECT_ID") : null;
-          const active = activeId === p.id;
+          const active = activeProjectId === p.id;
           const created = formatDate(p.createdAt);
           const updated = formatDate(p.updatedAt);
           return (

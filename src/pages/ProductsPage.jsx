@@ -30,6 +30,7 @@ import { ROLE, canArchiveProducts, canDeleteProducts, canEditProducts } from "..
 import Modal from "../components/ui/modal";
 import { toast } from "../lib/toast";
 import { buildSkuAggregates, createProductFamily, genderLabel } from "../lib/productMutations";
+import { readStorage, writeStorage } from "../lib/safeStorage";
 
 const statusLabel = (status) => {
   if (status === "discontinued") return "Discontinued";
@@ -95,15 +96,13 @@ const chunkArray = (items, size) => {
 const normaliseText = (value) => (value || "").toString().trim().toLowerCase();
 
 const readStoredViewMode = () => {
-  if (typeof window === "undefined") return "gallery";
-  const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
+  const stored = readStorage(VIEW_STORAGE_KEY);
   return stored === "list" ? "list" : "gallery";
 };
 
 const readStoredColumns = () => {
-  if (typeof window === "undefined") return { ...defaultListColumns };
   try {
-    const raw = window.localStorage.getItem(COLUMN_STORAGE_KEY);
+    const raw = readStorage(COLUMN_STORAGE_KEY);
     if (!raw) return { ...defaultListColumns };
     const parsed = JSON.parse(raw);
     return {
@@ -305,13 +304,11 @@ export default function ProductsPage() {
   }, [menuFamilyId]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(VIEW_STORAGE_KEY, viewMode);
+    writeStorage(VIEW_STORAGE_KEY, viewMode);
   }, [viewMode]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(listColumns));
+    writeStorage(COLUMN_STORAGE_KEY, JSON.stringify(listColumns));
   }, [listColumns]);
 
   useEffect(() => {
