@@ -10,15 +10,16 @@ import {
   query,
   setDoc,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
+import { Input, Checkbox } from "../components/ui/input";
 import NewProductModal from "../components/products/NewProductModal";
 import EditProductModal from "../components/products/EditProductModal";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import { useStorageImage } from "../hooks/useStorageImage";
-import { LayoutGrid, List as ListIcon, MoreVertical } from "lucide-react";
+import { LayoutGrid, List as ListIcon, MoreVertical, Archive, Trash2, Type } from "lucide-react";
 import {
   productFamiliesPath,
   productFamilyPath,
@@ -27,6 +28,8 @@ import {
 } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { ROLE, canArchiveProducts, canDeleteProducts, canEditProducts } from "../lib/rbac";
+import Modal from "../components/ui/modal";
+import { toast } from "../lib/toast";
 
 const genderLabel = (value) => {
   switch ((value || "").toLowerCase()) {
@@ -66,6 +69,13 @@ const defaultListColumns = {
   sizes: false,
 };
 
+const SORT_OPTIONS = [
+  { value: "styleNameAsc", label: "Style name (A→Z)" },
+  { value: "styleNameDesc", label: "Style name (Z→A)" },
+  { value: "styleNumberAsc", label: "Style number (low→high)" },
+  { value: "styleNumberDesc", label: "Style number (high→low)" },
+];
+
 const twoLineClampStyle = {
   display: "-webkit-box",
   WebkitLineClamp: 2,
@@ -89,6 +99,17 @@ const buildFamilyMeta = (family) => {
     sizesLabel: sizeList.join(", "),
   };
 };
+
+const chunkArray = (items, size) => {
+  if (size <= 0) return [items];
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+};
+
+const normaliseText = (value) => (value || "").toString().trim().toLowerCase();
 
 const readStoredViewMode = () => {
   if (typeof window === "undefined") return "gallery";
@@ -284,9 +305,18 @@ export default function ProductsPage() {
   const [viewMode, setViewMode] = useState(() => readStoredViewMode());
   const [listColumns, setListColumns] = useState(() => readStoredColumns());
   const [listSettingsOpen, setListSettingsOpen] = useState(false);
+  const [sortOrder, setSortOrder] = useState("styleNameAsc");
+  const [selectedFamilyIds, setSelectedFamilyIds] = useState(() => new Set());
+  const [batchStyleModalOpen, setBatchStyleModalOpen] = useState(false);
+  const [batchStyleDraft, setBatchStyleDraft] = useState([]);
+  const [batchWorking, setBatchWorking] = useState(false);
   const menuRef = useRef(null);
   const listSettingsRef = useRef(null);
   const skuCacheRef = useRef(new Map());
+  const batchFirstFieldRef = useRef(null);
+  const selectAllRef = useRef(null);
+
+  const canUseBatchActions = canEdit || canArchive || canDelete;
 
   useEffect(() => {
     const familiesQuery = query(collection(db, ...currentProductFamiliesPath), orderBy("styleName", "asc"));
@@ -357,11 +387,96 @@ export default function ProductsPage() {
     });
   }, [families, queryText, statusFilter, genderFilter, showArchived]);
 
+  const sortedFamilies = useMemo(() => {
+    const list = [...filteredFamilies];
+    const compareStyleName = (a, b) => {
+      const left = normaliseText(a.styleName);
+      const right = normaliseText(b.styleName);
+      const result = left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+      if (result !== 0) return result;
+      return (a.id || "").localeCompare(b.id || "");
+    };
+    const compareStyleNumber = (a, b) => {
+      const left = normaliseText(a.styleNumber);
+      const right = normaliseText(b.styleNumber);
+      if (!left && !right) return compareStyleName(a, b);
+      if (!left) return 1;
+      if (!right) return -1;
+      const result = left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+      if (result !== 0) return result;
+      return compareStyleName(a, b);
+    };
+
+    switch (sortOrder) {
+      case "styleNameDesc":
+        list.sort((a, b) => compareStyleName(b, a));
+        break;
+      case "styleNumberAsc":
+        list.sort(compareStyleNumber);
+        break;
+      case "styleNumberDesc":
+        list.sort((a, b) => compareStyleNumber(b, a));
+        break;
+      default:
+        list.sort(compareStyleName);
+        break;
+    }
+    return list;
+  }, [filteredFamilies, sortOrder]);
+
   const genders = useMemo(() => {
     const set = new Set();
     families.forEach((family) => family.gender && set.add(family.gender.toLowerCase()));
     return Array.from(set);
   }, [families]);
+
+  const familyMap = useMemo(() => {
+    const map = new Map();
+    families.forEach((family) => {
+      map.set(family.id, family);
+    });
+    return map;
+  }, [families]);
+
+  const selectedFamilies = useMemo(
+    () => sortedFamilies.filter((family) => selectedFamilyIds.has(family.id)),
+    [sortedFamilies, selectedFamilyIds]
+  );
+  const selectedCount = selectedFamilies.length;
+  const allVisibleSelected =
+    sortedFamilies.length > 0 && sortedFamilies.every((family) => selectedFamilyIds.has(family.id));
+  const hasActiveSelected = selectedFamilies.some((family) => !family.archived);
+  const hasArchivedSelected = selectedFamilies.some((family) => family.archived);
+
+  useEffect(() => {
+    if (!selectAllRef.current) return;
+    selectAllRef.current.indeterminate = !allVisibleSelected && selectedCount > 0;
+  }, [allVisibleSelected, selectedCount]);
+
+  useEffect(() => {
+    setSelectedFamilyIds((prev) => {
+      if (!prev.size) return prev;
+      const visible = new Set(sortedFamilies.map((family) => family.id));
+      let changed = false;
+      const next = new Set();
+      prev.forEach((id) => {
+        if (visible.has(id)) {
+          next.add(id);
+        } else {
+          changed = true;
+        }
+      });
+      if (!changed && next.size === prev.size) return prev;
+      return next;
+    });
+  }, [sortedFamilies]);
+
+  useEffect(() => {
+    if (!batchStyleModalOpen) return;
+    if (!selectedCount) {
+      setBatchStyleModalOpen(false);
+    }
+  }, [batchStyleModalOpen, selectedCount]);
 
   const closeModals = () => {
     setNewModalOpen(false);
@@ -369,6 +484,73 @@ export default function ProductsPage() {
     setEditFamily(null);
     skuCacheRef.current = new Map();
   };
+
+  const clearSelection = useCallback(() => setSelectedFamilyIds(new Set()), []);
+
+  const toggleFamilySelection = useCallback(
+    (familyId, nextValue) => {
+      if (!canUseBatchActions || batchWorking) return;
+      setSelectedFamilyIds((prev) => {
+        const currentlySelected = prev.has(familyId);
+        const shouldSelect = typeof nextValue === "boolean" ? nextValue : !currentlySelected;
+        if (currentlySelected === shouldSelect) return prev;
+        const next = new Set(prev);
+        if (shouldSelect) {
+          next.add(familyId);
+        } else {
+          next.delete(familyId);
+        }
+        return next;
+      });
+    },
+    [batchWorking, canUseBatchActions]
+  );
+
+  const handleSelectAllChange = useCallback(
+    (event) => {
+      if (batchWorking) return;
+      const { checked } = event.target;
+      setSelectedFamilyIds((prev) => {
+        if (checked) {
+          const next = new Set(prev);
+          sortedFamilies.forEach((family) => next.add(family.id));
+          if (next.size === prev.size) return prev;
+          return next;
+        }
+        if (!prev.size) return prev;
+        const next = new Set(prev);
+        let changed = false;
+        sortedFamilies.forEach((family) => {
+          if (next.delete(family.id)) changed = true;
+        });
+        return changed ? next : prev;
+      });
+    },
+    [batchWorking, sortedFamilies]
+  );
+
+  const runBatchedWrites = useCallback(async (operations) => {
+    if (!operations.length) return;
+    for (const chunk of chunkArray(operations, 200)) {
+      const batch = writeBatch(db);
+      chunk.forEach((operation) => {
+        switch (operation.type) {
+          case "update":
+            batch.update(operation.ref, operation.data);
+            break;
+          case "delete":
+            batch.delete(operation.ref);
+            break;
+          case "set":
+            batch.set(operation.ref, operation.data, operation.options);
+            break;
+          default:
+            break;
+        }
+      });
+      await batch.commit();
+    }
+  }, []);
 
   const handleCreateFamily = useCallback(
     async (payload) => {
@@ -690,6 +872,176 @@ export default function ProductsPage() {
     await deleteDoc(doc(db, ...productFamilyPathForClient(family.id)));
   };
 
+  const handleBatchArchive = async () => {
+    if (!canArchive || !selectedFamilies.length) return;
+    const toArchive = selectedFamilies.filter((family) => !family.archived);
+    if (!toArchive.length) {
+      toast.info("Selected products are already archived.");
+      return;
+    }
+    setBatchWorking(true);
+    try {
+      const now = Date.now();
+      const operations = toArchive.map((family) => ({
+        type: "update",
+        ref: doc(db, ...productFamilyPathForClient(family.id)),
+        data: {
+          archived: true,
+          updatedAt: now,
+          updatedBy: user?.uid || null,
+        },
+      }));
+      await runBatchedWrites(operations);
+      toast.success(`Archived ${toArchive.length} product ${toArchive.length === 1 ? "family" : "families"}.`);
+      clearSelection();
+    } catch (error) {
+      console.error("[Products] Batch archive failed", error);
+      toast.error({ title: "Archive failed", description: error?.message || "Unable to archive selection." });
+    } finally {
+      setBatchWorking(false);
+    }
+  };
+
+  const handleBatchRestore = async () => {
+    if (!canArchive || !selectedFamilies.length) return;
+    const toRestore = selectedFamilies.filter((family) => family.archived);
+    if (!toRestore.length) {
+      toast.info("Selected products are not archived.");
+      return;
+    }
+    setBatchWorking(true);
+    try {
+      const now = Date.now();
+      const operations = toRestore.map((family) => ({
+        type: "update",
+        ref: doc(db, ...productFamilyPathForClient(family.id)),
+        data: {
+          archived: false,
+          updatedAt: now,
+          updatedBy: user?.uid || null,
+        },
+      }));
+      await runBatchedWrites(operations);
+      toast.success(`Restored ${toRestore.length} product ${toRestore.length === 1 ? "family" : "families"}.`);
+      clearSelection();
+    } catch (error) {
+      console.error("[Products] Batch restore failed", error);
+      toast.error({ title: "Restore failed", description: error?.message || "Unable to restore selection." });
+    } finally {
+      setBatchWorking(false);
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (!canDelete || !selectedFamilies.length) return;
+    const count = selectedFamilies.length;
+    const confirmed = window.confirm(
+      `Delete ${count} product ${count === 1 ? "family" : "families"}? This removes all SKUs and images.`
+    );
+    if (!confirmed) return;
+
+    setBatchWorking(true);
+    try {
+      const operations = [];
+      const imagePaths = [];
+      for (const family of selectedFamilies) {
+        const latest = familyMap.get(family.id) || family;
+        const skuSnapshot = await getDocs(
+          collection(db, ...productFamilySkusPathForClient(family.id))
+        );
+        skuSnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data.imagePath) {
+            imagePaths.push(data.imagePath);
+          }
+          operations.push({
+            type: "delete",
+            ref: doc(db, ...productFamilySkuPathForClient(family.id, docSnap.id)),
+          });
+        });
+        if (latest.headerImagePath) imagePaths.push(latest.headerImagePath);
+        if (latest.thumbnailImagePath) imagePaths.push(latest.thumbnailImagePath);
+        operations.push({ type: "delete", ref: doc(db, ...productFamilyPathForClient(family.id)) });
+      }
+
+      await runBatchedWrites(operations);
+      await Promise.all(imagePaths.map((path) => deleteImageByPath(path).catch(() => {})));
+      toast.success(`Deleted ${count} product ${count === 1 ? "family" : "families"}.`);
+      clearSelection();
+    } catch (error) {
+      console.error("[Products] Batch delete failed", error);
+      toast.error({ title: "Delete failed", description: error?.message || "Unable to delete selection." });
+    } finally {
+      setBatchWorking(false);
+    }
+  };
+
+  const openBatchStyleNumberModal = () => {
+    if (!canEdit || !selectedFamilies.length) return;
+    const draft = selectedFamilies.map((family) => ({
+      id: family.id,
+      styleName: family.styleName || "Untitled product",
+      currentStyleNumber: family.styleNumber || "",
+      nextStyleNumber: family.styleNumber || "",
+    }));
+    setBatchStyleDraft(draft);
+    setBatchStyleModalOpen(true);
+  };
+
+  const handleBatchStyleDraftChange = (familyId, value) => {
+    setBatchStyleDraft((prev) =>
+      prev.map((entry) => (entry.id === familyId ? { ...entry, nextStyleNumber: value } : entry))
+    );
+  };
+
+  const closeBatchStyleModal = () => {
+    if (batchWorking) return;
+    setBatchStyleModalOpen(false);
+  };
+
+  const handleBatchStyleSubmit = async (event) => {
+    event.preventDefault();
+    if (!canEdit) return;
+    const updates = batchStyleDraft
+      .map((entry) => ({
+        id: entry.id,
+        value: entry.nextStyleNumber.trim(),
+        current: entry.currentStyleNumber.trim(),
+      }))
+      .filter((entry) => entry.value !== entry.current);
+    if (!updates.length) {
+      toast.info("No style number changes to save.");
+      setBatchStyleModalOpen(false);
+      return;
+    }
+
+    setBatchWorking(true);
+    try {
+      const now = Date.now();
+      const operations = updates.map((entry) => ({
+        type: "update",
+        ref: doc(db, ...productFamilyPathForClient(entry.id)),
+        data: {
+          styleNumber: entry.value || null,
+          updatedAt: now,
+          updatedBy: user?.uid || null,
+        },
+      }));
+      await runBatchedWrites(operations);
+      toast.success(`Updated style numbers for ${updates.length} product ${updates.length === 1 ? "family" : "families"}.`);
+      setBatchStyleModalOpen(false);
+      clearSelection();
+    } catch (error) {
+      console.error("[Products] Batch style number update failed", error);
+      toast.error({
+        title: "Update failed",
+        description: error?.message || "Unable to update style numbers.",
+      });
+    } finally {
+      setBatchWorking(false);
+    }
+  };
+
   const startRename = (family) => {
     setRenameState({ id: family.id, value: family.styleName || "", saving: false, error: null });
   };
@@ -766,17 +1118,31 @@ export default function ProductsPage() {
     const { displayImagePath, colourList, coloursLabel, sizeList, sizesLabel } = buildFamilyMeta(
       family
     );
+    const isSelected = selectedFamilyIds.has(family.id);
+    const cardClasses = `relative flex h-full flex-col overflow-visible ${
+      canEdit ? "cursor-pointer" : ""
+    } ${isSelected ? "ring-2 ring-primary/60" : ""}`.trim();
 
     return (
       <Card
         key={family.id}
-        className={`relative flex h-full flex-col overflow-visible ${
-          canEdit ? "cursor-pointer" : ""
-        }`.trim()}
+        className={cardClasses}
         onClick={openFromCard}
       >
         <CardContent className="flex h-full flex-col gap-4 p-4">
           <div className="relative" ref={family.id === menuFamilyId ? menuRef : null}>
+            {canUseBatchActions && (
+              <div className="absolute left-2 top-2 z-20 rounded-md bg-white/90 px-2 py-1 shadow-sm">
+                <Checkbox
+                  checked={isSelected}
+                  onChange={(event) => {
+                    event.stopPropagation();
+                    toggleFamilySelection(family.id, event.target.checked);
+                  }}
+                  aria-label={`Select ${family.styleName || "product"}`}
+                />
+              </div>
+            )}
             <FamilyHeaderImage path={displayImagePath} alt={family.styleName} />
             {(canEdit || canArchive || canDelete) && (
               <Button
@@ -922,9 +1288,22 @@ export default function ProductsPage() {
     const hasMoreColours = colourList.length > 4;
     const joinedSizes = sizeList.slice(0, 6).join(", ");
     const hasMoreSizes = sizeList.length > 6;
+    const isSelected = selectedFamilyIds.has(family.id);
+    const rowClassName = `odd:bg-white even:bg-slate-50/40 hover:bg-slate-100 ${
+      isSelected ? "bg-primary/5" : ""
+    }`.trim();
 
     return (
-      <tr key={family.id} className="odd:bg-white even:bg-slate-50/40 hover:bg-slate-100">
+      <tr key={family.id} className={rowClassName}>
+        {canUseBatchActions && (
+          <td className="px-4 py-3 align-top">
+            <Checkbox
+              checked={isSelected}
+              onChange={(event) => toggleFamilySelection(family.id, event.target.checked)}
+              aria-label={`Select ${family.styleName || "product"}`}
+            />
+          </td>
+        )}
         <td className="px-4 py-3 align-top">
           <FamilyHeaderImage
             path={displayImagePath}
@@ -943,11 +1322,17 @@ export default function ProductsPage() {
                   onClick={handleManageColours}
                   className="cursor-pointer text-left text-base font-semibold text-slate-800 transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                   title={family.styleName}
+                  data-testid={`style-name-${family.id}`}
                 >
                   <span style={twoLineClampStyle}>{family.styleName}</span>
                 </button>
               ) : (
-                <span className="block text-base font-semibold text-slate-800" title={family.styleName} style={twoLineClampStyle}>
+                <span
+                  className="block text-base font-semibold text-slate-800"
+                  title={family.styleName}
+                  style={twoLineClampStyle}
+                  data-testid={`style-name-${family.id}`}
+                >
                   {family.styleName}
                 </span>
               )}
@@ -1053,7 +1438,7 @@ export default function ProductsPage() {
   };
 
   const renderListView = () => {
-    if (!filteredFamilies.length) {
+    if (!sortedFamilies.length) {
       return (
         <Card>
           <CardContent className="p-6 text-center text-sm text-slate-500">
@@ -1069,6 +1454,19 @@ export default function ProductsPage() {
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <tr>
+                  {canUseBatchActions && (
+                    <th scope="col" className="px-4 py-3">
+                      <span className="sr-only">Select rows</span>
+                      <input
+                        ref={selectAllRef}
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        checked={allVisibleSelected}
+                        onChange={handleSelectAllChange}
+                        aria-label="Select all visible product families"
+                      />
+                    </th>
+                  )}
                   <th scope="col" className="px-4 py-3">Preview</th>
                   <th scope="col" className="px-4 py-3">Style name</th>
                   {showStyleNumberColumn && (
@@ -1084,7 +1482,7 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
-                {filteredFamilies.map((family) => renderFamilyRow(family))}
+                {sortedFamilies.map((family) => renderFamilyRow(family))}
               </tbody>
             </table>
           </div>
@@ -1105,8 +1503,8 @@ export default function ProductsPage() {
           <span>Create product</span>
         </button>
       )}
-      {filteredFamilies.map((family) => renderFamilyCard(family))}
-      {!loading && !filteredFamilies.length && (
+      {sortedFamilies.map((family) => renderFamilyCard(family))}
+      {!loading && !sortedFamilies.length && (
         <Card>
           <CardContent className="p-6 text-center text-sm text-slate-500">
             No products match the current filters.
@@ -1120,29 +1518,127 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
+      <div className="sticky top-14 z-20 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-2xl font-semibold text-slate-900">Products</h1>
-          <p className="text-sm text-slate-600">
-            Product families group shared metadata, while SKUs capture individual colour and size combinations.
-          </p>
-          <p className="text-xs text-slate-500">{recommendedImageText}</p>
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 lg:w-auto">
+            <Input
+              placeholder="Search by style, number, colour, or SKU..."
+              aria-label="Search products"
+              value={queryText}
+              onChange={(event) => setQueryText(event.target.value)}
+              className="w-full sm:w-64 lg:w-80"
+            />
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Sort
+                </span>
+                <select
+                  className="w-full rounded border border-slate-300 px-3 py-2 text-sm sm:w-52"
+                  value={sortOrder}
+                  onChange={(event) => setSortOrder(event.target.value)}
+                  aria-label="Sort products"
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {canEdit && (
+                <Button onClick={() => setNewModalOpen(true)} className="w-full sm:w-auto">
+                  New product
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
-        {canEdit && (
-          <Button onClick={() => setNewModalOpen(true)}>New product</Button>
-        )}
+      </div>
+
+      {canUseBatchActions && selectedCount > 0 && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm font-medium text-slate-700">
+              {selectedCount} selected
+              {sortedFamilies.length > selectedCount
+                ? ` of ${sortedFamilies.length} visible`
+                : ""}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {canArchive && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="flex items-center gap-2"
+                  onClick={handleBatchArchive}
+                  disabled={batchWorking || !hasActiveSelected}
+                >
+                  <Archive className="h-4 w-4" aria-hidden="true" />
+                  Archive
+                </Button>
+              )}
+              {canArchive && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="flex items-center gap-2"
+                  onClick={handleBatchRestore}
+                  disabled={batchWorking || !hasArchivedSelected}
+                >
+                  <Archive className="h-4 w-4 rotate-180" aria-hidden="true" />
+                  Restore
+                </Button>
+              )}
+              {canEdit && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="flex items-center gap-2"
+                  onClick={openBatchStyleNumberModal}
+                  disabled={batchWorking}
+                >
+                  <Type className="h-4 w-4" aria-hidden="true" />
+                  Edit style numbers
+                </Button>
+              )}
+              {canDelete && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="flex items-center gap-2"
+                  onClick={handleBatchDelete}
+                  disabled={batchWorking}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  Delete
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={clearSelection}
+                disabled={batchWorking}
+              >
+                Clear
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-1">
+        <p className="text-sm text-slate-600">
+          Product families group shared metadata, while SKUs capture individual colour and size combinations.
+        </p>
+        <p className="text-xs text-slate-500">{recommendedImageText}</p>
       </div>
 
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <Input
-                placeholder="Search by style, number, colour or SKU…"
-                value={queryText}
-                onChange={(event) => setQueryText(event.target.value)}
-                className="lg:max-w-sm"
-              />
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 <select
                   className="rounded border border-gray-300 px-3 py-2 text-sm"
@@ -1165,15 +1661,15 @@ export default function ProductsPage() {
                     </option>
                   ))}
                 </select>
-                <label className="flex items-center gap-2 text-xs text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={showArchived}
-                    onChange={(event) => setShowArchived(event.target.checked)}
-                  />
-                  Show archived
-                </label>
               </div>
+              <label className="flex items-center gap-2 text-xs text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(event) => setShowArchived(event.target.checked)}
+                />
+                Show archived
+              </label>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2">
@@ -1278,6 +1774,65 @@ export default function ProductsPage() {
       </Card>
 
       {viewContent}
+
+      <Modal
+        open={batchStyleModalOpen}
+        onClose={closeBatchStyleModal}
+        labelledBy="batch-style-title"
+        describedBy="batch-style-description"
+        initialFocusRef={batchFirstFieldRef}
+        closeOnOverlay={!batchWorking}
+      >
+        <div className="flex h-full flex-col">
+          <div className="border-b border-slate-200 px-6 py-4">
+            <h2 className="text-lg font-semibold text-slate-900" id="batch-style-title">
+              Edit style numbers
+            </h2>
+            <p className="mt-1 text-sm text-slate-600" id="batch-style-description">
+              Update the style numbers for the selected product families. Leave a field blank to clear the value.
+            </p>
+          </div>
+          <form onSubmit={handleBatchStyleSubmit} className="flex flex-1 flex-col">
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <div className="space-y-4">
+                {batchStyleDraft.map((entry, index) => (
+                  <div key={entry.id} className="grid gap-3 sm:grid-cols-12">
+                    <div className="sm:col-span-5">
+                      <p className="text-sm font-medium text-slate-800">{entry.styleName}</p>
+                      <p className="text-xs text-slate-500">
+                        Current: {entry.currentStyleNumber || "—"}
+                      </p>
+                    </div>
+                    <div className="sm:col-span-7">
+                      <Input
+                        ref={index === 0 ? batchFirstFieldRef : undefined}
+                        value={entry.nextStyleNumber}
+                        onChange={(event) =>
+                          handleBatchStyleDraftChange(entry.id, event.target.value)
+                        }
+                        placeholder="Enter new style number"
+                      />
+                    </div>
+                  </div>
+                ))}
+                {!batchStyleDraft.length && (
+                  <p className="text-sm text-slate-600">
+                    No products selected. Close this dialog to continue.
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+              <Button type="button" variant="ghost" onClick={closeBatchStyleModal} disabled={batchWorking}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={batchWorking || !batchStyleDraft.length}>
+                {batchWorking ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
 
       {newModalOpen && (
         <NewProductModal

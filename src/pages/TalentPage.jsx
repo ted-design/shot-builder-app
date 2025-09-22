@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addDoc,
   collection,
@@ -132,6 +132,8 @@ export default function TalentPage() {
   const [editTarget, setEditTarget] = useState(null);
   const [editBusy, setEditBusy] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const createCardRef = useRef(null);
+  const firstFieldRef = useRef(null);
 
   const { clientId, role: globalRole, user, claims } = useAuth();
   const role = globalRole || ROLE.VIEWER;
@@ -402,37 +404,66 @@ export default function TalentPage() {
 
   const closeEditModal = () => setEditTarget(null);
 
+  const scrollToCreateTalent = () => {
+    if (!canManage) return;
+    if (createCardRef.current) {
+      createCardRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    const focusField = () => {
+      if (firstFieldRef.current) {
+        try {
+          firstFieldRef.current.focus({ preventScroll: true });
+        } catch {
+          firstFieldRef.current.focus();
+        }
+      }
+    };
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(focusField);
+    } else {
+      focusField();
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold text-slate-900">Talent</h1>
-        <p className="text-sm text-slate-600">
-          Track models, their agencies, and wardrobe notes for the active project.
-        </p>
+      <div className="sticky top-14 z-20 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-semibold text-slate-900">Talent</h1>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+            <Input
+              placeholder="Search talent by name, agency, or contact..."
+              aria-label="Search talent"
+              value={queryText}
+              onChange={(event) => setQueryText(event.target.value)}
+              className="w-full sm:w-72 lg:w-96"
+            />
+            {canManage && (
+              <Button type="button" onClick={scrollToCreateTalent} className="w-full sm:w-auto">
+                New talent
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <Input
-          placeholder="Search talent by name, agency, or contact…"
-          value={queryText}
-          onChange={(event) => setQueryText(event.target.value)}
-          className="md:max-w-sm"
-        />
-        {feedback && (
-          <div
-            className={`rounded-md px-4 py-2 text-sm ${
-              feedback.type === "success"
-                ? "bg-emerald-50 text-emerald-700"
-                : "bg-red-50 text-red-600"
-            }`}
-          >
-            {feedback.text}
-          </div>
-        )}
-      </div>
+      <p className="text-sm text-slate-600">
+        Track models, their agencies, and wardrobe notes for the active project.
+      </p>
+
+      {feedback && (
+        <div
+          className={`rounded-md px-4 py-2 text-sm ${
+            feedback.type === "success" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
+          }`}
+        >
+          {feedback.text}
+        </div>
+      )}
 
       {canManage ? (
-        <Card>
+        <div ref={createCardRef}>
+          <Card>
           <CardHeader>
             <h2 className="text-lg font-semibold text-slate-900">Add talent</h2>
             <p className="text-sm text-slate-500">
@@ -448,6 +479,7 @@ export default function TalentPage() {
                   </label>
                   <Input
                     id="talent-create-first"
+                    ref={firstFieldRef}
                     value={draft.firstName}
                     onChange={handleDraftChange("firstName")}
                     placeholder="First name"
@@ -575,7 +607,8 @@ export default function TalentPage() {
               </div>
             </form>
           </CardContent>
-        </Card>
+          </Card>
+        </div>
       ) : (
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
           Talent records are read-only for your role. Producers can add or edit talent details.

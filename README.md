@@ -102,13 +102,38 @@ shot-builder-app/
 └── ...
 ```
 
+## Planner
+
+- The Planner board preloads lanes for each upcoming shoot date and always shows an **Unassigned** lane for undated shots.
+- Drag shots between lanes to schedule or clear dates; changes sync instantly to the underlying Firestore documents.
+- A talent multi-select filter above the board narrows the view to specific cast members without persisting the filter to Firestore.
+- Use the **Export PDF** button to capture the current board (including active filters) via jsPDF for quick handoffs.
+
+## Shots
+
+- Manage per-project shot lists with inline creation, talent assignments, product tagging, and rich notes.
+- The page header stays pinned so the search field and `New shot` action remain visible while scrolling long lists.
+
+## Talent
+
+- Centralise model records with agency contacts, sizing details, links, and headshots.
+- The sticky header keeps global search and the `New talent` shortcut accessible on both mobile and desktop.
+
+## Locations
+
+- Catalogue studios and on-site venues with addresses, reference photos, notes, and contact info.
+- The page header pins search and the `New location` action so you can add venues without losing your place in the list.
+
 ## Product management
 
+- The sticky header keeps product search and the `New product` button within reach while you browse large catalogues.
+- Sort families by style name (A→Z / Z→A) or style number using the header sort menu.
 - Product families appear as responsive cards (two columns on tablet, three on desktop) with 4:5 imagery, status badges and quick action menus. A dedicated tile and toolbar button launch the creation flow.
 - `NewProductModal` and `EditProductModal` share the `ProductFamilyForm`, capturing style metadata, optional previous style numbers, timestamped notes and header imagery (aim for 1600×2000 px under 2.5 MB; uploads are compressed client-side).
 - SKUs are stored as documents under `/productFamilies/{familyId}/skus`, each recording colour name, SKU code, optional size list, status and image. Producers can add, archive or restore SKUs without touching the family document.
 - Role helpers (`canEditProducts`, `canArchiveProducts`, `canDeleteProducts`) gate UI actions: producers can create/edit/archive, while only admins can permanently delete families or SKUs. Updated Firestore rules enforce the same constraints and provide a soft-delete archive path.
 - The callable `migrateProductsToFamilies` function lifts legacy `/products/{productId}` documents into the new structure. The CSV importer (`ImportProducts` page) now writes directly to product families and nested SKUs.
+- Select multiple families to archive, restore, delete, or bulk edit style numbers—the batch action bar chunks Firestore writes in sets of 200 for safety.
 
 ## Next steps
 
