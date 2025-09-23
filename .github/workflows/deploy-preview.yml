@@ -27,6 +27,12 @@ jobs:
       - name: Install deps
         run: npm ci || npm install
 
+      # Clean up old channels first to avoid hitting the quota before creating a new one.
+      - name: Pre-cleanup old preview channels (avoid quota)
+        run: |
+          # Use latest CLI to ensure prune options/behavior are supported
+          npx firebase-tools@latest hosting:channel:prune --project um-shotbuilder || true
+
       - name: Build
         env:
           VITE_FIREBASE_API_KEY:             ${{ secrets.VITE_FIREBASE_API_KEY }}
@@ -55,7 +61,7 @@ jobs:
         # Pipe through tee so CLI output still appears in the GitHub log when the command fails.
         run: |
           set -o pipefail
-          npx firebase-tools hosting:channel:deploy pr-${{ github.event.number }} \
+          npx firebase-tools@latest hosting:channel:deploy pr-${{ github.event.number }} \
             --project um-shotbuilder \
             --json \
             --non-interactive \
@@ -120,5 +126,6 @@ jobs:
       - name: Cleanup old preview channels
         if: always()
         run: |
-          # Remove preview channels older than 7 days to avoid hitting quota limits.
-          npx firebase-tools hosting:channel:prune --project um-shotbuilder --age 7d || true
+          # Prune old preview channels to avoid hitting quota limits.
+          # Some older firebase-tools versions do not support --age; use latest and omit unsupported flags.
+          npx firebase-tools@latest hosting:channel:prune --project um-shotbuilder || true
