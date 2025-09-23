@@ -34,7 +34,7 @@ This repository contains a starter implementation for a shot‑planning and ward
 
    Select **Hosting**, **Functions**, and **Firestore**. Use the existing `firebase.json`, `firestore.rules`, and `storage.rules` files when prompted. Choose TypeScript for functions if you prefer.
 
-  Create a `.env.local` file (git-ignored) with the Firebase config copied from the **same project** you plan to deploy to. Start by copying `.env.example` and then fill in the values from Firebase. All keys must use the Vite `VITE_FIREBASE_*` prefix that our app reads at build time:
+   Configure Firebase credentials via environment variables using the Vite `VITE_FIREBASE_*` prefix. In CI/CD, set these as GitHub Secrets so they are available during `npm run build` and deploys. For local development, you can export them in your shell or create a git‑ignored `.env` (or `.env.development.local`) file based on `.env.example`:
 
    ```bash
    VITE_FIREBASE_API_KEY=...
@@ -46,9 +46,9 @@ This repository contains a starter implementation for a shot‑planning and ward
    VITE_FIREBASE_MEASUREMENT_ID=...
    ```
 
-   The project ID in `.env.local` should match the hosting site declared in `firebase.json`. If it does not, the app will warn about a project mismatch on startup.
+   The configured project ID should match the hosting site declared in `firebase.json`. If it does not, the app will warn about a project mismatch on startup.
 
-   The Firebase bootstrap in `src/lib/firebase.ts` validates these keys on load. Missing values log a loud warning in development and throw during production builds, so keep `.env.local` complete before running `npm run build` or deploying.
+   The Firebase bootstrap in `src/lib/firebase.ts` validates these keys on load. Missing values log a loud warning in development and throw during production builds, so ensure the required variables are set before running `npm run build` or deploying.
 
 ### Configure custom claims (role/clientId)
 
