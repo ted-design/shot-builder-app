@@ -597,8 +597,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       labelledBy="planner-export-title"
       contentClassName="p-0 overflow-hidden"
     >
-      <div className="flex h-full flex-col bg-white">
-        <div className="flex-1 overflow-y-auto">
+      <div className="flex h-full min-h-0 flex-col bg-white">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="flex flex-col gap-6 p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
