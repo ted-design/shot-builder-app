@@ -1156,43 +1156,7 @@ function PlannerPageContent() {
     setIsSavingShot(false);
   }, []);
 
-  const handleSaveShot = useCallback(async () => {
-    if (!editingShot) return;
-    if (!canEditShots) {
-      toast.error("You do not have permission to edit shots.");
-      return;
-    }
-
-    setIsSavingShot(true);
-    try {
-      const parsed = shotDraftSchema.parse({
-        ...editingShot.draft,
-        locationId: editingShot.draft.locationId || "",
-      });
-      await updateShot(editingShot.shot, {
-        name: parsed.name,
-        description: parsed.description || "",
-        type: parsed.type || "",
-        date: parsed.date || "",
-        locationId: parsed.locationId || null,
-        talent: parsed.talent,
-        products: parsed.products,
-      });
-      toast.success(`Shot "${parsed.name}" updated.`);
-      setEditingShot(null);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const message = error.issues.map((issue) => issue.message).join("; ");
-        toast.error({ title: "Invalid shot details", description: message });
-      } else {
-        const { code, message } = describeFirebaseError(error, "Unable to update shot.");
-        toast.error({ title: "Failed to update shot", description: `${code}: ${message}` });
-      }
-      console.error("[Planner] Failed to save shot", error);
-    } finally {
-      setIsSavingShot(false);
-    }
-  }, [editingShot, canEditShots, updateShot]);
+  // moved below `updateShot` to avoid TDZ when referenced in deps
 
   useEffect(() => {
     if (canEditShots && pendingShotEditRef.current) {
@@ -1496,6 +1460,44 @@ function PlannerPageContent() {
       parseDateToTimestamp,
     ]
   );
+
+  const handleSaveShot = useCallback(async () => {
+    if (!editingShot) return;
+    if (!canEditShots) {
+      toast.error("You do not have permission to edit shots.");
+      return;
+    }
+
+    setIsSavingShot(true);
+    try {
+      const parsed = shotDraftSchema.parse({
+        ...editingShot.draft,
+        locationId: editingShot.draft.locationId || "",
+      });
+      await updateShot(editingShot.shot, {
+        name: parsed.name,
+        description: parsed.description || "",
+        type: parsed.type || "",
+        date: parsed.date || "",
+        locationId: parsed.locationId || null,
+        talent: parsed.talent,
+        products: parsed.products,
+      });
+      toast.success(`Shot "${parsed.name}" updated.`);
+      setEditingShot(null);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const message = error.issues.map((issue) => issue.message).join("; ");
+        toast.error({ title: "Invalid shot details", description: message });
+      } else {
+        const { code, message } = describeFirebaseError(error, "Unable to update shot.");
+        toast.error({ title: "Failed to update shot", description: `${code}: ${message}` });
+      }
+      console.error("[Planner] Failed to save shot", error);
+    } finally {
+      setIsSavingShot(false);
+    }
+  }, [editingShot, canEditShots, updateShot]);
 
   // Prompt to rename a lane.  Empty input aborts the rename.
   const renameLane = async (lane) => {
