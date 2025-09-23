@@ -41,14 +41,23 @@ const REQUIRED_ENV_KEYS: RequiredEnvKey[] = [
   "VITE_FIREBASE_APP_ID",
 ];
 
+// Prefer Vite's import.meta.env in the browser, but fall back to process.env
+// so CI/CD (e.g. GitHub Actions Secrets) can inject values at build time.
 const importMetaEnv =
-  (typeof import.meta !== "undefined" && import.meta?.env)
-    ? import.meta.env
-    : ({} as Record<string, unknown>);
+  typeof import.meta !== "undefined" && (import.meta as any)?.env
+    ? (import.meta as any).env
+    : undefined;
 
-const rawEnv = importMetaEnv as Record<string, string | undefined>;
-const isProd = Boolean(importMetaEnv.PROD);
-const isDev = Boolean(importMetaEnv.DEV);
+// Avoid a direct `process` reference so TS doesn't require Node types.
+const processEnv =
+  typeof globalThis !== "undefined" && (globalThis as any)?.process?.env
+    ? (globalThis as any).process.env
+    : undefined;
+
+const rawEnv = (importMetaEnv ?? processEnv ?? {}) as Record<string, string | undefined>;
+
+const isProd = importMetaEnv ? Boolean((importMetaEnv as any).PROD) : (processEnv ? processEnv.NODE_ENV === "production" : false);
+const isDev = importMetaEnv ? Boolean((importMetaEnv as any).DEV) : !isProd;
 
 function readRawEnv(key: string): string | undefined {
   const value = rawEnv?.[key];
@@ -115,7 +124,7 @@ if (missing.missing.length > 0) {
     throw new Error(`${warning} Production builds require all Firebase keys.`);
   }
   console.warn(
-    `[Firebase] ${warning} Calls to Auth/Firestore/Storage will fail until the .env.local values are set.`,
+    `[Firebase] ${warning} Calls to Auth/Firestore/Storage will fail until the required VITE_* environment variables are provided.`,
   );
 }
 
