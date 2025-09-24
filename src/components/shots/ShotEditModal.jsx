@@ -32,6 +32,11 @@ export default function ShotEditModal({
   talentNoOptionsMessage = "No talent available",
   talentLoadError = null,
 }) {
+  // Hooks must be called unconditionally at the top level
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
   if (!open || !draft) {
     return null;
   }
@@ -51,10 +56,6 @@ export default function ShotEditModal({
   const talentMessage = typeof talentNoOptionsMessage === "function"
     ? talentNoOptionsMessage
     : () => talentNoOptionsMessage;
-
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleteText, setDeleteText] = useState("");
-  const [deleting, setDeleting] = useState(false);
 
   return (
     <Modal open={open} onClose={onClose} labelledBy={titleId} contentClassName="p-0 max-h-[90vh] overflow-y-auto">
