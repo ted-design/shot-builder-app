@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Modal } from "../ui/modal";
 import { Card, CardHeader, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
@@ -18,6 +19,7 @@ export default function ShotEditModal({
   isSaving = false,
   submitLabel = "Save changes",
   savingLabel = "Saving…",
+  onDelete,
   families = [],
   loadFamilyDetails,
   createProduct,
@@ -50,6 +52,10 @@ export default function ShotEditModal({
     ? talentNoOptionsMessage
     : () => talentNoOptionsMessage;
 
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
   return (
     <Modal open={open} onClose={onClose} labelledBy={titleId} contentClassName="p-0 max-h-[90vh] overflow-y-auto">
       <Card className="border-0 shadow-none">
@@ -61,6 +67,21 @@ export default function ShotEditModal({
               </h2>
               <p className="text-sm text-slate-500">{description}</p>
             </div>
+            <div className="flex items-center gap-2">
+              {onDelete && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setConfirmingDelete((v) => !v);
+                    setDeleteText("");
+                  }}
+                  disabled={isSaving || deleting}
+                >
+                  Delete
+                </Button>
+              )}
             <button
               type="button"
               aria-label="Close"
@@ -69,9 +90,55 @@ export default function ShotEditModal({
             >
               ×
             </button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {confirmingDelete && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-4">
+              <p className="mb-2 text-sm text-red-700">
+                This will permanently remove this shot and cannot be undone. To confirm, type "DELETE"
+                below and press Permanently delete.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  value={deleteText}
+                  onChange={(e) => setDeleteText(e.target.value)}
+                  placeholder="Type DELETE to confirm"
+                  disabled={isSaving || deleting}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setConfirmingDelete(false);
+                    setDeleteText("");
+                  }}
+                  disabled={isSaving || deleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={async () => {
+                    if (!onDelete) return;
+                    if (deleteText.trim() !== "DELETE") return;
+                    try {
+                      setDeleting(true);
+                      await onDelete();
+                      onClose?.();
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}
+                  disabled={deleteText.trim() !== "DELETE" || isSaving || deleting}
+                >
+                  {deleting ? "Deleting…" : "Permanently delete"}
+                </Button>
+              </div>
+            </div>
+          )}
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
@@ -80,7 +147,7 @@ export default function ShotEditModal({
                   value={draft.name}
                   onChange={(event) => handleFieldChange({ name: event.target.value })}
                   required
-                  disabled={isSaving}
+                  disabled={isSaving || deleting}
                 />
               </div>
               <div>
@@ -88,7 +155,7 @@ export default function ShotEditModal({
                 <Input
                   value={draft.type}
                   onChange={(event) => handleFieldChange({ type: event.target.value })}
-                  disabled={isSaving}
+                  disabled={isSaving || deleting}
                 />
               </div>
               <div>
@@ -97,7 +164,7 @@ export default function ShotEditModal({
                   type="date"
                   value={draft.date || ""}
                   onChange={(event) => handleFieldChange({ date: event.target.value })}
-                  disabled={isSaving}
+                  disabled={isSaving || deleting}
                 />
               </div>
             </div>
@@ -106,7 +173,7 @@ export default function ShotEditModal({
               <NotesEditor
                 value={draft.description}
                 onChange={(next) => handleFieldChange({ description: next })}
-                disabled={isSaving}
+                disabled={isSaving || deleting}
               />
             </div>
             <div>
@@ -114,7 +181,7 @@ export default function ShotEditModal({
               <select
                 className="w-full rounded-md border border-slate-200 p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
                 value={draft.locationId}
-                disabled={isSaving}
+                disabled={isSaving || deleting}
                 onChange={(event) => handleFieldChange({ locationId: event.target.value || "" })}
               >
                 <option value="">(none)</option>
@@ -145,7 +212,7 @@ export default function ShotEditModal({
                 options={talentOptions}
                 value={draft.talent}
                 onChange={(next) => handleFieldChange({ talent: next })}
-                isDisabled={isSaving}
+                isDisabled={isSaving || deleting}
                 placeholder={talentLoadError ? "Talent unavailable" : talentPlaceholder}
                 noOptionsMessage={talentMessage}
               />
@@ -154,11 +221,11 @@ export default function ShotEditModal({
               )}
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={onClose} disabled={isSaving}>
+              <Button type="button" variant="ghost" onClick={onClose} disabled={isSaving || deleting}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? savingLabel : submitLabel}
+              <Button type="submit" disabled={isSaving || deleting}>
+                {isSaving ? savingLabel : deleting ? "Deleting…" : submitLabel}
               </Button>
             </div>
           </form>

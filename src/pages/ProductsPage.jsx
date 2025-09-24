@@ -157,10 +157,8 @@ function ProductActionMenu({
   onRename,
   onToggleStatus,
   onArchive,
-  onDelete,
   canEdit,
   canArchive,
-  canDelete,
   open,
   onClose,
 }) {
@@ -216,18 +214,7 @@ function ProductActionMenu({
           {family.archived ? "Restore from archive" : "Archive"}
         </button>
       )}
-      {canDelete && (
-        <button
-          type="button"
-          className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-          onClick={() => {
-            onDelete(family);
-            onClose();
-          }}
-        >
-          Delete
-        </button>
-      )}
+      {/* Delete action is intentionally not exposed here; use typed confirmation in Edit modal. */}
     </div>
   );
 }
@@ -272,6 +259,8 @@ export default function ProductsPage() {
   const [batchStyleModalOpen, setBatchStyleModalOpen] = useState(false);
   const [batchStyleDraft, setBatchStyleDraft] = useState([]);
   const [batchWorking, setBatchWorking] = useState(false);
+  const [confirmBatchDeleteOpen, setConfirmBatchDeleteOpen] = useState(false);
+  const [confirmBatchDeleteText, setConfirmBatchDeleteText] = useState("");
   const menuRef = useRef(null);
   const listSettingsRef = useRef(null);
   const skuCacheRef = useRef(new Map());
@@ -722,12 +711,14 @@ export default function ProductsPage() {
     });
   };
 
-  const handleDeleteFamily = async (family) => {
+  const handleDeleteFamily = async (family, options = {}) => {
     if (!canDelete) return;
-    const confirmed = window.confirm(
-      `Delete ${family.styleName}? This permanently removes the family and all SKUs.`
-    );
-    if (!confirmed) return;
+    if (!options?.skipPrompt) {
+      const confirmed = window.confirm(
+        `Delete ${family.styleName}? This permanently removes the family and all SKUs.`
+      );
+      if (!confirmed) return;
+    }
 
     const skuSnapshot = await getDocs(collection(db, ...productFamilySkusPathForClient(family.id)));
     for (const docSnap of skuSnapshot.docs) {
@@ -809,11 +800,6 @@ export default function ProductsPage() {
   const handleBatchDelete = async () => {
     if (!canDelete || !selectedFamilies.length) return;
     const count = selectedFamilies.length;
-    const confirmed = window.confirm(
-      `Delete ${count} product ${count === 1 ? "family" : "families"}? This removes all SKUs and images.`
-    );
-    if (!confirmed) return;
-
     setBatchWorking(true);
     try {
       const operations = [];
@@ -1038,10 +1024,8 @@ export default function ProductsPage() {
               onRename={startRename}
               onToggleStatus={handleStatusToggle}
               onArchive={handleArchiveToggle}
-              onDelete={handleDeleteFamily}
               canEdit={canEdit}
               canArchive={canArchive}
-              canDelete={canDelete}
               open={menuFamilyId === family.id}
               onClose={() => setMenuFamilyId(null)}
             />
@@ -1290,19 +1274,17 @@ export default function ProductsPage() {
                 >
                   <MoreVertical className="h-4 w-4" aria-hidden="true" />
                 </Button>
-                <ProductActionMenu
-                  family={family}
-                  onEdit={loadFamilyForEdit}
-                  onRename={startRename}
-                  onToggleStatus={handleStatusToggle}
-                  onArchive={handleArchiveToggle}
-                  onDelete={handleDeleteFamily}
-                  canEdit={canEdit}
-                  canArchive={canArchive}
-                  canDelete={canDelete}
-                  open={menuFamilyId === family.id}
-                  onClose={() => setMenuFamilyId(null)}
-                />
+            <ProductActionMenu
+              family={family}
+              onEdit={loadFamilyForEdit}
+              onRename={startRename}
+              onToggleStatus={handleStatusToggle}
+              onArchive={handleArchiveToggle}
+              canEdit={canEdit}
+              canArchive={canArchive}
+              open={menuFamilyId === family.id}
+              onClose={() => setMenuFamilyId(null)}
+            />
               </div>
             )}
           </div>
@@ -1479,7 +1461,10 @@ export default function ProductsPage() {
                   size="sm"
                   variant="destructive"
                   className="flex items-center gap-2"
-                  onClick={handleBatchDelete}
+                  onClick={() => {
+                    setConfirmBatchDeleteText("");
+                    setConfirmBatchDeleteOpen(true);
+                  }}
                   disabled={batchWorking}
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -1705,6 +1690,56 @@ export default function ProductsPage() {
         </div>
       </Modal>
 
+      <Modal
+        open={confirmBatchDeleteOpen}
+        onClose={() => setConfirmBatchDeleteOpen(false)}
+        labelledBy="confirm-delete-title"
+        describedBy="confirm-delete-description"
+        closeOnOverlay={!batchWorking}
+      >
+        <div className="flex h-full flex-col">
+          <div className="border-b border-slate-200 px-6 py-4">
+            <h2 className="text-lg font-semibold text-slate-900" id="confirm-delete-title">
+              Confirm deletion
+            </h2>
+            <p className="mt-1 text-sm text-slate-600" id="confirm-delete-description">
+              This will permanently remove {selectedFamilies.length} product {selectedFamilies.length === 1 ? "family" : "families"} and all SKUs and images. Type "DELETE" to confirm.
+            </p>
+          </div>
+          <div className="flex flex-1 flex-col justify-between">
+            <div className="px-6 py-4">
+              <Input
+                value={confirmBatchDeleteText}
+                onChange={(e) => setConfirmBatchDeleteText(e.target.value)}
+                placeholder="Type DELETE to confirm"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setConfirmBatchDeleteOpen(false)}
+                disabled={batchWorking}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={async () => {
+                  if (confirmBatchDeleteText.trim() !== "DELETE") return;
+                  setConfirmBatchDeleteOpen(false);
+                  await handleBatchDelete();
+                }}
+                disabled={batchWorking || confirmBatchDeleteText.trim() !== "DELETE"}
+              >
+                {batchWorking ? "Deleting…" : "Permanently delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
       {newModalOpen && (
         <NewProductModal
           open={newModalOpen}
@@ -1720,7 +1755,7 @@ export default function ProductsPage() {
           loading={editLoading}
           onClose={closeModals}
           onSubmit={(payload) => handleUpdateFamily(editFamily.id, payload)}
-          onDelete={() => handleDeleteFamily(editFamily)}
+          onDelete={(fam, opts) => handleDeleteFamily(fam ?? editFamily, opts)}
           canDelete={canDelete}
         />
       )}

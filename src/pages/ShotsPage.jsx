@@ -1347,7 +1347,6 @@ export default function ShotsPage() {
                   notesHtml={notesHtml}
                   canEditShots={canEditShots}
                   onEdit={() => handleEditShot(shot)}
-                  onDelete={() => removeShot(shot)}
                 />
               );
             })}
@@ -1370,7 +1369,6 @@ export default function ShotsPage() {
                   notesHtml={notesHtml}
                   canEditShots={canEditShots}
                   onEdit={() => handleEditShot(shot)}
-                  onDelete={() => removeShot(shot)}
                 />
               );
             })}
@@ -1392,6 +1390,7 @@ export default function ShotsPage() {
           onClose={closeShotEditor}
           onSubmit={handleSaveShot}
           isSaving={isSavingShot}
+          onDelete={() => removeShot(editingShot.shot)}
           families={families}
           loadFamilyDetails={loadFamilyDetails}
           createProduct={buildShotProduct}
@@ -1485,7 +1484,6 @@ function ShotListCard({
   notesHtml,
   canEditShots,
   onEdit,
-  onDelete,
 }) {
   const formattedDate = toDateInputValue(shot.date);
   return (
@@ -1504,9 +1502,6 @@ function ShotListCard({
             <div className="flex flex-wrap gap-2">
               <Button type="button" size="sm" variant="secondary" onClick={onEdit}>
                 Edit
-              </Button>
-              <Button type="button" size="sm" variant="destructive" onClick={onDelete}>
-                Delete
               </Button>
             </div>
           )}
@@ -1546,7 +1541,6 @@ function ShotGalleryCard({
   notesHtml,
   canEditShots,
   onEdit,
-  onDelete,
 }) {
   const imagePath = useMemo(() => selectShotImage(products), [products]);
   const imageUrl = useStorageImage(imagePath || null, { preferredSize: 640 });
@@ -1570,9 +1564,6 @@ function ShotGalleryCard({
           <div className="absolute right-3 top-3 flex gap-2">
             <Button type="button" size="sm" variant="secondary" onClick={onEdit}>
               Edit
-            </Button>
-            <Button type="button" size="sm" variant="destructive" onClick={onDelete}>
-              Delete
             </Button>
           </div>
         )}
