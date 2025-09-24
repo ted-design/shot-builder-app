@@ -41,23 +41,35 @@ const REQUIRED_ENV_KEYS: RequiredEnvKey[] = [
   "VITE_FIREBASE_APP_ID",
 ];
 
-// Prefer Vite's import.meta.env in the browser, but fall back to process.env
-// so CI/CD (e.g. GitHub Actions Secrets) can inject values at build time.
-const importMetaEnv =
-  typeof import.meta !== "undefined" && (import.meta as any)?.env
-    ? (import.meta as any).env
-    : undefined;
+// Read Vite-provided env at build time so the values are inlined into the
+// production bundle. Avoid checking `import.meta.env` at runtime because in
+// optimized builds the guard can evaluate false even when values were
+// statically injected at build time.
+const viteEnv = {
+  VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY,
+  VITE_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  VITE_FIREBASE_PROJECT_ID: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  VITE_FIREBASE_STORAGE_BUCKET: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  VITE_FIREBASE_MESSAGING_SENDER_ID: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
+  VITE_FIREBASE_MEASUREMENT_ID: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  DEV: import.meta.env.DEV,
+  PROD: import.meta.env.PROD,
+} as const;
 
-// Avoid a direct `process` reference so TS doesn't require Node types.
-const processEnv =
-  typeof globalThis !== "undefined" && (globalThis as any)?.process?.env
-    ? (globalThis as any).process.env
-    : undefined;
+// Treat the injected object as our source of truth for key lookups.
+const rawEnv: Record<string, string | undefined> = {
+  VITE_FIREBASE_API_KEY: viteEnv.VITE_FIREBASE_API_KEY,
+  VITE_FIREBASE_AUTH_DOMAIN: viteEnv.VITE_FIREBASE_AUTH_DOMAIN,
+  VITE_FIREBASE_PROJECT_ID: viteEnv.VITE_FIREBASE_PROJECT_ID,
+  VITE_FIREBASE_STORAGE_BUCKET: viteEnv.VITE_FIREBASE_STORAGE_BUCKET,
+  VITE_FIREBASE_MESSAGING_SENDER_ID: viteEnv.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  VITE_FIREBASE_APP_ID: viteEnv.VITE_FIREBASE_APP_ID,
+  VITE_FIREBASE_MEASUREMENT_ID: viteEnv.VITE_FIREBASE_MEASUREMENT_ID,
+};
 
-const rawEnv = (importMetaEnv ?? processEnv ?? {}) as Record<string, string | undefined>;
-
-const isProd = importMetaEnv ? Boolean((importMetaEnv as any).PROD) : (processEnv ? processEnv.NODE_ENV === "production" : false);
-const isDev = importMetaEnv ? Boolean((importMetaEnv as any).DEV) : !isProd;
+const isProd = Boolean(viteEnv.PROD);
+const isDev = Boolean(viteEnv.DEV);
 
 function readRawEnv(key: string): string | undefined {
   const value = rawEnv?.[key];
