@@ -1,18 +1,37 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    function userOrg() { return request.auth != null ? request.auth.token.orgId : null; }
-    function isAdmin() { return request.auth != null && request.auth.token.role == 'admin'; }
-    function hasWardrobe() { return request.auth != null && request.auth.token.role == 'wardrobe'; }
-
-    // Allow public read of images (you may tighten this to enforce auth)
-    match /orgs/{orgId}/products/{familyId}/{file} {
-      allow read: if request.auth != null && orgId == userOrg();
-      allow write: if request.auth != null && orgId == userOrg() && (isAdmin() || hasWardrobe());
+    // Prefer clientId; fall back to orgId for legacy tokens.
+    function userClient() {
+      return request.auth != null
+        ? (request.auth.token.clientId != null
+            ? request.auth.token.clientId
+            : request.auth.token.orgId)
+        : null;
     }
-    match /orgs/{orgId}/projects/{projectId}/shots/{shotId}/attachments/{file} {
-      allow read: if request.auth != null && orgId == userOrg();
-      allow write: if request.auth != null && orgId == userOrg() && (isAdmin() || hasWardrobe() || request.auth.token.role == 'producer');
+    function isAdmin() {
+      return request.auth != null && request.auth.token.role == 'admin';
+    }
+    function isProducerOrWardrobe() {
+      return request.auth != null && (request.auth.token.role == 'producer' || request.auth.token.role == 'wardrobe' || request.auth.token.role == 'admin');
+    }
+
+    // Primary app paths use a flat images/ prefix, e.g.
+    // images/productFamilies/{familyId}/thumbnail/{file}
+    // images/productFamilies/{familyId}/{file}
+    // images/productFamilies/{familyId}/skus/{skuId}/{file}
+    // images/locations/{locationId}/{file}
+    match /images/{path=**} {
+      // Allow all authenticated users to read media referenced by Firestore docs.
+      allow read: if request.auth != null;
+      // Limit writes to roles that manage content in the app.
+      allow write: if isProducerOrWardrobe();
+    }
+
+    // Legacy org-scoped paths retained for backwards compatibility
+    match /orgs/{clientId}/{rest=**} {
+      allow read: if request.auth != null && (userClient() == clientId || isAdmin());
+      allow write: if isProducerOrWardrobe() && (userClient() == clientId || isAdmin());
     }
   }
 }
