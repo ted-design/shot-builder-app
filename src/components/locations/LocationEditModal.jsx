@@ -28,6 +28,9 @@ export default function LocationEditModal({
   const [removeImage, setRemoveImage] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const storedPhoto = useStorageImage(location?.photoPath, { preferredSize: 640 });
   const previewUrl = useFilePreview(file);
@@ -124,8 +127,11 @@ export default function LocationEditModal({
                   type="button"
                   variant="destructive"
                   size="sm"
-                  onClick={() => onDelete(location)}
-                  disabled={saving || busy}
+                  onClick={() => {
+                    setConfirmingDelete((v) => !v);
+                    setDeleteText("");
+                  }}
+                  disabled={saving || busy || deleting}
                 >
                   Delete
                 </Button>
@@ -142,6 +148,51 @@ export default function LocationEditModal({
           </div>
         </CardHeader>
         <CardContent className="pb-6">
+          {confirmingDelete && (
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4">
+              <p className="mb-2 text-sm text-red-700">
+                This will permanently remove this location and cannot be undone. To confirm, type
+                "DELETE" below and press Permanently delete.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  value={deleteText}
+                  onChange={(e) => setDeleteText(e.target.value)}
+                  placeholder="Type DELETE to confirm"
+                  disabled={saving || busy || deleting}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setConfirmingDelete(false);
+                    setDeleteText("");
+                  }}
+                  disabled={saving || deleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={async () => {
+                    if (!onDelete) return;
+                    if (deleteText.trim() !== "DELETE") return;
+                    try {
+                      setDeleting(true);
+                      await onDelete(location, { skipPrompt: true });
+                      onClose?.();
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}
+                  disabled={deleteText.trim() !== "DELETE" || saving || busy || deleting}
+                >
+                  {deleting ? "Deleting…" : "Permanently delete"}
+                </Button>
+              </div>
+            </div>
+          )}
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="grid gap-4 md:grid-cols-[200px_1fr]">
               <div className="flex flex-col items-center gap-3">
@@ -171,7 +222,7 @@ export default function LocationEditModal({
                     value={form.name}
                     onChange={handleFieldChange("name")}
                     placeholder="Location name"
-                    disabled={saving || busy}
+                    disabled={saving || busy || deleting}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -183,7 +234,7 @@ export default function LocationEditModal({
                     value={form.street}
                     onChange={handleFieldChange("street")}
                     placeholder="Street address"
-                    disabled={saving || busy}
+                    disabled={saving || busy || deleting}
                   />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -196,7 +247,7 @@ export default function LocationEditModal({
                       value={form.unit}
                       onChange={handleFieldChange("unit")}
                       placeholder="Unit (optional)"
-                      disabled={saving || busy}
+                      disabled={saving || busy || deleting}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -208,7 +259,7 @@ export default function LocationEditModal({
                       value={form.city}
                       onChange={handleFieldChange("city")}
                       placeholder="City"
-                      disabled={saving || busy}
+                      disabled={saving || busy || deleting}
                     />
                   </div>
                 </div>
@@ -222,7 +273,7 @@ export default function LocationEditModal({
                       value={form.province}
                       onChange={handleFieldChange("province")}
                       placeholder="Province / State"
-                      disabled={saving || busy}
+                      disabled={saving || busy || deleting}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -234,7 +285,7 @@ export default function LocationEditModal({
                       value={form.postal}
                       onChange={handleFieldChange("postal")}
                       placeholder="Postal / ZIP"
-                      disabled={saving || busy}
+                      disabled={saving || busy || deleting}
                     />
                   </div>
                 </div>
@@ -247,7 +298,7 @@ export default function LocationEditModal({
                     value={form.phone}
                     onChange={handleFieldChange("phone")}
                     placeholder="Phone (optional)"
-                    disabled={saving || busy}
+                    disabled={saving || busy || deleting}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -259,7 +310,7 @@ export default function LocationEditModal({
                     value={form.notes}
                     onChange={handleFieldChange("notes")}
                     rows={4}
-                    disabled={saving || busy}
+                    disabled={saving || busy || deleting}
                     className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-70"
                     placeholder="Access instructions, loading details, parking notes…"
                   />
@@ -268,11 +319,11 @@ export default function LocationEditModal({
             </div>
             {error && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+              <Button type="button" variant="ghost" onClick={onClose} disabled={saving || deleting}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={saving || busy}>
-                {saving ? "Saving…" : "Save changes"}
+              <Button type="submit" disabled={saving || busy || deleting}>
+                {saving ? "Saving…" : deleting ? "Deleting…" : "Save changes"}
               </Button>
             </div>
           </form>

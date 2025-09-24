@@ -84,6 +84,15 @@ Shot Builder relies on Firebase Auth custom claims to determine permissions and 
    npm run deploy
    ```
 
+### Deploy: Env sanity check
+
+- Required Vite env vars must be present at build time: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID` (see `.env.example`).
+- Optional: `VITE_FIREBASE_MEASUREMENT_ID` (Analytics). Missing this only disables Analytics.
+- For local prod preview, put values in `.env.production.local` and run `npm run build && npm run preview`.
+- For CI/Hosting deploys, set these as environment variables (e.g., GitHub Secrets) so `vite build` can inline them.
+- Ensure `VITE_USE_FIREBASE_EMULATORS` is NOT set for production builds.
+- This repo configures a Hosting predeploy hook to run `npm run build` automatically (see `firebase.json`).
+
 ## Directory structure
 
 ```

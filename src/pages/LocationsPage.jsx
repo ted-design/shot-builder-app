@@ -41,7 +41,7 @@ function formatAddress(location) {
   return lineParts.join(", ");
 }
 
-function LocationCard({ location, canManage, onEdit, onDelete, editDisabled, deleteDisabled }) {
+function LocationCard({ location, canManage, onEdit, editDisabled }) {
   const imageUrl = useStorageImage(location.photoPath, { preferredSize: 640 });
   const address = formatAddress(location);
   const name = (location.name || "Unnamed location").trim();
@@ -78,19 +78,9 @@ function LocationCard({ location, canManage, onEdit, onDelete, editDisabled, del
         </div>
         <div className="mt-auto flex flex-wrap gap-2">
           {canManage ? (
-            <>
-              <Button size="sm" variant="secondary" onClick={() => onEdit(location)} disabled={editDisabled}>
-                Edit
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => onDelete(location)}
-                disabled={deleteDisabled}
-              >
-                Delete
-              </Button>
-            </>
+            <Button size="sm" variant="secondary" onClick={() => onEdit(location)} disabled={editDisabled}>
+              Edit
+            </Button>
           ) : (
             <div className="text-xs text-slate-500">Read only</div>
           )}
@@ -299,14 +289,16 @@ export default function LocationsPage() {
     }
   };
 
-  const handleDelete = async (locationRecord) => {
+  const handleDelete = async (locationRecord, options = {}) => {
     if (!canManage) {
       setFeedback({ type: "error", text: "You do not have permission to delete locations." });
       return;
     }
     const name = (locationRecord.name || "this location").trim();
-    const confirmed = window.confirm(`Delete ${name}? This action cannot be undone.`);
-    if (!confirmed) return;
+    if (!options?.skipPrompt) {
+      const confirmed = window.confirm(`Delete ${name}? This action cannot be undone.`);
+      if (!confirmed) return;
+    }
 
     setPendingDeleteId(locationRecord.id);
     try {
@@ -588,9 +580,7 @@ export default function LocationsPage() {
             location={entry}
             canManage={canManage}
             onEdit={setEditTarget}
-            onDelete={handleDelete}
             editDisabled={editBusy && editTarget?.id === entry.id}
-            deleteDisabled={pendingDeleteId === entry.id}
           />
         ))}
         {!loading && !filteredLocations.length && (

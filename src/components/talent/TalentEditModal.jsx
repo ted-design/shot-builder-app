@@ -34,6 +34,9 @@ export default function TalentEditModal({
   const [removeImage, setRemoveImage] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const storedHeadshotUrl = useStorageImage(talent?.headshotPath, { preferredSize: 512 });
   const previewUrl = useFilePreview(file);
@@ -129,8 +132,11 @@ export default function TalentEditModal({
                   type="button"
                   variant="destructive"
                   size="sm"
-                  onClick={() => onDelete(talent)}
-                  disabled={saving || busy}
+                  onClick={() => {
+                    setConfirmingDelete((v) => !v);
+                    setDeleteText("");
+                  }}
+                  disabled={saving || busy || deleting}
                 >
                   Delete
                 </Button>
@@ -147,6 +153,51 @@ export default function TalentEditModal({
           </div>
         </CardHeader>
         <CardContent className="pb-6">
+          {confirmingDelete && (
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4">
+              <p className="mb-2 text-sm text-red-700">
+                This will permanently remove this talent and cannot be undone. To confirm, type
+                "DELETE" below and press Permanently delete.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  value={deleteText}
+                  onChange={(e) => setDeleteText(e.target.value)}
+                  placeholder="Type DELETE to confirm"
+                  disabled={saving || busy || deleting}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setConfirmingDelete(false);
+                    setDeleteText("");
+                  }}
+                  disabled={saving || deleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={async () => {
+                    if (!onDelete) return;
+                    if (deleteText.trim() !== "DELETE") return;
+                    try {
+                      setDeleting(true);
+                      await onDelete(talent, { skipPrompt: true });
+                      onClose?.();
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}
+                  disabled={deleteText.trim() !== "DELETE" || saving || busy || deleting}
+                >
+                  {deleting ? "Deleting…" : "Permanently delete"}
+                </Button>
+              </div>
+            </div>
+          )}
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="grid gap-4 md:grid-cols-[160px_1fr]">
               <div className="flex flex-col items-center gap-3">
@@ -177,7 +228,7 @@ export default function TalentEditModal({
                       value={form.firstName}
                       onChange={handleFieldChange("firstName")}
                       placeholder="First name"
-                      disabled={saving || busy}
+                      disabled={saving || busy || deleting}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -189,7 +240,7 @@ export default function TalentEditModal({
                       value={form.lastName}
                       onChange={handleFieldChange("lastName")}
                       placeholder="Last name"
-                      disabled={saving || busy}
+                      disabled={saving || busy || deleting}
                     />
                   </div>
                 </div>
@@ -203,7 +254,7 @@ export default function TalentEditModal({
                       value={form.agency}
                       onChange={handleFieldChange("agency")}
                       placeholder="Agency"
-                      disabled={saving || busy}
+                      disabled={saving || busy || deleting}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -215,7 +266,7 @@ export default function TalentEditModal({
                       value={form.gender}
                       onChange={handleFieldChange("gender")}
                       placeholder="Gender"
-                      disabled={saving || busy}
+                      disabled={saving || busy || deleting}
                     />
                   </div>
                 </div>
@@ -229,7 +280,7 @@ export default function TalentEditModal({
                       value={form.phone}
                       onChange={handleFieldChange("phone")}
                       placeholder="Phone"
-                      disabled={saving || busy}
+                      disabled={saving || busy || deleting}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -242,7 +293,7 @@ export default function TalentEditModal({
                       value={form.email}
                       onChange={handleFieldChange("email")}
                       placeholder="Email"
-                      disabled={saving || busy}
+                      disabled={saving || busy || deleting}
                     />
                   </div>
                 </div>
@@ -255,7 +306,7 @@ export default function TalentEditModal({
                     value={form.sizing}
                     onChange={handleFieldChange("sizing")}
                     placeholder="Sizing details"
-                    disabled={saving || busy}
+                    disabled={saving || busy || deleting}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -268,18 +319,18 @@ export default function TalentEditModal({
                     value={form.url}
                     onChange={handleFieldChange("url")}
                     placeholder="https://"
-                    disabled={saving || busy}
+                    disabled={saving || busy || deleting}
                   />
                 </div>
               </div>
             </div>
             {error && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+              <Button type="button" variant="ghost" onClick={onClose} disabled={saving || deleting}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={saving || busy}>
-                {saving ? "Saving…" : "Save changes"}
+              <Button type="submit" disabled={saving || busy || deleting}>
+                {saving ? "Saving…" : deleting ? "Deleting…" : "Save changes"}
               </Button>
             </div>
           </form>

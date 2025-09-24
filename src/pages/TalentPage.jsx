@@ -46,7 +46,7 @@ function formatContact(info = {}) {
   return [info.phone, info.email].filter(Boolean).join(" • ");
 }
 
-function TalentCard({ talent, canManage, onEdit, onDelete, editDisabled, deleteDisabled }) {
+function TalentCard({ talent, canManage, onEdit, editDisabled }) {
   const imageUrl = useStorageImage(talent.headshotPath, { preferredSize: 480 });
   const displayName = talent.name || buildDisplayName(talent.firstName, talent.lastName);
   const contactLine = formatContact(talent);
@@ -98,19 +98,9 @@ function TalentCard({ talent, canManage, onEdit, onDelete, editDisabled, deleteD
         </div>
         <div className="mt-auto flex flex-wrap gap-2">
           {canManage ? (
-            <>
-              <Button size="sm" variant="secondary" onClick={() => onEdit(talent)} disabled={editDisabled}>
-                Edit
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => onDelete(talent)}
-                disabled={deleteDisabled}
-              >
-                Delete
-              </Button>
-            </>
+            <Button size="sm" variant="secondary" onClick={() => onEdit(talent)} disabled={editDisabled}>
+              Edit
+            </Button>
           ) : (
             <div className="text-xs text-slate-500">Read only</div>
           )}
@@ -325,14 +315,16 @@ export default function TalentPage() {
     }
   };
 
-  const handleDelete = async (talentRecord) => {
+  const handleDelete = async (talentRecord, options = {}) => {
     if (!canManage) {
       setFeedback({ type: "error", text: "You do not have permission to delete talent." });
       return;
     }
     const displayName = talentRecord.name || buildDisplayName(talentRecord.firstName, talentRecord.lastName);
-    const confirmed = window.confirm(`Delete ${displayName}? This action cannot be undone.`);
-    if (!confirmed) return;
+    if (!options?.skipPrompt) {
+      const confirmed = window.confirm(`Delete ${displayName}? This action cannot be undone.`);
+      if (!confirmed) return;
+    }
 
     setPendingDeleteId(talentRecord.id);
     try {
@@ -620,9 +612,7 @@ export default function TalentPage() {
             talent={entry}
             canManage={canManage}
             onEdit={setEditTarget}
-            onDelete={handleDelete}
             editDisabled={editBusy && editTarget?.id === entry.id}
-            deleteDisabled={pendingDeleteId === entry.id}
           />
         ))}
         {!loading && !filteredTalent.length && (
