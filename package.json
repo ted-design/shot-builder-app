@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "firebase deploy --only hosting,functions",
+    "deploy": "firebase deploy --only hosting,functions,storage",
     "test": "node ./scripts/run-vitest.cjs",
     "test:watch": "node ./scripts/run-vitest-watch.cjs",
     "test:ui": "vitest --ui --pool threads --poolOptions.threads.singleThread",
