@@ -20,6 +20,7 @@ import AdminPage from "./pages/AdminPage";
 import SidebarLayout from "./routes/SidebarLayout";
 import RequireRole from "./routes/RequireRole";
 import { ProjectScopeProvider } from "./context/ProjectScopeContext";
+import ImageDiagnosticsPage from "./pages/dev/ImageDiagnosticsPage";
 
 function MaybeRedirectLogin({ user }) {
   const location = useLocation();
@@ -97,6 +98,9 @@ export default function App() {
             <Route path="/talent" element={<TalentPage />} />
             <Route path="/locations" element={<LocationsPage />} />
             <Route path="/pulls" element={<PullsPage />} />
+            {import.meta.env.DEV ? (
+              <Route path="/dev/image-diagnostics" element={<ImageDiagnosticsPage />} />
+            ) : null}
             <Route
               path="/admin"
               element={
