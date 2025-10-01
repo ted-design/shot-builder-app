@@ -34,8 +34,9 @@ export default function NewProductModal({ open, onClose, onSubmit }) {
         <CardContent className="pb-6">
           <ProductFamilyForm
             onSubmit={async (payload) => {
-              await onSubmit?.(payload);
+              const result = await onSubmit?.(payload);
               onClose?.();
+              return result;
             }}
             onCancel={onClose}
             submitLabel="Create product"

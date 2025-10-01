@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Modal } from "../ui/modal";
 import { Card, CardHeader, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
@@ -10,6 +10,7 @@ import TalentMultiSelect from "./TalentMultiSelect";
 export default function ShotEditModal({
   open,
   titleId = "shot-edit-modal-title",
+  heading,
   shotName,
   description = "Update shot details, linked products, and talent assignments.",
   draft,
@@ -57,6 +58,8 @@ export default function ShotEditModal({
     ? talentNoOptionsMessage
     : () => talentNoOptionsMessage;
 
+  const modalHeading = heading || (shotName ? `Edit ${shotName}` : "Edit shot");
+
   return (
     <Modal open={open} onClose={onClose} labelledBy={titleId} contentClassName="p-0 max-h-[90vh] overflow-y-auto">
       <Card className="border-0 shadow-none">
@@ -64,7 +67,7 @@ export default function ShotEditModal({
           <div className="flex items-center justify-between">
             <div>
               <h2 id={titleId} className="text-lg font-semibold">
-                Edit {shotName}
+                {modalHeading}
               </h2>
               <p className="text-sm text-slate-500">{description}</p>
             </div>

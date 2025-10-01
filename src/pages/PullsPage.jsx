@@ -19,7 +19,7 @@ import {
 import { db } from "../lib/firebase";
 // Pull in the dynamic project helper instead of a constant.  The function
 // returns whatever project ID is currently stored in localStorage.
-import { pullsPath, getActiveProjectId } from "../lib/paths";
+import { pullsPath, getActiveProjectId, DEFAULT_PROJECT_ID } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { canManagePulls, ROLE } from "../lib/rbac";
 import { pdf } from "@react-pdf/renderer";
@@ -44,6 +44,26 @@ const generateId = () =>
   typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
+
+const normalisePullRecord = (id, data, fallbackProjectId) => {
+  const projectId = data.projectId || fallbackProjectId || DEFAULT_PROJECT_ID;
+  const name = typeof data.name === "string" && data.name
+    ? data.name
+    : typeof data.title === "string"
+    ? data.title
+    : "";
+  return {
+    ...data,
+    id,
+    projectId,
+    name,
+    items: Array.isArray(data.items) ? data.items : [],
+    shotIds: Array.isArray(data.shotIds) ? data.shotIds : [],
+    status: typeof data.status === "string" && data.status
+      ? data.status
+      : "draft",
+  };
+};
 
 export default function PullsPage() {
   // Local state for the list of pulls and the new pull title
@@ -81,7 +101,9 @@ export default function PullsPage() {
     const q = query(collection(db, ...pathSegments), orderBy("createdAt"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setPulls(
-        snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+        snapshot.docs.map((docSnap) =>
+          normalisePullRecord(docSnap.id, docSnap.data(), projectId)
+        )
       );
     });
     return () => unsubscribe();
@@ -99,10 +121,13 @@ export default function PullsPage() {
     const pathSegments = pullsPath(projectId, clientId);
     await addDoc(collection(db, ...pathSegments), {
       title: trimmed,
+      name: trimmed,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       status: "draft",
       items: [],
+      shotIds: [],
+      projectId: projectId || DEFAULT_PROJECT_ID,
     });
     setTitle("");
   }
@@ -115,7 +140,11 @@ export default function PullsPage() {
     if (!trimmed) return;
     const pathSegments = pullsPath(projectId, clientId);
     const docRef = doc(db, ...pathSegments, id);
-    await updateDoc(docRef, { title: trimmed, updatedAt: serverTimestamp() });
+    await updateDoc(docRef, {
+      title: trimmed,
+      name: trimmed,
+      updatedAt: serverTimestamp(),
+    });
   }
 
   const statusLabel = (status) => {

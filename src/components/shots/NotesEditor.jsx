@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { Button } from "../ui/button";
 import { sanitizeNotesHtml } from "../../lib/sanitize";
 

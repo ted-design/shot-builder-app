@@ -17,7 +17,12 @@ export default function ShotProductTile({ product, onEdit, onRemove }) {
     <div className="flex w-full max-w-xs flex-col gap-2 overflow-hidden rounded-lg border border-slate-200 bg-white">
       <div className="aspect-square w-full bg-slate-100">
         {imageUrl ? (
-          <img src={imageUrl} alt={`${product.familyName} ${product.colourName}`} className="h-full w-full object-cover" />
+          <img
+            src={imageUrl}
+            alt={`${product.familyName} ${product.colourName}`}
+            className="h-full w-full object-cover"
+            crossOrigin="anonymous"
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-slate-500">No image</div>
         )}

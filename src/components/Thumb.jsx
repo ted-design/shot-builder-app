@@ -14,6 +14,15 @@ export default function Thumb({ path, size = 200, alt = "" }) {
     return () => { alive = false; };
   }, [path, size]);
 
-  if (!url) return <div style={{width:size, height:size, background:"#eee", borderRadius:8}} />;
-  return <img src={url} alt={alt} width={size} height={size} style={{objectFit:"cover", borderRadius:8}} />;
+  if (!url) return <div style={{ width: size, height: size, background: "#eee", borderRadius: 8 }} />;
+  return (
+    <img
+      src={url}
+      alt={alt}
+      width={size}
+      height={size}
+      style={{ objectFit: "cover", borderRadius: 8 }}
+      crossOrigin="anonymous"
+    />
+  );
 }

@@ -206,11 +206,13 @@ export default function ProductForm({
 
     try {
       setSubmitting(true);
-      await onSubmit?.(payload);
+      const result = await onSubmit?.(payload);
       setSubmitting(false);
+      return result;
     } catch (err) {
       setSubmitting(false);
       setError(err?.message || "Failed to save product.");
+      return undefined;
     }
   };
 

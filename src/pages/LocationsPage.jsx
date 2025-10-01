@@ -50,7 +50,12 @@ function LocationCard({ location, canManage, onEdit, editDisabled }) {
     <Card className="flex h-full flex-col overflow-hidden">
       <div className="aspect-video w-full overflow-hidden bg-slate-100">
         {imageUrl ? (
-          <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
+          <img
+            src={imageUrl}
+            alt={name}
+            className="h-full w-full object-cover"
+            crossOrigin="anonymous"
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-slate-400">No photo</div>
         )}
@@ -536,7 +541,12 @@ export default function LocationsPage() {
                   Photo
                 </label>
                 {draftPreview ? (
-                  <img src={draftPreview} alt="Selected location preview" className="h-40 w-56 rounded-lg object-cover" />
+                  <img
+                    src={draftPreview}
+                    alt="Selected location preview"
+                    className="h-40 w-56 rounded-lg object-cover"
+                    crossOrigin="anonymous"
+                  />
                 ) : (
                   <div className="flex h-40 w-56 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
                     Optional reference photo
