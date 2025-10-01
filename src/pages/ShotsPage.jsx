@@ -7,6 +7,7 @@
 // reassign shots to other projects—simply update the `projectId` field.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   collection,
   addDoc,
@@ -24,7 +25,6 @@ import {
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import {
-  getActiveProjectId,
   shotsPath as getShotsPath,
   productFamiliesPath,
   productFamilyPath,
@@ -44,6 +44,7 @@ import NotesEditor from "../components/shots/NotesEditor";
 import ShotEditModal from "../components/shots/ShotEditModal";
 import CreateShotCard from "../components/shots/CreateShotCard";
 import { useAuth } from "../context/AuthContext";
+import { useProjectScope } from "../context/ProjectScopeContext";
 import { canEditProducts, canManageShots, resolveEffectiveRole } from "../lib/rbac";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
@@ -178,7 +179,10 @@ export default function ShotsPage() {
   const [isSavingShot, setIsSavingShot] = useState(false);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [displayMenuOpen, setDisplayMenuOpen] = useState(false);
-  const projectId = getActiveProjectId();
+  const navigate = useNavigate();
+  const { currentProjectId, ready: scopeReady, setLastVisitedPath } = useProjectScope();
+  const redirectNotifiedRef = useRef(false);
+  const projectId = currentProjectId;
   const { clientId, role: globalRole, projectRoles = {}, user, claims } = useAuth();
   const userRole = useMemo(
     () => resolveEffectiveRole(globalRole, projectRoles, projectId),
@@ -209,6 +213,23 @@ export default function ShotsPage() {
     }),
     [user, claims]
   );
+
+  useEffect(() => {
+    setLastVisitedPath("/shots");
+  }, [setLastVisitedPath]);
+
+  useEffect(() => {
+    if (!scopeReady) return;
+    if (!projectId) {
+      if (!redirectNotifiedRef.current) {
+        redirectNotifiedRef.current = true;
+        toast.info({ title: "Please select a project" });
+      }
+      navigate("/projects", { replace: true });
+      return;
+    }
+    redirectNotifiedRef.current = false;
+  }, [scopeReady, projectId, navigate]);
 
   const talentOptions = useMemo(
     () =>
@@ -766,7 +787,7 @@ export default function ShotsPage() {
   // the list without reloading.  Products, talent and locations remain
   // unfiltered because they are global resources.
   useEffect(() => {
-    if (!projectId) {
+    if (!scopeReady || !projectId) {
       setShots([]);
       return undefined;
     }
@@ -783,18 +804,66 @@ export default function ShotsPage() {
       }
     };
 
-    const shotsQuery = query(
+    const scopedShotsQuery = query(
       collRef(...currentShotsPath),
       where("projectId", "==", projectId),
       orderBy("date", "asc")
     );
+    let scopedShots = [];
+    const unassignedShotBuckets = new Map();
+
+    const applyShotResults = () => {
+      const combined = [...scopedShots];
+      unassignedShotBuckets.forEach((entries) => {
+        entries.forEach((shot) => {
+          if (shot?.id) {
+            combined.push(shot);
+          }
+        });
+      });
+      const deduped = new Map();
+      combined.forEach((shot) => {
+        if (shot?.id) {
+          deduped.set(shot.id, shot);
+        }
+      });
+      setShots(Array.from(deduped.values()));
+    };
+
     const unsubShots = onSnapshot(
-      shotsQuery,
+      scopedShotsQuery,
       (snapshot) => {
-        setShots(snapshot.docs.map((doc) => normaliseShotRecord(doc.id, doc.data(), projectId)));
+        scopedShots = snapshot.docs.map((doc) =>
+          normaliseShotRecord(doc.id, doc.data(), projectId || DEFAULT_PROJECT_ID)
+        );
+        applyShotResults();
       },
       handleSubscriptionError("shots")
     );
+
+    const unassignedUnsubs = [];
+    if (projectId === DEFAULT_PROJECT_ID) {
+      const unassignedClauses = [
+        { key: "null", filter: where("projectId", "==", null) },
+        { key: "empty", filter: where("projectId", "==", "") },
+      ];
+      unassignedClauses.forEach(({ key, filter }) => {
+        const unassignedQuery = query(collRef(...currentShotsPath), filter);
+        unassignedUnsubs.push(
+          onSnapshot(
+            unassignedQuery,
+            (snapshot) => {
+              const entries = snapshot.docs.map((doc) =>
+                normaliseShotRecord(doc.id, doc.data(), DEFAULT_PROJECT_ID)
+              );
+              unassignedShotBuckets.set(key, entries);
+              applyShotResults();
+            },
+            handleSubscriptionError("shots")
+          )
+        );
+      });
+    }
     const unsubFamilies = onSnapshot(
       query(collRef(...currentProductFamiliesPath), orderBy("styleName", "asc")),
       (snapshot) => {
@@ -828,11 +897,12 @@ export default function ShotsPage() {
     );
     return () => {
       unsubShots();
+      unassignedUnsubs.forEach((unsubscribe) => unsubscribe());
       unsubFamilies();
       unsubTalent();
       unsubLocations();
     };
-  }, [projectId, currentShotsPath, currentProductFamiliesPath, currentTalentPath, currentLocationsPath]);
+  }, [scopeReady, projectId, currentShotsPath, currentProductFamiliesPath, currentTalentPath, currentLocationsPath]);
 
   // Create a new shot with validation and error handling.
   const handleCreateShot = async () => {

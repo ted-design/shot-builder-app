@@ -10,6 +10,7 @@
 // previous Planner implementation.
 
 import React, { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   DndContext,
   DragOverlay,
@@ -39,7 +40,6 @@ import {
   lanesPath,
   shotsPath,
   legacyProjectShotsPath,
-  getActiveProjectId,
   DEFAULT_PROJECT_ID,
   productFamiliesPath,
   productFamilySkusPath,
@@ -48,6 +48,7 @@ import {
   locationsPath,
 } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
+import { useProjectScope } from "../context/ProjectScopeContext";
 import { canManagePlanner, canManageShots, ROLE, resolveEffectiveRole } from "../lib/rbac";
 import { Download, LayoutGrid, List, Settings2, PencilLine } from "lucide-react";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
@@ -775,7 +776,10 @@ function PlannerPageContent() {
   const statusBackfillRef = useRef(new Set());
   const autoScrollRef = useRef({ lastTick: 0, active: false });
   const boardScrollRef = useRef(null);
-  const projectId = getActiveProjectId();
+  const navigate = useNavigate();
+  const { currentProjectId, ready: scopeReady, setLastVisitedPath } = useProjectScope();
+  const redirectNotifiedRef = useRef(false);
+  const projectId = currentProjectId;
   const {
     clientId,
     role: globalRole,
@@ -790,10 +794,13 @@ function PlannerPageContent() {
   const canEditPlanner = canManagePlanner(userRole);
   const canEditShots = canManageShots(userRole);
   const isAuthLoading = !authReady || loadingClaims;
-  const currentLanesPath = useMemo(() => lanesPath(projectId, clientId), [projectId, clientId]);
+  const currentLanesPath = useMemo(
+    () => (projectId ? lanesPath(projectId, clientId) : null),
+    [projectId, clientId]
+  );
   const currentShotsPath = useMemo(() => shotsPath(clientId), [clientId]);
   const currentLegacyShotsPath = useMemo(
-    () => legacyProjectShotsPath(projectId, clientId),
+    () => (projectId ? legacyProjectShotsPath(projectId, clientId) : null),
     [projectId, clientId]
   );
   const currentProductFamiliesPath = useMemo(
@@ -816,6 +823,23 @@ function PlannerPageContent() {
       activationConstraint: { distance: 6 },
     })
   );
+
+  useEffect(() => {
+    setLastVisitedPath("/planner");
+  }, [setLastVisitedPath]);
+
+  useEffect(() => {
+    if (!scopeReady) return;
+    if (!projectId) {
+      if (!redirectNotifiedRef.current) {
+        redirectNotifiedRef.current = true;
+        toast.info({ title: "Please select a project" });
+      }
+      navigate("/projects", { replace: true });
+      return;
+    }
+    redirectNotifiedRef.current = false;
+  }, [scopeReady, projectId, navigate]);
 
   const familiesById = useMemo(() => {
     const map = new Map();
@@ -869,11 +893,11 @@ function PlannerPageContent() {
   );
 
   useEffect(() => {
-    if (!authReady) {
+    if (!scopeReady || !authReady) {
       return undefined;
     }
 
-    if (!projectId || !clientId) {
+    if (!projectId || !clientId || !currentLanesPath || !currentLegacyShotsPath) {
       setLanes([]);
       setShotsByLane({});
       setPlannerShots([]);
@@ -914,6 +938,8 @@ function PlannerPageContent() {
     let legacyLoaded = false;
     let latestPrimaryShots = [];
     let latestLegacyShots = [];
+    const unassignedShotBuckets = new Map();
+    const unassignedUnsubs = [];
 
     const backfillMissingStatuses = (candidates) => {
       if (!Array.isArray(candidates) || !candidates.length) return;
@@ -942,10 +968,18 @@ function PlannerPageContent() {
 
     const applyCombinedShots = () => {
       if (cancelled) return;
-      const merged = mergeShotSources(latestPrimaryShots, latestLegacyShots, projectId);
+      const unassignedShots = [];
+      unassignedShotBuckets.forEach((entries) => {
+        entries.forEach((shot) => unassignedShots.push(shot));
+      });
+      const merged = mergeShotSources(
+        [...latestPrimaryShots, ...unassignedShots],
+        latestLegacyShots,
+        projectId || DEFAULT_PROJECT_ID
+      );
       setPlannerShots(merged);
       setShotsByLane(groupShotsByLane(merged));
-      backfillMissingStatuses(latestPrimaryShots);
+      backfillMissingStatuses([...latestPrimaryShots, ...unassignedShots]);
     };
 
     const updateShotsLoading = () => {
@@ -970,6 +1004,13 @@ function PlannerPageContent() {
       applyCombinedShots();
       setShotsLoading(false);
       handleSubscriptionError("legacy shots")(error);
+    };
+
+    const handleUnassignedShotsError = (error) => {
+      if (cancelled) return;
+      unassignedShotBuckets.clear();
+      applyCombinedShots();
+      handleSubscriptionError("shots (unassigned)")(error);
     };
 
     const handleFamiliesError = (error) => {
@@ -1001,6 +1042,32 @@ function PlannerPageContent() {
       handlePrimaryShotsError
     );
 
+    if (projectId === DEFAULT_PROJECT_ID) {
+      const unassignedClauses = [
+        { key: "null", filter: where("projectId", "==", null) },
+        { key: "empty", filter: where("projectId", "==", "") },
+      ];
+      unassignedClauses.forEach(({ key, filter }) => {
+        const unassignedQuery = query(shotsRef, filter);
+        unassignedUnsubs.push(
+          onSnapshot(
+            unassignedQuery,
+            (snapshot) => {
+              if (cancelled) return;
+              const entries = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+                projectId: DEFAULT_PROJECT_ID,
+              }));
+              unassignedShotBuckets.set(key, entries);
+              applyCombinedShots();
+            },
+            handleUnassignedShotsError
+          )
+        );
+      });
+    }
+
     const unsubLegacyShots = onSnapshot(
       legacyShotsRef,
       (snapshot) => {
@@ -1029,8 +1096,10 @@ function PlannerPageContent() {
       unsubShots();
       unsubLegacyShots();
       unsubFamilies();
+      unassignedUnsubs.forEach((unsubscribe) => unsubscribe());
     };
   }, [
+    scopeReady,
     authReady,
     clientId,
     projectId,

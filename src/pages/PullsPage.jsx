@@ -2,10 +2,11 @@
 //
 // Presents project pull sheets with status tracking, PDF export, and a
 // message thread so producers can coordinate with warehouse staff. The active
-// project is resolved at runtime via getActiveProjectId(), ensuring the view
-// reacts when users switch campaigns from the dashboard.
+// project is resolved via ProjectScopeProvider so the view reacts when users
+// switch campaigns from the dashboard.
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   collection,
   addDoc,
@@ -17,9 +18,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
-// Pull in the dynamic project helper instead of a constant.  The function
-// returns whatever project ID is currently stored in localStorage.
-import { pullsPath, getActiveProjectId, DEFAULT_PROJECT_ID } from "../lib/paths";
+import { pullsPath, DEFAULT_PROJECT_ID } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { canManagePulls, ROLE } from "../lib/rbac";
 import { pdf } from "@react-pdf/renderer";
@@ -28,6 +27,8 @@ import { Modal } from "../components/ui/modal";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { useProjectScope } from "../context/ProjectScopeContext";
+import { toast } from "../lib/toast";
 // Optional: if you've created UI primitives (Card, Input, Button), import
 // them here.  Otherwise, plain HTML elements will work fine.
 
@@ -70,33 +71,40 @@ export default function PullsPage() {
   const [pulls, setPulls] = useState([]);
   const [title, setTitle] = useState("");
   const [activePull, setActivePull] = useState(null);
-  // Keep a copy of the current project ID in state.  If the user changes
-  // projects via your UI (which writes to localStorage), we listen for the
-  // storage event and update this state accordingly.
-  const [projectId, setProjectId] = useState(getActiveProjectId());
+  const navigate = useNavigate();
+  const { currentProjectId, ready: scopeReady, setLastVisitedPath } = useProjectScope();
+  const redirectNotifiedRef = useRef(false);
+  const projectId = currentProjectId;
   const { clientId, role: globalRole, user: authUser } = useAuth();
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManagePulls(role);
 
-  // Listen for changes to localStorage so we can update the project ID
-  // without reloading the entire page.  This allows the planner to react to
-  // project changes at runtime.  We set up the listener once when the
-  // component mounts and clean it up on unmount.
   useEffect(() => {
-    function handleStorage(e) {
-      if (e.key === "ACTIVE_PROJECT_ID") {
-        setProjectId(getActiveProjectId());
+    setLastVisitedPath("/pulls");
+  }, [setLastVisitedPath]);
+
+  useEffect(() => {
+    if (!scopeReady) return;
+    if (!projectId) {
+      if (!redirectNotifiedRef.current) {
+        redirectNotifiedRef.current = true;
+        toast.info({ title: "Please select a project" });
       }
+      navigate("/projects", { replace: true });
+      return;
     }
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+    redirectNotifiedRef.current = false;
+  }, [scopeReady, projectId, navigate]);
 
   // Whenever the project ID changes, subscribe to the appropriate pulls
   // collection and update our state when the data changes.  The path is
   // derived from pullsPath(projectId), which returns an array of path
   // segments.  We include orderBy('createdAt') to preserve ordering.
   useEffect(() => {
+    if (!scopeReady || !projectId || !clientId) {
+      setPulls([]);
+      return undefined;
+    }
     const pathSegments = pullsPath(projectId, clientId);
     const q = query(collection(db, ...pathSegments), orderBy("createdAt"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -107,7 +115,7 @@ export default function PullsPage() {
       );
     });
     return () => unsubscribe();
-  }, [projectId, clientId]);
+  }, [scopeReady, projectId, clientId]);
 
   // Add a new pull to the current project's pulls collection.  We call
   // serverTimestamp() to populate the createdAt field so that ordering works.
@@ -118,6 +126,10 @@ export default function PullsPage() {
     }
     const trimmed = title.trim();
     if (!trimmed) return;
+    if (!projectId) {
+      toast.info({ title: "Select a project before creating pulls" });
+      return;
+    }
     const pathSegments = pullsPath(projectId, clientId);
     await addDoc(collection(db, ...pathSegments), {
       title: trimmed,
@@ -138,6 +150,10 @@ export default function PullsPage() {
     if (!canManage) return;
     const trimmed = newTitle.trim();
     if (!trimmed) return;
+    if (!projectId) {
+      toast.info({ title: "No project selected" });
+      return;
+    }
     const pathSegments = pullsPath(projectId, clientId);
     const docRef = doc(db, ...pathSegments, id);
     await updateDoc(docRef, {
