@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { ProjectScopeProvider } from "../../context/ProjectScopeContext.jsx";
 import React from "react";
 
 globalThis.React = React;
@@ -184,16 +186,28 @@ beforeEach(() => {
   authState.role = "producer";
   authState.claims = { role: "producer", clientId: "unbound-merino" };
   getDocsMock.mockResolvedValue(createSnapshot("clients/unbound-merino/productFamilies"));
+  if (typeof window !== "undefined") {
+    window.localStorage.clear();
+    window.localStorage.setItem("ACTIVE_PROJECT_ID", "default-project");
+    window.localStorage.setItem("ACTIVE_PROJECT_LAST_SECTION", "/shots");
+  }
 });
 
 afterEach(() => {
   cleanup();
 });
 
+const renderWithRouter = (ui, { route = "/" } = {}) =>
+  render(
+    <MemoryRouter initialEntries={[route]}>
+      <ProjectScopeProvider>{ui}</ProjectScopeProvider>
+    </MemoryRouter>
+  );
+
 describe("Create flows", () => {
   it("creates talent at the client collection and shows a success toast", async () => {
     const { default: TalentPage } = await import("../TalentPage.jsx");
-    render(<TalentPage />);
+    renderWithRouter(<TalentPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "New talent" }));
 
@@ -216,7 +230,7 @@ describe("Create flows", () => {
     });
     pendingAddDocError = failure;
     const { default: TalentPage } = await import("../TalentPage.jsx");
-    render(<TalentPage />);
+    renderWithRouter(<TalentPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "New talent" }));
 
@@ -233,12 +247,14 @@ describe("Create flows", () => {
 
   it("creates location at the client collection and shows a success toast", async () => {
     const { default: LocationsPage } = await import("../LocationsPage.jsx");
-    render(<LocationsPage />);
+    renderWithRouter(<LocationsPage />);
 
-    fireEvent.change(screen.getByPlaceholderText("Location name"), {
-      target: { value: "Warehouse" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Add Location" }));
+    fireEvent.click(screen.getByRole("button", { name: /create location/i }));
+
+    const modal = await screen.findByRole("dialog", { name: /create location/i });
+    const nameInput = within(modal).getByLabelText("Name");
+    fireEvent.change(nameInput, { target: { value: "Warehouse" } });
+    fireEvent.click(within(modal).getByRole("button", { name: "Create location" }));
 
     await waitFor(() => expect(addDocCalls.length).toBe(1));
     expect(addDocCalls[0].path).toEqual(["clients", "unbound-merino", "locations"]);
@@ -249,7 +265,7 @@ describe("Create flows", () => {
 
   it("creates shot at the client collection with the active project id", async () => {
     const { default: ShotsPage } = await import("../ShotsPage.jsx");
-    render(<ShotsPage />);
+    renderWithRouter(<ShotsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "New shot" }));
 
