@@ -1,5 +1,6 @@
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import AppImage from "../common/AppImage";
 import { formatFileSize } from "../../lib/images";
 
 export default function ColorListEditor({
@@ -57,10 +58,18 @@ export default function ColorListEditor({
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Colour image</label>
               {color.imagePreview && (
-                <img
+                <AppImage
                   src={color.imagePreview}
                   alt={`${color.colorName || "Colour"} preview`}
-                  className="h-40 w-full rounded-lg object-cover"
+                  loading="lazy"
+                  className="h-40 w-full overflow-hidden rounded-lg"
+                  imageClassName="h-full w-full object-cover"
+                  placeholder={null}
+                  fallback={
+                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                      No preview
+                    </div>
+                  }
                 />
               )}
               <div className="flex flex-wrap items-center gap-2">

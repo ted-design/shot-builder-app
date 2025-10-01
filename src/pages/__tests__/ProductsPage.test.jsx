@@ -104,8 +104,14 @@ vi.mock("../../context/AuthContext", () => ({
   useAuth: () => authState,
 }));
 
-vi.mock("../../hooks/useStorageImage", () => ({
-  useStorageImage: () => null,
+const appImageMock = vi.fn();
+
+vi.mock("../../components/common/AppImage", () => ({
+  __esModule: true,
+  default: (props) => {
+    appImageMock(props);
+    return <div data-testid="app-image" />;
+  },
 }));
 
 vi.mock("../../components/products/NewProductModal", () => ({
@@ -129,6 +135,7 @@ beforeEach(() => {
   toastMock.error.mockClear();
   toastMock.info.mockClear();
   toastMock.warning.mockClear();
+  appImageMock.mockClear();
   authState.role = "producer";
   authState.user = { uid: "tester" };
   window.localStorage.clear();

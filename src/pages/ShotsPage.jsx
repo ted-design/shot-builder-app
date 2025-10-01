@@ -50,7 +50,7 @@ import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import { toast } from "../lib/toast";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
-import { useStorageImage } from "../hooks/useStorageImage";
+import AppImage from "../components/common/AppImage";
 import { z } from "zod";
 import { createProductFamily, createProductColourway } from "../lib/productMutations";
 import {
@@ -1744,8 +1744,6 @@ function ShotGalleryCard({
   viewPrefs = defaultViewPrefs,
 }) {
   const imagePath = useMemo(() => selectShotImage(products), [products]);
-  const imageUrl = useStorageImage(imagePath || null, { preferredSize: 640 });
-  const displayImage = imageUrl || imagePath;
   const formattedDate = toDateInputValue(shot.date);
   const plainNotes = notesHtml
     ? notesHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
@@ -1760,18 +1758,23 @@ function ShotGalleryCard({
   return (
     <Card className="overflow-hidden border shadow-sm">
       <div className="relative h-48 bg-slate-100">
-        {displayImage ? (
-          <img
-            src={displayImage}
-            alt={`${shot.name} preview`}
-            className="h-full w-full object-cover"
-            crossOrigin="anonymous"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
-            No preview available
-          </div>
-        )}
+        <AppImage
+          src={imagePath}
+          alt={`${shot.name} preview`}
+          preferredSize={640}
+          className="h-full w-full"
+          imageClassName="h-full w-full object-cover"
+          fallback={
+            <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
+              No preview available
+            </div>
+          }
+          placeholder={
+            <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
+              Loading preview…
+            </div>
+          }
+        />
         {canEditShots && (
           <div className="absolute right-3 top-3 flex gap-2">
             <Button type="button" size="sm" variant="secondary" onClick={onEdit}>

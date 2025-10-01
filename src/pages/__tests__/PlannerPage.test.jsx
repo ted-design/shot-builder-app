@@ -7,12 +7,21 @@ vi.mock("../../lib/firebase", () => ({
   storage: {},
 }));
 
-vi.mock("../../hooks/useStorageImage", () => ({
-  useStorageImage: vi.fn(),
+const appImageMock = vi.fn();
+
+vi.mock("../../components/common/AppImage", () => ({
+  __esModule: true,
+  default: (props) => {
+    appImageMock(props);
+    return (
+      <div data-testid="app-image" data-alt={props.alt}>
+        {props.children}
+      </div>
+    );
+  },
 }));
 
 const { __test } = await import("../PlannerPage.jsx");
-const { useStorageImage } = await import("../../hooks/useStorageImage");
 
 const {
   readStoredPlannerView,
@@ -79,11 +88,10 @@ describe("ShotCard thumbnails", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    appImageMock.mockClear();
   });
 
-  it("renders the resolved storage image when available", () => {
-    vi.mocked(useStorageImage).mockReturnValue("https://cdn.test/image.jpg");
-
+  it("passes the expected image source to AppImage", () => {
     render(
       <ShotCard
         shot={baseShot}
@@ -102,14 +110,13 @@ describe("ShotCard thumbnails", () => {
       />
     );
 
-    const image = screen.getByAltText("Test Shot thumbnail");
-    expect(image).toBeInTheDocument();
-    expect(image).toHaveAttribute("src", "https://cdn.test/image.jpg");
+    expect(appImageMock).toHaveBeenCalled();
+    const call = appImageMock.mock.calls[0][0];
+    expect(call.alt).toBe("Test Shot thumbnail");
+    expect(call.src).toBe("images/blue.jpg");
   });
 
   it("shows a placeholder when no image can be resolved", () => {
-    vi.mocked(useStorageImage).mockReturnValue(null);
-
     render(
       <ShotCard
         shot={baseShot}
@@ -128,7 +135,10 @@ describe("ShotCard thumbnails", () => {
       />
     );
 
-    expect(screen.getByText(/no image/i)).toBeInTheDocument();
+    const call = appImageMock.mock.calls[0][0];
+    expect(call.fallback).toBeTruthy();
+    const { getByText } = render(<>{call.fallback}</>);
+    expect(getByText(/no image/i)).toBeInTheDocument();
   });
 
   it("disables the status control when editing is not allowed", () => {

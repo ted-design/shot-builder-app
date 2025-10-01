@@ -1,6 +1,5 @@
 // src/components/Thumb.jsx
-import { useEffect, useMemo, useState } from "react";
-import { getBestImageUrl } from "../lib/images";
+import AppImage from "./common/AppImage";
 
 const DEFAULT_FALLBACK_CLASS =
   "flex h-full w-full items-center justify-center bg-slate-100 text-xs font-medium uppercase tracking-wide text-slate-400";
@@ -14,58 +13,25 @@ export default function Thumb({
   fallback,
   loading = "lazy",
 }) {
-  const [url, setUrl] = useState(null);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      if (!path) {
-        if (alive) setUrl(null);
-        return;
-      }
-
-      if (typeof path === "string" && (/^https?:\/\//i.test(path) || path.startsWith("data:"))) {
-        if (alive) setUrl(path);
-        return;
-      }
-
-      try {
-        const resolved = await getBestImageUrl(path, size);
-        if (alive) setUrl(resolved);
-      } catch (error) {
-        if (process.env.NODE_ENV !== "test") {
-          console.warn("[Thumb] Failed to load image", { path, error });
-        }
-        if (alive) setUrl(null);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [path, size]);
-
-  const fallbackNode = useMemo(() => {
-    if (fallback !== undefined) return fallback;
-    return (
+  const fallbackNode =
+    fallback !== undefined ? (
+      fallback
+    ) : (
       <div className={DEFAULT_FALLBACK_CLASS} aria-hidden="true">
         No image
       </div>
     );
-  }, [fallback]);
 
   return (
-    <div className={className || undefined}>
-      {url ? (
-        <img
-          src={url}
-          alt={alt}
-          loading={loading}
-          className={imageClassName}
-          crossOrigin="anonymous"
-        />
-      ) : (
-        fallbackNode
-      )}
-    </div>
+    <AppImage
+      src={path}
+      alt={alt}
+      preferredSize={size}
+      loading={loading}
+      className={className || undefined}
+      imageClassName={imageClassName}
+      placeholder={fallbackNode}
+      fallback={fallbackNode}
+    />
   );
 }

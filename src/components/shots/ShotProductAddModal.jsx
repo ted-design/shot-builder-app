@@ -4,7 +4,7 @@ import { Modal } from "../ui/modal";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { useStorageImage } from "../../hooks/useStorageImage";
+import AppImage from "../common/AppImage";
 import NewProductModal from "../products/NewProductModal";
 import NewColourwayModal from "../products/NewColourwayModal";
 import { genderLabel } from "../../lib/productMutations";
@@ -18,8 +18,6 @@ const deriveInitialSizeValue = (product) => {
 };
 
 function ColourOption({ colour, selected, onSelect }) {
-  const imageUrl = useStorageImage(colour.imagePath);
-
   const handleClick = (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -40,16 +38,21 @@ function ColourOption({ colour, selected, onSelect }) {
       } bg-white p-3 text-left transition hover:border-primary`}
     >
       <div className="aspect-square w-full overflow-hidden rounded bg-slate-100">
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={`${colour.colorName} swatch`}
-            className="h-full w-full object-cover"
-            crossOrigin="anonymous"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-slate-500">No image</div>
-        )}
+        <AppImage
+          src={colour.imagePath}
+          alt={`${colour.colorName} swatch`}
+          preferredSize={320}
+          className="h-full w-full"
+          imageClassName="h-full w-full object-cover"
+          fallback={
+            <div className="flex h-full items-center justify-center text-xs text-slate-500">No image</div>
+          }
+          placeholder={
+            <div className="flex h-full items-center justify-center text-xs text-slate-400">
+              Loading…
+            </div>
+          }
+        />
       </div>
       <div className="space-y-1">
         <div className="truncate text-sm font-medium text-slate-800" title={colour.colorName}>

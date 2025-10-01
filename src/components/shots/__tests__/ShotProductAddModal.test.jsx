@@ -4,9 +4,14 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "../../../test-utils/userEvent";
 import ShotProductAddModal from "../ShotProductAddModal";
 
-// Mock the useStorageImage hook
-vi.mock("../../../hooks/useStorageImage", () => ({
-    useStorageImage: vi.fn(() => "mock-image-url"),
+const appImageMock = vi.fn();
+
+vi.mock("../../../components/common/AppImage", () => ({
+    __esModule: true,
+    default: (props) => {
+        appImageMock(props);
+        return <div data-testid="app-image" />;
+    },
 }));
 
 const mockFamilies = [
@@ -52,6 +57,7 @@ const defaultProps = {
 describe("ShotProductAddModal - Button State Logic", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        appImageMock.mockClear();
     });
 
     it("disables both buttons when no colourway is selected", async () => {
@@ -397,6 +403,7 @@ describe("ShotProductAddModal - Button State Logic", () => {
 describe("ShotProductAddModal - Scrolling and Layout", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        appImageMock.mockClear();
     });
 
     it("renders with proper scrollable container structure", () => {
