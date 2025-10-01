@@ -143,7 +143,12 @@ function FamilyHeaderImage({ path, alt, className }) {
   return (
     <div className={containerClass}>
       {url ? (
-        <img src={url} alt={alt} className="h-full w-full object-cover" />
+        <img
+          src={url}
+          alt={alt}
+          className="h-full w-full object-cover"
+          crossOrigin="anonymous"
+        />
       ) : (
         <div className="flex h-full items-center justify-center text-xs text-slate-400">No image</div>
       )}

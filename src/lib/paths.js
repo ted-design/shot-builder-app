@@ -16,7 +16,7 @@ const resolveClientId = (explicitClientId) => explicitClientId ?? CLIENT_ID;
  * Active” in the Projects page) without requiring a full reload of the
  * module.
  */
-const DEFAULT_PROJECT_ID = "default-project";
+export const DEFAULT_PROJECT_ID = "default-project";
 
 export function getActiveProjectId() {
   const stored = readStorage("ACTIVE_PROJECT_ID", DEFAULT_PROJECT_ID);

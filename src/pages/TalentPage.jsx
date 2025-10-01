@@ -56,7 +56,12 @@ function TalentCard({ talent, canManage, onEdit, editDisabled }) {
     <Card className="flex h-full flex-col overflow-hidden">
       <div className="aspect-[3/4] w-full overflow-hidden bg-slate-100">
         {imageUrl ? (
-          <img src={imageUrl} alt={displayName} className="h-full w-full object-cover" />
+          <img
+            src={imageUrl}
+            alt={displayName}
+            className="h-full w-full object-cover"
+            crossOrigin="anonymous"
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-slate-400">No image</div>
         )}

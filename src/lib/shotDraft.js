@@ -18,6 +18,7 @@ export const shotDraftSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   description: z.string().trim().optional(),
   type: z.string().trim().optional(),
+  status: z.enum(["todo", "in_progress", "complete", "on_hold"]).default("todo"),
   date: z
     .string()
     .trim()
@@ -26,6 +27,7 @@ export const shotDraftSchema = z.object({
       message: "Enter date as YYYY-MM-DD",
     }),
   locationId: z.string().optional(),
+  projectId: z.string().trim().optional(),
   products: z.array(z.any()),
   talent: z.array(
     z.object({
@@ -39,6 +41,7 @@ export const initialShotDraft = {
   name: "",
   description: "",
   type: "",
+  status: "todo",
   date: "",
   locationId: "",
   products: [],

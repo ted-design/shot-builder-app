@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
 import { storage } from "../lib/firebase";
+import { loadImageWithRetry, withRetry } from "../lib/imageLoader";
 
 export const resolveStoragePath = (candidate) => {
   if (typeof candidate === "string") {
@@ -42,12 +43,13 @@ export const buildSizedPath = (path, size = 480) => {
   return `${sizedBase}${query}`;
 };
 
-export function useStorageImage(path, { preferredSize = 480 } = {}) {
+export function useStorageImage(path, { preferredSize = 480, retries = 2 } = {}) {
   const [url, setUrl] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     const resolvedPath = resolveStoragePath(path);
+
     if (!resolvedPath) {
       setUrl(null);
       return () => {
@@ -55,32 +57,57 @@ export function useStorageImage(path, { preferredSize = 480 } = {}) {
       };
     }
 
-    if (/^https?:\/\//i.test(resolvedPath)) {
-      setUrl(resolvedPath);
-      return () => {
-        cancelled = true;
-      };
-    }
+    const candidates = (() => {
+      if (/^https?:\/\//i.test(resolvedPath)) {
+        return [resolvedPath];
+      }
+      const sized = buildSizedPath(resolvedPath, preferredSize);
+      const list = [];
+      if (sized && sized !== resolvedPath) list.push(sized);
+      list.push(resolvedPath);
+      return Array.from(new Set(list.filter(Boolean)));
+    })();
+
+    setUrl((current) => (candidates.includes(current) ? current : null));
+
+    const resolveDownloadUrl = async (candidate) => {
+      if (/^https?:\/\//i.test(candidate)) {
+        return candidate;
+      }
+      return withRetry(
+        () => getDownloadURL(storageRef(storage, candidate)),
+        { retries }
+      );
+    };
 
     (async () => {
-      try {
-        const sized = buildSizedPath(resolvedPath, preferredSize);
-        const preferred = await getDownloadURL(storageRef(storage, sized));
-        if (!cancelled) setUrl(preferred);
-      } catch (err) {
+      for (const candidate of candidates) {
         try {
-          const original = await getDownloadURL(storageRef(storage, resolvedPath));
-          if (!cancelled) setUrl(original);
-        } catch {
-          if (!cancelled) setUrl(null);
+          const downloadUrl = await resolveDownloadUrl(candidate);
+          await loadImageWithRetry(downloadUrl, { retries, crossOrigin: "anonymous" });
+          if (!cancelled) {
+            setUrl(downloadUrl);
+          }
+          return;
+        } catch (error) {
+          const isLastCandidate = candidate === candidates[candidates.length - 1];
+          if (isLastCandidate && process.env.NODE_ENV !== "test") {
+            console.warn("[useStorageImage] Failed to resolve image", {
+              path: candidate,
+              error,
+            });
+          }
         }
+      }
+      if (!cancelled) {
+        setUrl(null);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [path, preferredSize]);
+  }, [path, preferredSize, retries]);
 
   return url;
 }

@@ -12,9 +12,13 @@
 import React, { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
+  DragOverlay,
+  PointerSensor,
   closestCenter,
   useDroppable,
   useDraggable,
+  useSensor,
+  useSensors,
 } from "@dnd-kit/core";
 import {
   collection,
@@ -36,6 +40,7 @@ import {
   shotsPath,
   legacyProjectShotsPath,
   getActiveProjectId,
+  DEFAULT_PROJECT_ID,
   productFamiliesPath,
   productFamilySkusPath,
   productFamilyPath,
@@ -54,6 +59,8 @@ import PlannerExportModal from "../components/planner/PlannerExportModal";
 import ShotEditModal from "../components/shots/ShotEditModal";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
+import { selectPlannerGroups } from "../lib/plannerSelectors";
+import { sortShotsForView } from "../lib/shotsSelectors";
 import {
   shotDraftSchema,
   toDateInputValue,
@@ -64,6 +71,12 @@ import {
 } from "../lib/shotDraft";
 import { z } from "zod";
 import { readStorage, writeStorage } from "../lib/safeStorage";
+import {
+  DEFAULT_SHOT_STATUS,
+  isShotStatusValue,
+  normaliseShotStatus,
+  shotStatusOptions,
+} from "../lib/shotStatus";
 
 const PLANNER_VIEW_STORAGE_KEY = "planner:viewMode";
 const PLANNER_FIELDS_STORAGE_KEY = "planner:visibleFields";
@@ -76,7 +89,43 @@ const defaultVisibleFields = {
   products: true,
 };
 
+const PLANNER_PREFS_STORAGE_KEY = "planner:prefs";
+
+const defaultPlannerPrefs = {
+  groupBy: "date",
+  sort: "alpha",
+};
+
 const TALENT_UNASSIGNED_ID = "__talent_unassigned__";
+
+const PLANNER_GROUP_OPTIONS = [
+  { value: "date", label: "Date" },
+  { value: "talent", label: "Talent" },
+  { value: "none", label: "None" },
+];
+
+const PLANNER_SORT_OPTIONS = [
+  { value: "alpha", label: "Title A→Z" },
+  { value: "alpha_desc", label: "Title Z→A" },
+  { value: "date_asc", label: "Date Asc" },
+  { value: "date_desc", label: "Date Desc" },
+];
+
+const PLANNER_GROUP_VALUES = new Set(PLANNER_GROUP_OPTIONS.map((option) => option.value));
+const PLANNER_SORT_VALUES = new Set(PLANNER_SORT_OPTIONS.map((option) => option.value));
+
+const normalisePlannerGroup = (value) =>
+  typeof value === "string" && PLANNER_GROUP_VALUES.has(value)
+    ? value
+    : defaultPlannerPrefs.groupBy;
+
+const normalisePlannerSort = (value) => {
+  if (typeof value !== "string" || !value) return defaultPlannerPrefs.sort;
+  if (value === "byDate") return "date_asc";
+  if (value === "byTalent") return "alpha";
+  if (PLANNER_SORT_VALUES.has(value)) return value;
+  return defaultPlannerPrefs.sort;
+};
 
 const toLaneKey = (laneId) => (laneId ? String(laneId) : UNASSIGNED_LANE_ID);
 
@@ -147,8 +196,10 @@ const normaliseShotForPlanner = (shot, fallbackProjectId = null) => {
       : shot.lane && typeof shot.lane === "object"
       ? shot.lane.id ?? null
       : null;
-  const projectId = shot.projectId || fallbackProjectId || null;
-  return { ...shot, laneId, projectId };
+  const projectId = shot.projectId || fallbackProjectId || DEFAULT_PROJECT_ID;
+  const notes = typeof shot.notes === "string" ? shot.notes : shot.description || "";
+  const status = normaliseShotStatus(shot.status);
+  return { ...shot, laneId, projectId, notes, status };
 };
 
 const mergeShotSources = (primaryShots = [], legacyShots = [], fallbackProjectId = null) => {
@@ -197,6 +248,9 @@ const stripHtml = (value) => {
     .replace(/[\t ]+/g, " ")
     .trim();
 };
+
+const shouldShowLanePlaceholder = (activeShot, laneId, overLane, droppable = true) =>
+  Boolean(droppable && activeShot && activeShot.id && overLane === laneId);
 
 const normaliseShotTalent = (shot) => {
   if (!shot) return [];
@@ -404,6 +458,20 @@ const readStoredVisibleFields = () => {
   }
 };
 
+const readStoredPlannerPrefs = () => {
+  try {
+    const raw = readStorage(PLANNER_PREFS_STORAGE_KEY);
+    if (!raw) return { ...defaultPlannerPrefs };
+    const parsed = JSON.parse(raw);
+    const groupBy = normalisePlannerGroup(parsed.groupBy);
+    const sort = normalisePlannerSort(parsed.sort);
+    return { groupBy, sort };
+  } catch (error) {
+    console.warn("[Planner] Failed to parse planner preferences", error);
+    return { ...defaultPlannerPrefs };
+  }
+};
+
 class PlannerErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -451,8 +519,12 @@ class PlannerErrorBoundary extends Component {
 
 // Simple droppable component for DnD kit
 function DroppableLane({ laneId, children }) {
-  const { setNodeRef } = useDroppable({ id: `lane-${laneId}` });
-  return <div ref={setNodeRef}>{children}</div>;
+  const { setNodeRef, isOver } = useDroppable({ id: `lane-${laneId}` });
+  return (
+    <div ref={setNodeRef} data-droppable-over={isOver ? "" : undefined}>
+      {children}
+    </div>
+  );
 }
 
 // Simple draggable shot card for DnD kit
@@ -464,11 +536,15 @@ function DraggableShot({
   onEdit,
   canEditShots,
   normaliseProducts,
+  statusOptions,
+  onChangeStatus,
+  isActive = false,
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: shot.id, disabled });
-  const style = transform
+  const dragStyle = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : undefined;
+    : {};
+  const style = isActive ? { ...dragStyle, opacity: 0.3 } : dragStyle;
   const dragProps = disabled ? {} : { ...listeners, ...attributes };
   const products = typeof normaliseProducts === "function" ? normaliseProducts(shot) : shot.products || [];
   return (
@@ -485,13 +561,24 @@ function DraggableShot({
         onEdit={onEdit}
         canEdit={canEditShots}
         products={products}
+        statusOptions={statusOptions}
+        onChangeStatus={onChangeStatus}
       />
     </div>
   );
 }
 
 
-function ShotCard({ shot, viewMode, visibleFields, onEdit, canEdit, products }) {
+function ShotCard({
+  shot,
+  viewMode,
+  visibleFields,
+  onEdit,
+  canEdit,
+  products,
+  statusOptions,
+  onChangeStatus,
+}) {
   const typeLabel = shot.type || "–";
   const dateLabel = formatShotDate(shot.date) || "—";
   const notesHtml = visibleFields.notes ? formatNotesForDisplay(shot.description) : "";
@@ -515,6 +602,16 @@ function ShotCard({ shot, viewMode, visibleFields, onEdit, canEdit, products }) 
         return `${name}${colour}`;
       })
     : [];
+  const statusList = Array.isArray(statusOptions) && statusOptions.length ? statusOptions : shotStatusOptions;
+  const statusValue = normaliseShotStatus(shot.status);
+  const statusControlDisabled = !canEdit || typeof onChangeStatus !== "function";
+  const handleStatusChange = (event) => {
+    event.stopPropagation();
+    const nextValue = event.target.value;
+    if (statusControlDisabled) return;
+    if (nextValue === statusValue) return;
+    onChangeStatus(shot, nextValue);
+  };
   const firstProduct = Array.isArray(products) && products.length ? products[0] : null;
   const derivedThumbnail =
     firstProduct?.colourImagePath ||
@@ -571,27 +668,48 @@ function ShotCard({ shot, viewMode, visibleFields, onEdit, canEdit, products }) 
                   )}
                 </div>
               </div>
-              {canEdit && (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onEdit?.(shot);
-                  }}
-                  onPointerDownCapture={(event) => {
-                    // Prevent the parent draggable from hijacking pointer events.
-                    event.stopPropagation();
-                  }}
-                  onPointerUpCapture={(event) => {
-                    event.stopPropagation();
-                  }}
-                  className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900"
-                  aria-label={`Edit ${shot.name}`}
+              <div className="flex flex-col items-end gap-2">
+                <select
+                  aria-label={`${shot.name} status`}
+                  className={`h-8 min-w-[130px] rounded-md border px-2 text-xs font-medium transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 ${
+                    statusControlDisabled
+                      ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                  }`}
+                  value={statusValue}
+                  onChange={handleStatusChange}
+                  disabled={statusControlDisabled}
+                  onPointerDownCapture={(event) => event.stopPropagation()}
+                  onPointerUpCapture={(event) => event.stopPropagation()}
                 >
-                  <PencilLine className="h-4 w-4" aria-hidden="true" />
-                </button>
-              )}
+                  {statusList.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onEdit?.(shot);
+                    }}
+                    onPointerDownCapture={(event) => {
+                      // Prevent the parent draggable from hijacking pointer events.
+                      event.stopPropagation();
+                    }}
+                    onPointerUpCapture={(event) => {
+                      event.stopPropagation();
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900"
+                    aria-label={`Edit ${shot.name}`}
+                  >
+                    <PencilLine className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
             </div>
             {visibleFields.notes && notesHtml && (
               <div
@@ -632,6 +750,7 @@ function PlannerPageContent() {
   const [lanes, setLanes] = useState([]);
   const [name, setName] = useState("");
   const [shotsByLane, setShotsByLane] = useState({});
+  const [plannerShots, setPlannerShots] = useState([]);
   const [families, setFamilies] = useState([]);
   const [talent, setTalent] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -641,15 +760,21 @@ function PlannerPageContent() {
   const [familiesLoading, setFamiliesLoading] = useState(true);
   const [viewMode, setViewMode] = useState(() => readStoredPlannerView());
   const [visibleFields, setVisibleFields] = useState(() => readStoredVisibleFields());
+  const [plannerPrefs, setPlannerPrefs] = useState(() => readStoredPlannerPrefs());
   const [exportOpen, setExportOpen] = useState(false);
   const [fieldSettingsOpen, setFieldSettingsOpen] = useState(false);
   const fieldSettingsRef = useRef(null);
   const [editingShot, setEditingShot] = useState(null);
   const [isSavingShot, setIsSavingShot] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState(null);
+  const [activeDragShot, setActiveDragShot] = useState(null);
+  const [overLaneId, setOverLaneId] = useState(null);
   const familyDetailCacheRef = useRef(new Map());
   const pendingShotEditRef = useRef(null);
   const subscriptionErrorNotifiedRef = useRef(false);
+  const statusBackfillRef = useRef(new Set());
+  const autoScrollRef = useRef({ lastTick: 0, active: false });
+  const boardScrollRef = useRef(null);
   const projectId = getActiveProjectId();
   const {
     clientId,
@@ -686,6 +811,12 @@ function PlannerPageContent() {
     [clientId]
   );
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    })
+  );
+
   const familiesById = useMemo(() => {
     const map = new Map();
     families.forEach((family) => {
@@ -695,6 +826,16 @@ function PlannerPageContent() {
     });
     return map;
   }, [families]);
+
+  const plannerShotsById = useMemo(() => {
+    const map = new Map();
+    plannerShots.forEach((shot) => {
+      if (shot?.id) {
+        map.set(shot.id, shot);
+      }
+    });
+    return map;
+  }, [plannerShots]);
 
   const talentOptions = useMemo(
     () =>
@@ -735,6 +876,7 @@ function PlannerPageContent() {
     if (!projectId || !clientId) {
       setLanes([]);
       setShotsByLane({});
+      setPlannerShots([]);
       setFamilies([]);
       setLanesLoading(false);
       setShotsLoading(false);
@@ -749,6 +891,7 @@ function PlannerPageContent() {
     setFamiliesLoading(true);
     setLanes([]);
     setShotsByLane({});
+    setPlannerShots([]);
 
     let cancelled = false;
 
@@ -772,10 +915,37 @@ function PlannerPageContent() {
     let latestPrimaryShots = [];
     let latestLegacyShots = [];
 
+    const backfillMissingStatuses = (candidates) => {
+      if (!Array.isArray(candidates) || !candidates.length) return;
+      if (!currentShotsPath || !currentShotsPath.length) return;
+      const updates = [];
+      candidates.forEach((shot) => {
+        const shotId = shot?.id;
+        if (!shotId || statusBackfillRef.current.has(shotId)) return;
+        if (isShotStatusValue(shot?.status)) return;
+        statusBackfillRef.current.add(shotId);
+        updates.push(
+          updateDoc(doc(db, ...currentShotsPath, shotId), { status: DEFAULT_SHOT_STATUS }).catch(
+            (error) => {
+              statusBackfillRef.current.delete(shotId);
+              console.warn(`[Planner] Failed to backfill status for shot ${shotId}`, error);
+            }
+          )
+        );
+      });
+      if (updates.length) {
+        Promise.all(updates).catch((error) => {
+          console.warn("[Planner] Failed to backfill shot statuses", error);
+        });
+      }
+    };
+
     const applyCombinedShots = () => {
       if (cancelled) return;
       const merged = mergeShotSources(latestPrimaryShots, latestLegacyShots, projectId);
+      setPlannerShots(merged);
       setShotsByLane(groupShotsByLane(merged));
+      backfillMissingStatuses(latestPrimaryShots);
     };
 
     const updateShotsLoading = () => {
@@ -926,6 +1096,16 @@ function PlannerPageContent() {
   useEffect(() => {
     writeStorage(PLANNER_FIELDS_STORAGE_KEY, JSON.stringify(visibleFields));
   }, [visibleFields]);
+
+  useEffect(() => {
+    writeStorage(
+      PLANNER_PREFS_STORAGE_KEY,
+      JSON.stringify({
+        groupBy: plannerPrefs.groupBy,
+        sort: plannerPrefs.sort,
+      })
+    );
+  }, [plannerPrefs]);
 
   useEffect(() => {
     if (!fieldSettingsOpen) return undefined;
@@ -1181,6 +1361,133 @@ function PlannerPageContent() {
     []
   );
 
+  const updateGroupBy = useCallback((nextGroup) => {
+    const normalised = normalisePlannerGroup(nextGroup);
+    setPlannerPrefs((prev) =>
+      prev.groupBy === normalised ? prev : { ...prev, groupBy: normalised }
+    );
+  }, []);
+
+  const updatePlannerSort = useCallback((nextSort) => {
+    const normalised = normalisePlannerSort(nextSort);
+    setPlannerPrefs((prev) =>
+      prev.sort === normalised ? prev : { ...prev, sort: normalised }
+    );
+  }, []);
+
+  const handleUpdateShotStatus = useCallback(
+    async (shot, nextStatus) => {
+      if (!shot || !shot.id) return;
+      if (!canEditShots) {
+        toast.error("You do not have permission to edit shots.");
+        return;
+      }
+      const resolved = normaliseShotStatus(nextStatus);
+      if (resolved === normaliseShotStatus(shot.status)) return;
+      try {
+        await updateShot(shot, { status: resolved });
+      } catch (error) {
+        console.error("[Planner] Failed to update shot status", error);
+        toast.error("Could not update shot status");
+      }
+    },
+    [canEditShots, updateShot]
+  );
+
+  const handleAutoScrollPointerMove = useCallback(
+    (event) => {
+      if (!autoScrollRef.current.active) return;
+      if (typeof PointerEvent !== "undefined" && !(event instanceof PointerEvent)) return;
+      const now = performance.now();
+      if (now - autoScrollRef.current.lastTick < 40) return;
+      autoScrollRef.current.lastTick = now;
+      const threshold = 72;
+      const step = 28;
+      const { clientX, clientY } = event;
+      if (clientY < threshold) {
+        window.scrollBy({ top: -step, behavior: "smooth" });
+      } else if (clientY > window.innerHeight - threshold) {
+        window.scrollBy({ top: step, behavior: "smooth" });
+      }
+      if (viewMode === "board" && boardScrollRef.current) {
+        const bounds = boardScrollRef.current.getBoundingClientRect();
+        if (clientX < bounds.left + threshold) {
+          boardScrollRef.current.scrollBy({ left: -step, behavior: "smooth" });
+        } else if (clientX > bounds.right - threshold) {
+          boardScrollRef.current.scrollBy({ left: step, behavior: "smooth" });
+        }
+      }
+    },
+    [viewMode]
+  );
+
+  const cleanupAutoScroll = useCallback(() => {
+    if (!autoScrollRef.current.active) return;
+    autoScrollRef.current.active = false;
+    window.removeEventListener("pointermove", handleAutoScrollPointerMove);
+  }, [handleAutoScrollPointerMove]);
+
+  const handleDragStart = useCallback(
+    ({ active }) => {
+      const shotId = active?.id;
+      if (!shotId) return;
+      const shot = plannerShotsById.get(shotId) || null;
+      setActiveDragShot(shot);
+      setOverLaneId(shot?.laneId ?? null);
+      if (!autoScrollRef.current.active) {
+        autoScrollRef.current.active = true;
+        autoScrollRef.current.lastTick = 0;
+        window.addEventListener("pointermove", handleAutoScrollPointerMove, { passive: true });
+      }
+    },
+    [plannerShotsById, handleAutoScrollPointerMove]
+  );
+
+  const handleDragOver = useCallback(({ over }) => {
+    if (!over?.id || typeof over.id !== "string") {
+      setOverLaneId(null);
+      return;
+    }
+    if (over.id.startsWith("lane-")) {
+      setOverLaneId(over.id.slice(5));
+    }
+  }, []);
+
+  const handleDragEnd = useCallback(
+    async (event) => {
+      cleanupAutoScroll();
+      const shotId = event.active?.id;
+      const overRawId = event.over?.id;
+      setActiveDragShot(null);
+      setOverLaneId(null);
+      if (!canEditPlanner) return;
+      if (!shotId || typeof overRawId !== "string" || !overRawId.startsWith("lane-")) return;
+      const laneId = overRawId.slice(5);
+      const shot = plannerShotsById.get(shotId);
+      if (shot && shot.laneId === laneId) return;
+      const patch = { laneId };
+      if (laneId) {
+        const lane = lanes.find((l) => l.id === laneId);
+        if (lane && /^\d{4}-\d{2}-\d{2}$/.test(lane.name)) patch.date = lane.name;
+      }
+      try {
+        await updateDoc(doc(db, ...currentShotsPath, shotId), patch);
+      } catch (error) {
+        console.error("[Planner] Failed to move shot", error);
+        toast.error("Could not move shot");
+      }
+    },
+    [cleanupAutoScroll, canEditPlanner, plannerShotsById, lanes, currentShotsPath, toast]
+  );
+
+  const handleDragCancel = useCallback(() => {
+    cleanupAutoScroll();
+    setActiveDragShot(null);
+    setOverLaneId(null);
+  }, [cleanupAutoScroll]);
+
+  useEffect(() => () => cleanupAutoScroll(), [cleanupAutoScroll]);
+
   const lanesForExport = useMemo(
     () => buildPlannerExportLanes(shotsByLane, lanes, normaliseShotProducts),
     [shotsByLane, lanes, normaliseShotProducts]
@@ -1199,13 +1506,30 @@ function PlannerPageContent() {
     ? "flex flex-col gap-3"
     : "flex flex-col gap-3";
   const unassignedShots = shotsByLane[UNASSIGNED_LANE_ID] || [];
+  const groupBy = plannerPrefs.groupBy;
+  const sortBy = plannerPrefs.sort;
+  const derivedGroups = useMemo(
+    () => (groupBy === "none" ? [] : selectPlannerGroups(plannerShots, { groupBy, sortBy })),
+    [plannerShots, groupBy, sortBy]
+  );
 
-  const renderLaneBlock = (laneId, title, laneShots, laneMeta = null) => (
-    <DroppableLane key={laneId} laneId={laneId}>
-      <div className={laneWrapperClass}>
+  const renderLaneBlock = (laneId, title, laneShots, laneMeta = null, options = {}) => {
+    const droppable = options.droppable !== false;
+    const laneList = Array.isArray(laneShots) ? laneShots : [];
+    const displayShots = options.sortBy
+      ? sortShotsForView(laneList, { sortBy: options.sortBy })
+      : laneList;
+    const isActiveLane = droppable && overLaneId === laneId;
+    const placeholderVisible = shouldShowLanePlaceholder(activeDragShot, laneId, overLaneId, droppable);
+    const card = (
+      <div
+        className={`${laneWrapperClass} ${
+          isActiveLane ? "border-primary/60 shadow-lg ring-1 ring-primary/20" : ""
+        }`}
+      >
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-slate-900">{title}</span>
-          {laneMeta && canEditPlanner && (
+          {droppable && laneMeta && canEditPlanner && (
             <span className="flex items-center gap-2 text-xs text-primary">
               <button onClick={() => renameLane(laneMeta)} className="hover:underline">
                 Rename
@@ -1217,22 +1541,42 @@ function PlannerPageContent() {
           )}
         </div>
         <div className={shotListClass}>
-          {laneShots.map((sh) => (
+          {displayShots.map((sh) => (
             <DraggableShot
               key={sh.id}
               shot={sh}
-              disabled={!canEditPlanner}
+              disabled={!droppable || !canEditPlanner}
               viewMode={viewMode}
               visibleFields={visibleFields}
               onEdit={handleOpenShotEdit}
               canEditShots={canEditShots}
               normaliseProducts={normaliseShotProducts}
+              statusOptions={shotStatusOptions}
+              onChangeStatus={handleUpdateShotStatus}
+              isActive={activeDragShot?.id === sh.id}
             />
           ))}
+          {placeholderVisible && (
+            <div className="h-16 rounded-md border-2 border-dashed border-primary/60 bg-primary/5" />
+          )}
         </div>
       </div>
-    </DroppableLane>
-  );
+    );
+
+    if (!droppable) {
+      return (
+        <div key={laneId} className="min-w-[260px] flex-1">
+          {card}
+        </div>
+      );
+    }
+
+    return (
+      <DroppableLane key={laneId} laneId={laneId}>
+        {card}
+      </DroppableLane>
+    );
+  };
 
   const buildShotProduct = useCallback(
     (selection, previous = null) => {
@@ -1577,33 +1921,79 @@ function PlannerPageContent() {
         </div>
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            View
-          </span>
-          <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
-            <button
-              type="button"
-              onClick={() => updateViewMode("board")}
-              className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
-                viewMode === "board" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
-              }`}
-              aria-pressed={viewMode === "board"}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              View
+            </span>
+            <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+              <button
+                type="button"
+                onClick={() => updateViewMode("board")}
+                className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
+                  viewMode === "board"
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+                aria-pressed={viewMode === "board"}
+              >
+                <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+                Board
+              </button>
+              <button
+                type="button"
+                onClick={() => updateViewMode("list")}
+                className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
+                  viewMode === "list"
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+                aria-pressed={viewMode === "list"}
+              >
+                <List className="h-4 w-4" aria-hidden="true" />
+                List
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="planner-group-select"
+              className="text-xs font-medium uppercase tracking-wide text-slate-500"
             >
-              <LayoutGrid className="h-4 w-4" aria-hidden="true" />
-              Board
-            </button>
-            <button
-              type="button"
-              onClick={() => updateViewMode("list")}
-              className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
-                viewMode === "list" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
-              }`}
-              aria-pressed={viewMode === "list"}
+              Group
+            </label>
+            <select
+              id="planner-group-select"
+              className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+              value={groupBy}
+              onChange={(event) => updateGroupBy(event.target.value)}
             >
-              <List className="h-4 w-4" aria-hidden="true" />
-              List
-            </button>
+              {PLANNER_GROUP_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="planner-sort-select"
+              className="text-xs font-medium uppercase tracking-wide text-slate-500"
+            >
+              Sort
+            </label>
+            <select
+              id="planner-sort-select"
+              className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+              value={sortBy}
+              onChange={(event) => updatePlannerSort(event.target.value)}
+            >
+              {PLANNER_SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1685,24 +2075,68 @@ function PlannerPageContent() {
         <div className="flex min-h-[200px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
           Loading planner…
         </div>
-      ) : (
-        <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      ) : groupBy === "none" ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
           {isListView ? (
             <div className="flex flex-col gap-4 pb-6">
-              {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots)}
+              {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots, null, {
+                sortBy,
+              })}
               {lanes.map((lane) =>
-                renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane)
+                renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane, {
+                  sortBy,
+                })
               )}
             </div>
           ) : (
-            <div className="flex gap-4 overflow-x-auto pb-6">
-              {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots)}
+            <div ref={boardScrollRef} className="flex gap-4 overflow-x-auto pb-6">
+              {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots, null, {
+                sortBy,
+              })}
               {lanes.map((lane) =>
-                renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane)
+                renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane, {
+                  sortBy,
+                })
               )}
             </div>
           )}
+          <DragOverlay>
+            {activeDragShot ? (
+              <ShotCard
+                shot={activeDragShot}
+                viewMode={viewMode}
+                visibleFields={visibleFields}
+                onEdit={null}
+                canEdit={false}
+                products={normaliseShotProducts(activeDragShot)}
+                statusOptions={shotStatusOptions}
+                onChangeStatus={null}
+              />
+            ) : null}
+          </DragOverlay>
         </DndContext>
+      ) : (
+        <div className={isListView ? "flex flex-col gap-4 pb-6" : "flex gap-4 overflow-x-auto pb-6"}>
+          {derivedGroups.length ? (
+            derivedGroups.map((group) =>
+              renderLaneBlock(group.id, group.name, group.shots, null, {
+                droppable: false,
+                sortBy,
+              })
+            )
+          ) : (
+            <div className="flex min-h-[160px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+              No shots available for the current grouping.
+            </div>
+          )}
+        </div>
       )}
       {!isPlannerLoading && lanes.length === 0 && totalShots === 0 && (
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
@@ -1772,4 +2206,5 @@ export const __test = {
   TALENT_UNASSIGNED_ID,
   mergeShotSources,
   normaliseShotForPlanner,
+  shouldShowLanePlaceholder,
 };

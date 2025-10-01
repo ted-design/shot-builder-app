@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 vi.mock("../../lib/firebase", () => ({
   db: {},
@@ -28,6 +28,7 @@ const {
   TALENT_UNASSIGNED_ID,
   mergeShotSources,
   normaliseShotForPlanner,
+  shouldShowLanePlaceholder,
 } = __test;
 
 describe("Planner view preferences", () => {
@@ -66,6 +67,7 @@ describe("ShotCard thumbnails", () => {
     laneId: "lane-1",
     description: "",
     talent: [],
+    status: "todo",
   };
 
   const visibleFields = {
@@ -128,6 +130,46 @@ describe("ShotCard thumbnails", () => {
 
     expect(screen.getByText(/no image/i)).toBeInTheDocument();
   });
+
+  it("disables the status control when editing is not allowed", () => {
+    render(
+      <ShotCard
+        shot={{ ...baseShot, status: "in_progress" }}
+        products={[]}
+        viewMode="board"
+        visibleFields={visibleFields}
+        onEdit={() => {}}
+        canEdit={false}
+      />
+    );
+
+    const statusSelect = screen.getByLabelText(/test shot status/i);
+    expect(statusSelect).toBeDisabled();
+    expect(statusSelect).toHaveValue("in_progress");
+  });
+
+  it("invokes the status change handler when a new value is selected", () => {
+    const handleStatusChange = vi.fn();
+
+    render(
+      <ShotCard
+        shot={baseShot}
+        products={[]}
+        viewMode="board"
+        visibleFields={visibleFields}
+        onEdit={() => {}}
+        canEdit
+        onChangeStatus={handleStatusChange}
+      />
+    );
+
+    const statusSelect = screen.getByLabelText(/test shot status/i);
+    expect(statusSelect).not.toBeDisabled();
+
+    fireEvent.change(statusSelect, { target: { value: "complete" } });
+
+    expect(handleStatusChange).toHaveBeenCalledWith(expect.objectContaining({ id: "shot-1" }), "complete");
+  });
 });
 
 describe("groupShotsByLane", () => {
@@ -157,6 +199,24 @@ describe("groupShotsByLane", () => {
       "lane-b-first",
       "lane-b-second",
     ]);
+  });
+});
+
+describe("shouldShowLanePlaceholder", () => {
+  const activeShot = { id: "shot-1", laneId: "lane-a" };
+
+  it("returns true when a draggable shot hovers a droppable lane", () => {
+    expect(shouldShowLanePlaceholder(activeShot, "lane-a", "lane-a", true)).toBe(true);
+  });
+
+  it("returns false when the lane is not the current hover target", () => {
+    expect(shouldShowLanePlaceholder(activeShot, "lane-b", "lane-a", true)).toBe(false);
+  });
+
+  it("returns false when dragging metadata is missing", () => {
+    expect(shouldShowLanePlaceholder(null, "lane-a", "lane-a", true)).toBe(false);
+    expect(shouldShowLanePlaceholder(activeShot, "lane-a", null, true)).toBe(false);
+    expect(shouldShowLanePlaceholder(activeShot, "lane-a", "lane-a", false)).toBe(false);
   });
 });
 

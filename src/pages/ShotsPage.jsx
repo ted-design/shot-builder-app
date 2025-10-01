@@ -31,8 +31,9 @@ import {
   productFamilySkusPath,
   talentPath,
   locationsPath,
+  DEFAULT_PROJECT_ID,
 } from "../lib/paths";
-import { LayoutGrid, List, SlidersHorizontal } from "lucide-react";
+import { LayoutGrid, List, SlidersHorizontal, ChevronDown } from "lucide-react";
 import Select from "react-select";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -41,6 +42,7 @@ import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
 import ShotEditModal from "../components/shots/ShotEditModal";
+import CreateShotCard from "../components/shots/CreateShotCard";
 import { useAuth } from "../context/AuthContext";
 import { canEditProducts, canManageShots, resolveEffectiveRole } from "../lib/rbac";
 import { describeFirebaseError } from "../lib/firebaseErrors";
@@ -60,6 +62,8 @@ import {
   mapTalentForWrite,
 } from "../lib/shotDraft";
 import { readStorage, writeStorage } from "../lib/safeStorage";
+import { normaliseShotStatus, DEFAULT_SHOT_STATUS } from "../lib/shotStatus";
+import { normaliseShot, sortShotsForView, SHOT_SORT_OPTIONS } from "../lib/shotsSelectors";
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
@@ -69,6 +73,19 @@ const defaultShotFilters = {
   talentIds: [],
   productFamilyIds: [],
 };
+
+const SHOTS_PREFS_STORAGE_KEY = "shots:viewPrefs";
+
+const defaultViewPrefs = {
+  showProducts: true,
+  showTalent: true,
+  showLocation: true,
+  showNotes: true,
+  sort: "alpha",
+};
+
+const normaliseShotRecord = (id, data, fallbackProjectId) =>
+  normaliseShot({ id, ...data }, { fallbackProjectId }) || { id, ...data };
 
 const filterSelectStyles = {
   control: (base, state) => ({
@@ -99,7 +116,7 @@ const filterSelectStyles = {
       color: "#1d4ed8",
     },
   }),
-  menuPortal: (base) => ({ ...base, zIndex: 40 }),
+  menuPortal: (base) => ({ ...base, zIndex: 1200 }),
 };
 
 const readStoredShotsView = () => {
@@ -127,10 +144,28 @@ const readStoredShotFilters = () => {
   }
 };
 
+const readStoredViewPrefs = () => {
+  try {
+    const raw = readStorage(SHOTS_PREFS_STORAGE_KEY);
+    if (!raw) return { ...defaultViewPrefs };
+    const parsed = JSON.parse(raw);
+    return {
+      showProducts: parsed.showProducts !== false,
+      showTalent: parsed.showTalent !== false,
+      showLocation: parsed.showLocation !== false,
+      showNotes: parsed.showNotes !== false,
+      sort: typeof parsed.sort === "string" ? parsed.sort : defaultViewPrefs.sort,
+    };
+  } catch (error) {
+    console.warn("[Shots] Failed to read view prefs", error);
+    return { ...defaultViewPrefs };
+  }
+};
+
 export default function ShotsPage() {
   const [shots, setShots] = useState([]);
   const [queryText, setQueryText] = useState("");
-  const [draft, setDraft] = useState({ ...initialShotDraft });
+  const [createDraft, setCreateDraft] = useState({ ...initialShotDraft });
   const [families, setFamilies] = useState([]);
   const [talent, setTalent] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -138,8 +173,11 @@ export default function ShotsPage() {
   const [isCreatingShot, setIsCreatingShot] = useState(false);
   const [viewMode, setViewMode] = useState(() => readStoredShotsView());
   const [filters, setFilters] = useState(() => readStoredShotFilters());
+  const [viewPrefs, setViewPrefs] = useState(() => readStoredViewPrefs());
   const [editingShot, setEditingShot] = useState(null);
   const [isSavingShot, setIsSavingShot] = useState(false);
+  const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+  const [displayMenuOpen, setDisplayMenuOpen] = useState(false);
   const projectId = getActiveProjectId();
   const { clientId, role: globalRole, projectRoles = {}, user, claims } = useAuth();
   const userRole = useMemo(
@@ -291,6 +329,11 @@ export default function ShotsPage() {
     });
   }, [shots, queryText, filters, talentOptions, locationById]);
 
+  const sortedShots = useMemo(
+    () => sortShotsForView(filteredShots, { sortBy: viewPrefs.sort }),
+    [filteredShots, viewPrefs.sort]
+  );
+
   useEffect(() => {
     writeStorage(SHOTS_VIEW_STORAGE_KEY, viewMode);
   }, [viewMode]);
@@ -308,9 +351,38 @@ export default function ShotsPage() {
     );
   }, [filters]);
 
+  useEffect(() => {
+    writeStorage(
+      SHOTS_PREFS_STORAGE_KEY,
+      JSON.stringify({
+        showProducts: viewPrefs.showProducts,
+        showTalent: viewPrefs.showTalent,
+        showLocation: viewPrefs.showLocation,
+        showNotes: viewPrefs.showNotes,
+        sort: viewPrefs.sort,
+      })
+    );
+  }, [viewPrefs]);
+
+  useEffect(() => {
+    if (!displayMenuOpen) return undefined;
+    const handleClick = (event) => {
+      if (!displayMenuRef.current || displayMenuRef.current.contains(event.target)) return;
+      setDisplayMenuOpen(false);
+    };
+    const handleKey = (event) => {
+      if (event.key === "Escape") setDisplayMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [displayMenuOpen]);
+
   const familyDetailCacheRef = useRef(new Map());
-  const createFormRef = useRef(null);
-  const createNameInputRef = useRef(null);
+  const displayMenuRef = useRef(null);
 
   // Helper to build references
   const collRef = (...segments) => collection(db, ...segments);
@@ -604,13 +676,14 @@ export default function ShotsPage() {
     async (payload) => {
       if (!canManageProducts) throw new Error("You do not have permission to create products.");
       try {
-        await createProductFamily({
+        const familyId = await createProductFamily({
           db,
           clientId,
           payload,
           userId: user?.uid || null,
         });
         toast.success({ title: "Product created", description: "The new product family is now available." });
+        return familyId;
       } catch (error) {
         console.error("[Shots] Failed to create product", error);
         toast.error({
@@ -718,7 +791,7 @@ export default function ShotsPage() {
     const unsubShots = onSnapshot(
       shotsQuery,
       (snapshot) => {
-        setShots(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setShots(snapshot.docs.map((doc) => normaliseShotRecord(doc.id, doc.data(), projectId)));
       },
       handleSubscriptionError("shots")
     );
@@ -762,8 +835,7 @@ export default function ShotsPage() {
   }, [projectId, currentShotsPath, currentProductFamiliesPath, currentTalentPath, currentLocationsPath]);
 
   // Create a new shot with validation and error handling.
-  const handleCreateShot = async (event) => {
-    event.preventDefault();
+  const handleCreateShot = async () => {
     const shotPathSegments = currentShotsPath;
     const targetPath = `/${shotPathSegments.join("/")}`;
     const authInfo = buildAuthDebugInfo();
@@ -790,17 +862,22 @@ export default function ShotsPage() {
 
     if (isCreatingShot) return;
 
-    const validation = shotDraftSchema.safeParse(draft);
+    const validation = shotDraftSchema.safeParse(createDraft);
     if (!validation.success) {
       const message = validation.error.issues.map((issue) => issue.message).join("; ");
       toast.error({ title: "Check shot details", description: message });
       return;
     }
 
+    const resolvedProjectId =
+      validation.data.projectId && validation.data.projectId.trim()
+        ? validation.data.projectId.trim()
+        : projectId || DEFAULT_PROJECT_ID;
+
     setIsCreatingShot(true);
     console.info("[Shots] Attempting to create shot", {
       path: targetPath,
-      projectId,
+      projectId: resolvedProjectId,
       ...authInfo,
     });
     try {
@@ -812,10 +889,12 @@ export default function ShotsPage() {
         : null;
 
       const notesHtml = sanitizeNotesHtml(validation.data.description || "");
+      const resolvedStatus = normaliseShotStatus(validation.data.status);
 
       const payload = {
         name: validation.data.name,
         description: notesHtml,
+        notes: notesHtml,
         type: validation.data.type || "",
         date: parseDateToTimestamp(validation.data.date) || null,
         locationId,
@@ -824,7 +903,8 @@ export default function ShotsPage() {
         productIds: extractProductIds(productsForWrite),
         talent: talentForWrite,
         talentIds: talentForWrite.map((entry) => entry.talentId),
-        projectId,
+        projectId: resolvedProjectId,
+        status: resolvedStatus,
         createdAt: serverTimestamp(),
         createdBy: user?.uid || null,
       };
@@ -832,7 +912,7 @@ export default function ShotsPage() {
       const docRefSnap = await writeDoc("create shot", () => addDoc(collRef(...shotPathSegments), payload));
       console.info("[Shots] Shot created", {
         path: targetPath,
-        projectId,
+        projectId: resolvedProjectId,
         docId: docRefSnap.id,
         ...authInfo,
       });
@@ -847,7 +927,8 @@ export default function ShotsPage() {
         },
       });
 
-      setDraft({ ...initialShotDraft });
+      setCreateDraft({ ...initialShotDraft });
+      setCreateModalOpen(false);
       toast.success(`Shot "${payload.name}" created.`);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -873,6 +954,25 @@ export default function ShotsPage() {
     }
   };
 
+  const openCreateModal = useCallback(() => {
+    if (!canEditShots) return;
+    setCreateDraft({
+      ...initialShotDraft,
+      projectId: projectId || DEFAULT_PROJECT_ID,
+      status: DEFAULT_SHOT_STATUS,
+    });
+    setCreateModalOpen(true);
+  }, [canEditShots, projectId]);
+
+  const toggleViewPref = useCallback((key) => {
+    setViewPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  const selectSort = useCallback((sortValue) => {
+    setViewPrefs((prev) => ({ ...prev, sort: sortValue }));
+    setDisplayMenuOpen(false);
+  }, []);
+
   // Update an existing shot.  We compute before/after arrays for reverse
   // indexing and only update fields that have changed.  Note: If you allow
   // editing the project assignment in the future, updating the `projectId`
@@ -889,7 +989,21 @@ export default function ShotsPage() {
     const docPatch = { ...patch };
 
     if (Object.prototype.hasOwnProperty.call(patch, "description")) {
-      docPatch.description = sanitizeNotesHtml(patch.description || "");
+      const html = sanitizeNotesHtml(patch.description || "");
+      docPatch.description = html;
+      docPatch.notes = html;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, "notes")) {
+      const html = sanitizeNotesHtml(patch.notes || "");
+      docPatch.notes = html;
+      if (!Object.prototype.hasOwnProperty.call(docPatch, "description")) {
+        docPatch.description = html;
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, "status")) {
+      docPatch.status = normaliseShotStatus(patch.status);
     }
 
     if (Object.prototype.hasOwnProperty.call(patch, "products") && patch.products != null) {
@@ -948,27 +1062,6 @@ export default function ShotsPage() {
       after: { productIds: [], products: [], talentIds: [], locationId: null },
     });
     await writeDoc("delete shot", () => deleteDoc(docRef(...currentShotsPath, shot.id)));
-  };
-
-  const scrollToCreateShot = () => {
-    if (!canEditShots) return;
-    if (createFormRef.current) {
-      createFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-    const focusField = () => {
-      if (createNameInputRef.current) {
-        try {
-          createNameInputRef.current.focus({ preventScroll: true });
-        } catch {
-          createNameInputRef.current.focus();
-        }
-      }
-    };
-    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
-      window.requestAnimationFrame(focusField);
-    } else {
-      focusField();
-    }
   };
 
   const handleLocationFilterChange = useCallback((nextId) => {
@@ -1106,6 +1199,7 @@ export default function ShotsPage() {
   const isListView = viewMode === "list";
   const talentNoOptionsMessage =
     talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available");
+  const activeSortOption = SHOT_SORT_OPTIONS.find((option) => option.value === viewPrefs.sort) || SHOT_SORT_OPTIONS[0];
 
   return (
     <div className="space-y-6">
@@ -1121,10 +1215,95 @@ export default function ShotsPage() {
               className="min-w-[200px] flex-1"
             />
             {canEditShots && (
-              <Button type="button" onClick={scrollToCreateShot} className="flex-none whitespace-nowrap">
+              <Button type="button" onClick={openCreateModal} className="flex-none whitespace-nowrap">
                 New shot
               </Button>
             )}
+            <div className="relative flex-none" ref={displayMenuRef}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-3"
+                onClick={() => setDisplayMenuOpen((open) => !open)}
+                aria-expanded={displayMenuOpen}
+                aria-haspopup="menu"
+              >
+                <div className="flex flex-col items-start leading-tight">
+                  <span className="text-sm font-medium">Display</span>
+                  <span className="text-xs text-slate-500">{activeSortOption.label}</span>
+                </div>
+                <ChevronDown className="h-4 w-4 text-slate-500" />
+              </Button>
+              {displayMenuOpen && (
+                <div className="absolute right-0 z-50 mt-2 w-64 rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sort</p>
+                    <div className="mt-2 space-y-1">
+                      {SHOT_SORT_OPTIONS.map((option) => {
+                        const active = viewPrefs.sort === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => selectSort(option.value)}
+                            className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 transition ${
+                              active
+                                ? "bg-primary/10 text-primary font-medium"
+                                : "text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            {option.label}
+                            {active && <span className="text-[10px] uppercase">Active</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="mt-3 border-t border-slate-200 pt-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Details</p>
+                    <div className="mt-2 space-y-2 text-slate-600">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300"
+                          checked={viewPrefs.showNotes}
+                          onChange={() => toggleViewPref("showNotes")}
+                        />
+                        Notes
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300"
+                          checked={viewPrefs.showProducts}
+                          onChange={() => toggleViewPref("showProducts")}
+                        />
+                        Products
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300"
+                          checked={viewPrefs.showTalent}
+                          onChange={() => toggleViewPref("showTalent")}
+                        />
+                        Talent
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300"
+                          checked={viewPrefs.showLocation}
+                          onChange={() => toggleViewPref("showLocation")}
+                        />
+                        Location
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
@@ -1184,6 +1363,7 @@ export default function ShotsPage() {
                   talentOptions.length ? "No matching talent" : "No talent available"
                 }
                 menuPortalTarget={selectPortalTarget}
+                menuShouldBlockScroll
                 closeMenuOnSelect={false}
               />
             </div>
@@ -1201,6 +1381,7 @@ export default function ShotsPage() {
                   productFilterOptions.length ? "No matching products" : "No products available"
                 }
                 menuPortalTarget={selectPortalTarget}
+                menuShouldBlockScroll
                 closeMenuOnSelect={false}
               />
             </div>
@@ -1214,116 +1395,14 @@ export default function ShotsPage() {
         Build and manage the shot list for the active project. Set the active project from the Dashboard.
       </p>
       {canEditShots ? (
-        <div ref={createFormRef}>
-          <Card>
-            <CardHeader>
-              <h2 className="text-lg font-semibold">Create New Shot</h2>
-            </CardHeader>
-            <CardContent>
-              <form className="space-y-4" onSubmit={handleCreateShot}>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Name</label>
-                    <Input
-                      placeholder="Name"
-                      value={draft.name}
-                      disabled={isCreatingShot}
-                      onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-                      ref={createNameInputRef}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Type</label>
-                    <Input
-                      placeholder="Type"
-                      value={draft.type}
-                      disabled={isCreatingShot}
-                      onChange={(event) => setDraft({ ...draft, type: event.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Date</label>
-                    <Input
-                      placeholder="Date"
-                      value={draft.date}
-                      type="date"
-                      disabled={isCreatingShot}
-                      onChange={(event) => setDraft({ ...draft, date: event.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">Notes</label>
-                  <NotesEditor
-                    value={draft.description}
-                    onChange={(next) => setDraft((prev) => ({ ...prev, description: next }))}
-                    disabled={isCreatingShot}
-                  />
-                  <p className="text-xs text-slate-500">
-                    Use bold, italics, or colour highlights to capture key reminders.
-                  </p>
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Location</label>
-                  <select
-                    className="w-full rounded-md border border-slate-200 p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
-                    value={draft.locationId}
-                    disabled={isCreatingShot}
-                    onChange={(event) => setDraft({ ...draft, locationId: event.target.value || "" })}
-                  >
-                    <option value="">(none)</option>
-                    {locations.map((location) => (
-                      <option key={location.id} value={location.id}>
-                        {location.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">Products</label>
-                  <ShotProductsEditor
-                    value={draft.products}
-                    onChange={(next) => setDraft((prev) => ({ ...prev, products: next }))}
-                    families={families}
-                    loadFamilyDetails={loadFamilyDetails}
-                    createProduct={buildShotProduct}
-                    canCreateProduct={canManageProducts}
-                    onCreateProduct={handleCreateProductFamily}
-                    onCreateColourway={handleCreateColourway}
-                    emptyHint="No products selected"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">Talent</label>
-                  <TalentMultiSelect
-                    options={talentOptions}
-                    value={draft.talent}
-                    onChange={(next) => setDraft((prev) => ({ ...prev, talent: next }))}
-                    isDisabled={isCreatingShot}
-                    placeholder={talentLoadError ? "Talent unavailable" : "Select talent"}
-                    noOptionsMessage={talentNoOptionsMessage}
-                  />
-                  {talentLoadError && (
-                    <p className="text-xs text-red-600">{talentLoadError}</p>
-                  )}
-                </div>
-                <div className="flex justify-end">
-                  <Button type="submit" disabled={isCreatingShot}>
-                    {isCreatingShot ? "Saving…" : "Add Shot"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+        <CreateShotCard onClick={openCreateModal} disabled={isCreatingShot} />
       ) : (
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
           You can browse shots but need producer or crew access to create or edit them.
         </div>
       )}
       <div className="space-y-4">
-        {filteredShots.length === 0 ? (
+        {sortedShots.length === 0 ? (
           <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
             {shots.length
               ? "No shots match the current search or filters."
@@ -1331,7 +1410,7 @@ export default function ShotsPage() {
           </div>
         ) : isGalleryView ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {filteredShots.map((shot) => {
+            {sortedShots.map((shot) => {
               const shotProducts = normaliseShotProducts(shot);
               const shotTalentSelection = mapShotTalentToSelection(shot);
               const notesHtml = formatNotesForDisplay(shot.description);
@@ -1347,13 +1426,14 @@ export default function ShotsPage() {
                   notesHtml={notesHtml}
                   canEditShots={canEditShots}
                   onEdit={() => handleEditShot(shot)}
+                  viewPrefs={viewPrefs}
                 />
               );
             })}
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredShots.map((shot) => {
+            {sortedShots.map((shot) => {
               const shotProducts = normaliseShotProducts(shot);
               const shotTalentSelection = mapShotTalentToSelection(shot);
               const notesHtml = formatNotesForDisplay(shot.description);
@@ -1369,12 +1449,47 @@ export default function ShotsPage() {
                   notesHtml={notesHtml}
                   canEditShots={canEditShots}
                   onEdit={() => handleEditShot(shot)}
+                  viewPrefs={viewPrefs}
                 />
               );
             })}
           </div>
         )}
       </div>
+      {canEditShots && isCreateModalOpen && (
+        <ShotEditModal
+          open
+          titleId="create-shot-modal-title"
+          heading="Create shot"
+          shotName={createDraft.name || "New shot"}
+          draft={createDraft}
+          onChange={(patch) => setCreateDraft((prev) => ({ ...prev, ...patch }))}
+          onClose={() => {
+            if (isCreatingShot) return;
+            setCreateModalOpen(false);
+            setCreateDraft({
+              ...initialShotDraft,
+              projectId: projectId || DEFAULT_PROJECT_ID,
+              status: DEFAULT_SHOT_STATUS,
+            });
+          }}
+          onSubmit={handleCreateShot}
+          isSaving={isCreatingShot}
+          submitLabel="Create shot"
+          savingLabel="Creating…"
+          families={families}
+          loadFamilyDetails={loadFamilyDetails}
+          createProduct={buildShotProduct}
+          allowProductCreation={canManageProducts}
+          onCreateProduct={handleCreateProductFamily}
+          onCreateColourway={handleCreateColourway}
+          locations={locations}
+          talentOptions={talentOptions}
+          talentPlaceholder={talentLoadError ? "Talent unavailable" : "Select talent"}
+          talentNoOptionsMessage={talentNoOptionsMessage}
+          talentLoadError={talentLoadError}
+        />
+      )}
       {!canEditShots && (
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
           Shot actions are read-only for your role.
@@ -1484,18 +1599,27 @@ function ShotListCard({
   notesHtml,
   canEditShots,
   onEdit,
+  viewPrefs = defaultViewPrefs,
 }) {
   const formattedDate = toDateInputValue(shot.date);
+  const {
+    showProducts = true,
+    showTalent = true,
+    showLocation = true,
+    showNotes = true,
+  } = viewPrefs || defaultViewPrefs;
   return (
-    <Card className="border">
-      <CardHeader>
+    <Card className="border shadow-sm">
+      <CardHeader className="px-4 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h3 className="text-base font-semibold text-slate-900">{shot.name}</h3>
-            <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-500">
+            <h3 className="text-base font-semibold text-slate-900 line-clamp-2" title={shot.name}>
+              {shot.name}
+            </h3>
+            <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-slate-500">
               {formattedDate && <span>Date: {formattedDate}</span>}
               {shot.type && <span>Type: {shot.type}</span>}
-              {locationName && <span>Location: {locationName}</span>}
+              {showLocation && locationName && <span title={locationName}>Location: {locationName}</span>}
             </div>
           </div>
           {canEditShots && (
@@ -1507,27 +1631,33 @@ function ShotListCard({
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {notesHtml ? (
-          <div
-            className="rounded-md bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-700"
-            dangerouslySetInnerHTML={{ __html: notesHtml }}
-          />
-        ) : (
-          <p className="text-sm text-slate-400">No notes added yet.</p>
+      <CardContent className="space-y-2 px-4 pb-3 pt-2">
+        {showNotes && (
+          notesHtml ? (
+            <div
+              className="rounded-md bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-700 line-clamp-3"
+              dangerouslySetInnerHTML={{ __html: notesHtml }}
+            />
+          ) : (
+            <p className="text-sm text-slate-400">No notes added yet.</p>
+          )
         )}
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Products
-          </span>
-          <ShotProductChips products={products} />
-        </div>
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Talent
-          </span>
-          <ShotTalentList talent={talent} />
-        </div>
+        {showProducts && (
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Products
+            </span>
+            <ShotProductChips products={products} />
+          </div>
+        )}
+        {showTalent && (
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Talent
+            </span>
+            <ShotTalentList talent={talent} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -1541,6 +1671,7 @@ function ShotGalleryCard({
   notesHtml,
   canEditShots,
   onEdit,
+  viewPrefs = defaultViewPrefs,
 }) {
   const imagePath = useMemo(() => selectShotImage(products), [products]);
   const imageUrl = useStorageImage(imagePath || null, { preferredSize: 640 });
@@ -1549,12 +1680,23 @@ function ShotGalleryCard({
   const plainNotes = notesHtml
     ? notesHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
     : "";
+  const {
+    showProducts = true,
+    showTalent = true,
+    showLocation = true,
+    showNotes = true,
+  } = viewPrefs || defaultViewPrefs;
 
   return (
-    <Card className="overflow-hidden border">
+    <Card className="overflow-hidden border shadow-sm">
       <div className="relative h-48 bg-slate-100">
         {displayImage ? (
-          <img src={displayImage} alt={`${shot.name} preview`} className="h-full w-full object-cover" />
+          <img
+            src={displayImage}
+            alt={`${shot.name} preview`}
+            className="h-full w-full object-cover"
+            crossOrigin="anonymous"
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
             No preview available
@@ -1568,32 +1710,40 @@ function ShotGalleryCard({
           </div>
         )}
       </div>
-      <CardContent className="space-y-3 pt-4">
+      <CardContent className="space-y-2 px-4 pb-4 pt-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-base font-semibold text-slate-900">{shot.name}</h3>
+          <h3 className="text-base font-semibold text-slate-900 line-clamp-2" title={shot.name}>
+            {shot.name}
+          </h3>
           {shot.type && <span className="text-xs uppercase tracking-wide text-primary">{shot.type}</span>}
         </div>
         <div className="flex flex-wrap gap-3 text-xs text-slate-500">
           {formattedDate && <span>{formattedDate}</span>}
-          {locationName && <span>{locationName}</span>}
+          {showLocation && locationName && <span title={locationName}>{locationName}</span>}
         </div>
-        {plainNotes ? (
-          <p className="text-sm text-slate-600">{plainNotes}</p>
-        ) : (
-          <p className="text-sm text-slate-400">No notes added yet.</p>
+        {showNotes && (
+          plainNotes ? (
+            <p className="text-sm text-slate-600 line-clamp-3">{plainNotes}</p>
+          ) : (
+            <p className="text-sm text-slate-400">No notes added yet.</p>
+          )
         )}
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Products
-          </span>
-          <ShotProductChips products={products} />
-        </div>
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Talent
-          </span>
-          <ShotTalentList talent={talent} />
-        </div>
+        {showProducts && (
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Products
+            </span>
+            <ShotProductChips products={products} />
+          </div>
+        )}
+        {showTalent && (
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Talent
+            </span>
+            <ShotTalentList talent={talent} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

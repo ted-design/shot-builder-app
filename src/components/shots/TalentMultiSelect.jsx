@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import Select from "react-select";
 
 const selectStyles = {
@@ -30,7 +30,7 @@ const selectStyles = {
       color: "#1d4ed8",
     },
   }),
-  menuPortal: (base) => ({ ...base, zIndex: 40 }),
+  menuPortal: (base) => ({ ...base, zIndex: 1200 }),
 };
 
 const defaultNoOptionsMessage = () => "No options";
@@ -86,6 +86,7 @@ export default function TalentMultiSelect({
       placeholder={placeholder}
       noOptionsMessage={noOptions}
       menuPortalTarget={portalTarget}
+      menuShouldBlockScroll
     />
   );
 }

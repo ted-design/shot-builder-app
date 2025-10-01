@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Fuse from "fuse.js";
 import { Modal } from "../ui/modal";
 import { Card, CardContent, CardHeader } from "../ui/card";
@@ -41,7 +41,12 @@ function ColourOption({ colour, selected, onSelect }) {
     >
       <div className="aspect-square w-full overflow-hidden rounded bg-slate-100">
         {imageUrl ? (
-          <img src={imageUrl} alt={`${colour.colorName} swatch`} className="h-full w-full object-cover" />
+          <img
+            src={imageUrl}
+            alt={`${colour.colorName} swatch`}
+            className="h-full w-full object-cover"
+            crossOrigin="anonymous"
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-slate-500">No image</div>
         )}
@@ -74,10 +79,15 @@ export default function ShotProductAddModal({
   onCreateProduct,
   onCreateColourway,
 }) {
-  const availableFamilies = useMemo(
-    () => families.filter((family) => !family.archived),
-    [families]
-  );
+  const [createdFamilies, setCreatedFamilies] = useState([]);
+
+  const availableFamilies = useMemo(() => {
+    const base = families.filter((family) => !family.archived);
+    if (!createdFamilies.length) return base;
+    const existingIds = new Set(base.map((family) => family.id));
+    const extras = createdFamilies.filter((family) => !existingIds.has(family.id));
+    return [...extras, ...base];
+  }, [families, createdFamilies]);
   const [query, setQuery] = useState("");
   const [view, setView] = useState(initialProduct ? "details" : "list");
   const [selectedFamilyId, setSelectedFamilyId] = useState(initialProduct?.familyId || null);
@@ -90,6 +100,14 @@ export default function ShotProductAddModal({
   const [createColourwayOpen, setCreateColourwayOpen] = useState(false);
 
   const scrollRegionRef = useRef(null);
+
+  useEffect(() => {
+    if (!createdFamilies.length) return;
+    setCreatedFamilies((prev) => {
+      const filtered = prev.filter((family) => !families.some((entry) => entry.id === family.id));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  }, [families, createdFamilies.length]);
 
   useEffect(() => {
     if (!selectedFamilyId) {
@@ -174,7 +192,10 @@ export default function ShotProductAddModal({
     return matches.filter((item) => base.includes(item));
   }, [availableFamilies, fuse, query, genderFilter]);
 
-  const activeFamily = familyDetails ? families.find((entry) => entry.id === selectedFamilyId) : null;
+  const activeFamily = useMemo(
+    () => availableFamilies.find((entry) => entry.id === selectedFamilyId) || null,
+    [availableFamilies, selectedFamilyId]
+  );
   const sizes = familyDetails?.sizes || activeFamily?.sizes || [];
   const colours = useMemo(() => {
     if (!familyDetails?.colours) return [];
@@ -221,6 +242,66 @@ export default function ShotProductAddModal({
   const handleCloseCreateModal = () => {
     setCreateModalOpen(false);
   };
+
+  const handleProductCreated = useCallback(async (payload) => {
+    if (!canCreateProduct || typeof onCreateProduct !== "function") return;
+    try {
+      const familyId = await onCreateProduct(payload);
+      if (!familyId) return;
+      const stubFamily = {
+        id: familyId,
+        styleName: payload.family?.styleName || "New product",
+        styleNumber: payload.family?.styleNumber || "",
+        gender: payload.family?.gender || "",
+        archived: false,
+        sizes: Array.isArray(payload.family?.sizes) ? payload.family.sizes : [],
+        colorNames: Array.isArray(payload.colorways)
+          ? payload.colorways.map((entry) => entry.name).filter(Boolean)
+          : [],
+      };
+      setCreatedFamilies((prev) => {
+        const next = prev.filter((family) => family.id !== familyId);
+        next.push(stubFamily);
+        return next;
+      });
+      setSelectedFamilyId(familyId);
+      setSelectedColourId(null);
+      setSelectedSize(ALL_SIZES_VALUE);
+      setView("details");
+      setQuery("");
+      setGenderFilter("all");
+      const optimisticColours = Array.isArray(payload.colorways)
+        ? payload.colorways.map((entry) => ({
+            id: entry.id || entry.name || Math.random().toString(36).slice(2),
+            colorName: entry.name || "New colourway",
+            skuCode: entry.sizes?.[0]?.sku || "",
+            status: "active",
+            imagePath: null,
+          }))
+        : [];
+      if (optimisticColours.length) {
+        setFamilyDetails({
+          colours: optimisticColours,
+          sizes: stubFamily.sizes,
+        });
+        setSelectedColourId(optimisticColours[0].id || null);
+      }
+      setLoadingDetails(true);
+      try {
+        const details = await loadFamilyDetails(familyId);
+        setFamilyDetails(details);
+        if (details?.colours?.length) {
+          setSelectedColourId(details.colours[0].id);
+        }
+      } catch (error) {
+        console.error("[ShotProductAddModal] Failed to load new family", error);
+      } finally {
+        setLoadingDetails(false);
+      }
+    } catch (error) {
+      throw error;
+    }
+  }, [canCreateProduct, loadFamilyDetails, onCreateProduct]);
 
   const handleOpenCreateColourway = () => {
     if (
@@ -583,7 +664,7 @@ export default function ShotProductAddModal({
         <NewProductModal
           open={createModalOpen}
           onClose={handleCloseCreateModal}
-          onSubmit={onCreateProduct}
+          onSubmit={handleProductCreated}
         />
       )}
       {createColourwayOpen &&
