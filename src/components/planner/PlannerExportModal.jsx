@@ -115,6 +115,72 @@ const fieldOptions = [
 
 const UNASSIGNED_TALENT_FILTER_VALUE = "__planner_unassigned__";
 
+const imageAssetCache = new Map();
+
+const blobToDataUrl = (blob) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      resolve(typeof reader.result === "string" ? reader.result : null);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+
+const fetchImageAsDataUrl = async (src) => {
+  if (typeof src !== "string" || src.length === 0) return null;
+  if (imageAssetCache.has(src)) {
+    return imageAssetCache.get(src);
+  }
+  const promise = (async () => {
+    const response = await fetch(src, {
+      mode: "cors",
+      credentials: "omit",
+      cache: "force-cache",
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image (${response.status})`);
+    }
+    const blob = await response.blob();
+    const dataUrl = await blobToDataUrl(blob);
+    return dataUrl || src;
+  })().catch((error) => {
+    console.warn("[Planner] Unable to preload image for export", { src, error });
+    return src;
+  });
+  imageAssetCache.set(src, promise);
+  return promise;
+};
+
+const prepareLanesForPdf = async (lanes, { includeImages }) => {
+  const list = Array.isArray(lanes) ? lanes : [];
+  const tasks = [];
+  const prepared = list.map((lane) => {
+    const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+    const shots = laneShots.map((shot) => {
+      const preparedShot = { ...shot };
+      if (!includeImages) {
+        preparedShot.image = null;
+        return preparedShot;
+      }
+      if (!shot?.image) {
+        preparedShot.image = null;
+        return preparedShot;
+      }
+      const loadTask = fetchImageAsDataUrl(shot.image).then((dataUrl) => {
+        preparedShot.image = dataUrl;
+      });
+      tasks.push(loadTask);
+      return preparedShot;
+    });
+    return { ...lane, shots };
+  });
+  if (tasks.length) {
+    await Promise.all(tasks);
+  }
+  return prepared;
+};
+
 const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
   const orientation = options.orientation === "landscape" ? "landscape" : "portrait";
   const visibleFields = options.fields || {};
@@ -251,6 +317,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
   const [includeLaneSummary, setIncludeLaneSummary] = useState(true);
   const [includeTalentSummary, setIncludeTalentSummary] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStage, setGenerationStage] = useState("");
   const [laneFilterMode, setLaneFilterMode] = useState("all");
   const [selectedLaneIds, setSelectedLaneIds] = useState([]);
   const [selectedTalentNames, setSelectedTalentNames] = useState([]);
@@ -331,6 +398,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       notes: defaultVisibleFields?.notes ?? true,
       image: false,
     });
+    setGenerationStage("");
   }, [open, defaultVisibleFields, laneOptions]);
 
   const selectedLaneIdSet = useMemo(() => new Set(selectedLaneIds), [selectedLaneIds]);
@@ -506,9 +574,13 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     }
     try {
       setIsGenerating(true);
+      const includeImages = Boolean(fields.image);
+      setGenerationStage("Collecting assets…");
+      const preparedLanes = await prepareLanesForPdf(filteredLanes, { includeImages });
+      setGenerationStage("Rendering PDF…");
       const blob = await pdf(
         <PlannerPdfDocument
-          lanes={filteredLanes}
+          lanes={preparedLanes}
           laneSummary={derivedLaneSummary}
           talentSummary={derivedTalentSummary}
           options={selectedOptions}
@@ -530,6 +602,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       toast.error("Unable to generate PDF export");
     } finally {
       setIsGenerating(false);
+      setGenerationStage("");
     }
   }, [
     hasShots,
@@ -539,6 +612,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     selectedOptions,
     title,
     onClose,
+    fields.image,
+    prepareLanesForPdf,
   ]);
 
   const handleDownloadCsv = useCallback(() => {
@@ -895,10 +970,16 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
               </Button>
             </div>
           </div>
+          {isGenerating && generationStage ? (
+            <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              {generationStage}
+            </div>
+          ) : null}
         </div>
       </div>
     </Modal>
   );
 };
 
+export { prepareLanesForPdf };
 export default PlannerExportModal;

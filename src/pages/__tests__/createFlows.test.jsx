@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import React from "react";
 
 globalThis.React = React;
@@ -244,8 +244,12 @@ describe("Create flows", () => {
     const { default: ShotsPage } = await import("../ShotsPage.jsx");
     render(<ShotsPage />);
 
-    fireEvent.change(screen.getByPlaceholderText("Name"), { target: { value: "Look 1" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add Shot" }));
+    fireEvent.click(screen.getByRole("button", { name: "New shot" }));
+
+    const modal = await screen.findByRole("dialog", { name: /create shot/i });
+    const [nameInput] = within(modal).getAllByRole("textbox");
+    fireEvent.change(nameInput, { target: { value: "Look 1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create shot" }));
 
     await waitFor(() => expect(addDocCalls.length).toBe(1));
     expect(addDocCalls[0].path).toEqual(["clients", "unbound-merino", "shots"]);
