@@ -363,6 +363,16 @@ export default function LocationsPage() {
 
   const closeEditModal = () => setEditTarget(null);
 
+  const openCreateModal = () => {
+    setEditTarget(null);
+    setCreateModalOpen(true);
+  };
+
+  const openEditModal = (location) => {
+    setCreateModalOpen(false);
+    setEditTarget(location);
+  };
+
   return (
     <div className="space-y-6">
       <div className="sticky inset-x-0 top-14 z-20 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
@@ -376,11 +386,7 @@ export default function LocationsPage() {
             className="min-w-[200px] flex-1"
           />
           {canManage && (
-            <Button
-              type="button"
-              onClick={() => setCreateModalOpen(true)}
-              className="flex-none whitespace-nowrap"
-            >
+            <Button type="button" onClick={openCreateModal} className="flex-none whitespace-nowrap">
               New location
             </Button>
           )}
@@ -408,15 +414,13 @@ export default function LocationsPage() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-        {canManage && (
-          <CreateLocationCard onClick={() => setCreateModalOpen(true)} disabled={creating} />
-        )}
+        {canManage && <CreateLocationCard onClick={openCreateModal} disabled={creating} />}
         {filteredLocations.map((entry) => (
           <LocationCard
             key={entry.id}
             location={entry}
             canManage={canManage}
-            onEdit={setEditTarget}
+            onEdit={openEditModal}
             editDisabled={editBusy && editTarget?.id === entry.id}
           />
         ))}
