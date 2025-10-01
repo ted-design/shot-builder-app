@@ -5,6 +5,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useStorageImage } from "../../hooks/useStorageImage";
 import { useFilePreview } from "../../hooks/useFilePreview";
+import { SelectPortalTargetProvider } from "../../context/SelectPortalTargetContext";
 
 export default function LocationEditModal({
   open,
@@ -13,6 +14,7 @@ export default function LocationEditModal({
   onClose,
   onSave,
   onDelete,
+  selectPortalTarget,
 }) {
   const [form, setForm] = useState({
     name: "",
@@ -107,7 +109,13 @@ export default function LocationEditModal({
   const titleId = "location-edit-title";
 
   return (
-    <Modal open={open} onClose={onClose} labelledBy={titleId} contentClassName="p-0 max-h-[90vh] overflow-y-auto">
+    <SelectPortalTargetProvider target={selectPortalTarget}>
+      <Modal
+        open={open}
+        onClose={onClose}
+        labelledBy={titleId}
+        contentClassName="p-0 max-h-[90vh] overflow-y-auto"
+      >
       <Card className="border-0 shadow-none">
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
@@ -335,5 +343,6 @@ export default function LocationEditModal({
         </CardContent>
       </Card>
     </Modal>
+    </SelectPortalTargetProvider>
   );
 }

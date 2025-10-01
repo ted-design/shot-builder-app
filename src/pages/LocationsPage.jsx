@@ -100,6 +100,8 @@ export default function LocationsPage() {
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManageLocations(role);
   const currentLocationsPath = useMemo(() => locationsPath(clientId), [clientId]);
+  const selectPortalTarget =
+    typeof window === "undefined" ? undefined : window.document.body;
 
   const buildAuthDebugInfo = useCallback(
     () => ({
@@ -439,6 +441,7 @@ export default function LocationsPage() {
           busy={creating}
           onClose={() => setCreateModalOpen(false)}
           onCreate={handleCreateLocation}
+          selectPortalTarget={selectPortalTarget}
         />
       )}
 
@@ -450,6 +453,7 @@ export default function LocationsPage() {
           onClose={closeEditModal}
           onSave={handleSaveLocation}
           onDelete={handleDelete}
+          selectPortalTarget={selectPortalTarget}
         />
       )}
     </div>

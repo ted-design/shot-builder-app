@@ -5,6 +5,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import Thumb from "../Thumb";
 import { useFilePreview } from "../../hooks/useFilePreview";
+import { SelectPortalTargetProvider } from "../../context/SelectPortalTargetContext";
 
 const emptyForm = {
   name: "",
@@ -17,7 +18,13 @@ const emptyForm = {
   notes: "",
 };
 
-export default function LocationCreateModal({ open, busy = false, onClose, onCreate }) {
+export default function LocationCreateModal({
+  open,
+  busy = false,
+  onClose,
+  onCreate,
+  selectPortalTarget,
+}) {
   const [form, setForm] = useState(emptyForm);
   const [file, setFile] = useState(null);
   const [error, setError] = useState("");
@@ -60,13 +67,14 @@ export default function LocationCreateModal({ open, busy = false, onClose, onCre
   const modalTitleId = "location-create-title";
 
   return (
-    <Modal
-      open={open}
-      onClose={busy ? undefined : onClose}
-      labelledBy={modalTitleId}
-      initialFocusRef={firstFieldRef}
-      contentClassName="p-0 max-h-[90vh] overflow-y-auto"
-    >
+    <SelectPortalTargetProvider target={selectPortalTarget}>
+      <Modal
+        open={open}
+        onClose={busy ? undefined : onClose}
+        labelledBy={modalTitleId}
+        initialFocusRef={firstFieldRef}
+        contentClassName="p-0 max-h-[90vh] overflow-y-auto"
+      >
       <Card className="border-0 shadow-none">
         <CardHeader>
           <h2 id={modalTitleId} className="text-lg font-semibold text-slate-900">
@@ -218,5 +226,6 @@ export default function LocationCreateModal({ open, busy = false, onClose, onCre
         </CardContent>
       </Card>
     </Modal>
+    </SelectPortalTargetProvider>
   );
 }
