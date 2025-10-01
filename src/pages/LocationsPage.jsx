@@ -13,6 +13,7 @@ import {
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import Thumb from "../components/Thumb";
 import LocationCreateModal from "../components/locations/LocationCreateModal";
 import LocationEditModal from "../components/locations/LocationEditModal";
 import CreateLocationCard from "../components/locations/CreateLocationCard";
@@ -21,7 +22,6 @@ import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import { toast } from "../lib/toast";
-import { useStorageImage } from "../hooks/useStorageImage";
 import { locationsPath } from "../lib/paths";
 import { ROLE, canManageLocations } from "../lib/rbac";
 
@@ -32,24 +32,21 @@ function formatAddress(location) {
 }
 
 function LocationCard({ location, canManage, onEdit, editDisabled }) {
-  const imageUrl = useStorageImage(location.photoPath, { preferredSize: 640 });
   const address = formatAddress(location);
   const name = (location.name || "Unnamed location").trim();
 
   return (
     <Card className="flex h-full flex-col overflow-hidden">
-      <div className="aspect-video w-full overflow-hidden bg-slate-100">
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={name}
-            className="h-full w-full object-cover"
-            crossOrigin="anonymous"
-          />
-        ) : (
+      <Thumb
+        path={location.photoPath || null}
+        size={640}
+        alt={name}
+        className="aspect-video w-full overflow-hidden bg-slate-100"
+        imageClassName="h-full w-full object-cover"
+        fallback={
           <div className="flex h-full items-center justify-center text-sm text-slate-400">No photo</div>
-        )}
-      </div>
+        }
+      />
       <CardContent className="flex flex-1 flex-col gap-3">
         <div className="space-y-1">
           <div className="text-base font-semibold text-slate-900" title={name}>

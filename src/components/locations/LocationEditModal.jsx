@@ -3,9 +3,9 @@ import { Modal } from "../ui/modal";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { useStorageImage } from "../../hooks/useStorageImage";
 import { useFilePreview } from "../../hooks/useFilePreview";
 import { SelectPortalTargetProvider } from "../../context/SelectPortalTargetContext";
+import Thumb from "../Thumb";
 
 export default function LocationEditModal({
   open,
@@ -34,7 +34,6 @@ export default function LocationEditModal({
   const [deleteText, setDeleteText] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  const storedPhoto = useStorageImage(location?.photoPath, { preferredSize: 640 });
   const previewUrl = useFilePreview(file);
   const displayName = (form.name || location?.name || "Edit location").trim();
 
@@ -56,11 +55,11 @@ export default function LocationEditModal({
     setSaving(false);
   }, [open, location]);
 
-  const currentImage = useMemo(() => {
+  const currentImagePath = useMemo(() => {
     if (previewUrl) return previewUrl;
     if (removeImage) return null;
-    return storedPhoto || null;
-  }, [previewUrl, removeImage, storedPhoto]);
+    return location?.photoPath || null;
+  }, [previewUrl, removeImage, location?.photoPath]);
 
   const handleFieldChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
@@ -204,18 +203,14 @@ export default function LocationEditModal({
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="grid gap-4 md:grid-cols-[200px_1fr]">
               <div className="flex flex-col items-center gap-3">
-                <div className="h-40 w-56 overflow-hidden rounded-lg bg-slate-100 text-slate-400">
-                  {currentImage ? (
-                    <img
-                      src={currentImage}
-                      alt={displayName}
-                      className="h-full w-full object-cover"
-                      crossOrigin="anonymous"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-sm">No photo</div>
-                  )}
-                </div>
+                <Thumb
+                  path={currentImagePath}
+                  size={640}
+                  alt={displayName}
+                  className="h-40 w-56 overflow-hidden rounded-lg bg-slate-100 text-slate-400"
+                  imageClassName="h-full w-full object-cover"
+                  fallback={<div className="flex h-full items-center justify-center text-sm">No photo</div>}
+                />
                 <div className="flex flex-col items-center gap-2 text-sm">
                   <Input type="file" accept="image/*" onChange={handleFileChange} />
                   {(location?.photoPath || file) && (
