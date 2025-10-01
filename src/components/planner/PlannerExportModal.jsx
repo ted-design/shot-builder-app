@@ -12,6 +12,7 @@ import { Modal } from "../ui/modal";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { toast } from "../../lib/toast";
+import { collectImagesForPdf, resolveImageSourceToDataUrl } from "../../lib/pdfImageCollector";
 
 const styles = StyleSheet.create({
   page: {
@@ -115,46 +116,71 @@ const fieldOptions = [
 
 const UNASSIGNED_TALENT_FILTER_VALUE = "__planner_unassigned__";
 
-const imageAssetCache = new Map();
-
-const blobToDataUrl = (blob) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      resolve(typeof reader.result === "string" ? reader.result : null);
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-
-const fetchImageAsDataUrl = async (src) => {
-  if (typeof src !== "string" || src.length === 0) return null;
-  if (imageAssetCache.has(src)) {
-    return imageAssetCache.get(src);
+const cssEscape = (value) => {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(value);
   }
-  const promise = (async () => {
-    const response = await fetch(src, {
-      mode: "cors",
-      credentials: "omit",
-      cache: "force-cache",
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image (${response.status})`);
-    }
-    const blob = await response.blob();
-    const dataUrl = await blobToDataUrl(blob);
-    return dataUrl || src;
-  })().catch((error) => {
-    console.warn("[Planner] Unable to preload image for export", { src, error });
-    return src;
-  });
-  imageAssetCache.set(src, promise);
-  return promise;
+  return String(value).replace(/"/g, '\"');
 };
 
 const prepareLanesForPdf = async (lanes, { includeImages }) => {
   const list = Array.isArray(lanes) ? lanes : [];
   const tasks = [];
+  const shotImageMap = new Map();
+  const shotsNeedingFallback = [];
+
+  if (includeImages && typeof document !== "undefined") {
+    const shotIds = new Set();
+    list.forEach((lane) => {
+      const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+      laneShots.forEach((shot) => {
+        if (shot?.id) shotIds.add(String(shot.id));
+        if (shot?.image) {
+          shotsNeedingFallback.push({ id: shot.id, source: shot.image });
+        }
+      });
+    });
+
+    const shotNodes = Array.from(shotIds)
+      .map((id) => document.querySelector(`[data-shot-id="${cssEscape(id)}"]`))
+      .filter((node) => node instanceof HTMLElement);
+
+    if (shotNodes.length) {
+      try {
+        const collected = await collectImagesForPdf(shotNodes);
+        collected.forEach((entry) => {
+          const shotId = entry.owner?.shotId;
+          if (shotId && entry.dataUrl) {
+            shotImageMap.set(shotId, entry.dataUrl);
+          }
+        });
+      } catch (error) {
+        console.warn("[Planner] Failed to collect planner images", error);
+      }
+    }
+
+    const fallbackPromises = shotsNeedingFallback
+      .filter((item) => item.id && !shotImageMap.has(String(item.id)))
+      .map(async (item) => {
+        try {
+          const { dataUrl } = await resolveImageSourceToDataUrl(item.source);
+          if (dataUrl) {
+            shotImageMap.set(String(item.id), dataUrl);
+          }
+        } catch (error) {
+          console.warn("[Planner] Unable to resolve fallback image", {
+            shotId: item.id,
+            source: item.source,
+            error,
+          });
+        }
+      });
+
+    if (fallbackPromises.length) {
+      tasks.push(Promise.allSettled(fallbackPromises));
+    }
+  }
+
   const prepared = list.map((lane) => {
     const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
     const shots = laneShots.map((shot) => {
@@ -163,14 +189,28 @@ const prepareLanesForPdf = async (lanes, { includeImages }) => {
         preparedShot.image = null;
         return preparedShot;
       }
-      if (!shot?.image) {
-        preparedShot.image = null;
+      const shotId = shot?.id ? String(shot.id) : null;
+      if (shotId && shotImageMap.has(shotId)) {
+        preparedShot.image = shotImageMap.get(shotId);
         return preparedShot;
       }
-      const loadTask = fetchImageAsDataUrl(shot.image).then((dataUrl) => {
-        preparedShot.image = dataUrl;
-      });
-      tasks.push(loadTask);
+      if (shot?.image) {
+        const loadTask = resolveImageSourceToDataUrl(shot.image)
+          .then(({ dataUrl }) => {
+            preparedShot.image = dataUrl;
+          })
+          .catch((error) => {
+            console.warn("[Planner] Failed to resolve shot image for export", {
+              shotId: shot?.id,
+              source: shot?.image,
+              error,
+            });
+            preparedShot.image = null;
+          });
+        tasks.push(loadTask);
+      } else {
+        preparedShot.image = null;
+      }
       return preparedShot;
     });
     return { ...lane, shots };
