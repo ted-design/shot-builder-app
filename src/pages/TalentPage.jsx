@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addDoc,
   collection,
@@ -10,30 +10,19 @@ import {
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
-import { Card, CardContent, CardHeader } from "../components/ui/card";
+import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import TalentCreateModal from "../components/talent/TalentCreateModal";
 import TalentEditModal from "../components/talent/TalentEditModal";
+import Thumb from "../components/Thumb";
 import { useAuth } from "../context/AuthContext";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import { toast } from "../lib/toast";
-import { useFilePreview } from "../hooks/useFilePreview";
-import { useStorageImage } from "../hooks/useStorageImage";
 import { talentPath } from "../lib/paths";
 import { ROLE, canManageTalent } from "../lib/rbac";
-
-const initialDraft = {
-  firstName: "",
-  lastName: "",
-  agency: "",
-  phone: "",
-  email: "",
-  sizing: "",
-  url: "",
-  gender: "",
-};
 
 function buildDisplayName(firstName, lastName) {
   const first = (firstName || "").trim();
@@ -47,25 +36,22 @@ function formatContact(info = {}) {
 }
 
 function TalentCard({ talent, canManage, onEdit, editDisabled }) {
-  const imageUrl = useStorageImage(talent.headshotPath, { preferredSize: 480 });
   const displayName = talent.name || buildDisplayName(talent.firstName, talent.lastName);
   const contactLine = formatContact(talent);
   const sizingLine = talent.sizing ? `Sizing: ${talent.sizing}` : "";
 
   return (
     <Card className="flex h-full flex-col overflow-hidden">
-      <div className="aspect-[3/4] w-full overflow-hidden bg-slate-100">
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={displayName}
-            className="h-full w-full object-cover"
-            crossOrigin="anonymous"
-          />
-        ) : (
+      <Thumb
+        path={talent.headshotPath || null}
+        size={480}
+        alt={displayName}
+        className="aspect-[3/4] w-full overflow-hidden bg-slate-100"
+        imageClassName="h-full w-full object-cover"
+        fallback={
           <div className="flex h-full items-center justify-center text-sm text-slate-400">No image</div>
-        )}
-      </div>
+        }
+      />
       <CardContent className="flex flex-1 flex-col gap-3">
         <div className="space-y-1">
           <div className="text-base font-semibold text-slate-900" title={displayName}>
@@ -115,27 +101,41 @@ function TalentCard({ talent, canManage, onEdit, editDisabled }) {
   );
 }
 
+function CreateTalentCard({ onClick, disabled }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-white p-6 text-center transition hover:border-primary/50 hover:bg-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
+      aria-label="Create talent"
+    >
+      <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-3xl font-semibold text-primary">
+        +
+      </span>
+      <span className="text-base font-semibold text-slate-900">Create talent</span>
+      <span className="mt-1 max-w-[220px] text-sm text-slate-500">
+        Keep track of models, contact details, and wardrobe notes.
+      </span>
+    </button>
+  );
+}
+
 export default function TalentPage() {
   const [talent, setTalent] = useState([]);
   const [loading, setLoading] = useState(true);
   const [queryText, setQueryText] = useState("");
-  const [draft, setDraft] = useState(initialDraft);
-  const [draftFile, setDraftFile] = useState(null);
-  const [formError, setFormError] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [editBusy, setEditBusy] = useState(false);
-  const [pendingDeleteId, setPendingDeleteId] = useState(null);
-  const createCardRef = useRef(null);
-  const firstFieldRef = useRef(null);
+  const [, setPendingDeleteId] = useState(null);
 
   const { clientId, role: globalRole, user, claims } = useAuth();
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManageTalent(role);
   const currentTalentPath = useMemo(() => talentPath(clientId), [clientId]);
-
-  const draftPreview = useFilePreview(draftFile);
 
   const buildAuthDebugInfo = useCallback(
     () => ({
@@ -198,17 +198,17 @@ export default function TalentPage() {
     toast.success(message);
   };
 
-  const resetDraft = () => {
-    setDraft(initialDraft);
-    setDraftFile(null);
-  };
-
-  const handleDraftChange = (field) => (event) => {
-    setDraft((prev) => ({ ...prev, [field]: event.target.value }));
-  };
-
-  const handleCreate = async (event) => {
-    event.preventDefault();
+  const handleCreateTalent = async ({
+    firstName,
+    lastName,
+    agency,
+    phone,
+    email,
+    sizing,
+    url,
+    gender,
+    headshotFile,
+  }) => {
     const pathSegments = currentTalentPath;
     const targetPath = `/${pathSegments.join("/")}`;
 
@@ -218,8 +218,7 @@ export default function TalentPage() {
         path: targetPath,
         ...authInfo,
       });
-      setFormError("You must be signed in to add talent.");
-      return;
+      throw new Error("You must be signed in to add talent.");
     }
 
     if (!canManage) {
@@ -228,19 +227,16 @@ export default function TalentPage() {
         path: targetPath,
         ...authInfo,
       });
-      setFormError("You do not have permission to add talent.");
-      return;
+      throw new Error("You do not have permission to add talent.");
     }
 
     const authInfo = buildAuthDebugInfo();
-    const first = (draft.firstName || "").trim();
-    const last = (draft.lastName || "").trim();
+    const first = (firstName || "").trim();
+    const last = (lastName || "").trim();
     if (!first && !last) {
-      setFormError("Enter at least a first or last name.");
-      return;
+      throw new Error("Enter at least a first or last name.");
     }
 
-    setFormError("");
     setCreating(true);
     const name = buildDisplayName(first, last);
 
@@ -252,9 +248,14 @@ export default function TalentPage() {
     try {
       const docRef = await writeDoc("create talent", () =>
         addDoc(collection(db, ...currentTalentPath), {
-          ...draft,
           firstName: first,
           lastName: last,
+          agency: agency || "",
+          phone: phone || "",
+          email: email || "",
+          sizing: sizing || "",
+          url: url || "",
+          gender: gender || "",
           name,
           shotIds: [],
           headshotPath: null,
@@ -270,16 +271,15 @@ export default function TalentPage() {
       });
 
       let uploadError = null;
-      if (draftFile) {
+      if (headshotFile) {
         try {
-          const { path } = await uploadImageFile(draftFile, { folder: "talent", id: docRef.id });
+          const { path } = await uploadImageFile(headshotFile, { folder: "talent", id: docRef.id });
           await updateDoc(docRef, { headshotPath: path });
         } catch (error) {
           uploadError = error;
         }
       }
 
-      resetDraft();
       if (uploadError) {
         const { code, message } = describeFirebaseError(
           uploadError,
@@ -305,8 +305,6 @@ export default function TalentPage() {
         error,
         "Unable to create talent. Check your connection and try again."
       );
-      const description = `${code}: ${message}`;
-      setFormError(`${message} (path: ${targetPath})`);
       console.error("[Talent] Failed to create talent", {
         path: targetPath,
         ...authInfo,
@@ -314,7 +312,11 @@ export default function TalentPage() {
         message,
         error,
       });
-      toast.error({ title: "Failed to create talent", description: `${description} (${targetPath})` });
+      toast.error({
+        title: "Failed to create talent",
+        description: `${code}: ${message} (${targetPath})`,
+      });
+      throw new Error(`${message}`);
     } finally {
       setCreating(false);
     }
@@ -401,27 +403,6 @@ export default function TalentPage() {
 
   const closeEditModal = () => setEditTarget(null);
 
-  const scrollToCreateTalent = () => {
-    if (!canManage) return;
-    if (createCardRef.current) {
-      createCardRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-    const focusField = () => {
-      if (firstFieldRef.current) {
-        try {
-          firstFieldRef.current.focus({ preventScroll: true });
-        } catch {
-          firstFieldRef.current.focus();
-        }
-      }
-    };
-    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
-      window.requestAnimationFrame(focusField);
-    } else {
-      focusField();
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="sticky inset-x-0 top-14 z-20 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
@@ -435,7 +416,11 @@ export default function TalentPage() {
             className="min-w-[200px] flex-1"
           />
           {canManage && (
-            <Button type="button" onClick={scrollToCreateTalent} className="flex-none whitespace-nowrap">
+            <Button
+              type="button"
+              onClick={() => setCreateModalOpen(true)}
+              className="flex-none whitespace-nowrap"
+            >
               New talent
             </Button>
           )}
@@ -456,161 +441,16 @@ export default function TalentPage() {
         </div>
       )}
 
-      {canManage ? (
-        <div ref={createCardRef}>
-          <Card>
-          <CardHeader>
-            <h2 className="text-lg font-semibold text-slate-900">Add talent</h2>
-            <p className="text-sm text-slate-500">
-              Provide at least a first or last name. Headshots are optional and can be uploaded later.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <form className="space-y-5" onSubmit={handleCreate}>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-first">
-                    First name
-                  </label>
-                  <Input
-                    id="talent-create-first"
-                    ref={firstFieldRef}
-                    value={draft.firstName}
-                    onChange={handleDraftChange("firstName")}
-                    placeholder="First name"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-last">
-                    Last name
-                  </label>
-                  <Input
-                    id="talent-create-last"
-                    value={draft.lastName}
-                    onChange={handleDraftChange("lastName")}
-                    placeholder="Last name"
-                  />
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-agency">
-                    Agency
-                  </label>
-                  <Input
-                    id="talent-create-agency"
-                    value={draft.agency}
-                    onChange={handleDraftChange("agency")}
-                    placeholder="Agency (optional)"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-gender">
-                    Gender
-                  </label>
-                  <Input
-                    id="talent-create-gender"
-                    value={draft.gender}
-                    onChange={handleDraftChange("gender")}
-                    placeholder="Gender (optional)"
-                  />
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-phone">
-                    Phone
-                  </label>
-                  <Input
-                    id="talent-create-phone"
-                    value={draft.phone}
-                    onChange={handleDraftChange("phone")}
-                    placeholder="Phone (optional)"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-email">
-                    Email
-                  </label>
-                  <Input
-                    id="talent-create-email"
-                    type="email"
-                    value={draft.email}
-                    onChange={handleDraftChange("email")}
-                    placeholder="Email (optional)"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-sizing">
-                  Sizing notes
-                </label>
-                <Input
-                  id="talent-create-sizing"
-                  value={draft.sizing}
-                  onChange={handleDraftChange("sizing")}
-                  placeholder="Sizing info (optional)"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-url">
-                  Reference URL
-                </label>
-                <Input
-                  id="talent-create-url"
-                  type="url"
-                  value={draft.url}
-                  onChange={handleDraftChange("url")}
-                  placeholder="URL (optional)"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-headshot">
-                  Headshot
-                </label>
-                {draftPreview ? (
-                  <img
-                    src={draftPreview}
-                    alt="Selected headshot preview"
-                    className="h-40 w-32 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="flex h-40 w-32 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
-                    Optional 4:5 image
-                  </div>
-                )}
-                <Input
-                  id="talent-create-headshot"
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => {
-                    const nextFile = event.target.files?.[0] || null;
-                    setDraftFile(nextFile);
-                    if (event.target) {
-                      event.target.value = "";
-                    }
-                  }}
-                />
-              </div>
-              {formError && (
-                <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">{formError}</div>
-              )}
-              <div className="flex justify-end">
-                <Button type="submit" disabled={creating}>
-                  {creating ? "Saving…" : "Add Talent"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-          </Card>
-        </div>
-      ) : (
+      {!canManage && (
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
           Talent records are read-only for your role. Producers can add or edit talent details.
         </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        {canManage && (
+          <CreateTalentCard onClick={() => setCreateModalOpen(true)} disabled={creating} />
+        )}
         {filteredTalent.map((entry) => (
           <TalentCard
             key={entry.id}
@@ -628,6 +468,15 @@ export default function TalentPage() {
           </Card>
         )}
       </div>
+
+      {canManage && (
+        <TalentCreateModal
+          open={createModalOpen}
+          busy={creating}
+          onClose={() => setCreateModalOpen(false)}
+          onCreate={handleCreateTalent}
+        />
+      )}
 
       {editTarget && (
         <TalentEditModal
