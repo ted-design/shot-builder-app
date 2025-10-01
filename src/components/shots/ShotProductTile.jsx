@@ -1,9 +1,8 @@
 import { Button } from "../ui/button";
-import { useStorageImage } from "../../hooks/useStorageImage";
+import AppImage from "../common/AppImage";
 
 export default function ShotProductTile({ product, onEdit, onRemove }) {
   const imagePath = product.images?.[0] || product.colourImagePath || product.thumbnailImagePath || null;
-  const imageUrl = useStorageImage(imagePath);
   const sizeLabel =
     product.status === "pending-size"
       ? "Pending"
@@ -16,16 +15,21 @@ export default function ShotProductTile({ product, onEdit, onRemove }) {
   return (
     <div className="flex w-full max-w-xs flex-col gap-2 overflow-hidden rounded-lg border border-slate-200 bg-white">
       <div className="aspect-square w-full bg-slate-100">
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={`${product.familyName} ${product.colourName}`}
-            className="h-full w-full object-cover"
-            crossOrigin="anonymous"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-slate-500">No image</div>
-        )}
+        <AppImage
+          src={imagePath}
+          alt={`${product.familyName} ${product.colourName}`}
+          preferredSize={480}
+          className="h-full w-full"
+          imageClassName="h-full w-full object-cover"
+          fallback={
+            <div className="flex h-full items-center justify-center text-xs text-slate-500">No image</div>
+          }
+          placeholder={
+            <div className="flex h-full items-center justify-center text-xs text-slate-400">
+              Loading…
+            </div>
+          }
+        />
       </div>
       <div className="flex flex-1 flex-col gap-1 px-3 pb-3">
         <div className="min-w-0">

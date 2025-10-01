@@ -3,9 +3,14 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ShotProductAddModal from "../ShotProductAddModal";
 
-// Mock the useStorageImage hook
-vi.mock("../../../hooks/useStorageImage", () => ({
-    useStorageImage: vi.fn(() => "mock-image-url"),
+const appImageMock = vi.fn();
+
+vi.mock("../../../components/common/AppImage", () => ({
+    __esModule: true,
+    default: (props) => {
+        appImageMock(props);
+        return <div data-testid="app-image" />;
+    },
 }));
 
 const mockFamilies = [
@@ -51,6 +56,7 @@ const defaultProps = {
 describe("ShotProductAddModal - Enhanced Button State Logic", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        appImageMock.mockClear();
     });
 
     it("enables 'Add colourway' button when colourway is selected, keeps 'Add & choose size' disabled when no size selected", async () => {

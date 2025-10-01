@@ -4,9 +4,14 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "../../../test-utils/userEvent";
 import ShotProductAddModal from "../ShotProductAddModal";
 
-// Mock the useStorageImage hook
-vi.mock("../../../hooks/useStorageImage", () => ({
-    useStorageImage: vi.fn(() => "mock-image-url"),
+const appImageMock = vi.fn();
+
+vi.mock("../../../components/common/AppImage", () => ({
+    __esModule: true,
+    default: (props) => {
+        appImageMock(props);
+        return <div data-testid="app-image" />;
+    },
 }));
 
 const mockFamilies = [

@@ -54,7 +54,7 @@ import { Download, LayoutGrid, List, Settings2, PencilLine } from "lucide-react"
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { Button } from "../components/ui/button";
 import { toast } from "../lib/toast";
-import { useStorageImage } from "../hooks/useStorageImage";
+import AppImage from "../components/common/AppImage";
 import PlannerSummary from "../components/planner/PlannerSummary";
 import PlannerExportModal from "../components/planner/PlannerExportModal";
 import ShotEditModal from "../components/shots/ShotEditModal";
@@ -622,7 +622,6 @@ function ShotCard({
       : null) ||
     null;
   const thumbnailSrc = visibleFields.products ? derivedThumbnail : null;
-  const thumbnailUrl = useStorageImage(thumbnailSrc);
   const showThumbnailFrame = Boolean(visibleFields.products && firstProduct);
   const locationLabel = shot.locationName || "–";
   const showDetailsSection =
@@ -639,22 +638,31 @@ function ShotCard({
       : "flex flex-col gap-2 text-xs text-slate-600";
 
   return (
-    <div className={`${cardBaseClass} transition hover:border-primary/40 hover:shadow-md`}>
+    <div
+      data-shot-id={shot.id}
+      className={`${cardBaseClass} transition hover:border-primary/40 hover:shadow-md`}
+    >
       <div className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
           {showThumbnailFrame && (
-            thumbnailUrl ? (
-              <img
-                src={thumbnailUrl}
-                alt={`${shot.name} thumbnail`}
-                className="h-12 w-12 flex-none rounded-md object-cover"
-                loading="lazy"
-              />
-            ) : (
-              <div className="flex h-12 w-12 flex-none items-center justify-center rounded-md bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500">
-                No image
-              </div>
-            )
+            <AppImage
+              src={thumbnailSrc}
+              alt={`${shot.name} thumbnail`}
+              preferredSize={160}
+              loading="lazy"
+              className="h-12 w-12 flex-none overflow-hidden rounded-md"
+              imageClassName="h-full w-full object-cover"
+              placeholder={
+                <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500">
+                  Loading
+                </div>
+              }
+              fallback={
+                <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500">
+                  No image
+                </div>
+              }
+            />
           )}
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3">

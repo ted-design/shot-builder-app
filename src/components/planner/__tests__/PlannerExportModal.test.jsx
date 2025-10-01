@@ -1,48 +1,34 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
 
-const originalFetch = global.fetch;
-const OriginalFileReader = global.FileReader;
+const collectImagesMock = vi.fn();
+const resolveImageSourceToDataUrlMock = vi.fn();
 
 let prepareLanesForPdf;
-let fetchMock;
 
-beforeEach(async () => {
-  vi.resetModules();
-  fetchMock = vi.fn();
-  global.fetch = fetchMock;
+vi.mock("../../../lib/pdfImageCollector", () => ({
+  __esModule: true,
+  collectImagesForPdf: collectImagesMock,
+  resolveImageSourceToDataUrl: resolveImageSourceToDataUrlMock,
+}));
 
-  class MockFileReader {
-    constructor() {
-      this.result = null;
-      this.onloadend = null;
-      this.onerror = null;
-    }
-
-    readAsDataURL() {
-      this.result = "data:image/png;base64,MOCK";
-      if (typeof this.onloadend === "function") {
-        this.onloadend();
-      }
-    }
-  }
-
-  global.FileReader = MockFileReader;
-
+beforeAll(async () => {
   ({ prepareLanesForPdf } = await import("../PlannerExportModal.jsx"));
 });
 
+beforeEach(async () => {
+  document.body.innerHTML = "";
+  collectImagesMock.mockReset();
+  resolveImageSourceToDataUrlMock.mockReset();
+  collectImagesMock.mockResolvedValue([]);
+  resolveImageSourceToDataUrlMock.mockImplementation(async (source) => ({
+    dataUrl: `data:image/png;base64,${Buffer.from(String(source)).toString("base64")}`,
+    resolvedUrl: String(source),
+  }));
+});
+
 afterEach(() => {
-  if (originalFetch) {
-    global.fetch = originalFetch;
-  } else {
-    delete global.fetch;
-  }
-  if (OriginalFileReader) {
-    global.FileReader = OriginalFileReader;
-  } else {
-    delete global.FileReader;
-  }
   vi.restoreAllMocks();
+  document.body.innerHTML = "";
 });
 
 describe("prepareLanesForPdf", () => {
@@ -59,16 +45,30 @@ describe("prepareLanesForPdf", () => {
 
     const prepared = await prepareLanesForPdf(lanes, { includeImages: false });
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(collectImagesMock).not.toHaveBeenCalled();
+    expect(resolveImageSourceToDataUrlMock).not.toHaveBeenCalled();
     expect(prepared[0].shots[0].image).toBeNull();
     expect(prepared[0].shots[1].image).toBeNull();
   });
 
   it("preloads unique images and converts them to data URLs", async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      blob: () => Promise.resolve(new Blob(["image"], { type: "image/png" })),
-    });
+    document.body.innerHTML = `
+      <div data-shot-id="shot-1"></div>
+      <div data-shot-id="shot-2"></div>
+    `;
+
+    collectImagesMock.mockResolvedValue([
+      {
+        owner: { shotId: "shot-1" },
+        dataUrl: "data:image/png;base64,AAA",
+        resolvedUrl: "https://cdn.test/shared.png",
+      },
+    ]);
+
+    resolveImageSourceToDataUrlMock.mockImplementation(async (source) => ({
+      dataUrl: `data:image/png;base64,${Buffer.from(String(source)).toString("base64")}`,
+      resolvedUrl: String(source),
+    }));
 
     const lanes = [
       {
@@ -82,7 +82,8 @@ describe("prepareLanesForPdf", () => {
 
     const prepared = await prepareLanesForPdf(lanes, { includeImages: true });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(collectImagesMock).toHaveBeenCalled();
+    expect(resolveImageSourceToDataUrlMock).toHaveBeenCalled();
     expect(prepared[0].shots[0].image).toMatch(/^data:image/);
     expect(prepared[0].shots[1].image).toMatch(/^data:image/);
   });

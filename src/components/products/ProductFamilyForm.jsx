@@ -3,6 +3,7 @@ import { storage } from "../../lib/firebase";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
 import { Button } from "../ui/button";
 import { Input, Checkbox } from "../ui/input";
+import AppImage from "../common/AppImage";
 import SizeListInput from "./SizeListInput";
 import ColorListEditor from "./ColorListEditor";
 import { compressImageFile, formatFileSize } from "../../lib/images";
@@ -578,10 +579,18 @@ export default function ProductFamilyForm({
         <div className="md:col-span-2 space-y-2">
           <label className="block text-sm font-medium text-slate-700">Family thumbnail</label>
           {thumbnailImage.preview && (
-            <img
+            <AppImage
               src={thumbnailImage.preview}
               alt="Thumbnail preview"
-              className="h-48 w-full rounded-lg object-cover"
+              loading="lazy"
+              className="h-48 w-full overflow-hidden rounded-lg"
+              imageClassName="h-full w-full object-cover"
+              placeholder={null}
+              fallback={
+                <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                  Preview unavailable
+                </div>
+              }
             />
           )}
           <div className="flex flex-wrap items-center gap-2">
@@ -646,10 +655,18 @@ export default function ProductFamilyForm({
             <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-700">Header image</label>
               {headerImage.preview && (
-                <img
+                <AppImage
                   src={headerImage.preview}
                   alt="Header preview"
-                  className="h-48 w-full rounded-lg object-cover"
+                  loading="lazy"
+                  className="h-48 w-full overflow-hidden rounded-lg"
+                  imageClassName="h-full w-full object-cover"
+                  placeholder={null}
+                  fallback={
+                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                      Preview unavailable
+                    </div>
+                  }
                 />
               )}
               <div className="flex flex-wrap items-center gap-2">

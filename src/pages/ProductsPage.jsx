@@ -17,7 +17,7 @@ import { Input, Checkbox } from "../components/ui/input";
 import NewProductModal from "../components/products/NewProductModal";
 import EditProductModal from "../components/products/EditProductModal";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
-import { useStorageImage } from "../hooks/useStorageImage";
+import AppImage from "../components/common/AppImage";
 import { LayoutGrid, List as ListIcon, MoreVertical, Archive, Trash2, Type } from "lucide-react";
 import {
   productFamiliesPath,
@@ -133,7 +133,6 @@ const formatUpdatedAt = (value) => {
 };
 
 function FamilyHeaderImage({ path, alt, className }) {
-  const url = useStorageImage(path);
   const containerClass = [
     "overflow-hidden rounded-lg bg-slate-100",
     className || "aspect-[4/5] w-full",
@@ -141,18 +140,24 @@ function FamilyHeaderImage({ path, alt, className }) {
     .filter(Boolean)
     .join(" ");
   return (
-    <div className={containerClass}>
-      {url ? (
-        <img
-          src={url}
-          alt={alt}
-          className="h-full w-full object-cover"
-          crossOrigin="anonymous"
-        />
-      ) : (
-        <div className="flex h-full items-center justify-center text-xs text-slate-400">No image</div>
-      )}
-    </div>
+    <AppImage
+      src={path}
+      alt={alt}
+      preferredSize={640}
+      loading="lazy"
+      className={containerClass}
+      imageClassName="h-full w-full object-cover"
+      placeholder={
+        <div className="flex h-full items-center justify-center text-xs text-slate-400">
+          Loading image…
+        </div>
+      }
+      fallback={
+        <div className="flex h-full items-center justify-center text-xs text-slate-400">
+          No image
+        </div>
+      }
+    />
   );
 }
 

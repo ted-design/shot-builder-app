@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "../ui/card";
 import { Modal } from "../ui/modal";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
+import AppImage from "../common/AppImage";
 import { compressImageFile, formatFileSize } from "../../lib/images";
 
 const SKU_STATUS = [
@@ -184,10 +185,18 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Colour image</label>
               {imageState.preview && (
-                <img
+                <AppImage
                   src={imageState.preview}
                   alt={`${colorName || "Colour"} preview`}
-                  className="h-40 w-full rounded-lg object-cover"
+                  loading="lazy"
+                  className="h-40 w-full overflow-hidden rounded-lg"
+                  imageClassName="h-full w-full object-cover"
+                  placeholder={null}
+                  fallback={
+                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                      Preview unavailable
+                    </div>
+                  }
                 />
               )}
               <div className="flex flex-wrap items-center gap-2">
