@@ -3,8 +3,8 @@ import { Modal } from "../ui/modal";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { useStorageImage } from "../../hooks/useStorageImage";
 import { useFilePreview } from "../../hooks/useFilePreview";
+import Thumb from "../Thumb";
 
 function buildDisplayName(firstName, lastName) {
   const first = (firstName || "").trim();
@@ -38,7 +38,6 @@ export default function TalentEditModal({
   const [deleteText, setDeleteText] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  const storedHeadshotUrl = useStorageImage(talent?.headshotPath, { preferredSize: 512 });
   const previewUrl = useFilePreview(file);
   const displayName = buildDisplayName(form.firstName, form.lastName) || talent?.name || "Edit talent";
 
@@ -63,8 +62,8 @@ export default function TalentEditModal({
   const currentImage = useMemo(() => {
     if (previewUrl) return previewUrl;
     if (removeImage) return null;
-    return storedHeadshotUrl || null;
-  }, [previewUrl, removeImage, storedHeadshotUrl]);
+    return talent?.headshotPath || null;
+  }, [previewUrl, removeImage, talent?.headshotPath]);
 
   const handleFieldChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
@@ -201,18 +200,14 @@ export default function TalentEditModal({
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="grid gap-4 md:grid-cols-[160px_1fr]">
               <div className="flex flex-col items-center gap-3">
-                <div className="h-40 w-32 overflow-hidden rounded-lg bg-slate-100 text-slate-400">
-                  {currentImage ? (
-                    <img
-                      src={currentImage}
-                      alt={displayName}
-                      className="h-full w-full object-cover"
-                      crossOrigin="anonymous"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-sm">No image</div>
-                  )}
-                </div>
+                <Thumb
+                  path={currentImage}
+                  size={512}
+                  alt={displayName}
+                  className="h-40 w-32 overflow-hidden rounded-lg bg-slate-100"
+                  imageClassName="h-full w-full object-cover"
+                  fallback={<div className="flex h-full items-center justify-center text-sm text-slate-400">No image</div>}
+                />
                 <div className="flex flex-col items-center gap-2 text-sm">
                   <Input type="file" accept="image/*" onChange={handleFileChange} />
                   {(talent?.headshotPath || file) && (
