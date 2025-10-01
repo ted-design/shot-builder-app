@@ -195,8 +195,12 @@ describe("Create flows", () => {
     const { default: TalentPage } = await import("../TalentPage.jsx");
     render(<TalentPage />);
 
-    fireEvent.change(screen.getByLabelText("First name"), { target: { value: "Amelia" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add Talent" }));
+    fireEvent.click(screen.getByRole("button", { name: "New talent" }));
+
+    const modal = await screen.findByRole("dialog", { name: /create talent/i });
+    const firstNameInput = within(modal).getByLabelText("First name");
+    fireEvent.change(firstNameInput, { target: { value: "Amelia" } });
+    fireEvent.click(within(modal).getByRole("button", { name: "Create talent" }));
 
     await waitFor(() => expect(addDocCalls.length).toBe(1));
     expect(addDocCalls[0].path).toEqual(["clients", "unbound-merino", "talent"]);
@@ -214,8 +218,11 @@ describe("Create flows", () => {
     const { default: TalentPage } = await import("../TalentPage.jsx");
     render(<TalentPage />);
 
-    fireEvent.change(screen.getByLabelText("First name"), { target: { value: "Donna" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add Talent" }));
+    fireEvent.click(screen.getByRole("button", { name: "New talent" }));
+
+    const modal = await screen.findByRole("dialog", { name: /create talent/i });
+    fireEvent.change(within(modal).getByLabelText("First name"), { target: { value: "Donna" } });
+    fireEvent.click(within(modal).getByRole("button", { name: "Create talent" }));
 
     await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
     expect(addDocCalls[0].path).toEqual(["clients", "unbound-merino", "talent"]);
