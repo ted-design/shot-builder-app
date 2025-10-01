@@ -19,6 +19,7 @@ import PullsPage from "./pages/PullsPage";
 import AdminPage from "./pages/AdminPage";
 import SidebarLayout from "./routes/SidebarLayout";
 import RequireRole from "./routes/RequireRole";
+import { ProjectScopeProvider } from "./context/ProjectScopeContext";
 
 function MaybeRedirectLogin({ user }) {
   const location = useLocation();
@@ -73,39 +74,41 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
-      <PDFDemoMount />
-      <MaybeRedirectLogin user={userForGuard} />
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<Navigate to="/projects" replace />} />
-        <Route
-          element={
-            <AuthReadyGate fallback={null}>
-              <AuthenticatedLayout guardUser={userForGuard} navUser={navUser} fallbackRole={navRole} />
-            </AuthReadyGate>
-          }
-        >
-          <Route index element={<Navigate to="/projects" replace />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/shots" element={<ShotsPage />} />
-          <Route path="/planner" element={<PlannerPage />} />
-          <Route path="/products" element={<ProductsPage />} />
-          <Route path="/import-products" element={<ImportProducts />} />
-          <Route path="/talent" element={<TalentPage />} />
-          <Route path="/locations" element={<LocationsPage />} />
-          <Route path="/pulls" element={<PullsPage />} />
+      <ProjectScopeProvider>
+        {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
+        <PDFDemoMount />
+        <MaybeRedirectLogin user={userForGuard} />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<Navigate to="/projects" replace />} />
           <Route
-            path="/admin"
             element={
-              <RequireRole roles={["admin"]}>
-                <AdminPage />
-              </RequireRole>
+              <AuthReadyGate fallback={null}>
+                <AuthenticatedLayout guardUser={userForGuard} navUser={navUser} fallbackRole={navRole} />
+              </AuthReadyGate>
             }
-          />
-          <Route path="*" element={<Navigate to="/projects" replace />} />
-        </Route>
-      </Routes>
+          >
+            <Route index element={<Navigate to="/projects" replace />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/shots" element={<ShotsPage />} />
+            <Route path="/planner" element={<PlannerPage />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/import-products" element={<ImportProducts />} />
+            <Route path="/talent" element={<TalentPage />} />
+            <Route path="/locations" element={<LocationsPage />} />
+            <Route path="/pulls" element={<PullsPage />} />
+            <Route
+              path="/admin"
+              element={
+                <RequireRole roles={["admin"]}>
+                  <AdminPage />
+                </RequireRole>
+              }
+            />
+            <Route path="*" element={<Navigate to="/projects" replace />} />
+          </Route>
+        </Routes>
+      </ProjectScopeProvider>
     </BrowserRouter>
   );
 }
