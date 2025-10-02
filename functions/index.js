@@ -13,7 +13,7 @@ const ALLOWED_ADMINS = new Set([
 
 /**
  * Callable: setUserClaims
- * data: { targetEmail: string, role: "admin"|"editor"|"viewer"|"warehouse", clientId: string }
+ * data: { targetEmail: string, role: "admin"|"editor"|"viewer"|"warehouse"|"producer"|"crew", clientId: string }
  */
 exports.setUserClaims = onCall(async (request) => {
   // Avoid optional chaining to keep ESLint happy with default config
@@ -28,7 +28,14 @@ exports.setUserClaims = onCall(async (request) => {
   var role = data.role;
   var clientId = data.clientId;
 
-  var VALID = { admin: true, editor: true, viewer: true, warehouse: true };
+  var VALID = {
+    admin: true,
+    editor: true,
+    viewer: true,
+    warehouse: true,
+    producer: true,
+    crew: true,
+  };
   if (!targetEmail || !VALID[role] || !clientId) {
     throw new Error("Invalid input. Provide targetEmail, role, clientId.");
   }
