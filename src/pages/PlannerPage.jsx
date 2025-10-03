@@ -1452,25 +1452,6 @@ function PlannerPageContent() {
     );
   }, []);
 
-  const handleUpdateShotStatus = useCallback(
-    async (shot, nextStatus) => {
-      if (!shot || !shot.id) return;
-      if (!canEditShots) {
-        toast.error("You do not have permission to edit shots.");
-        return;
-      }
-      const resolved = normaliseShotStatus(nextStatus);
-      if (resolved === normaliseShotStatus(shot.status)) return;
-      try {
-        await updateShot(shot, { status: resolved });
-      } catch (error) {
-        console.error("[Planner] Failed to update shot status", error);
-        toast.error("Could not update shot status");
-      }
-    },
-    [canEditShots, updateShot]
-  );
-
   const handleAutoScrollPointerMove = useCallback(
     (event) => {
       if (!autoScrollRef.current.active) return;
@@ -1880,6 +1861,25 @@ function PlannerPageContent() {
       sanitizeNotesHtml,
       parseDateToTimestamp,
     ]
+  );
+
+  const handleUpdateShotStatus = useCallback(
+    async (shot, nextStatus) => {
+      if (!shot || !shot.id) return;
+      if (!canEditShots) {
+        toast.error("You do not have permission to edit shots.");
+        return;
+      }
+      const resolved = normaliseShotStatus(nextStatus);
+      if (resolved === normaliseShotStatus(shot.status)) return;
+      try {
+        await updateShot(shot, { status: resolved });
+      } catch (error) {
+        console.error("[Planner] Failed to update shot status", error);
+        toast.error("Could not update shot status");
+      }
+    },
+    [canEditShots, updateShot]
   );
 
   const handleSaveShot = useCallback(async () => {

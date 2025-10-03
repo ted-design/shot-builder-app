@@ -21,9 +21,7 @@ const AUTH_ENV_DEFAULT = (() => {
   const envFlag =
     ENV.VITE_FLAG_NEW_AUTH_CONTEXT != null
       ? ENV.VITE_FLAG_NEW_AUTH_CONTEXT
-      : ENV.PROD
-        ? "1"
-        : undefined;
+      : "1"; // Always default to enabled
   return readBool(envFlag);
 })();
 
