@@ -132,9 +132,9 @@ export function AuthProvider({ children }) {
               return;
             }
             const data = snap.data() || {};
+            const profileRole = normalizeRole(data.role);
             setProjectRoles(data.projects || {});
             if (!claimRole) {
-              const profileRole = normalizeRole(data.role);
               setRole(profileRole);
             }
             setLoadingClaims(false);
