@@ -16,6 +16,7 @@ import TalentPage from "./pages/TalentPage";
 import LocationsPage from "./pages/LocationsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import PullsPage from "./pages/PullsPage";
+import PullPublicViewPage from "./pages/PullPublicViewPage";
 import AdminPage from "./pages/AdminPage";
 import SidebarLayout from "./routes/SidebarLayout";
 import RequireRole from "./routes/RequireRole";
@@ -81,6 +82,7 @@ export default function App() {
         <MaybeRedirectLogin user={userForGuard} />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/pulls/shared/:shareToken" element={<PullPublicViewPage />} />
           <Route path="/" element={<Navigate to="/projects" replace />} />
           <Route
             element={

@@ -1,5 +1,6 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { normalizePullItem, getPullItemDisplayName, getTotalQuantity } from "./pullItems";
 
 // Basic styles for a simple demo PDF
 const styles = StyleSheet.create({
@@ -76,13 +77,35 @@ export function PullPDF({ pull }) {
     else if (typeof pull.createdAt === "number") date = new Date(pull.createdAt);
     if (date && !Number.isNaN(date.getTime())) createdAt = date.toLocaleString();
   }
+
   const status = (pull.status || "draft").toUpperCase();
-  const items = Array.isArray(pull.items) ? pull.items : [];
+  const settings = pull.settings || {};
+  const orientation = settings.orientation || "portrait";
+  const headerText = settings.headerText || "";
+  const subheaderText = settings.subheaderText || "";
+  const groupedItems = pull.groupedItems || [{ title: null, items: pull.items || [] }];
+
+  // Normalize all items
+  const normalizeGroup = (group) => ({
+    ...group,
+    items: (group.items || []).map((item) => normalizePullItem(item)),
+  });
+
+  const groups = groupedItems.map(normalizeGroup);
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" orientation={orientation} style={styles.page}>
+        {/* Custom Header */}
+        {headerText && <Text style={[styles.header, { fontSize: 20 }]}>{headerText}</Text>}
+
+        {/* Title */}
         <Text style={styles.header}>{pull.title || "Pull Sheet"}</Text>
+
+        {/* Custom Subheader */}
+        {subheaderText && <Text style={styles.subheader}>{subheaderText}</Text>}
+
+        {/* Metadata */}
         <View style={styles.row}>
           <Text>
             <Text style={styles.label}>Status: </Text>
@@ -97,31 +120,93 @@ export function PullPDF({ pull }) {
         </View>
 
         <View style={styles.hr} />
-        <Text style={styles.subheader}>Line Items</Text>
-        <View style={styles.table}>
-          <View style={[styles.tableRow, { borderBottomWidth: 1, borderBottomColor: "#ccc", borderStyle: "solid" }]}>
-            <Text style={styles.cellHeader}>Item</Text>
-            <Text style={styles.cellHeader}>Quantity</Text>
-            <Text style={styles.cellHeader}>Notes</Text>
+
+        {/* Render groups */}
+        {groups.map((group, groupIndex) => (
+          <View key={groupIndex} wrap={false} style={{ marginBottom: 12 }}>
+            {group.title && (
+              <Text style={[styles.subheader, { marginTop: groupIndex > 0 ? 12 : 0 }]}>
+                {group.title}
+              </Text>
+            )}
+
+            <View style={styles.table}>
+              {/* Table Header */}
+              {groupIndex === 0 && (
+                <View
+                  style={[
+                    styles.tableRow,
+                    { borderBottomWidth: 1, borderBottomColor: "#ccc", borderStyle: "solid" },
+                  ]}
+                >
+                  <Text style={[styles.cellHeader, { flex: 2 }]}>Product</Text>
+                  <Text style={styles.cellHeader}>Size</Text>
+                  <Text style={styles.cellHeader}>Qty</Text>
+                  <Text style={[styles.cellHeader, { flex: 1.5 }]}>Notes</Text>
+                </View>
+              )}
+
+              {/* Items */}
+              {group.items.length === 0 && (
+                <View
+                  style={[
+                    styles.tableRow,
+                    { borderBottomWidth: 1, borderBottomColor: "#ccc", borderStyle: "solid" },
+                  ]}
+                >
+                  <Text style={styles.cell}>No items</Text>
+                  <Text style={styles.cell}>-</Text>
+                  <Text style={styles.cell}>-</Text>
+                  <Text style={styles.cell}>-</Text>
+                </View>
+              )}
+
+              {group.items.map((item) => {
+                const displayName = getPullItemDisplayName(item);
+                const sizes = item.sizes || [];
+
+                // If item has multiple sizes, create a row for each size
+                if (sizes.length > 1) {
+                  return sizes.map((size, sizeIndex) => (
+                    <View
+                      key={`${item.id}-${sizeIndex}`}
+                      style={[
+                        styles.tableRow,
+                        { borderBottomWidth: 1, borderBottomColor: "#ccc", borderStyle: "solid" },
+                      ]}
+                    >
+                      <Text style={[styles.cell, { flex: 2 }]}>
+                        {sizeIndex === 0 ? displayName : ""}
+                      </Text>
+                      <Text style={styles.cell}>{size.size}</Text>
+                      <Text style={styles.cell}>{size.quantity}</Text>
+                      <Text style={[styles.cell, { flex: 1.5 }]}>
+                        {sizeIndex === 0 ? item.notes || "" : ""}
+                      </Text>
+                    </View>
+                  ));
+                }
+
+                // Single size or no sizes
+                const size = sizes[0] || { size: "One Size", quantity: 1 };
+                return (
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.tableRow,
+                      { borderBottomWidth: 1, borderBottomColor: "#ccc", borderStyle: "solid" },
+                    ]}
+                  >
+                    <Text style={[styles.cell, { flex: 2 }]}>{displayName}</Text>
+                    <Text style={styles.cell}>{size.size}</Text>
+                    <Text style={styles.cell}>{size.quantity}</Text>
+                    <Text style={[styles.cell, { flex: 1.5 }]}>{item.notes || ""}</Text>
+                  </View>
+                );
+              })}
+            </View>
           </View>
-          {items.length === 0 && (
-            <View style={[styles.tableRow, { borderBottomWidth: 1, borderBottomColor: "#ccc", borderStyle: "solid" }]}>
-              <Text style={styles.cell}>No items</Text>
-              <Text style={styles.cell}>-</Text>
-              <Text style={styles.cell}>-</Text>
-            </View>
-          )}
-          {items.map((item) => (
-            <View
-              key={item.id || item.name}
-              style={[styles.tableRow, { borderBottomWidth: 1, borderBottomColor: "#ccc", borderStyle: "solid" }]}
-            >
-              <Text style={styles.cell}>{item.name}</Text>
-              <Text style={styles.cell}>{item.quantity}</Text>
-              <Text style={styles.cell}>{item.notes || ""}</Text>
-            </View>
-          ))}
-        </View>
+        ))}
       </Page>
     </Document>
   );

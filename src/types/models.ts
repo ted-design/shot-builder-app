@@ -59,13 +59,68 @@ export interface PlannerLane {
   talentId?: string | null;
 }
 
+export interface PullItemSize {
+  size: string;
+  quantity: number;
+  fulfilled: number;
+  status: "pending" | "fulfilled" | "partial" | "substituted";
+}
+
+export interface PullItemChangeOrder {
+  id: string;
+  requestedBy: string;
+  requestedAt: Timestamp | Date;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  substitution: {
+    familyId: string;
+    familyName: string;
+    colourId?: string | null;
+    colourName?: string | null;
+    sizes: { size: string; quantity: number }[];
+  };
+  approvedBy?: string | null;
+  approvedAt?: Timestamp | Date | null;
+  rejectionReason?: string | null;
+}
+
 export interface PullItem {
   id: string;
-  name: string;
-  quantity: number;
+
+  // Product identification
+  familyId: string;
+  familyName: string;
+  styleNumber?: string | null;
+  colourId?: string | null;
+  colourName?: string | null;
+  colourImagePath?: string | null;
+
+  // Size and quantity details
+  sizes: PullItemSize[];
+
+  // Metadata
   notes?: string;
+  gender?: string | null;
+  category?: string | null;
+  genderOverride?: string | null;
+  categoryOverride?: string | null;
+
+  // Fulfillment tracking
+  fulfillmentStatus: "pending" | "fulfilled" | "partial" | "substituted";
+  fulfilledBy?: string | null;
+  fulfilledAt?: Timestamp | Date | null;
+
+  // Change orders
+  changeOrders?: PullItemChangeOrder[];
+
+  // Legacy compatibility
+  name?: string;
+  quantity?: number;
   shotId?: string;
   productId?: string;
+
+  // Shot references for aggregated items
+  shotIds?: string[];
 }
 
 export interface Pull {
@@ -74,9 +129,35 @@ export interface Pull {
   shotIds: string[];
   items: PullItem[];
   name: string;
+  title?: string;
   status?: string;
   createdAt?: Timestamp | Date | null;
   updatedAt?: Timestamp | Date | null;
+
+  // Sorting
+  sortOrder?: "product" | "gender" | "category" | "size" | "manual";
+
+  // Export settings
+  exportSettings?: {
+    pdfOrientation?: "portrait" | "landscape";
+    headerText?: string;
+    subheaderText?: string;
+    includeImages?: boolean;
+    pageBreakStrategy?: "auto" | "by-category" | "by-gender";
+  };
+
+  // Sharing
+  shareToken?: string | null;
+  shareEnabled?: boolean;
+  shareExpiresAt?: Timestamp | Date | null;
+
+  // Statistics
+  stats?: {
+    totalItems: number;
+    totalQuantity: number;
+    byGender?: { [key: string]: number };
+    byCategory?: { [key: string]: number };
+  };
 }
 
 export interface ShotsCardToggles {
