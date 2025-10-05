@@ -127,4 +127,19 @@ export const canManagePulls = (role) => {
   return r === ROLE.ADMIN || r === ROLE.PRODUCER || r === ROLE.WAREHOUSE;
 };
 
+export const canFulfillPulls = (role) => {
+  const r = normalize(role);
+  return r === ROLE.ADMIN || r === ROLE.WAREHOUSE;
+};
+
+export const canRequestChangeOrders = (role) => {
+  const r = normalize(role);
+  return r === ROLE.ADMIN || r === ROLE.WAREHOUSE;
+};
+
+export const canApproveChangeOrders = (role) => {
+  const r = normalize(role);
+  return r === ROLE.ADMIN || r === ROLE.PRODUCER;
+};
+
 export const isViewer = (role) => normalize(role) === ROLE.VIEWER;
