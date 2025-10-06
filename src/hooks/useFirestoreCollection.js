@@ -49,7 +49,6 @@ export function useFirestoreCollection(ref, constraints = [], mapFn) {
     () => getConstraintsKey(constraints),
     // We still need constraints in deps, but the memo prevents recalculation
     // unless the constraint values actually change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [constraints.length, ...constraints]
   );
 
@@ -83,7 +82,6 @@ export function useFirestoreCollection(ref, constraints = [], mapFn) {
     // Cleanup subscription when the component unmounts or the ref/constraints change.
     return () => unsub();
     // Using constraintsKey instead of JSON.stringify(constraints) for stable dependencies
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ref, constraintsKey]);
 
   return { data, loading, error };
