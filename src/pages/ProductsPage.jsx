@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import {
   collection,
   deleteDoc,
@@ -252,6 +253,7 @@ export default function ProductsPage() {
   const [families, setFamilies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [queryText, setQueryText] = useState("");
+  const debouncedQueryText = useDebouncedValue(queryText, 300);
   const [statusFilter, setStatusFilter] = useState("active");
   const [genderFilter, setGenderFilter] = useState("all");
   const [showArchived, setShowArchived] = useState(false);
@@ -323,7 +325,7 @@ export default function ProductsPage() {
   }, [listSettingsOpen]);
 
   const filteredFamilies = useMemo(() => {
-    const text = queryText.trim().toLowerCase();
+    const text = debouncedQueryText.trim().toLowerCase();
     return families.filter((family) => {
       if (!showArchived && family.archived) return false;
       if (statusFilter !== "all") {
@@ -344,7 +346,7 @@ export default function ProductsPage() {
         .map((value) => value.toString().toLowerCase());
       return fields.some((value) => value.includes(text));
     });
-  }, [families, queryText, statusFilter, genderFilter, showArchived]);
+  }, [families, debouncedQueryText, statusFilter, genderFilter, showArchived]);
 
   const sortedFamilies = useMemo(() => {
     const list = [...filteredFamilies];

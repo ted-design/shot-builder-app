@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import {
   collection,
   addDoc,
@@ -166,6 +167,7 @@ const readStoredViewPrefs = () => {
 export default function ShotsPage() {
   const [shots, setShots] = useState([]);
   const [queryText, setQueryText] = useState("");
+  const debouncedQueryText = useDebouncedValue(queryText, 300);
   const [createDraft, setCreateDraft] = useState({ ...initialShotDraft });
   const [families, setFamilies] = useState([]);
   const [talent, setTalent] = useState([]);
@@ -288,7 +290,7 @@ export default function ShotsPage() {
   );
 
   const filteredShots = useMemo(() => {
-    const term = queryText.trim().toLowerCase();
+    const term = debouncedQueryText.trim().toLowerCase();
     const selectedLocation = filters.locationId || "";
     const selectedTalentIds = new Set(filters.talentIds || []);
     const selectedProductIds = new Set(filters.productFamilyIds || []);
@@ -348,7 +350,7 @@ export default function ShotsPage() {
         .toLowerCase();
       return haystack.includes(term);
     });
-  }, [shots, queryText, filters, talentOptions, locationById]);
+  }, [shots, debouncedQueryText, filters, talentOptions, locationById]);
 
   const sortedShots = useMemo(
     () => sortShotsForView(filteredShots, { sortBy: viewPrefs.sort }),
