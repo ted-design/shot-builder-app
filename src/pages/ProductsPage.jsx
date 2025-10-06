@@ -168,8 +168,10 @@ function ProductActionMenu({
   onRename,
   onToggleStatus,
   onArchive,
+  onRestore,
   canEdit,
   canArchive,
+  canDelete,
   open,
   onClose,
 }) {
@@ -213,7 +215,7 @@ function ProductActionMenu({
           {family.status === "discontinued" ? "Set active" : "Set discontinued"}
         </button>
       )}
-      {canArchive && (
+      {!family.deleted && canArchive && (
         <button
           type="button"
           className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
@@ -223,6 +225,18 @@ function ProductActionMenu({
           }}
         >
           {family.archived ? "Restore from archive" : "Archive"}
+        </button>
+      )}
+      {family.deleted && canDelete && (
+        <button
+          type="button"
+          className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50 text-emerald-600 font-medium"
+          onClick={() => {
+            onRestore(family);
+            onClose();
+          }}
+        >
+          Restore from deleted
         </button>
       )}
       {/* Delete action is intentionally not exposed here; use typed confirmation in Edit modal. */}
@@ -327,6 +341,7 @@ export default function ProductsPage() {
   const filteredFamilies = useMemo(() => {
     const text = debouncedQueryText.trim().toLowerCase();
     return families.filter((family) => {
+      if (family.deleted) return false;
       if (!showArchived && family.archived) return false;
       if (statusFilter !== "all") {
         if (statusFilter === "active" && family.status === "discontinued") return false;
@@ -532,7 +547,11 @@ export default function ProductsPage() {
       setEditFamily({ ...family, skus: [] });
       setEditModalOpen(true);
       const skuSnapshot = await getDocs(
-        query(collection(db, ...productFamilySkusPathForClient(family.id)), orderBy("colorName", "asc"))
+        query(
+          collection(db, ...productFamilySkusPathForClient(family.id)),
+          where("deleted", "==", false),
+          orderBy("colorName", "asc")
+        )
       );
       const skus = skuSnapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
       skuCacheRef.current = new Map(skus.map((sku) => [sku.id, sku]));
@@ -686,11 +705,12 @@ export default function ProductsPage() {
       }
 
       for (const removedId of payload.removedSkuIds) {
-        const skuInfo = skuCacheRef.current.get(removedId);
-        if (skuInfo?.imagePath) {
-          await deleteImageByPath(skuInfo.imagePath).catch(() => {});
-        }
-        await deleteDoc(doc(db, ...productFamilySkuPathForClient(familyId, removedId)));
+        await updateDoc(doc(db, ...productFamilySkuPathForClient(familyId, removedId)), {
+          deleted: true,
+          deletedAt: Date.now(),
+          updatedAt: Date.now(),
+          updatedBy: user?.uid || null,
+        });
       }
 
       if (!thumbnailPath && fallbackImagePath) {
@@ -727,26 +747,32 @@ export default function ProductsPage() {
     if (!canDelete) return;
     if (!options?.skipPrompt) {
       const confirmed = await showConfirm(
-        `Delete ${family.styleName}? This permanently removes the family and all SKUs.`
+        `Delete ${family.styleName}? This marks it as deleted but keeps it for potential recovery.`
       );
       if (!confirmed) return;
     }
 
-    const skuSnapshot = await getDocs(collection(db, ...productFamilySkusPathForClient(family.id)));
-    for (const docSnap of skuSnapshot.docs) {
-      const data = docSnap.data();
-      if (data.imagePath) {
-        await deleteImageByPath(data.imagePath).catch(() => {});
-      }
-      await deleteDoc(doc(db, ...productFamilySkuPathForClient(family.id, docSnap.id)));
-    }
-    if (family.headerImagePath) {
-      await deleteImageByPath(family.headerImagePath).catch(() => {});
-    }
-    if (family.thumbnailImagePath) {
-      await deleteImageByPath(family.thumbnailImagePath).catch(() => {});
-    }
-    await deleteDoc(doc(db, ...productFamilyPathForClient(family.id)));
+    const now = Date.now();
+    const familyRef = doc(db, ...productFamilyPathForClient(family.id));
+    await updateDoc(familyRef, {
+      deleted: true,
+      deletedAt: now,
+      updatedAt: now,
+      updatedBy: user?.uid || null,
+    });
+  };
+
+  const handleRestoreFamily = async (family) => {
+    if (!canDelete) return;
+    const now = Date.now();
+    const familyRef = doc(db, ...productFamilyPathForClient(family.id));
+    await updateDoc(familyRef, {
+      deleted: false,
+      deletedAt: null,
+      updatedAt: now,
+      updatedBy: user?.uid || null,
+    });
+    toast.success(`Restored ${family.styleName}.`);
   };
 
   const handleBatchArchive = async () => {
@@ -814,30 +840,19 @@ export default function ProductsPage() {
     const count = selectedFamilies.length;
     setBatchWorking(true);
     try {
-      const operations = [];
-      const imagePaths = [];
-      for (const family of selectedFamilies) {
-        const latest = familyMap.get(family.id) || family;
-        const skuSnapshot = await getDocs(
-          collection(db, ...productFamilySkusPathForClient(family.id))
-        );
-        skuSnapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          if (data.imagePath) {
-            imagePaths.push(data.imagePath);
-          }
-          operations.push({
-            type: "delete",
-            ref: doc(db, ...productFamilySkuPathForClient(family.id, docSnap.id)),
-          });
-        });
-        if (latest.headerImagePath) imagePaths.push(latest.headerImagePath);
-        if (latest.thumbnailImagePath) imagePaths.push(latest.thumbnailImagePath);
-        operations.push({ type: "delete", ref: doc(db, ...productFamilyPathForClient(family.id)) });
-      }
+      const now = Date.now();
+      const operations = selectedFamilies.map((family) => ({
+        type: "update",
+        ref: doc(db, ...productFamilyPathForClient(family.id)),
+        data: {
+          deleted: true,
+          deletedAt: now,
+          updatedAt: now,
+          updatedBy: user?.uid || null,
+        },
+      }));
 
       await runBatchedWrites(operations);
-      await Promise.all(imagePaths.map((path) => deleteImageByPath(path).catch(() => {})));
       toast.success(`Deleted ${count} product ${count === 1 ? "family" : "families"}.`);
       clearSelection();
     } catch (error) {
@@ -1036,8 +1051,10 @@ export default function ProductsPage() {
               onRename={startRename}
               onToggleStatus={handleStatusToggle}
               onArchive={handleArchiveToggle}
+              onRestore={handleRestoreFamily}
               canEdit={canEdit}
               canArchive={canArchive}
+              canDelete={canDelete}
               open={menuFamilyId === family.id}
               onClose={() => setMenuFamilyId(null)}
             />
@@ -1292,8 +1309,10 @@ export default function ProductsPage() {
               onRename={startRename}
               onToggleStatus={handleStatusToggle}
               onArchive={handleArchiveToggle}
+              onRestore={handleRestoreFamily}
               canEdit={canEdit}
               canArchive={canArchive}
+              canDelete={canDelete}
               open={menuFamilyId === family.id}
               onClose={() => setMenuFamilyId(null)}
             />

@@ -2,11 +2,11 @@
 
 **Date:** 2025-10-06
 **Status:** Phase 1 & 2 Partially Complete
-**Completion:** 10 of 25 planned improvements (40%)
+**Completion:** 14 of 25 planned improvements (56%)
 
 ---
 
-## ✅ Completed Improvements (10/25)
+## ✅ Completed Improvements (14/25)
 
 ### 🔒 **Critical Security Fixes (6)**
 
@@ -115,38 +115,67 @@
 
 ---
 
-## 📋 Remaining Work (15/25)
+### 🎨 **User Experience Improvements (3)**
 
-### 🔥 **High Priority (Next to Complete)**
-
-#### 11. Replace alert() with Toast Notifications
+#### 11. Replaced alert() with Toast Notifications
 - **Impact:** HIGH - Consistent UX
-- **Effort:** 2-3 hours
-- **Locations:** `ProductsPage.jsx` (lines 55, 64, 104, etc.)
-- **Action:** Search and replace all `alert()` and `window.confirm()` with toast notifications
+- **Effort:** 3 hours
+- **Files:** 16 instances across ProductsPage, ShotsPage, PullsPage
+- **Implementation:**
+  - Created `useToast` hook with context provider
+  - Replaced all `alert()` and `window.confirm()` calls
+  - Implemented success, error, warning, and info toast types
+  - Added auto-dismiss and manual close functionality
+- **Status:** ✅ Deployed on 2025-10-06
 
-#### 12. Debounce Search Inputs
-- **Impact:** MODERATE - Reduces re-renders
+#### 12. Debounced Search Inputs
+- **Impact:** MODERATE - Reduces re-renders and Firestore queries
 - **Effort:** 1 hour
 - **Files:** `ProductsPage.jsx`, `ShotsPage.jsx`
-- **Implementation:** Use `useDeferredValue` or custom debounce hook
+- **Implementation:**
+  - Created `useDebouncedValue` hook with 300ms delay
+  - Applied to search inputs in ProductsPage and ShotsPage
+  - Reduces unnecessary Firestore queries during typing
+- **Status:** ✅ Deployed on 2025-10-06
 
-#### 13. Upgrade Vite from v4 to v5
-- **Impact:** HIGH - Security vulnerabilities
-- **Effort:** 2-4 hours
-- **Risk:** May require dependency updates and testing
-- **Action:**
-  ```bash
-  npm install vite@^5.0.0 --save-dev
-  npm install @vitejs/plugin-react@^4.0.0 --save-dev
-  npm test && npm run build
-  ```
+#### 13. Upgraded Vite v4 → v7
+- **Impact:** HIGH - Security vulnerabilities resolved
+- **Effort:** 30 minutes (smooth upgrade)
+- **Changes:**
+  - vite: ^4.5.0 → ^7.1.9
+  - vitest: ^2.1.1 → ^3.2.4
+  - @vitejs/plugin-react: ^4.7.0 (unchanged, compatible)
+- **Testing:**
+  - ✅ Dev server: 939ms startup
+  - ✅ Production build: 6.96s, 36 chunks
+  - ✅ Deployment: Successful
+- **Status:** ✅ Deployed on 2025-10-06
 
-#### 14. Implement Soft Deletes
-- **Impact:** HIGH - Prevents data loss
-- **Effort:** 3-4 hours
-- **Collections:** Products, Shots
-- **Implementation:** Add `deleted: true` flag + `deletedAt` timestamp
+#### 14. Implemented Soft Deletes for Products and Shots
+- **Impact:** HIGH - Prevents data loss, enables recovery
+- **Effort:** 3 hours
+- **Collections:** Product Families, SKUs, Shots
+- **Implementation:**
+  - Added `deleted: false` and `deletedAt: null` fields to all documents
+  - Changed delete operations to set flags instead of removing documents
+  - Updated queries to filter out deleted items (client-side for products, server-side for shots)
+  - Added restore functionality for admins
+  - Created Firestore composite indexes for shot queries
+- **Files Modified:**
+  - `/src/lib/productMutations.js` - Added deleted fields to creation
+  - `/src/pages/ProductsPage.jsx` - Soft delete + restore UI
+  - `/src/pages/ShotsPage.jsx` - Soft delete + restore function
+  - `/firestore.indexes.json` - Added indexes for (projectId, deleted, date)
+- **Testing:**
+  - ✅ Build: 7.56s, no errors
+  - ✅ Tests: 145/146 passed (1 pre-existing failure)
+- **Status:** ✅ Ready for deployment (2025-10-06)
+
+---
+
+## 📋 Remaining Work (11/25)
+
+### 🔥 **High Priority (Next to Complete)**
 
 #### 15. Add Pagination to ProductsPage
 - **Impact:** HIGH - Performance with large datasets
@@ -317,23 +346,23 @@ firebase deploy --only hosting
 | Category | Completed | Remaining | Total Estimated Hours |
 |----------|-----------|-----------|----------------------|
 | Critical Security | 6/6 | 0 | 0 |
-| High Priority | 0/5 | 5 | 12-17 hours |
+| High Priority | 4/5 | 1 | 3-5 hours |
 | Medium Priority | 0/5 | 5 | 10-13 hours |
 | Low Priority | 0/5 | 5 | 7-10 hours |
-| **TOTAL** | **10/25** | **15/25** | **29-40 hours** |
+| **TOTAL** | **14/25** | **11/25** | **20-28 hours** |
 
 ---
 
 ## 🎯 Recommended Next Steps
 
-### Week 1 (High Priority)
+### Week 1 (High Priority) ✅ COMPLETE
 1. ✅ Deploy current changes to production
-2. ⏳ Replace `alert()` with toast notifications (3 hours)
-3. ⏳ Debounce search inputs (1 hour)
-4. ⏳ Upgrade Vite to v5 (2-4 hours)
+2. ✅ Replace `alert()` with toast notifications (3 hours)
+3. ✅ Debounce search inputs (1 hour)
+4. ✅ Upgrade Vite to v7 (30 minutes)
 
 ### Week 2 (High Priority Continued)
-5. ⏳ Implement soft deletes (4 hours)
+5. ✅ Implement soft deletes (3 hours) - Complete
 6. ⏳ Add pagination to ProductsPage (3 hours)
 7. ⏳ Add React.memo to list items (2 hours)
 
@@ -354,7 +383,10 @@ firebase deploy --only hosting
 1. `/docs/BACKUP_SETUP.md` - Firestore backup configuration
 2. `/docs/SYSTEM_ADMIN_MANAGEMENT.md` - Admin management guide
 3. `/docs/IMPROVEMENTS_PHASE1_SUMMARY.md` - Phase 1 summary
-4. `/docs/IMPROVEMENTS_COMPLETE_SUMMARY.md` - This file
+4. `/docs/SESSION_2025-10-06B_SUMMARY.md` - Pull sharing + alerts → toasts
+5. `/docs/SESSION_2025-10-06C_SUMMARY.md` - Vite v7 upgrade
+6. `/docs/SESSION_2025-10-06D_SUMMARY.md` - Soft deletes implementation
+7. `/docs/IMPROVEMENTS_COMPLETE_SUMMARY.md` - This file
 
 ---
 
@@ -405,5 +437,5 @@ lighthouse https://um-shotbuilder.web.app --view
 
 ---
 
-**Last Updated:** 2025-10-05
-**Next Review:** After deploying Phase 1 & 2 changes
+**Last Updated:** 2025-10-06 (Session D)
+**Next Review:** After completing pagination and N+1 fixes

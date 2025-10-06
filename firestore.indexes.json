@@ -5,6 +5,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "projectId", "mode": "ASCENDING" },
+        { "fieldPath": "deleted", "mode": "ASCENDING" },
         { "fieldPath": "date", "mode": "ASCENDING" },
         { "fieldPath": "__name__", "mode": "ASCENDING" }
       ]
@@ -15,6 +16,14 @@
       "fields": [
         { "fieldPath": "shareToken", "mode": "ASCENDING" },
         { "fieldPath": "shareEnabled", "mode": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "skus",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted", "mode": "ASCENDING" },
+        { "fieldPath": "colorName", "mode": "ASCENDING" }
       ]
     }
   ],

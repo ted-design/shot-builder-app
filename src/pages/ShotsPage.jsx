@@ -809,6 +809,7 @@ export default function ShotsPage() {
     const scopedShotsQuery = query(
       collRef(...currentShotsPath),
       where("projectId", "==", projectId),
+      where("deleted", "==", false),
       orderBy("date", "asc")
     );
     let scopedShots = [];
@@ -850,7 +851,7 @@ export default function ShotsPage() {
         { key: "empty", filter: where("projectId", "==", "") },
       ];
       unassignedClauses.forEach(({ key, filter }) => {
-        const unassignedQuery = query(collRef(...currentShotsPath), filter);
+        const unassignedQuery = query(collRef(...currentShotsPath), filter, where("deleted", "==", false));
         unassignedUnsubs.push(
           onSnapshot(
             unassignedQuery,
@@ -977,6 +978,8 @@ export default function ShotsPage() {
         talentIds: talentForWrite.map((entry) => entry.talentId),
         projectId: resolvedProjectId,
         status: resolvedStatus,
+        deleted: false,
+        deletedAt: null,
         createdAt: serverTimestamp(),
         createdBy: user?.uid || null,
       };
@@ -1119,21 +1122,24 @@ export default function ShotsPage() {
     }
   };
 
-  // Delete a shot.  We remove it from all reverse indexes before deleting
-  // the document itself.
+  // Soft delete a shot by marking it as deleted
   const removeShot = async (shot) => {
     if (!canEditShots) return;
-    await updateReverseIndexes({
-      shotId: shot.id,
-      before: {
-        productIds: shot.productIds || extractProductIds(shot.products),
-        products: shot.products || [],
-        talentIds: shot.talentIds || [],
-        locationId: shot.locationId || null,
-      },
-      after: { productIds: [], products: [], talentIds: [], locationId: null },
-    });
-    await writeDoc("delete shot", () => deleteDoc(docRef(...currentShotsPath, shot.id)));
+    const now = Date.now();
+    await writeDoc("delete shot", () => updateDoc(docRef(...currentShotsPath, shot.id), {
+      deleted: true,
+      deletedAt: now,
+    }));
+  };
+
+  // Restore a soft-deleted shot
+  const restoreShot = async (shot) => {
+    if (!canEditShots) return;
+    await writeDoc("restore shot", () => updateDoc(docRef(...currentShotsPath, shot.id), {
+      deleted: false,
+      deletedAt: null,
+    }));
+    toast.success(`Restored shot: ${shot.name}`);
   };
 
   const handleLocationFilterChange = useCallback((nextId) => {
