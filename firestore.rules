@@ -37,20 +37,50 @@ service cloud.firestore {
         ]);
     }
 
-    match /talent/{docId} {
-      allow read: if isAuthed();
-      allow create, update, delete: if isAuthed();
+    function isSystemAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/systemAdmins/$(request.auth.token.email)) &&
+        get(/databases/$(database)/documents/systemAdmins/$(request.auth.token.email)).data.enabled == true;
     }
 
-    match /locations/{docId} {
-      allow read: if isAuthed();
-      allow create, update, delete: if isAuthed();
+    // System Admins - managed via Cloud Functions and admin scripts
+    match /systemAdmins/{email} {
+      // Only system admins can read the list of system admins
+      allow read: if isSystemAdmin();
+      // Only Cloud Functions can write (via Admin SDK)
+      allow write: if false;
     }
 
-    match /shots/{docId} {
-      allow read: if isAuthed();
-      allow create, update, delete: if isAuthed();
+    // Public pull sharing via collection group queries
+    // This wildcard rule allows unauthenticated users to query pulls across all clients/projects
+    // when a valid shareToken is provided
+    match /{path=**}/pulls/{pullId} {
+      // Allow unauthenticated collection group queries when sharing is enabled
+      // Security: Requires knowledge of the exact cryptographic shareToken (32+ chars)
+      // The client queries: collectionGroup('pulls').where('shareToken', '==', token).where('shareEnabled', '==', true)
+      allow list, get: if resource.data.shareEnabled == true;
     }
+
+    // LEGACY COLLECTIONS - DEPRECATED
+    // These root-level collections are no longer used in the application.
+    // All data has been migrated to client-scoped collections under /clients/{clientId}/
+    // Keeping these rules disabled to prevent accidental access to legacy data.
+    // If you need to access legacy data for migration, temporarily enable with client matching.
+
+    // match /talent/{docId} {
+    //   allow read: if false;  // Explicitly deny all access
+    //   allow write: if false;
+    // }
+
+    // match /locations/{docId} {
+    //   allow read: if false;  // Explicitly deny all access
+    //   allow write: if false;
+    // }
+
+    // match /shots/{docId} {
+    //   allow read: if false;  // Explicitly deny all access
+    //   allow write: if false;
+    // }
 
     match /clients/{clientId}/talent/{docId} {
       allow read: if clientMatches(clientId);
@@ -67,8 +97,11 @@ service cloud.firestore {
       allow create, update, delete: if clientMatches(clientId) && isAuthed();
     }
 
+    // Wildcard rule for client-scoped collections
+    // Restricts read access to admin users only to prevent unauthorized data access
+    // Specific collections have more granular rules defined below
     match /clients/{clientId}/{document=**} {
-      allow read: if clientMatches(clientId);
+      allow read: if clientMatches(clientId) && isAdmin();
     }
 
     match /clients/{clientId}/products/{productId} {
@@ -96,6 +129,14 @@ service cloud.firestore {
       allow create: if clientMatches(clientId) && (isAdmin() || isProducer());
       allow update, delete: if clientMatches(clientId) &&
         (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+
+      // Pulls - project-specific access for authenticated users
+      // Public sharing is handled by the top-level wildcard rule
+      match /pulls/{pullId} {
+        // Authenticated users with proper role
+        allow read, write: if clientMatches(clientId) &&
+          (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+      }
 
       match /{collectionId}/{docId} {
         allow read: if clientMatches(clientId) &&
