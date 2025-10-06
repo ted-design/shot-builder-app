@@ -8,7 +8,7 @@ import { Card, CardHeader, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { generateShareToken, getShareableURL, copyShareURLToClipboard } from "../../lib/pullSharing";
-import { toast } from "../../lib/toast";
+import { toast, showConfirm } from "../../lib/toast";
 import { Copy, ExternalLink, X } from "lucide-react";
 
 export default function PullShareModal({
@@ -48,7 +48,8 @@ export default function PullShareModal({
   };
 
   const handleRevoke = async () => {
-    if (!window.confirm("Revoke this share link? Anyone with the link will lose access.")) {
+    const confirmed = await showConfirm("Revoke this share link? Anyone with the link will lose access.");
+    if (!confirmed) {
       return;
     }
 

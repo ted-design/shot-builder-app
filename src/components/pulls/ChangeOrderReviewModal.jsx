@@ -9,7 +9,7 @@ import { Card, CardHeader, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { getPullItemDisplayName } from "../../lib/pullItems";
-import { toast } from "../../lib/toast";
+import { toast, showConfirm } from "../../lib/toast";
 
 export default function ChangeOrderReviewModal({
   item,
@@ -21,19 +21,21 @@ export default function ChangeOrderReviewModal({
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectInput, setShowRejectInput] = useState(false);
 
-  const handleApprove = () => {
-    if (window.confirm("Approve this substitution? This will update the pull item.")) {
+  const handleApprove = async () => {
+    const confirmed = await showConfirm("Approve this substitution? This will update the pull item.");
+    if (confirmed) {
       onApprove(changeOrder.id);
     }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!rejectionReason.trim()) {
       toast.error({ title: "Please provide a reason for rejection" });
       return;
     }
 
-    if (window.confirm("Reject this substitution request?")) {
+    const confirmed = await showConfirm("Reject this substitution request?");
+    if (confirmed) {
       onReject(changeOrder.id, rejectionReason.trim());
     }
   };

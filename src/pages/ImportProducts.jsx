@@ -13,6 +13,7 @@ import { Input, Checkbox } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useAuth } from "../context/AuthContext";
 import { canEditProducts, ROLE } from "../lib/rbac";
+import { showError } from "../lib/toast";
 
 /** Utility: robust CSV parser for simple, comma-separated files with quoted fields. */
 function parseCSV(text) {
@@ -72,7 +73,7 @@ export default function ImportProducts() {
 
   const onFile = async (e) => {
     if (!canManage) {
-      alert("You do not have permission to import products.");
+      showError("You do not have permission to import products.");
       return;
     }
     const f = e.target.files?.[0];

@@ -16,22 +16,39 @@ service firebase.storage {
       return request.auth != null && (request.auth.token.role == 'producer' || request.auth.token.role == 'wardrobe' || request.auth.token.role == 'admin');
     }
 
+    // Validation functions for file uploads
+    function isValidImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isValidImageSize() {
+      // Max 10MB per image
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+
+    function isValidUpload() {
+      return isValidImage() && isValidImageSize();
+    }
+
     // Primary app paths use a flat images/ prefix, e.g.
     // images/productFamilies/{familyId}/thumbnail/{file}
     // images/productFamilies/{familyId}/{file}
     // images/productFamilies/{familyId}/skus/{skuId}/{file}
     // images/locations/{locationId}/{file}
+    // images/talent/{talentId}/{file}
     match /images/{path=**} {
-      // Allow all authenticated users to read media referenced by Firestore docs.
+      // Allow authenticated users to read images
+      // TODO: Add client-scoping by organizing images under /images/{clientId}/...
       allow read: if request.auth != null;
-      // Limit writes to roles that manage content in the app.
-      allow write: if isProducerOrWardrobe();
+
+      // Limit writes to roles that manage content, with file validation
+      allow write: if isProducerOrWardrobe() && isValidUpload();
     }
 
     // Legacy org-scoped paths retained for backwards compatibility
     match /orgs/{clientId}/{rest=**} {
       allow read: if request.auth != null && (userClient() == clientId || isAdmin());
-      allow write: if isProducerOrWardrobe() && (userClient() == clientId || isAdmin());
+      allow write: if isProducerOrWardrobe() && (userClient() == clientId || isAdmin()) && isValidUpload();
     }
   }
 }

@@ -11,6 +11,8 @@ const toastMock = {
   warning: vi.fn(),
 };
 
+const showConfirmMock = vi.fn(() => Promise.resolve(true));
+
 const authState = {
   clientId: "unbound-merino",
   role: "producer",
@@ -98,7 +100,10 @@ vi.mock("../../lib/firebase", () => ({
   deleteImageByPath: deleteImageMock,
 }));
 
-vi.mock("../../lib/toast", () => ({ toast: toastMock }));
+vi.mock("../../lib/toast", () => ({
+  toast: toastMock,
+  showConfirm: showConfirmMock,
+}));
 
 vi.mock("../../context/AuthContext", () => ({
   useAuth: () => authState,
@@ -135,6 +140,8 @@ beforeEach(() => {
   toastMock.error.mockClear();
   toastMock.info.mockClear();
   toastMock.warning.mockClear();
+  showConfirmMock.mockClear();
+  showConfirmMock.mockReturnValue(Promise.resolve(true));
   appImageMock.mockClear();
   authState.role = "producer";
   authState.user = { uid: "tester" };
@@ -288,26 +295,6 @@ describe("ProductsPage", () => {
       },
     ]);
 
-    setSnapshot(
-      ["clients", "unbound-merino", "productFamilies", "fam-alpha", "skus"],
-      [
-        {
-          id: "sku-alpha",
-          data: { imagePath: "alpha-sku.jpg" },
-        },
-      ]
-    );
-
-    setSnapshot(
-      ["clients", "unbound-merino", "productFamilies", "fam-bravo", "skus"],
-      [
-        {
-          id: "sku-bravo",
-          data: { imagePath: "bravo-sku.jpg" },
-        },
-      ]
-    );
-
     vi.resetModules();
     const { default: ProductsPage } = await import("../ProductsPage.jsx");
     render(<ProductsPage />);
@@ -317,28 +304,23 @@ describe("ProductsPage", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Select Alpha Jacket" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Select Bravo Coat" }));
 
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-
     fireEvent.click(screen.getByRole("button", { name: /^Delete$/ }));
 
     await waitFor(() => {
       expect(toastMock.success).toHaveBeenCalledWith("Deleted 2 product families.");
     });
 
+    // Soft delete uses update operations, not delete
     expect(writeBatchCalls).toHaveLength(1);
-    expect(writeBatchCalls[0]).toHaveLength(4);
+    expect(writeBatchCalls[0]).toHaveLength(2); // 2 products
     writeBatchCalls[0].forEach((operation) => {
-      expect(operation.type).toBe("delete");
+      expect(operation.type).toBe("update");
+      expect(operation.data.deleted).toBe(true);
+      expect(typeof operation.data.deletedAt).toBe("number");
       expect(Array.isArray(operation.ref.__path)).toBe(true);
     });
 
-    expect(deleteImageMock).toHaveBeenCalledWith("alpha-header.jpg");
-    expect(deleteImageMock).toHaveBeenCalledWith("alpha-thumb.jpg");
-    expect(deleteImageMock).toHaveBeenCalledWith("alpha-sku.jpg");
-    expect(deleteImageMock).toHaveBeenCalledWith("bravo-header.jpg");
-    expect(deleteImageMock).toHaveBeenCalledWith("bravo-thumb.jpg");
-    expect(deleteImageMock).toHaveBeenCalledWith("bravo-sku.jpg");
-
-    confirmSpy.mockRestore();
+    // Images are preserved with soft delete, not deleted
+    expect(deleteImageMock).not.toHaveBeenCalled();
   });
 });

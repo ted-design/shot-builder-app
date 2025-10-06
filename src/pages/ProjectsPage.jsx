@@ -10,7 +10,7 @@ import { useProjectScope } from "../context/ProjectScopeContext";
 import ProjectCards from "../components/dashboard/ProjectCards";
 import ProjectCreateModal from "../components/dashboard/ProjectCreateModal";
 import ProjectEditModal from "../components/dashboard/ProjectEditModal";
-import { toast } from "../lib/toast";
+import { showError } from "../lib/toast";
 
 export default function ProjectsPage() {
   const { clientId, user: authUser, role: globalRole } = useAuth();
@@ -48,18 +48,18 @@ export default function ProjectsPage() {
   const [updating, setUpdating] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
 
-  // Show an alert if the subscription reports an error.  This effect runs
+  // Show a toast notification if the subscription reports an error.  This effect runs
   // whenever `projectsError` changes.
   useEffect(() => {
     if (projectsError) {
-      alert("Error loading projects: " + projectsError.message);
+      showError("Error loading projects: " + projectsError.message);
       console.error(projectsError);
     }
   }, [projectsError]);
 
   const handleCreate = async (payload) => {
     if (!canManage) {
-      alert("You do not have permission to create projects.");
+      showError("You do not have permission to create projects.");
       return;
     }
     const currentUser = authUser || auth.currentUser;
@@ -100,7 +100,7 @@ export default function ProjectsPage() {
       }
       setShowCreateModal(false);
     } catch (e) {
-      alert("Failed to create project: " + e.message);
+      showError("Failed to create project: " + e.message);
       console.error(e);
     } finally {
       setCreating(false);
@@ -109,7 +109,7 @@ export default function ProjectsPage() {
 
   const handleUpdate = async (project, payload) => {
     if (!canManage) {
-      alert("You do not have permission to edit projects.");
+      showError("You do not have permission to edit projects.");
       return;
     }
     try {
@@ -123,7 +123,7 @@ export default function ProjectsPage() {
       });
       setEditingProject(null);
     } catch (err) {
-      alert("Failed to update project: " + err.message);
+      showError("Failed to update project: " + err.message);
       console.error(err);
     } finally {
       setUpdating(false);

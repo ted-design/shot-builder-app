@@ -21,6 +21,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { showError, showConfirm } from "../lib/toast";
 import { pullsPath, DEFAULT_PROJECT_ID, lanesPath, shotsPath, productFamiliesPath, productFamilySkusPath } from "../lib/paths";
 import { createPullItemFromProduct, aggregatePullItems, normalizePullItem, sortPullItemsByGender, calculateItemFulfillment, getPullItemDisplayName } from "../lib/pullItems";
 import PullItemEditor from "../components/pulls/PullItemEditor";
@@ -202,10 +203,11 @@ export default function PullsPage() {
   // Delete a pull
   async function handleDeletePull(id, pullTitle) {
     if (!canManage) {
-      alert("You do not have permission to delete pulls.");
+      showError("You do not have permission to delete pulls.");
       return;
     }
-    if (!confirm(`Delete pull "${pullTitle}"? This action cannot be undone.`)) {
+    const confirmed = await showConfirm(`Delete pull "${pullTitle}"? This action cannot be undone.`);
+    if (!confirmed) {
       return;
     }
     if (!projectId) {

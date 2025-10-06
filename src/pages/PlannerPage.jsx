@@ -53,7 +53,7 @@ import { canManagePlanner, canManageShots, ROLE, resolveEffectiveRole } from "..
 import { Download, LayoutGrid, List, Settings2, PencilLine } from "lucide-react";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { Button } from "../components/ui/button";
-import { toast } from "../lib/toast";
+import { toast, showConfirm } from "../lib/toast";
 import AppImage from "../components/common/AppImage";
 import PlannerSummary from "../components/planner/PlannerSummary";
 import PlannerExportModal from "../components/planner/PlannerExportModal";
@@ -1941,7 +1941,8 @@ function PlannerPageContent() {
   // this laneId and update them.  Only then do we delete the lane.
   const removeLane = async (lane) => {
     if (!canEditPlanner) return;
-    if (!confirm("Delete lane?")) return;
+    const confirmed = await showConfirm("Delete lane?");
+    if (!confirmed) return;
     try {
       const q = query(
         collection(db, ...currentShotsPath),

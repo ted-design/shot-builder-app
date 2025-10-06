@@ -8,7 +8,8 @@ const buildSkuAggregates = (skus, familySizes = []) => {
   const sizes = new Set((familySizes || []).filter(Boolean));
   let activeSkuCount = 0;
 
-  (skus || []).forEach((sku) => {
+  const activeSkus = (skus || []).filter((sku) => !sku.deleted);
+  activeSkus.forEach((sku) => {
     if (sku.skuCode) skuCodes.add(sku.skuCode);
     if (sku.colorName) colorNames.add(sku.colorName);
     (sku.sizes || []).forEach((size) => size && sizes.add(size));
@@ -19,7 +20,7 @@ const buildSkuAggregates = (skus, familySizes = []) => {
     skuCodes: Array.from(skuCodes),
     colorNames: Array.from(colorNames),
     sizeOptions: Array.from(sizes),
-    skuCount: (skus || []).length,
+    skuCount: activeSkus.length,
     activeSkuCount,
   };
 };
@@ -66,6 +67,8 @@ export const createProductFamily = async ({ db, clientId, payload, userId }) => 
     colorNames: aggregates.colorNames,
     sizeOptions: aggregates.sizeOptions,
     shotIds: [],
+    deleted: false,
+    deletedAt: null,
     createdAt: now,
     updatedAt: now,
     createdBy: userId || null,
@@ -127,6 +130,8 @@ export const createProductFamily = async ({ db, clientId, payload, userId }) => 
       status: sku.status,
       archived: sku.archived,
       imagePath,
+      deleted: false,
+      deletedAt: null,
       createdAt: now,
       updatedAt: now,
       createdBy: userId || null,
@@ -194,6 +199,8 @@ export const createProductColourway = async ({
     status,
     archived: status === "archived",
     imagePath,
+    deleted: false,
+    deletedAt: null,
     createdAt: now,
     updatedAt: now,
     createdBy: userId || null,

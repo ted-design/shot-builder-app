@@ -5,9 +5,8 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { collectionGroup, query, where, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { validateShareToken } from "../lib/pullSharing";
 import { normalizePullItem, sortPullItemsByGender, getPullItemDisplayName, getTotalQuantity } from "../lib/pullItems";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import PullItemsTable from "../components/pulls/PullItemsTable";
@@ -30,66 +29,46 @@ export default function PullPublicViewPage() {
       setError(null);
 
       try {
-        // Search for pull with matching share token
-        // We need to query across all clients and projects
-        // This is a simplified version - in production, you'd optimize this
-        const clientsRef = collection(db, "clients");
-        const clientsSnapshot = await getDocs(clientsRef);
+        // Query Firestore directly using collection group query
+        // Security is enforced by Firestore Security Rules:
+        // - Only pulls with shareEnabled=true can be read
+        // - ShareToken must be known (32+ char cryptographically random string)
+        // - Composite index ensures efficient querying
+        const pullsRef = collectionGroup(db, 'pulls');
+        const q = query(
+          pullsRef,
+          where('shareToken', '==', shareToken),
+          where('shareEnabled', '==', true)
+        );
 
-        let foundPull = null;
+        const snapshot = await getDocs(q);
 
-        for (const clientDoc of clientsSnapshot.docs) {
-          if (foundPull) break;
+        if (snapshot.empty) {
+          setError('Pull not found or sharing is disabled');
+          setLoading(false);
+          return;
+        }
 
-          const projectsRef = collection(db, "clients", clientDoc.id, "projects");
-          const projectsSnapshot = await getDocs(projectsRef);
+        const pullDoc = snapshot.docs[0];
+        const pullData = pullDoc.data();
 
-          for (const projectDoc of projectsSnapshot.docs) {
-            if (foundPull) break;
-
-            const pullsRef = collection(
-              db,
-              "clients",
-              clientDoc.id,
-              "projects",
-              projectDoc.id,
-              "pulls"
-            );
-
-            const pullsQuery = query(
-              pullsRef,
-              where("shareToken", "==", shareToken),
-              where("shareEnabled", "==", true)
-            );
-
-            const pullsSnapshot = await getDocs(pullsQuery);
-
-            if (!pullsSnapshot.empty) {
-              const pullDoc = pullsSnapshot.docs[0];
-              foundPull = { id: pullDoc.id, ...pullDoc.data() };
-              break;
-            }
+        // Check expiration client-side
+        if (pullData.shareExpireAt) {
+          const expireDate = pullData.shareExpireAt.toDate();
+          if (expireDate < new Date()) {
+            setError('Share link has expired');
+            setLoading(false);
+            return;
           }
         }
 
-        if (!foundPull) {
-          setError("Pull not found or link is invalid");
-          setLoading(false);
-          return;
-        }
-
-        // Validate the share token
-        const validation = validateShareToken(shareToken, foundPull);
-        if (!validation.valid) {
-          setError(validation.reason || "Invalid share link");
-          setLoading(false);
-          return;
-        }
-
-        setPull(foundPull);
+        setPull({
+          id: pullDoc.id,
+          ...pullData
+        });
       } catch (err) {
-        console.error("[PullPublicViewPage] Failed to load pull", err);
-        setError("Failed to load pull");
+        console.error('[PullPublicViewPage] Failed to load pull', err);
+        setError('Failed to load pull. Please check the link and try again.');
       } finally {
         setLoading(false);
       }
