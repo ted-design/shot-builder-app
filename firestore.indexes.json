@@ -8,6 +8,14 @@
         { "fieldPath": "date", "mode": "ASCENDING" },
         { "fieldPath": "__name__", "mode": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "pulls",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "shareToken", "mode": "ASCENDING" },
+        { "fieldPath": "shareEnabled", "mode": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

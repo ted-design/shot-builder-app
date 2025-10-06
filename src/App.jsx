@@ -6,22 +6,26 @@ import { auth } from "./lib/firebase";
 import { FLAGS } from "./lib/flags";
 import { useAuth } from "./context/AuthContext";
 import { adaptUser } from "./auth/adapter";
-import ImportProducts from "./pages/ImportProducts";
 import AuthReadyGate from "./auth/AuthReadyGate";
-import LoginPage from "./pages/LoginPage";
-import ShotsPage from "./pages/ShotsPage";
-import PlannerPage from "./pages/PlannerPage";
-import ProductsPage from "./pages/ProductsPage";
-import TalentPage from "./pages/TalentPage";
-import LocationsPage from "./pages/LocationsPage";
-import ProjectsPage from "./pages/ProjectsPage";
-import PullsPage from "./pages/PullsPage";
-import PullPublicViewPage from "./pages/PullPublicViewPage";
-import AdminPage from "./pages/AdminPage";
 import SidebarLayout from "./routes/SidebarLayout";
 import RequireRole from "./routes/RequireRole";
 import { ProjectScopeProvider } from "./context/ProjectScopeContext";
-import ImageDiagnosticsPage from "./pages/dev/ImageDiagnosticsPage";
+import { LoadingSpinner } from "./components/ui/LoadingSpinner";
+
+// Lazy load all major pages to reduce initial bundle size
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const ProjectsPage = lazy(() => import("./pages/ProjectsPage"));
+const ShotsPage = lazy(() => import("./pages/ShotsPage"));
+const PlannerPage = lazy(() => import("./pages/PlannerPage"));
+const ProductsPage = lazy(() => import("./pages/ProductsPage"));
+const ImportProducts = lazy(() => import("./pages/ImportProducts"));
+const TalentPage = lazy(() => import("./pages/TalentPage"));
+const LocationsPage = lazy(() => import("./pages/LocationsPage"));
+const PullsPage = lazy(() => import("./pages/PullsPage"));
+const PullPublicViewPage = lazy(() => import("./pages/PullPublicViewPage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
+const ImageDiagnosticsPage = lazy(() => import("./pages/dev/ImageDiagnosticsPage"));
+const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
 
 function MaybeRedirectLogin({ user }) {
   const location = useLocation();
@@ -59,7 +63,15 @@ export default function App() {
       : null;
   const navRole = FLAGS.newAuthContext ? authSel.role || null : null;
 
-  const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
+  // Loading fallback component for page transitions
+  const PageLoadingFallback = () => (
+    <div className="flex items-center justify-center min-h-screen bg-slate-50">
+      <div className="text-center">
+        <LoadingSpinner size="lg" />
+        <p className="mt-4 text-sm text-slate-600">Loading...</p>
+      </div>
+    </div>
+  );
 
   function PDFDemoMount() {
     const location = useLocation();
@@ -81,8 +93,22 @@ export default function App() {
         <PDFDemoMount />
         <MaybeRedirectLogin user={userForGuard} />
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/pulls/shared/:shareToken" element={<PullPublicViewPage />} />
+          <Route
+            path="/login"
+            element={
+              <Suspense fallback={<PageLoadingFallback />}>
+                <LoginPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/pulls/shared/:shareToken"
+            element={
+              <Suspense fallback={<PageLoadingFallback />}>
+                <PullPublicViewPage />
+              </Suspense>
+            }
+          />
           <Route path="/" element={<Navigate to="/projects" replace />} />
           <Route
             element={
@@ -92,23 +118,88 @@ export default function App() {
             }
           >
             <Route index element={<Navigate to="/projects" replace />} />
-            <Route path="/projects" element={<ProjectsPage />} />
-            <Route path="/shots" element={<ShotsPage />} />
-            <Route path="/planner" element={<PlannerPage />} />
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/import-products" element={<ImportProducts />} />
-            <Route path="/talent" element={<TalentPage />} />
-            <Route path="/locations" element={<LocationsPage />} />
-            <Route path="/pulls" element={<PullsPage />} />
+            <Route
+              path="/projects"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <ProjectsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/shots"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <ShotsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/planner"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <PlannerPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/products"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <ProductsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/import-products"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <ImportProducts />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/talent"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <TalentPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/locations"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <LocationsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/pulls"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <PullsPage />
+                </Suspense>
+              }
+            />
             {import.meta.env.DEV ? (
-              <Route path="/dev/image-diagnostics" element={<ImageDiagnosticsPage />} />
+              <Route
+                path="/dev/image-diagnostics"
+                element={
+                  <Suspense fallback={<PageLoadingFallback />}>
+                    <ImageDiagnosticsPage />
+                  </Suspense>
+                }
+              />
             ) : null}
             <Route
               path="/admin"
               element={
-                <RequireRole roles={["admin"]}>
-                  <AdminPage />
-                </RequireRole>
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <RequireRole roles={["admin"]}>
+                    <AdminPage />
+                  </RequireRole>
+                </Suspense>
               }
             />
             <Route path="*" element={<Navigate to="/projects" replace />} />

@@ -28,7 +28,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { ROLE, canArchiveProducts, canDeleteProducts, canEditProducts } from "../lib/rbac";
 import Modal from "../components/ui/modal";
-import { toast } from "../lib/toast";
+import { toast, showConfirm } from "../lib/toast";
 import { buildSkuAggregates, createProductFamily, genderLabel } from "../lib/productMutations";
 import { readStorage, writeStorage } from "../lib/safeStorage";
 
@@ -724,7 +724,7 @@ export default function ProductsPage() {
   const handleDeleteFamily = async (family, options = {}) => {
     if (!canDelete) return;
     if (!options?.skipPrompt) {
-      const confirmed = window.confirm(
+      const confirmed = await showConfirm(
         `Delete ${family.styleName}? This permanently removes the family and all SKUs.`
       );
       if (!confirmed) return;
@@ -1478,12 +1478,9 @@ export default function ProductsPage() {
                       const count = selectedFamilies.length;
                       const label = count === 1 ? "family" : "families";
                       const prompt = `Delete ${count} product ${label}? This action cannot be undone.`;
-                      if (typeof window !== "undefined" && typeof window.confirm === "function") {
-                        const ok = window.confirm(prompt);
-                        if (ok) {
-                          await handleBatchDelete();
-                          return;
-                        }
+                      const ok = await showConfirm(prompt);
+                      if (ok) {
+                        await handleBatchDelete();
                       }
                     } catch {}
                     setConfirmBatchDeleteText("");

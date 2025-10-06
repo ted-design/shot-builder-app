@@ -1,0 +1,79 @@
+# Dependabot configuration for automated dependency updates and security scanning
+#
+# This file configures Dependabot to automatically:
+# - Check for dependency updates weekly
+# - Create pull requests for security updates
+# - Group minor/patch updates together to reduce PR noise
+#
+# Documentation: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # Frontend dependencies (npm)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    # Group non-security updates to reduce PR noise
+    groups:
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "patch"
+    # Always create separate PRs for security updates
+    open-pull-requests-limit: 10
+    reviewers:
+      - "ted-design"
+    labels:
+      - "dependencies"
+      - "automated"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    # Ignore specific packages if needed
+    ignore:
+      # Uncomment to ignore specific packages
+      # - dependency-name: "package-name"
+      #   update-types: ["version-update:semver-major"]
+
+  # Cloud Functions dependencies (npm)
+  - package-ecosystem: "npm"
+    directory: "/functions"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:30"
+    groups:
+      cloud-functions-dependencies:
+        patterns:
+          - "firebase-*"
+          - "@google-cloud/*"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "ted-design"
+    labels:
+      - "dependencies"
+      - "cloud-functions"
+    commit-message:
+      prefix: "chore(functions/deps)"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "ted-design"
+    labels:
+      - "dependencies"
+      - "ci/cd"
+    commit-message:
+      prefix: "chore(ci)"

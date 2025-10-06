@@ -21,7 +21,7 @@ import { useAuth } from "../context/AuthContext";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
-import { toast } from "../lib/toast";
+import { toast, showConfirm } from "../lib/toast";
 import { locationsPath } from "../lib/paths";
 import { ROLE, canManageLocations } from "../lib/rbac";
 
@@ -288,7 +288,7 @@ export default function LocationsPage() {
     }
     const name = (locationRecord.name || "this location").trim();
     if (!options?.skipPrompt) {
-      const confirmed = window.confirm(`Delete ${name}? This action cannot be undone.`);
+      const confirmed = await showConfirm(`Delete ${name}? This action cannot be undone.`);
       if (!confirmed) return;
     }
 

@@ -20,7 +20,7 @@ import { useAuth } from "../context/AuthContext";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
-import { toast } from "../lib/toast";
+import { toast, showConfirm } from "../lib/toast";
 import { talentPath } from "../lib/paths";
 import { ROLE, canManageTalent } from "../lib/rbac";
 
@@ -329,7 +329,7 @@ export default function TalentPage() {
     }
     const displayName = talentRecord.name || buildDisplayName(talentRecord.firstName, talentRecord.lastName);
     if (!options?.skipPrompt) {
-      const confirmed = window.confirm(`Delete ${displayName}? This action cannot be undone.`);
+      const confirmed = await showConfirm(`Delete ${displayName}? This action cannot be undone.`);
       if (!confirmed) return;
     }
 

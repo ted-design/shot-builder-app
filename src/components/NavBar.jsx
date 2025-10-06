@@ -1,10 +1,17 @@
 // src/components/NavBar.jsx
+//
+// ⚠️ DEPRECATED - This component is no longer used in the application.
+// Navigation has been replaced by SidebarLayout (src/routes/SidebarLayout.jsx).
+// This file is kept for reference only and can be safely deleted.
+//
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../lib/firebase";
 
 /**
+ * @deprecated Use SidebarLayout instead (src/routes/SidebarLayout.jsx)
+ *
  * Navigation bar component. Provides responsive layout: a hamburger menu on
  * small screens and a full navigation bar on larger screens. Highlights the
  * current route by applying the primary colour to the active link.

@@ -61,3 +61,42 @@ export const toast = {
   info: (payload: ToastPayload) => emit("info", payload),
   warning: (payload: ToastPayload) => emit("warning", payload),
 };
+
+/**
+ * Show a success toast notification
+ * @param message - The success message to display
+ */
+export function showSuccess(message: string): void {
+  toast.success({ title: message });
+}
+
+/**
+ * Show an error toast notification
+ * @param message - The error message to display
+ */
+export function showError(message: string): void {
+  toast.error({ title: message });
+}
+
+/**
+ * Show an info toast notification
+ * @param message - The info message to display
+ */
+export function showInfo(message: string): void {
+  toast.info({ title: message });
+}
+
+/**
+ * Show a confirmation dialog using the existing confirm API
+ * Returns a promise that resolves to true if confirmed, false if cancelled
+ * @param message - The confirmation message
+ * @returns Promise<boolean>
+ */
+export function showConfirm(message: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    // Use the browser's native confirm for now
+    // This can be replaced with a custom modal in the future
+    const result = window.confirm(message);
+    resolve(result);
+  });
+}

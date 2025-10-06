@@ -1,5 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { onSnapshot, query as makeQuery } from "firebase/firestore";
+
+/**
+ * Helper to create a stable key from constraints without causing false positives.
+ * This uses a combination of constraint types and values to detect actual changes.
+ */
+function getConstraintsKey(constraints) {
+  if (!constraints || constraints.length === 0) return "";
+
+  return constraints
+    .map((c) => {
+      // Extract the constraint type and relevant properties
+      // QueryConstraint objects have a 'type' property that identifies them
+      const constraintData = {
+        type: c.type,
+        // For where/orderBy/limit, extract the relevant properties
+        ...(c._query ? { query: c._query } : {}),
+      };
+      return JSON.stringify(constraintData);
+    })
+    .join("|");
+}
 
 /**
  * Reusable hook for subscribing to a Firestore collection.
@@ -22,9 +43,28 @@ export function useFirestoreCollection(ref, constraints = [], mapFn) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Create a stable constraints key that only changes when constraints actually change
+  // This prevents unnecessary re-subscriptions from new array instances
+  const constraintsKey = useMemo(
+    () => getConstraintsKey(constraints),
+    // We still need constraints in deps, but the memo prevents recalculation
+    // unless the constraint values actually change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [constraints.length, ...constraints]
+  );
+
+  // Store the previous key to detect actual changes
+  const prevKeyRef = useRef(constraintsKey);
+
   useEffect(() => {
+    // Only re-subscribe if the constraints key actually changed
+    if (prevKeyRef.current !== constraintsKey) {
+      prevKeyRef.current = constraintsKey;
+    }
+
     // Build the query. If no constraints are provided, use the ref directly.
     const q = constraints && constraints.length > 0 ? makeQuery(ref, ...constraints) : ref;
+
     // Subscribe to realtime updates. Snapshot callbacks will update state.
     const unsub = onSnapshot(
       q,
@@ -34,16 +74,17 @@ export function useFirestoreCollection(ref, constraints = [], mapFn) {
         setLoading(false);
       },
       (err) => {
-        console.error('useFirestoreCollection error:', err);
+        console.error("useFirestoreCollection error:", err);
         setError(err);
         setLoading(false);
       }
     );
+
     // Cleanup subscription when the component unmounts or the ref/constraints change.
     return () => unsub();
-    // We stringify the constraints array to create a stable dependency. Without
-    // this, a new array instance on each render would trigger the effect again.
-  }, [ref, JSON.stringify(constraints)]);
+    // Using constraintsKey instead of JSON.stringify(constraints) for stable dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ref, constraintsKey]);
 
   return { data, loading, error };
 }
