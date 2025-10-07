@@ -79,8 +79,10 @@ const rawEnv: Record<string, string | undefined> = {
   VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY: viteEnv.VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY,
 };
 
-const isProd = Boolean(viteEnv.PROD);
-const isDev = Boolean(viteEnv.DEV);
+// Use MODE instead of DEV/PROD which seem to be unreliable
+const mode = import.meta.env.MODE || 'development';
+const isProd = mode === 'production';
+const isDev = !isProd;
 
 function readRawEnv(key: string): string | undefined {
   const value = rawEnv?.[key];
@@ -165,6 +167,25 @@ provider.setCustomParameters({ prompt: "select_account" });
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
+
+// Force Firestore to use fresh auth tokens
+// This ensures Firestore re-authenticates when custom claims are updated
+if (typeof window !== 'undefined') {
+  import('firebase/firestore').then(({ terminate, initializeFirestore, CACHE_SIZE_UNLIMITED }) => {
+    // Listen for auth changes and force Firestore to reconnect
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        try {
+          // Force token refresh to ensure we have latest claims
+          await user.getIdToken(true);
+          console.log('🔄 [Firebase] Auth token refreshed for Firestore');
+        } catch (err) {
+          console.error('❌ [Firebase] Failed to refresh token:', err);
+        }
+      }
+    });
+  });
+}
 
 // Initialize Firebase Performance Monitoring
 // Automatically tracks page load, network requests, and custom traces
