@@ -4,6 +4,7 @@ import { Modal } from "../ui/modal";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { LoadingOverlay, LoadingSpinner } from "../ui/LoadingSpinner";
 import AppImage from "../common/AppImage";
 import NewProductModal from "../products/NewProductModal";
 import NewColourwayModal from "../products/NewColourwayModal";
@@ -48,7 +49,7 @@ function ColourOption({ colour, selected, onSelect }) {
             <div className="flex h-full items-center justify-center text-xs text-slate-500">No image</div>
           }
           placeholder={
-            <div className="flex h-full items-center justify-center text-xs text-slate-400">
+            <div className="flex h-full items-center justify-center text-xs text-slate-500">
               Loading…
             </div>
           }
@@ -410,7 +411,7 @@ export default function ShotProductAddModal({
               type="button"
               aria-label="Close"
               onClick={onClose}
-              className="text-xl text-slate-400 hover:text-slate-600"
+              className="text-xl text-slate-500 hover:text-slate-600"
             >
               ×
             </button>
@@ -498,7 +499,7 @@ export default function ShotProductAddModal({
               ) : (
                 <div className="space-y-4">
                   {loadingDetails ? (
-                    <div className="py-12 text-center text-sm text-slate-500">Loading colourways…</div>
+                    <LoadingOverlay message="Loading colourways..." />
                   ) : (
                     <>
                       <div className="space-y-3">
@@ -627,7 +628,9 @@ export default function ShotProductAddModal({
                     <p className="text-center text-xs text-slate-500">Select a colourway to enable</p>
                   )}
                   {loadingDetails && (
-                    <p className="text-center text-xs text-slate-500">Loading...</p>
+                    <div className="flex justify-center">
+                      <LoadingSpinner size="sm" />
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-col gap-1">
@@ -654,7 +657,9 @@ export default function ShotProductAddModal({
                     <p className="text-center text-xs text-slate-500">Select colourway and size</p>
                   )}
                   {loadingDetails && (
-                    <p className="text-center text-xs text-slate-500">Loading...</p>
+                    <div className="flex justify-center">
+                      <LoadingSpinner size="sm" />
+                    </div>
                   )}
                 </div>
               </div>

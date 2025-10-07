@@ -89,7 +89,7 @@ export default function ShotEditModal({
             <button
               type="button"
               aria-label="Close"
-              className="text-xl text-slate-400 transition hover:text-slate-600"
+              className="text-xl text-slate-500 transition hover:text-slate-600"
               onClick={onClose}
             >
               ×

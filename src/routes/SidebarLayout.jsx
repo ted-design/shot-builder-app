@@ -5,6 +5,7 @@ import { auth } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import { adaptUser } from "../auth/adapter";
 import { roleLabel } from "../lib/rbac";
+import { SkipLink } from "../components/ui/SkipLink";
 
 const navItems = [
   { to: "/projects", label: "Dashboard" },
@@ -70,6 +71,7 @@ export default function SidebarLayout({ fallbackUser = null, fallbackRole = null
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <SkipLink />
       <div className="mx-auto flex min-h-screen w-full max-w-[1440px]">
         {/* Desktop sidebar */}
         <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white px-4 py-6 md:flex">
@@ -80,7 +82,7 @@ export default function SidebarLayout({ fallbackUser = null, fallbackRole = null
               {userLabel}
             </div>
             {navRoleLabel && (
-              <div className="text-xs uppercase tracking-wide text-slate-400">{navRoleLabel}</div>
+              <div className="text-xs uppercase tracking-wide text-slate-500">{navRoleLabel}</div>
             )}
             <button
               onClick={signOutUser}
@@ -121,7 +123,7 @@ export default function SidebarLayout({ fallbackUser = null, fallbackRole = null
               {userLabel}
             </div>
             {navRoleLabel && (
-              <div className="text-xs uppercase tracking-wide text-slate-400">{navRoleLabel}</div>
+              <div className="text-xs uppercase tracking-wide text-slate-500">{navRoleLabel}</div>
             )}
             <button
               onClick={signOutUser}
@@ -146,7 +148,7 @@ export default function SidebarLayout({ fallbackUser = null, fallbackRole = null
             </button>
             <div className="hidden text-sm text-slate-600 md:block">{userLabel}</div>
           </header>
-          <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
+          <main id="main-content" className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
             <Outlet key={location.pathname} />
           </main>
         </div>

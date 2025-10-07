@@ -3,6 +3,7 @@ import { storage } from "../../lib/firebase";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
 import { Button } from "../ui/button";
 import { Input, Checkbox } from "../ui/input";
+import { LoadingSpinner } from "../ui/LoadingSpinner";
 import AppImage from "../common/AppImage";
 import SizeListInput from "./SizeListInput";
 import ColorListEditor from "./ColorListEditor";
@@ -587,7 +588,7 @@ export default function ProductFamilyForm({
               imageClassName="h-full w-full object-cover"
               placeholder={null}
               fallback={
-                <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
                   Preview unavailable
                 </div>
               }
@@ -663,7 +664,7 @@ export default function ProductFamilyForm({
                   imageClassName="h-full w-full object-cover"
                   placeholder={null}
                   fallback={
-                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
                       Preview unavailable
                     </div>
                   }
@@ -700,7 +701,7 @@ export default function ProductFamilyForm({
                       <span>{new Date(note.createdAt || Date.now()).toLocaleString()}</span>
                       <button
                         type="button"
-                        className="text-slate-400 hover:text-slate-600"
+                        className="text-slate-500 hover:text-slate-600"
                         onClick={() => removeNote(note.id)}
                         aria-label="Delete note"
                       >
@@ -756,6 +757,7 @@ export default function ProductFamilyForm({
           </Button>
         )}
         <Button type="submit" disabled={submitting}>
+          {submitting && <LoadingSpinner size="sm" className="mr-2" />}
           {submitting ? "Saving…" : submitLabel}
         </Button>
       </div>

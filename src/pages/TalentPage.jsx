@@ -49,7 +49,7 @@ function TalentCard({ talent, canManage, onEdit, editDisabled }) {
         className="aspect-[3/4] w-full overflow-hidden bg-slate-100"
         imageClassName="h-full w-full object-cover"
         fallback={
-          <div className="flex h-full items-center justify-center text-sm text-slate-400">No image</div>
+          <div className="flex h-full items-center justify-center text-sm text-slate-500">No image</div>
         }
       />
       <CardContent className="flex flex-1 flex-col gap-3">

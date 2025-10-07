@@ -150,12 +150,12 @@ const FamilyHeaderImage = memo(function FamilyHeaderImage({ path, alt, className
       className={containerClass}
       imageClassName="h-full w-full object-cover"
       placeholder={
-        <div className="flex h-full items-center justify-center text-xs text-slate-400">
+        <div className="flex h-full items-center justify-center text-xs text-slate-500">
           Loading image…
         </div>
       }
       fallback={
-        <div className="flex h-full items-center justify-center text-xs text-slate-400">
+        <div className="flex h-full items-center justify-center text-xs text-slate-500">
           No image
         </div>
       }

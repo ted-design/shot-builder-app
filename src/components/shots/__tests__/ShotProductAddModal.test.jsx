@@ -186,7 +186,7 @@ describe("ShotProductAddModal - Button State Logic", () => {
 
         // Wait for loading state to appear
         await waitFor(() => {
-            expect(screen.getByText("Loading colourways…")).toBeInTheDocument();
+            expect(screen.getByText("Loading colourways...")).toBeInTheDocument();
         });
 
         const addColourwayButton = screen.getByText("Add colourway");

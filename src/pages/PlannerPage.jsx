@@ -682,7 +682,7 @@ function ShotCard({
                   aria-label={`${shot.name} status`}
                   className={`h-8 min-w-[130px] rounded-md border px-2 text-xs font-medium transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 ${
                     statusControlDisabled
-                      ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                      ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500"
                       : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                   }`}
                   value={statusValue}

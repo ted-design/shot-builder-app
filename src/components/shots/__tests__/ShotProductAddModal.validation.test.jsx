@@ -162,7 +162,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Wait for loading state to appear
             await waitFor(() => {
-                expect(screen.getByText("Loading colourways…")).toBeInTheDocument();
+                expect(screen.getByText("Loading colourways...")).toBeInTheDocument();
             });
 
             const addColourwayButton = screen.getByText("Add colourway");
@@ -655,7 +655,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Wait for loading state to appear
             await waitFor(() => {
-                expect(screen.getByText("Loading colourways…")).toBeInTheDocument();
+                expect(screen.getByText("Loading colourways...")).toBeInTheDocument();
             });
 
             // Check that loading feedback is shown

@@ -25,7 +25,7 @@ export default function ShotProductTile({ product, onEdit, onRemove }) {
             <div className="flex h-full items-center justify-center text-xs text-slate-500">No image</div>
           }
           placeholder={
-            <div className="flex h-full items-center justify-center text-xs text-slate-400">
+            <div className="flex h-full items-center justify-center text-xs text-slate-500">
               Loading…
             </div>
           }

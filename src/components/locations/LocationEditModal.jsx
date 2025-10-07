@@ -147,7 +147,7 @@ export default function LocationEditModal({
                 type="button"
                 aria-label="Close"
                 onClick={onClose}
-                className="text-xl text-slate-400 hover:text-slate-600"
+                className="text-xl text-slate-500 hover:text-slate-600"
               >
                 ×
               </button>
@@ -207,7 +207,7 @@ export default function LocationEditModal({
                   path={currentImagePath}
                   size={640}
                   alt={displayName}
-                  className="h-40 w-56 overflow-hidden rounded-lg bg-slate-100 text-slate-400"
+                  className="h-40 w-56 overflow-hidden rounded-lg bg-slate-100 text-slate-500"
                   imageClassName="h-full w-full object-cover"
                   fallback={<div className="flex h-full items-center justify-center text-sm">No photo</div>}
                 />
@@ -319,7 +319,7 @@ export default function LocationEditModal({
                     onChange={handleFieldChange("notes")}
                     rows={4}
                     disabled={saving || busy || deleting}
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-70"
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-70"
                     placeholder="Access instructions, loading details, parking notes…"
                   />
                 </div>

@@ -13,11 +13,12 @@ const VARIANTS = {
 };
 
 // Define sizing options for the button. Each size defines font size and
-// padding. Feel free to adjust these values to your preference.
+// padding. Padding is set to meet WCAG 2.1 Level AAA minimum touch target
+// size of 44x44px for mobile accessibility.
 const SIZES = {
-  sm: "text-sm px-3 py-1.5",
-  md: "text-sm px-4 py-2",
-  lg: "text-base px-5 py-2.5",
+  sm: "text-sm px-3 py-3",
+  md: "text-sm px-4 py-3",
+  lg: "text-base px-5 py-3",
 };
 
 /**

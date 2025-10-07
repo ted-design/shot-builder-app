@@ -185,7 +185,7 @@ describe("ShotProductAddModal - Comprehensive Test Suite", () => {
 
             // Wait for loading state to appear
             await waitFor(() => {
-                expect(screen.getByText("Loading colourways…")).toBeInTheDocument();
+                expect(screen.getByText("Loading colourways...")).toBeInTheDocument();
             });
 
             const addColourwayButton = screen.getByText("Add colourway");
@@ -679,7 +679,7 @@ describe("ShotProductAddModal - Comprehensive Test Suite", () => {
 
             // Wait for loading state to appear
             await waitFor(() => {
-                expect(screen.getByText("Loading colourways…")).toBeInTheDocument();
+                expect(screen.getByText("Loading colourways...")).toBeInTheDocument();
             });
 
             // Check that loading feedback is shown
