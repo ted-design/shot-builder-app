@@ -20,6 +20,11 @@ import {
   ref as storageRef,
   uploadBytes,
 } from "firebase/storage";
+import { getPerformance } from "firebase/performance";
+import {
+  initializeAppCheck,
+  ReCaptchaV3Provider,
+} from "firebase/app-check";
 
 type FirebaseEnvKey =
   | "VITE_FIREBASE_API_KEY"
@@ -28,9 +33,13 @@ type FirebaseEnvKey =
   | "VITE_FIREBASE_STORAGE_BUCKET"
   | "VITE_FIREBASE_MESSAGING_SENDER_ID"
   | "VITE_FIREBASE_APP_ID"
-  | "VITE_FIREBASE_MEASUREMENT_ID";
+  | "VITE_FIREBASE_MEASUREMENT_ID"
+  | "VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY";
 
-type RequiredEnvKey = Exclude<FirebaseEnvKey, "VITE_FIREBASE_MEASUREMENT_ID">;
+type RequiredEnvKey = Exclude<
+  FirebaseEnvKey,
+  "VITE_FIREBASE_MEASUREMENT_ID" | "VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY"
+>;
 
 const REQUIRED_ENV_KEYS: RequiredEnvKey[] = [
   "VITE_FIREBASE_API_KEY",
@@ -53,6 +62,7 @@ const viteEnv = {
   VITE_FIREBASE_MESSAGING_SENDER_ID: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
   VITE_FIREBASE_MEASUREMENT_ID: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY: import.meta.env.VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY,
   DEV: import.meta.env.DEV,
   PROD: import.meta.env.PROD,
 } as const;
@@ -66,6 +76,7 @@ const rawEnv: Record<string, string | undefined> = {
   VITE_FIREBASE_MESSAGING_SENDER_ID: viteEnv.VITE_FIREBASE_MESSAGING_SENDER_ID,
   VITE_FIREBASE_APP_ID: viteEnv.VITE_FIREBASE_APP_ID,
   VITE_FIREBASE_MEASUREMENT_ID: viteEnv.VITE_FIREBASE_MEASUREMENT_ID,
+  VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY: viteEnv.VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY,
 };
 
 const isProd = Boolean(viteEnv.PROD);
@@ -155,6 +166,31 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
 
+// Initialize Firebase Performance Monitoring
+// Automatically tracks page load, network requests, and custom traces
+export const performance = isProd ? getPerformance(app) : null;
+
+// Initialize Firebase App Check
+// Protects backend resources from abuse and unauthorized access
+const appCheckSiteKey = readEnv("VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY");
+if (appCheckSiteKey && isProd) {
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider(appCheckSiteKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+    console.info("[Firebase] App Check initialized with reCAPTCHA v3");
+  } catch (error) {
+    console.error("[Firebase] Failed to initialize App Check:", error);
+  }
+} else if (isDev) {
+  console.info("[Firebase] App Check disabled in development mode");
+} else if (!appCheckSiteKey) {
+  console.warn(
+    "[Firebase] App Check not initialized: VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY is missing",
+  );
+}
+
 const useEmulators = isDev && readBoolEnv("VITE_USE_FIREBASE_EMULATORS");
 
 if (useEmulators) {
@@ -225,3 +261,56 @@ export function assertFirebaseProject(expectedProjectId: string): void {
 }
 
 export const firebaseProjectId = firebaseConfig.projectId;
+
+// Performance Monitoring Utilities
+// Use these to create custom traces for measuring operation performance
+
+/**
+ * Creates a custom trace to measure performance of an async operation
+ * @param traceName - Name of the trace (e.g., "load_products", "create_shot")
+ * @param operation - Async function to measure
+ * @returns Result of the operation
+ * @example
+ * const products = await measurePerformance("load_products", async () => {
+ *   return await fetchProducts();
+ * });
+ */
+export async function measurePerformance<T>(
+  traceName: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  if (!performance) {
+    // Performance monitoring disabled in dev, just run the operation
+    return await operation();
+  }
+
+  const { trace } = await import("firebase/performance");
+  const customTrace = trace(performance, traceName);
+
+  customTrace.start();
+  try {
+    const result = await operation();
+    customTrace.stop();
+    return result;
+  } catch (error) {
+    customTrace.stop();
+    throw error;
+  }
+}
+
+/**
+ * Adds a custom metric to track specific values
+ * @param traceName - Name of the trace
+ * @param metricName - Name of the metric (e.g., "item_count", "file_size")
+ * @param value - Numeric value to record
+ * @example
+ * recordMetric("load_products", "product_count", products.length);
+ */
+export function recordMetric(traceName: string, metricName: string, value: number): void {
+  if (!performance) return;
+
+  import("firebase/performance").then(({ trace }) => {
+    const customTrace = trace(performance, traceName);
+    customTrace.putMetric(metricName, value);
+  });
+}
