@@ -11,6 +11,7 @@ import ProjectCards from "../components/dashboard/ProjectCards";
 import ProjectCreateModal from "../components/dashboard/ProjectCreateModal";
 import ProjectEditModal from "../components/dashboard/ProjectEditModal";
 import { showError } from "../lib/toast";
+import { createProjectSchema, updateProjectSchema } from "../schemas/index.js";
 
 export default function ProjectsPage() {
   const { clientId, user: authUser, role: globalRole } = useAuth();
@@ -62,6 +63,15 @@ export default function ProjectsPage() {
       showError("You do not have permission to create projects.");
       return;
     }
+
+    // Validate payload
+    try {
+      createProjectSchema.parse(payload);
+    } catch (error) {
+      showError(`Invalid project data: ${error.errors.map(e => e.message).join(", ")}`);
+      return;
+    }
+
     const currentUser = authUser || auth.currentUser;
     const memberId = currentUser?.uid || null;
     const defaultRole = "producer";
@@ -112,6 +122,15 @@ export default function ProjectsPage() {
       showError("You do not have permission to edit projects.");
       return;
     }
+
+    // Validate payload
+    try {
+      updateProjectSchema.parse(payload);
+    } catch (error) {
+      showError(`Invalid project data: ${error.errors.map(e => e.message).join(", ")}`);
+      return;
+    }
+
     try {
       setUpdating(true);
       await updateDoc(doc(db, ...projectsPath, project.id), {

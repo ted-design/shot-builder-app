@@ -25,7 +25,7 @@ export default function NewProductModal({ open, onClose, onSubmit }) {
               type="button"
               aria-label="Close"
               onClick={onClose}
-              className="text-xl text-slate-400 hover:text-slate-600"
+              className="text-xl text-slate-500 hover:text-slate-600"
             >
               ×
             </button>

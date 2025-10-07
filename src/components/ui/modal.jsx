@@ -125,7 +125,7 @@ export function Modal({
 
   return createPortal(
     <div
-      className={`fixed inset-0 z-[1000] flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center sm:p-6 ${overlayClassName}`.trim()}
+      className={`fixed inset-0 z-[1000] flex items-start justify-center overflow-y-auto bg-black/40 p-0 sm:p-4 md:items-center md:p-6 ${overlayClassName}`.trim()}
       {...overlayProps}
       data-testid="modal-overlay"
     >
@@ -136,7 +136,7 @@ export function Modal({
         aria-labelledby={labelledBy}
         aria-describedby={describedBy}
         tabIndex={-1}
-        className={`relative w-full max-w-3xl rounded-xl bg-white shadow-xl outline-none max-h-[min(90vh,calc(100dvh-48px))] flex flex-col ${contentClassName}`.trim()}
+        className={`relative w-full md:max-w-3xl md:rounded-xl bg-white shadow-xl outline-none min-h-screen md:min-h-0 md:max-h-[min(90vh,calc(100dvh-48px))] flex flex-col ${contentClassName}`.trim()}
       >
         {children}
       </div>

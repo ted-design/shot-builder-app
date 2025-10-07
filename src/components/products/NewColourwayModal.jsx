@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "../ui/card";
 import { Modal } from "../ui/modal";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
+import { LoadingSpinner } from "../ui/LoadingSpinner";
 import AppImage from "../common/AppImage";
 import { compressImageFile, formatFileSize } from "../../lib/images";
 
@@ -134,7 +135,7 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
               type="button"
               aria-label="Close"
               onClick={onClose}
-              className="text-xl text-slate-400 hover:text-slate-600"
+              className="text-xl text-slate-500 hover:text-slate-600"
             >
               ×
             </button>
@@ -193,7 +194,7 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
                   imageClassName="h-full w-full object-cover"
                   placeholder={null}
                   fallback={
-                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
                       Preview unavailable
                     </div>
                   }
@@ -232,6 +233,7 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
                 Cancel
               </Button>
               <Button type="submit" disabled={isSaving}>
+                {isSaving && <LoadingSpinner size="sm" className="mr-2" />}
                 {isSaving ? "Saving…" : "Add colourway"}
               </Button>
             </div>

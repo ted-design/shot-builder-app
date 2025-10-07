@@ -1717,7 +1717,7 @@ const ShotListCard = memo(function ShotListCard({
               dangerouslySetInnerHTML={{ __html: notesHtml }}
             />
           ) : (
-            <p className="text-sm text-slate-400">No notes added yet.</p>
+            <p className="text-sm text-slate-500">No notes added yet.</p>
           )
         )}
         {showProducts && (
@@ -1773,12 +1773,12 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
           className="h-full w-full"
           imageClassName="h-full w-full object-cover"
           fallback={
-            <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
+            <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
               No preview available
             </div>
           }
           placeholder={
-            <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
+            <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
               Loading preview…
             </div>
           }
@@ -1806,7 +1806,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
           plainNotes ? (
             <p className="text-sm text-slate-600 line-clamp-3">{plainNotes}</p>
           ) : (
-            <p className="text-sm text-slate-400">No notes added yet.</p>
+            <p className="text-sm text-slate-500">No notes added yet.</p>
           )
         )}
         {showProducts && (

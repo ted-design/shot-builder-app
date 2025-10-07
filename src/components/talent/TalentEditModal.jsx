@@ -144,7 +144,7 @@ export default function TalentEditModal({
                 type="button"
                 aria-label="Close"
                 onClick={onClose}
-                className="text-xl text-slate-400 hover:text-slate-600"
+                className="text-xl text-slate-500 hover:text-slate-600"
               >
                 ×
               </button>
@@ -206,7 +206,7 @@ export default function TalentEditModal({
                   alt={displayName}
                   className="h-40 w-32 overflow-hidden rounded-lg bg-slate-100"
                   imageClassName="h-full w-full object-cover"
-                  fallback={<div className="flex h-full items-center justify-center text-sm text-slate-400">No image</div>}
+                  fallback={<div className="flex h-full items-center justify-center text-sm text-slate-500">No image</div>}
                 />
                 <div className="flex flex-col items-center gap-2 text-sm">
                   <Input type="file" accept="image/*" onChange={handleFileChange} />

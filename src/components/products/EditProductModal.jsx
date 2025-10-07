@@ -2,6 +2,7 @@ import React from "react";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/button";
 import { Modal } from "../ui/modal";
+import { LoadingOverlay } from "../ui/LoadingSpinner";
 import ProductFamilyForm from "./ProductFamilyForm";
 
 export default function EditProductModal({
@@ -54,7 +55,7 @@ export default function EditProductModal({
                 type="button"
                 aria-label="Close"
                 onClick={onClose}
-                className="text-xl text-slate-400 hover:text-slate-600"
+                className="text-xl text-slate-500 hover:text-slate-600"
               >
                 ×
               </button>
@@ -109,7 +110,7 @@ export default function EditProductModal({
             </div>
           )}
           {loading ? (
-            <div className="py-12 text-center text-sm text-slate-500">Loading product…</div>
+            <LoadingOverlay message="Loading product details..." />
           ) : (
             <ProductFamilyForm
               initialValue={family}

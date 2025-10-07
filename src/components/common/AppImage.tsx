@@ -20,7 +20,7 @@ export interface AppImageProps
 }
 
 const DEFAULT_PLACEHOLDER_CLASS =
-  "flex h-full w-full items-center justify-center rounded-md bg-slate-100 text-xs font-medium uppercase tracking-wide text-slate-400";
+  "flex h-full w-full items-center justify-center rounded-md bg-slate-100 text-xs font-medium uppercase tracking-wide text-slate-500";
 
 const DEFAULT_FALLBACK_CLASS =
   "flex h-full w-full flex-col items-center justify-center gap-2 rounded-md bg-slate-100 px-3 text-center text-xs font-medium uppercase tracking-wide text-slate-500";
@@ -118,9 +118,9 @@ export function AppImage({
           <FallbackImage>
             <span>Image unavailable</span>
             {error ? (
-              <span className="text-[10px] normal-case text-slate-400">{error.message}</span>
+              <span className="text-[10px] normal-case text-slate-500">{error.message}</span>
             ) : adapter ? (
-              <span className="text-[10px] normal-case text-slate-400">Adapter: {adapter}</span>
+              <span className="text-[10px] normal-case text-slate-500">Adapter: {adapter}</span>
             ) : null}
           </FallbackImage>
         )

@@ -1,6 +1,7 @@
 import { addDoc, collection, doc, setDoc, updateDoc } from "firebase/firestore";
 import { uploadImageFile } from "./firebase";
 import { productFamiliesPath, productFamilyPath, productFamilySkusPath } from "./paths";
+import { createProductFamilySchema, createProductSkuSchema } from "../schemas/index.js";
 
 const buildSkuAggregates = (skus, familySizes = []) => {
   const skuCodes = new Set();
@@ -45,6 +46,13 @@ export const genderLabel = (value) => {
 export const createProductFamily = async ({ db, clientId, payload, userId }) => {
   if (!db) throw new Error("Database instance is required to create a product.");
   if (!clientId) throw new Error("Missing client identifier for product creation.");
+
+  // Validate payload
+  try {
+    createProductFamilySchema.parse(payload);
+  } catch (error) {
+    throw new Error(`Invalid product data: ${error.errors.map(e => e.message).join(", ")}`);
+  }
 
   const now = Date.now();
   const familySizes = Array.isArray(payload.family?.sizes) ? payload.family.sizes : [];
@@ -162,6 +170,13 @@ export const createProductColourway = async ({
   if (!db) throw new Error("Database instance is required to create a colourway.");
   if (!clientId) throw new Error("Missing client identifier for colourway creation.");
   if (!familyId) throw new Error("Product family identifier is required.");
+
+  // Validate payload
+  try {
+    createProductSkuSchema.parse(payload);
+  } catch (error) {
+    throw new Error(`Invalid SKU data: ${error.errors.map(e => e.message).join(", ")}`);
+  }
 
   const colourName = (payload?.colorName || "").trim();
   if (!colourName) {

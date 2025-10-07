@@ -3,6 +3,7 @@ import { Modal } from "../ui/modal";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { LoadingSpinner } from "../ui/LoadingSpinner";
 import Thumb from "../Thumb";
 import { useFilePreview } from "../../hooks/useFilePreview";
 
@@ -213,6 +214,7 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
                 Cancel
               </Button>
               <Button type="submit" disabled={busy}>
+                {busy && <LoadingSpinner size="sm" className="mr-2" />}
                 {busy ? "Creating…" : "Create talent"}
               </Button>
             </div>

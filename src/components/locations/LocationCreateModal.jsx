@@ -185,7 +185,7 @@ export default function LocationCreateModal({
                 onChange={updateField("notes")}
                 rows={4}
                 disabled={busy}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-70"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-70"
                 placeholder="Access instructions, load-in timing, parking details…"
               />
             </div>

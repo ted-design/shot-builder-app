@@ -4,6 +4,7 @@ import { ProjectPDF, mockProject } from "../lib/pdfTemplates";
 import { Modal } from "./ui/modal";
 import { Card, CardHeader, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
+import { LoadingSpinner } from "./ui/LoadingSpinner";
 
 export default function PDFExportModal() {
   const [open, setOpen] = useState(true);
@@ -64,6 +65,7 @@ export default function PDFExportModal() {
               Cancel
             </Button>
             <Button onClick={handleDownload} disabled={downloading}>
+              {downloading && <LoadingSpinner size="sm" className="mr-2" />}
               {downloading ? "Preparing…" : "Download PDF"}
             </Button>
           </div>

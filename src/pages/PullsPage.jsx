@@ -24,6 +24,7 @@ import { db } from "../lib/firebase";
 import { showError, showConfirm } from "../lib/toast";
 import { pullsPath, DEFAULT_PROJECT_ID, lanesPath, shotsPath, productFamiliesPath, productFamilySkusPath } from "../lib/paths";
 import { createPullItemFromProduct, aggregatePullItems, normalizePullItem, sortPullItemsByGender, calculateItemFulfillment, getPullItemDisplayName } from "../lib/pullItems";
+import { createPullSchema } from "../schemas/index.js";
 import PullItemEditor from "../components/pulls/PullItemEditor";
 import PullItemsTable from "../components/pulls/PullItemsTable";
 import ChangeOrderModal from "../components/pulls/ChangeOrderModal";
@@ -155,18 +156,33 @@ export default function PullsPage() {
       return;
     }
 
+    // Validate pull data
+    const pullData = {
+      title: trimmed,
+      name: trimmed,
+      projectId: projectId || DEFAULT_PROJECT_ID,
+      status: "draft",
+      items: [],
+      shotIds: [],
+    };
+
+    try {
+      createPullSchema.parse(pullData);
+    } catch (error) {
+      toast.error({
+        title: "Invalid pull data",
+        description: error.errors.map(e => e.message).join(", ")
+      });
+      return;
+    }
+
     setCreatingPull(true);
     try {
       const pathSegments = pullsPath(projectId, clientId);
       await addDoc(collection(db, ...pathSegments), {
-        title: trimmed,
-        name: trimmed,
+        ...pullData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        status: "draft",
-        items: [],
-        shotIds: [],
-        projectId: projectId || DEFAULT_PROJECT_ID,
       });
       setTitle("");
       toast.success({ title: "Pull created successfully" });
@@ -1229,8 +1245,8 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
                 return (
                   <div key={message.id} className="text-xs text-slate-700">
                     <span className="font-medium">{message.authorName || "Unknown"}</span>
-                    <span className="text-slate-400"> · {message.role}</span>
-                    {timestamp && <span className="text-slate-400"> · {timestamp}</span>}
+                    <span className="text-slate-500"> · {message.role}</span>
+                    {timestamp && <span className="text-slate-500"> · {timestamp}</span>}
                     <div className="text-slate-600">{message.text}</div>
                   </div>
                 );

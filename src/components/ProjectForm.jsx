@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
+import { LoadingSpinner } from "./ui/LoadingSpinner";
 
 const emptyForm = {
   name: "",
@@ -149,6 +150,7 @@ export default function ProjectForm({
           Cancel
         </Button>
         <Button type="submit" disabled={busy}>
+          {busy && <LoadingSpinner size="sm" className="mr-2" />}
           {busy ? "Saving…" : submitLabel}
         </Button>
       </div>

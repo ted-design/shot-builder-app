@@ -1,4 +1,5 @@
 import { Component } from "react";
+import * as Sentry from "@sentry/react";
 import { toast } from "../lib/toast";
 
 class ErrorBoundary extends Component {
@@ -13,6 +14,16 @@ class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error("Unhandled error", error, info);
+
+    // Report error to Sentry
+    Sentry.captureException(error, {
+      contexts: {
+        react: {
+          componentStack: info.componentStack,
+        },
+      },
+    });
+
     toast.error({ title: "Something went wrong", description: error?.message || "Unexpected error" });
   }
 
