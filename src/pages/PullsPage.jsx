@@ -716,6 +716,55 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
     loadFamilies();
   }, [clientId]);
 
+  // Batch load all SKUs for families in this pull to prevent N+1 queries
+  useEffect(() => {
+    if (!clientId || families.length === 0 || items.length === 0) return;
+
+    const batchLoadFamilyDetails = async () => {
+      // Extract unique family IDs from items
+      const familyIds = new Set();
+      items.forEach((item) => {
+        if (item.familyId) {
+          familyIds.add(item.familyId);
+        }
+      });
+
+      // Load SKUs for all families in parallel
+      const loadPromises = Array.from(familyIds).map(async (familyId) => {
+        // Skip if already cached
+        if (familyDetailCacheRef.current.has(familyId)) {
+          return;
+        }
+
+        try {
+          const skusPath = productFamilySkusPath(familyId, clientId);
+          const snapshot = await getDocs(
+            query(collection(db, ...skusPath), orderBy("colorName", "asc"))
+          );
+          const colours = snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data(),
+          }));
+
+          const family = families.find((f) => f.id === familyId);
+          const details = {
+            colours,
+            sizes: family?.sizes || [],
+          };
+
+          // Cache the result
+          familyDetailCacheRef.current.set(familyId, details);
+        } catch (error) {
+          console.error(`[PullDetailsModal] Failed to load details for family ${familyId}`, error);
+        }
+      });
+
+      await Promise.all(loadPromises);
+    };
+
+    batchLoadFamilyDetails();
+  }, [clientId, families, items]);
+
   useEffect(() => {
     const messagesRef = query(
       collection(db, ...pullsPath(projectId, clientId), pull.id, "messages"),

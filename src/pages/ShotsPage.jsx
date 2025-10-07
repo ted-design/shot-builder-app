@@ -6,7 +6,7 @@
 // a `where('projectId', '==', projectId)` clause.  This makes it easy to
 // reassign shots to other projects—simply update the `projectId` field.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import {
@@ -1615,7 +1615,7 @@ function selectShotImage(products = []) {
   return null;
 }
 
-function ShotProductChips({ products }) {
+const ShotProductChips = memo(function ShotProductChips({ products }) {
   if (!Array.isArray(products) || products.length === 0) {
     return <p className="mt-1 text-xs text-slate-500">No products linked</p>;
   }
@@ -1648,9 +1648,9 @@ function ShotProductChips({ products }) {
       })}
     </div>
   );
-}
+});
 
-function ShotTalentList({ talent }) {
+const ShotTalentList = memo(function ShotTalentList({ talent }) {
   if (!Array.isArray(talent) || talent.length === 0) {
     return <p className="mt-1 text-xs text-slate-500">No talent assigned</p>;
   }
@@ -1667,9 +1667,9 @@ function ShotTalentList({ talent }) {
       })}
     </div>
   );
-}
+});
 
-function ShotListCard({
+const ShotListCard = memo(function ShotListCard({
   shot,
   locationName,
   products,
@@ -1739,9 +1739,9 @@ function ShotListCard({
       </CardContent>
     </Card>
   );
-}
+});
 
-function ShotGalleryCard({
+const ShotGalleryCard = memo(function ShotGalleryCard({
   shot,
   locationName,
   products,
@@ -1828,4 +1828,4 @@ function ShotGalleryCard({
       </CardContent>
     </Card>
   );
-}
+});

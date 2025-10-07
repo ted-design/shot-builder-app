@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import {
   collection,
@@ -10,6 +10,7 @@ import {
   query,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
@@ -133,7 +134,7 @@ const formatUpdatedAt = (value) => {
   });
 };
 
-function FamilyHeaderImage({ path, alt, className }) {
+const FamilyHeaderImage = memo(function FamilyHeaderImage({ path, alt, className }) {
   const containerClass = [
     "overflow-hidden rounded-lg bg-slate-100",
     className || "aspect-[4/5] w-full",
@@ -160,9 +161,9 @@ function FamilyHeaderImage({ path, alt, className }) {
       }
     />
   );
-}
+});
 
-function ProductActionMenu({
+const ProductActionMenu = memo(function ProductActionMenu({
   family,
   onEdit,
   onRename,
@@ -242,7 +243,7 @@ function ProductActionMenu({
       {/* Delete action is intentionally not exposed here; use typed confirmation in Edit modal. */}
     </div>
   );
-}
+});
 
 export default function ProductsPage() {
   const { clientId, role: globalRole, user } = useAuth();
@@ -271,6 +272,7 @@ export default function ProductsPage() {
   const [statusFilter, setStatusFilter] = useState("active");
   const [genderFilter, setGenderFilter] = useState("all");
   const [showArchived, setShowArchived] = useState(false);
+  const [itemsToShow, setItemsToShow] = useState(50);
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
@@ -325,6 +327,11 @@ export default function ProductsPage() {
   useEffect(() => {
     writeStorage(COLUMN_STORAGE_KEY, JSON.stringify(listColumns));
   }, [listColumns]);
+
+  // Reset pagination when filters or search change
+  useEffect(() => {
+    setItemsToShow(50);
+  }, [debouncedQueryText, statusFilter, genderFilter, showArchived, sortOrder]);
 
   useEffect(() => {
     if (!listSettingsOpen) return undefined;
@@ -399,6 +406,13 @@ export default function ProductsPage() {
     }
     return list;
   }, [filteredFamilies, sortOrder]);
+
+  const displayedFamilies = useMemo(() => {
+    return sortedFamilies.slice(0, itemsToShow);
+  }, [sortedFamilies, itemsToShow]);
+
+  const hasMoreItems = sortedFamilies.length > itemsToShow;
+  const totalCount = sortedFamilies.length;
 
   const genders = useMemo(() => {
     const set = new Set();
@@ -724,7 +738,7 @@ export default function ProductsPage() {
     [canEdit, user]
   );
 
-  const handleArchiveToggle = async (family) => {
+  const handleArchiveToggle = useCallback(async (family) => {
     if (!canArchive) return;
     const update = {
       archived: !family.archived,
@@ -732,16 +746,16 @@ export default function ProductsPage() {
       updatedBy: user?.uid || null,
     };
     await updateDoc(doc(db, ...productFamilyPathForClient(family.id)), update);
-  };
+  }, [canArchive, db, currentProductFamiliesPath, user]);
 
-  const handleStatusToggle = async (family) => {
+  const handleStatusToggle = useCallback(async (family) => {
     if (!canEdit) return;
     await updateDoc(doc(db, ...productFamilyPathForClient(family.id)), {
       status: family.status === "discontinued" ? "active" : "discontinued",
       updatedAt: Date.now(),
       updatedBy: user?.uid || null,
     });
-  };
+  }, [canEdit, db, currentProductFamiliesPath, user]);
 
   const handleDeleteFamily = async (family, options = {}) => {
     if (!canDelete) return;
@@ -762,7 +776,7 @@ export default function ProductsPage() {
     });
   };
 
-  const handleRestoreFamily = async (family) => {
+  const handleRestoreFamily = useCallback(async (family) => {
     if (!canDelete) return;
     const now = Date.now();
     const familyRef = doc(db, ...productFamilyPathForClient(family.id));
@@ -773,7 +787,7 @@ export default function ProductsPage() {
       updatedBy: user?.uid || null,
     });
     toast.success(`Restored ${family.styleName}.`);
-  };
+  }, [canDelete, db, currentProductFamiliesPath, user]);
 
   const handleBatchArchive = async () => {
     if (!canArchive || !selectedFamilies.length) return;
@@ -929,9 +943,9 @@ export default function ProductsPage() {
     }
   };
 
-  const startRename = (family) => {
+  const startRename = useCallback((family) => {
     setRenameState({ id: family.id, value: family.styleName || "", saving: false, error: null });
-  };
+  }, []);
 
   const cancelRename = () => setRenameState({ id: null, value: "", saving: false, error: null });
 
@@ -1369,34 +1383,64 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
-                {sortedFamilies.map((family) => renderFamilyRow(family))}
+                {displayedFamilies.map((family) => renderFamilyRow(family))}
               </tbody>
             </table>
           </div>
+          {hasMoreItems && (
+            <div className="border-t border-slate-200 p-4 text-center">
+              <p className="mb-3 text-sm text-slate-600">
+                Showing {displayedFamilies.length} of {totalCount} products
+              </p>
+              <Button
+                onClick={() => setItemsToShow((prev) => prev + 50)}
+                variant="secondary"
+                size="sm"
+              >
+                Load More (50)
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
   };
 
   const renderGalleryView = () => (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-      {canEdit && (
-        <button
-          type="button"
-          onClick={() => setNewModalOpen(true)}
-          className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 text-sm text-slate-600 transition hover:border-primary hover:text-primary"
-        >
-          <span className="text-2xl">＋</span>
-          <span>Create product</span>
-        </button>
-      )}
-      {sortedFamilies.map((family) => renderFamilyCard(family))}
-      {!loading && !sortedFamilies.length && (
-        <Card>
-          <CardContent className="p-6 text-center text-sm text-slate-500">
-            No products match the current filters.
-          </CardContent>
-        </Card>
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setNewModalOpen(true)}
+            className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 text-sm text-slate-600 transition hover:border-primary hover:text-primary"
+          >
+            <span className="text-2xl">＋</span>
+            <span>Create product</span>
+          </button>
+        )}
+        {displayedFamilies.map((family) => renderFamilyCard(family))}
+        {!loading && !sortedFamilies.length && (
+          <Card>
+            <CardContent className="p-6 text-center text-sm text-slate-500">
+              No products match the current filters.
+            </CardContent>
+          </Card>
+        )}
+      </div>
+      {hasMoreItems && (
+        <div className="text-center">
+          <p className="mb-3 text-sm text-slate-600">
+            Showing {displayedFamilies.length} of {totalCount} products
+          </p>
+          <Button
+            onClick={() => setItemsToShow((prev) => prev + 50)}
+            variant="secondary"
+            size="sm"
+          >
+            Load More (50)
+          </Button>
+        </div>
       )}
     </div>
   );
