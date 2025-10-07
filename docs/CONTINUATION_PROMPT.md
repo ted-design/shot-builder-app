@@ -10,19 +10,33 @@ I'm continuing improvements to my Shot Builder Firebase application. This is a p
 
 ### Current Status
 
-**Completed:** Phase 1 security improvements (10/25 total improvements)
-- ✅ Firestore backups, security headers, storage validation
-- ✅ Dynamic system admin management
-- ✅ Code splitting implemented
-- ✅ Firestore hook optimizations
+**Completed:** 17/25 planned improvements (68%)
+- ✅ **Phase 1 (Critical Security):** 6/6 complete
+  - Firestore backups, security headers, storage validation
+  - Dynamic system admin management
+  - Fixed public data exposure in pull sharing
+- ✅ **Phase 2 (High Priority Performance):** 5/5 complete
+  - Code splitting, Firestore hook optimizations
+  - Toast notifications replacing alert()
+  - Debounced search inputs
+  - Vite v7 upgrade
+  - Soft deletes for products and shots
+  - ProductsPage pagination
+  - React.memo optimizations
+- 🔄 **Phase 3 (Medium Priority):** 2/5 complete
 
-**Recent Work (Oct 6, 2025):**
-- Attempted to fix pull sharing feature (resolvePullShareToken Cloud Function)
-- Discovered GCP organization policy blocks ALL public Cloud Function access (v1 and v2)
-- Documented Firestore Security Rules workaround solution
+**Recent Work (Session F - Oct 6, 2025):**
+- Fixed N+1 query patterns in PullsPage (#17)
+- Implemented batch loading for product SKUs
+- Pre-loads all SKU data in parallel when pull details modal opens
+- Eliminated loading delays when editing pull items
+- All changes deployed to production successfully
 
-**Critical Issue:**
-The pull sharing feature (public links to shared pulls) is currently non-functional due to organization policy `iam.allowedPolicyMemberDomains` blocking public access to Cloud Functions.
+**Production Status:**
+- ✅ All features working correctly
+- ✅ No critical issues
+- ✅ Build time: ~6.8s
+- ✅ Bundle size well optimized
 
 ### Project Context
 
@@ -35,46 +49,58 @@ The pull sharing feature (public links to shared pulls) is currently non-functio
 **Current Branch:** `fix/storage-bucket-cors`
 
 **Documentation Available:**
-- `/docs/IMPROVEMENTS_COMPLETE_SUMMARY.md` - Full roadmap (25 improvements)
-- `/docs/IMPROVEMENTS_PHASE1_SUMMARY.md` - Phase 1 completed work
-- `/docs/SESSION_2025-10-06_SUMMARY.md` - Latest session summary
-- `/docs/PULLSHARE_FIRESTORE_SOLUTION.md` - Recommended fix for pull sharing
-- `/docs/TROUBLESHOOTING_PULLSHARE_IAM.md` - Organization policy investigation
+- `/docs/IMPROVEMENTS_COMPLETE_SUMMARY.md` - Full roadmap (25 improvements, updated)
+- `/docs/SESSION_2025-10-06F_SUMMARY.md` - Latest session (N+1 query fix)
+- `/docs/SESSION_2025-10-06E_SUMMARY.md` - Previous session (Pagination + React.memo)
+- `/docs/SESSION_2025-10-06D_SUMMARY.md` - Soft deletes implementation
+- `/docs/SESSION_2025-10-06C_SUMMARY.md` - Vite v7 upgrade
+- `/docs/SESSION_2025-10-06B_SUMMARY.md` - Pull sharing + toast notifications
 - `/docs/SYSTEM_ADMIN_MANAGEMENT.md` - Admin system documentation
 - `/docs/BACKUP_SETUP.md` - Backup configuration guide
+- `/docs/SOFT_DELETES_TEST_PLAN.md` - Soft delete testing guide
 
-### Immediate Priorities
+### Next Priorities (Medium Priority - Phase 3)
 
-**Option A: Fix Pull Sharing (Recommended)**
-Implement the Firestore Security Rules solution documented in `/docs/PULLSHARE_FIRESTORE_SOLUTION.md`:
-1. Update `firestore.rules` to allow public reads with shareToken validation
-2. Update `src/pages/PullPublicViewPage.jsx` to query Firestore directly
-3. Test with actual share links
-4. Deploy and verify functionality
+**Recommended Next Steps:**
 
-**Option B: Continue Phase 2 Improvements**
-Move forward with high-priority items:
-1. Replace all `alert()` calls with toast notifications (3 hours)
-2. Debounce search inputs in ProductsPage and ShotsPage (1 hour)
-3. Upgrade Vite v4 → v5 (2-4 hours, has security vulnerabilities)
-4. Implement soft deletes for Products and Shots (4 hours)
+**Option A: #19 - Integrate Sentry Error Tracking (2 hours)** ⭐ RECOMMENDED
+- **Problem:** No production error monitoring
+- **Impact:** Faster bug detection and debugging (would have caught recent `where` import bug)
+- **Solution:** Install Sentry SDK, add error boundaries
+- **Steps:**
+  1. `npm install @sentry/react`
+  2. Configure in `main.jsx`
+  3. Add error boundaries to key pages
+  4. Test error reporting
+- **Why this first:** Quick win (2 hours), provides immediate production value
+
+**Option B: #18 - Add Comprehensive Zod Validation (4 hours)**
+- **Problem:** Limited runtime validation on user inputs
+- **Impact:** Data integrity, better error messages
+- **Solution:** Create Zod schemas for all data models
+- **Files:** Create `/src/schemas/` directory with validation schemas
+- **Why this second:** Complements Sentry (validation errors will be tracked)
 
 ### What I Need Help With
 
-Please review the documentation (especially `/docs/IMPROVEMENTS_COMPLETE_SUMMARY.md` and `/docs/SESSION_2025-10-06_SUMMARY.md`) and help me with:
+Please review the documentation (especially `/docs/IMPROVEMENTS_COMPLETE_SUMMARY.md` and `/docs/SESSION_2025-10-06F_SUMMARY.md`) and help me with:
 
-1. **[Choose one]** Implement the Firestore Security Rules solution for pull sharing OR continue with Phase 2 improvements
-2. Track progress with TodoWrite tool as we work
-3. Update the roadmap document when completing items
-4. Deploy changes and verify functionality
+1. **Review current progress** - Read the IMPROVEMENTS_COMPLETE_SUMMARY.md to understand what's been completed
+2. **Choose next task** - Pick one of the recommended options (A or B) based on priority and effort
+3. **Track progress** - Use TodoWrite tool to track implementation steps
+4. **Update docs** - Update IMPROVEMENTS_COMPLETE_SUMMARY.md when completing items
+5. **Deploy changes** - Build, test, and deploy to production
 
 ### Important Notes
 
 - The app is in production use - test thoroughly before deploying
 - Always read files before editing them
-- Use the existing composite index for pull queries (already deployed)
-- The pull sharing feature requires collection group queries to work across all clients/projects
-- Cloud Functions v1 are deployed but cannot be made publicly accessible due to org policy
+- All high-priority improvements are complete - now working on medium priority
+- Pull sharing feature is working via Firestore Security Rules (not Cloud Functions)
+- Soft deletes are implemented for products and shots
+- Pagination is implemented for ProductsPage (load more button style)
+- React.memo is applied to key list components
+- N+1 query patterns fixed in PullsPage (batch loading implemented)
 
 ### Commands You'll Likely Need
 
@@ -103,7 +129,7 @@ firestore.rules - Security rules
 firebase.json - Firebase configuration
 ```
 
-Please start by reading `/docs/IMPROVEMENTS_COMPLETE_SUMMARY.md` and `/docs/SESSION_2025-10-06_SUMMARY.md`, then let me know your recommendation for how to proceed.
+Please start by reading `/docs/IMPROVEMENTS_COMPLETE_SUMMARY.md` and `/docs/SESSION_2025-10-06F_SUMMARY.md`, then recommend which of the two options (A or B) we should tackle next.
 
 ## PROMPT END
 
@@ -120,13 +146,14 @@ Please start by reading `/docs/IMPROVEMENTS_COMPLETE_SUMMARY.md` and `/docs/SESS
 
 If Claude needs more specific information:
 
-- For pull sharing implementation: refer to `/docs/PULLSHARE_FIRESTORE_SOLUTION.md`
-- For Phase 2 priorities: refer to `/docs/IMPROVEMENTS_COMPLETE_SUMMARY.md` lines 114-240
-- For recent changes: refer to `/docs/SESSION_2025-10-06_SUMMARY.md`
-- For security context: refer to `/docs/IMPROVEMENTS_PHASE1_SUMMARY.md`
+- For Sentry integration: Refer to Sentry React docs at https://docs.sentry.io/platforms/javascript/guides/react/
+- For Zod validation examples: Check existing validation in `/src/lib/productMutations.js`
+- For all remaining tasks: `/docs/IMPROVEMENTS_COMPLETE_SUMMARY.md` lines 250-280
 
 ---
 
 **Created:** 2025-10-06
-**Last Session:** Pull sharing Cloud Functions investigation (organization policy blocker)
-**Next Action:** Choose between fixing pull sharing (Option A) or continuing Phase 2 improvements (Option B)
+**Last Updated:** 2025-10-06 (Session F)
+**Last Session:** N+1 query pattern fix
+**Next Action:** Sentry integration (#19) recommended, or Zod validation (#18)
+**Progress:** 17/25 complete (68%) - All high priority items done!
