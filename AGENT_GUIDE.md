@@ -128,3 +128,23 @@ Use the template below (see file in .github/).
 - Flags honoring precedence; OFF implies no change to legacy behavior
 - CI green; preview deploy either successful (with secrets) or gracefully skipped
 - Docs updated (this file and any touched feature docs)
+
+---
+
+## 11) Troubleshooting
+
+### Firebase App Check blocking local development
+**Symptoms:** Permission errors on Firestore/Storage despite correct auth and rules. Console shows 401 errors from `firebasestorage.googleapis.com` or `firestore.googleapis.com`.
+
+**Root cause:** Firebase App Check enforcement is enabled on backend services (Firestore/Storage) but the local dev environment isn't sending App Check tokens.
+
+**Solution:**
+1. Go to Firebase Console → App Check → https://console.firebase.google.com/project/[PROJECT_ID]/appcheck
+2. Find "Cloud Firestore" and "Storage" entries
+3. Change from "Enforced" to "Monitoring" mode for local development
+4. Wait 60 seconds for changes to propagate
+5. Hard refresh browser (Cmd+Shift+R)
+
+**Prevention:** Ensure `firebase.ts` correctly detects dev vs prod environment using `import.meta.env.MODE` (not `DEV`/`PROD` flags which can be unreliable). App Check should only initialize in production mode.
+
+**Production:** Re-enable enforcement when deploying to production, as production builds properly initialize App Check with reCAPTCHA.
