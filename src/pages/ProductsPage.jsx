@@ -17,11 +17,12 @@ import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input, Checkbox } from "../components/ui/input";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { EmptyState } from "../components/ui/EmptyState";
 import NewProductModal from "../components/products/NewProductModal";
 import EditProductModal from "../components/products/EditProductModal";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import AppImage from "../components/common/AppImage";
-import { LayoutGrid, List as ListIcon, MoreVertical, Archive, Trash2, Type, Search } from "lucide-react";
+import { LayoutGrid, List as ListIcon, MoreVertical, Archive, Trash2, Type, Search, Package } from "lucide-react";
 import {
   productFamiliesPath,
   productFamilyPath,
@@ -1335,6 +1336,21 @@ export default function ProductsPage() {
 
   const renderListView = () => {
     if (!sortedFamilies.length) {
+      // Show EmptyState if truly no products exist, otherwise show filter message
+      const hasNoProducts = !loading && families.length === 0 && !showArchived;
+      if (hasNoProducts) {
+        return (
+          <div className="mx-6">
+            <EmptyState
+              icon={Package}
+              title="No products yet"
+              description="Create your first product family to get started with Shot Builder."
+              action={canEdit ? "Create Product" : null}
+              onAction={canEdit ? () => setNewModalOpen(true) : null}
+            />
+          </div>
+        );
+      }
       return (
         <Card className="mx-6">
           <CardContent className="p-6 text-center text-sm text-slate-500">
@@ -1401,44 +1417,62 @@ export default function ProductsPage() {
     );
   };
 
-  const renderGalleryView = () => (
-    <div className="mx-6 space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-        {canEdit && (
-          <button
-            type="button"
-            onClick={() => setNewModalOpen(true)}
-            className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 text-sm text-slate-600 transition hover:border-primary hover:text-primary"
-          >
-            <span className="text-2xl">＋</span>
-            <span>Create product</span>
-          </button>
-        )}
-        {displayedFamilies.map((family) => renderFamilyCard(family))}
-        {!loading && !sortedFamilies.length && (
-          <Card>
-            <CardContent className="p-6 text-center text-sm text-slate-500">
-              No products match the current filters.
-            </CardContent>
-          </Card>
+  const renderGalleryView = () => {
+    // Check if we should show EmptyState (truly no products) or filter message
+    const hasNoProducts = !loading && families.length === 0 && !showArchived;
+    const noMatchingFilters = !loading && !sortedFamilies.length && !hasNoProducts;
+
+    return (
+      <div className="mx-6 space-y-6">
+        {hasNoProducts ? (
+          <EmptyState
+            icon={Package}
+            title="No products yet"
+            description="Create your first product family to get started with Shot Builder."
+            action={canEdit ? "Create Product" : null}
+            onAction={canEdit ? () => setNewModalOpen(true) : null}
+          />
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => setNewModalOpen(true)}
+                  className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 text-sm text-slate-600 transition hover:border-primary hover:text-primary"
+                >
+                  <span className="text-2xl">＋</span>
+                  <span>Create product</span>
+                </button>
+              )}
+              {displayedFamilies.map((family) => renderFamilyCard(family))}
+              {noMatchingFilters && (
+                <Card>
+                  <CardContent className="p-6 text-center text-sm text-slate-500">
+                    No products match the current filters.
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+            {hasMoreItems && (
+              <div className="text-center">
+                <p className="mb-3 text-sm text-slate-600">
+                  Showing {displayedFamilies.length} of {totalCount} products
+                </p>
+                <Button
+                  onClick={() => setItemsToShow((prev) => prev + 50)}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Load More (50)
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
-      {hasMoreItems && (
-        <div className="text-center">
-          <p className="mb-3 text-sm text-slate-600">
-            Showing {displayedFamilies.length} of {totalCount} products
-          </p>
-          <Button
-            onClick={() => setItemsToShow((prev) => prev + 50)}
-            variant="secondary"
-            size="sm"
-          >
-            Load More (50)
-          </Button>
-        </div>
-      )}
-    </div>
-  );
+    );
+  };
 
   const viewContent = viewMode === "list" ? renderListView() : renderGalleryView();
 
@@ -1449,7 +1483,7 @@ export default function ProductsPage() {
         <div className="px-6 py-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-semibold text-gray-900 truncate">Products</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">Products</h1>
             </div>
             <div className="relative min-w-[200px] max-w-md flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
