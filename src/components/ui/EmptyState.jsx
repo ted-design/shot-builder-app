@@ -10,7 +10,7 @@
 // - Spacing: 24px between elements (space-y-6)
 
 import React from "react";
-import { Button } from "./Button";
+import { Button } from "./button";
 
 /**
  * EmptyState component
