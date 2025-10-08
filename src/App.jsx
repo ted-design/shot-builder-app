@@ -11,7 +11,6 @@ import SidebarLayout from "./routes/SidebarLayout";
 import RequireRole from "./routes/RequireRole";
 import { ProjectScopeProvider } from "./context/ProjectScopeContext";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
-import { AuthDebugPanel } from "./components/AuthDebugPanel";
 
 // Lazy load all major pages to reduce initial bundle size
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -90,8 +89,6 @@ export default function App() {
   return (
     <BrowserRouter>
       <ProjectScopeProvider>
-        {/* Auth Debug Panel - only in development */}
-        {import.meta.env.DEV && userForGuard && <AuthDebugPanel />}
         {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
         <PDFDemoMount />
         <MaybeRedirectLogin user={userForGuard} />
