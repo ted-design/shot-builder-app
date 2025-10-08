@@ -1,5 +1,6 @@
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
+import { StatusBadge } from "../ui/StatusBadge";
 
 const formatTimestamp = (value) => {
   if (!value) return null;
@@ -55,10 +56,15 @@ export function ProjectCard({
             <button
               type="button"
               onClick={() => onSelect?.(project)}
-              className="text-left"
+              className="text-left flex-1 min-w-0"
             >
-              <div className="text-lg font-semibold text-slate-900">
-                {project?.name || "Untitled project"}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="text-lg font-semibold text-slate-900">
+                  {project?.name || "Untitled project"}
+                </div>
+                <StatusBadge status={project?.status === "archived" ? "archived" : "active"}>
+                  {project?.status === "archived" ? "Archived" : "Active"}
+                </StatusBadge>
               </div>
               {updatedAt && (
                 <div className="text-xs uppercase tracking-wide text-slate-500">

@@ -3,15 +3,15 @@ import React from "react";
 
 /**
  * Card component that wraps content in a white box with a border,
- * rounded corners and optional shadow on hover. Accepts a className prop
- * to extend or override the styling. Includes hover effect when
- * onClick is provided.
+ * rounded corners and hover lift effect. Accepts a className prop
+ * to extend or override the styling. Includes hover effect with
+ * transform and shadow.
  */
 export function Card({ className = "", children, onClick, ...props }) {
-  const hoverClass = onClick ? "cursor-pointer hover:shadow-md transition-shadow duration-150" : "";
+  const cursorClass = onClick ? "cursor-pointer" : "";
   return (
     <div
-      className={`bg-white border border-gray-200 rounded-card ${hoverClass} ${className}`.trim()}
+      className={`bg-white border border-gray-200 rounded-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md [will-change:transform] ${cursorClass} ${className}`.trim()}
       onClick={onClick}
       {...props}
     >
