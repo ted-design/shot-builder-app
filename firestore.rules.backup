@@ -1,0 +1,164 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // TEMPORARY DEBUG RULE - REMOVE AFTER TESTING
+    // This allows ANY authenticated user to read/write everything
+    // to verify that custom claims are working
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function userClient() {
+      return request.auth != null
+        ? (request.auth.token.clientId != null
+            ? request.auth.token.clientId
+            : request.auth.token.orgId)
+        : null;
+    }
+
+    function clientMatches(pathClient) {
+      let clientId = userClient();
+      return clientId != null && clientId == pathClient;
+    }
+
+    function isAdmin() {
+      return request.auth != null && request.auth.token.role == 'admin';
+    }
+
+    function isProducer() {
+      return request.auth != null &&
+        (request.auth.token.role == 'producer' || request.auth.token.role == 'wardrobe');
+    }
+
+    function hasProjectRole(projectId, roles) {
+      let clientId = userClient();
+      return clientId != null &&
+        request.auth != null &&
+        exists(/databases/$(database)/documents/clients/$(clientId)/projects/$(projectId)/members/$(request.auth.uid)) &&
+        roles.hasAny([
+          get(/databases/$(database)/documents/clients/$(clientId)/projects/$(projectId)/members/$(request.auth.uid)).data.role
+        ]);
+    }
+
+    function isSystemAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/systemAdmins/$(request.auth.token.email)) &&
+        get(/databases/$(database)/documents/systemAdmins/$(request.auth.token.email)).data.enabled == true;
+    }
+
+    // System Admins - managed via Cloud Functions and admin scripts
+    match /systemAdmins/{email} {
+      // Only system admins can read the list of system admins
+      allow read: if isSystemAdmin();
+      // Only Cloud Functions can write (via Admin SDK)
+      allow write: if false;
+    }
+
+    // Public pull sharing via collection group queries
+    // This wildcard rule allows unauthenticated users to query pulls across all clients/projects
+    // when a valid shareToken is provided
+    match /{path=**}/pulls/{pullId} {
+      // Allow unauthenticated collection group queries when sharing is enabled
+      // Security: Requires knowledge of the exact cryptographic shareToken (32+ chars)
+      // The client queries: collectionGroup('pulls').where('shareToken', '==', token).where('shareEnabled', '==', true)
+      allow list, get: if resource.data.shareEnabled == true;
+    }
+
+    // LEGACY COLLECTIONS - DEPRECATED
+    // These root-level collections are no longer used in the application.
+    // All data has been migrated to client-scoped collections under /clients/{clientId}/
+    // Keeping these rules disabled to prevent accidental access to legacy data.
+    // If you need to access legacy data for migration, temporarily enable with client matching.
+
+    // match /talent/{docId} {
+    //   allow read: if false;  // Explicitly deny all access
+    //   allow write: if false;
+    // }
+
+    // match /locations/{docId} {
+    //   allow read: if false;  // Explicitly deny all access
+    //   allow write: if false;
+    // }
+
+    // match /shots/{docId} {
+    //   allow read: if false;  // Explicitly deny all access
+    //   allow write: if false;
+    // }
+
+    match /clients/{clientId}/talent/{docId} {
+      allow read: if clientMatches(clientId);
+      allow create, update, delete: if clientMatches(clientId) && isAuthed();
+    }
+
+    match /clients/{clientId}/locations/{docId} {
+      allow read: if clientMatches(clientId);
+      allow create, update, delete: if clientMatches(clientId) && isAuthed();
+    }
+
+    match /clients/{clientId}/shots/{docId} {
+      allow read: if clientMatches(clientId);
+      allow create, update, delete: if clientMatches(clientId) && isAuthed();
+    }
+
+    // User profiles - users can read their own profile and other users in their client
+    match /clients/{clientId}/users/{userId} {
+      allow read: if clientMatches(clientId) && isAuthed();
+      allow create: if clientMatches(clientId) && isAuthed() && request.auth.uid == userId;
+      allow update: if clientMatches(clientId) && (isAdmin() || request.auth.uid == userId);
+      allow delete: if clientMatches(clientId) && isAdmin();
+    }
+
+    // Wildcard rule for client-scoped collections
+    // Restricts read access to admin users only to prevent unauthorized data access
+    // Specific collections have more granular rules defined below
+    match /clients/{clientId}/{document=**} {
+      allow read: if clientMatches(clientId) && isAdmin();
+    }
+
+    match /clients/{clientId}/products/{productId} {
+      allow read: if clientMatches(clientId);
+      allow create, delete: if clientMatches(clientId) && isAdmin();
+      allow update: if clientMatches(clientId) &&
+        (isAdmin() || request.auth.token.role == 'wardrobe');
+    }
+
+    match /clients/{clientId}/productFamilies/{familyId} {
+      allow read: if clientMatches(clientId);
+      allow create, update: if clientMatches(clientId) && (isAdmin() || isProducer());
+      allow delete: if clientMatches(clientId) && isAdmin();
+
+      match /skus/{skuId} {
+        allow read: if clientMatches(clientId);
+        allow create, update: if clientMatches(clientId) && (isAdmin() || isProducer());
+        allow delete: if clientMatches(clientId) && isAdmin();
+      }
+    }
+
+    match /clients/{clientId}/projects/{projectId} {
+      allow read: if clientMatches(clientId) &&
+        (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+      allow create: if clientMatches(clientId) && (isAdmin() || isProducer());
+      allow update, delete: if clientMatches(clientId) &&
+        (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+
+      // Pulls - project-specific access for authenticated users
+      // Public sharing is handled by the top-level wildcard rule
+      match /pulls/{pullId} {
+        // Authenticated users with proper role
+        allow read, write: if clientMatches(clientId) &&
+          (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+      }
+
+      match /{collectionId}/{docId} {
+        allow read: if clientMatches(clientId) &&
+          (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+        allow create, update, delete: if clientMatches(clientId) &&
+          (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+      }
+    }
+  }
+}

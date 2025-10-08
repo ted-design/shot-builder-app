@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Auth Debug Check</title>
+</head>
+<body>
+  <h1>Firebase Auth Debug</h1>
+  <div id="output"></div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBoIgS_i5zdU7cWeqxtuChmUzKrxR-MkzQ",
+      authDomain: "um-shotbuilder.firebaseapp.com",
+      projectId: "um-shotbuilder",
+      storageBucket: "um-shotbuilder.appspot.com",
+      messagingSenderId: "168065141847",
+      appId: "1:168065141847:web:be45c7303aa6f8aff4e712"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const output = document.getElementById('output');
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const tokenResult = await user.getIdTokenResult(true);
+
+        output.innerHTML = `
+          <h2>✅ Signed In</h2>
+          <p><strong>Email:</strong> ${user.email}</p>
+          <p><strong>UID:</strong> ${user.uid}</p>
+          <h3>Custom Claims:</h3>
+          <pre>${JSON.stringify(tokenResult.claims, null, 2)}</pre>
+          <h3>Expected Claims:</h3>
+          <pre>{
+  "role": "admin",
+  "clientId": "unbound-merino"
+}</pre>
+        `;
+      } else {
+        output.innerHTML = '<h2>❌ Not signed in</h2><p>Please sign in to the app first</p>';
+      }
+    });
+  </script>
+</body>
+</html>

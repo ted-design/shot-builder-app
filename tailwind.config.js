@@ -17,10 +17,22 @@ export default {
           DEFAULT: "#10b981", // emerald-500
           dark: "#059669",    // emerald-600
         },
+        // Semantic colors for consistent UI feedback
+        warning: {
+          DEFAULT: "#f59e0b", // amber-500
+        },
+        danger: {
+          DEFAULT: "#ef4444", // red-500
+        },
+        info: {
+          DEFAULT: "#3b82f6", // blue-500
+        },
       },
-      // Increase the border-radius scale to allow xl rounded corners on cards and modals.
+      // Design system border-radius values for consistency
       borderRadius: {
-        xl: "14px",
+        card: "8px",    // Use for all cards (reduced from 14px for less toy-like appearance)
+        button: "6px",  // Use for all buttons
+        badge: "10px",  // Use for status badges (pill shape)
       },
       // Define a modern sans-serif font stack. Inter is loaded via CDN in index.html.
       fontFamily: {

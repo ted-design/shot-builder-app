@@ -13,12 +13,11 @@ const VARIANTS = {
 };
 
 // Define sizing options for the button. Each size defines font size and
-// padding. Padding is set to meet WCAG 2.1 Level AAA minimum touch target
-// size of 44x44px for mobile accessibility.
+// padding to achieve specific heights per design system.
 const SIZES = {
-  sm: "text-sm px-3 py-3",
-  md: "text-sm px-4 py-3",
-  lg: "text-base px-5 py-3",
+  sm: "text-sm px-3 py-1.5 h-8",   // 32px height
+  md: "text-sm px-4 py-2 h-10",     // 40px height (design system standard)
+  lg: "text-base px-6 py-3 h-12",   // 48px height
 };
 
 /**
@@ -41,7 +40,7 @@ export function Button({
   return (
     <button
       className={
-        `${variantClasses} ${sizeClasses} rounded-md shadow-sm transition-colors duration-150 ` +
+        `${variantClasses} ${sizeClasses} rounded-button shadow-sm transition-colors duration-150 ` +
         `focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ` +
         `${disabledClasses} ${className}`
       }

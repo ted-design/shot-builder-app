@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Force Token Refresh</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    .info {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 15px 0;
+    }
+    .success {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+    }
+    .error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+    }
+    pre {
+      background: #1e293b;
+      color: #f1f5f9;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔄 Force Token Refresh</h1>
+  <div class="info">
+    This page will help you force refresh your Firebase auth token to pick up the new custom claims.
+  </div>
+
+  <div id="output"></div>
+
+  <button onclick="forceRefresh()">Force Refresh Token</button>
+  <button onclick="clearAndSignOut()">Clear Everything & Sign Out</button>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBoIgS_i5zdU7cWeqxtuChmUzKrxR-MkzQ",
+      authDomain: "um-shotbuilder.firebaseapp.com",
+      projectId: "um-shotbuilder",
+      storageBucket: "um-shotbuilder.appspot.com",
+      messagingSenderId: "168065141847",
+      appId: "1:168065141847:web:be45c7303aa6f8aff4e712"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    window.firebaseAuth = auth;
+
+    async function checkClaims() {
+      const output = document.getElementById('output');
+      if (!auth.currentUser) {
+        output.innerHTML = '<div class="info">Not signed in. Please sign in at http://localhost:5173 first, then come back here.</div>';
+        return;
+      }
+
+      try {
+        const tokenResult = await auth.currentUser.getIdTokenResult(false);
+        const claims = tokenResult.claims;
+
+        let html = '<div class="info">';
+        html += '<h3>Current Token Claims:</h3>';
+        html += '<pre>' + JSON.stringify(claims, null, 2) + '</pre>';
+
+        const hasRole = claims.role === 'admin';
+        const hasClientId = claims.clientId === 'unbound-merino';
+
+        if (hasRole && hasClientId) {
+          html += '<div class="success" style="margin-top: 15px; padding: 10px; border-radius: 6px;">✅ Claims look good! You should be able to use the app now.</div>';
+        } else {
+          html += '<div class="error" style="margin-top: 15px; padding: 10px; border-radius: 6px;">❌ Claims are missing. Click "Force Refresh Token" below.</div>';
+        }
+        html += '</div>';
+        output.innerHTML = html;
+      } catch (err) {
+        output.innerHTML = '<div class="error">Error: ' + err.message + '</div>';
+      }
+    }
+
+    window.forceRefresh = async function() {
+      const output = document.getElementById('output');
+      if (!auth.currentUser) {
+        output.innerHTML = '<div class="info">Not signed in. Please sign in at http://localhost:5173 first.</div>';
+        return;
+      }
+
+      try {
+        output.innerHTML = '<div class="info">🔄 Refreshing token...</div>';
+
+        // Force refresh the token
+        await auth.currentUser.getIdToken(true);
+
+        // Get the new claims
+        const tokenResult = await auth.currentUser.getIdTokenResult(true);
+        const claims = tokenResult.claims;
+
+        let html = '<div class="success">';
+        html += '<h3>✅ Token Refreshed!</h3>';
+        html += '<p>New claims:</p>';
+        html += '<pre>' + JSON.stringify(claims, null, 2) + '</pre>';
+
+        const hasRole = claims.role === 'admin';
+        const hasClientId = claims.clientId === 'unbound-merino';
+
+        if (hasRole && hasClientId) {
+          html += '<p style="margin-top: 15px; font-weight: bold;">✅ Perfect! Now go back to your app and it should work!</p>';
+        } else {
+          html += '<div class="error" style="margin-top: 15px;">❌ Claims still missing. Try "Clear Everything & Sign Out" instead.</div>';
+        }
+        html += '</div>';
+        output.innerHTML = html;
+      } catch (err) {
+        output.innerHTML = '<div class="error">Error: ' + err.message + '</div>';
+      }
+    };
+
+    window.clearAndSignOut = async function() {
+      const output = document.getElementById('output');
+      try {
+        output.innerHTML = '<div class="info">🧹 Clearing all data and signing out...</div>';
+
+        // Clear all storage
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // Clear IndexedDB (where Firebase stores auth data)
+        const databases = await indexedDB.databases();
+        for (const db of databases) {
+          indexedDB.deleteDatabase(db.name);
+        }
+
+        // Sign out
+        await signOut(auth);
+
+        output.innerHTML = '<div class="success"><h3>✅ All Cleared!</h3><p>Now:</p><ol><li>Go to http://localhost:5173</li><li>Sign in again</li><li>Your claims should now be loaded!</li></ol></div>';
+      } catch (err) {
+        output.innerHTML = '<div class="error">Error: ' + err.message + '</div>';
+      }
+    };
+
+    // Check claims on load
+    auth.onAuthStateChanged(() => {
+      checkClaims();
+    });
+  </script>
+</body>
+</html>
