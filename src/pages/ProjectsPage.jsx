@@ -10,7 +10,7 @@ import { useProjectScope } from "../context/ProjectScopeContext";
 import ProjectCards from "../components/dashboard/ProjectCards";
 import ProjectCreateModal from "../components/dashboard/ProjectCreateModal";
 import ProjectEditModal from "../components/dashboard/ProjectEditModal";
-import { showError } from "../lib/toast";
+import { showError, toast } from "../lib/toast";
 import { createProjectSchema, updateProjectSchema } from "../schemas/index.js";
 
 export default function ProjectsPage() {
@@ -30,24 +30,32 @@ export default function ProjectsPage() {
   const canManage = canManageProjects(role);
   const canDelete = role === ROLE.ADMIN;
 
+  // State declarations
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
+  const [archivingProject, setArchivingProject] = useState(false);
+  const [showArchivedProjects, setShowArchivedProjects] = useState(false);
+
   // Derive a sorted list based on earliest shoot date so that upcoming shoots
   // appear first.  This computation is memoised to avoid re‑sorting on
   // every render when the list hasn't changed.
   const items = useMemo(() => {
     if (!itemsRaw) return [];
-    const list = [...itemsRaw].filter((project) => !project?.deletedAt);
+    const list = [...itemsRaw].filter((project) => {
+      if (project?.deletedAt) return false;
+      if (showArchivedProjects) return true;
+      return project?.status !== "archived";
+    });
     list.sort((a, b) => {
       const A = (a.shootDates && a.shootDates[0]) || "9999-12-31";
       const B = (b.shootDates && b.shootDates[0]) || "9999-12-31";
       return A.localeCompare(B);
     });
     return list;
-  }, [itemsRaw]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingProject, setEditingProject] = useState(null);
-  const [creating, setCreating] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  const [deletingProject, setDeletingProject] = useState(false);
+  }, [itemsRaw, showArchivedProjects]);
 
   // Show a toast notification if the subscription reports an error.  This effect runs
   // whenever `projectsError` changes.
@@ -198,13 +206,82 @@ export default function ProjectsPage() {
     }
   };
 
+  const handleArchiveProject = async (project) => {
+    if (!project) return;
+    if (!canManage) {
+      showError("You do not have permission to archive projects.");
+      return;
+    }
+    try {
+      setArchivingProject(true);
+      const currentUser = authUser || auth.currentUser;
+      await updateDoc(doc(db, ...projectsPath, project.id), {
+        status: "archived",
+        archivedAt: serverTimestamp(),
+        archivedBy: currentUser?.uid || null,
+        updatedAt: serverTimestamp(),
+      });
+      if (currentProjectId === project.id) {
+        setCurrentProjectId(null);
+      }
+      toast.success({
+        title: "Project archived",
+        description: `${project.name} has been archived and hidden from the dashboard.`,
+      });
+      setEditingProject(null);
+    } catch (error) {
+      console.error("Failed to archive project", error);
+      showError("Failed to archive project: " + error.message);
+    } finally {
+      setArchivingProject(false);
+    }
+  };
+
+  const handleUnarchiveProject = async (project) => {
+    if (!project) return;
+    if (!canManage) {
+      showError("You do not have permission to unarchive projects.");
+      return;
+    }
+    try {
+      setArchivingProject(true);
+      await updateDoc(doc(db, ...projectsPath, project.id), {
+        status: "active",
+        archivedAt: deleteField(),
+        archivedBy: deleteField(),
+        updatedAt: serverTimestamp(),
+      });
+      toast.success({
+        title: "Project restored",
+        description: `${project.name} has been restored and is now active.`,
+      });
+      setEditingProject(null);
+    } catch (error) {
+      console.error("Failed to unarchive project", error);
+      showError("Failed to unarchive project: " + error.message);
+    } finally {
+      setArchivingProject(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-screen-lg space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
-        <p className="text-sm text-slate-600">
-          Pick a project to scope shots, planner lanes, and pull sheets.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
+          <p className="text-sm text-slate-600">
+            Pick a project to scope shots, planner lanes, and pull sheets.
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={showArchivedProjects}
+            onChange={(e) => setShowArchivedProjects(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300"
+          />
+          <span>Show archived</span>
+        </label>
       </div>
       {/* Show a simple loading state while the projects subscription is
           initialising. A more sophisticated implementation could use a
@@ -243,11 +320,14 @@ export default function ProjectsPage() {
           project={editingProject}
           busy={updating}
           deleting={deletingProject}
+          archiving={archivingProject}
           onClose={() => {
-            if (!updating && !deletingProject) setEditingProject(null);
+            if (!updating && !deletingProject && !archivingProject) setEditingProject(null);
           }}
           onSubmit={(values) => handleUpdate(editingProject, values)}
           onDelete={handleDeleteProject}
+          onArchive={handleArchiveProject}
+          onUnarchive={handleUnarchiveProject}
         />
       )}
     </div>

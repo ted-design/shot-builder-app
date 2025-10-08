@@ -32,7 +32,6 @@ import {
   productFamilySkusPath,
   talentPath,
   locationsPath,
-  DEFAULT_PROJECT_ID,
 } from "../lib/paths";
 import { LayoutGrid, List, SlidersHorizontal, ChevronDown } from "lucide-react";
 import Select from "react-select";
@@ -181,6 +180,9 @@ export default function ShotsPage() {
   const [isSavingShot, setIsSavingShot] = useState(false);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [displayMenuOpen, setDisplayMenuOpen] = useState(false);
+  const [movingProject, setMovingProject] = useState(false);
+  const [copyingProject, setCopyingProject] = useState(false);
+  const [projects, setProjects] = useState([]);
   const navigate = useNavigate();
   const { currentProjectId, ready: scopeReady, setLastVisitedPath } = useProjectScope();
   const redirectNotifiedRef = useRef(false);
@@ -196,6 +198,7 @@ export default function ShotsPage() {
   const currentProductFamiliesPath = useMemo(() => productFamiliesPath(clientId), [clientId]);
   const currentTalentPath = useMemo(() => talentPath(clientId), [clientId]);
   const currentLocationsPath = useMemo(() => locationsPath(clientId), [clientId]);
+  const currentProjectsPath = useMemo(() => ["clients", clientId, "projects"], [clientId]);
   const productFamilyPathForClient = useCallback(
     (familyId) => productFamilyPath(familyId, clientId),
     [clientId]
@@ -812,61 +815,17 @@ export default function ShotsPage() {
       where("deleted", "==", false),
       orderBy("date", "asc")
     );
-    let scopedShots = [];
-    const unassignedShotBuckets = new Map();
-
-    const applyShotResults = () => {
-      const combined = [...scopedShots];
-      unassignedShotBuckets.forEach((entries) => {
-        entries.forEach((shot) => {
-          if (shot?.id) {
-            combined.push(shot);
-          }
-        });
-      });
-      const deduped = new Map();
-      combined.forEach((shot) => {
-        if (shot?.id) {
-          deduped.set(shot.id, shot);
-        }
-      });
-      setShots(Array.from(deduped.values()));
-    };
 
     const unsubShots = onSnapshot(
       scopedShotsQuery,
       (snapshot) => {
-        scopedShots = snapshot.docs.map((doc) =>
-          normaliseShotRecord(doc.id, doc.data(), projectId || DEFAULT_PROJECT_ID)
+        const shots = snapshot.docs.map((doc) =>
+          normaliseShotRecord(doc.id, doc.data(), projectId)
         );
-        applyShotResults();
+        setShots(shots);
       },
       handleSubscriptionError("shots")
     );
-
-    const unassignedUnsubs = [];
-    if (projectId === DEFAULT_PROJECT_ID) {
-      const unassignedClauses = [
-        { key: "null", filter: where("projectId", "==", null) },
-        { key: "empty", filter: where("projectId", "==", "") },
-      ];
-      unassignedClauses.forEach(({ key, filter }) => {
-        const unassignedQuery = query(collRef(...currentShotsPath), filter, where("deleted", "==", false));
-        unassignedUnsubs.push(
-          onSnapshot(
-            unassignedQuery,
-            (snapshot) => {
-              const entries = snapshot.docs.map((doc) =>
-                normaliseShotRecord(doc.id, doc.data(), DEFAULT_PROJECT_ID)
-              );
-              unassignedShotBuckets.set(key, entries);
-              applyShotResults();
-            },
-            handleSubscriptionError("shots")
-          )
-        );
-      });
-    }
     const unsubFamilies = onSnapshot(
       query(collRef(...currentProductFamiliesPath), orderBy("styleName", "asc")),
       (snapshot) => {
@@ -898,14 +857,21 @@ export default function ShotsPage() {
       },
       handleSubscriptionError("locations")
     );
+    const unsubProjects = onSnapshot(
+      query(collRef(...currentProjectsPath), orderBy("createdAt", "desc")),
+      (snapshot) => {
+        setProjects(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })).filter((p) => !p.deletedAt));
+      },
+      handleSubscriptionError("projects")
+    );
     return () => {
       unsubShots();
-      unassignedUnsubs.forEach((unsubscribe) => unsubscribe());
       unsubFamilies();
       unsubTalent();
       unsubLocations();
+      unsubProjects();
     };
-  }, [scopeReady, projectId, currentShotsPath, currentProductFamiliesPath, currentTalentPath, currentLocationsPath]);
+  }, [scopeReady, projectId, currentShotsPath, currentProductFamiliesPath, currentTalentPath, currentLocationsPath, currentProjectsPath]);
 
   // Create a new shot with validation and error handling.
   const handleCreateShot = async () => {
@@ -942,10 +908,15 @@ export default function ShotsPage() {
       return;
     }
 
+    if (!projectId) {
+      toast.error("No project selected. Please select a project before creating shots.");
+      return;
+    }
+
     const resolvedProjectId =
       validation.data.projectId && validation.data.projectId.trim()
         ? validation.data.projectId.trim()
-        : projectId || DEFAULT_PROJECT_ID;
+        : projectId;
 
     setIsCreatingShot(true);
     console.info("[Shots] Attempting to create shot", {
@@ -1031,9 +1002,13 @@ export default function ShotsPage() {
 
   const openCreateModal = useCallback(() => {
     if (!canEditShots) return;
+    if (!projectId) {
+      toast.error("No project selected. Please select a project before creating shots.");
+      return;
+    }
     setCreateDraft({
       ...initialShotDraft,
-      projectId: projectId || DEFAULT_PROJECT_ID,
+      projectId: projectId,
       status: DEFAULT_SHOT_STATUS,
     });
     setCreateModalOpen(true);
@@ -1265,6 +1240,94 @@ export default function ShotsPage() {
       setIsSavingShot(false);
     }
   }, [editingShot, canEditShots, updateShot]);
+
+  const handleMoveToProject = useCallback(async (targetProjectId) => {
+    if (!editingShot) return;
+    if (!canEditShots) {
+      toast.error("You do not have permission to move shots.");
+      return;
+    }
+    if (!targetProjectId) return;
+
+    const targetProject = projects.find((p) => p.id === targetProjectId);
+    if (!targetProject) {
+      toast.error({ title: "Project not found" });
+      return;
+    }
+
+    setMovingProject(true);
+    try {
+      await writeDoc("move shot to project", () =>
+        updateDoc(docRef(...currentShotsPath, editingShot.shot.id), {
+          projectId: targetProjectId,
+          laneId: null, // Remove from planner lanes when moving
+          updatedAt: serverTimestamp(),
+        })
+      );
+      toast.success({
+        title: "Shot moved",
+        description: `"${editingShot.shot.name}" has been moved to ${targetProject.name}.`,
+      });
+      setEditingShot(null);
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Unable to move shot.");
+      console.error("[Shots] Failed to move shot", error);
+      toast.error({ title: "Failed to move shot", description: `${code}: ${message}` });
+    } finally {
+      setMovingProject(false);
+    }
+  }, [editingShot, canEditShots, projects, currentShotsPath]);
+
+  const handleCopyToProject = useCallback(async (targetProjectId) => {
+    if (!editingShot) return;
+    if (!canEditShots) {
+      toast.error("You do not have permission to copy shots.");
+      return;
+    }
+    if (!targetProjectId) return;
+
+    const targetProject = projects.find((p) => p.id === targetProjectId);
+    if (!targetProject) {
+      toast.error({ title: "Project not found" });
+      return;
+    }
+
+    setCopyingProject(true);
+    try {
+      const shotData = editingShot.shot;
+      // Create a copy without the id and with updated metadata
+      const shotCopy = {
+        name: shotData.name,
+        description: shotData.description || "",
+        type: shotData.type || "",
+        date: shotData.date || "",
+        locationId: shotData.locationId || null,
+        projectId: targetProjectId,
+        laneId: null, // Don't assign to any lane initially
+        status: shotData.status || "todo",
+        products: shotData.products || [],
+        talent: shotData.talent || [],
+        deleted: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      await writeDoc("copy shot to project", () =>
+        addDoc(collRef(...currentShotsPath), shotCopy)
+      );
+
+      toast.success({
+        title: "Shot copied",
+        description: `"${shotData.name}" has been copied to ${targetProject.name}.`,
+      });
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Unable to copy shot.");
+      console.error("[Shots] Failed to copy shot", error);
+      toast.error({ title: "Failed to copy shot", description: `${code}: ${message}` });
+    } finally {
+      setCopyingProject(false);
+    }
+  }, [editingShot, canEditShots, projects, currentShotsPath]);
 
   const selectPortalTarget =
     typeof window === "undefined" ? undefined : window.document.body;
@@ -1545,11 +1608,13 @@ export default function ShotsPage() {
           onClose={() => {
             if (isCreatingShot) return;
             setCreateModalOpen(false);
-            setCreateDraft({
-              ...initialShotDraft,
-              projectId: projectId || DEFAULT_PROJECT_ID,
-              status: DEFAULT_SHOT_STATUS,
-            });
+            if (projectId) {
+              setCreateDraft({
+                ...initialShotDraft,
+                projectId: projectId,
+                status: DEFAULT_SHOT_STATUS,
+              });
+            }
           }}
           onSubmit={handleCreateShot}
           isSaving={isCreatingShot}
@@ -1595,6 +1660,12 @@ export default function ShotsPage() {
           talentPlaceholder="Select talent"
           talentNoOptionsMessage={talentNoOptionsMessage}
           talentLoadError={talentLoadError}
+          projects={projects}
+          currentProjectId={projectId}
+          onMoveToProject={handleMoveToProject}
+          movingProject={movingProject}
+          onCopyToProject={handleCopyToProject}
+          copyingProject={copyingProject}
         />
       )}
     </div>

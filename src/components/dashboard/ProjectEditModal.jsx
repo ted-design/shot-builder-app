@@ -10,9 +10,12 @@ export default function ProjectEditModal({
   project,
   busy = false,
   deleting = false,
+  archiving = false,
   onClose,
   onSubmit,
   onDelete,
+  onArchive,
+  onUnarchive,
 }) {
   const [confirmation, setConfirmation] = useState("");
 
@@ -56,6 +59,39 @@ export default function ProjectEditModal({
             submitLabel="Save Changes"
             busy={busy}
           />
+          {(onArchive || onUnarchive) && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-4">
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-amber-700">Archive project</h3>
+                  <p className="mt-1 text-sm text-amber-600">
+                    {project?.status === "archived"
+                      ? "Restore this project to make it active again and visible on the dashboard."
+                      : "Archive this project to hide it from the dashboard. You can restore it later."}
+                  </p>
+                </div>
+                {project?.status === "archived" ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={archiving}
+                    onClick={() => onUnarchive?.(project)}
+                  >
+                    {archiving ? "Restoring…" : "Unarchive project"}
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={archiving}
+                    onClick={() => onArchive?.(project)}
+                  >
+                    {archiving ? "Archiving…" : "Archive project"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
           <div className="rounded-lg border border-red-200 bg-red-50/70 p-4">
             <div className="space-y-3">
               <div>

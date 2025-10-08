@@ -16,6 +16,8 @@ pnpm-debug.log*
 .env.*
 !.env.example
 !.env.sample
+service-account.json
+**/service-account.json
 
 # Firebase
 .firebase/

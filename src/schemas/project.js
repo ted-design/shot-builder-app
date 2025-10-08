@@ -12,6 +12,11 @@ import {
 } from "./common.js";
 
 /**
+ * Project status
+ */
+export const projectStatusSchema = z.enum(["active", "archived", "completed"]);
+
+/**
  * Project member role
  */
 export const projectMemberRoleSchema = z.enum(["producer", "stylist", "assistant", "viewer"]);
@@ -34,6 +39,9 @@ export const projectSchema = z.object({
   briefUrl: urlSchema,
   notes: notesSchema,
   members: z.record(projectMemberSchema).default({}), // userId -> memberInfo
+  status: projectStatusSchema.optional(),
+  archivedAt: timestampSchema,
+  archivedBy: z.string().optional(),
   deletedAt: timestampSchema,
   ...auditFieldsSchema.shape,
 });
