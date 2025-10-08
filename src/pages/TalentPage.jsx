@@ -405,35 +405,39 @@ export default function TalentPage() {
 
   return (
     <div className="space-y-6">
-      <div className="sticky inset-x-0 top-14 z-20 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="flex-none text-2xl font-semibold text-slate-900">Talent</h1>
-          <Input
-            placeholder="Search talent by name, agency, or contact..."
-            aria-label="Search talent"
-            value={queryText}
-            onChange={(event) => setQueryText(event.target.value)}
-            className="min-w-[200px] flex-1"
-          />
-          {canManage && (
-            <Button
-              type="button"
-              onClick={() => setCreateModalOpen(true)}
-              className="flex-none whitespace-nowrap"
-            >
-              New talent
-            </Button>
-          )}
-        </div>
+      <div className="sticky inset-x-0 top-14 z-20 bg-white/95 py-4 px-6 backdrop-blur">
+        <Card className="border-b-2">
+          <CardContent className="py-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="flex-none text-2xl font-semibold text-slate-900">Talent</h1>
+              <Input
+                placeholder="Search talent by name, agency, or contact..."
+                aria-label="Search talent"
+                value={queryText}
+                onChange={(event) => setQueryText(event.target.value)}
+                className="min-w-[200px] max-w-md flex-1"
+              />
+              {canManage && (
+                <Button
+                  type="button"
+                  onClick={() => setCreateModalOpen(true)}
+                  className="flex-none whitespace-nowrap"
+                >
+                  New talent
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <p className="text-sm text-slate-600">
+      <p className="px-6 text-sm text-slate-600">
         Track models, their agencies, and wardrobe notes for the active project.
       </p>
 
       {feedback && (
         <div
-          className={`rounded-md px-4 py-2 text-sm ${
+          className={`mx-6 rounded-md px-4 py-2 text-sm ${
             feedback.type === "success" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
           }`}
         >
@@ -442,12 +446,12 @@ export default function TalentPage() {
       )}
 
       {!canManage && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <div className="mx-6 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
           Talent records are read-only for your role. Producers can add or edit talent details.
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+      <div className="mx-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {canManage && (
           <CreateTalentCard onClick={() => setCreateModalOpen(true)} disabled={creating} />
         )}

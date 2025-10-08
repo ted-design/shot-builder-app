@@ -48,7 +48,7 @@ export function ProjectCard({
   ].filter(Boolean);
 
   return (
-    <Card className={`${cardClass} transition-colors hover:border-primary/50`}>
+    <Card className={`${cardClass} transition-all duration-150 hover:border-primary/50 hover:shadow-md`}>
       <CardContent className="flex h-full flex-col gap-4 py-5">
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-3">

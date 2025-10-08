@@ -41,7 +41,8 @@ export function Button({
   return (
     <button
       className={
-        `${variantClasses} ${sizeClasses} rounded-md shadow-sm focus:outline-none transition-colors ` +
+        `${variantClasses} ${sizeClasses} rounded-md shadow-sm transition-colors duration-150 ` +
+        `focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ` +
         `${disabledClasses} ${className}`
       }
       disabled={disabled}

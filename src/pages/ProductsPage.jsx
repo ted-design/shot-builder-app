@@ -1341,7 +1341,7 @@ export default function ProductsPage() {
   const renderListView = () => {
     if (!sortedFamilies.length) {
       return (
-        <Card>
+        <Card className="mx-6">
           <CardContent className="p-6 text-center text-sm text-slate-500">
             No products match the current filters.
           </CardContent>
@@ -1349,7 +1349,7 @@ export default function ProductsPage() {
       );
     }
     return (
-      <Card>
+      <Card className="mx-6">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -1407,7 +1407,7 @@ export default function ProductsPage() {
   };
 
   const renderGalleryView = () => (
-    <div className="space-y-6">
+    <div className="mx-6 space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {canEdit && (
           <button
@@ -1449,44 +1449,48 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="sticky inset-x-0 top-14 z-20 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="flex-none text-2xl font-semibold text-slate-900">Products</h1>
-          <Input
-            placeholder="Search by style, number, colour, or SKU..."
-            aria-label="Search products"
-            value={queryText}
-            onChange={(event) => setQueryText(event.target.value)}
-            className="min-w-[200px] flex-1"
-          />
-          <label
-            className="flex flex-none items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500"
-            htmlFor="products-sort-order"
-          >
-            <span className="whitespace-nowrap">Sort</span>
-            <select
-              id="products-sort-order"
-              className="h-10 rounded border border-slate-300 px-3 text-sm"
-              value={sortOrder}
-              onChange={(event) => setSortOrder(event.target.value)}
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {canEdit && (
-            <Button onClick={() => setNewModalOpen(true)} className="flex-none whitespace-nowrap">
-              New product
-            </Button>
-          )}
-        </div>
+      <div className="sticky inset-x-0 top-14 z-20 bg-white/95 py-4 px-6 backdrop-blur">
+        <Card className="border-b-2">
+          <CardContent className="py-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="flex-none text-2xl font-semibold text-slate-900">Products</h1>
+              <Input
+                placeholder="Search by style, number, colour, or SKU..."
+                aria-label="Search products"
+                value={queryText}
+                onChange={(event) => setQueryText(event.target.value)}
+                className="min-w-[200px] max-w-md flex-1"
+              />
+              <label
+                className="flex flex-none items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500"
+                htmlFor="products-sort-order"
+              >
+                <span className="whitespace-nowrap">Sort</span>
+                <select
+                  id="products-sort-order"
+                  className="h-10 rounded border border-slate-300 px-3 text-sm"
+                  value={sortOrder}
+                  onChange={(event) => setSortOrder(event.target.value)}
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {canEdit && (
+                <Button onClick={() => setNewModalOpen(true)} className="flex-none whitespace-nowrap">
+                  New product
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {canUseBatchActions && selectedCount > 0 && (
-        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 shadow-sm">
+        <div className="mx-6 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm font-medium text-slate-700">
               {selectedCount} selected
@@ -1570,14 +1574,14 @@ export default function ProductsPage() {
         </div>
       )}
 
-      <div className="space-y-1">
+      <div className="space-y-1 px-6">
         <p className="text-sm text-slate-600">
           Product families group shared metadata, while SKUs capture individual colour and size combinations.
         </p>
         <p className="text-xs text-slate-500">{recommendedImageText}</p>
       </div>
 
-      <Card>
+      <Card className="mx-6">
         <CardHeader>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -1709,7 +1713,7 @@ export default function ProductsPage() {
               )}
             </div>
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="mt-4 text-xs text-slate-500">
             Showing {filteredFamilies.length} of {families.length} product families
           </div>
         </CardHeader>
