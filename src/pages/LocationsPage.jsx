@@ -374,31 +374,35 @@ export default function LocationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="sticky inset-x-0 top-14 z-20 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="flex-none text-2xl font-semibold text-slate-900">Locations</h1>
-          <Input
-            placeholder="Search locations by name, address, or notes..."
-            aria-label="Search locations"
-            value={queryText}
-            onChange={(event) => setQueryText(event.target.value)}
-            className="min-w-[200px] flex-1"
-          />
-          {canManage && (
-            <Button type="button" onClick={openCreateModal} className="flex-none whitespace-nowrap">
-              New location
-            </Button>
-          )}
-        </div>
+      <div className="sticky inset-x-0 top-14 z-20 bg-white/95 py-4 px-6 backdrop-blur">
+        <Card className="border-b-2">
+          <CardContent className="py-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="flex-none text-2xl font-semibold text-slate-900">Locations</h1>
+              <Input
+                placeholder="Search locations by name, address, or notes..."
+                aria-label="Search locations"
+                value={queryText}
+                onChange={(event) => setQueryText(event.target.value)}
+                className="min-w-[200px] max-w-md flex-1"
+              />
+              {canManage && (
+                <Button type="button" onClick={openCreateModal} className="flex-none whitespace-nowrap">
+                  New location
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <p className="text-sm text-slate-600">
+      <p className="px-6 text-sm text-slate-600">
         Catalogue studios and on-site venues with reference photos and notes.
       </p>
 
       {feedback && (
         <div
-          className={`rounded-md px-4 py-2 text-sm ${
+          className={`mx-6 rounded-md px-4 py-2 text-sm ${
             feedback.type === "success" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
           }`}
         >
@@ -407,12 +411,12 @@ export default function LocationsPage() {
       )}
 
       {!canManage && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <div className="mx-6 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
           Locations are read-only for your role. Producers can create and update venue records.
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+      <div className="mx-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {canManage && <CreateLocationCard onClick={openCreateModal} disabled={creating} />}
         {filteredLocations.map((entry) => (
           <LocationCard

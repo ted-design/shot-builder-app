@@ -20,3 +20,20 @@
 /* App-wide helpers */
 html { -webkit-text-size-adjust: 100%; }
 body { @apply bg-gray-50 text-gray-900; }
+
+/* Accessibility: Global focus states for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Override default focus styles for better keyboard navigation */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}

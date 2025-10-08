@@ -1344,17 +1344,19 @@ export default function ShotsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="sticky inset-x-0 top-14 z-20 border-b border-slate-200 bg-white/95 py-4 shadow-sm backdrop-blur">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="flex-none text-2xl font-semibold text-slate-900">Shots</h1>
-            <Input
-              placeholder="Search shots by name, talent, product, or location..."
-              aria-label="Search shots"
-              value={queryText}
-              onChange={(event) => setQueryText(event.target.value)}
-              className="min-w-[200px] flex-1"
-            />
+      <div className="sticky inset-x-0 top-14 z-20 bg-white/95 py-4 px-6 backdrop-blur">
+        <Card className="border-b-2">
+          <CardContent className="py-4">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="flex-none text-2xl font-semibold text-slate-900">Shots</h1>
+                <Input
+                  placeholder="Search shots by name, talent, product, or location..."
+                  aria-label="Search shots"
+                  value={queryText}
+                  onChange={(event) => setQueryText(event.target.value)}
+                  className="min-w-[200px] max-w-md flex-1"
+                />
             {canEditShots && (
               <Button type="button" onClick={openCreateModal} className="flex-none whitespace-nowrap">
                 New shot
@@ -1530,19 +1532,23 @@ export default function ShotsPage() {
               Clear
             </Button>
           </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-      <p className="text-sm text-slate-600">
+      <p className="px-6 text-sm text-slate-600">
         Build and manage the shot list for the active project. Set the active project from the Dashboard.
       </p>
       {canEditShots ? (
-        <CreateShotCard onClick={openCreateModal} disabled={isCreatingShot} />
+        <div className="mx-6">
+          <CreateShotCard onClick={openCreateModal} disabled={isCreatingShot} />
+        </div>
       ) : (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <div className="mx-6 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
           You can browse shots but need producer or crew access to create or edit them.
         </div>
       )}
-      <div className="space-y-4">
+      <div className="mx-6 space-y-4">
         {sortedShots.length === 0 ? (
           <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
             {shots.length
@@ -1550,7 +1556,7 @@ export default function ShotsPage() {
               : "No shots have been added yet."}
           </div>
         ) : isGalleryView ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mx-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {sortedShots.map((shot) => {
               const shotProducts = normaliseShotProducts(shot);
               const shotTalentSelection = mapShotTalentToSelection(shot);
@@ -1634,7 +1640,7 @@ export default function ShotsPage() {
         />
       )}
       {!canEditShots && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <div className="mx-6 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
           Shot actions are read-only for your role.
         </div>
       )}
