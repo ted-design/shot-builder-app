@@ -271,7 +271,9 @@ export default function ProjectsPage() {
       <div className="sticky inset-x-0 top-14 z-40 -mx-6 border-b border-gray-200 bg-white px-6 py-4 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0 space-y-1">
-            <h1 className="text-2xl font-semibold text-gray-900 truncate">Dashboard</h1>
+            <h1 className="text-2xl font-semibold text-gray-900 truncate">
+              Welcome back{authUser?.displayName ? `, ${authUser.displayName}` : ""}
+            </h1>
             <p className="text-sm text-slate-600">
               Pick a project to scope shots, planner lanes, and pull sheets.
             </p>

@@ -16,11 +16,12 @@ import {
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input, Checkbox } from "../components/ui/input";
+import { StatusBadge } from "../components/ui/StatusBadge";
 import NewProductModal from "../components/products/NewProductModal";
 import EditProductModal from "../components/products/EditProductModal";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import AppImage from "../components/common/AppImage";
-import { LayoutGrid, List as ListIcon, MoreVertical, Archive, Trash2, Type } from "lucide-react";
+import { LayoutGrid, List as ListIcon, MoreVertical, Archive, Trash2, Type, Search } from "lucide-react";
 import {
   productFamiliesPath,
   productFamilyPath,
@@ -1097,11 +1098,9 @@ export default function ProductsPage() {
                     )}
                   </div>
                   <div className="hidden shrink-0 flex-wrap gap-1 sm:flex">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClasses(family.status)}`}
-                    >
+                    <StatusBadge status={family.status}>
                       {statusLabel(family.status)}
-                    </span>
+                    </StatusBadge>
                     {family.archived && (
                       <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-700">
                         Archived
@@ -1269,13 +1268,9 @@ export default function ProductsPage() {
         )}
         {showStatusColumn && (
           <td className="px-4 py-3 align-top">
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClasses(
-                family.status
-              )}`}
-            >
+            <StatusBadge status={family.status}>
               {statusLabel(family.status)}
-            </span>
+            </StatusBadge>
             {family.archived && (
               <div className="mt-2 text-xs text-slate-500">Archived</div>
             )}
@@ -1456,13 +1451,16 @@ export default function ProductsPage() {
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-semibold text-gray-900 truncate">Products</h1>
             </div>
-            <Input
-              placeholder="Search by style, number, colour, or SKU..."
-              aria-label="Search products"
-              value={queryText}
-              onChange={(event) => setQueryText(event.target.value)}
-              className="min-w-[200px] max-w-md flex-1"
-            />
+            <div className="relative min-w-[200px] max-w-md flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search by style, number, colour, or SKU..."
+                aria-label="Search products"
+                value={queryText}
+                onChange={(event) => setQueryText(event.target.value)}
+                className="pl-10"
+              />
+            </div>
             <label
               className="flex flex-none items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500"
               htmlFor="products-sort-order"
