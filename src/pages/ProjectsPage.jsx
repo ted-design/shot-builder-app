@@ -12,6 +12,7 @@ import ProjectCreateModal from "../components/dashboard/ProjectCreateModal";
 import ProjectEditModal from "../components/dashboard/ProjectEditModal";
 import { showError, toast } from "../lib/toast";
 import { createProjectSchema, updateProjectSchema } from "../schemas/index.js";
+import { SkeletonCard } from "../components/ui/Skeleton";
 
 export default function ProjectsPage() {
   const { clientId, user: authUser, role: globalRole } = useAuth();
@@ -266,28 +267,34 @@ export default function ProjectsPage() {
 
   return (
     <div className="mx-auto max-w-screen-lg space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
-          <p className="text-sm text-slate-600">
-            Pick a project to scope shots, planner lanes, and pull sheets.
-          </p>
+      {/* Sticky header with consistent styling */}
+      <div className="sticky inset-x-0 top-14 z-40 -mx-6 border-b border-gray-200 bg-white px-6 py-4 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0 space-y-1">
+            <h1 className="text-2xl font-semibold text-gray-900 truncate">Dashboard</h1>
+            <p className="text-sm text-slate-600">
+              Pick a project to scope shots, planner lanes, and pull sheets.
+            </p>
+          </div>
+          <label className="flex flex-none items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={showArchivedProjects}
+              onChange={(e) => setShowArchivedProjects(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            <span className="whitespace-nowrap">Show archived</span>
+          </label>
         </div>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input
-            type="checkbox"
-            checked={showArchivedProjects}
-            onChange={(e) => setShowArchivedProjects(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300"
-          />
-          <span>Show archived</span>
-        </label>
       </div>
-      {/* Show a simple loading state while the projects subscription is
-          initialising. A more sophisticated implementation could use a
-          skeleton loader component. */}
+
+      {/* Skeleton loading state */}
       {loadingProjects && items.length === 0 && (
-        <div className="text-center text-sm text-gray-600">Loading projects…</div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array(3).fill(0).map((_, i) => (
+            <SkeletonCard key={i} className="h-48" />
+          ))}
+        </div>
       )}
       {!canManage && (
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
