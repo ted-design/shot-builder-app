@@ -15,4 +15,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Products page header adds sort controls for style name and style number.
 
 ### Fixed
-- _None yet_
+- Environment detection in firebase.ts now correctly uses `import.meta.env.MODE` to prevent App Check from blocking local development (#157)

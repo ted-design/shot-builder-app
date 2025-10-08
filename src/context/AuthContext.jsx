@@ -89,11 +89,23 @@ export function AuthProvider({ children }) {
     async function hydrate() {
       setLoadingClaims(true);
       try {
-        const tokenResult = await getIdTokenResult(user, true);
+        // Force refresh the user state and token to get latest custom claims
+        await user.reload();
+        await user.getIdToken(true);
+
+        const tokenResult = await getIdTokenResult(user, false);
         if (cancelled) return;
         const tokenClaims = tokenResult.claims || {};
         const claimRole = normalizeRole(tokenClaims.role);
         const claimClient = tokenClaims.clientId || CLIENT_ID;
+
+        // Validate required claims
+        if (!tokenClaims.role || !tokenClaims.clientId) {
+          setClaimsError(new Error("Missing required custom claims. Please contact administrator."));
+          setLoadingClaims(false);
+          return;
+        }
+
         setClaims(tokenClaims);
         if (claimRole) {
           setRole(claimRole);

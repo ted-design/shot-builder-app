@@ -8,6 +8,9 @@ export interface Project {
   briefUrl?: string | null;
   notes?: string | null;
   shootDates?: string[];
+  status?: "active" | "archived" | "completed";
+  archivedAt?: Timestamp | Date | null;
+  archivedBy?: string | null;
   createdAt?: Timestamp | Date | null;
   updatedAt?: Timestamp | Date | null;
   deletedAt?: Timestamp | Date | null;

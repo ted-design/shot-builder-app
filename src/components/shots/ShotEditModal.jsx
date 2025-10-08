@@ -32,6 +32,12 @@ export default function ShotEditModal({
   talentPlaceholder = "Select talent",
   talentNoOptionsMessage = "No talent available",
   talentLoadError = null,
+  projects = [],
+  currentProjectId = null,
+  onMoveToProject,
+  movingProject = false,
+  onCopyToProject,
+  copyingProject = false,
 }) {
   // Hooks must be called unconditionally at the top level
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -224,6 +230,74 @@ export default function ShotEditModal({
                 <p className="text-xs text-red-600">{talentLoadError}</p>
               )}
             </div>
+            {onMoveToProject && projects.length > 0 && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-4">
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-blue-700">Move to another project</h3>
+                    <p className="mt-1 text-sm text-blue-600">
+                      Transfer this shot to a different project. The shot will be removed from this project's planner.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="flex-1 rounded-md border border-slate-200 p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                      disabled={isSaving || deleting || movingProject || copyingProject}
+                      onChange={(event) => {
+                        const targetProjectId = event.target.value;
+                        if (targetProjectId && targetProjectId !== currentProjectId) {
+                          onMoveToProject(targetProjectId);
+                        }
+                      }}
+                      defaultValue=""
+                    >
+                      <option value="">Select a project...</option>
+                      {projects
+                        .filter((p) => p.id !== currentProjectId && p.status !== "archived")
+                        .map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+            {onCopyToProject && projects.length > 0 && (
+              <div className="rounded-lg border border-green-200 bg-green-50/70 p-4">
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-green-700">Copy to another project</h3>
+                    <p className="mt-1 text-sm text-green-600">
+                      Create a duplicate of this shot in a different project. The original shot will remain in this project.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="flex-1 rounded-md border border-slate-200 p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                      disabled={isSaving || deleting || movingProject || copyingProject}
+                      onChange={(event) => {
+                        const targetProjectId = event.target.value;
+                        if (targetProjectId && targetProjectId !== currentProjectId) {
+                          onCopyToProject(targetProjectId);
+                        }
+                      }}
+                      defaultValue=""
+                    >
+                      <option value="">Select a project...</option>
+                      {projects
+                        .filter((p) => p.id !== currentProjectId && p.status !== "archived")
+                        .map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" onClick={onClose} disabled={isSaving || deleting}>
                 Cancel

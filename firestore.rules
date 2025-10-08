@@ -97,6 +97,14 @@ service cloud.firestore {
       allow create, update, delete: if clientMatches(clientId) && isAuthed();
     }
 
+    // User profiles - users can read their own profile and other users in their client
+    match /clients/{clientId}/users/{userId} {
+      allow read: if clientMatches(clientId) && isAuthed();
+      allow create: if clientMatches(clientId) && isAuthed() && request.auth.uid == userId;
+      allow update: if clientMatches(clientId) && (isAdmin() || request.auth.uid == userId);
+      allow delete: if clientMatches(clientId) && isAdmin();
+    }
+
     // Wildcard rule for client-scoped collections
     // Restricts read access to admin users only to prevent unauthorized data access
     // Specific collections have more granular rules defined below

@@ -9,6 +9,7 @@ import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { toast } from "../lib/toast";
 import { writeDoc } from "../lib/firestoreWrites";
 import { describeFirebaseError } from "../lib/firebaseErrors";
+import OrphanedShotsMigration from "../components/admin/OrphanedShotsMigration";
 
 const ROLE_OPTIONS = [ROLE.ADMIN, ROLE.PRODUCER, ROLE.CREW, ROLE.WAREHOUSE, ROLE.VIEWER];
 
@@ -301,6 +302,8 @@ export default function AdminPage() {
           </div>
         </CardContent>
       </Card>
+
+      <OrphanedShotsMigration clientId={resolvedClientId} />
 
       {devToolsEnabled && (
         <Card>
