@@ -53,7 +53,7 @@ export const easing = {
  */
 export const getStaggerDelay = (index, delay = timing.stagger) => ({
   animationDelay: `${index * delay}ms`,
-  animationFillMode: 'backwards', // Prevent flash of unstyled content
+  animationFillMode: 'both', // Apply first keyframe before start, keep final state after end
 });
 
 /**
