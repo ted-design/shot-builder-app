@@ -56,6 +56,7 @@ import { Download, LayoutGrid, List, Settings2, PencilLine, User, MapPin, Packag
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { Button } from "../components/ui/button";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { TagList } from "../components/ui/TagBadge";
 import { toast, showConfirm } from "../lib/toast";
 import AppImage from "../components/common/AppImage";
 import PlannerSummary from "../components/planner/PlannerSummary";
@@ -693,6 +694,11 @@ function ShotCard({
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">Unassigned</span>
                   )}
                 </div>
+                {Array.isArray(shot.tags) && shot.tags.length > 0 && (
+                  <div className="mt-2">
+                    <TagList tags={shot.tags} emptyMessage={null} />
+                  </div>
+                )}
               </div>
               <div className="flex flex-col items-end gap-2">
                 <select
@@ -795,6 +801,7 @@ function PlannerPageContent() {
   const [plannerPrefs, setPlannerPrefs] = useState(() => readStoredPlannerPrefs());
   const [exportOpen, setExportOpen] = useState(false);
   const [fieldSettingsOpen, setFieldSettingsOpen] = useState(false);
+  const [selectedTagIds, setSelectedTagIds] = useState([]);
   const fieldSettingsRef = useRef(null);
   const [editingShot, setEditingShot] = useState(null);
   const [isSavingShot, setIsSavingShot] = useState(false);
@@ -929,6 +936,36 @@ function PlannerPageContent() {
       }),
     [talent]
   );
+
+  const tagOptions = useMemo(() => {
+    const tagMap = new Map();
+    plannerShots.forEach((shot) => {
+      if (Array.isArray(shot.tags)) {
+        shot.tags.forEach((tag) => {
+          if (tag && tag.id && tag.label) {
+            tagMap.set(tag.id, { id: tag.id, label: tag.label, color: tag.color });
+          }
+        });
+      }
+    });
+    return Array.from(tagMap.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [plannerShots]);
+
+  const filteredPlannerShots = useMemo(() => {
+    if (!selectedTagIds.length) return plannerShots;
+
+    const selectedTagSet = new Set(selectedTagIds);
+    return plannerShots.filter((shot) => {
+      const shotTagIds = Array.isArray(shot.tags)
+        ? shot.tags.map((tag) => tag.id).filter(Boolean)
+        : [];
+      return shotTagIds.some((id) => selectedTagSet.has(id));
+    });
+  }, [plannerShots, selectedTagIds]);
+
+  const filteredShotsByLane = useMemo(() => {
+    return groupShotsByLane(filteredPlannerShots);
+  }, [filteredPlannerShots]);
 
   const talentNoOptionsMessage =
     talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available");
@@ -1596,8 +1633,8 @@ function PlannerPageContent() {
   useEffect(() => () => cleanupAutoScroll(), [cleanupAutoScroll]);
 
   const lanesForExport = useMemo(
-    () => buildPlannerExportLanes(shotsByLane, lanes, normaliseShotProducts),
-    [shotsByLane, lanes, normaliseShotProducts]
+    () => buildPlannerExportLanes(filteredShotsByLane, lanes, normaliseShotProducts),
+    [filteredShotsByLane, lanes, normaliseShotProducts]
   );
   const laneSummary = useMemo(() => calculateLaneSummaries(lanesForExport), [lanesForExport]);
   const talentSummary = useMemo(() => calculateTalentSummaries(lanesForExport), [lanesForExport]);
@@ -1612,12 +1649,12 @@ function PlannerPageContent() {
   const shotListClass = isListView
     ? "flex flex-col gap-3"
     : "flex flex-col gap-3";
-  const unassignedShots = shotsByLane[UNASSIGNED_LANE_ID] || [];
+  const unassignedShots = filteredShotsByLane[UNASSIGNED_LANE_ID] || [];
   const groupBy = plannerPrefs.groupBy;
   const sortBy = plannerPrefs.sort;
   const derivedGroups = useMemo(
-    () => (groupBy === "none" ? [] : selectPlannerGroups(plannerShots, { groupBy, sortBy })),
-    [plannerShots, groupBy, sortBy]
+    () => (groupBy === "none" ? [] : selectPlannerGroups(filteredPlannerShots, { groupBy, sortBy })),
+    [filteredPlannerShots, groupBy, sortBy]
   );
 
   const renderLaneBlock = (laneId, title, laneShots, laneMeta = null, options = {}) => {
@@ -2140,6 +2177,32 @@ function PlannerPageContent() {
               ))}
             </select>
           </div>
+          {tagOptions.length > 0 && (
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="planner-tag-filter"
+                className="text-xs font-medium uppercase tracking-wide text-slate-500"
+              >
+                Tag
+              </label>
+              <select
+                id="planner-tag-filter"
+                className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                value={selectedTagIds.length === 1 ? selectedTagIds[0] : ""}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setSelectedTagIds(value ? [value] : []);
+                }}
+              >
+                <option value="">All shots</option>
+                {tagOptions.map((tag) => (
+                  <option key={tag.id} value={tag.id}>
+                    {tag.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -2242,7 +2305,7 @@ function PlannerPageContent() {
                   className="animate-fade-in opacity-0"
                   style={getStaggerDelay(index + 1)}
                 >
-                  {renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane, {
+                  {renderLaneBlock(lane.id, lane.name, filteredShotsByLane[lane.id] || [], lane, {
                     sortBy,
                   })}
                 </div>
@@ -2261,7 +2324,7 @@ function PlannerPageContent() {
                   className="animate-fade-in opacity-0"
                   style={getStaggerDelay(index + 1)}
                 >
-                  {renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane, {
+                  {renderLaneBlock(lane.id, lane.name, filteredShotsByLane[lane.id] || [], lane, {
                     sortBy,
                   })}
                 </div>

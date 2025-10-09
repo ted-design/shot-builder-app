@@ -54,6 +54,7 @@ import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import AppImage from "../components/common/AppImage";
 import { z } from "zod";
 import { createProductFamily, createProductColourway } from "../lib/productMutations";
+import { TagList } from "../components/ui/TagBadge";
 import {
   shotDraftSchema,
   initialShotDraft,
@@ -75,6 +76,7 @@ const defaultShotFilters = {
   locationId: "",
   talentIds: [],
   productFamilyIds: [],
+  tagIds: [],
 };
 
 const SHOTS_PREFS_STORAGE_KEY = "shots:viewPrefs";
@@ -139,6 +141,9 @@ const readStoredShotFilters = () => {
         : [],
       productFamilyIds: Array.isArray(parsed.productFamilyIds)
         ? parsed.productFamilyIds.filter((value) => typeof value === "string" && value)
+        : [],
+      tagIds: Array.isArray(parsed.tagIds)
+        ? parsed.tagIds.filter((value) => typeof value === "string" && value)
         : [],
     };
   } catch (error) {
@@ -295,20 +300,48 @@ export default function ShotsPage() {
     [filters.productFamilyIds, productFilterOptions]
   );
 
+  // Build tag filter options from all shots
+  const tagFilterOptions = useMemo(() => {
+    const tagMap = new Map();
+    shots.forEach((shot) => {
+      if (Array.isArray(shot.tags)) {
+        shot.tags.forEach((tag) => {
+          if (tag && tag.id && tag.label) {
+            tagMap.set(tag.id, { value: tag.id, label: tag.label, color: tag.color });
+          }
+        });
+      }
+    });
+    return Array.from(tagMap.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [shots]);
+
+  const tagFilterValue = useMemo(
+    () =>
+      (filters.tagIds || []).map((id) =>
+        tagFilterOptions.find((option) => option.value === id) || {
+          value: id,
+          label: "Unknown tag",
+        }
+      ),
+    [filters.tagIds, tagFilterOptions]
+  );
+
   // Calculate active filter count
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filters.locationId && filters.locationId.length) count++;
     if (Array.isArray(filters.talentIds) && filters.talentIds.length) count++;
     if (Array.isArray(filters.productFamilyIds) && filters.productFamilyIds.length) count++;
+    if (Array.isArray(filters.tagIds) && filters.tagIds.length) count++;
     return count;
-  }, [filters.locationId, filters.talentIds, filters.productFamilyIds]);
+  }, [filters.locationId, filters.talentIds, filters.productFamilyIds, filters.tagIds]);
 
   const filteredShots = useMemo(() => {
     const term = debouncedQueryText.trim().toLowerCase();
     const selectedLocation = filters.locationId || "";
     const selectedTalentIds = new Set(filters.talentIds || []);
     const selectedProductIds = new Set(filters.productFamilyIds || []);
+    const selectedTagIds = new Set(filters.tagIds || []);
 
     return shots.filter((shot) => {
       if (selectedLocation && (shot.locationId || "") !== selectedLocation) {
@@ -333,6 +366,14 @@ export default function ShotsPage() {
         if (!hasProductMatch) return false;
       }
 
+      if (selectedTagIds.size) {
+        const shotTagIds = Array.isArray(shot.tags)
+          ? shot.tags.map((tag) => tag.id).filter(Boolean)
+          : [];
+        const hasTagMatch = shotTagIds.some((id) => selectedTagIds.has(id));
+        if (!hasTagMatch) return false;
+      }
+
       if (!term) return true;
 
       const talentNames = Array.isArray(shot.talent)
@@ -352,12 +393,16 @@ export default function ShotsPage() {
       const plainNotes = typeof shot.description === "string"
         ? shot.description.replace(/<[^>]+>/g, " ")
         : "";
+      const tagNames = Array.isArray(shot.tags)
+        ? shot.tags.map((tag) => tag.label).filter(Boolean)
+        : [];
       const haystack = [
         shot.name,
         shot.type,
         shot.locationName || locationById.get(shot.locationId || ""),
         ...talentNames,
         ...productNames,
+        ...tagNames,
         plainNotes,
       ]
         .filter(Boolean)
@@ -385,6 +430,7 @@ export default function ShotsPage() {
         productFamilyIds: Array.isArray(filters.productFamilyIds)
           ? filters.productFamilyIds
           : [],
+        tagIds: Array.isArray(filters.tagIds) ? filters.tagIds : [],
       })
     );
   }, [filters]);
@@ -973,6 +1019,7 @@ export default function ShotsPage() {
         productIds: extractProductIds(productsForWrite),
         talent: talentForWrite,
         talentIds: talentForWrite.map((entry) => entry.talentId),
+        tags: validation.data.tags || [],
         projectId: resolvedProjectId,
         status: resolvedStatus,
         deleted: false,
@@ -1106,6 +1153,10 @@ export default function ShotsPage() {
         : null;
     }
 
+    if (Object.prototype.hasOwnProperty.call(patch, "tags")) {
+      docPatch.tags = Array.isArray(patch.tags) ? patch.tags : [];
+    }
+
     const after = {
       productIds: docPatch.productIds ?? before.productIds,
       products: docPatch.products ?? before.products,
@@ -1166,6 +1217,14 @@ export default function ShotsPage() {
     }));
   }, []);
 
+  const handleTagFilterChange = useCallback((selected) => {
+    const ids = Array.isArray(selected) ? selected.map((option) => option.value) : [];
+    setFilters((previous) => ({
+      ...previous,
+      tagIds: ids,
+    }));
+  }, []);
+
   const clearFilters = useCallback(
     () => setFilters({ ...defaultShotFilters }),
     []
@@ -1208,8 +1267,20 @@ export default function ShotsPage() {
         }
       });
     }
+    if (Array.isArray(filters.tagIds) && filters.tagIds.length > 0) {
+      filters.tagIds.forEach((tagId) => {
+        const tagOption = tagFilterOptions.find((opt) => opt.value === tagId);
+        if (tagOption) {
+          pills.push({
+            key: `tag-${tagId}`,
+            label: "Tag",
+            value: tagOption.label,
+          });
+        }
+      });
+    }
     return pills;
-  }, [filters.locationId, filters.talentIds, filters.productFamilyIds, locations, talentFilterOptions, productFilterOptions]);
+  }, [filters.locationId, filters.talentIds, filters.productFamilyIds, filters.tagIds, locations, talentFilterOptions, productFilterOptions, tagFilterOptions]);
 
   // Remove individual filter
   const removeFilter = useCallback((filterKey) => {
@@ -1226,6 +1297,12 @@ export default function ShotsPage() {
       setFilters((prev) => ({
         ...prev,
         productFamilyIds: prev.productFamilyIds.filter((id) => id !== productId),
+      }));
+    } else if (filterKey.startsWith("tag-")) {
+      const tagId = filterKey.replace("tag-", "");
+      setFilters((prev) => ({
+        ...prev,
+        tagIds: prev.tagIds.filter((id) => id !== tagId),
       }));
     }
   }, []);
@@ -1252,6 +1329,7 @@ export default function ShotsPage() {
             locationId: shot.locationId || "",
             talent: talentSelection,
             products,
+            tags: Array.isArray(shot.tags) ? shot.tags : [],
           },
         });
       } catch (error) {
@@ -1309,6 +1387,7 @@ export default function ShotsPage() {
         locationId: parsed.locationId || null,
         talent: parsed.talent,
         products: parsed.products,
+        tags: parsed.tags || [],
       });
       toast.success(`Shot "${parsed.name}" updated.`);
       setEditingShot(null);
@@ -1666,6 +1745,27 @@ export default function ShotsPage() {
                         closeMenuOnSelect={false}
                       />
                     </div>
+
+                    {/* Tags filter */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-700">Tags</label>
+                      <Select
+                        isMulti
+                        classNamePrefix="filter-select"
+                        styles={filterSelectStyles}
+                        options={tagFilterOptions}
+                        value={tagFilterValue}
+                        onChange={handleTagFilterChange}
+                        placeholder={tagFilterOptions.length ? "Select tags..." : "No tags available"}
+                        isDisabled={!tagFilterOptions.length}
+                        noOptionsMessage={() =>
+                          tagFilterOptions.length ? "No matching tags" : "No tags available"
+                        }
+                        menuPortalTarget={selectPortalTarget}
+                        menuShouldBlockScroll
+                        closeMenuOnSelect={false}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -1936,11 +2036,13 @@ const ShotListCard = memo(function ShotListCard({
     showLocation = true,
     showNotes = true,
   } = viewPrefs || defaultViewPrefs;
+  const tags = Array.isArray(shot.tags) ? shot.tags : [];
+
   return (
     <Card className="border shadow-sm">
       <CardHeader className="px-4 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
+          <div className="flex-1 min-w-0">
             <h3 className="text-base font-semibold text-slate-900 line-clamp-2" title={shot.name}>
               {shot.name}
             </h3>
@@ -1949,6 +2051,11 @@ const ShotListCard = memo(function ShotListCard({
               {shot.type && <span>Type: {shot.type}</span>}
               {showLocation && locationName && <span title={locationName}>Location: {locationName}</span>}
             </div>
+            {tags.length > 0 && (
+              <div className="mt-2">
+                <TagList tags={tags} emptyMessage={null} />
+              </div>
+            )}
           </div>
           {canEditShots && (
             <div className="flex flex-wrap gap-2">
@@ -2012,6 +2119,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     showLocation = true,
     showNotes = true,
   } = viewPrefs || defaultViewPrefs;
+  const tags = Array.isArray(shot.tags) ? shot.tags : [];
 
   return (
     <Card className="overflow-hidden border shadow-sm">
@@ -2052,6 +2160,11 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
           {formattedDate && <span>{formattedDate}</span>}
           {showLocation && locationName && <span title={locationName}>{locationName}</span>}
         </div>
+        {tags.length > 0 && (
+          <div>
+            <TagList tags={tags} emptyMessage={null} />
+          </div>
+        )}
         {showNotes && (
           plainNotes ? (
             <p className="text-sm text-slate-600 line-clamp-3">{plainNotes}</p>
