@@ -45,7 +45,7 @@ import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
 import ShotEditModal from "../components/shots/ShotEditModal";
 import CreateShotCard from "../components/shots/CreateShotCard";
-import BulkTaggingToolbar from "../components/shots/BulkTaggingToolbar";
+import BulkOperationsToolbar from "../components/shots/BulkOperationsToolbar";
 import { useAuth } from "../context/AuthContext";
 import { useProjectScope } from "../context/ProjectScopeContext";
 import { canEditProducts, canManageShots, resolveEffectiveRole } from "../lib/rbac";
@@ -73,6 +73,20 @@ import { getStaggerDelay } from "../lib/animations";
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
+
+// Available shot types for bulk editing
+const AVAILABLE_SHOT_TYPES = [
+  "product",
+  "lifestyle",
+  "detail",
+  "model",
+  "flat-lay",
+  "hero",
+  "ecommerce",
+  "editorial",
+  "b-roll",
+  "establishing",
+];
 
 const defaultShotFilters = {
   locationId: "",
@@ -1665,6 +1679,366 @@ export default function ShotsPage() {
     }
   }, [canEditShots, selectedShots, currentShotsPath, db, isProcessingBulk]);
 
+  /**
+   * Bulk set location for selected shots
+   */
+  const handleBulkSetLocation = useCallback(async (locationId) => {
+    if (!canEditShots || selectedShots.length === 0) return;
+
+    // Prevent race conditions from rapid operations
+    if (isProcessingBulk) {
+      toast.info({ title: "Please wait", description: "Another operation is in progress." });
+      return;
+    }
+
+    setIsProcessingBulk(true);
+    try {
+      let batch = writeBatch(db);
+      let updateCount = 0;
+
+      // Get location name for denormalization
+      const locationName = locationId
+        ? locations.find((loc) => loc.id === locationId)?.name || null
+        : null;
+
+      // Process in batches of 500 (Firestore limit)
+      for (let i = 0; i < selectedShots.length; i++) {
+        const shot = selectedShots[i];
+        const shotDocRef = docRef(...currentShotsPath, shot.id);
+
+        batch.update(shotDocRef, {
+          locationId: locationId || null,
+          locationName: locationName,
+          updatedAt: serverTimestamp()
+        });
+        updateCount++;
+
+        // Commit every 500 operations
+        if (updateCount === 500) {
+          await batch.commit();
+          batch = writeBatch(db);
+          updateCount = 0;
+        }
+      }
+
+      // Commit remaining operations
+      if (updateCount > 0) {
+        await batch.commit();
+      }
+
+      const locationLabel = locationId ? (locationName || "Unknown location") : "None";
+      toast.success({
+        title: "Location updated",
+        description: `Set location to "${locationLabel}" for ${selectedShots.length} shot${
+          selectedShots.length === 1 ? "" : "s"
+        }.`,
+      });
+
+      // Clear selection after successful operation
+      setSelectedShotIds(new Set());
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Unable to update location.");
+      console.error("[Shots] Failed to set location in bulk", {
+        error,
+        shotCount: selectedShots.length,
+        shotIds: selectedShots.map(s => s.id).slice(0, 10),
+        locationId
+      });
+      toast.error({ title: "Failed to update location", description: `${code}: ${message}` });
+    } finally {
+      setIsProcessingBulk(false);
+    }
+  }, [canEditShots, selectedShots, currentShotsPath, db, locations, isProcessingBulk]);
+
+  /**
+   * Bulk set date for selected shots
+   */
+  const handleBulkSetDate = useCallback(async (dateValue) => {
+    if (!canEditShots || selectedShots.length === 0) return;
+
+    // Prevent race conditions from rapid operations
+    if (isProcessingBulk) {
+      toast.info({ title: "Please wait", description: "Another operation is in progress." });
+      return;
+    }
+
+    setIsProcessingBulk(true);
+    try {
+      let batch = writeBatch(db);
+      let updateCount = 0;
+
+      // Parse date to timestamp
+      const dateTimestamp = dateValue ? parseDateToTimestamp(dateValue) : null;
+
+      // Process in batches of 500 (Firestore limit)
+      for (let i = 0; i < selectedShots.length; i++) {
+        const shot = selectedShots[i];
+        const shotDocRef = docRef(...currentShotsPath, shot.id);
+
+        batch.update(shotDocRef, {
+          date: dateTimestamp,
+          updatedAt: serverTimestamp()
+        });
+        updateCount++;
+
+        // Commit every 500 operations
+        if (updateCount === 500) {
+          await batch.commit();
+          batch = writeBatch(db);
+          updateCount = 0;
+        }
+      }
+
+      // Commit remaining operations
+      if (updateCount > 0) {
+        await batch.commit();
+      }
+
+      const dateLabel = dateValue ? dateValue : "cleared";
+      toast.success({
+        title: "Date updated",
+        description: `Set date to ${dateLabel} for ${selectedShots.length} shot${
+          selectedShots.length === 1 ? "" : "s"
+        }.`,
+      });
+
+      // Clear selection after successful operation
+      setSelectedShotIds(new Set());
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Unable to update date.");
+      console.error("[Shots] Failed to set date in bulk", {
+        error,
+        shotCount: selectedShots.length,
+        shotIds: selectedShots.map(s => s.id).slice(0, 10),
+        dateValue
+      });
+      toast.error({ title: "Failed to update date", description: `${code}: ${message}` });
+    } finally {
+      setIsProcessingBulk(false);
+    }
+  }, [canEditShots, selectedShots, currentShotsPath, db, isProcessingBulk]);
+
+  /**
+   * Bulk set type for selected shots
+   */
+  const handleBulkSetType = useCallback(async (typeValue) => {
+    if (!canEditShots || selectedShots.length === 0) return;
+
+    // Prevent race conditions from rapid operations
+    if (isProcessingBulk) {
+      toast.info({ title: "Please wait", description: "Another operation is in progress." });
+      return;
+    }
+
+    setIsProcessingBulk(true);
+    try {
+      let batch = writeBatch(db);
+      let updateCount = 0;
+
+      // Process in batches of 500 (Firestore limit)
+      for (let i = 0; i < selectedShots.length; i++) {
+        const shot = selectedShots[i];
+        const shotDocRef = docRef(...currentShotsPath, shot.id);
+
+        batch.update(shotDocRef, {
+          type: typeValue || "",
+          updatedAt: serverTimestamp()
+        });
+        updateCount++;
+
+        // Commit every 500 operations
+        if (updateCount === 500) {
+          await batch.commit();
+          batch = writeBatch(db);
+          updateCount = 0;
+        }
+      }
+
+      // Commit remaining operations
+      if (updateCount > 0) {
+        await batch.commit();
+      }
+
+      const typeLabel = typeValue ? typeValue : "cleared";
+      toast.success({
+        title: "Type updated",
+        description: `Set type to "${typeLabel}" for ${selectedShots.length} shot${
+          selectedShots.length === 1 ? "" : "s"
+        }.`,
+      });
+
+      // Clear selection after successful operation
+      setSelectedShotIds(new Set());
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Unable to update type.");
+      console.error("[Shots] Failed to set type in bulk", {
+        error,
+        shotCount: selectedShots.length,
+        shotIds: selectedShots.map(s => s.id).slice(0, 10),
+        typeValue
+      });
+      toast.error({ title: "Failed to update type", description: `${code}: ${message}` });
+    } finally {
+      setIsProcessingBulk(false);
+    }
+  }, [canEditShots, selectedShots, currentShotsPath, db, isProcessingBulk]);
+
+  /**
+   * Bulk move shots to a different project
+   */
+  const handleBulkMoveToProject = useCallback(async (targetProjectId) => {
+    if (!canEditShots || selectedShots.length === 0 || !targetProjectId) return;
+
+    // Prevent race conditions from rapid operations
+    if (isProcessingBulk) {
+      toast.info({ title: "Please wait", description: "Another operation is in progress." });
+      return;
+    }
+
+    // Confirmation prompt for destructive operation
+    const targetProject = projects.find((p) => p.id === targetProjectId);
+    const projectName = targetProject?.name || "selected project";
+    const confirmed = await showConfirm(
+      `Move ${selectedShots.length} shot${selectedShots.length === 1 ? "" : "s"} to "${projectName}"? ` +
+      `They will no longer appear in the current project.`
+    );
+    if (!confirmed) return;
+
+    setIsProcessingBulk(true);
+    try {
+      let batch = writeBatch(db);
+      let updateCount = 0;
+
+      // Process in batches of 500 (Firestore limit)
+      for (let i = 0; i < selectedShots.length; i++) {
+        const shot = selectedShots[i];
+        const shotDocRef = docRef(...currentShotsPath, shot.id);
+
+        batch.update(shotDocRef, {
+          projectId: targetProjectId,
+          laneId: null, // Reset lane assignment when moving projects
+          updatedAt: serverTimestamp()
+        });
+        updateCount++;
+
+        // Commit every 500 operations
+        if (updateCount === 500) {
+          await batch.commit();
+          batch = writeBatch(db);
+          updateCount = 0;
+        }
+      }
+
+      // Commit remaining operations
+      if (updateCount > 0) {
+        await batch.commit();
+      }
+
+      toast.success({
+        title: "Shots moved",
+        description: `Moved ${selectedShots.length} shot${
+          selectedShots.length === 1 ? "" : "s"
+        } to "${projectName}".`,
+      });
+
+      // Clear selection after successful operation
+      setSelectedShotIds(new Set());
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Unable to move shots.");
+      console.error("[Shots] Failed to move shots to project in bulk", {
+        error,
+        shotCount: selectedShots.length,
+        shotIds: selectedShots.map(s => s.id).slice(0, 10),
+        targetProjectId
+      });
+      toast.error({ title: "Failed to move shots", description: `${code}: ${message}` });
+    } finally {
+      setIsProcessingBulk(false);
+    }
+  }, [canEditShots, selectedShots, currentShotsPath, db, projects, isProcessingBulk]);
+
+  /**
+   * Bulk copy shots to a different project
+   */
+  const handleBulkCopyToProject = useCallback(async (targetProjectId) => {
+    if (!canEditShots || selectedShots.length === 0 || !targetProjectId) return;
+
+    // Prevent race conditions from rapid operations
+    if (isProcessingBulk) {
+      toast.info({ title: "Please wait", description: "Another operation is in progress." });
+      return;
+    }
+
+    // Confirmation for resource-intensive operation
+    const targetProject = projects.find((p) => p.id === targetProjectId);
+    const projectName = targetProject?.name || "selected project";
+    const confirmed = await showConfirm(
+      `Copy ${selectedShots.length} shot${selectedShots.length === 1 ? "" : "s"} to "${projectName}"? ` +
+      `This will create ${selectedShots.length} new shot${selectedShots.length === 1 ? "" : "s"}.`
+    );
+    if (!confirmed) return;
+
+    setIsProcessingBulk(true);
+    try {
+      const copiedShots = [];
+
+      // Create new documents with addDoc (cannot batch addDoc operations easily)
+      for (let i = 0; i < selectedShots.length; i++) {
+        const shot = selectedShots[i];
+
+        // Copy all properties except id and timestamps
+        const shotData = {
+          name: shot.name,
+          description: shot.description || "",
+          type: shot.type || "",
+          date: shot.date || null,
+          locationId: shot.locationId || null,
+          locationName: shot.locationName || null,
+          projectId: targetProjectId,
+          laneId: null, // Don't assign to any lane initially
+          status: shot.status || "todo",
+          products: Array.isArray(shot.products) ? shot.products : [],
+          productIds: Array.isArray(shot.productIds) ? shot.productIds : [],
+          talent: Array.isArray(shot.talent) ? shot.talent : [],
+          talentIds: Array.isArray(shot.talentIds) ? shot.talentIds : [],
+          tags: Array.isArray(shot.tags) ? shot.tags : [],
+          notes: shot.notes || "",
+          thumbPath: shot.thumbPath || null, // Copy reference to same image
+          createdAt: serverTimestamp(),
+          createdBy: user?.uid || null,
+          updatedAt: serverTimestamp()
+        };
+
+        const newDocRef = await addDoc(
+          collRef(...currentShotsPath),
+          shotData
+        );
+        copiedShots.push(newDocRef.id);
+      }
+
+      toast.success({
+        title: "Shots copied",
+        description: `Copied ${copiedShots.length} shot${
+          copiedShots.length === 1 ? "" : "s"
+        } to "${projectName}".`,
+      });
+
+      // Clear selection after successful operation
+      setSelectedShotIds(new Set());
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Unable to copy shots.");
+      console.error("[Shots] Failed to copy shots to project in bulk", {
+        error,
+        shotCount: selectedShots.length,
+        shotIds: selectedShots.map(s => s.id).slice(0, 10),
+        targetProjectId
+      });
+      toast.error({ title: "Failed to copy shots", description: `${code}: ${message}` });
+    } finally {
+      setIsProcessingBulk(false);
+    }
+  }, [canEditShots, selectedShots, currentShotsPath, db, user, projects, isProcessingBulk]);
+
   const selectPortalTarget =
     typeof window === "undefined" ? undefined : window.document.body;
   const filtersApplied = Boolean(
@@ -1979,9 +2353,10 @@ export default function ShotsPage() {
 
       {/* Bulk Tagging Toolbar - appears when shots are selected */}
       {canEditShots && selectedShotIds.size > 0 && (
-        <BulkTaggingToolbar
+        <BulkOperationsToolbar
           selectedCount={selectedShotIds.size}
           onClearSelection={clearSelection}
+          // Tag operations
           onApplyTags={handleBulkApplyTags}
           onRemoveTags={handleBulkRemoveTags}
           availableTags={tagFilterOptions.map((opt) => ({
@@ -1989,6 +2364,18 @@ export default function ShotsPage() {
             label: opt.label,
             color: opt.color || "blue",
           }))}
+          // Property operations
+          onSetLocation={handleBulkSetLocation}
+          onSetDate={handleBulkSetDate}
+          onSetType={handleBulkSetType}
+          availableLocations={locations}
+          availableTypes={AVAILABLE_SHOT_TYPES}
+          // Project operations
+          onMoveToProject={handleBulkMoveToProject}
+          onCopyToProject={handleBulkCopyToProject}
+          availableProjects={projects}
+          currentProjectId={projectId}
+          // State
           isProcessing={isProcessingBulk}
         />
       )}
