@@ -9,7 +9,7 @@
 // `date` field is updated as well.  All other behaviour matches the
 // previous Planner implementation.
 
-import React, { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   DndContext,
@@ -60,7 +60,7 @@ import { TagList } from "../components/ui/TagBadge";
 import { toast, showConfirm } from "../lib/toast";
 import AppImage from "../components/common/AppImage";
 import PlannerSummary from "../components/planner/PlannerSummary";
-import PlannerExportModal from "../components/planner/PlannerExportModal";
+const PlannerExportModal = lazy(() => import("../components/planner/PlannerExportModal"));
 import ShotEditModal from "../components/shots/ShotEditModal";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
@@ -2401,15 +2401,19 @@ function PlannerPageContent() {
           Planner actions are read-only for your role. Producers or crew can organise shot lanes.
         </div>
       )}
-      <PlannerExportModal
-        open={exportOpen}
-        onClose={() => setExportOpen(false)}
-        lanes={lanesForExport}
-        laneSummary={laneSummary}
-        talentSummary={talentSummary}
-        defaultVisibleFields={visibleFields}
-        isLoading={isPlannerLoading}
-      />
+      {exportOpen && (
+        <Suspense fallback={null}>
+          <PlannerExportModal
+            open={exportOpen}
+            onClose={() => setExportOpen(false)}
+            lanes={lanesForExport}
+            laneSummary={laneSummary}
+            talentSummary={talentSummary}
+            defaultVisibleFields={visibleFields}
+            isLoading={isPlannerLoading}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

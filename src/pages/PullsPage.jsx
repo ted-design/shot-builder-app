@@ -5,7 +5,7 @@
 // project is resolved via ProjectScopeProvider so the view reacts when users
 // switch campaigns from the dashboard.
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   collection,
@@ -29,14 +29,12 @@ import PullItemEditor from "../components/pulls/PullItemEditor";
 import PullItemsTable from "../components/pulls/PullItemsTable";
 import ChangeOrderModal from "../components/pulls/ChangeOrderModal";
 import ChangeOrderReviewModal from "../components/pulls/ChangeOrderReviewModal";
-import PullExportModal from "../components/pulls/PullExportModal";
+const PullExportModal = lazy(() => import("../components/pulls/PullExportModal"));
 import PullShareModal from "../components/pulls/PullShareModal";
 import BulkAddItemsModal from "../components/pulls/BulkAddItemsModal";
 import { useAuth } from "../context/AuthContext";
 import { canManagePulls, canFulfillPulls, canRequestChangeOrders, canApproveChangeOrders, ROLE } from "../lib/rbac";
 import { createChangeOrder, addChangeOrderToItem, approveChangeOrder, rejectChangeOrder, getAllPendingChangeOrders, countPendingChangeOrders } from "../lib/changeOrders";
-import { pdf } from "@react-pdf/renderer";
-import { PullPDF } from "../lib/pdfTemplates";
 import { Modal } from "../components/ui/modal";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -1088,18 +1086,6 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
     }
   };
 
-  const handleDownloadPdf = async () => {
-    const blob = await pdf(<PullPDF pull={{ ...pull, items }} />).toBlob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${pull.title || "pull"}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  };
-
   const handleGenerateShareLink = async (token) => {
     await updateDoc(doc(db, ...pullsPath(projectId, clientId), pull.id), {
       shareToken: token,
@@ -1320,10 +1306,12 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
 
       {/* Export Modal */}
       {exportModalOpen && (
-        <PullExportModal
-          pull={{ ...pull, items }}
-          onClose={() => setExportModalOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <PullExportModal
+            pull={{ ...pull, items }}
+            onClose={() => setExportModalOpen(false)}
+          />
+        </Suspense>
       )}
 
       {/* Share Modal */}
