@@ -37,6 +37,7 @@ export const queryKeys = {
   talentById: (clientId, talentId) => ["talent", clientId, "detail", talentId],
   locations: (clientId) => ["locations", clientId],
   locationById: (clientId, locationId) => ["locations", clientId, "detail", locationId],
+  lanes: (clientId, projectId) => ["lanes", clientId, projectId],
 };
 
 /**
@@ -333,6 +334,60 @@ export function useLocations(clientId, options = {}) {
 
     return () => unsubscribe();
   }, [clientId, queryClient, queryKey]);
+
+  return result;
+}
+
+/**
+ * Hook for fetching planner lanes with realtime updates
+ *
+ * @param {string} clientId - Client ID
+ * @param {string} projectId - Project ID
+ * @param {object} options - Query options
+ * @returns {object} Query result with data, loading, error states
+ *
+ * @example
+ * const { data: lanes, isLoading } = useLanes(clientId, projectId);
+ */
+export function useLanes(clientId, projectId, options = {}) {
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.lanes(clientId, projectId);
+
+  const result = useQuery({
+    queryKey,
+    queryFn: async () => {
+      if (!clientId || !projectId) return [];
+
+      const lanesRef = collection(db, "clients", clientId, "projects", projectId, "lanes");
+      const q = query(lanesRef, orderBy("order", "asc"));
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    },
+    enabled: !!clientId && !!projectId,
+    ...options,
+  });
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!clientId || !projectId) return;
+
+    const lanesRef = collection(db, "clients", clientId, "projects", projectId, "lanes");
+    const q = query(lanesRef, orderBy("order", "asc"));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const lanes = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        queryClient.setQueryData(queryKey, lanes);
+      },
+      (error) => {
+        console.error("[useLanes] Subscription error:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [clientId, projectId, queryClient, queryKey]);
 
   return result;
 }

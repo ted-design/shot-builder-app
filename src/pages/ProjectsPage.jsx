@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, addDoc, doc, updateDoc, orderBy, setDoc, serverTimestamp, deleteField } from "firebase/firestore";
+import { addDoc, doc, updateDoc, setDoc, serverTimestamp, deleteField } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
-import { useFirestoreCollection } from "../hooks/useFirestoreCollection";
+import { useProjects } from "../hooks/useFirestoreQuery";
 import { CLIENT_ID } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { canManageProjects, ROLE } from "../lib/rbac";
@@ -20,14 +20,10 @@ export default function ProjectsPage() {
   const navigate = useNavigate();
   const { currentProjectId, setCurrentProjectId, lastVisitedPath } = useProjectScope();
   const resolvedClientId = clientId || CLIENT_ID;
-  const projectsPath = useMemo(
-    () => ["clients", resolvedClientId, "projects"],
-    [resolvedClientId]
-  );
-  // Firestore subscription: listen for projects ordered by createdAt desc.
-  const projectsRef = useMemo(() => collection(db, ...projectsPath), [projectsPath]);
-  const { data: itemsRaw, loading: loadingProjects, error: projectsError } =
-    useFirestoreCollection(projectsRef, [orderBy("createdAt", "desc")]);
+
+  // TanStack Query hook - cached data with realtime updates
+  const { data: itemsRaw = [], isLoading: loadingProjects, error: projectsError } = useProjects(resolvedClientId);
+
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManageProjects(role);
   const canDelete = role === ROLE.ADMIN;
@@ -106,8 +102,7 @@ export default function ProjectsPage() {
     return () => window.removeEventListener("mousedown", onFiltersClick);
   }, [filtersOpen]);
 
-  // Show a toast notification if the subscription reports an error.  This effect runs
-  // whenever `projectsError` changes.
+  // Show a toast notification if TanStack Query reports an error
   useEffect(() => {
     if (projectsError) {
       showError("Error loading projects: " + projectsError.message);
