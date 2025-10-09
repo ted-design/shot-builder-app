@@ -76,6 +76,20 @@ jobs:
             --non-interactive \
             | tee deploy.json
 
+          # Validate that deploy.json contains valid JSON, not HTML or error output
+          if head -1 deploy.json | grep -qi '<!DOCTYPE\|<html'; then
+            echo "ERROR: Deploy command returned HTML instead of JSON. Full output:"
+            cat deploy.json
+            exit 1
+          fi
+
+          # Verify JSON is parseable and check for success status
+          if ! node -e "JSON.parse(require('fs').readFileSync('deploy.json', 'utf8'))" 2>/dev/null; then
+            echo "ERROR: Deploy command returned invalid JSON. Full output:"
+            cat deploy.json
+            exit 1
+          fi
+
       - name: Output preview URL
         run: |
           set -e
