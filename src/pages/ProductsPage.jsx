@@ -1193,12 +1193,17 @@ export default function ProductsPage() {
                   <span className="sr-only">{statusLabel(family.status)}</span>
                 </div>
                 <div className="hidden flex-wrap gap-2 text-sm text-slate-600 sm:flex">
-                  <span>{genderLabel(family.gender)}</span>
+                  <span className="font-medium">{genderLabel(family.gender)}</span>
                   <span>•</span>
-                  <span className="flex items-center gap-1.5">
-                    <Package className="h-4 w-4 text-slate-500" aria-hidden="true" />
-                    <span>{family.activeSkuCount || 0} active of {family.skuCount || 0} colourways</span>
+                  <span className="flex items-center gap-1">
+                    {colourList.length} {colourList.length === 1 ? 'color' : 'colors'}
                   </span>
+                  {sizeList.length > 0 && (
+                    <>
+                      <span>•</span>
+                      <span>{sizeList[0]}-{sizeList[sizeList.length - 1]}</span>
+                    </>
+                  )}
                   {family.updatedAt && (
                     <>
                       <span>•</span>
@@ -1574,8 +1579,11 @@ export default function ProductsPage() {
       <div className="sticky inset-x-0 top-14 z-40 border-b border-gray-200 bg-white shadow-sm">
         <div className="px-6 py-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 space-y-1">
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">Products</h1>
+              <p className="text-sm text-slate-600">
+                Manage product families and SKUs across all projects
+              </p>
             </div>
             <div className="relative min-w-[200px] max-w-md flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

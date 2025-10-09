@@ -27,6 +27,7 @@ import {
   addDoc,
   deleteDoc,
   doc,
+  getDoc,
   updateDoc,
   query,
   orderBy,
@@ -46,6 +47,7 @@ import {
   productFamilyPath,
   talentPath,
   locationsPath,
+  projectPath,
 } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { useProjectScope } from "../context/ProjectScopeContext";
@@ -797,6 +799,7 @@ function PlannerPageContent() {
   const [editingShot, setEditingShot] = useState(null);
   const [isSavingShot, setIsSavingShot] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState(null);
+  const [currentProject, setCurrentProject] = useState(null);
   const [activeDragShot, setActiveDragShot] = useState(null);
   const [overLaneId, setOverLaneId] = useState(null);
   const familyDetailCacheRef = useRef(new Map());
@@ -869,6 +872,31 @@ function PlannerPageContent() {
     }
     redirectNotifiedRef.current = false;
   }, [scopeReady, projectId, navigate]);
+
+  // Fetch current project for header display
+  useEffect(() => {
+    if (!projectId || !clientId) {
+      setCurrentProject(null);
+      return;
+    }
+
+    const fetchProject = async () => {
+      try {
+        const projectRef = doc(db, ...projectPath(projectId, clientId));
+        const projectSnap = await getDoc(projectRef);
+        if (projectSnap.exists()) {
+          setCurrentProject({ id: projectSnap.id, ...projectSnap.data() });
+        } else {
+          setCurrentProject(null);
+        }
+      } catch (error) {
+        console.error("[Planner] Failed to fetch project", error);
+        setCurrentProject(null);
+      }
+    };
+
+    fetchProject();
+  }, [projectId, clientId]);
 
   const familiesById = useMemo(() => {
     const map = new Map();
@@ -2022,6 +2050,11 @@ function PlannerPageContent() {
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold text-slate-900">Planner</h1>
+        {currentProject && (
+          <p className="text-sm font-medium text-slate-700">
+            {currentProject.name}
+          </p>
+        )}
         <p className="text-sm text-slate-600">
           Arrange shots into lanes for the active project. Drag cards between lanes to
           update assignments and keep shoot days organised.
