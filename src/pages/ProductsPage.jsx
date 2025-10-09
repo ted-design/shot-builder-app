@@ -182,11 +182,14 @@ const ProductActionMenu = memo(function ProductActionMenu({
   if (!open) return null;
   return (
     <div
+      role="menu"
+      aria-label={`Actions for ${family.styleName || 'product'}`}
       className="absolute right-0 top-10 z-20 w-48 rounded-md border border-slate-200 bg-white/95 backdrop-blur-md shadow-lg"
       onClick={(event) => event.stopPropagation()}
     >
       <button
         type="button"
+        role="menuitem"
         className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
         onClick={() => {
           onEdit(family);
@@ -198,6 +201,7 @@ const ProductActionMenu = memo(function ProductActionMenu({
       {canEdit && (
         <button
           type="button"
+          role="menuitem"
           className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
           onClick={() => {
             onRename(family);
@@ -210,6 +214,7 @@ const ProductActionMenu = memo(function ProductActionMenu({
       {canEdit && (
         <button
           type="button"
+          role="menuitem"
           className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
           onClick={() => {
             onToggleStatus(family);
@@ -222,6 +227,7 @@ const ProductActionMenu = memo(function ProductActionMenu({
       {!family.deleted && canArchive && (
         <button
           type="button"
+          role="menuitem"
           className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
           onClick={() => {
             onArchive(family);
@@ -234,6 +240,7 @@ const ProductActionMenu = memo(function ProductActionMenu({
       {family.deleted && canDelete && (
         <button
           type="button"
+          role="menuitem"
           className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50 text-emerald-600 font-medium"
           onClick={() => {
             onRestore(family);
@@ -1131,6 +1138,7 @@ export default function ProductsPage() {
                   event.stopPropagation();
                   setMenuFamilyId((current) => (current === family.id ? null : family.id));
                 }}
+                aria-label={`Open actions for ${family.styleName || 'product'}`}
               >
                 ···
               </Button>
