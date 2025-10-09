@@ -50,9 +50,10 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useProjectScope } from "../context/ProjectScopeContext";
 import { canManagePlanner, canManageShots, ROLE, resolveEffectiveRole } from "../lib/rbac";
-import { Download, LayoutGrid, List, Settings2, PencilLine } from "lucide-react";
+import { Download, LayoutGrid, List, Settings2, PencilLine, User, MapPin, Package, Camera, Calendar } from "lucide-react";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { Button } from "../components/ui/button";
+import { StatusBadge } from "../components/ui/StatusBadge";
 import { toast, showConfirm } from "../lib/toast";
 import AppImage from "../components/common/AppImage";
 import PlannerSummary from "../components/planner/PlannerSummary";
@@ -548,11 +549,12 @@ function DraggableShot({
   const style = isActive ? { ...dragStyle, opacity: 0.3 } : dragStyle;
   const dragProps = disabled ? {} : { ...listeners, ...attributes };
   const products = typeof normaliseProducts === "function" ? normaliseProducts(shot) : shot.products || [];
+  const cursorClass = disabled ? "" : "cursor-grab active:cursor-grabbing";
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="w-full"
+      className={`w-full ${cursorClass}`}
       {...dragProps}
     >
       <ShotCard
@@ -640,7 +642,7 @@ function ShotCard({
   return (
     <div
       data-shot-id={shot.id}
-      className={`${cardBaseClass} transition hover:border-primary/40 hover:shadow-md`}
+      className={`${cardBaseClass} transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg`}
     >
       <div className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
@@ -666,14 +668,26 @@ function ShotCard({
           )}
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h4 className="text-sm font-semibold text-slate-900">{shot.name}</h4>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <span>{typeLabel}</span>
-                  <span>•</span>
-                  <span>{dateLabel}</span>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  {shot.type && (
+                    <StatusBadge variant="default" className="text-xs">
+                      {shot.type}
+                    </StatusBadge>
+                  )}
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>{dateLabel}</span>
+                  </div>
+                  {productLabels.length > 0 && (
+                    <div className="flex items-center gap-1 text-xs text-slate-600">
+                      <Package className="h-3.5 w-3.5" />
+                      <span>{productLabels.length} {productLabels.length === 1 ? 'product' : 'products'}</span>
+                    </div>
+                  )}
                   {shot.laneId && shot.laneId === UNASSIGNED_LANE_ID && (
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5">Unassigned</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">Unassigned</span>
                   )}
                 </div>
               </div>
@@ -731,21 +745,27 @@ function ShotCard({
         {showDetailsSection && (
           <div className={metaContainerClass}>
             {visibleFields.location && (
-              <div>
-                <span className="font-medium text-slate-700">Location:</span> {locationLabel}
+              <div className="flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                <span className="font-medium text-slate-700">Location:</span>
+                <span className="text-slate-600">{locationLabel}</span>
               </div>
             )}
             {visibleFields.talent && (
-              <div>
-                <span className="font-medium text-slate-700">Talent:</span>{" "}
-                {talentList.length ? talentList.join(", ") : "–"}
+              <div className="flex items-center gap-1.5">
+                <User className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                <span className="font-medium text-slate-700">Talent:</span>
+                <span className="text-slate-600">{talentList.length ? talentList.join(", ") : "–"}</span>
               </div>
             )}
             {visibleFields.products && (
-              <div>
-                <span className="font-medium text-slate-700">Products:</span>{" "}
-                {productLabels.length ? productLabels.slice(0, 3).join(", ") : "–"}
-                {productLabels.length > 3 && "…"}
+              <div className="flex items-center gap-1.5">
+                <Package className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                <span className="font-medium text-slate-700">Products:</span>
+                <span className="text-slate-600">
+                  {productLabels.length ? productLabels.slice(0, 3).join(", ") : "–"}
+                  {productLabels.length > 3 && "…"}
+                </span>
               </div>
             )}
           </div>
@@ -1585,8 +1605,14 @@ function PlannerPageContent() {
           isActiveLane ? "border-primary/60 shadow-lg ring-1 ring-primary/20" : ""
         }`}
       >
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-slate-900">{title}</span>
+        <div className="mb-3 flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+            <div className="flex items-center gap-1 text-xs text-slate-600">
+              <Camera className="h-3.5 w-3.5" />
+              <span>{displayShots.length} {displayShots.length === 1 ? 'shot' : 'shots'}</span>
+            </div>
+          </div>
           {droppable && laneMeta && canEditPlanner && (
             <span className="flex items-center gap-2 text-xs text-primary">
               <button onClick={() => renameLane(laneMeta)} className="hover:underline">
@@ -1615,7 +1641,9 @@ function PlannerPageContent() {
             />
           ))}
           {placeholderVisible && (
-            <div className="h-16 rounded-md border-2 border-dashed border-primary/60 bg-primary/5" />
+            <div className="flex h-20 items-center justify-center rounded-lg border-2 border-dashed border-primary/60 bg-primary/5 transition-all duration-150">
+              <span className="text-xs font-medium text-primary/60">Drop here</span>
+            </div>
           )}
         </div>
       </div>
