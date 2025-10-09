@@ -1083,7 +1083,7 @@ export default function ProductsPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 space-y-1">
                     <h3
-                      className="text-base font-semibold text-slate-800"
+                      className="text-lg font-semibold text-slate-900"
                       title={family.styleName}
                       style={twoLineClampStyle}
                     >
@@ -1091,7 +1091,7 @@ export default function ProductsPage() {
                     </h3>
                     {family.styleNumber && (
                       <p
-                        className="hidden text-sm text-slate-600 sm:block"
+                        className="hidden text-base font-semibold text-slate-800 sm:block"
                         title={`Style #${family.styleNumber}`}
                       >
                         Style #{family.styleNumber}
@@ -1110,7 +1110,7 @@ export default function ProductsPage() {
                   </div>
                   <span className="sr-only">{statusLabel(family.status)}</span>
                 </div>
-                <div className="hidden flex-wrap gap-2 text-xs text-slate-500 sm:flex">
+                <div className="hidden flex-wrap gap-2 text-sm text-slate-600 sm:flex">
                   <span>{genderLabel(family.gender)}</span>
                   <span>•</span>
                   <span>
@@ -1119,7 +1119,7 @@ export default function ProductsPage() {
                   {family.updatedAt && (
                     <>
                       <span>•</span>
-                      <span>Updated {formatUpdatedAt(family.updatedAt)}</span>
+                      <span className="text-xs text-slate-400">Updated {formatUpdatedAt(family.updatedAt)}</span>
                     </>
                   )}
                 </div>
@@ -1221,7 +1221,7 @@ export default function ProductsPage() {
                 <button
                   type="button"
                   onClick={handleManageColours}
-                  className="cursor-pointer text-left text-base font-semibold text-slate-800 transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  className="cursor-pointer text-left text-lg font-semibold text-slate-900 transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                   title={family.styleName}
                   data-testid={`style-name-${family.id}`}
                 >
@@ -1229,7 +1229,7 @@ export default function ProductsPage() {
                 </button>
               ) : (
                 <span
-                  className="block text-base font-semibold text-slate-800"
+                  className="block text-lg font-semibold text-slate-900"
                   title={family.styleName}
                   style={twoLineClampStyle}
                   data-testid={`style-name-${family.id}`}
@@ -1237,7 +1237,7 @@ export default function ProductsPage() {
                   {family.styleName}
                 </span>
               )}
-              <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+              <div className="flex flex-wrap gap-2 text-sm text-slate-600">
                 <span>{genderLabel(family.gender)}</span>
                 <span>•</span>
                 <span>
@@ -1246,7 +1246,7 @@ export default function ProductsPage() {
                 {family.updatedAt && (
                   <>
                     <span>•</span>
-                    <span>Updated {formatUpdatedAt(family.updatedAt)}</span>
+                    <span className="text-xs text-slate-400">Updated {formatUpdatedAt(family.updatedAt)}</span>
                   </>
                 )}
               </div>
@@ -1263,7 +1263,7 @@ export default function ProductsPage() {
           )}
         </td>
         {showStyleNumberColumn && (
-          <td className="px-4 py-3 align-top text-sm text-slate-600" title={family.styleNumber || undefined}>
+          <td className="px-4 py-3 align-top text-base font-semibold text-slate-800" title={family.styleNumber || undefined}>
             {family.styleNumber || "–"}
           </td>
         )}

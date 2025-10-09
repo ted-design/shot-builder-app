@@ -25,6 +25,34 @@ const formatTimestamp = (value) => {
   return null;
 };
 
+const formatShootDates = (dates) => {
+  if (!Array.isArray(dates) || dates.length === 0) return null;
+  const validDates = dates.filter(Boolean);
+  if (validDates.length === 0) return null;
+
+  // Format dates for display
+  const formatted = validDates.map(dateStr => {
+    try {
+      const date = new Date(dateStr);
+      if (!Number.isNaN(date.getTime())) {
+        return date.toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+      }
+    } catch (error) {
+      console.warn("[ProjectCard] Failed to format shoot date", error);
+    }
+    return dateStr;
+  });
+
+  // Show as range if 2 dates, or list if more
+  if (formatted.length === 1) return formatted[0];
+  if (formatted.length === 2) return `${formatted[0]} - ${formatted[1]}`;
+  return formatted.join(", ");
+};
+
 const renderStat = (label, value) => {
   if (typeof value === "number") {
     return `${label}: ${value}`;
@@ -42,23 +70,21 @@ export function ProjectCard({
   const cardClass = isActive
     ? "border-primary/60 shadow-sm"
     : "border-gray-200 hover:border-primary/40";
+  const shootDates = formatShootDates(project?.shootDates);
+  const shotCount = project?.shotCount ?? project?.stats?.shots;
   const updatedAt = formatTimestamp(project?.updatedAt || project?.createdAt);
-  const stats = [
-    renderStat("Shots", project?.shotCount ?? project?.stats?.shots),
-    renderStat("Pulls", project?.pullCount ?? project?.stats?.pulls),
-  ].filter(Boolean);
 
   return (
     <Card className={`${cardClass} transition-all duration-150 hover:border-primary/50 hover:shadow-md`}>
       <CardContent className="flex h-full flex-col gap-4 py-5">
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex items-start justify-between gap-3">
             <button
               type="button"
               onClick={() => onSelect?.(project)}
               className="text-left flex-1 min-w-0"
             >
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap mb-2">
                 <div className="text-lg font-semibold text-slate-900">
                   {project?.name || "Untitled project"}
                 </div>
@@ -66,11 +92,22 @@ export function ProjectCard({
                   {project?.status === "archived" ? "Archived" : "Active"}
                 </StatusBadge>
               </div>
-              {updatedAt && (
-                <div className="text-xs uppercase tracking-wide text-slate-500">
-                  Updated {updatedAt}
+              {shootDates && (
+                <div className="text-base font-semibold text-slate-800 mb-1">
+                  {shootDates}
                 </div>
               )}
+              <div className="flex flex-wrap gap-2 text-sm text-slate-600">
+                {typeof shotCount === "number" && (
+                  <span>{shotCount} {shotCount === 1 ? "shot" : "shots"}</span>
+                )}
+                {updatedAt && (
+                  <>
+                    {typeof shotCount === "number" && <span>•</span>}
+                    <span className="text-xs text-slate-400">Updated {updatedAt}</span>
+                  </>
+                )}
+              </div>
             </button>
             {canManage && (
               <Button
@@ -85,11 +122,6 @@ export function ProjectCard({
           </div>
           {project?.notes && (
             <p className="text-sm text-slate-600 line-clamp-2">{project.notes}</p>
-          )}
-          {stats.length > 0 && (
-            <div className="text-xs font-medium text-slate-500">
-              {stats.join(" • ")}
-            </div>
           )}
         </div>
         <div className="mt-auto flex justify-between text-sm">
