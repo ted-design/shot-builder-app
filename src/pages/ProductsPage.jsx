@@ -22,7 +22,7 @@ import NewProductModal from "../components/products/NewProductModal";
 import EditProductModal from "../components/products/EditProductModal";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import AppImage from "../components/common/AppImage";
-import { LayoutGrid, List as ListIcon, MoreVertical, Archive, Trash2, Type, Search, Package } from "lucide-react";
+import { LayoutGrid, List as ListIcon, MoreVertical, Archive, Trash2, Type, Search, Package, Filter, X } from "lucide-react";
 import {
   productFamiliesPath,
   productFamilyPath,
@@ -284,6 +284,7 @@ export default function ProductsPage() {
   const [viewMode, setViewMode] = useState(() => readStoredViewMode());
   const [listColumns, setListColumns] = useState(() => readStoredColumns());
   const [listSettingsOpen, setListSettingsOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortOrder, setSortOrder] = useState("styleNameAsc");
   const [selectedFamilyIds, setSelectedFamilyIds] = useState(() => new Set());
   const [batchStyleModalOpen, setBatchStyleModalOpen] = useState(false);
@@ -293,6 +294,7 @@ export default function ProductsPage() {
   const [confirmBatchDeleteText, setConfirmBatchDeleteText] = useState("");
   const menuRef = useRef(null);
   const listSettingsRef = useRef(null);
+  const filtersRef = useRef(null);
   const skuCacheRef = useRef(new Map());
   const batchFirstFieldRef = useRef(null);
   const selectAllRef = useRef(null);
@@ -346,6 +348,18 @@ export default function ProductsPage() {
     window.addEventListener("mousedown", onSettingsClick);
     return () => window.removeEventListener("mousedown", onSettingsClick);
   }, [listSettingsOpen]);
+
+  useEffect(() => {
+    if (!filtersOpen) return undefined;
+    function onFiltersClick(event) {
+      if (!filtersRef.current) return;
+      if (!filtersRef.current.contains(event.target)) {
+        setFiltersOpen(false);
+      }
+    }
+    window.addEventListener("mousedown", onFiltersClick);
+    return () => window.removeEventListener("mousedown", onFiltersClick);
+  }, [filtersOpen]);
 
   const filteredFamilies = useMemo(() => {
     const text = debouncedQueryText.trim().toLowerCase();
@@ -421,6 +435,22 @@ export default function ProductsPage() {
     families.forEach((family) => family.gender && set.add(family.gender.toLowerCase()));
     return Array.from(set);
   }, [families]);
+
+  // Calculate active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (statusFilter !== "active") count++;
+    if (genderFilter !== "all") count++;
+    if (showArchived) count++;
+    return count;
+  }, [statusFilter, genderFilter, showArchived]);
+
+  // Clear all filters
+  const clearAllFilters = useCallback(() => {
+    setStatusFilter("active");
+    setGenderFilter("all");
+    setShowArchived(false);
+  }, []);
 
   const familyMap = useMemo(() => {
     const map = new Map();
@@ -1620,37 +1650,95 @@ export default function ProductsPage() {
         <CardHeader>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  className="rounded border border-gray-300 px-3 py-2 text-sm"
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
+              {/* Filter button with badge */}
+              <div className="relative" ref={filtersRef}>
+                <button
+                  type="button"
+                  onClick={() => setFiltersOpen((prev) => !prev)}
+                  className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
+                    activeFilterCount > 0
+                      ? "border-primary/60 bg-primary/5 text-primary"
+                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                  aria-haspopup="menu"
+                  aria-expanded={filtersOpen}
                 >
-                  <option value="active">Active</option>
-                  <option value="discontinued">Discontinued</option>
-                  <option value="all">All statuses</option>
-                </select>
-                <select
-                  className="rounded border border-gray-300 px-3 py-2 text-sm"
-                  value={genderFilter}
-                  onChange={(event) => setGenderFilter(event.target.value)}
-                >
-                  <option value="all">All genders</option>
-                  {genders.map((gender) => (
-                    <option key={gender} value={gender}>
-                      {genderLabel(gender)}
-                    </option>
-                  ))}
-                </select>
+                  <Filter className="h-4 w-4" aria-hidden="true" />
+                  <span>Filters</span>
+                  {activeFilterCount > 0 && (
+                    <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Filter panel */}
+                {filtersOpen && (
+                  <div className="absolute left-0 z-20 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 shadow-lg">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-slate-900">Filter products</p>
+                        {activeFilterCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              clearAllFilters();
+                              setFiltersOpen(false);
+                            }}
+                            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+                          >
+                            <X className="h-3 w-3" />
+                            Clear all
+                          </button>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-700">
+                          Status
+                        </label>
+                        <select
+                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                          value={statusFilter}
+                          onChange={(event) => setStatusFilter(event.target.value)}
+                        >
+                          <option value="active">Active</option>
+                          <option value="discontinued">Discontinued</option>
+                          <option value="all">All statuses</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-700">
+                          Gender
+                        </label>
+                        <select
+                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                          value={genderFilter}
+                          onChange={(event) => setGenderFilter(event.target.value)}
+                        >
+                          <option value="all">All genders</option>
+                          {genders.map((gender) => (
+                            <option key={gender} value={gender}>
+                              {genderLabel(gender)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <label className="flex items-center gap-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={showArchived}
+                          onChange={(event) => setShowArchived(event.target.checked)}
+                          className="h-4 w-4 rounded border-slate-300"
+                        />
+                        Show archived
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
-              <label className="flex items-center gap-2 text-xs text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={showArchived}
-                  onChange={(event) => setShowArchived(event.target.checked)}
-                />
-                Show archived
-              </label>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2">
