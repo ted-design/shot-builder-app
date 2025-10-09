@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ProjectScopeProvider } from "../../context/ProjectScopeContext.jsx";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
 globalThis.React = React;
@@ -175,6 +176,13 @@ function resetSnapshotData() {
     "unbound-merino",
     "productFamilies",
   ], []);
+  setSnapshot([
+    "clients",
+    "unbound-merino",
+    "projects",
+  ], [
+    { id: "default-project", data: { name: "Default Project", createdAt: "__server_timestamp__" } },
+  ]);
 }
 
 beforeEach(() => {
@@ -197,12 +205,22 @@ afterEach(() => {
   cleanup();
 });
 
-const renderWithRouter = (ui, { route = "/" } = {}) =>
-  render(
-    <MemoryRouter initialEntries={[route]}>
-      <ProjectScopeProvider>{ui}</ProjectScopeProvider>
-    </MemoryRouter>
+const renderWithRouter = (ui, { route = "/" } = {}) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[route]}>
+        <ProjectScopeProvider>{ui}</ProjectScopeProvider>
+      </MemoryRouter>
+    </QueryClientProvider>
   );
+};
 
 describe("Create flows", () => {
   it("creates talent at the client collection and shows a success toast", async () => {

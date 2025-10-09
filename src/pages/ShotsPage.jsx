@@ -10,10 +10,16 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import {
+  useShots,
+  useProjects,
+  useProducts,
+  useTalent,
+  useLocations,
+} from "../hooks/useFirestoreQuery";
+import {
   collection,
   addDoc,
   getDocs,
-  onSnapshot,
   query,
   orderBy,
   where,
@@ -190,13 +196,9 @@ const readStoredViewPrefs = () => {
 };
 
 export default function ShotsPage() {
-  const [shots, setShots] = useState([]);
   const [queryText, setQueryText] = useState("");
   const debouncedQueryText = useDebouncedValue(queryText, 300);
   const [createDraft, setCreateDraft] = useState({ ...initialShotDraft });
-  const [families, setFamilies] = useState([]);
-  const [talent, setTalent] = useState([]);
-  const [locations, setLocations] = useState([]);
   const [talentLoadError, setTalentLoadError] = useState(null);
   const [isCreatingShot, setIsCreatingShot] = useState(false);
   const [viewMode, setViewMode] = useState(() => readStoredShotsView());
@@ -209,7 +211,6 @@ export default function ShotsPage() {
   const [displayMenuOpen, setDisplayMenuOpen] = useState(false);
   const [movingProject, setMovingProject] = useState(false);
   const [copyingProject, setCopyingProject] = useState(false);
-  const [projects, setProjects] = useState([]);
   const [selectedShotIds, setSelectedShotIds] = useState(new Set());
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
   const navigate = useNavigate();
@@ -217,6 +218,13 @@ export default function ShotsPage() {
   const redirectNotifiedRef = useRef(false);
   const projectId = currentProjectId;
   const { clientId, role: globalRole, projectRoles = {}, user, claims } = useAuth();
+
+  // TanStack Query hooks for data fetching with intelligent caching
+  const { data: shots = [], isLoading: shotsLoading } = useShots(clientId, projectId);
+  const { data: families = [], isLoading: familiesLoading } = useProducts(clientId);
+  const { data: talent = [], isLoading: talentLoading } = useTalent(clientId);
+  const { data: locations = [], isLoading: locationsLoading } = useLocations(clientId);
+  const { data: projects = [], isLoading: projectsLoading } = useProjects(clientId);
   const userRole = useMemo(
     () => resolveEffectiveRole(globalRole, projectRoles, projectId),
     [globalRole, projectRoles, projectId]
@@ -880,91 +888,8 @@ export default function ShotsPage() {
     [canManageProducts, families, clientId, user, db]
   );
 
-  // Subscribe to collections.  We listen to the global shots collection but
-  // filter on projectId so that switching projects automatically updates
-  // the list without reloading.  Products, talent and locations remain
-  // unfiltered because they are global resources.
-  useEffect(() => {
-    if (!scopeReady || !projectId) {
-      setShots([]);
-      return undefined;
-    }
-
-    const handleSubscriptionError = (scope) => (error) => {
-      const { code, message } = describeFirebaseError(
-        error,
-        `Unable to load ${scope}.`
-      );
-      console.error(`[Shots] Failed to subscribe to ${scope}`, error);
-      toast.error({ title: `Failed to load ${scope}`, description: `${code}: ${message}` });
-      if (scope === "shots") {
-        setShots([]);
-      }
-    };
-
-    const scopedShotsQuery = query(
-      collRef(...currentShotsPath),
-      where("projectId", "==", projectId),
-      where("deleted", "==", false),
-      orderBy("date", "asc")
-    );
-
-    const unsubShots = onSnapshot(
-      scopedShotsQuery,
-      (snapshot) => {
-        const shots = snapshot.docs.map((doc) =>
-          normaliseShotRecord(doc.id, doc.data(), projectId)
-        );
-        setShots(shots);
-      },
-      handleSubscriptionError("shots")
-    );
-    const unsubFamilies = onSnapshot(
-      query(collRef(...currentProductFamiliesPath), orderBy("styleName", "asc")),
-      (snapshot) => {
-        setFamilies(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      },
-      handleSubscriptionError("product families")
-    );
-    const unsubTalent = onSnapshot(
-      query(collRef(...currentTalentPath), orderBy("name", "asc")),
-      (snapshot) => {
-        setTalent(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-        setTalentLoadError(null);
-      },
-      (error) => {
-        const { code, message } = describeFirebaseError(error, "Unable to load talent.");
-        setTalent([]);
-        setTalentLoadError(
-          code === "permission-denied"
-            ? "You don't have permission to load talent."
-            : message
-        );
-        toast.error({ title: "Failed to load talent", description: `${code}: ${message}` });
-      }
-    );
-    const unsubLocations = onSnapshot(
-      query(collRef(...currentLocationsPath), orderBy("name", "asc")),
-      (snapshot) => {
-        setLocations(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      },
-      handleSubscriptionError("locations")
-    );
-    const unsubProjects = onSnapshot(
-      query(collRef(...currentProjectsPath), orderBy("createdAt", "desc")),
-      (snapshot) => {
-        setProjects(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })).filter((p) => !p.deletedAt));
-      },
-      handleSubscriptionError("projects")
-    );
-    return () => {
-      unsubShots();
-      unsubFamilies();
-      unsubTalent();
-      unsubLocations();
-      unsubProjects();
-    };
-  }, [scopeReady, projectId, currentShotsPath, currentProductFamiliesPath, currentTalentPath, currentLocationsPath, currentProjectsPath]);
+  // TanStack Query hooks now handle all data subscriptions with intelligent caching
+  // Realtime updates are maintained through onSnapshot in the custom hooks
 
   // Create a new shot with validation and error handling.
   const handleCreateShot = async () => {
