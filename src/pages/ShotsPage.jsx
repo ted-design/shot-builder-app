@@ -23,6 +23,7 @@ import {
   arrayUnion,
   arrayRemove,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import {
@@ -44,6 +45,7 @@ import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
 import ShotEditModal from "../components/shots/ShotEditModal";
 import CreateShotCard from "../components/shots/CreateShotCard";
+import BulkTaggingToolbar from "../components/shots/BulkTaggingToolbar";
 import { useAuth } from "../context/AuthContext";
 import { useProjectScope } from "../context/ProjectScopeContext";
 import { canEditProducts, canManageShots, resolveEffectiveRole } from "../lib/rbac";
@@ -191,6 +193,8 @@ export default function ShotsPage() {
   const [movingProject, setMovingProject] = useState(false);
   const [copyingProject, setCopyingProject] = useState(false);
   const [projects, setProjects] = useState([]);
+  const [selectedShotIds, setSelectedShotIds] = useState(new Set());
+  const [isProcessingBulk, setIsProcessingBulk] = useState(false);
   const navigate = useNavigate();
   const { currentProjectId, ready: scopeReady, setLastVisitedPath } = useProjectScope();
   const redirectNotifiedRef = useRef(false);
@@ -1313,6 +1317,37 @@ export default function ShotsPage() {
     []
   );
 
+  // Selection handlers
+  const toggleShotSelection = useCallback((shotId) => {
+    setSelectedShotIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(shotId)) {
+        next.delete(shotId);
+      } else {
+        next.add(shotId);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedShotIds.size === sortedShots.length && sortedShots.length > 0) {
+      // Deselect all
+      setSelectedShotIds(new Set());
+    } else {
+      // Select all visible shots
+      setSelectedShotIds(new Set(sortedShots.map((shot) => shot.id)));
+    }
+  }, [selectedShotIds.size, sortedShots]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedShotIds(new Set());
+  }, []);
+
+  const selectedShots = useMemo(() => {
+    return sortedShots.filter((shot) => selectedShotIds.has(shot.id));
+  }, [sortedShots, selectedShotIds]);
+
   const openShotEditor = useCallback(
     (shot) => {
       if (!shot) return;
@@ -1493,6 +1528,143 @@ export default function ShotsPage() {
     }
   }, [editingShot, canEditShots, projects, currentShotsPath]);
 
+  // Bulk tag operations
+  const handleBulkApplyTags = useCallback(async (tagsToApply) => {
+    if (!canEditShots || selectedShots.length === 0 || tagsToApply.length === 0) return;
+
+    // Prevent race conditions from rapid operations
+    if (isProcessingBulk) {
+      toast.info({ title: "Please wait", description: "Another operation is in progress." });
+      return;
+    }
+
+    setIsProcessingBulk(true);
+    try {
+      let batch = writeBatch(db);
+      let updateCount = 0;
+
+      // Process in batches of 500 (Firestore limit)
+      for (let i = 0; i < selectedShots.length; i++) {
+        const shot = selectedShots[i];
+        const existingTags = Array.isArray(shot.tags) ? shot.tags : [];
+
+        // Merge tags - avoid duplicates by tag ID
+        const tagMap = new Map();
+        existingTags.forEach((tag) => tagMap.set(tag.id, tag));
+        tagsToApply.forEach((tag) => tagMap.set(tag.id, tag));
+        const mergedTags = Array.from(tagMap.values());
+
+        const shotDocRef = docRef(...currentShotsPath, shot.id);
+        batch.update(shotDocRef, {
+          tags: mergedTags,
+          updatedAt: serverTimestamp()
+        });
+        updateCount++;
+
+        // Commit every 500 operations
+        if (updateCount === 500) {
+          await batch.commit();
+          batch = writeBatch(db);
+          updateCount = 0;
+        }
+      }
+
+      // Commit remaining operations
+      if (updateCount > 0) {
+        await batch.commit();
+      }
+
+      const tagLabels = tagsToApply.map((tag) => tag.label).join(", ");
+      toast.success({
+        title: "Tags applied",
+        description: `Applied "${tagLabels}" to ${selectedShots.length} shot${
+          selectedShots.length === 1 ? "" : "s"
+        }.`,
+      });
+
+      // Clear selection after successful operation
+      setSelectedShotIds(new Set());
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Unable to apply tags.");
+      console.error("[Shots] Failed to apply tags in bulk", {
+        error,
+        shotCount: selectedShots.length,
+        shotIds: selectedShots.map(s => s.id).slice(0, 10), // Log first 10 for context
+        tagCount: tagsToApply.length,
+        tags: tagsToApply.map(t => t.label)
+      });
+      toast.error({ title: "Failed to apply tags", description: `${code}: ${message}` });
+    } finally {
+      setIsProcessingBulk(false);
+    }
+  }, [canEditShots, selectedShots, currentShotsPath, db, isProcessingBulk]);
+
+  const handleBulkRemoveTags = useCallback(async (tagIdsToRemove) => {
+    if (!canEditShots || selectedShots.length === 0 || tagIdsToRemove.length === 0) return;
+
+    // Prevent race conditions from rapid operations
+    if (isProcessingBulk) {
+      toast.info({ title: "Please wait", description: "Another operation is in progress." });
+      return;
+    }
+
+    setIsProcessingBulk(true);
+    try {
+      let batch = writeBatch(db);
+      let updateCount = 0;
+      const tagIdSet = new Set(tagIdsToRemove);
+
+      // Process in batches of 500 (Firestore limit)
+      for (let i = 0; i < selectedShots.length; i++) {
+        const shot = selectedShots[i];
+        const existingTags = Array.isArray(shot.tags) ? shot.tags : [];
+
+        // Filter out tags to be removed
+        const filteredTags = existingTags.filter((tag) => !tagIdSet.has(tag.id));
+
+        const shotDocRef = docRef(...currentShotsPath, shot.id);
+        batch.update(shotDocRef, {
+          tags: filteredTags,
+          updatedAt: serverTimestamp()
+        });
+        updateCount++;
+
+        // Commit every 500 operations
+        if (updateCount === 500) {
+          await batch.commit();
+          batch = writeBatch(db);
+          updateCount = 0;
+        }
+      }
+
+      // Commit remaining operations
+      if (updateCount > 0) {
+        await batch.commit();
+      }
+
+      toast.success({
+        title: "Tags removed",
+        description: `Removed ${tagIdsToRemove.length} tag${
+          tagIdsToRemove.length === 1 ? "" : "s"
+        } from ${selectedShots.length} shot${selectedShots.length === 1 ? "" : "s"}.`,
+      });
+
+      // Clear selection after successful operation
+      setSelectedShotIds(new Set());
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Unable to remove tags.");
+      console.error("[Shots] Failed to remove tags in bulk", {
+        error,
+        shotCount: selectedShots.length,
+        shotIds: selectedShots.map(s => s.id).slice(0, 10), // Log first 10 for context
+        tagIdsToRemove
+      });
+      toast.error({ title: "Failed to remove tags", description: `${code}: ${message}` });
+    } finally {
+      setIsProcessingBulk(false);
+    }
+  }, [canEditShots, selectedShots, currentShotsPath, db, isProcessingBulk]);
+
   const selectPortalTarget =
     typeof window === "undefined" ? undefined : window.document.body;
   const filtersApplied = Boolean(
@@ -1613,7 +1785,7 @@ export default function ShotsPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">View</span>
               <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
                 <button
@@ -1639,6 +1811,19 @@ export default function ShotsPage() {
                   List
                 </button>
               </div>
+              {canEditShots && sortedShots.length > 0 && (
+                <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedShotIds.size > 0 && selectedShotIds.size === sortedShots.length}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                  />
+                  <span className="text-xs font-medium">
+                    {selectedShotIds.size > 0 ? `${selectedShotIds.size} selected` : 'Select all'}
+                  </span>
+                </label>
+              )}
             </div>
 
             {/* Filter button with badge */}
@@ -1791,6 +1976,23 @@ export default function ShotsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bulk Tagging Toolbar - appears when shots are selected */}
+      {canEditShots && selectedShotIds.size > 0 && (
+        <BulkTaggingToolbar
+          selectedCount={selectedShotIds.size}
+          onClearSelection={clearSelection}
+          onApplyTags={handleBulkApplyTags}
+          onRemoveTags={handleBulkRemoveTags}
+          availableTags={tagFilterOptions.map((opt) => ({
+            id: opt.value,
+            label: opt.label,
+            color: opt.color || "blue",
+          }))}
+          isProcessing={isProcessingBulk}
+        />
+      )}
+
       <p className="px-6 text-sm text-slate-600">
         Build and manage the shot list for the active project. Set the active project from the Dashboard.
       </p>
@@ -1841,6 +2043,8 @@ export default function ShotsPage() {
                     canEditShots={canEditShots}
                     onEdit={() => handleEditShot(shot)}
                     viewPrefs={viewPrefs}
+                    isSelected={selectedShotIds.has(shot.id)}
+                    onToggleSelect={canEditShots ? toggleShotSelection : null}
                   />
                 </div>
               );
@@ -1869,6 +2073,8 @@ export default function ShotsPage() {
                     canEditShots={canEditShots}
                     onEdit={() => handleEditShot(shot)}
                     viewPrefs={viewPrefs}
+                    isSelected={selectedShotIds.has(shot.id)}
+                    onToggleSelect={canEditShots ? toggleShotSelection : null}
                   />
                 </div>
               );
@@ -2028,6 +2234,8 @@ const ShotListCard = memo(function ShotListCard({
   canEditShots,
   onEdit,
   viewPrefs = defaultViewPrefs,
+  isSelected = false,
+  onToggleSelect = null,
 }) {
   const formattedDate = toDateInputValue(shot.date);
   const {
@@ -2039,9 +2247,20 @@ const ShotListCard = memo(function ShotListCard({
   const tags = Array.isArray(shot.tags) ? shot.tags : [];
 
   return (
-    <Card className="border shadow-sm">
+    <Card className={`border shadow-sm transition ${isSelected ? 'ring-2 ring-primary' : ''}`}>
       <CardHeader className="px-4 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
+          {onToggleSelect && (
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => onToggleSelect(shot.id)}
+                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <h3 className="text-base font-semibold text-slate-900 line-clamp-2" title={shot.name}>
               {shot.name}
@@ -2107,6 +2326,8 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   canEditShots,
   onEdit,
   viewPrefs = defaultViewPrefs,
+  isSelected = false,
+  onToggleSelect = null,
 }) {
   const imagePath = useMemo(() => selectShotImage(products), [products]);
   const formattedDate = toDateInputValue(shot.date);
@@ -2122,7 +2343,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   const tags = Array.isArray(shot.tags) ? shot.tags : [];
 
   return (
-    <Card className="overflow-hidden border shadow-sm">
+    <Card className={`overflow-hidden border shadow-sm transition ${isSelected ? 'ring-2 ring-primary' : ''}`}>
       <div className="relative h-48 bg-slate-100">
         <AppImage
           src={imagePath}
@@ -2141,6 +2362,17 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
             </div>
           }
         />
+        {onToggleSelect && (
+          <div className="absolute left-3 top-3">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelect(shot.id)}
+              className="h-5 w-5 rounded border-slate-300 bg-white text-primary focus:ring-primary shadow-sm"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
         {canEditShots && (
           <div className="absolute right-3 top-3 flex gap-2">
             <Button type="button" size="sm" variant="secondary" onClick={onEdit}>
