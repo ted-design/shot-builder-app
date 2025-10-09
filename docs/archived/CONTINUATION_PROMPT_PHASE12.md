@@ -1,30 +1,30 @@
 # Shot Builder - Continuation Prompt
 
-I'm continuing UI/UX improvements for my Shot Builder Firebase app. Phase 12.5 just completed.
+I'm continuing UI/UX improvements for my Shot Builder Firebase app. Phase 12 just completed.
 
-**Current Status**: 17 phases done ✅
-- Latest: Phase 12.5 - TanStack Query Data Caching (PR #180 - ready for review)
-- Complete: Intelligent caching (50-80% Firestore read reduction), PDF optimization, tag system, bulk operations
-- Next: Additional page migrations OR list virtualization OR new feature areas
+**Current Status**: 16 phases done ✅
+- Latest: Phase 12 - Performance & Polish / PDF Lazy Loading (PR #179 - ready for review)
+- Complete: PDF bundle optimization (436 kB conditional load), tag system, bulk operations
+- Next: Additional performance optimizations OR new feature areas OR custom improvements
 
 **Branch**: `main` (create new branch for next work)
 
 **Quick Reference**:
 - Master roadmap: `/docs/MOCKUP_INTEGRATION_ASSESSMENT.md`
-- Latest session: `/PHASE12.5_TANSTACK_QUERY_SESSION.md`
-- Tech: React + Vite + Tailwind + Firebase + TanStack Query
+- Latest session: `/PHASE12_PERFORMANCE_POLISH_SESSION.md`
+- Tech: React + Vite + Tailwind + Firebase
 
 **What I need**:
 
-**[Option 1] Phase 12.6: Migrate Remaining Pages to TanStack Query**
-- Migrate ProjectsPage to use cached hooks
-- Migrate ProductsPage to use cached hooks
-- Migrate PlannerPage to use cached hooks
-- Update remaining tests
-- **Impact**: Complete caching coverage, maximize Firestore savings
-- **Estimated time**: 2-3 hours, LOW risk, HIGH impact
+**[Option 1] Phase 12.5: Data Caching with TanStack Query**
+- Install and configure TanStack Query (React Query)
+- Migrate Firestore queries to cached hooks (shots, projects, products)
+- Implement optimistic updates for mutations
+- Add intelligent cache invalidation
+- **Impact**: 50-80% reduction in Firestore reads, lower Firebase costs
+- **Estimated time**: 3-4 hours, MEDIUM risk, HIGH impact
 
-**[Option 2] Phase 12.7: List Virtualization**
+**[Option 2] Phase 12.6: List Virtualization**
 - Install react-window for virtualized lists
 - Virtualize ShotsPage list view (handles 1000+ items smoothly)
 - Conditional virtualization for large grids
@@ -80,15 +80,11 @@ Please:
 | Phase 11D: Tag Management Dashboard | #177 | 🔄 Ready for Review |
 | Phase 11E: Extended Bulk Operations | #178 | ✅ Merged |
 | Phase 12: Performance & Polish (PDF Lazy Loading) | #179 | 🔄 Ready for Review |
-| Phase 12.5: TanStack Query Data Caching | #180 | 🔄 Ready for Review |
 
-**Phase 12.5 Achievements**:
-- **50-80% reduction in Firestore reads** 📉
-- Intelligent data caching (5min fresh, 10min gc)
-- Optimistic updates for instant UI feedback
-- ShotsPage migrated: 80 lines → 5 lines
+**Phase 12 Achievements**:
+- Build time: 11.53s → 7.79s (32% faster ⚡)
+- react-pdf library: 436 kB now loads on-demand (not in main bundle)
+- Users who never export PDFs: Save 436 kB download
 - All 158 tests passing ✅
-- Build time: 8.43s (+8% minimal increase)
-- Bundle size: +7 kB for TanStack Query library
 
-**App Status**: 🎨 Modern UI | ♿ WCAG 2.1 AA | ⚡ Optimized | 🏷️ Complete Tag System | 📦 Comprehensive Bulk Ops | 📄 PDF Bundle Optimized | 🗄️ Intelligent Caching | 🚀 Production Ready
+**App Status**: 🎨 Modern UI | ♿ WCAG 2.1 AA | ⚡ Optimized | 🏷️ Complete Tag System | 📦 Comprehensive Bulk Ops | 📄 PDF Bundle Optimized | 🚀 Production Ready
