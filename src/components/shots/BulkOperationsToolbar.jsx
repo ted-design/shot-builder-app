@@ -39,7 +39,6 @@ export default function BulkOperationsToolbar({
   isProcessing = false,
 }) {
   const [mode, setMode] = useState(null); // 'apply-tags', 'remove-tags', 'location', 'date', 'type', 'move', 'copy'
-  const [selectedTagForApply, setSelectedTagForApply] = useState(null);
   const [newTagLabel, setNewTagLabel] = useState("");
   const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLOR);
   const [isCreatingNewTag, setIsCreatingNewTag] = useState(false);

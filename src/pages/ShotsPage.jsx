@@ -74,6 +74,9 @@ import { getStaggerDelay } from "../lib/animations";
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
 
+// Firestore batch write limit
+const FIRESTORE_BATCH_LIMIT = 500;
+
 // Available shot types for bulk editing
 const AVAILABLE_SHOT_TYPES = [
   "product",
@@ -1557,7 +1560,7 @@ export default function ShotsPage() {
       let batch = writeBatch(db);
       let updateCount = 0;
 
-      // Process in batches of 500 (Firestore limit)
+      // Process in batches (Firestore limit)
       for (let i = 0; i < selectedShots.length; i++) {
         const shot = selectedShots[i];
         const existingTags = Array.isArray(shot.tags) ? shot.tags : [];
@@ -1575,8 +1578,8 @@ export default function ShotsPage() {
         });
         updateCount++;
 
-        // Commit every 500 operations
-        if (updateCount === 500) {
+        // Commit every FIRESTORE_BATCH_LIMIT operations
+        if (updateCount === FIRESTORE_BATCH_LIMIT) {
           await batch.commit();
           batch = writeBatch(db);
           updateCount = 0;
@@ -1628,7 +1631,7 @@ export default function ShotsPage() {
       let updateCount = 0;
       const tagIdSet = new Set(tagIdsToRemove);
 
-      // Process in batches of 500 (Firestore limit)
+      // Process in batches (Firestore limit)
       for (let i = 0; i < selectedShots.length; i++) {
         const shot = selectedShots[i];
         const existingTags = Array.isArray(shot.tags) ? shot.tags : [];
@@ -1643,8 +1646,8 @@ export default function ShotsPage() {
         });
         updateCount++;
 
-        // Commit every 500 operations
-        if (updateCount === 500) {
+        // Commit every FIRESTORE_BATCH_LIMIT operations
+        if (updateCount === FIRESTORE_BATCH_LIMIT) {
           await batch.commit();
           batch = writeBatch(db);
           updateCount = 0;
@@ -1701,7 +1704,7 @@ export default function ShotsPage() {
         ? locations.find((loc) => loc.id === locationId)?.name || null
         : null;
 
-      // Process in batches of 500 (Firestore limit)
+      // Process in batches (Firestore limit)
       for (let i = 0; i < selectedShots.length; i++) {
         const shot = selectedShots[i];
         const shotDocRef = docRef(...currentShotsPath, shot.id);
@@ -1713,8 +1716,8 @@ export default function ShotsPage() {
         });
         updateCount++;
 
-        // Commit every 500 operations
-        if (updateCount === 500) {
+        // Commit every FIRESTORE_BATCH_LIMIT operations
+        if (updateCount === FIRESTORE_BATCH_LIMIT) {
           await batch.commit();
           batch = writeBatch(db);
           updateCount = 0;
@@ -1770,7 +1773,7 @@ export default function ShotsPage() {
       // Parse date to timestamp
       const dateTimestamp = dateValue ? parseDateToTimestamp(dateValue) : null;
 
-      // Process in batches of 500 (Firestore limit)
+      // Process in batches (Firestore limit)
       for (let i = 0; i < selectedShots.length; i++) {
         const shot = selectedShots[i];
         const shotDocRef = docRef(...currentShotsPath, shot.id);
@@ -1781,8 +1784,8 @@ export default function ShotsPage() {
         });
         updateCount++;
 
-        // Commit every 500 operations
-        if (updateCount === 500) {
+        // Commit every FIRESTORE_BATCH_LIMIT operations
+        if (updateCount === FIRESTORE_BATCH_LIMIT) {
           await batch.commit();
           batch = writeBatch(db);
           updateCount = 0;
@@ -1835,7 +1838,7 @@ export default function ShotsPage() {
       let batch = writeBatch(db);
       let updateCount = 0;
 
-      // Process in batches of 500 (Firestore limit)
+      // Process in batches (Firestore limit)
       for (let i = 0; i < selectedShots.length; i++) {
         const shot = selectedShots[i];
         const shotDocRef = docRef(...currentShotsPath, shot.id);
@@ -1846,8 +1849,8 @@ export default function ShotsPage() {
         });
         updateCount++;
 
-        // Commit every 500 operations
-        if (updateCount === 500) {
+        // Commit every FIRESTORE_BATCH_LIMIT operations
+        if (updateCount === FIRESTORE_BATCH_LIMIT) {
           await batch.commit();
           batch = writeBatch(db);
           updateCount = 0;
@@ -1909,7 +1912,7 @@ export default function ShotsPage() {
       let batch = writeBatch(db);
       let updateCount = 0;
 
-      // Process in batches of 500 (Firestore limit)
+      // Process in batches (Firestore limit)
       for (let i = 0; i < selectedShots.length; i++) {
         const shot = selectedShots[i];
         const shotDocRef = docRef(...currentShotsPath, shot.id);
@@ -1921,8 +1924,8 @@ export default function ShotsPage() {
         });
         updateCount++;
 
-        // Commit every 500 operations
-        if (updateCount === 500) {
+        // Commit every FIRESTORE_BATCH_LIMIT operations
+        if (updateCount === FIRESTORE_BATCH_LIMIT) {
           await batch.commit();
           batch = writeBatch(db);
           updateCount = 0;
