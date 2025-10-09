@@ -1,4 +1,15 @@
-# Continuation Prompt for Next Claude Code Session
+# ⚠️ OUTDATED - Continuation Prompt for Next Claude Code Session
+
+**STATUS**: This prompt is from October 6, 2025 and focuses on feature improvements (Sentry, Zod validation).
+
+**CURRENT UI IMPROVEMENTS**: For UI design work continuation, see:
+- `/docs/CONTINUATION_PROMPT_UI_PHASE4.md` (latest - for Phase 4+ UI work)
+- `/docs/MOCKUP_INTEGRATION_ASSESSMENT.md` (overall UI improvement plan)
+- `/docs/SESSION_2025-10-08_PHASE3_CARD_METADATA.md` (latest session)
+
+---
+
+**Original prompt below (archived for reference)**:
 
 Copy and paste the text below into a new Claude Code session to continue the improvement work:
 
