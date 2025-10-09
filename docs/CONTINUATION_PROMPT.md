@@ -1,3 +1,13 @@
+# ✅ ARCHIVED - Old Continuation Prompt
+
+**STATUS**: This prompt is outdated and refers to old improvement work (Sentry, Zod validation, etc.)
+
+**FOR CURRENT UI WORK**: See `/docs/CONTINUATION_PROMPT_PHASE7.md`
+
+---
+
+**Original prompt below (archived for reference)**:
+
 # Continuation Prompt for Next Claude Code Session
 
 Copy and paste the text below into a new Claude Code session to continue the improvement work:
