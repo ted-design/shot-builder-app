@@ -4,6 +4,9 @@ import { X, Tag, Plus, Minus } from "lucide-react";
 import { Button } from "../ui/button";
 import { TagBadge, TAG_COLORS } from "../ui/TagBadge";
 
+// Default color for new tags
+const DEFAULT_TAG_COLOR = "blue";
+
 /**
  * BulkTaggingToolbar
  *
@@ -27,7 +30,7 @@ export default function BulkTaggingToolbar({
   const [mode, setMode] = useState(null); // 'apply' or 'remove'
   const [selectedTagForApply, setSelectedTagForApply] = useState(null);
   const [newTagLabel, setNewTagLabel] = useState("");
-  const [newTagColor, setNewTagColor] = useState("blue");
+  const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLOR);
   const [isCreatingNewTag, setIsCreatingNewTag] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -40,7 +43,7 @@ export default function BulkTaggingToolbar({
         setMode(null);
         setIsCreatingNewTag(false);
         setNewTagLabel("");
-        setNewTagColor("blue");
+        setNewTagColor(DEFAULT_TAG_COLOR);
       }
     };
 
@@ -77,7 +80,7 @@ export default function BulkTaggingToolbar({
     setMode(null);
     setIsCreatingNewTag(false);
     setNewTagLabel("");
-    setNewTagColor("blue");
+    setNewTagColor(DEFAULT_TAG_COLOR);
   };
 
   const handleRemoveTag = (tag) => {
@@ -136,6 +139,7 @@ export default function BulkTaggingToolbar({
                               type="button"
                               onClick={() => handleApplyExistingTag(tag)}
                               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-100"
+                              aria-label={`Apply ${tag.label} tag to ${selectedCount} selected shot${selectedCount === 1 ? "" : "s"}`}
                             >
                               <TagBadge tag={tag} />
                             </button>
@@ -259,6 +263,7 @@ export default function BulkTaggingToolbar({
                           type="button"
                           onClick={() => handleRemoveTag(tag)}
                           className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-100"
+                          aria-label={`Remove ${tag.label} tag from ${selectedCount} selected shot${selectedCount === 1 ? "" : "s"}`}
                         >
                           <TagBadge tag={tag} />
                         </button>

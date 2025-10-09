@@ -1532,6 +1532,12 @@ export default function ShotsPage() {
   const handleBulkApplyTags = useCallback(async (tagsToApply) => {
     if (!canEditShots || selectedShots.length === 0 || tagsToApply.length === 0) return;
 
+    // Prevent race conditions from rapid operations
+    if (isProcessingBulk) {
+      toast.info({ title: "Please wait", description: "Another operation is in progress." });
+      return;
+    }
+
     setIsProcessingBulk(true);
     try {
       let batch = writeBatch(db);
@@ -1577,15 +1583,27 @@ export default function ShotsPage() {
       setSelectedShotIds(new Set());
     } catch (error) {
       const { code, message } = describeFirebaseError(error, "Unable to apply tags.");
-      console.error("[Shots] Failed to apply tags in bulk", error);
+      console.error("[Shots] Failed to apply tags in bulk", {
+        error,
+        shotCount: selectedShots.length,
+        shotIds: selectedShots.map(s => s.id).slice(0, 10), // Log first 10 for context
+        tagCount: tagsToApply.length,
+        tags: tagsToApply.map(t => t.label)
+      });
       toast.error({ title: "Failed to apply tags", description: `${code}: ${message}` });
     } finally {
       setIsProcessingBulk(false);
     }
-  }, [canEditShots, selectedShots, currentShotsPath, db]);
+  }, [canEditShots, selectedShots, currentShotsPath, db, isProcessingBulk]);
 
   const handleBulkRemoveTags = useCallback(async (tagIdsToRemove) => {
     if (!canEditShots || selectedShots.length === 0 || tagIdsToRemove.length === 0) return;
+
+    // Prevent race conditions from rapid operations
+    if (isProcessingBulk) {
+      toast.info({ title: "Please wait", description: "Another operation is in progress." });
+      return;
+    }
 
     setIsProcessingBulk(true);
     try {
@@ -1629,12 +1647,17 @@ export default function ShotsPage() {
       setSelectedShotIds(new Set());
     } catch (error) {
       const { code, message } = describeFirebaseError(error, "Unable to remove tags.");
-      console.error("[Shots] Failed to remove tags in bulk", error);
+      console.error("[Shots] Failed to remove tags in bulk", {
+        error,
+        shotCount: selectedShots.length,
+        shotIds: selectedShots.map(s => s.id).slice(0, 10), // Log first 10 for context
+        tagIdsToRemove
+      });
       toast.error({ title: "Failed to remove tags", description: `${code}: ${message}` });
     } finally {
       setIsProcessingBulk(false);
     }
-  }, [canEditShots, selectedShots, currentShotsPath, db]);
+  }, [canEditShots, selectedShots, currentShotsPath, db, isProcessingBulk]);
 
   const selectPortalTarget =
     typeof window === "undefined" ? undefined : window.document.body;
