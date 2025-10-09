@@ -79,6 +79,7 @@ import {
   normaliseShotStatus,
   shotStatusOptions,
 } from "../lib/shotStatus";
+import { getStaggerDelay } from "../lib/animations";
 
 const PLANNER_VIEW_STORAGE_KEY = "planner:viewMode";
 const PLANNER_FIELDS_STORAGE_KEY = "planner:visibleFields";
@@ -1625,20 +1626,25 @@ function PlannerPageContent() {
           )}
         </div>
         <div className={shotListClass}>
-          {displayShots.map((sh) => (
-            <DraggableShot
+          {displayShots.map((sh, index) => (
+            <div
               key={sh.id}
-              shot={sh}
-              disabled={!droppable || !canEditPlanner}
-              viewMode={viewMode}
-              visibleFields={visibleFields}
-              onEdit={handleOpenShotEdit}
-              canEditShots={canEditShots}
-              normaliseProducts={normaliseShotProducts}
-              statusOptions={shotStatusOptions}
-              onChangeStatus={handleUpdateShotStatus}
-              isActive={activeDragShot?.id === sh.id}
-            />
+              className="animate-fade-in opacity-0"
+              style={getStaggerDelay(index)}
+            >
+              <DraggableShot
+                shot={sh}
+                disabled={!droppable || !canEditPlanner}
+                viewMode={viewMode}
+                visibleFields={visibleFields}
+                onEdit={handleOpenShotEdit}
+                canEditShots={canEditShots}
+                normaliseProducts={normaliseShotProducts}
+                statusOptions={shotStatusOptions}
+                onChangeStatus={handleUpdateShotStatus}
+                isActive={activeDragShot?.id === sh.id}
+              />
+            </div>
           ))}
           {placeholderVisible && (
             <div className="flex h-20 items-center justify-center rounded-lg border-2 border-dashed border-primary/60 bg-primary/5 transition-all duration-150">
@@ -2192,25 +2198,41 @@ function PlannerPageContent() {
         >
           {isListView ? (
             <div className="flex flex-col gap-4 pb-6">
-              {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots, null, {
-                sortBy,
-              })}
-              {lanes.map((lane) =>
-                renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane, {
+              <div className="animate-fade-in opacity-0" style={getStaggerDelay(0)}>
+                {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots, null, {
                   sortBy,
-                })
-              )}
+                })}
+              </div>
+              {lanes.map((lane, index) => (
+                <div
+                  key={lane.id}
+                  className="animate-fade-in opacity-0"
+                  style={getStaggerDelay(index + 1)}
+                >
+                  {renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane, {
+                    sortBy,
+                  })}
+                </div>
+              ))}
             </div>
           ) : (
             <div ref={boardScrollRef} className="flex gap-4 overflow-x-auto pb-6">
-              {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots, null, {
-                sortBy,
-              })}
-              {lanes.map((lane) =>
-                renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane, {
+              <div className="animate-fade-in opacity-0" style={getStaggerDelay(0)}>
+                {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots, null, {
                   sortBy,
-                })
-              )}
+                })}
+              </div>
+              {lanes.map((lane, index) => (
+                <div
+                  key={lane.id}
+                  className="animate-fade-in opacity-0"
+                  style={getStaggerDelay(index + 1)}
+                >
+                  {renderLaneBlock(lane.id, lane.name, shotsByLane[lane.id] || [], lane, {
+                    sortBy,
+                  })}
+                </div>
+              ))}
             </div>
           )}
           <DragOverlay>
@@ -2231,12 +2253,18 @@ function PlannerPageContent() {
       ) : (
         <div className={isListView ? "flex flex-col gap-4 pb-6" : "flex gap-4 overflow-x-auto pb-6"}>
           {derivedGroups.length ? (
-            derivedGroups.map((group) =>
-              renderLaneBlock(group.id, group.name, group.shots, null, {
-                droppable: false,
-                sortBy,
-              })
-            )
+            derivedGroups.map((group, index) => (
+              <div
+                key={group.id}
+                className="animate-fade-in opacity-0"
+                style={getStaggerDelay(index)}
+              >
+                {renderLaneBlock(group.id, group.name, group.shots, null, {
+                  droppable: false,
+                  sortBy,
+                })}
+              </div>
+            ))
           ) : (
             <div className="flex min-h-[160px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
               No shots available for the current grouping.
