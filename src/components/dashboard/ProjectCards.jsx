@@ -1,6 +1,7 @@
 import { FolderOpen } from "lucide-react";
 import { ProjectCard, CreateProjectCard } from "./ProjectCard";
 import { EmptyState } from "../ui/EmptyState";
+import { getStaggerDelay } from "../../lib/animations";
 
 export default function ProjectCards({
   projects = [],
@@ -31,15 +32,20 @@ export default function ProjectCards({
       data-testid="project-cards-grid"
     >
       {hasProjects &&
-        projects.map((project) => (
-          <ProjectCard
+        projects.map((project, index) => (
+          <div
             key={project.id}
-            project={project}
-            isActive={project.id === activeProjectId}
-            canManage={canManage}
-            onSelect={onSelectProject}
-            onEdit={onEditProject}
-          />
+            className="animate-fade-in opacity-0"
+            style={getStaggerDelay(index)}
+          >
+            <ProjectCard
+              project={project}
+              isActive={project.id === activeProjectId}
+              canManage={canManage}
+              onSelect={onSelectProject}
+              onEdit={onEditProject}
+            />
+          </div>
         ))}
       {canManage && <CreateProjectCard onClick={onCreateProject} />}
     </div>

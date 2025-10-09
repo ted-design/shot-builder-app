@@ -350,7 +350,7 @@ export default function ProjectsPage() {
 
             {/* Filter panel */}
             {filtersOpen && (
-              <div className="absolute right-0 z-20 mt-2 w-64 rounded-md border border-slate-200 bg-white p-4 shadow-lg">
+              <div className="absolute right-0 z-20 mt-2 w-64 rounded-md border border-slate-200 bg-white p-4 shadow-lg animate-slide-in-from-right">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-slate-900">Filter projects</p>

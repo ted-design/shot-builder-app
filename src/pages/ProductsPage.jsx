@@ -35,6 +35,7 @@ import Modal from "../components/ui/modal";
 import { toast, showConfirm } from "../lib/toast";
 import { buildSkuAggregates, createProductFamily, genderLabel } from "../lib/productMutations";
 import { readStorage, writeStorage } from "../lib/safeStorage";
+import { getStaggerDelay } from "../lib/animations";
 
 const statusLabel = (status) => {
   if (status === "discontinued") return "Discontinued";
@@ -1102,7 +1103,6 @@ export default function ProductsPage() {
 
     return (
       <Card
-        key={family.id}
         className={cardClasses}
         onClick={openFromCard}
       >
@@ -1521,7 +1521,15 @@ export default function ProductsPage() {
                   <span>Create product</span>
                 </button>
               )}
-              {displayedFamilies.map((family) => renderFamilyCard(family))}
+              {displayedFamilies.map((family, index) => (
+                <div
+                  key={family.id}
+                  className="animate-fade-in opacity-0"
+                  style={getStaggerDelay(index)}
+                >
+                  {renderFamilyCard(family)}
+                </div>
+              ))}
               {noMatchingFilters && (
                 <Card>
                   <CardContent className="p-6 text-center text-sm text-slate-500">
@@ -1718,7 +1726,7 @@ export default function ProductsPage() {
 
                 {/* Filter panel */}
                 {filtersOpen && (
-                  <div className="absolute left-0 z-20 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 shadow-lg">
+                  <div className="absolute left-0 z-20 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 shadow-lg animate-slide-in-from-right">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-medium text-slate-900">Filter products</p>
