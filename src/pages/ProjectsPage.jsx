@@ -73,6 +73,26 @@ export default function ProjectsPage() {
     setShowArchivedProjects(false);
   }, []);
 
+  // Build active filters array for pills
+  const activeFilters = useMemo(() => {
+    const filters = [];
+    if (showArchivedProjects) {
+      filters.push({
+        key: "archived",
+        label: "Show archived",
+        value: "Yes",
+      });
+    }
+    return filters;
+  }, [showArchivedProjects]);
+
+  // Remove individual filter
+  const removeFilter = useCallback((filterKey) => {
+    if (filterKey === "archived") {
+      setShowArchivedProjects(false);
+    }
+  }, []);
+
   // Click-outside handler for filter panel
   useEffect(() => {
     if (!filtersOpen) return undefined;
@@ -362,6 +382,22 @@ export default function ProjectsPage() {
               </div>
             )}
           </div>
+
+          {/* Active filter pills */}
+          {activeFilters.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {activeFilters.map((filter) => (
+                <button
+                  key={filter.key}
+                  onClick={() => removeFilter(filter.key)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 px-3 py-1 text-xs font-medium hover:bg-primary/20 transition"
+                >
+                  <span>{filter.label}: {filter.value}</span>
+                  <X className="h-3 w-3" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
