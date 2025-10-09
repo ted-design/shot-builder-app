@@ -16,6 +16,7 @@ const navItems = [
   { to: "/talent", label: "Talent" },
   { to: "/locations", label: "Locations" },
   { to: "/pulls", label: "Pulls" },
+  { to: "/tags", label: "Tags" },
   { to: "/admin", label: "Admin", roles: ["admin"] },
 ];
 

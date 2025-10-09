@@ -23,6 +23,7 @@ const TalentPage = lazy(() => import("./pages/TalentPage"));
 const LocationsPage = lazy(() => import("./pages/LocationsPage"));
 const PullsPage = lazy(() => import("./pages/PullsPage"));
 const PullPublicViewPage = lazy(() => import("./pages/PullPublicViewPage"));
+const TagManagementPage = lazy(() => import("./pages/TagManagementPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const ImageDiagnosticsPage = lazy(() => import("./pages/dev/ImageDiagnosticsPage"));
 const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
@@ -179,6 +180,14 @@ export default function App() {
               element={
                 <Suspense fallback={<PageLoadingFallback />}>
                   <PullsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/tags"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <TagManagementPage />
                 </Suspense>
               }
             />
