@@ -1170,6 +1170,65 @@ export default function ShotsPage() {
     []
   );
 
+  // Build active filters array for pills
+  const activeFilters = useMemo(() => {
+    const pills = [];
+    if (filters.locationId) {
+      const location = locations.find((loc) => loc.id === filters.locationId);
+      if (location) {
+        pills.push({
+          key: `location-${filters.locationId}`,
+          label: "Location",
+          value: location.name || "Unknown",
+        });
+      }
+    }
+    if (Array.isArray(filters.talentIds) && filters.talentIds.length > 0) {
+      filters.talentIds.forEach((talentId) => {
+        const talentOption = talentFilterOptions.find((opt) => opt.value === talentId);
+        if (talentOption) {
+          pills.push({
+            key: `talent-${talentId}`,
+            label: "Talent",
+            value: talentOption.label,
+          });
+        }
+      });
+    }
+    if (Array.isArray(filters.productFamilyIds) && filters.productFamilyIds.length > 0) {
+      filters.productFamilyIds.forEach((productId) => {
+        const productOption = productFilterOptions.find((opt) => opt.value === productId);
+        if (productOption) {
+          pills.push({
+            key: `product-${productId}`,
+            label: "Product",
+            value: productOption.label,
+          });
+        }
+      });
+    }
+    return pills;
+  }, [filters.locationId, filters.talentIds, filters.productFamilyIds, locations, talentFilterOptions, productFilterOptions]);
+
+  // Remove individual filter
+  const removeFilter = useCallback((filterKey) => {
+    if (filterKey.startsWith("location-")) {
+      setFilters((prev) => ({ ...prev, locationId: "" }));
+    } else if (filterKey.startsWith("talent-")) {
+      const talentId = filterKey.replace("talent-", "");
+      setFilters((prev) => ({
+        ...prev,
+        talentIds: prev.talentIds.filter((id) => id !== talentId),
+      }));
+    } else if (filterKey.startsWith("product-")) {
+      const productId = filterKey.replace("product-", "");
+      setFilters((prev) => ({
+        ...prev,
+        productFamilyIds: prev.productFamilyIds.filter((id) => id !== productId),
+      }));
+    }
+  }, []);
+
   const updateViewMode = useCallback(
     (nextMode) =>
       setViewMode((previousMode) => (previousMode === nextMode ? previousMode : nextMode)),
@@ -1610,6 +1669,22 @@ export default function ShotsPage() {
                 </div>
               )}
             </div>
+
+            {/* Active filter pills */}
+            {activeFilters.length > 0 && (
+              <div className="flex w-full flex-wrap gap-2">
+                {activeFilters.map((filter) => (
+                  <button
+                    key={filter.key}
+                    onClick={() => removeFilter(filter.key)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 px-3 py-1 text-xs font-medium hover:bg-primary/20 transition"
+                  >
+                    <span>{filter.label}: {filter.value}</span>
+                    <X className="h-3 w-3" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
             </div>
           </CardContent>

@@ -452,6 +452,50 @@ export default function ProductsPage() {
     setShowArchived(false);
   }, []);
 
+  // Build active filters array for pills
+  const activeFilters = useMemo(() => {
+    const filters = [];
+    if (statusFilter !== "active") {
+      filters.push({
+        key: "status",
+        label: "Status",
+        value: statusFilter === "all" ? "All statuses" : "Discontinued",
+      });
+    }
+    if (genderFilter !== "all") {
+      filters.push({
+        key: "gender",
+        label: "Gender",
+        value: genderLabel(genderFilter),
+      });
+    }
+    if (showArchived) {
+      filters.push({
+        key: "archived",
+        label: "Show archived",
+        value: "Yes",
+      });
+    }
+    return filters;
+  }, [statusFilter, genderFilter, showArchived]);
+
+  // Remove individual filter
+  const removeFilter = useCallback((filterKey) => {
+    switch (filterKey) {
+      case "status":
+        setStatusFilter("active");
+        break;
+      case "gender":
+        setGenderFilter("all");
+        break;
+      case "archived":
+        setShowArchived(false);
+        break;
+      default:
+        break;
+    }
+  }, []);
+
   const familyMap = useMemo(() => {
     const map = new Map();
     families.forEach((family) => {
@@ -1739,6 +1783,22 @@ export default function ProductsPage() {
                   </div>
                 )}
               </div>
+
+              {/* Active filter pills */}
+              {activeFilters.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {activeFilters.map((filter) => (
+                    <button
+                      key={filter.key}
+                      onClick={() => removeFilter(filter.key)}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 px-3 py-1 text-xs font-medium hover:bg-primary/20 transition"
+                    >
+                      <span>{filter.label}: {filter.value}</span>
+                      <X className="h-3 w-3" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2">
