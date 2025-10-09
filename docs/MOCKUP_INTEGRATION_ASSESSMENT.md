@@ -93,7 +93,7 @@ Assessment of design patterns from HTML mockups in `/docs/Claude/App Design/2025
 - ✅ Pills display below filter panel when filters are active
 
 ### Phase 9: Animations & Transitions (COMPLETE ✅)
-**PR**: [#TBD](https://github.com/ted-design/shot-builder-app/pull/TBD)
+**PR**: [#172](https://github.com/ted-design/shot-builder-app/pull/172)
 **Documentation**: `/PHASE9_ANIMATIONS_SESSION.md`
 **Branch**: `feat/phase9-animations`
 **Status**: ✅ **Complete Coverage - All Major Pages**
