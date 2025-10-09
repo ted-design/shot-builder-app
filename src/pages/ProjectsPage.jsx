@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { collection, addDoc, doc, updateDoc, orderBy, setDoc, serverTimestamp, deleteField } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
@@ -13,6 +13,7 @@ import ProjectEditModal from "../components/dashboard/ProjectEditModal";
 import { showError, toast } from "../lib/toast";
 import { createProjectSchema, updateProjectSchema } from "../schemas/index.js";
 import { SkeletonCard } from "../components/ui/Skeleton";
+import { Filter, X } from "lucide-react";
 
 export default function ProjectsPage() {
   const { clientId, user: authUser, role: globalRole } = useAuth();
@@ -39,6 +40,8 @@ export default function ProjectsPage() {
   const [deletingProject, setDeletingProject] = useState(false);
   const [archivingProject, setArchivingProject] = useState(false);
   const [showArchivedProjects, setShowArchivedProjects] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filtersRef = useRef(null);
 
   // Derive a sorted list based on earliest shoot date so that upcoming shoots
   // appear first.  This computation is memoised to avoid re‑sorting on
@@ -57,6 +60,31 @@ export default function ProjectsPage() {
     });
     return list;
   }, [itemsRaw, showArchivedProjects]);
+
+  // Calculate active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (showArchivedProjects) count++;
+    return count;
+  }, [showArchivedProjects]);
+
+  // Clear all filters
+  const clearAllFilters = useCallback(() => {
+    setShowArchivedProjects(false);
+  }, []);
+
+  // Click-outside handler for filter panel
+  useEffect(() => {
+    if (!filtersOpen) return undefined;
+    function onFiltersClick(event) {
+      if (!filtersRef.current) return;
+      if (!filtersRef.current.contains(event.target)) {
+        setFiltersOpen(false);
+      }
+    }
+    window.addEventListener("mousedown", onFiltersClick);
+    return () => window.removeEventListener("mousedown", onFiltersClick);
+  }, [filtersOpen]);
 
   // Show a toast notification if the subscription reports an error.  This effect runs
   // whenever `projectsError` changes.
@@ -278,15 +306,62 @@ export default function ProjectsPage() {
               Pick a project to scope shots, planner lanes, and pull sheets.
             </p>
           </div>
-          <label className="flex flex-none items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={showArchivedProjects}
-              onChange={(e) => setShowArchivedProjects(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300"
-            />
-            <span className="whitespace-nowrap">Show archived</span>
-          </label>
+          {/* Filter button with badge */}
+          <div className="relative flex-none" ref={filtersRef}>
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((prev) => !prev)}
+              className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
+                activeFilterCount > 0
+                  ? "border-primary/60 bg-primary/5 text-primary"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+              aria-haspopup="menu"
+              aria-expanded={filtersOpen}
+            >
+              <Filter className="h-4 w-4" aria-hidden="true" />
+              <span>Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+
+            {/* Filter panel */}
+            {filtersOpen && (
+              <div className="absolute right-0 z-20 mt-2 w-64 rounded-md border border-slate-200 bg-white p-4 shadow-lg">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-slate-900">Filter projects</p>
+                    {activeFilterCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearAllFilters();
+                          setFiltersOpen(false);
+                        }}
+                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+                      >
+                        <X className="h-3 w-3" />
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={showArchivedProjects}
+                      onChange={(e) => setShowArchivedProjects(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                    Show archived
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
