@@ -23,6 +23,7 @@ import { writeDoc } from "../lib/firestoreWrites";
 import { toast, showConfirm } from "../lib/toast";
 import { talentPath } from "../lib/paths";
 import { ROLE, canManageTalent } from "../lib/rbac";
+import { User } from "lucide-react";
 
 function buildDisplayName(firstName, lastName) {
   const first = (firstName || "").trim();
@@ -68,7 +69,10 @@ function TalentCard({ talent, canManage, onEdit, editDisabled }) {
             </div>
           )}
           {talent.gender && (
-            <div className="text-xs uppercase tracking-wide text-slate-500">{talent.gender}</div>
+            <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500">
+              <User className="h-4 w-4" aria-hidden="true" />
+              <span>{talent.gender}</span>
+            </div>
           )}
           {sizingLine && (
             <div className="text-xs text-slate-500" title={sizingLine}>

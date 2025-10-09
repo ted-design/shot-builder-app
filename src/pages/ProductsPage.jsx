@@ -181,7 +181,7 @@ const ProductActionMenu = memo(function ProductActionMenu({
   if (!open) return null;
   return (
     <div
-      className="absolute right-0 top-10 z-20 w-48 rounded-md border border-slate-200 bg-white shadow-lg"
+      className="absolute right-0 top-10 z-20 w-48 rounded-md border border-slate-200 bg-white/95 backdrop-blur-md shadow-lg"
       onClick={(event) => event.stopPropagation()}
     >
       <button
@@ -1113,8 +1113,9 @@ export default function ProductsPage() {
                 <div className="hidden flex-wrap gap-2 text-sm text-slate-600 sm:flex">
                   <span>{genderLabel(family.gender)}</span>
                   <span>•</span>
-                  <span>
-                    {family.activeSkuCount || 0} active of {family.skuCount || 0} colourways
+                  <span className="flex items-center gap-1.5">
+                    <Package className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                    <span>{family.activeSkuCount || 0} active of {family.skuCount || 0} colourways</span>
                   </span>
                   {family.updatedAt && (
                     <>
@@ -1240,8 +1241,9 @@ export default function ProductsPage() {
               <div className="flex flex-wrap gap-2 text-sm text-slate-600">
                 <span>{genderLabel(family.gender)}</span>
                 <span>•</span>
-                <span>
-                  {family.activeSkuCount || 0} active of {family.skuCount || 0} colourways
+                <span className="flex items-center gap-1.5">
+                  <Package className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                  <span>{family.activeSkuCount || 0} active of {family.skuCount || 0} colourways</span>
                 </span>
                 {family.updatedAt && (
                   <>
