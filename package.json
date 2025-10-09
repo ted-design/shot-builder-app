@@ -19,6 +19,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@react-pdf/renderer": "^3.4.4",
     "@sentry/react": "^10.17.0",
+    "@tanstack/react-query": "^5.90.2",
     "firebase": "^10.0.0",
     "firebase-admin": "^12.6.0",
     "fuse.js": "^6.4.6",

@@ -2,6 +2,7 @@
 
 **Date**: October 9, 2025
 **Branch**: `feat/phase12-performance-polish`
+**PR**: [#179](https://github.com/ted-design/shot-builder-app/pull/179) (Ready for Review)
 **Status**: ✅ COMPLETE (PDF Lazy Loading Optimization)
 
 ---

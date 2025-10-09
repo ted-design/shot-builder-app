@@ -2,6 +2,7 @@ import { useEffect, useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { onIdTokenChanged } from "firebase/auth";
 import { auth } from "./lib/firebase";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { FLAGS } from "./lib/flags";
 import { useAuth } from "./context/AuthContext";
@@ -11,6 +12,18 @@ import SidebarLayout from "./routes/SidebarLayout";
 import RequireRole from "./routes/RequireRole";
 import { ProjectScopeProvider } from "./context/ProjectScopeContext";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
+
+// Configure TanStack Query client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes - data considered fresh
+      gcTime: 10 * 60 * 1000, // 10 minutes - cache garbage collection (formerly cacheTime)
+      retry: 1, // Retry failed queries once
+      refetchOnWindowFocus: false, // Don't refetch on window focus for better UX
+    },
+  },
+});
 
 // Lazy load all major pages to reduce initial bundle size
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -88,12 +101,13 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
-      <ProjectScopeProvider>
-        {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
-        <PDFDemoMount />
-        <MaybeRedirectLogin user={userForGuard} />
-        <Routes>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <ProjectScopeProvider>
+          {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
+          <PDFDemoMount />
+          <MaybeRedirectLogin user={userForGuard} />
+          <Routes>
           <Route
             path="/login"
             element={
@@ -216,5 +230,6 @@ export default function App() {
         </Routes>
       </ProjectScopeProvider>
     </BrowserRouter>
+    </QueryClientProvider>
   );
 }
