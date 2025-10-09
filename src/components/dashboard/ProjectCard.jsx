@@ -2,7 +2,7 @@ import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { StatusBadge } from "../ui/StatusBadge";
 import ProgressBar from "../ui/ProgressBar";
-import { Calendar, Camera } from "lucide-react";
+import { Calendar, Camera, User, MapPin } from "lucide-react";
 
 const formatTimestamp = (value) => {
   if (!value) return null;
@@ -75,6 +75,8 @@ export function ProjectCard({
   const shootDates = formatShootDates(project?.shootDates);
   const shotCount = project?.shotCount ?? project?.stats?.shots;
   const updatedAt = formatTimestamp(project?.updatedAt || project?.createdAt);
+  const talentCount = project?.stats?.talent ?? 0;
+  const locationCount = project?.stats?.locations ?? 0;
 
   // Calculate planning progress
   const totalShots = project?.shotCount ?? project?.stats?.shots ?? 0;
@@ -113,9 +115,27 @@ export function ProjectCard({
                     <span>{shotCount} {shotCount === 1 ? "shot" : "shots"}</span>
                   </span>
                 )}
-                {updatedAt && (
+                {talentCount > 0 && (
                   <>
                     {typeof shotCount === "number" && <span>•</span>}
+                    <span className="flex items-center gap-1.5">
+                      <User className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                      <span>{talentCount} {talentCount === 1 ? "model" : "models"}</span>
+                    </span>
+                  </>
+                )}
+                {locationCount > 0 && (
+                  <>
+                    {(typeof shotCount === "number" || talentCount > 0) && <span>•</span>}
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                      <span>{locationCount} {locationCount === 1 ? "location" : "locations"}</span>
+                    </span>
+                  </>
+                )}
+                {updatedAt && (
+                  <>
+                    {(typeof shotCount === "number" || talentCount > 0 || locationCount > 0) && <span>•</span>}
                     <span className="text-xs text-slate-400">Updated {updatedAt}</span>
                   </>
                 )}
