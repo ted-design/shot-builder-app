@@ -1555,7 +1555,10 @@ export default function ShotsPage() {
         const mergedTags = Array.from(tagMap.values());
 
         const shotDocRef = docRef(...currentShotsPath, shot.id);
-        batch.update(shotDocRef, { tags: mergedTags });
+        batch.update(shotDocRef, {
+          tags: mergedTags,
+          updatedAt: serverTimestamp()
+        });
         updateCount++;
 
         // Commit every 500 operations
@@ -1620,7 +1623,10 @@ export default function ShotsPage() {
         const filteredTags = existingTags.filter((tag) => !tagIdSet.has(tag.id));
 
         const shotDocRef = docRef(...currentShotsPath, shot.id);
-        batch.update(shotDocRef, { tags: filteredTags });
+        batch.update(shotDocRef, {
+          tags: filteredTags,
+          updatedAt: serverTimestamp()
+        });
         updateCount++;
 
         // Commit every 500 operations
