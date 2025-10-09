@@ -1,8 +1,20 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 globalThis.React = React;
+
+// Helper to render with QueryClientProvider
+const renderWithQueryClient = (ui) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
 
 const toastMock = {
   success: vi.fn(),
@@ -178,7 +190,7 @@ describe("ProductsPage", () => {
 
     vi.resetModules();
     const { default: ProductsPage } = await import("../ProductsPage.jsx");
-    render(<ProductsPage />);
+    renderWithQueryClient(<ProductsPage />);
 
     const table = await screen.findByRole("table");
     const readOrder = () =>
@@ -236,7 +248,7 @@ describe("ProductsPage", () => {
 
     vi.resetModules();
     const { default: ProductsPage } = await import("../ProductsPage.jsx");
-    render(<ProductsPage />);
+    renderWithQueryClient(<ProductsPage />);
 
     await screen.findByText("Alpha Jacket");
 
@@ -297,7 +309,7 @@ describe("ProductsPage", () => {
 
     vi.resetModules();
     const { default: ProductsPage } = await import("../ProductsPage.jsx");
-    render(<ProductsPage />);
+    renderWithQueryClient(<ProductsPage />);
 
     await screen.findByText("Alpha Jacket");
 

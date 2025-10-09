@@ -1,11 +1,9 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import {
-  collection,
   deleteDoc,
   doc,
   getDocs,
-  onSnapshot,
   orderBy,
   query,
   setDoc,
@@ -13,6 +11,7 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
+import { useProducts } from "../hooks/useFirestoreQuery";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input, Checkbox } from "../components/ui/input";
@@ -275,8 +274,9 @@ export default function ProductsPage() {
     [clientId]
   );
 
-  const [families, setFamilies] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // TanStack Query hook - cached data with realtime updates
+  const { data: families = [], isLoading: loading } = useProducts(clientId);
+
   const [queryText, setQueryText] = useState("");
   const debouncedQueryText = useDebouncedValue(queryText, 300);
   const [statusFilter, setStatusFilter] = useState("active");
@@ -309,14 +309,7 @@ export default function ProductsPage() {
 
   const canUseBatchActions = canEdit || canArchive || canDelete;
 
-  useEffect(() => {
-    const familiesQuery = query(collection(db, ...currentProductFamiliesPath), orderBy("styleName", "asc"));
-    const unsub = onSnapshot(familiesQuery, (snapshot) => {
-      setFamilies(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })));
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [currentProductFamiliesPath]);
+  // Removed: onSnapshot subscription replaced by useProducts hook above
 
   useEffect(() => {
     function onWindowClick(event) {
