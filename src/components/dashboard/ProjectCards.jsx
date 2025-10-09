@@ -1,4 +1,6 @@
+import { FolderOpen } from "lucide-react";
 import { ProjectCard, CreateProjectCard } from "./ProjectCard";
+import { EmptyState } from "../ui/EmptyState";
 
 export default function ProjectCards({
   projects = [],
@@ -13,9 +15,13 @@ export default function ProjectCards({
 
   if (!loading && !hasProjects) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <CreateProjectCard onClick={onCreateProject} />
-      </div>
+      <EmptyState
+        icon={FolderOpen}
+        title="No projects yet"
+        description="Create your first project to start organizing your photo shoots and managing your shots."
+        action={canManage ? "Create Project" : null}
+        onAction={canManage ? onCreateProject : null}
+      />
     );
   }
 

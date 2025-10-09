@@ -1,38 +1,60 @@
 // src/components/ui/EmptyState.jsx
 //
-// Reusable empty state component
+// Reusable empty state component for displaying helpful messaging when lists or collections are empty.
+//
+// Design specs (Phase 2):
+// - Center-aligned content
+// - Icon/illustration: 64px size, text-slate-400
+// - Heading: text-lg font-semibold text-slate-900
+// - Description: text-sm text-slate-600, max-w-md
+// - Spacing: 24px between elements (space-y-6)
 
 import React from "react";
 import { Button } from "./button";
 
+/**
+ * EmptyState component
+ *
+ * @param {React.Component} icon - Lucide icon component to display (e.g., Package, FolderOpen)
+ * @param {string} title - Main heading text (e.g., "No products yet")
+ * @param {string} description - Descriptive text explaining the empty state
+ * @param {string} action - Button text for primary action (e.g., "Create your first product")
+ * @param {Function} onAction - Callback function when action button is clicked
+ */
 export function EmptyState({
-  icon,
+  icon: Icon,
   title,
   description,
   action,
-  actionLabel,
-  secondaryAction,
-  secondaryActionLabel,
+  onAction
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center">
-      {icon && <div className="mb-4 text-5xl opacity-40">{icon}</div>}
-      <h3 className="mb-2 text-lg font-semibold text-slate-900">{title}</h3>
-      {description && <p className="mb-6 max-w-sm text-sm text-slate-600">{description}</p>}
-      {(action || secondaryAction) && (
-        <div className="flex flex-wrap gap-3">
-          {action && (
-            <Button onClick={action}>
-              {actionLabel || "Get Started"}
-            </Button>
-          )}
-          {secondaryAction && (
-            <Button variant="secondary" onClick={secondaryAction}>
-              {secondaryActionLabel || "Learn More"}
-            </Button>
-          )}
-        </div>
-      )}
+    <div className="flex flex-col items-center justify-center py-12 px-4">
+      <div className="flex flex-col items-center space-y-6 max-w-md text-center">
+        {/* Icon - 64px size, slate-400 color */}
+        {Icon && (
+          <Icon className="h-16 w-16 text-slate-400" aria-hidden="true" />
+        )}
+
+        {/* Title - Large, semibold, dark text */}
+        <h3 className="text-lg font-semibold text-slate-900">
+          {title}
+        </h3>
+
+        {/* Description - Smaller, gray text, centered, constrained width */}
+        {description && (
+          <p className="text-sm text-slate-600 max-w-md">
+            {description}
+          </p>
+        )}
+
+        {/* Action Button - Primary button if action provided */}
+        {action && onAction && (
+          <Button onClick={onAction} variant="default">
+            {action}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

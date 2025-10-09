@@ -33,11 +33,12 @@ import {
   talentPath,
   locationsPath,
 } from "../lib/paths";
-import { LayoutGrid, List, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { LayoutGrid, List, SlidersHorizontal, ChevronDown, Camera } from "lucide-react";
 import Select from "react-select";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
+import { EmptyState } from "../components/ui/EmptyState";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
@@ -1349,7 +1350,7 @@ export default function ShotsPage() {
           <CardContent className="py-4">
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="flex-none text-2xl font-semibold text-slate-900">Shots</h1>
+                <h1 className="flex-none text-2xl md:text-3xl font-bold text-slate-900">Shots</h1>
                 <Input
                   placeholder="Search shots by name, talent, product, or location..."
                   aria-label="Search shots"
@@ -1550,11 +1551,19 @@ export default function ShotsPage() {
       )}
       <div className="mx-6 space-y-4">
         {sortedShots.length === 0 ? (
-          <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
-            {shots.length
-              ? "No shots match the current search or filters."
-              : "No shots have been added yet."}
-          </div>
+          shots.length === 0 ? (
+            <EmptyState
+              icon={Camera}
+              title="No shots yet"
+              description="Start building your shot list to plan and organize your photo shoot."
+              action={canEditShots ? "Create Shot" : null}
+              onAction={canEditShots ? openCreateModal : null}
+            />
+          ) : (
+            <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+              No shots match the current search or filters.
+            </div>
+          )
         ) : isGalleryView ? (
           <div className="mx-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {sortedShots.map((shot) => {
