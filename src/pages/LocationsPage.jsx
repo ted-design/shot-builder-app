@@ -24,6 +24,7 @@ import { writeDoc } from "../lib/firestoreWrites";
 import { toast, showConfirm } from "../lib/toast";
 import { locationsPath } from "../lib/paths";
 import { ROLE, canManageLocations } from "../lib/rbac";
+import { MapPin } from "lucide-react";
 
 function formatAddress(location) {
   const { street, unit, city, province, postal } = location;
@@ -53,7 +54,8 @@ function LocationCard({ location, canManage, onEdit, editDisabled }) {
             <span className="block truncate">{name}</span>
           </div>
           {address && (
-            <div className="text-sm text-slate-600" title={address}>
+            <div className="flex items-start gap-1.5 text-sm text-slate-600" title={address}>
+              <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-slate-500" aria-hidden="true" />
               <span className="block truncate">{address}</span>
             </div>
           )}

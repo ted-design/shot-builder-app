@@ -1,6 +1,7 @@
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { StatusBadge } from "../ui/StatusBadge";
+import { Calendar, Camera } from "lucide-react";
 
 const formatTimestamp = (value) => {
   if (!value) return null;
@@ -93,13 +94,17 @@ export function ProjectCard({
                 </StatusBadge>
               </div>
               {shootDates && (
-                <div className="text-base font-semibold text-slate-800 mb-1">
-                  {shootDates}
+                <div className="flex items-center gap-1.5 text-base font-semibold text-slate-800 mb-1">
+                  <Calendar className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                  <span>{shootDates}</span>
                 </div>
               )}
               <div className="flex flex-wrap gap-2 text-sm text-slate-600">
                 {typeof shotCount === "number" && (
-                  <span>{shotCount} {shotCount === 1 ? "shot" : "shots"}</span>
+                  <span className="flex items-center gap-1.5">
+                    <Camera className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                    <span>{shotCount} {shotCount === 1 ? "shot" : "shots"}</span>
+                  </span>
                 )}
                 {updatedAt && (
                   <>
