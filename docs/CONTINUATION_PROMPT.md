@@ -1,8 +1,11 @@
-# ✅ ARCHIVED - Old Continuation Prompt
+# ⚠️ OUTDATED - Continuation Prompt for Next Claude Code Session
 
-**STATUS**: This prompt is outdated and refers to old improvement work (Sentry, Zod validation, etc.)
+**STATUS**: This prompt is from October 6, 2025 and focuses on feature improvements (Sentry, Zod validation).
 
-**FOR CURRENT UI WORK**: See `/docs/CONTINUATION_PROMPT_PHASE7.md`
+**CURRENT UI IMPROVEMENTS**: For UI design work continuation, see:
+- `/docs/CONTINUATION_PROMPT_PHASE7.md` (latest - for Phase 7+ UI work)
+- `/docs/MOCKUP_INTEGRATION_ASSESSMENT.md` (overall UI improvement plan)
+- `/docs/SESSION_2025-10-08_PHASE7_PLANNER_ENHANCEMENTS.md` (latest session)
 
 ---
 
