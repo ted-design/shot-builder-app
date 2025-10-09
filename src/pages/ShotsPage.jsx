@@ -33,7 +33,7 @@ import {
   talentPath,
   locationsPath,
 } from "../lib/paths";
-import { LayoutGrid, List, SlidersHorizontal, ChevronDown, Camera } from "lucide-react";
+import { LayoutGrid, List, SlidersHorizontal, ChevronDown, Camera, Filter, X } from "lucide-react";
 import Select from "react-select";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -177,6 +177,7 @@ export default function ShotsPage() {
   const [viewMode, setViewMode] = useState(() => readStoredShotsView());
   const [filters, setFilters] = useState(() => readStoredShotFilters());
   const [viewPrefs, setViewPrefs] = useState(() => readStoredViewPrefs());
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [editingShot, setEditingShot] = useState(null);
   const [isSavingShot, setIsSavingShot] = useState(false);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
@@ -293,6 +294,15 @@ export default function ShotsPage() {
     [filters.productFamilyIds, productFilterOptions]
   );
 
+  // Calculate active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.locationId && filters.locationId.length) count++;
+    if (Array.isArray(filters.talentIds) && filters.talentIds.length) count++;
+    if (Array.isArray(filters.productFamilyIds) && filters.productFamilyIds.length) count++;
+    return count;
+  }, [filters.locationId, filters.talentIds, filters.productFamilyIds]);
+
   const filteredShots = useMemo(() => {
     const term = debouncedQueryText.trim().toLowerCase();
     const selectedLocation = filters.locationId || "";
@@ -408,8 +418,22 @@ export default function ShotsPage() {
     };
   }, [displayMenuOpen]);
 
+  // Click-outside handler for filter panel
+  useEffect(() => {
+    if (!filtersOpen) return undefined;
+    function onFiltersClick(event) {
+      if (!filtersRef.current) return;
+      if (!filtersRef.current.contains(event.target)) {
+        setFiltersOpen(false);
+      }
+    }
+    window.addEventListener("mousedown", onFiltersClick);
+    return () => window.removeEventListener("mousedown", onFiltersClick);
+  }, [filtersOpen]);
+
   const familyDetailCacheRef = useRef(new Map());
   const displayMenuRef = useRef(null);
+  const filtersRef = useRef(null);
 
   // Helper to build references
   const collRef = (...segments) => collection(db, ...segments);
@@ -1449,7 +1473,7 @@ export default function ShotsPage() {
               )}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">View</span>
               <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
@@ -1477,61 +1501,115 @@ export default function ShotsPage() {
                 </button>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-              Filters
+
+            {/* Filter button with badge */}
+            <div className="relative" ref={filtersRef}>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((prev) => !prev)}
+                className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
+                  activeFilterCount > 0
+                    ? "border-primary/60 bg-primary/5 text-primary"
+                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+                aria-haspopup="menu"
+                aria-expanded={filtersOpen}
+              >
+                <Filter className="h-4 w-4" aria-hidden="true" />
+                <span>Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Filter panel */}
+              {filtersOpen && (
+                <div className="absolute right-0 z-20 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 shadow-lg">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-slate-900">Filter shots</p>
+                      {activeFilterCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            clearFilters();
+                            setFiltersOpen(false);
+                          }}
+                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+                        >
+                          <X className="h-3 w-3" />
+                          Clear all
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Location filter */}
+                    <div className="space-y-2">
+                      <label htmlFor="location-filter" className="text-xs font-medium text-slate-700">
+                        Location
+                      </label>
+                      <select
+                        id="location-filter"
+                        className="h-9 w-full rounded-md border border-slate-200 px-3 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                        value={filters.locationId}
+                        onChange={(event) => handleLocationFilterChange(event.target.value)}
+                      >
+                        <option value="">All locations</option>
+                        {locations.map((location) => (
+                          <option key={location.id} value={location.id}>
+                            {location.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Talent filter */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-700">Talent</label>
+                      <Select
+                        isMulti
+                        classNamePrefix="filter-select"
+                        styles={filterSelectStyles}
+                        options={talentFilterOptions}
+                        value={talentFilterValue}
+                        onChange={handleTalentFilterChange}
+                        placeholder={talentOptions.length ? "Select talent..." : "No talent available"}
+                        isDisabled={!talentOptions.length}
+                        noOptionsMessage={() =>
+                          talentOptions.length ? "No matching talent" : "No talent available"
+                        }
+                        menuPortalTarget={selectPortalTarget}
+                        menuShouldBlockScroll
+                        closeMenuOnSelect={false}
+                      />
+                    </div>
+
+                    {/* Product filter */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-700">Products</label>
+                      <Select
+                        isMulti
+                        classNamePrefix="filter-select"
+                        styles={filterSelectStyles}
+                        options={productFilterOptions}
+                        value={productFilterValue}
+                        onChange={handleProductFilterChange}
+                        placeholder={productFilterOptions.length ? "Select products..." : "No products available"}
+                        isDisabled={!productFilterOptions.length}
+                        noOptionsMessage={() =>
+                          productFilterOptions.length ? "No matching products" : "No products available"
+                        }
+                        menuPortalTarget={selectPortalTarget}
+                        menuShouldBlockScroll
+                        closeMenuOnSelect={false}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <select
-              className="h-9 rounded-md border border-slate-200 px-3 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
-              value={filters.locationId}
-              onChange={(event) => handleLocationFilterChange(event.target.value)}
-            >
-              <option value="">All locations</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
-            </select>
-            <div className="min-w-[200px] flex-1 sm:flex-none">
-              <Select
-                isMulti
-                classNamePrefix="filter-select"
-                styles={filterSelectStyles}
-                options={talentFilterOptions}
-                value={talentFilterValue}
-                onChange={handleTalentFilterChange}
-                placeholder={talentOptions.length ? "Filter talent" : "No talent available"}
-                isDisabled={!talentOptions.length}
-                noOptionsMessage={() =>
-                  talentOptions.length ? "No matching talent" : "No talent available"
-                }
-                menuPortalTarget={selectPortalTarget}
-                menuShouldBlockScroll
-                closeMenuOnSelect={false}
-              />
-            </div>
-            <div className="min-w-[200px] flex-1 sm:flex-none">
-              <Select
-                isMulti
-                classNamePrefix="filter-select"
-                styles={filterSelectStyles}
-                options={productFilterOptions}
-                value={productFilterValue}
-                onChange={handleProductFilterChange}
-                placeholder={productFilterOptions.length ? "Filter products" : "No products available"}
-                isDisabled={!productFilterOptions.length}
-                noOptionsMessage={() =>
-                  productFilterOptions.length ? "No matching products" : "No products available"
-                }
-                menuPortalTarget={selectPortalTarget}
-                menuShouldBlockScroll
-                closeMenuOnSelect={false}
-              />
-            </div>
-            <Button type="button" variant="ghost" size="sm" onClick={clearFilters} disabled={!filtersApplied}>
-              Clear
-            </Button>
           </div>
             </div>
           </CardContent>
