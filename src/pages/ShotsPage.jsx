@@ -66,6 +66,7 @@ import {
 import { readStorage, writeStorage } from "../lib/safeStorage";
 import { normaliseShotStatus, DEFAULT_SHOT_STATUS } from "../lib/shotStatus";
 import { normaliseShot, sortShotsForView, SHOT_SORT_OPTIONS } from "../lib/shotsSelectors";
+import { getStaggerDelay } from "../lib/animations";
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
@@ -1585,7 +1586,7 @@ export default function ShotsPage() {
 
               {/* Filter panel */}
               {filtersOpen && (
-                <div className="absolute right-0 z-20 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 shadow-lg">
+                <div className="absolute right-0 z-20 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 shadow-lg animate-slide-in-from-right">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-slate-900">Filter shots</p>
@@ -1719,47 +1720,57 @@ export default function ShotsPage() {
           )
         ) : isGalleryView ? (
           <div className="mx-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {sortedShots.map((shot) => {
+            {sortedShots.map((shot, index) => {
               const shotProducts = normaliseShotProducts(shot);
               const shotTalentSelection = mapShotTalentToSelection(shot);
               const notesHtml = formatNotesForDisplay(shot.description);
               const locationName =
                 shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
               return (
-                <ShotGalleryCard
+                <div
                   key={shot.id}
-                  shot={shot}
-                  locationName={locationName}
-                  products={shotProducts}
-                  talent={shotTalentSelection}
-                  notesHtml={notesHtml}
-                  canEditShots={canEditShots}
-                  onEdit={() => handleEditShot(shot)}
-                  viewPrefs={viewPrefs}
-                />
+                  className="animate-fade-in opacity-0"
+                  style={getStaggerDelay(index)}
+                >
+                  <ShotGalleryCard
+                    shot={shot}
+                    locationName={locationName}
+                    products={shotProducts}
+                    talent={shotTalentSelection}
+                    notesHtml={notesHtml}
+                    canEditShots={canEditShots}
+                    onEdit={() => handleEditShot(shot)}
+                    viewPrefs={viewPrefs}
+                  />
+                </div>
               );
             })}
           </div>
         ) : (
           <div className="space-y-4">
-            {sortedShots.map((shot) => {
+            {sortedShots.map((shot, index) => {
               const shotProducts = normaliseShotProducts(shot);
               const shotTalentSelection = mapShotTalentToSelection(shot);
               const notesHtml = formatNotesForDisplay(shot.description);
               const locationName =
                 shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
               return (
-                <ShotListCard
+                <div
                   key={shot.id}
-                  shot={shot}
-                  locationName={locationName}
-                  products={shotProducts}
-                  talent={shotTalentSelection}
-                  notesHtml={notesHtml}
-                  canEditShots={canEditShots}
-                  onEdit={() => handleEditShot(shot)}
-                  viewPrefs={viewPrefs}
-                />
+                  className="animate-fade-in opacity-0"
+                  style={getStaggerDelay(index)}
+                >
+                  <ShotListCard
+                    shot={shot}
+                    locationName={locationName}
+                    products={shotProducts}
+                    talent={shotTalentSelection}
+                    notesHtml={notesHtml}
+                    canEditShots={canEditShots}
+                    onEdit={() => handleEditShot(shot)}
+                    viewPrefs={viewPrefs}
+                  />
+                </div>
               );
             })}
           </div>
