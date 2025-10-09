@@ -45,6 +45,7 @@ import { LoadingSpinner, LoadingOverlay, LoadingSkeleton } from "../components/u
 import { EmptyState } from "../components/ui/EmptyState";
 import { useProjectScope } from "../context/ProjectScopeContext";
 import { toast } from "../lib/toast";
+import { FileText, MapPin } from "lucide-react";
 // Optional: if you've created UI primitives (Card, Input, Button), import
 // them here.  Otherwise, plain HTML elements will work fine.
 
@@ -362,7 +363,7 @@ export default function PullsPage() {
         ) : pulls.length === 0 ? (
           // Empty state
           <EmptyState
-            icon="📋"
+            icon={FileText}
             title="No pulls yet"
             description="Create your first pull sheet to start aggregating products for shoots. You can create a blank pull or auto-generate one from your planner lanes."
             action={canManage ? () => setShowAutoGenerateModal(true) : null}
@@ -624,7 +625,7 @@ function AutoGeneratePullModal({ projectId, clientId, onClose }) {
               <LoadingOverlay message="Loading planner lanes..." />
             ) : lanes.length === 0 ? (
               <EmptyState
-                icon="📍"
+                icon={MapPin}
                 title="No lanes in planner"
                 description="Create lanes in your planner first to use auto-generation. Lanes help organize your shots for production."
               />
