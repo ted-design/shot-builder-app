@@ -6,6 +6,7 @@ import { Input } from "../ui/input";
 import NotesEditor from "./NotesEditor";
 import ShotProductsEditor from "./ShotProductsEditor";
 import TalentMultiSelect from "./TalentMultiSelect";
+import TagEditor from "./TagEditor";
 
 export default function ShotEditModal({
   open,
@@ -229,6 +230,12 @@ export default function ShotEditModal({
               {talentLoadError && (
                 <p className="text-xs text-red-600">{talentLoadError}</p>
               )}
+            </div>
+            <div className="space-y-2">
+              <TagEditor
+                tags={draft.tags || []}
+                onChange={(next) => handleFieldChange({ tags: next })}
+              />
             </div>
             {onMoveToProject && projects.length > 0 && (
               <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-4">

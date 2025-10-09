@@ -43,6 +43,15 @@ export const shotTalentSchema = z.object({
 });
 
 /**
+ * Shot tag entry
+ */
+export const shotTagSchema = z.object({
+  id: z.string().min(1, "Tag ID is required"),
+  label: z.string().min(1, "Tag label is required").max(50),
+  color: z.string().min(1, "Tag color is required"),
+});
+
+/**
  * Shot draft schema (for creating/editing shots)
  */
 export const shotDraftSchema = z.object({
@@ -61,6 +70,7 @@ export const shotDraftSchema = z.object({
   projectId: optionalDocIdSchema,
   products: z.array(shotProductSchema).default([]),
   talent: z.array(shotTalentSchema).default([]),
+  tags: z.array(shotTagSchema).default([]),
 });
 
 /**
@@ -80,6 +90,7 @@ export const shotSchema = z.object({
   productIds: stringArraySchema,
   talent: z.array(shotTalentSchema).default([]),
   talentIds: stringArraySchema,
+  tags: z.array(shotTagSchema).default([]),
   notes: z.string().nullable().optional(),
   ...softDeleteSchema.shape,
   ...auditFieldsSchema.shape,
@@ -101,4 +112,5 @@ export const initialShotDraft = {
   locationId: "",
   products: [],
   talent: [],
+  tags: [],
 };
