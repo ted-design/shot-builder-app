@@ -14,6 +14,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import ExportButton from "../components/common/ExportButton";
+import BatchImageUploadModal from "../components/common/BatchImageUploadModal";
 import TalentCreateModal from "../components/talent/TalentCreateModal";
 import TalentEditModal from "../components/talent/TalentEditModal";
 import Thumb from "../components/Thumb";
@@ -24,7 +25,7 @@ import { writeDoc } from "../lib/firestoreWrites";
 import { toast, showConfirm } from "../lib/toast";
 import { talentPath } from "../lib/paths";
 import { ROLE, canManageTalent } from "../lib/rbac";
-import { User } from "lucide-react";
+import { User, Upload } from "lucide-react";
 
 function buildDisplayName(firstName, lastName) {
   const first = (firstName || "").trim();
@@ -133,6 +134,7 @@ export default function TalentPage() {
   const [feedback, setFeedback] = useState(null);
   const [creating, setCreating] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [batchUploadModalOpen, setBatchUploadModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [editBusy, setEditBusy] = useState(false);
   const [, setPendingDeleteId] = useState(null);
@@ -424,13 +426,25 @@ export default function TalentPage() {
               />
               <ExportButton data={filteredTalent} entityType="talent" />
               {canManage && (
-                <Button
-                  type="button"
-                  onClick={() => setCreateModalOpen(true)}
-                  className="flex-none whitespace-nowrap"
-                >
-                  New talent
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setBatchUploadModalOpen(true)}
+                    className="flex-none whitespace-nowrap flex items-center gap-2"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Batch Upload
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => setCreateModalOpen(true)}
+                    className="flex-none whitespace-nowrap"
+                  >
+                    New talent
+                  </Button>
+                </>
               )}
             </div>
           </CardContent>
@@ -496,6 +510,25 @@ export default function TalentPage() {
           onClose={closeEditModal}
           onSave={handleSaveTalent}
           onDelete={handleDelete}
+        />
+      )}
+
+      {canManage && (
+        <BatchImageUploadModal
+          open={batchUploadModalOpen}
+          onClose={() => setBatchUploadModalOpen(false)}
+          folder="talent"
+          entityId="batch-demo"
+          entityName="Talent Headshots (Demo)"
+          maxFiles={10}
+          onFileUploaded={(upload) => {
+            console.log("File uploaded:", upload);
+            toast.success(`Uploaded ${upload.filename}`);
+          }}
+          onUploadComplete={(successfulUploads) => {
+            console.log("All uploads complete:", successfulUploads);
+            toast.success(`Successfully uploaded ${successfulUploads.length} file${successfulUploads.length === 1 ? "" : "s"}!`);
+          }}
         />
       )}
     </div>
