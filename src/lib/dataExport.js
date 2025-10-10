@@ -5,6 +5,23 @@
 import * as XLSX from 'xlsx';
 
 /**
+ * Sanitize cell value to prevent CSV/Excel injection
+ * Prefixes values starting with =, +, -, @ with a single quote
+ */
+const sanitizeCellValue = (value) => {
+  if (!value) return '';
+  const str = String(value);
+  const firstChar = str.charAt(0);
+
+  // Prevent formula injection by prefixing dangerous characters
+  if (firstChar === '=' || firstChar === '+' || firstChar === '-' || firstChar === '@') {
+    return `'${str}`;
+  }
+
+  return str;
+};
+
+/**
  * Format timestamp for export
  */
 const formatTimestamp = (timestamp) => {
@@ -45,18 +62,21 @@ const EXPORT_CONFIGS = {
   },
   products: {
     columns: [
-      { key: 'name', label: 'Product Name', format: (val) => val || '' },
+      { key: 'styleName', label: 'Style Name', format: (val) => val || '' },
       { key: 'styleNumber', label: 'Style Number', format: (val) => val || '' },
-      { key: 'category', label: 'Category', format: (val) => val || '' },
+      { key: 'previousStyleNumber', label: 'Previous Style Number', format: (val) => val || '' },
       { key: 'gender', label: 'Gender', format: (val) => val || '' },
-      { key: 'sizes', label: 'Sizes', format: (val) => formatArray(val) },
-      { key: 'colors', label: 'Colors', format: (val) => formatArray(val, 'name') },
-      { key: 'description', label: 'Description', format: (val) => val || '' },
-      { key: 'price', label: 'Price', format: (val) => val ? `$${val}` : '' },
+      { key: 'status', label: 'Status', format: (val) => val || '' },
+      { key: 'sizeOptions', label: 'Sizes', format: (val) => formatArray(val) },
+      { key: 'colorNames', label: 'Colors', format: (val) => formatArray(val) },
+      { key: 'skuCount', label: 'SKU Count', format: (val) => val || 0 },
+      { key: 'activeSkuCount', label: 'Active SKUs', format: (val) => val || 0 },
+      { key: 'notes', label: 'Notes', format: (val) => val || '' },
+      { key: 'archived', label: 'Archived', format: (val) => val ? 'Yes' : 'No' },
       { key: 'createdAt', label: 'Created', format: (val) => formatTimestamp(val) },
       { key: 'updatedAt', label: 'Updated', format: (val) => formatTimestamp(val) },
     ],
-    filename: 'products'
+    filename: 'product-families'
   },
   talent: {
     columns: [
@@ -125,12 +145,13 @@ export const exportToCSV = (data, entityType, selectedColumns = null) => {
     const row = columns.map((col) => {
       const value = item[col.key];
       const formatted = col.format ? col.format(value) : value;
-      return String(formatted || '');
+      const sanitized = sanitizeCellValue(formatted || '');
+      return sanitized;
     });
     rows.push(row);
   });
 
-  // Convert to CSV string
+  // Convert to CSV string with proper escaping
   return rows.map((row) =>
     row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
   ).join('\n');
@@ -160,7 +181,8 @@ export const exportToExcel = (data, entityType, selectedColumns = null) => {
     const row = columns.map((col) => {
       const value = item[col.key];
       const formatted = col.format ? col.format(value) : value;
-      return formatted || '';
+      const sanitized = sanitizeCellValue(formatted || '');
+      return sanitized;
     });
     excelData.push(row);
   });
