@@ -109,6 +109,11 @@ export default {
           '0%': { transform: 'scale(1)' },
           '100%': { transform: 'scale(0.95)' },
         },
+        // Shimmer animation for loading skeletons
+        'shimmer': {
+          '0%': { backgroundPosition: '200% 0' },
+          '100%': { backgroundPosition: '-200% 0' },
+        },
       },
       animation: {
         // Entrance animations
@@ -122,6 +127,7 @@ export default {
         'slide-out-to-top': 'slide-out-to-top 0.2s ease-in',
         'zoom-in': 'zoom-in 0.2s ease-out',
         'zoom-out': 'zoom-out 0.2s ease-in',
+        'shimmer': 'shimmer 2s ease-in-out infinite',
       },
     },
   },

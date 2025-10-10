@@ -104,14 +104,14 @@ export function TagEditor({ tags = [], onChange, className = "" }) {
           <button
             type="button"
             onClick={() => setPickerOpen(!isPickerOpen)}
-            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition"
+            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-all hover:-translate-y-0.5 active:translate-y-0"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className={`h-3.5 w-3.5 transition-transform ${isPickerOpen ? 'rotate-45' : ''}`} />
             Add tag
           </button>
 
           {isPickerOpen && (
-            <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-md border border-slate-200 bg-white p-4 shadow-lg">
+            <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-md border border-slate-200 bg-white p-4 shadow-lg animate-fade-in animate-slide-in-from-top origin-top" style={{ animationDuration: '200ms' }}>
               <div className="space-y-3">
                 <div>
                   <label htmlFor="tag-label" className="block text-xs font-medium text-slate-700 mb-1">
@@ -135,7 +135,7 @@ export function TagEditor({ tags = [], onChange, className = "" }) {
                     Color
                   </label>
                   <div className="grid grid-cols-5 gap-2">
-                    {Object.keys(TAG_COLORS).map((colorKey) => {
+                    {Object.keys(TAG_COLORS).map((colorKey, index) => {
                       const isSelected = selectedColor === colorKey;
                       const colorClass = TAG_COLORS[colorKey];
 
@@ -144,11 +144,16 @@ export function TagEditor({ tags = [], onChange, className = "" }) {
                           key={colorKey}
                           type="button"
                           onClick={() => setSelectedColor(colorKey)}
-                          className={`h-8 w-8 rounded-md transition-all ${colorClass.split(' ')[0]} ${
+                          className={`h-8 w-8 rounded-md transition-all duration-150 ${colorClass.split(' ')[0]} ${
                             isSelected
                               ? "ring-2 ring-offset-2 ring-slate-900 scale-110"
-                              : "hover:scale-105 border border-slate-200"
+                              : "hover:scale-105 active:scale-95 border border-slate-200"
                           }`}
+                          style={{
+                            animation: 'fade-in 150ms ease-out',
+                            animationDelay: `${index * 30}ms`,
+                            animationFillMode: 'both',
+                          }}
                           aria-label={`Select ${colorKey} color`}
                           title={colorKey}
                         />
