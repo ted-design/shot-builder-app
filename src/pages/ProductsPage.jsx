@@ -17,6 +17,7 @@ import { Button } from "../components/ui/button";
 import { Input, Checkbox } from "../components/ui/input";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { EmptyState } from "../components/ui/EmptyState";
+import VirtualizedList, { VirtualizedGrid } from "../components/ui/VirtualizedList";
 import NewProductModal from "../components/products/NewProductModal";
 import EditProductModal from "../components/products/EditProductModal";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
@@ -1514,50 +1515,35 @@ export default function ProductsPage() {
             action={canEdit ? "Create Product" : null}
             onAction={canEdit ? () => setNewModalOpen(true) : null}
           />
+        ) : noMatchingFilters ? (
+          <Card>
+            <CardContent className="p-6 text-center text-sm text-slate-500">
+              No products match the current filters.
+            </CardContent>
+          </Card>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-              {canEdit && (
-                <button
-                  type="button"
-                  onClick={() => setNewModalOpen(true)}
-                  className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 text-sm text-slate-600 transition hover:border-primary hover:text-primary"
-                >
-                  <span className="text-2xl">＋</span>
-                  <span>Create product</span>
-                </button>
-              )}
-              {displayedFamilies.map((family, index) => (
-                <div
-                  key={family.id}
-                  className="animate-fade-in opacity-0"
-                  style={getStaggerDelay(index)}
-                >
-                  {renderFamilyCard(family)}
-                </div>
-              ))}
-              {noMatchingFilters && (
-                <Card>
-                  <CardContent className="p-6 text-center text-sm text-slate-500">
-                    No products match the current filters.
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-            {hasMoreItems && (
-              <div className="text-center">
-                <p className="mb-3 text-sm text-slate-600">
-                  Showing {displayedFamilies.length} of {totalCount} products
-                </p>
-                <Button
-                  onClick={() => setItemsToShow((prev) => prev + 50)}
-                  variant="secondary"
-                  size="sm"
-                >
-                  Load More (50)
-                </Button>
-              </div>
-            )}
+            <VirtualizedGrid
+              items={sortedFamilies}
+              itemHeight={380}
+              gap={16}
+              threshold={100}
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+              renderItem={(family, index, isVirtualized) => {
+                const cardContent = renderFamilyCard(family);
+
+                // Only apply stagger animation when not virtualized
+                if (!isVirtualized) {
+                  return (
+                    <div className="animate-fade-in opacity-0" style={getStaggerDelay(index)}>
+                      {cardContent}
+                    </div>
+                  );
+                }
+
+                return cardContent;
+              }}
+            />
           </>
         )}
       </div>

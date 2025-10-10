@@ -2,6 +2,7 @@ import { FolderOpen } from "lucide-react";
 import { ProjectCard, CreateProjectCard } from "./ProjectCard";
 import { EmptyState } from "../ui/EmptyState";
 import { getStaggerDelay } from "../../lib/animations";
+import { VirtualizedGrid } from "../ui/VirtualizedList";
 
 export default function ProjectCards({
   projects = [],
@@ -26,27 +27,40 @@ export default function ProjectCards({
     );
   }
 
+  // Render function for each project card
+  const renderProjectCard = (project, index, isVirtualized) => {
+    const cardContent = (
+      <ProjectCard
+        project={project}
+        isActive={project.id === activeProjectId}
+        canManage={canManage}
+        onSelect={onSelectProject}
+        onEdit={onEditProject}
+      />
+    );
+
+    // Only apply stagger animation when not virtualized
+    if (!isVirtualized) {
+      return (
+        <div className="animate-fade-in opacity-0" style={getStaggerDelay(index)}>
+          {cardContent}
+        </div>
+      );
+    }
+
+    return cardContent;
+  };
+
   return (
-    <div
-      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-      data-testid="project-cards-grid"
-    >
-      {hasProjects &&
-        projects.map((project, index) => (
-          <div
-            key={project.id}
-            className="animate-fade-in opacity-0"
-            style={getStaggerDelay(index)}
-          >
-            <ProjectCard
-              project={project}
-              isActive={project.id === activeProjectId}
-              canManage={canManage}
-              onSelect={onSelectProject}
-              onEdit={onEditProject}
-            />
-          </div>
-        ))}
+    <div data-testid="project-cards-grid">
+      <VirtualizedGrid
+        items={projects}
+        renderItem={renderProjectCard}
+        itemHeight={240}
+        gap={16}
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        threshold={100}
+      />
       {canManage && <CreateProjectCard onClick={onCreateProject} />}
     </div>
   );
