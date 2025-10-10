@@ -2340,11 +2340,9 @@ export default function ShotsPage() {
           <VirtualizedGrid
             items={sortedShots}
             itemHeight={420}
-            columns={3}
-            gap={16}
             threshold={100}
             className="mx-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
-            renderItem={(shot, index) => {
+            renderItem={(shot, index, isVirtualized) => {
               const shotProducts = normaliseShotProducts(shot);
               const shotTalentSelection = mapShotTalentToSelection(shot);
               const notesHtml = formatNotesForDisplay(shot.description);
@@ -2352,8 +2350,8 @@ export default function ShotsPage() {
                 shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
               return (
                 <div
-                  className="animate-fade-in opacity-0"
-                  style={getStaggerDelay(index)}
+                  className={isVirtualized ? "" : "animate-fade-in opacity-0"}
+                  style={isVirtualized ? {} : getStaggerDelay(index)}
                 >
                   <ShotGalleryCard
                     shot={shot}
@@ -2377,7 +2375,7 @@ export default function ShotsPage() {
             itemHeight={280}
             threshold={100}
             className="space-y-4"
-            renderItem={(shot, index) => {
+            renderItem={(shot, index, isVirtualized) => {
               const shotProducts = normaliseShotProducts(shot);
               const shotTalentSelection = mapShotTalentToSelection(shot);
               const notesHtml = formatNotesForDisplay(shot.description);
@@ -2385,8 +2383,8 @@ export default function ShotsPage() {
                 shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
               return (
                 <div
-                  className="animate-fade-in opacity-0"
-                  style={getStaggerDelay(index)}
+                  className={isVirtualized ? "" : "animate-fade-in opacity-0"}
+                  style={isVirtualized ? {} : getStaggerDelay(index)}
                 >
                   <ShotListCard
                     shot={shot}
