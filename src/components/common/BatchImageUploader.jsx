@@ -23,6 +23,18 @@ import { uploadImageFile } from "../../lib/firebase";
  * @param {number} props.maxFiles - Maximum number of files allowed (default: 10)
  * @param {boolean} props.disabled - Disable the uploader
  */
+// Maximum file size: 50MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+// Whitelist of safe image formats
+const ALLOWED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+];
+
 export default function BatchImageUploader({
   folder,
   entityId,
@@ -35,6 +47,7 @@ export default function BatchImageUploader({
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
   const dragCounterRef = useRef(0);
+  const isMountedRef = useRef(true);
 
   // File status: 'pending' | 'compressing' | 'uploading' | 'success' | 'error'
   const getFileId = (file) => `${file.name}-${file.size}-${file.lastModified}`;
@@ -43,7 +56,18 @@ export default function BatchImageUploader({
     (newFiles) => {
       if (disabled) return;
 
-      const fileArray = Array.from(newFiles).filter((file) => file.type.startsWith("image/"));
+      // Filter files: whitelist safe types and check file size
+      const fileArray = Array.from(newFiles).filter((file) => {
+        if (!ALLOWED_IMAGE_TYPES.includes(file.type.toLowerCase())) {
+          console.warn(`Skipped unsupported file type: ${file.name} (${file.type})`);
+          return false;
+        }
+        if (file.size > MAX_FILE_SIZE) {
+          console.warn(`Skipped file exceeding ${MAX_FILE_SIZE / 1024 / 1024}MB: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+          return false;
+        }
+        return true;
+      });
 
       if (fileArray.length === 0) return;
 
@@ -145,6 +169,8 @@ export default function BatchImageUploader({
     async (fileObj) => {
       try {
         // Step 1: Compress
+        if (!isMountedRef.current) return { success: false, error: new Error("Component unmounted") };
+
         setFiles((prev) =>
           prev.map((f) =>
             f.id === fileObj.id
@@ -159,6 +185,8 @@ export default function BatchImageUploader({
         });
 
         // Step 2: Upload
+        if (!isMountedRef.current) return { success: false, error: new Error("Component unmounted") };
+
         setFiles((prev) =>
           prev.map((f) =>
             f.id === fileObj.id
@@ -174,6 +202,8 @@ export default function BatchImageUploader({
         });
 
         // Step 3: Success
+        if (!isMountedRef.current) return { success: false, error: new Error("Component unmounted") };
+
         setFiles((prev) =>
           prev.map((f) =>
             f.id === fileObj.id
@@ -190,6 +220,14 @@ export default function BatchImageUploader({
         return { success: true, path, downloadURL };
       } catch (error) {
         console.error("Failed to upload file:", fileObj.file.name, error);
+
+        // Revoke blob URL on error to prevent memory leak
+        if (fileObj.preview) {
+          URL.revokeObjectURL(fileObj.preview);
+        }
+
+        if (!isMountedRef.current) return { success: false, error };
+
         setFiles((prev) =>
           prev.map((f) =>
             f.id === fileObj.id
@@ -222,9 +260,11 @@ export default function BatchImageUploader({
     }
   }, [files, uploadFile, onUploadComplete]);
 
-  // Cleanup previews on unmount
+  // Cleanup previews on unmount and track mounted state
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       files.forEach((file) => {
         if (file.preview) {
           URL.revokeObjectURL(file.preview);
