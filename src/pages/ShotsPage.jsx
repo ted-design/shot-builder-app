@@ -46,6 +46,7 @@ import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/ui/EmptyState";
+import VirtualizedList, { VirtualizedGrid } from "../components/ui/VirtualizedList";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
@@ -2336,8 +2337,14 @@ export default function ShotsPage() {
             </div>
           )
         ) : isGalleryView ? (
-          <div className="mx-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {sortedShots.map((shot, index) => {
+          <VirtualizedGrid
+            items={sortedShots}
+            itemHeight={420}
+            columns={3}
+            gap={16}
+            threshold={100}
+            className="mx-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+            renderItem={(shot, index) => {
               const shotProducts = normaliseShotProducts(shot);
               const shotTalentSelection = mapShotTalentToSelection(shot);
               const notesHtml = formatNotesForDisplay(shot.description);
@@ -2345,7 +2352,6 @@ export default function ShotsPage() {
                 shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
               return (
                 <div
-                  key={shot.id}
                   className="animate-fade-in opacity-0"
                   style={getStaggerDelay(index)}
                 >
@@ -2363,11 +2369,15 @@ export default function ShotsPage() {
                   />
                 </div>
               );
-            })}
-          </div>
+            }}
+          />
         ) : (
-          <div className="space-y-4">
-            {sortedShots.map((shot, index) => {
+          <VirtualizedList
+            items={sortedShots}
+            itemHeight={280}
+            threshold={100}
+            className="space-y-4"
+            renderItem={(shot, index) => {
               const shotProducts = normaliseShotProducts(shot);
               const shotTalentSelection = mapShotTalentToSelection(shot);
               const notesHtml = formatNotesForDisplay(shot.description);
@@ -2375,7 +2385,6 @@ export default function ShotsPage() {
                 shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
               return (
                 <div
-                  key={shot.id}
                   className="animate-fade-in opacity-0"
                   style={getStaggerDelay(index)}
                 >
@@ -2393,8 +2402,8 @@ export default function ShotsPage() {
                   />
                 </div>
               );
-            })}
-          </div>
+            }}
+          />
         )}
       </div>
       {canEditShots && isCreateModalOpen && (
