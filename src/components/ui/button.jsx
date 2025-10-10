@@ -6,10 +6,10 @@ import React from "react";
 // hover states. Add more variants as needed.
 const VARIANTS = {
   default: "bg-primary text-white hover:bg-primary-dark active:scale-95",
-  secondary: "bg-gray-100 text-gray-800 hover:bg-gray-200 hover:-translate-y-0.5 active:translate-y-0",
+  secondary: "bg-gray-100 text-gray-800 hover:bg-gray-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm",
   destructive: "bg-red-500 text-white hover:bg-red-600 active:scale-95",
-  ghost: "bg-transparent text-gray-700 hover:bg-gray-100 hover:-translate-y-0.5 active:translate-y-0",
-  outline: "bg-transparent border border-gray-300 text-gray-800 hover:border-gray-400 hover:-translate-y-0.5 active:translate-y-0",
+  ghost: "bg-transparent text-gray-700 hover:bg-gray-100 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm",
+  outline: "bg-transparent border border-gray-300 text-gray-800 hover:border-gray-400 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm",
 };
 
 // Define sizing options for the button. Each size defines font size and

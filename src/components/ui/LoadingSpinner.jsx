@@ -38,9 +38,8 @@ export function LoadingSkeleton({ className = "", count = 1 }) {
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}
-          className={`animate-pulse rounded-md bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] ${className}`}
+          className={`animate-shimmer rounded-md bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] ${className}`}
           style={{
-            animation: 'pulse 1.5s ease-in-out infinite',
             animationDelay: `${index * 100}ms`,
           }}
         />
