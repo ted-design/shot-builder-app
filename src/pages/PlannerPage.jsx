@@ -83,6 +83,7 @@ import {
   shotStatusOptions,
 } from "../lib/shotStatus";
 import { getStaggerDelay } from "../lib/animations";
+import { useLanes, useShots, useProducts, useTalent, useLocations } from "../hooks/useFirestoreQuery";
 
 const PLANNER_VIEW_STORAGE_KEY = "planner:viewMode";
 const PLANNER_FIELDS_STORAGE_KEY = "planner:visibleFields";
@@ -785,17 +786,10 @@ function ShotCard({
 }
 
 function PlannerPageContent() {
-  const [lanes, setLanes] = useState([]);
   const [name, setName] = useState("");
   const [shotsByLane, setShotsByLane] = useState({});
   const [plannerShots, setPlannerShots] = useState([]);
-  const [families, setFamilies] = useState([]);
-  const [talent, setTalent] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [talentLoadError, setTalentLoadError] = useState(null);
-  const [lanesLoading, setLanesLoading] = useState(true);
   const [shotsLoading, setShotsLoading] = useState(true);
-  const [familiesLoading, setFamiliesLoading] = useState(true);
   const [viewMode, setViewMode] = useState(() => readStoredPlannerView());
   const [visibleFields, setVisibleFields] = useState(() => readStoredVisibleFields());
   const [plannerPrefs, setPlannerPrefs] = useState(() => readStoredPlannerPrefs());
@@ -833,6 +827,18 @@ function PlannerPageContent() {
   const canEditPlanner = canManagePlanner(userRole);
   const canEditShots = canManageShots(userRole);
   const isAuthLoading = !authReady || loadingClaims;
+
+  // TanStack Query hooks for cached data with realtime updates
+  const { data: lanes = [], isLoading: lanesLoading } = useLanes(clientId, projectId);
+  const { data: primaryShots = [], isLoading: primaryShotsLoading } = useShots(clientId, projectId);
+  const { data: families = [], isLoading: familiesLoading } = useProducts(clientId);
+  const { data: talent = [], error: talentError } = useTalent(clientId);
+  const { data: locations = [] } = useLocations(clientId);
+
+  // Derive talent load error from query error
+  const talentLoadError = talentError
+    ? describeFirebaseError(talentError, "Unable to load talent.").message
+    : null;
   const currentLanesPath = useMemo(
     () => (projectId ? lanesPath(projectId, clientId) : null),
     [projectId, clientId]
@@ -991,46 +997,25 @@ function PlannerPageContent() {
       return undefined;
     }
 
-    if (!projectId || !clientId || !currentLanesPath || !currentLegacyShotsPath) {
-      setLanes([]);
+    if (!projectId || !clientId || !currentLegacyShotsPath) {
       setShotsByLane({});
       setPlannerShots([]);
-      setFamilies([]);
-      setLanesLoading(false);
       setShotsLoading(false);
-      setFamiliesLoading(false);
       return undefined;
     }
 
     setSubscriptionError(null);
     subscriptionErrorNotifiedRef.current = false;
-    setLanesLoading(true);
     setShotsLoading(true);
-    setFamiliesLoading(true);
-    setLanes([]);
     setShotsByLane({});
     setPlannerShots([]);
 
     let cancelled = false;
 
-    const laneRef = collection(db, ...currentLanesPath);
-    const lanesQuery = query(laneRef, orderBy("order", "asc"));
     const shotsRef = collection(db, ...currentShotsPath);
-    const shotsQuery = query(shotsRef, where("projectId", "==", projectId));
     const legacyShotsRef = collection(db, ...currentLegacyShotsPath);
-    const familiesRef = collection(db, ...currentProductFamiliesPath);
-    const familiesQuery = query(familiesRef, orderBy("styleName", "asc"));
 
-    const handleLanesError = (error) => {
-      if (cancelled) return;
-      setLanes([]);
-      setLanesLoading(false);
-      handleSubscriptionError("lanes")(error);
-    };
-
-    let primaryLoaded = false;
     let legacyLoaded = false;
-    let latestPrimaryShots = [];
     let latestLegacyShots = [];
     const unassignedShotBuckets = new Map();
     const unassignedUnsubs = [];
@@ -1067,28 +1052,19 @@ function PlannerPageContent() {
         entries.forEach((shot) => unassignedShots.push(shot));
       });
       const merged = mergeShotSources(
-        [...latestPrimaryShots, ...unassignedShots],
+        [...primaryShots, ...unassignedShots],
         latestLegacyShots,
         projectId || DEFAULT_PROJECT_ID
       );
       setPlannerShots(merged);
       setShotsByLane(groupShotsByLane(merged));
-      backfillMissingStatuses([...latestPrimaryShots, ...unassignedShots]);
+      backfillMissingStatuses([...primaryShots, ...unassignedShots]);
     };
 
     const updateShotsLoading = () => {
-      if (!cancelled && primaryLoaded && legacyLoaded) {
+      if (!cancelled && legacyLoaded) {
         setShotsLoading(false);
       }
-    };
-
-    const handlePrimaryShotsError = (error) => {
-      if (cancelled) return;
-      latestPrimaryShots = [];
-      primaryLoaded = true;
-      applyCombinedShots();
-      setShotsLoading(false);
-      handleSubscriptionError("shots")(error);
     };
 
     const handleLegacyShotsError = (error) => {
@@ -1106,35 +1082,6 @@ function PlannerPageContent() {
       applyCombinedShots();
       handleSubscriptionError("shots (unassigned)")(error);
     };
-
-    const handleFamiliesError = (error) => {
-      if (cancelled) return;
-      setFamilies([]);
-      setFamiliesLoading(false);
-      handleSubscriptionError("product families")(error);
-    };
-
-    const unsubLanes = onSnapshot(
-      lanesQuery,
-      (snapshot) => {
-        if (cancelled) return;
-        setLanes(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-        setLanesLoading(false);
-      },
-      handleLanesError
-    );
-
-    const unsubShots = onSnapshot(
-      shotsQuery,
-      (snapshot) => {
-        if (cancelled) return;
-        latestPrimaryShots = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        primaryLoaded = true;
-        applyCombinedShots();
-        updateShotsLoading();
-      },
-      handlePrimaryShotsError
-    );
 
     if (projectId === DEFAULT_PROJECT_ID) {
       const unassignedClauses = [
@@ -1174,22 +1121,12 @@ function PlannerPageContent() {
       handleLegacyShotsError
     );
 
-    const unsubFamilies = onSnapshot(
-      familiesQuery,
-      (snapshot) => {
-        if (cancelled) return;
-        setFamilies(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-        setFamiliesLoading(false);
-      },
-      handleFamiliesError
-    );
+    // Trigger applyCombinedShots when primaryShots from hook changes
+    applyCombinedShots();
 
     return () => {
       cancelled = true;
-      unsubLanes();
-      unsubShots();
       unsubLegacyShots();
-      unsubFamilies();
       unassignedUnsubs.forEach((unsubscribe) => unsubscribe());
     };
   }, [
@@ -1197,60 +1134,12 @@ function PlannerPageContent() {
     authReady,
     clientId,
     projectId,
-    currentLanesPath,
     currentShotsPath,
     currentLegacyShotsPath,
-    currentProductFamiliesPath,
     handleSubscriptionError,
-    mergeShotSources,
+    primaryShots,
   ]);
 
-  useEffect(() => {
-    if (!clientId) {
-      setTalent([]);
-      setLocations([]);
-      setTalentLoadError(null);
-      return undefined;
-    }
-
-    const talentQuery = query(collection(db, ...currentTalentPath), orderBy("name", "asc"));
-    const locationsQuery = query(collection(db, ...currentLocationsPath), orderBy("name", "asc"));
-
-    const unsubTalent = onSnapshot(
-      talentQuery,
-      (snapshot) => {
-        setTalent(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })));
-        setTalentLoadError(null);
-      },
-      (error) => {
-        const { code, message } = describeFirebaseError(error, "Unable to load talent.");
-        setTalent([]);
-        setTalentLoadError(
-          code === "permission-denied"
-            ? "You don't have permission to load talent."
-            : message
-        );
-        toast.error({ title: "Failed to load talent", description: `${code}: ${message}` });
-      }
-    );
-
-    const unsubLocations = onSnapshot(
-      locationsQuery,
-      (snapshot) => {
-        setLocations(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })));
-      },
-      (error) => {
-        const { code, message } = describeFirebaseError(error, "Unable to load locations.");
-        setLocations([]);
-        toast.error({ title: "Failed to load locations", description: `${code}: ${message}` });
-      }
-    );
-
-    return () => {
-      unsubTalent();
-      unsubLocations();
-    };
-  }, [clientId, currentTalentPath, currentLocationsPath]);
 
   useEffect(() => {
     writeStorage(PLANNER_VIEW_STORAGE_KEY, viewMode);
