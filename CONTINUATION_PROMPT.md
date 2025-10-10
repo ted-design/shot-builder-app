@@ -16,7 +16,7 @@ I'm continuing UI/UX improvements for my Shot Builder Firebase app. Phase 12.7 j
 
 **What I need**:
 
-**[Option 1] Phase 12.7: Complete PlannerPage TanStack Query Migration**
+**[Option 1] Phase 12.8: Complete PlannerPage TanStack Query Migration**
 - Migrate PlannerPage to use cached hooks (useLanes, useShots, useProducts, useTalent, useLocations)
 - Refactor complex shot merging logic for TanStack Query compatibility
 - Migrate all 7 Firestore subscriptions to cached hooks
@@ -24,12 +24,12 @@ I'm continuing UI/UX improvements for my Shot Builder Firebase app. Phase 12.7 j
 - **Impact**: Complete caching coverage across entire app, maximize Firestore savings
 - **Estimated time**: 4-6 hours, MEDIUM risk, HIGH impact
 
-**[Option 2] Phase 12.7: List Virtualization**
-- Install react-window for virtualized lists
-- Virtualize ShotsPage list view (handles 1000+ items smoothly)
-- Conditional virtualization for large grids
-- **Impact**: Smooth 60 FPS scrolling with massive datasets
-- **Estimated time**: 1-2 hours, LOW risk, HIGH impact
+**[Option 2] Expand List Virtualization**
+- Virtualize ProjectsPage and ProductsPage
+- Virtualize PlannerPage lane view
+- Add dynamic height support for variable-sized items
+- **Impact**: Consistent performance across all pages
+- **Estimated time**: 2-3 hours, LOW risk, MEDIUM impact
 
 **[Option 3] Planner Enhancements**
 - Timeline view for project scheduling
