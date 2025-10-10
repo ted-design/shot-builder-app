@@ -13,9 +13,25 @@ const VIRTUALIZATION_THRESHOLD = 100; // Empirically determined performance bene
 /**
  * Get number of grid columns based on viewport width
  * Matches Tailwind breakpoints: grid-cols-1 sm:grid-cols-2 xl:grid-cols-3
+ *
+ * @param {Object} breakpoints - Optional custom breakpoints { sm, md, lg, xl, '2xl' }
  */
-function getResponsiveColumns() {
+function getResponsiveColumns(breakpoints = null) {
   if (typeof window === "undefined") return 3;
+
+  // Use custom breakpoints if provided
+  if (breakpoints) {
+    const width = window.innerWidth;
+    // Check breakpoints from largest to smallest
+    if (breakpoints['2xl'] && width >= 1536) return breakpoints['2xl'];
+    if (breakpoints.xl && width >= 1280) return breakpoints.xl;
+    if (breakpoints.lg && width >= 1024) return breakpoints.lg;
+    if (breakpoints.md && width >= 768) return breakpoints.md;
+    if (breakpoints.sm && width >= 640) return breakpoints.sm;
+    return breakpoints.default || 1;
+  }
+
+  // Default behavior for backwards compatibility
   const width = window.innerWidth;
   if (width < 640) return 1; // mobile
   if (width < 1280) return 2; // tablet
@@ -107,6 +123,7 @@ const VirtualizedList = memo(function VirtualizedList({
  * @param {number} [props.overscanCount=3] - Number of rows to render outside visible area
  * @param {string} [props.className] - Additional CSS classes for the container
  * @param {number} [props.threshold=100] - Minimum items to enable virtualization
+ * @param {Object} [props.columnBreakpoints] - Custom column counts per breakpoint { default, sm, md, lg, xl, '2xl' }
  */
 export const VirtualizedGrid = memo(function VirtualizedGrid({
   items = [],
@@ -117,25 +134,42 @@ export const VirtualizedGrid = memo(function VirtualizedGrid({
   overscanCount = 3,
   className = "",
   threshold = VIRTUALIZATION_THRESHOLD,
+  columnBreakpoints = null,
 }) {
   // Calculate default height based on viewport
   const defaultHeight = typeof window !== "undefined" ? window.innerHeight - DEFAULT_HEADER_FOOTER_HEIGHT : 600;
   const gridHeight = height || defaultHeight;
 
   // Track responsive columns
-  const [columns, setColumns] = useState(getResponsiveColumns());
+  const [columns, setColumns] = useState(() => getResponsiveColumns(columnBreakpoints));
 
-  // Update columns on window resize
-  // Cleanup documented: removes event listener to prevent memory leaks
+  // Update columns on window resize with debouncing
+  // Cleanup documented: removes event listener and timeout to prevent memory leaks
   useEffect(() => {
+    let timeoutId = null;
+
     const handleResize = () => {
-      setColumns(getResponsiveColumns());
+      // Clear previous timeout
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      // Debounce resize handler (150ms)
+      timeoutId = setTimeout(() => {
+        setColumns(getResponsiveColumns(columnBreakpoints));
+      }, 150);
     };
 
     window.addEventListener('resize', handleResize);
-    // Cleanup function removes listener when component unmounts
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+
+    // Cleanup function removes listener and clears timeout when component unmounts
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [columnBreakpoints]);
 
   // For small lists, don't virtualize (better UX with animations)
   const isVirtualized = items.length >= threshold;
