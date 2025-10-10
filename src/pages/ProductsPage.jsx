@@ -283,6 +283,8 @@ export default function ProductsPage() {
   const [statusFilter, setStatusFilter] = useState("active");
   const [genderFilter, setGenderFilter] = useState("all");
   const [showArchived, setShowArchived] = useState(false);
+
+  // Pagination state - only used in list view (gallery view uses VirtualizedGrid)
   const [itemsToShow, setItemsToShow] = useState(50);
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
