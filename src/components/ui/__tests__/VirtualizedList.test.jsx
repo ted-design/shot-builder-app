@@ -349,6 +349,93 @@ describe("VirtualizedGrid", () => {
     });
   });
 
+  describe("Custom column breakpoints", () => {
+    it("respects custom columnBreakpoints with all breakpoints", () => {
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 1600, // 2xl breakpoint
+      });
+
+      const items = createItems(150);
+      const { container } = render(
+        <VirtualizedGrid
+          items={items}
+          renderItem={mockRenderItem}
+          itemHeight={200}
+          columnBreakpoints={{ default: 1, sm: 2, md: 2, lg: 3, xl: 4, '2xl': 5 }}
+        />
+      );
+
+      const gridContainer = container.querySelector('[role="grid"]');
+      expect(gridContainer).toHaveAttribute("aria-colcount", "5");
+    });
+
+    it("uses xl breakpoint value for xl viewport width", () => {
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 1300, // xl breakpoint (1280px+)
+      });
+
+      const items = createItems(150);
+      const { container } = render(
+        <VirtualizedGrid
+          items={items}
+          renderItem={mockRenderItem}
+          itemHeight={200}
+          columnBreakpoints={{ default: 1, sm: 2, lg: 3, xl: 4 }}
+        />
+      );
+
+      const gridContainer = container.querySelector('[role="grid"]');
+      expect(gridContainer).toHaveAttribute("aria-colcount", "4");
+    });
+
+    it("falls back to sm value when md is not provided", () => {
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 800, // md breakpoint (768px+)
+      });
+
+      const items = createItems(150);
+      const { container } = render(
+        <VirtualizedGrid
+          items={items}
+          renderItem={mockRenderItem}
+          itemHeight={200}
+          columnBreakpoints={{ default: 1, sm: 2, lg: 3 }}
+        />
+      );
+
+      const gridContainer = container.querySelector('[role="grid"]');
+      // Should use sm value since md is not defined
+      expect(gridContainer).toHaveAttribute("aria-colcount", "2");
+    });
+
+    it("uses default value for mobile when no sm breakpoint", () => {
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 500, // mobile
+      });
+
+      const items = createItems(150);
+      const { container } = render(
+        <VirtualizedGrid
+          items={items}
+          renderItem={mockRenderItem}
+          itemHeight={200}
+          columnBreakpoints={{ default: 1, lg: 3, xl: 4 }}
+        />
+      );
+
+      const gridContainer = container.querySelector('[role="grid"]');
+      expect(gridContainer).toHaveAttribute("aria-colcount", "1");
+    });
+  });
+
   describe("Accessibility", () => {
     it("includes ARIA attributes for grid role", () => {
       const items = createItems(150);

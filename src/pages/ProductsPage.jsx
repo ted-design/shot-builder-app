@@ -167,14 +167,35 @@ const FamilyHeaderImage = memo(function FamilyHeaderImage({ path, alt, className
 });
 
 const CreateProductCard = memo(function CreateProductCard({ onClick }) {
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   return (
-    <Card className="border-dashed border-2 border-slate-300 bg-slate-50">
+    <Card
+      className="border-dashed border-2 border-slate-300 bg-slate-50 cursor-pointer transition-all duration-150 hover:border-slate-400 hover:shadow-md focus-within:ring-2 focus-within:ring-primary/60"
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
+      aria-label="Create new product family"
+    >
       <CardContent className="flex h-full flex-col items-center justify-center gap-3 py-10 text-center">
         <div className="text-lg font-semibold text-slate-700">Create Product</div>
         <p className="text-sm text-slate-500">
           Add a new product family with colours, sizes, and SKUs.
         </p>
-        <Button type="button" onClick={onClick}>
+        <Button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+          }}
+          aria-label="Create new product"
+        >
           New Product
         </Button>
       </CardContent>
@@ -1541,31 +1562,33 @@ export default function ProductsPage() {
           </Card>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-              <VirtualizedGrid
-                items={sortedFamilies}
-                itemHeight={380}
-                gap={16}
-                threshold={100}
-                className="contents"
-                columnBreakpoints={{ default: 1, sm: 2, lg: 3, xl: 4, '2xl': 5 }}
-                renderItem={(family, index, isVirtualized) => {
-                  const cardContent = renderFamilyCard(family);
+            <VirtualizedGrid
+              items={sortedFamilies}
+              itemHeight={380}
+              gap={16}
+              threshold={100}
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+              columnBreakpoints={{ default: 1, sm: 2, md: 2, lg: 3, xl: 4, '2xl': 5 }}
+              renderItem={(family, index, isVirtualized) => {
+                const cardContent = renderFamilyCard(family);
 
-                  // Only apply stagger animation when not virtualized
-                  if (!isVirtualized) {
-                    return (
-                      <div className="animate-fade-in opacity-0" style={getStaggerDelay(index)}>
-                        {cardContent}
-                      </div>
-                    );
-                  }
+                // Only apply stagger animation when not virtualized
+                if (!isVirtualized) {
+                  return (
+                    <div className="animate-fade-in opacity-0" style={getStaggerDelay(index)}>
+                      {cardContent}
+                    </div>
+                  );
+                }
 
-                  return cardContent;
-                }}
-              />
-              {canEdit && <CreateProductCard onClick={() => setNewModalOpen(true)} />}
-            </div>
+                return cardContent;
+              }}
+            />
+            {canEdit && (
+              <div className="mx-6 mt-4">
+                <CreateProductCard onClick={() => setNewModalOpen(true)} />
+              </div>
+            )}
           </>
         )}
       </div>

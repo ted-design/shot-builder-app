@@ -143,16 +143,32 @@ export const VirtualizedGrid = memo(function VirtualizedGrid({
   // Track responsive columns
   const [columns, setColumns] = useState(() => getResponsiveColumns(columnBreakpoints));
 
-  // Update columns on window resize
-  // Cleanup documented: removes event listener to prevent memory leaks
+  // Update columns on window resize with debouncing
+  // Cleanup documented: removes event listener and timeout to prevent memory leaks
   useEffect(() => {
+    let timeoutId = null;
+
     const handleResize = () => {
-      setColumns(getResponsiveColumns(columnBreakpoints));
+      // Clear previous timeout
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      // Debounce resize handler (150ms)
+      timeoutId = setTimeout(() => {
+        setColumns(getResponsiveColumns(columnBreakpoints));
+      }, 150);
     };
 
     window.addEventListener('resize', handleResize);
-    // Cleanup function removes listener when component unmounts
-    return () => window.removeEventListener('resize', handleResize);
+
+    // Cleanup function removes listener and clears timeout when component unmounts
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [columnBreakpoints]);
 
   // For small lists, don't virtualize (better UX with animations)
