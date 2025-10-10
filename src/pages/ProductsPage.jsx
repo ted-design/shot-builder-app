@@ -22,6 +22,7 @@ import NewProductModal from "../components/products/NewProductModal";
 import EditProductModal from "../components/products/EditProductModal";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import AppImage from "../components/common/AppImage";
+import ExportButton from "../components/common/ExportButton";
 import { LayoutGrid, List as ListIcon, MoreVertical, Archive, Trash2, Type, Search, Package, Filter, X } from "lucide-react";
 import {
   productFamiliesPath,
@@ -1881,6 +1882,7 @@ export default function ProductsPage() {
                     List
                   </button>
                 </div>
+                <ExportButton data={filteredFamilies} entityType="products" />
               </div>
               {viewMode === "list" && (
                 <div className="relative" ref={listSettingsRef}>
