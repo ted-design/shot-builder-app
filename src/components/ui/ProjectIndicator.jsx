@@ -109,7 +109,7 @@ export default function ProjectIndicator() {
       </button>
 
       {dropdownOpen && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-md border border-slate-200 bg-white shadow-lg">
+        <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-md border border-slate-200 bg-white shadow-lg animate-fade-in animate-slide-in-from-top origin-top" style={{ animationDuration: '200ms' }}>
           <div className="border-b border-slate-100 px-3 py-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Switch Project
@@ -121,17 +121,22 @@ export default function ProjectIndicator() {
                 No projects available
               </div>
             ) : (
-              projects.map((project) => {
+              projects.map((project, index) => {
                 const isActive = project.id === currentProjectId;
                 return (
                   <button
                     key={project.id}
                     onClick={() => handleSelectProject(project.id)}
-                    className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${
+                    className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-all ${
                       isActive
                         ? "bg-primary/10 text-primary font-medium"
-                        : "text-slate-700 hover:bg-slate-50"
+                        : "text-slate-700 hover:bg-slate-50 hover:translate-x-0.5"
                     }`}
+                    style={{
+                      animation: 'fade-in 150ms ease-out',
+                      animationDelay: `${index * 30}ms`,
+                      animationFillMode: 'both',
+                    }}
                   >
                     <span className="truncate">{project.name}</span>
                     {isActive && (
@@ -145,7 +150,7 @@ export default function ProjectIndicator() {
           <div className="border-t border-slate-100 p-2">
             <button
               onClick={handleGoToDashboard}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-50 hover:translate-x-0.5"
             >
               <Layout className="h-4 w-4" />
               <span>Manage Projects</span>
