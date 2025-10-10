@@ -3,7 +3,7 @@
 // Reusable virtualized list component using react-window
 // Supports both list and grid layouts with automatic performance optimization
 
-import { memo, useState, useEffect } from "react";
+import React, { memo, useState, useEffect } from "react";
 import { List as ReactWindowList, Grid as ReactWindowGrid } from "react-window";
 
 // Constants for configuration
@@ -68,14 +68,20 @@ const VirtualizedList = memo(function VirtualizedList({
   const Row = ({ index, style }) => {
     const item = items[index];
     return (
-      <div key={item.id || index} style={style}>
+      <div
+        key={item.id || index}
+        style={style}
+        role="listitem"
+        aria-setsize={items.length}
+        aria-posinset={index + 1}
+      >
         {renderItem(item, index, true)}
       </div>
     );
   };
 
   return (
-    <div className={className}>
+    <div className={className} role="list" aria-rowcount={items.length}>
       <ReactWindowList
         height={listHeight}
         itemCount={items.length}
@@ -120,12 +126,14 @@ export const VirtualizedGrid = memo(function VirtualizedGrid({
   const [columns, setColumns] = useState(getResponsiveColumns());
 
   // Update columns on window resize
+  // Cleanup documented: removes event listener to prevent memory leaks
   useEffect(() => {
     const handleResize = () => {
       setColumns(getResponsiveColumns());
     };
 
     window.addEventListener('resize', handleResize);
+    // Cleanup function removes listener when component unmounts
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
@@ -155,14 +163,19 @@ export const VirtualizedGrid = memo(function VirtualizedGrid({
 
     const item = items[itemIndex];
     return (
-      <div key={item.id || itemIndex} style={{ ...style, padding: `0 ${gap / 2}px` }}>
+      <div
+        key={item.id || itemIndex}
+        style={{ ...style, padding: `0 ${gap / 2}px` }}
+        role="gridcell"
+        aria-colindex={columnIndex + 1}
+      >
         {renderItem(item, itemIndex, true)}
       </div>
     );
   };
 
   return (
-    <div className={className}>
+    <div className={className} role="grid" aria-rowcount={rowCount} aria-colcount={columns}>
       <ReactWindowGrid
         height={gridHeight}
         rowCount={rowCount}
