@@ -13,6 +13,7 @@ import {
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import ExportButton from "../components/common/ExportButton";
 import Thumb from "../components/Thumb";
 import LocationCreateModal from "../components/locations/LocationCreateModal";
 import LocationEditModal from "../components/locations/LocationEditModal";
@@ -388,6 +389,7 @@ export default function LocationsPage() {
                 onChange={(event) => setQueryText(event.target.value)}
                 className="min-w-[200px] max-w-md flex-1"
               />
+              <ExportButton data={filteredLocations} entityType="locations" />
               {canManage && (
                 <Button type="button" onClick={openCreateModal} className="flex-none whitespace-nowrap">
                   New location

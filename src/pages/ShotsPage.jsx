@@ -46,6 +46,7 @@ import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/ui/EmptyState";
+import ExportButton from "../components/common/ExportButton";
 import VirtualizedList, { VirtualizedGrid } from "../components/ui/VirtualizedList";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
@@ -2114,6 +2115,7 @@ export default function ShotsPage() {
                   List
                 </button>
               </div>
+              <ExportButton data={filteredShots} entityType="shots" />
               {canEditShots && sortedShots.length > 0 && (
                 <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">
                   <input

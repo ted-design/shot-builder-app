@@ -13,6 +13,7 @@ import {
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import ExportButton from "../components/common/ExportButton";
 import TalentCreateModal from "../components/talent/TalentCreateModal";
 import TalentEditModal from "../components/talent/TalentEditModal";
 import Thumb from "../components/Thumb";
@@ -421,6 +422,7 @@ export default function TalentPage() {
                 onChange={(event) => setQueryText(event.target.value)}
                 className="min-w-[200px] max-w-md flex-1"
               />
+              <ExportButton data={filteredTalent} entityType="talent" />
               {canManage && (
                 <Button
                   type="button"
