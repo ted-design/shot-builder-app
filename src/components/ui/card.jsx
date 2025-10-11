@@ -11,7 +11,7 @@ export function Card({ className = "", children, onClick, ...props }) {
   const cursorClass = onClick ? "cursor-pointer" : "";
   return (
     <div
-      className={`bg-white border border-gray-200 rounded-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md [will-change:transform] ${cursorClass} ${className}`.trim()}
+      className={`bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:hover:shadow-slate-900/50 [will-change:transform] ${cursorClass} ${className}`.trim()}
       onClick={onClick}
       {...props}
     >
@@ -28,7 +28,7 @@ export function Card({ className = "", children, onClick, ...props }) {
 export function CardHeader({ className = "", children, ...props }) {
   return (
     <div
-      className={`px-4 sm:px-6 py-3 bg-gray-50/60 border-b border-gray-200 rounded-t-card ${className}`.trim()}
+      className={`px-4 sm:px-6 py-3 bg-gray-50/60 dark:bg-slate-900/40 border-b border-gray-200 dark:border-slate-700 rounded-t-card ${className}`.trim()}
       {...props}
     >
       {children}

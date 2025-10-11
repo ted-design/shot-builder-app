@@ -14,7 +14,7 @@ export function LoadingSpinner({ size = "md", className = "" }) {
 
   return (
     <div
-      className={`inline-block animate-spin rounded-full border-solid border-primary border-t-transparent ${sizeClasses[size]} ${className}`}
+      className={`inline-block animate-spin rounded-full border-solid border-primary dark:border-indigo-500 border-t-transparent ${sizeClasses[size]} ${className}`}
       role="status"
       aria-label="Loading"
     >
@@ -27,7 +27,7 @@ export function LoadingOverlay({ message = "Loading..." }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-12 animate-fade-in">
       <LoadingSpinner size="lg" />
-      <p className="text-sm text-slate-600 animate-pulse">{message}</p>
+      <p className="text-sm text-slate-600 dark:text-slate-400 animate-pulse">{message}</p>
     </div>
   );
 }
@@ -38,7 +38,7 @@ export function LoadingSkeleton({ className = "", count = 1 }) {
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}
-          className={`animate-shimmer rounded-md bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] ${className}`}
+          className={`animate-shimmer rounded-md bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700 bg-[length:200%_100%] ${className}`}
           style={{
             animationDelay: `${index * 100}ms`,
           }}

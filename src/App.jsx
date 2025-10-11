@@ -11,6 +11,7 @@ import AuthReadyGate from "./auth/AuthReadyGate";
 import SidebarLayout from "./routes/SidebarLayout";
 import RequireRole from "./routes/RequireRole";
 import { ProjectScopeProvider } from "./context/ProjectScopeContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import SearchCommand from "./components/ui/SearchCommand";
 
@@ -103,14 +104,15 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <ProjectScopeProvider>
-          {/* Global search command palette (Cmd+K) */}
-          <SearchCommand />
-          {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
-          <PDFDemoMount />
-          <MaybeRedirectLogin user={userForGuard} />
-          <Routes>
+      <ThemeProvider>
+        <BrowserRouter>
+          <ProjectScopeProvider>
+            {/* Global search command palette (Cmd+K) */}
+            <SearchCommand />
+            {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
+            <PDFDemoMount />
+            <MaybeRedirectLogin user={userForGuard} />
+            <Routes>
           <Route
             path="/login"
             element={
@@ -230,9 +232,10 @@ export default function App() {
             />
             <Route path="*" element={<Navigate to="/projects" replace />} />
           </Route>
-        </Routes>
-      </ProjectScopeProvider>
-    </BrowserRouter>
+          </Routes>
+        </ProjectScopeProvider>
+      </BrowserRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

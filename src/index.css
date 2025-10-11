@@ -19,13 +19,21 @@
 
 /* App-wide helpers */
 html { -webkit-text-size-adjust: 100%; }
-body { @apply bg-gray-50 text-gray-900; }
+body {
+  @apply bg-gray-50 text-gray-900;
+  @apply dark:bg-slate-900 dark:text-slate-100;
+}
 
 /* Accessibility: Global focus states for keyboard navigation */
 *:focus-visible {
   outline: 2px solid #6366f1;
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+.dark *:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 2px;
 }
 
 /* Override default focus styles for better keyboard navigation */
@@ -35,6 +43,15 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.dark button:focus-visible,
+.dark a:focus-visible,
+.dark input:focus-visible,
+.dark select:focus-visible,
+.dark textarea:focus-visible {
+  outline: 2px solid #818cf8;
   outline-offset: 2px;
 }
 
