@@ -1,7 +1,7 @@
 # Phase 14B: Batch Image Upload System - Session Documentation
 
 **Date**: October 10, 2025
-**PR**: #TBD
+**PR**: [#189](https://github.com/ted-design/shot-builder-app/pull/189) (⏸️ Open - Security fixes applied)
 **Branch**: `feat/phase14b-batch-image-upload`
 **Status**: ✅ Complete
 

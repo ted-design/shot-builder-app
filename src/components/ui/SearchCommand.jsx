@@ -251,6 +251,18 @@ export default function SearchCommand() {
     }
   }, [isOpen]);
 
+  // Handle result selection
+  const handleSelectResult = useCallback(
+    result => {
+      const path = getResultPath(result);
+      saveRecentSearch(query);
+      setRecentSearches(loadRecentSearches());
+      close();
+      navigate(path);
+    },
+    [query, close, navigate]
+  );
+
   // Handle keyboard navigation in results
   const handleResultsKeyDown = useCallback(
     e => {
@@ -271,19 +283,7 @@ export default function SearchCommand() {
         handleSelectResult(flatResults[selectedIndex]);
       }
     },
-    [flatResults, selectedIndex]
-  );
-
-  // Handle result selection
-  const handleSelectResult = useCallback(
-    result => {
-      const path = getResultPath(result);
-      saveRecentSearch(query);
-      setRecentSearches(loadRecentSearches());
-      close();
-      navigate(path);
-    },
-    [query, close, navigate]
+    [flatResults, selectedIndex, handleSelectResult]
   );
 
   // Handle recent search click

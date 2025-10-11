@@ -4,8 +4,8 @@
 Assessment of design patterns from HTML mockups in `/docs/Claude/App Design/2025-10-07/` and integration plan for the React application.
 
 **Last Updated**: October 10, 2025
-**Current Status**: ✅ **Phase 13 Complete** - Animation & Interaction Polish! 🎉
-**Project Status**: WCAG 2.1 AA Compliant | **Premium Polish Animations** | Performance Optimized | Enhanced Metadata | Complete Tag System | Comprehensive Bulk Editing | PDF Bundle Optimized | **Complete Intelligent Data Caching (ALL Pages)** | **Comprehensive List Virtualization** (ShotsPage, ProjectsPage, ProductsPage with configurable columns)
+**Current Status**: ✅ **Phase 14B Complete** - Batch Image Upload with Drag & Drop! 🎉
+**Project Status**: WCAG 2.1 AA Compliant | **Premium Polish Animations** | Performance Optimized | Enhanced Metadata | Complete Tag System | Comprehensive Bulk Editing | PDF Bundle Optimized | **Complete Intelligent Data Caching (ALL Pages)** | **Comprehensive List Virtualization** (ShotsPage, ProjectsPage, ProductsPage with configurable columns) | **CSV/Excel Export** (Universal) | **Batch Image Upload** (Drag & Drop)
 
 ---
 
@@ -344,7 +344,7 @@ Assessment of design patterns from HTML mockups in `/docs/Claude/App Design/2025
 - ✅ Build time: 8.78s
 
 ### Phase 13: Animation & Interaction Polish (COMPLETE ✅)
-**PR**: [#TBD](https://github.com/ted-design/shot-builder-app/pull/TBD)
+**PR**: [#187](https://github.com/ted-design/shot-builder-app/pull/187) (✅ Merged)
 **Documentation**: `/PHASE13_ANIMATION_POLISH_SESSION.md`
 **Branch**: `feat/phase13-animation-polish`
 **Status**: ✅ **Complete - Premium Polish**
@@ -359,6 +359,48 @@ Assessment of design patterns from HTML mockups in `/docs/Claude/App Design/2025
 - ✅ Build time: 8.21s (6.5% faster)
 - ✅ Bundle size: 286.91 kB gzipped
 - ✅ Premium polished feel across entire app
+
+### Phase 14A: CSV/Excel Export System (COMPLETE ✅)
+**PR**: [#188](https://github.com/ted-design/shot-builder-app/pull/188) (✅ Merged)
+**Documentation**: `/PHASE14A_CSV_EXCEL_EXPORT_SESSION.md`
+**Branch**: `feat/phase14a-csv-excel-export`
+**Status**: ✅ **Complete - Universal Export**
+
+- ✅ Generic export utilities library (`/src/lib/dataExport.js`)
+- ✅ Reusable ExportButton component with column selection
+- ✅ CSV export with proper escaping and formatting
+- ✅ Excel export with auto-sized columns
+- ✅ Integrated to ShotsPage, ProductsPage, TalentPage, LocationsPage
+- ✅ Entity-specific column configurations (shots, products, talent, locations, projects)
+- ✅ On-demand xlsx library loading (97.99 kB code-split)
+- ✅ Zero main bundle impact (+0.06 kB, 0.02%)
+- ✅ All 184 tests passing (zero regressions)
+- ✅ Build time: 8.83s
+- ✅ Bundle size: 286.97 kB gzipped
+- ✅ Respects filters and search (export what you see)
+
+### Phase 14B: Batch Image Upload System (COMPLETE ✅)
+**PR**: [#189](https://github.com/ted-design/shot-builder-app/pull/189) (⏸️ Open - Security Fixes Applied)
+**Documentation**: `/PHASE14B_BATCH_IMAGE_UPLOAD_SESSION.md`
+**Branch**: `feat/phase14b-batch-image-upload`
+**Status**: ✅ **Complete - Drag & Drop Upload**
+
+- ✅ BatchImageUploader component with drag & drop support
+- ✅ BatchImageUploadModal wrapper component
+- ✅ File type whitelist (jpeg, png, webp, gif) for security
+- ✅ 50MB file size validation
+- ✅ Individual file progress tracking (pending → compressing → uploading → success/error)
+- ✅ Automatic image compression before upload
+- ✅ Sequential uploads to avoid connection overload
+- ✅ CSV/Excel injection prevention via sanitizeCellValue
+- ✅ Race condition prevention with isMountedRef pattern
+- ✅ Memory leak prevention (blob URL cleanup)
+- ✅ Integrated to TalentPage (demo)
+- ✅ Minimal bundle impact (+0.04 kB, 0.01%)
+- ✅ All 184 tests passing (zero regressions)
+- ✅ Build time: 8.63s (2% faster than Phase 14A)
+- ✅ Bundle size: 287.01 kB gzipped
+- ✅ Native HTML5 Drag & Drop API (zero dependencies)
 ---
 
 ## 🎯 Key UI Patterns from Mockups
@@ -678,10 +720,10 @@ const removeFilter = useCallback((filterKey) => {
 
 ## ✅ Status Summary
 
-**Phases Complete**: 23 phases (10 base + 11A + 11B + 11C + 11D + 11E + Phase 12 + Phase 12.5 + Phase 12.6 + Phase 12.7 + Phase 12.8 + Phase 12.9 + Phase 12.9.1 + Phase 13) ✅ 🎉
+**Phases Complete**: 25 phases (10 base + 11A + 11B + 11C + 11D + 11E + Phase 12 + Phase 12.5 + Phase 12.6 + Phase 12.7 + Phase 12.8 + Phase 12.9 + Phase 12.9.1 + Phase 13 + Phase 14A + Phase 14B) ✅ 🎉
 **PRs Created**:
-- ✅ Merged: #159, #163, #164, #165, #166, #167, #169, #170, #172, #173, #174, #175, #176, #177, #178, #179, #180, #181, #182, #183, #184, #185, #186
-- ⏸️ Ready: #TBD (Phase 13)
+- ✅ Merged: #159, #163, #164, #165, #166, #167, #169, #170, #172, #173, #174, #175, #176, #177, #178, #179, #180, #181, #182, #183, #184, #185, #186, #187, #188
+- ⏸️ Open: #189 (Phase 14B - Security fixes applied)
 
 **Components Created**:
 - ✅ Card (enhanced with hover lift)
@@ -703,5 +745,9 @@ const removeFilter = useCallback((filterKey) => {
 - ✅ TagManagementPage with centralized control
 - ✅ TanStack Query hooks (`/src/hooks/useFirestoreQuery.js`, `/src/hooks/useFirestoreMutations.js`)
 - ✅ VirtualizedList and VirtualizedGrid components for performance at scale
+- ✅ Data export utilities (`/src/lib/dataExport.js`) with CSV/Excel support
+- ✅ ExportButton component with column selection
+- ✅ BatchImageUploader with drag & drop support
+- ✅ BatchImageUploadModal wrapper component
 
-**Status**: ✅ **All 23 phases complete!** Project ready for production with modern UI, WCAG 2.1 AA compliance, **premium polish animations** (modals, buttons, dropdowns, micro-interactions), optimal performance, refined metadata displays, comprehensive color-coded tag system, efficient bulk tag operations, centralized tag management dashboard, extended bulk operations for location/date/type/project management, PDF lazy loading optimization (436 kB conditional load), **complete intelligent data caching with TanStack Query across ALL major pages** (50-80% Firestore read reduction across entire app), and **comprehensive list virtualization** (ShotsPage, ProjectsPage, ProductsPage) with configurable responsive columns for smooth 60 FPS scrolling with 10,000+ items and 98% DOM reduction. Bundle size: 286.91 kB gzipped.
+**Status**: ✅ **All 25 phases complete!** Project ready for production with modern UI, WCAG 2.1 AA compliance, **premium polish animations** (modals, buttons, dropdowns, micro-interactions), optimal performance, refined metadata displays, comprehensive color-coded tag system, efficient bulk tag operations, centralized tag management dashboard, extended bulk operations for location/date/type/project management, PDF lazy loading optimization (436 kB conditional load), **complete intelligent data caching with TanStack Query across ALL major pages** (50-80% Firestore read reduction across entire app), **comprehensive list virtualization** (ShotsPage, ProjectsPage, ProductsPage) with configurable responsive columns for smooth 60 FPS scrolling with 10,000+ items and 98% DOM reduction, **universal CSV/Excel export** (all major pages with column selection and on-demand loading), and **batch image upload** (drag & drop with automatic compression, progress tracking, and security validation). Bundle size: 287.01 kB gzipped.
