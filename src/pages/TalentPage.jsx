@@ -14,6 +14,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import ExportButton from "../components/common/ExportButton";
+import { searchTalent } from "../lib/search";
 import BatchImageUploadModal from "../components/common/BatchImageUploadModal";
 import TalentCreateModal from "../components/talent/TalentCreateModal";
 import TalentEditModal from "../components/talent/TalentEditModal";
@@ -174,23 +175,11 @@ export default function TalentPage() {
   }, [currentTalentPath]);
 
   const filteredTalent = useMemo(() => {
-    const term = queryText.trim().toLowerCase();
+    const term = queryText.trim();
     if (!term) return talent;
-    return talent.filter((entry) => {
-      const haystack = [
-        entry.name,
-        entry.firstName,
-        entry.lastName,
-        entry.agency,
-        entry.email,
-        entry.phone,
-        entry.sizing,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(term);
-    });
+
+    const searchResults = searchTalent(talent, term);
+    return searchResults.map((result) => result.item);
   }, [talent, queryText]);
 
   useEffect(() => {

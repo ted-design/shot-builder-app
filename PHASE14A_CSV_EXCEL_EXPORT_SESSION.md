@@ -1,7 +1,7 @@
 # Phase 14A: CSV/Excel Export System - Session Documentation
 
 **Date**: October 10, 2025
-**PR**: #TBD
+**PR**: [#188](https://github.com/ted-design/shot-builder-app/pull/188) (✅ Merged)
 **Branch**: `feat/phase14a-csv-excel-export`
 **Status**: ✅ Complete
 

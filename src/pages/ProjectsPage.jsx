@@ -11,6 +11,7 @@ import ProjectCards from "../components/dashboard/ProjectCards";
 import ProjectCreateModal from "../components/dashboard/ProjectCreateModal";
 import ProjectEditModal from "../components/dashboard/ProjectEditModal";
 import { showError, toast } from "../lib/toast";
+import FilterPresetManager from "../components/ui/FilterPresetManager";
 import { createProjectSchema, updateProjectSchema } from "../schemas/index.js";
 import { SkeletonCard } from "../components/ui/Skeleton";
 import { Filter, X } from "lucide-react";
@@ -68,6 +69,17 @@ export default function ProjectsPage() {
   const clearAllFilters = useCallback(() => {
     setShowArchivedProjects(false);
   }, []);
+
+  // Preset callbacks
+  const handleLoadPreset = useCallback((presetFilters) => {
+    if (presetFilters.showArchivedProjects !== undefined) {
+      setShowArchivedProjects(presetFilters.showArchivedProjects);
+    }
+  }, []);
+
+  const getCurrentFilters = useCallback(() => ({
+    showArchivedProjects,
+  }), [showArchivedProjects]);
 
   // Build active filters array for pills
   const activeFilters = useMemo(() => {
@@ -321,27 +333,28 @@ export default function ProjectsPage() {
               Pick a project to scope shots, planner lanes, and pull sheets.
             </p>
           </div>
-          {/* Filter button with badge */}
-          <div className="relative flex-none" ref={filtersRef}>
-            <button
-              type="button"
-              onClick={() => setFiltersOpen((prev) => !prev)}
-              className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
-                activeFilterCount > 0
-                  ? "border-primary/60 bg-primary/5 text-primary"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
-              aria-haspopup="menu"
-              aria-expanded={filtersOpen}
-            >
-              <Filter className="h-4 w-4" aria-hidden="true" />
-              <span>Filters</span>
-              {activeFilterCount > 0 && (
-                <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
+          {/* Filter button and presets */}
+          <div className="flex items-center gap-2 flex-none">
+            <div className="relative" ref={filtersRef}>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((prev) => !prev)}
+                className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
+                  activeFilterCount > 0
+                    ? "border-primary/60 bg-primary/5 text-primary"
+                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+                aria-haspopup="menu"
+                aria-expanded={filtersOpen}
+              >
+                <Filter className="h-4 w-4" aria-hidden="true" />
+                <span>Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
 
             {/* Filter panel */}
             {filtersOpen && (
@@ -376,6 +389,14 @@ export default function ProjectsPage() {
                 </div>
               </div>
             )}
+            </div>
+
+            <FilterPresetManager
+              page="projects"
+              currentFilters={getCurrentFilters()}
+              onLoadPreset={handleLoadPreset}
+              onClearFilters={clearAllFilters}
+            />
           </div>
 
           {/* Active filter pills */}

@@ -12,6 +12,7 @@ import SidebarLayout from "./routes/SidebarLayout";
 import RequireRole from "./routes/RequireRole";
 import { ProjectScopeProvider } from "./context/ProjectScopeContext";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
+import SearchCommand from "./components/ui/SearchCommand";
 
 // Configure TanStack Query client
 const queryClient = new QueryClient({
@@ -104,6 +105,8 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ProjectScopeProvider>
+          {/* Global search command palette (Cmd+K) */}
+          <SearchCommand />
           {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
           <PDFDemoMount />
           <MaybeRedirectLogin user={userForGuard} />

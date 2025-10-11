@@ -18,6 +18,7 @@ import { Input, Checkbox } from "../components/ui/input";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { EmptyState } from "../components/ui/EmptyState";
 import VirtualizedList, { VirtualizedGrid } from "../components/ui/VirtualizedList";
+import FilterPresetManager from "../components/ui/FilterPresetManager";
 import NewProductModal from "../components/products/NewProductModal";
 import EditProductModal from "../components/products/EditProductModal";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
@@ -37,6 +38,7 @@ import { toast, showConfirm } from "../lib/toast";
 import { buildSkuAggregates, createProductFamily, genderLabel } from "../lib/productMutations";
 import { readStorage, writeStorage } from "../lib/safeStorage";
 import { getStaggerDelay } from "../lib/animations";
+import { searchProducts } from "../lib/search";
 
 const statusLabel = (status) => {
   if (status === "discontinued") return "Discontinued";
@@ -404,8 +406,10 @@ export default function ProductsPage() {
   }, [filtersOpen]);
 
   const filteredFamilies = useMemo(() => {
-    const text = debouncedQueryText.trim().toLowerCase();
-    return families.filter((family) => {
+    const text = debouncedQueryText.trim();
+
+    // First apply filter criteria (status, gender, archived)
+    const preFiltered = families.filter((family) => {
       if (family.deleted) return false;
       if (!showArchived && family.archived) return false;
       if (statusFilter !== "all") {
@@ -413,19 +417,17 @@ export default function ProductsPage() {
         if (statusFilter === "discontinued" && family.status !== "discontinued") return false;
       }
       if (genderFilter !== "all" && (family.gender || "").toLowerCase() !== genderFilter) return false;
-      if (!text) return true;
-      const fields = [
-        family.styleName,
-        family.styleNumber,
-        family.previousStyleNumber,
-        ...(family.skuCodes || []),
-        ...(family.colorNames || []),
-        ...(family.sizeOptions || []),
-      ]
-        .filter(Boolean)
-        .map((value) => value.toString().toLowerCase());
-      return fields.some((value) => value.includes(text));
+      return true;
     });
+
+    // If no search query, return pre-filtered results
+    if (!text) return preFiltered;
+
+    // Apply fuzzy search to pre-filtered results
+    const searchResults = searchProducts(preFiltered, text);
+
+    // Extract items from search results
+    return searchResults.map(result => result.item);
   }, [families, debouncedQueryText, statusFilter, genderFilter, showArchived]);
 
   const sortedFamilies = useMemo(() => {
@@ -493,6 +495,20 @@ export default function ProductsPage() {
     setGenderFilter("all");
     setShowArchived(false);
   }, []);
+
+  // Handle preset load
+  const handleLoadPreset = useCallback((filters) => {
+    if (filters.statusFilter !== undefined) setStatusFilter(filters.statusFilter);
+    if (filters.genderFilter !== undefined) setGenderFilter(filters.genderFilter);
+    if (filters.showArchived !== undefined) setShowArchived(filters.showArchived);
+  }, []);
+
+  // Get current filters for saving
+  const getCurrentFilters = useCallback(() => ({
+    statusFilter,
+    genderFilter,
+    showArchived,
+  }), [statusFilter, genderFilter, showArchived]);
 
   // Build active filters array for pills
   const activeFilters = useMemo(() => {
@@ -1743,48 +1759,49 @@ export default function ProductsPage() {
         <CardHeader>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              {/* Filter button with badge */}
-              <div className="relative" ref={filtersRef}>
-                <button
-                  type="button"
-                  onClick={() => setFiltersOpen((prev) => !prev)}
-                  className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
-                    activeFilterCount > 0
-                      ? "border-primary/60 bg-primary/5 text-primary"
-                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                  aria-haspopup="menu"
-                  aria-expanded={filtersOpen}
-                >
-                  <Filter className="h-4 w-4" aria-hidden="true" />
-                  <span>Filters</span>
-                  {activeFilterCount > 0 && (
-                    <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
-                      {activeFilterCount}
-                    </span>
-                  )}
-                </button>
+              {/* Filter button and presets */}
+              <div className="flex items-center gap-2">
+                <div className="relative" ref={filtersRef}>
+                  <button
+                    type="button"
+                    onClick={() => setFiltersOpen((prev) => !prev)}
+                    className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
+                      activeFilterCount > 0
+                        ? "border-primary/60 bg-primary/5 text-primary"
+                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                    aria-haspopup="menu"
+                    aria-expanded={filtersOpen}
+                  >
+                    <Filter className="h-4 w-4" aria-hidden="true" />
+                    <span>Filters</span>
+                    {activeFilterCount > 0 && (
+                      <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </button>
 
-                {/* Filter panel */}
-                {filtersOpen && (
-                  <div className="absolute left-0 z-20 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 shadow-lg animate-slide-in-from-right">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-slate-900">Filter products</p>
-                        {activeFilterCount > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              clearAllFilters();
-                              setFiltersOpen(false);
-                            }}
-                            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
-                          >
-                            <X className="h-3 w-3" />
-                            Clear all
-                          </button>
-                        )}
-                      </div>
+                  {/* Filter panel */}
+                  {filtersOpen && (
+                    <div className="absolute left-0 z-20 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 shadow-lg animate-slide-in-from-right">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-slate-900">Filter products</p>
+                          {activeFilterCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                clearAllFilters();
+                                setFiltersOpen(false);
+                              }}
+                              className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+                            >
+                              <X className="h-3 w-3" />
+                              Clear all
+                            </button>
+                          )}
+                        </div>
 
                       <div>
                         <label className="mb-1 block text-xs font-medium text-slate-700">
@@ -1819,18 +1836,27 @@ export default function ProductsPage() {
                         </select>
                       </div>
 
-                      <label className="flex items-center gap-2 text-sm text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={showArchived}
-                          onChange={(event) => setShowArchived(event.target.checked)}
-                          className="h-4 w-4 rounded border-slate-300"
-                        />
-                        Show archived
-                      </label>
+                        <label className="flex items-center gap-2 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={showArchived}
+                            onChange={(event) => setShowArchived(event.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300"
+                          />
+                          Show archived
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+
+                {/* Filter Preset Manager */}
+                <FilterPresetManager
+                  page="products"
+                  currentFilters={getCurrentFilters()}
+                  onLoadPreset={handleLoadPreset}
+                  onClearFilters={clearAllFilters}
+                />
               </div>
 
               {/* Active filter pills */}
