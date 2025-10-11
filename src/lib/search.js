@@ -17,6 +17,32 @@ const DEFAULT_FUSE_OPTIONS = {
 };
 
 /**
+ * Cache for Fuse.js instances to avoid rebuilding indexes on every search
+ * Cache key format: {entityType}:{dataLength}
+ * Simple cache invalidation based on data length change
+ */
+const fuseCache = new Map();
+
+/**
+ * Maximum cache size to prevent memory bloat
+ * Keeps the 10 most recently used Fuse instances
+ */
+const MAX_CACHE_SIZE = 10;
+
+/**
+ * Cache performance metrics for monitoring
+ * Tracks hits, misses, and calculates hit rate
+ */
+const cacheStats = {
+  hits: 0,
+  misses: 0,
+  reset() {
+    this.hits = 0;
+    this.misses = 0;
+  },
+};
+
+/**
  * Search configuration for shots
  */
 const SHOTS_SEARCH_CONFIG = {
@@ -100,7 +126,52 @@ export function createSearchIndex(items, config) {
 }
 
 /**
+ * Get a cached Fuse.js instance or create a new one
+ * Caches instances by entity type and data length for simple invalidation
+ * @param {Array} items - Items to index
+ * @param {Object} config - Fuse.js configuration
+ * @param {string} entityType - Entity type for cache key (e.g., 'shots', 'products')
+ * @returns {Fuse} Cached or new Fuse.js instance
+ */
+function getCachedSearchIndex(items, config, entityType) {
+  // Generate cache key based on entity type and data length
+  // Using data length as a simple heuristic for cache invalidation
+  const cacheKey = `${entityType}:${items.length}`;
+
+  // Check if we have a cached instance
+  if (fuseCache.has(cacheKey)) {
+    // Cache hit - track metric
+    cacheStats.hits++;
+
+    // Move to end (LRU behavior)
+    const cached = fuseCache.get(cacheKey);
+    fuseCache.delete(cacheKey);
+    fuseCache.set(cacheKey, cached);
+    return cached;
+  }
+
+  // Cache miss - track metric
+  cacheStats.misses++;
+
+  // Create new Fuse instance
+  const fuse = new Fuse(items, config);
+
+  // Add to cache
+  fuseCache.set(cacheKey, fuse);
+
+  // Enforce max cache size (LRU eviction)
+  if (fuseCache.size > MAX_CACHE_SIZE) {
+    // Delete oldest entry (first in Map)
+    const firstKey = fuseCache.keys().next().value;
+    fuseCache.delete(firstKey);
+  }
+
+  return fuse;
+}
+
+/**
  * Search shots with fuzzy matching
+ * Uses cached Fuse.js instance for better performance
  * @param {Array} shots - Shot items to search
  * @param {string} query - Search query
  * @param {Object} options - Additional options
@@ -109,7 +180,7 @@ export function createSearchIndex(items, config) {
 export function searchShots(shots, query, options = {}) {
   if (!query || !query.trim()) return shots.map(item => ({ item, score: 0 }));
 
-  const fuse = createSearchIndex(shots, { ...SHOTS_SEARCH_CONFIG, ...options });
+  const fuse = getCachedSearchIndex(shots, { ...SHOTS_SEARCH_CONFIG, ...options }, 'shots');
   const results = fuse.search(query);
 
   return results.map(({ item, score, matches }) => ({
@@ -122,6 +193,7 @@ export function searchShots(shots, query, options = {}) {
 
 /**
  * Search products with fuzzy matching
+ * Uses cached Fuse.js instance for better performance
  * @param {Array} products - Product items to search
  * @param {string} query - Search query
  * @param {Object} options - Additional options
@@ -130,7 +202,7 @@ export function searchShots(shots, query, options = {}) {
 export function searchProducts(products, query, options = {}) {
   if (!query || !query.trim()) return products.map(item => ({ item, score: 0 }));
 
-  const fuse = createSearchIndex(products, { ...PRODUCTS_SEARCH_CONFIG, ...options });
+  const fuse = getCachedSearchIndex(products, { ...PRODUCTS_SEARCH_CONFIG, ...options }, 'products');
   const results = fuse.search(query);
 
   return results.map(({ item, score, matches }) => ({
@@ -143,6 +215,7 @@ export function searchProducts(products, query, options = {}) {
 
 /**
  * Search talent with fuzzy matching
+ * Uses cached Fuse.js instance for better performance
  * @param {Array} talent - Talent items to search
  * @param {string} query - Search query
  * @param {Object} options - Additional options
@@ -151,7 +224,7 @@ export function searchProducts(products, query, options = {}) {
 export function searchTalent(talent, query, options = {}) {
   if (!query || !query.trim()) return talent.map(item => ({ item, score: 0 }));
 
-  const fuse = createSearchIndex(talent, { ...TALENT_SEARCH_CONFIG, ...options });
+  const fuse = getCachedSearchIndex(talent, { ...TALENT_SEARCH_CONFIG, ...options }, 'talent');
   const results = fuse.search(query);
 
   return results.map(({ item, score, matches }) => ({
@@ -164,6 +237,7 @@ export function searchTalent(talent, query, options = {}) {
 
 /**
  * Search locations with fuzzy matching
+ * Uses cached Fuse.js instance for better performance
  * @param {Array} locations - Location items to search
  * @param {string} query - Search query
  * @param {Object} options - Additional options
@@ -172,7 +246,7 @@ export function searchTalent(talent, query, options = {}) {
 export function searchLocations(locations, query, options = {}) {
   if (!query || !query.trim()) return locations.map(item => ({ item, score: 0 }));
 
-  const fuse = createSearchIndex(locations, { ...LOCATIONS_SEARCH_CONFIG, ...options });
+  const fuse = getCachedSearchIndex(locations, { ...LOCATIONS_SEARCH_CONFIG, ...options }, 'locations');
   const results = fuse.search(query);
 
   return results.map(({ item, score, matches }) => ({
@@ -185,6 +259,7 @@ export function searchLocations(locations, query, options = {}) {
 
 /**
  * Search projects with fuzzy matching
+ * Uses cached Fuse.js instance for better performance
  * @param {Array} projects - Project items to search
  * @param {string} query - Search query
  * @param {Object} options - Additional options
@@ -193,7 +268,7 @@ export function searchLocations(locations, query, options = {}) {
 export function searchProjects(projects, query, options = {}) {
   if (!query || !query.trim()) return projects.map(item => ({ item, score: 0 }));
 
-  const fuse = createSearchIndex(projects, { ...PROJECTS_SEARCH_CONFIG, ...options });
+  const fuse = getCachedSearchIndex(projects, { ...PROJECTS_SEARCH_CONFIG, ...options }, 'projects');
   const results = fuse.search(query);
 
   return results.map(({ item, score, matches }) => ({
@@ -341,4 +416,31 @@ export function formatSearchResult(result) {
     primaryField,
     matches,
   };
+}
+
+/**
+ * Get cache performance statistics
+ * Useful for monitoring cache effectiveness and validating performance claims
+ * @returns {Object} Cache stats including hits, misses, hit rate, and cache size
+ */
+export function getCacheStats() {
+  const total = cacheStats.hits + cacheStats.misses;
+  const hitRate = total > 0 ? cacheStats.hits / total : 0;
+
+  return {
+    hits: cacheStats.hits,
+    misses: cacheStats.misses,
+    hitRate: hitRate,
+    hitRatePercent: `${(hitRate * 100).toFixed(1)}%`,
+    cacheSize: fuseCache.size,
+    maxCacheSize: MAX_CACHE_SIZE,
+  };
+}
+
+/**
+ * Reset cache performance statistics
+ * Useful for testing or starting fresh monitoring
+ */
+export function resetCacheStats() {
+  cacheStats.reset();
 }

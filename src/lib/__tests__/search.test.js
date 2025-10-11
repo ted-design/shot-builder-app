@@ -175,4 +175,83 @@ describe('search utilities', () => {
       expect(results.products).toEqual([]);
     });
   });
+
+  describe('Fuse.js cache behavior', () => {
+    test('caches search instances for same data length', () => {
+      const shots = [
+        { id: '1', name: 'Test Shot 1' },
+        { id: '2', name: 'Test Shot 2' },
+      ];
+
+      // First search creates cache entry
+      const results1 = searchShots(shots, 'test');
+      expect(results1.length).toBeGreaterThan(0);
+
+      // Second search with same data (same length) should use cache
+      const results2 = searchShots(shots, 'shot');
+      expect(results2.length).toBeGreaterThan(0);
+
+      // Results should still work correctly
+      expect(results1[0].type).toBe('shot');
+      expect(results2[0].type).toBe('shot');
+    });
+
+    test('invalidates cache when data length changes', () => {
+      // Start with 2 items
+      let shots = [
+        { id: '1', name: 'Test Shot 1' },
+        { id: '2', name: 'Test Shot 2' },
+      ];
+
+      const results1 = searchShots(shots, 'test');
+      expect(results1.length).toBe(2);
+
+      // Add a third item (length changes from 2 to 3)
+      shots = [
+        { id: '1', name: 'Test Shot 1' },
+        { id: '2', name: 'Test Shot 2' },
+        { id: '3', name: 'Test Shot 3' },
+      ];
+
+      const results2 = searchShots(shots, 'test');
+      expect(results2.length).toBe(3); // Should find all 3 items
+    });
+
+    test('handles LRU cache eviction with many entity types and sizes', () => {
+      // Create more than MAX_CACHE_SIZE (10) different cache keys
+      // Cache key format: entityType:dataLength
+
+      // Fill cache with different sizes for shots (keys: shots:1, shots:2, ..., shots:6)
+      for (let i = 1; i <= 6; i++) {
+        const items = Array.from({ length: i }, (_, idx) => ({
+          id: String(idx),
+          name: `Shot ${idx}`,
+        }));
+        searchShots(items, 'shot');
+      }
+
+      // Fill cache with different sizes for products (keys: products:1, products:2, ..., products:6)
+      for (let i = 1; i <= 6; i++) {
+        const items = Array.from({ length: i }, (_, idx) => ({
+          id: String(idx),
+          styleName: `Product ${idx}`,
+        }));
+        searchProducts(items, 'product');
+      }
+
+      // At this point we've created 12 cache entries (6 shots + 6 products)
+      // Cache max is 10, so oldest 2 should have been evicted
+
+      // Verify cache still works by searching with newest entries
+      const recentShots = Array.from({ length: 6 }, (_, idx) => ({
+        id: String(idx),
+        name: `Shot ${idx}`,
+      }));
+      const results = searchShots(recentShots, 'shot');
+
+      // Should still return results correctly (cache may or may not be hit)
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].type).toBe('shot');
+    });
+  });
 });

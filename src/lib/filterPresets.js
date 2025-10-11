@@ -6,6 +6,12 @@
 import { readStorage, writeStorage } from './safeStorage';
 
 /**
+ * Maximum number of presets allowed per page
+ * Prevents localStorage bloat and UI clutter
+ */
+const MAX_PRESETS_PER_PAGE = 20;
+
+/**
  * Generate a unique ID for presets
  * @returns {string} Unique preset ID
  */
@@ -43,6 +49,7 @@ export function listPresets(page) {
 
 /**
  * Save a new filter preset
+ * Enforces MAX_PRESETS_PER_PAGE limit to prevent localStorage bloat
  * @param {string} page - Page name
  * @param {string} name - Preset name
  * @param {Object} filters - Filter configuration to save
@@ -52,6 +59,13 @@ export function listPresets(page) {
 export function savePreset(page, name, filters, options = {}) {
   try {
     const presets = listPresets(page);
+
+    // Enforce maximum presets limit
+    if (presets.length >= MAX_PRESETS_PER_PAGE) {
+      throw new Error(
+        `Maximum of ${MAX_PRESETS_PER_PAGE} presets reached. Please delete some presets before creating new ones.`
+      );
+    }
 
     const newPreset = {
       id: generatePresetId(),
@@ -82,7 +96,8 @@ export function savePreset(page, name, filters, options = {}) {
       throw new Error('Storage quota exceeded. Please delete some presets to free up space.');
     }
 
-    throw new Error('Failed to save filter preset');
+    // Re-throw other errors (including our max limit error)
+    throw error;
   }
 }
 
