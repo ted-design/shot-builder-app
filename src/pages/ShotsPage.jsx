@@ -47,6 +47,8 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/ui/EmptyState";
 import ExportButton from "../components/common/ExportButton";
+import FilterPresetManager from "../components/ui/FilterPresetManager";
+import { searchShots } from "../lib/search";
 import VirtualizedList, { VirtualizedGrid } from "../components/ui/VirtualizedList";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
@@ -368,13 +370,14 @@ export default function ShotsPage() {
   }, [filters.locationId, filters.talentIds, filters.productFamilyIds, filters.tagIds]);
 
   const filteredShots = useMemo(() => {
-    const term = debouncedQueryText.trim().toLowerCase();
+    const term = debouncedQueryText.trim();
     const selectedLocation = filters.locationId || "";
     const selectedTalentIds = new Set(filters.talentIds || []);
     const selectedProductIds = new Set(filters.productFamilyIds || []);
     const selectedTagIds = new Set(filters.tagIds || []);
 
-    return shots.filter((shot) => {
+    // Apply non-text filters first
+    const preFiltered = shots.filter((shot) => {
       if (selectedLocation && (shot.locationId || "") !== selectedLocation) {
         return false;
       }
@@ -405,43 +408,15 @@ export default function ShotsPage() {
         if (!hasTagMatch) return false;
       }
 
-      if (!term) return true;
-
-      const talentNames = Array.isArray(shot.talent)
-        ? shot.talent.map((entry) => entry.name)
-        : Array.isArray(shot.talentIds)
-        ? shot.talentIds
-            .map((id) => talentOptions.find((option) => option.talentId === id)?.name)
-            .filter(Boolean)
-        : [];
-      const productNames = Array.isArray(shot.products)
-        ? shot.products
-            .map((product) =>
-              [product.productName, product.styleNumber].filter(Boolean).join(" ")
-            )
-            .filter(Boolean)
-        : [];
-      const plainNotes = typeof shot.description === "string"
-        ? shot.description.replace(/<[^>]+>/g, " ")
-        : "";
-      const tagNames = Array.isArray(shot.tags)
-        ? shot.tags.map((tag) => tag.label).filter(Boolean)
-        : [];
-      const haystack = [
-        shot.name,
-        shot.type,
-        shot.locationName || locationById.get(shot.locationId || ""),
-        ...talentNames,
-        ...productNames,
-        ...tagNames,
-        plainNotes,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(term);
+      return true;
     });
-  }, [shots, debouncedQueryText, filters, talentOptions, locationById]);
+
+    // Apply fuzzy text search if query exists
+    if (!term) return preFiltered;
+
+    const searchResults = searchShots(preFiltered, term);
+    return searchResults.map((result) => result.item);
+  }, [shots, debouncedQueryText, filters]);
 
   const sortedShots = useMemo(
     () => sortShotsForView(filteredShots, { sortBy: viewPrefs.sort }),
@@ -1177,6 +1152,29 @@ export default function ShotsPage() {
     () => setFilters({ ...defaultShotFilters }),
     []
   );
+
+  // Preset callbacks
+  const handleLoadPreset = useCallback((presetFilters) => {
+    if (presetFilters.locationId !== undefined) {
+      setFilters((prev) => ({ ...prev, locationId: presetFilters.locationId }));
+    }
+    if (presetFilters.talentIds !== undefined) {
+      setFilters((prev) => ({ ...prev, talentIds: presetFilters.talentIds }));
+    }
+    if (presetFilters.productFamilyIds !== undefined) {
+      setFilters((prev) => ({ ...prev, productFamilyIds: presetFilters.productFamilyIds }));
+    }
+    if (presetFilters.tagIds !== undefined) {
+      setFilters((prev) => ({ ...prev, tagIds: presetFilters.tagIds }));
+    }
+  }, []);
+
+  const getCurrentFilters = useCallback(() => ({
+    locationId: filters.locationId,
+    talentIds: filters.talentIds,
+    productFamilyIds: filters.productFamilyIds,
+    tagIds: filters.tagIds,
+  }), [filters.locationId, filters.talentIds, filters.productFamilyIds, filters.tagIds]);
 
   // Build active filters array for pills
   const activeFilters = useMemo(() => {
@@ -2131,27 +2129,28 @@ export default function ShotsPage() {
               )}
             </div>
 
-            {/* Filter button with badge */}
-            <div className="relative" ref={filtersRef}>
-              <button
-                type="button"
-                onClick={() => setFiltersOpen((prev) => !prev)}
-                className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
-                  activeFilterCount > 0
-                    ? "border-primary/60 bg-primary/5 text-primary"
-                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-                aria-haspopup="menu"
-                aria-expanded={filtersOpen}
-              >
-                <Filter className="h-4 w-4" aria-hidden="true" />
-                <span>Filters</span>
-                {activeFilterCount > 0 && (
-                  <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
+            {/* Filter button and presets */}
+            <div className="flex items-center gap-2">
+              <div className="relative" ref={filtersRef}>
+                <button
+                  type="button"
+                  onClick={() => setFiltersOpen((prev) => !prev)}
+                  className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
+                    activeFilterCount > 0
+                      ? "border-primary/60 bg-primary/5 text-primary"
+                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                  aria-haspopup="menu"
+                  aria-expanded={filtersOpen}
+                >
+                  <Filter className="h-4 w-4" aria-hidden="true" />
+                  <span>Filters</span>
+                  {activeFilterCount > 0 && (
+                    <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
 
               {/* Filter panel */}
               {filtersOpen && (
@@ -2259,6 +2258,14 @@ export default function ShotsPage() {
                   </div>
                 </div>
               )}
+              </div>
+
+              <FilterPresetManager
+                page="shots"
+                currentFilters={getCurrentFilters()}
+                onLoadPreset={handleLoadPreset}
+                onClearFilters={clearFilters}
+              />
             </div>
 
             {/* Active filter pills */}

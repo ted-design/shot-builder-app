@@ -14,6 +14,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import ExportButton from "../components/common/ExportButton";
+import { searchLocations } from "../lib/search";
 import Thumb from "../components/Thumb";
 import LocationCreateModal from "../components/locations/LocationCreateModal";
 import LocationEditModal from "../components/locations/LocationEditModal";
@@ -133,24 +134,11 @@ export default function LocationsPage() {
   }, [currentLocationsPath]);
 
   const filteredLocations = useMemo(() => {
-    const term = queryText.trim().toLowerCase();
+    const term = queryText.trim();
     if (!term) return locations;
-    return locations.filter((entry) => {
-      const haystack = [
-        entry.name,
-        entry.street,
-        entry.unit,
-        entry.city,
-        entry.province,
-        entry.postal,
-        entry.notes,
-        entry.phone,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(term);
-    });
+
+    const searchResults = searchLocations(locations, term);
+    return searchResults.map((result) => result.item);
   }, [locations, queryText]);
 
   useEffect(() => {
