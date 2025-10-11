@@ -12,6 +12,7 @@ import { useShots, useProducts, useTalent, useLocations, useProjects } from '../
 import { useAuth } from '../../context/AuthContext';
 import { useProjectScope } from '../../context/ProjectScopeContext';
 import { readStorage, writeStorage } from '../../lib/safeStorage';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 
 const RECENT_SEARCHES_KEY = 'searchCommand:recentSearches';
 const MAX_RECENT_SEARCHES = 5;
@@ -172,6 +173,10 @@ export default function SearchCommand() {
   const { clientId } = useAuth();
   const { currentProjectId } = useProjectScope();
 
+  // Debounce search query to reduce expensive fuzzy search operations
+  // 150ms provides responsive feel while reducing search calls by ~80-90%
+  const debouncedQuery = useDebouncedValue(query, 150);
+
   // Load data from TanStack Query hooks
   const { data: shots = [] } = useShots(clientId, currentProjectId);
   const { data: products = [] } = useProducts(clientId);
@@ -179,18 +184,18 @@ export default function SearchCommand() {
   const { data: locations = [] } = useLocations(clientId);
   const { data: projects = [] } = useProjects(clientId);
 
-  // Perform global search
+  // Perform global search with debounced query
   const searchResults = useMemo(() => {
-    if (!query.trim()) {
+    if (!debouncedQuery.trim()) {
       return null;
     }
 
     return globalSearch(
       { shots, products, talent, locations, projects },
-      query,
+      debouncedQuery,
       { maxResults: 50, maxPerType: 10 }
     );
-  }, [query, shots, products, talent, locations, projects]);
+  }, [debouncedQuery, shots, products, talent, locations, projects]);
 
   // Flatten results for keyboard navigation
   const flatResults = useMemo(() => {
