@@ -3,10 +3,24 @@
  */
 
 import React from 'react';
-import { describe, test, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import SearchCommand from '../SearchCommand';
+
+// Mock global search function
+const mockGlobalSearch = vi.fn(() => ({
+  shots: [],
+  products: [],
+  talent: [],
+  locations: [],
+  projects: [],
+  totalCount: 0,
+}));
+
+vi.mock('../../../lib/search', () => ({
+  globalSearch: (...args) => mockGlobalSearch(...args),
+}));
 
 // Mock hooks
 vi.mock('../../../hooks/useFirestoreQuery', () => ({
@@ -39,6 +53,10 @@ describe('SearchCommand', () => {
     );
   };
 
+  beforeEach(() => {
+    mockGlobalSearch.mockClear();
+  });
+
   test('renders without crashing', () => {
     expect(() => renderComponent()).not.toThrow();
   });
@@ -56,6 +74,49 @@ describe('SearchCommand', () => {
 
   test('handles empty data gracefully', () => {
     expect(() => renderComponent()).not.toThrow();
+  });
+
+  test('debounces search input to reduce search operations', async () => {
+    const { container } = renderComponent();
+
+    // Open search modal by simulating Cmd+K
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+
+    // Wait for modal to appear
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText(/search shots, products, talent/i);
+
+    // Simulate rapid typing (3 keystrokes in quick succession)
+    fireEvent.change(input, { target: { value: 'a' } });
+    fireEvent.change(input, { target: { value: 'ab' } });
+    fireEvent.change(input, { target: { value: 'abc' } });
+
+    // Search should not execute immediately (debounced)
+    expect(mockGlobalSearch).not.toHaveBeenCalled();
+
+    // Wait for debounce delay (150ms + buffer)
+    await waitFor(() => {
+      expect(mockGlobalSearch).toHaveBeenCalledTimes(1);
+    }, { timeout: 300 });
+
+    // Verify it was called with the final value
+    expect(mockGlobalSearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shots: [],
+        products: [],
+        talent: [],
+        locations: [],
+        projects: [],
+      }),
+      'abc',
+      expect.objectContaining({
+        maxResults: 50,
+        maxPerType: 10,
+      })
+    );
   });
 
   // Note: Full integration tests for keyboard shortcuts and search functionality

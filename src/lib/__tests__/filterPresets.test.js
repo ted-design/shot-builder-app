@@ -17,10 +17,25 @@ import {
   importPresets,
 } from '../filterPresets';
 
-// Mock safeStorage module
+// Mock safeStorage module - use localStorage for actual storage behavior in tests
 vi.mock('../safeStorage', () => ({
-  readStorage: vi.fn(() => null),
-  writeStorage: vi.fn(),
+  readStorage: vi.fn((key) => {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+      const value = localStorage.getItem(key);
+      return value ? JSON.parse(value) : null;
+    } catch {
+      return null;
+    }
+  }),
+  writeStorage: vi.fn((key, value) => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Ignore storage errors in tests
+    }
+  }),
 }));
 
 describe('filterPresets utilities', () => {
@@ -67,6 +82,33 @@ describe('filterPresets utilities', () => {
         const filters = { test: 'value' };
         savePreset('test-page', 'Test', filters);
       }).not.toThrow(); // Should not throw in normal conditions
+    });
+
+    test('enforces maximum preset limit (20 per page)', () => {
+      const page = 'test-limit-page';
+
+      // Create 20 presets (the maximum allowed)
+      for (let i = 1; i <= 20; i++) {
+        const preset = savePreset(page, `Preset ${i}`, { filter: `value${i}` });
+        expect(preset).toHaveProperty('id');
+      }
+
+      // Verify we have 20 presets
+      const presets = listPresets(page);
+      expect(presets.length).toBe(20);
+
+      // Attempt to create 21st preset should throw error
+      expect(() => {
+        savePreset(page, 'Preset 21', { filter: 'value21' });
+      }).toThrow(/Maximum of 20 presets reached/);
+
+      // Verify error message includes helpful guidance
+      try {
+        savePreset(page, 'Preset 21', { filter: 'value21' });
+      } catch (error) {
+        expect(error.message).toContain('Maximum of 20 presets reached');
+        expect(error.message).toContain('Please delete some presets');
+      }
     });
   });
 

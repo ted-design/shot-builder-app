@@ -30,6 +30,19 @@ const fuseCache = new Map();
 const MAX_CACHE_SIZE = 10;
 
 /**
+ * Cache performance metrics for monitoring
+ * Tracks hits, misses, and calculates hit rate
+ */
+const cacheStats = {
+  hits: 0,
+  misses: 0,
+  reset() {
+    this.hits = 0;
+    this.misses = 0;
+  },
+};
+
+/**
  * Search configuration for shots
  */
 const SHOTS_SEARCH_CONFIG = {
@@ -127,12 +140,18 @@ function getCachedSearchIndex(items, config, entityType) {
 
   // Check if we have a cached instance
   if (fuseCache.has(cacheKey)) {
+    // Cache hit - track metric
+    cacheStats.hits++;
+
     // Move to end (LRU behavior)
     const cached = fuseCache.get(cacheKey);
     fuseCache.delete(cacheKey);
     fuseCache.set(cacheKey, cached);
     return cached;
   }
+
+  // Cache miss - track metric
+  cacheStats.misses++;
 
   // Create new Fuse instance
   const fuse = new Fuse(items, config);
@@ -397,4 +416,31 @@ export function formatSearchResult(result) {
     primaryField,
     matches,
   };
+}
+
+/**
+ * Get cache performance statistics
+ * Useful for monitoring cache effectiveness and validating performance claims
+ * @returns {Object} Cache stats including hits, misses, hit rate, and cache size
+ */
+export function getCacheStats() {
+  const total = cacheStats.hits + cacheStats.misses;
+  const hitRate = total > 0 ? cacheStats.hits / total : 0;
+
+  return {
+    hits: cacheStats.hits,
+    misses: cacheStats.misses,
+    hitRate: hitRate,
+    hitRatePercent: `${(hitRate * 100).toFixed(1)}%`,
+    cacheSize: fuseCache.size,
+    maxCacheSize: MAX_CACHE_SIZE,
+  };
+}
+
+/**
+ * Reset cache performance statistics
+ * Useful for testing or starting fresh monitoring
+ */
+export function resetCacheStats() {
+  cacheStats.reset();
 }
