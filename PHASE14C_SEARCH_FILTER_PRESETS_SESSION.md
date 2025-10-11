@@ -1,8 +1,9 @@
 # Phase 14C: Advanced Search & Filter Presets - Implementation Session
 
-**Status**: ✅ Complete
-**Branch**: `feat/phase14b-batch-image-upload` → `feat/phase14c-search-presets` (to be created)
-**Date**: 2025-10-10
+**Status**: ✅ Complete & Merged
+**Branch**: `feat/phase14c-search-presets` (merged to main)
+**PR**: [#190](https://github.com/ted-design/shot-builder-app/pull/190) ✅ Merged
+**Date**: 2025-10-10 to 2025-10-11
 **Implementation Time**: ~3 hours
 
 ## Overview

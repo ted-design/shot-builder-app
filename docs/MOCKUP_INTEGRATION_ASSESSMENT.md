@@ -3,9 +3,9 @@
 ## Overview
 Assessment of design patterns from HTML mockups in `/docs/Claude/App Design/2025-10-07/` and integration plan for the React application.
 
-**Last Updated**: October 10, 2025
-**Current Status**: ✅ **Phase 14B Complete** - Batch Image Upload with Drag & Drop! 🎉
-**Project Status**: WCAG 2.1 AA Compliant | **Premium Polish Animations** | Performance Optimized | Enhanced Metadata | Complete Tag System | Comprehensive Bulk Editing | PDF Bundle Optimized | **Complete Intelligent Data Caching (ALL Pages)** | **Comprehensive List Virtualization** (ShotsPage, ProjectsPage, ProductsPage with configurable columns) | **CSV/Excel Export** (Universal) | **Batch Image Upload** (Drag & Drop)
+**Last Updated**: October 11, 2025
+**Current Status**: ✅ **Phase 14C Complete** - Advanced Search & Filter Presets! 🎉
+**Project Status**: WCAG 2.1 AA Compliant | **Premium Polish Animations** | Performance Optimized | Enhanced Metadata | Complete Tag System | Comprehensive Bulk Editing | PDF Bundle Optimized | **Complete Intelligent Data Caching (ALL Pages)** | **Comprehensive List Virtualization** (ShotsPage, ProjectsPage, ProductsPage with configurable columns) | **CSV/Excel Export** (Universal) | **Batch Image Upload** (Drag & Drop) | **Advanced Search** (Cmd+K, Fuzzy Matching) | **Filter Presets** (Save/Load/Manage)
 
 ---
 
@@ -380,7 +380,7 @@ Assessment of design patterns from HTML mockups in `/docs/Claude/App Design/2025
 - ✅ Respects filters and search (export what you see)
 
 ### Phase 14B: Batch Image Upload System (COMPLETE ✅)
-**PR**: [#189](https://github.com/ted-design/shot-builder-app/pull/189) (⏸️ Open - Security Fixes Applied)
+**PR**: [#189](https://github.com/ted-design/shot-builder-app/pull/189) (✅ Merged)
 **Documentation**: `/PHASE14B_BATCH_IMAGE_UPLOAD_SESSION.md`
 **Branch**: `feat/phase14b-batch-image-upload`
 **Status**: ✅ **Complete - Drag & Drop Upload**
@@ -401,6 +401,31 @@ Assessment of design patterns from HTML mockups in `/docs/Claude/App Design/2025
 - ✅ Build time: 8.63s (2% faster than Phase 14A)
 - ✅ Bundle size: 287.01 kB gzipped
 - ✅ Native HTML5 Drag & Drop API (zero dependencies)
+
+### Phase 14C: Advanced Search & Filter Presets (COMPLETE ✅)
+**PR**: [#190](https://github.com/ted-design/shot-builder-app/pull/190) (✅ Merged)
+**Documentation**: `/PHASE14C_SEARCH_FILTER_PRESETS_SESSION.md`
+**Branch**: `feat/phase14c-search-presets`
+**Status**: ✅ **Complete - Enhanced Discoverability**
+
+- ✅ Global command palette with Cmd+K shortcut (SearchCommand component)
+- ✅ Fuzzy search with fuse.js across all entities (shots, products, talent, locations, projects)
+- ✅ Search utilities library (`/src/lib/search.js`) with weighted keys
+- ✅ Filter preset management system (`/src/lib/filterPresets.js`)
+- ✅ FilterPresetManager component (save/load/rename/delete presets)
+- ✅ Default preset support with star icon
+- ✅ Recent searches history (max 5, localStorage)
+- ✅ Keyboard navigation (Arrow keys, Enter, Escape)
+- ✅ Entity-specific search configurations with relevance scoring
+- ✅ Import/export functionality for presets
+- ✅ Integrated to ProductsPage, ShotsPage, TalentPage, LocationsPage, ProjectsPage
+- ✅ 48 new comprehensive tests (232 total passing)
+- ✅ All critical code review fixes applied (6 issues resolved)
+- ✅ Minimal bundle impact (+11.64 kB for fuse.js + utilities)
+- ✅ Build time: 9.22s
+- ✅ Bundle size: 298.65 kB gzipped
+- ✅ WCAG 2.1 AA compliant with full keyboard support
+
 ---
 
 ## 🎯 Key UI Patterns from Mockups
@@ -720,10 +745,9 @@ const removeFilter = useCallback((filterKey) => {
 
 ## ✅ Status Summary
 
-**Phases Complete**: 25 phases (10 base + 11A + 11B + 11C + 11D + 11E + Phase 12 + Phase 12.5 + Phase 12.6 + Phase 12.7 + Phase 12.8 + Phase 12.9 + Phase 12.9.1 + Phase 13 + Phase 14A + Phase 14B) ✅ 🎉
+**Phases Complete**: 26 phases (10 base + 11A + 11B + 11C + 11D + 11E + Phase 12 + Phase 12.5 + Phase 12.6 + Phase 12.7 + Phase 12.8 + Phase 12.9 + Phase 12.9.1 + Phase 13 + Phase 14A + Phase 14B + Phase 14C) ✅ 🎉
 **PRs Created**:
-- ✅ Merged: #159, #163, #164, #165, #166, #167, #169, #170, #172, #173, #174, #175, #176, #177, #178, #179, #180, #181, #182, #183, #184, #185, #186, #187, #188
-- ⏸️ Open: #189 (Phase 14B - Security fixes applied)
+- ✅ Merged: #159, #163, #164, #165, #166, #167, #169, #170, #172, #173, #174, #175, #176, #177, #178, #179, #180, #181, #182, #183, #184, #185, #186, #187, #188, #189, #190
 
 **Components Created**:
 - ✅ Card (enhanced with hover lift)
@@ -749,5 +773,9 @@ const removeFilter = useCallback((filterKey) => {
 - ✅ ExportButton component with column selection
 - ✅ BatchImageUploader with drag & drop support
 - ✅ BatchImageUploadModal wrapper component
+- ✅ SearchCommand global command palette (Cmd+K)
+- ✅ FilterPresetManager component
+- ✅ Search utilities library (`/src/lib/search.js`) with fuse.js
+- ✅ Filter preset utilities library (`/src/lib/filterPresets.js`)
 
-**Status**: ✅ **All 25 phases complete!** Project ready for production with modern UI, WCAG 2.1 AA compliance, **premium polish animations** (modals, buttons, dropdowns, micro-interactions), optimal performance, refined metadata displays, comprehensive color-coded tag system, efficient bulk tag operations, centralized tag management dashboard, extended bulk operations for location/date/type/project management, PDF lazy loading optimization (436 kB conditional load), **complete intelligent data caching with TanStack Query across ALL major pages** (50-80% Firestore read reduction across entire app), **comprehensive list virtualization** (ShotsPage, ProjectsPage, ProductsPage) with configurable responsive columns for smooth 60 FPS scrolling with 10,000+ items and 98% DOM reduction, **universal CSV/Excel export** (all major pages with column selection and on-demand loading), and **batch image upload** (drag & drop with automatic compression, progress tracking, and security validation). Bundle size: 287.01 kB gzipped.
+**Status**: ✅ **All 26 phases complete!** Project ready for production with modern UI, WCAG 2.1 AA compliance, **premium polish animations** (modals, buttons, dropdowns, micro-interactions), optimal performance, refined metadata displays, comprehensive color-coded tag system, efficient bulk tag operations, centralized tag management dashboard, extended bulk operations for location/date/type/project management, PDF lazy loading optimization (436 kB conditional load), **complete intelligent data caching with TanStack Query across ALL major pages** (50-80% Firestore read reduction across entire app), **comprehensive list virtualization** (ShotsPage, ProjectsPage, ProductsPage) with configurable responsive columns for smooth 60 FPS scrolling with 10,000+ items and 98% DOM reduction, **universal CSV/Excel export** (all major pages with column selection and on-demand loading), **batch image upload** (drag & drop with automatic compression, progress tracking, and security validation), and **advanced search & filter presets** (Cmd+K fuzzy search across all entities, save/load/manage filter combinations, 48 comprehensive tests). Bundle size: 298.65 kB gzipped. Test coverage: 232 tests passing.
