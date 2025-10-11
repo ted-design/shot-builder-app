@@ -10,7 +10,7 @@ import { readStorage, writeStorage } from './safeStorage';
  * @returns {string} Unique preset ID
  */
 function generatePresetId() {
-  return `preset_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `preset_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }
 
 /**
@@ -76,6 +76,12 @@ export function savePreset(page, name, filters, options = {}) {
     return newPreset;
   } catch (error) {
     console.error(`[FilterPresets] Failed to save preset for ${page}:`, error);
+
+    // Handle specific quota exceeded error
+    if (error.name === 'QuotaExceededError') {
+      throw new Error('Storage quota exceeded. Please delete some presets to free up space.');
+    }
+
     throw new Error('Failed to save filter preset');
   }
 }

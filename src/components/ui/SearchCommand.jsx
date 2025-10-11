@@ -296,13 +296,13 @@ export default function SearchCommand() {
 
   // Scroll selected item into view
   useEffect(() => {
-    if (resultsRef.current && selectedIndex >= 0) {
+    if (resultsRef.current && selectedIndex >= 0 && selectedIndex < flatResults.length) {
       const selectedElement = resultsRef.current.children[selectedIndex];
       if (selectedElement) {
         selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
     }
-  }, [selectedIndex]);
+  }, [selectedIndex, flatResults.length]);
 
   if (!isOpen) return null;
 
