@@ -33,17 +33,17 @@ export function EmptyState({
       <div className="flex flex-col items-center space-y-6 max-w-md text-center">
         {/* Icon - 64px size, slate-400 color */}
         {Icon && (
-          <Icon className="h-16 w-16 text-slate-400" aria-hidden="true" />
+          <Icon className="h-16 w-16 text-slate-400 dark:text-slate-600" aria-hidden="true" />
         )}
 
         {/* Title - Large, semibold, dark text */}
-        <h3 className="text-lg font-semibold text-slate-900">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
           {title}
         </h3>
 
         {/* Description - Smaller, gray text, centered, constrained width */}
         {description && (
-          <p className="text-sm text-slate-600 max-w-md">
+          <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md">
             {description}
           </p>
         )}

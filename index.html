@@ -6,6 +6,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Shot Builder</title>
+    <!-- Dark mode initialization - prevents FOUC (Flash of Unstyled Content) -->
+    <script>
+      (function() {
+        try {
+          const theme = localStorage.getItem('theme') ||
+            (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {
+          // Silently fail if localStorage is not available
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
