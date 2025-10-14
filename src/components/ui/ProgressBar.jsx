@@ -31,14 +31,14 @@ const ProgressBar = ({
   return (
     <div className="space-y-1">
       {(label || showPercentage) && (
-        <div className="flex items-center justify-between text-xs text-slate-600">
+        <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
           {label && <span>{label}</span>}
           {showPercentage && (
             <span className="font-medium">{Math.round(clampedPercentage)}%</span>
           )}
         </div>
       )}
-      <div className={`w-full rounded-full ${trackColor} ${heightClass}`}>
+      <div className={`w-full rounded-full ${trackColor} dark:bg-slate-700 ${heightClass}`}>
         <div
           className={`${heightClass} rounded-full ${fillColor} transition-all duration-300`}
           style={{ width: `${clampedPercentage}%` }}
