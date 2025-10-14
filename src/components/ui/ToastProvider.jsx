@@ -4,10 +4,10 @@ import { subscribeToToasts } from "../../lib/toast";
 const DEFAULT_DURATION = 4000;
 
 const VARIANT_STYLES = {
-  success: "border-emerald-500 bg-emerald-50 text-emerald-900",
-  error: "border-red-500 bg-red-50 text-red-900",
-  info: "border-sky-500 bg-sky-50 text-sky-900",
-  warning: "border-amber-500 bg-amber-50 text-amber-900",
+  success: "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-100",
+  error: "border-red-500 bg-red-50 dark:bg-red-900/30 text-red-900 dark:text-red-100",
+  info: "border-sky-500 bg-sky-50 dark:bg-sky-900/30 text-sky-900 dark:text-sky-100",
+  warning: "border-amber-500 bg-amber-50 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100",
 };
 
 export default function ToastProvider({ children }) {
@@ -46,7 +46,7 @@ export default function ToastProvider({ children }) {
               <div className="flex-1">
                 {toast.title && <div className="text-sm font-semibold">{toast.title}</div>}
                 {toast.description && (
-                  <div className="text-sm leading-snug text-slate-700">{toast.description}</div>
+                  <div className="text-sm leading-snug text-slate-700 dark:text-slate-200">{toast.description}</div>
                 )}
               </div>
               <button
@@ -59,7 +59,7 @@ export default function ToastProvider({ children }) {
                   }
                   setToasts((prev) => prev.filter((item) => item.id !== toast.id));
                 }}
-                className="mt-0.5 text-xs font-semibold uppercase text-slate-500 hover:text-slate-700"
+                className="mt-0.5 text-xs font-semibold uppercase text-slate-500 dark:text-slate-300 hover:text-slate-700 dark:hover:text-slate-100"
               >
                 Close
               </button>

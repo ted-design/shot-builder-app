@@ -165,11 +165,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900 px-4">
+      <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 shadow-sm">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold text-slate-900">Welcome back</h1>
-          <p className="text-sm text-slate-600">
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Welcome back</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             Sign in with Google or email to access Shot Builder.
           </p>
         </div>
@@ -178,26 +178,26 @@ export default function LoginPage() {
           <button
             onClick={login}
             disabled={busy}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-slate-900 dark:bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 dark:hover:bg-indigo-700 disabled:opacity-60"
           >
             Continue with Google
           </button>
           <button
             onClick={loginRedirect}
             disabled={busy}
-            className="w-full rounded-md border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:opacity-60"
+            className="w-full rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-60"
           >
             Use redirect sign-in (fallback)
           </button>
         </div>
 
-        <div className="border-t border-slate-200 pt-6">
-          <div className="flex items-center justify-between text-sm font-medium text-slate-700">
+        <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
+          <div className="flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300">
             <span>{mode === "signin" ? "Sign in with email" : "Create an email account"}</span>
             <button
               type="button"
               onClick={toggleMode}
-              className="text-primary transition hover:underline"
+              className="text-primary dark:text-indigo-400 transition hover:underline"
             >
               {mode === "signin" ? "Need an account?" : "Have an account?"}
             </button>
@@ -209,7 +209,7 @@ export default function LoginPage() {
                 placeholder="Name (optional)"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                className="w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-indigo-500"
                 autoComplete="name"
               />
             )}
@@ -218,7 +218,7 @@ export default function LoginPage() {
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+              className="w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-indigo-500"
               autoComplete="email"
               required
             />
@@ -227,7 +227,7 @@ export default function LoginPage() {
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+              className="w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-indigo-500"
               autoComplete={mode === "signin" ? "current-password" : "new-password"}
               required
             />
@@ -237,7 +237,7 @@ export default function LoginPage() {
                 placeholder="Confirm password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                className="w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-indigo-500"
                 autoComplete="new-password"
                 required
               />
@@ -245,7 +245,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={busy}
-              className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary/90 disabled:opacity-60"
+              className="w-full rounded-md bg-primary dark:bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary/90 dark:hover:bg-indigo-700 disabled:opacity-60"
             >
               {mode === "signin" ? "Sign in" : "Create account"}
             </button>
@@ -254,7 +254,7 @@ export default function LoginPage() {
             <button
               onClick={handleReset}
               disabled={busy}
-              className="mt-3 text-sm text-primary transition hover:underline disabled:opacity-60"
+              className="mt-3 text-sm text-primary dark:text-indigo-400 transition hover:underline disabled:opacity-60"
               type="button"
             >
               Forgot your password?
@@ -265,7 +265,7 @@ export default function LoginPage() {
         {(error || info) && (
           <div
             className={`rounded-md px-3 py-2 text-sm ${
-              error ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
+              error ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400" : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400"
             }`}
           >
             {error || info}

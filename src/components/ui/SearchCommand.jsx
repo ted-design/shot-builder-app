@@ -317,19 +317,19 @@ export default function SearchCommand() {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[1000] flex items-start justify-center bg-slate-900/50 backdrop-blur-sm animate-fade-in pt-[10vh]"
+      className="fixed inset-0 z-[1000] flex items-start justify-center bg-slate-900/50 dark:bg-black/70 backdrop-blur-sm animate-fade-in pt-[10vh]"
       onClick={close}
       role="dialog"
       aria-modal="true"
       aria-label="Global search"
     >
       <div
-        className="w-full max-w-2xl rounded-lg border border-slate-200 bg-white shadow-2xl animate-slide-in-from-top"
+        className="w-full max-w-2xl rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl animate-slide-in-from-top"
         onClick={e => e.stopPropagation()}
       >
         {/* Search Input */}
-        <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
-          <Search className="h-5 w-5 text-slate-400" aria-hidden="true" />
+        <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-700 px-4 py-3">
+          <Search className="h-5 w-5 text-slate-400 dark:text-slate-500" aria-hidden="true" />
           <input
             ref={inputRef}
             type="text"
@@ -340,19 +340,19 @@ export default function SearchCommand() {
             }}
             onKeyDown={handleResultsKeyDown}
             placeholder="Search shots, products, talent, locations..."
-            className="flex-1 bg-transparent text-base text-slate-900 placeholder-slate-400 outline-none"
+            className="flex-1 bg-transparent text-base text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none"
             aria-label="Search query"
             aria-autocomplete="list"
             aria-controls="search-results"
           />
           <button
             onClick={close}
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            className="rounded-md p-1 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition"
             aria-label="Close search"
           >
             <X className="h-5 w-5" />
           </button>
-          <kbd className="hidden sm:inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-500">
+          <kbd className="hidden sm:inline-flex items-center gap-1 rounded border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-2 py-1 text-xs text-slate-500 dark:text-slate-400">
             <span>ESC</span>
           </kbd>
         </div>
@@ -362,16 +362,16 @@ export default function SearchCommand() {
           {/* Recent Searches */}
           {showRecentSearches && (
             <div className="p-2">
-              <div className="px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wide">
+              <div className="px-3 py-2 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                 Recent Searches
               </div>
               {recentSearches.map((search, index) => (
                 <button
                   key={index}
                   onClick={() => handleRecentSearchClick(search)}
-                  className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 transition"
+                  className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
                 >
-                  <Search className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                  <Search className="h-4 w-4 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                   <span>{search}</span>
                 </button>
               ))}
@@ -387,7 +387,7 @@ export default function SearchCommand() {
 
                 return (
                   <div key={type} className="mb-4 last:mb-0">
-                    <div className="px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    <div className="px-3 py-2 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                       {getEntityTypeName(type)} ({results.length})
                     </div>
                     {results.map((result, index) => {
@@ -402,22 +402,22 @@ export default function SearchCommand() {
                           key={result.item.id}
                           onClick={() => handleSelectResult(result)}
                           className={`w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left transition ${
-                            isSelected ? 'bg-primary/10 ring-2 ring-primary/20' : 'hover:bg-slate-100'
+                            isSelected ? 'bg-primary/10 dark:bg-indigo-900/30 ring-2 ring-primary/20 dark:ring-indigo-500/30' : 'hover:bg-slate-100 dark:hover:bg-slate-700'
                           }`}
                           role="option"
                           aria-selected={isSelected}
                         >
                           <div className={`flex h-8 w-8 items-center justify-center rounded-md ${
-                            isSelected ? 'bg-primary/20' : 'bg-slate-100'
+                            isSelected ? 'bg-primary/20 dark:bg-indigo-900/40' : 'bg-slate-100 dark:bg-slate-700'
                           }`}>
-                            <Icon className={`h-4 w-4 ${isSelected ? 'text-primary' : 'text-slate-600'}`} aria-hidden="true" />
+                            <Icon className={`h-4 w-4 ${isSelected ? 'text-primary dark:text-indigo-400' : 'text-slate-600 dark:text-slate-400'}`} aria-hidden="true" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-slate-900 truncate">
+                            <div className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
                               {label}
                             </div>
                             {secondary && (
-                              <div className="text-xs text-slate-500 truncate">
+                              <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
                                 {secondary}
                               </div>
                             )}
@@ -434,9 +434,9 @@ export default function SearchCommand() {
           {/* Empty State */}
           {showEmpty && (
             <div className="p-12 text-center">
-              <Search className="mx-auto h-12 w-12 text-slate-300" aria-hidden="true" />
-              <p className="mt-4 text-sm font-medium text-slate-900">No results found</p>
-              <p className="mt-1 text-xs text-slate-500">
+              <Search className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600" aria-hidden="true" />
+              <p className="mt-4 text-sm font-medium text-slate-900 dark:text-slate-100">No results found</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Try adjusting your search query
               </p>
             </div>
@@ -445,22 +445,22 @@ export default function SearchCommand() {
           {/* Instructions */}
           {!query.trim() && !showRecentSearches && (
             <div className="p-12 text-center">
-              <Search className="mx-auto h-12 w-12 text-slate-300" aria-hidden="true" />
-              <p className="mt-4 text-sm font-medium text-slate-900">Search Shot Builder</p>
-              <p className="mt-1 text-xs text-slate-500">
+              <Search className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600" aria-hidden="true" />
+              <p className="mt-4 text-sm font-medium text-slate-900 dark:text-slate-100">Search Shot Builder</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Search across shots, products, talent, and more
               </p>
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500">
-                <kbd className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 py-1">
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <kbd className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-2 py-1">
                   <span>↑</span>
                   <span>↓</span>
                 </kbd>
                 <span>to navigate</span>
-                <kbd className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 py-1">
+                <kbd className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-2 py-1">
                   <span>⏎</span>
                 </kbd>
                 <span>to select</span>
-                <kbd className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 py-1">
+                <kbd className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-2 py-1">
                   <span>ESC</span>
                 </kbd>
                 <span>to close</span>
