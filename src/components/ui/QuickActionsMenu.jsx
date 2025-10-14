@@ -14,7 +14,6 @@ import {
   LayoutGrid,
   Tags,
   FileText,
-  Settings,
   ChevronDown
 } from 'lucide-react';
 

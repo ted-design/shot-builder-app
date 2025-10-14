@@ -3,7 +3,7 @@
  * Displays user photo or colored initials
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 /**
  * Get initials from name or email
@@ -76,32 +76,31 @@ export default function Avatar({
   size = 'md',
   className = ''
 }) {
+  const [imageError, setImageError] = useState(false);
   const initials = useMemo(() => getInitials(name, email), [name, email]);
   const colorClass = useMemo(() => stringToColor(name || email), [name, email]);
   const sizeClass = sizeClasses[size] || sizeClasses.md;
 
   const baseClasses = `inline-flex items-center justify-center rounded-full font-semibold text-white ${sizeClass} ${className}`;
 
-  if (photoUrl) {
+  // Show initials if no photoUrl OR if image failed to load
+  if (!photoUrl || imageError) {
     return (
-      <img
-        src={photoUrl}
-        alt={name || email || 'User avatar'}
-        className={`${baseClasses} object-cover`}
-        onError={(e) => {
-          // Fallback to initials if image fails to load
-          e.target.style.display = 'none';
-        }}
-      />
+      <div
+        className={`${baseClasses} ${colorClass}`}
+        aria-label={`Avatar for ${name || email || 'user'}`}
+      >
+        {initials}
+      </div>
     );
   }
 
   return (
-    <div
-      className={`${baseClasses} ${colorClass}`}
-      aria-label={`Avatar for ${name || email || 'user'}`}
-    >
-      {initials}
-    </div>
+    <img
+      src={photoUrl}
+      alt={name || email || 'User avatar'}
+      className={`${baseClasses} object-cover`}
+      onError={() => setImageError(true)}
+    />
   );
 }
