@@ -3,7 +3,7 @@
 **Date**: October 14, 2025
 **Branch**: `feat/phase15.2-complete-dark-mode`
 **Status**: ✅ Complete
-**PR**: #TBD
+**PR**: [#194](https://github.com/ted-design/shot-builder-app/pull/194)
 
 ---
 
