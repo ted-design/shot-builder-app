@@ -1,16 +1,21 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
+import { useProjectScope } from "../context/ProjectScopeContext";
 import { adaptUser } from "../auth/adapter";
 import { roleLabel } from "../lib/rbac";
+import { projectPath } from "../lib/paths";
 import { SkipLink } from "../components/ui/SkipLink";
 import ProjectIndicator from "../components/ui/ProjectIndicator";
 import ThemeToggle from "../components/ui/ThemeToggle";
 import QuickActionsMenu from "../components/ui/QuickActionsMenu";
 import Avatar from "../components/ui/Avatar";
+import Breadcrumb from "../components/ui/Breadcrumb";
 import { useSearchCommand } from "../context/SearchCommandContext";
+import { generateBreadcrumbs, shouldShowBreadcrumbs } from "../lib/breadcrumbs";
 import { Menu, X, ChevronDown, LogOut, Search } from "lucide-react";
 
 const navItems = [
@@ -188,7 +193,9 @@ function UserMenu({ userLabel, navRoleLabel, userEmail, userPhotoUrl, onSignOut 
 export default function TopNavigationLayout({ fallbackUser = null, fallbackRole = null }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { user: authUser, role: ctxRole } = useAuth();
+  const [currentProject, setCurrentProject] = useState(null);
+  const { user: authUser, role: ctxRole, clientId } = useAuth();
+  const { currentProjectId } = useProjectScope();
   const { openSearch } = useSearchCommand();
 
   const derivedUser = useMemo(() => adaptUser(authUser), [authUser]);
@@ -202,6 +209,42 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
   const signOutUser = async () => {
     await signOut(auth);
   };
+
+  // Fetch current project details for breadcrumbs
+  useEffect(() => {
+    if (!currentProjectId || !clientId) {
+      setCurrentProject(null);
+      return;
+    }
+
+    const fetchProject = async () => {
+      try {
+        const projectRef = doc(db, ...projectPath(currentProjectId, clientId));
+        const projectSnap = await getDoc(projectRef);
+        if (projectSnap.exists()) {
+          setCurrentProject({ id: projectSnap.id, ...projectSnap.data() });
+        } else {
+          setCurrentProject(null);
+        }
+      } catch (error) {
+        console.error("Error fetching project for breadcrumbs:", error);
+        setCurrentProject(null);
+      }
+    };
+
+    fetchProject();
+  }, [currentProjectId, clientId]);
+
+  // Generate breadcrumbs for current page
+  const breadcrumbItems = useMemo(() => {
+    const context = {
+      projectName: currentProject?.name || null,
+      projectId: currentProjectId || null,
+    };
+    return generateBreadcrumbs(location.pathname, context);
+  }, [location.pathname, currentProject, currentProjectId]);
+
+  const showBreadcrumbs = shouldShowBreadcrumbs(location.pathname);
 
   const userLabel = navUser?.name || navUser?.displayName || navUser?.email || "Signed in";
   const userEmail = navUser?.email || null;
@@ -304,6 +347,15 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
           </div>
         )}
       </header>
+
+      {/* Breadcrumb Navigation */}
+      {showBreadcrumbs && breadcrumbItems.length > 0 && (
+        <div className="border-b border-slate-200 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50">
+          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8">
+            <Breadcrumb items={breadcrumbItems} />
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main id="main-content" className="mx-auto w-full max-w-[1440px] px-4 py-6 md:px-8">
