@@ -8,7 +8,7 @@ import { FLAGS } from "./lib/flags";
 import { useAuth } from "./context/AuthContext";
 import { adaptUser } from "./auth/adapter";
 import AuthReadyGate from "./auth/AuthReadyGate";
-import SidebarLayout from "./routes/SidebarLayout";
+import TopNavigationLayout from "./routes/TopNavigationLayout";
 import RequireRole from "./routes/RequireRole";
 import { ProjectScopeProvider } from "./context/ProjectScopeContext";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -58,7 +58,7 @@ function AuthenticatedLayout({ guardUser, navUser, fallbackRole }) {
   if (!guardUser) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-  return <SidebarLayout fallbackUser={navUser} fallbackRole={fallbackRole} />;
+  return <TopNavigationLayout fallbackUser={navUser} fallbackRole={fallbackRole} />;
 }
 
 export default function App() {
