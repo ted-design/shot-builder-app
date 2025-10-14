@@ -524,7 +524,7 @@ Assessment of design patterns from HTML mockups in `/docs/Claude/App Design/2025
 - ✅ Code review improvements applied (Escape key handling + memoization)
 
 ### Phase 16.1: Top Navigation Enhancements (COMPLETE ✅)
-**PR**: TBD
+**PR**: [#196](https://github.com/ted-design/shot-builder-app/pull/196)
 **Documentation**: `/PHASE16.1_NAV_ENHANCEMENTS_SESSION.md`
 **Branch**: `feat/phase16.1-navigation-enhancements`
 **Status**: ✅ **Complete - High-Impact Quick Wins**
@@ -867,7 +867,7 @@ const removeFilter = useCallback((filterKey) => {
 **Phases Complete**: 32 phases (10 base + 11A + 11B + 11C + 11D + 11E + Phase 12 + Phase 12.5 + Phase 12.6 + Phase 12.7 + Phase 12.8 + Phase 12.9 + Phase 12.9.1 + Phase 13 + Phase 14A + Phase 14B + Phase 14C + Phase 14D + Phase 15 + Phase 15.1 + Phase 15.2 + Phase 16 + Phase 16.1) ✅ 🎉
 **PRs Created**:
 - ✅ Merged: #159, #163, #164, #165, #166, #167, #169, #170, #172, #173, #174, #175, #176, #177, #178, #179, #180, #181, #182, #183, #184, #185, #186, #187, #188, #189, #190, #191, #192, #193, #194, #195
-- ⏳ Pending: Phase 16.1 (TBD)
+- ⏳ Pending: #196 (Phase 16.1)
 
 **Components Created**:
 - ✅ Card (enhanced with hover lift)

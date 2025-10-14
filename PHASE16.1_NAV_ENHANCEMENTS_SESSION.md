@@ -2,7 +2,7 @@
 
 **Date**: October 14, 2025
 **Status**: ✅ Complete
-**PR**: TBD
+**PR**: [#196](https://github.com/ted-design/shot-builder-app/pull/196)
 **Branch**: `feat/phase16.1-navigation-enhancements`
 
 ## Overview
