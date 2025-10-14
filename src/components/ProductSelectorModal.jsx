@@ -108,7 +108,7 @@ export default function ProductSelectorModal({
             <h2 id="product-selector-title" className="text-lg font-semibold">
               {title}
             </h2>
-            <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300">
+            <button onClick={onClose} className="text-sm text-slate-500 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300">
               ×
             </button>
           </div>
@@ -178,7 +178,7 @@ export default function ProductSelectorModal({
                 <div
                   key={product.id}
                   className={`flex items-center justify-between rounded border p-2 dark:border-slate-700 ${
-                    added ? "bg-gray-100 dark:bg-slate-700" : "dark:bg-slate-800/50"
+                    added ? "bg-slate-100 dark:bg-slate-700" : "dark:bg-slate-800/50"
                   }`}
                 >
                   <div className="text-sm">
@@ -193,7 +193,7 @@ export default function ProductSelectorModal({
                 </div>
               );
             })}
-            {!filtered.length && <p className="text-sm text-gray-500 dark:text-slate-400">No products found</p>}
+            {!filtered.length && <p className="text-sm text-slate-500 dark:text-slate-400">No products found</p>}
           </div>
           <div className="flex items-center justify-between">
             <Button variant="ghost" size="sm" onClick={handleClear}>

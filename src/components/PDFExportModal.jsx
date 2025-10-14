@@ -43,19 +43,19 @@ export default function PDFExportModal() {
     >
       <Card className="border-0 shadow-none">
         <CardHeader className="flex items-center justify-between">
-          <h2 id="pdf-export-title" className="text-lg font-semibold text-slate-900 dark:text-gray-100">
+          <h2 id="pdf-export-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             Demo PDF Export
           </h2>
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+            className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
           >
             Close
           </button>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-slate-600 dark:text-gray-400">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             Download a sample pull sheet to validate the PDF rendering pipeline. Replace the mock
             data with real pulls when the export feature goes live.
           </p>
