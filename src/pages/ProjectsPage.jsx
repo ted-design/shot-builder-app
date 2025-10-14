@@ -323,13 +323,13 @@ export default function ProjectsPage() {
   return (
     <div className="mx-auto max-w-screen-lg space-y-6">
       {/* Sticky header with consistent styling */}
-      <div className="sticky inset-x-0 top-14 z-40 -mx-6 border-b border-gray-200 bg-white px-6 py-4 shadow-sm">
+      <div className="sticky inset-x-0 top-14 z-40 -mx-6 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 py-4 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0 space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-100 truncate">
               Welcome back{authUser?.displayName ? `, ${authUser.displayName}` : ""}
             </h1>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Pick a project to scope shots, planner lanes, and pull sheets.
             </p>
           </div>
@@ -341,8 +341,8 @@ export default function ProjectsPage() {
                 onClick={() => setFiltersOpen((prev) => !prev)}
                 className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
                   activeFilterCount > 0
-                    ? "border-primary/60 bg-primary/5 text-primary"
-                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    ? "border-primary/60 dark:border-indigo-500/50 bg-primary/5 dark:bg-indigo-900/20 text-primary dark:text-indigo-400"
+                    : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                 }`}
                 aria-haspopup="menu"
                 aria-expanded={filtersOpen}
@@ -350,7 +350,7 @@ export default function ProjectsPage() {
                 <Filter className="h-4 w-4" aria-hidden="true" />
                 <span>Filters</span>
                 {activeFilterCount > 0 && (
-                  <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
+                  <span className="ml-1 rounded-full bg-primary dark:bg-indigo-600 px-2 py-0.5 text-xs font-medium text-white">
                     {activeFilterCount}
                   </span>
                 )}
@@ -358,10 +358,10 @@ export default function ProjectsPage() {
 
             {/* Filter panel */}
             {filtersOpen && (
-              <div className="absolute right-0 z-20 mt-2 w-64 rounded-md border border-slate-200 bg-white p-4 shadow-lg animate-slide-in-from-right">
+              <div className="absolute right-0 z-20 mt-2 w-64 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-lg animate-slide-in-from-right">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-slate-900">Filter projects</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Filter projects</p>
                     {activeFilterCount > 0 && (
                       <button
                         type="button"
@@ -369,7 +369,7 @@ export default function ProjectsPage() {
                           clearAllFilters();
                           setFiltersOpen(false);
                         }}
-                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+                        className="flex items-center gap-1 text-xs text-primary dark:text-indigo-400 hover:text-primary/80 dark:hover:text-indigo-300"
                       >
                         <X className="h-3 w-3" />
                         Clear all
@@ -377,12 +377,12 @@ export default function ProjectsPage() {
                     )}
                   </div>
 
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                     <input
                       type="checkbox"
                       checked={showArchivedProjects}
                       onChange={(e) => setShowArchivedProjects(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300"
+                      className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800"
                     />
                     Show archived
                   </label>
@@ -406,7 +406,7 @@ export default function ProjectsPage() {
                 <button
                   key={filter.key}
                   onClick={() => removeFilter(filter.key)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 px-3 py-1 text-xs font-medium hover:bg-primary/20 transition"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 dark:bg-indigo-900/30 text-primary dark:text-indigo-400 border border-primary/20 dark:border-indigo-500/30 px-3 py-1 text-xs font-medium hover:bg-primary/20 dark:hover:bg-indigo-900/40 transition"
                 >
                   <span>{filter.label}: {filter.value}</span>
                   <X className="h-3 w-3" />
@@ -426,7 +426,7 @@ export default function ProjectsPage() {
         </div>
       )}
       {!canManage && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
           You have read-only access to projects. Contact an admin or producer if you need to
           create or edit campaigns.
         </div>
