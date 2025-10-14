@@ -79,10 +79,10 @@ export default function PullPublicViewPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
         <div className="text-center">
-          <div className="mb-4 text-lg font-semibold text-slate-900">Loading pull...</div>
-          <div className="text-sm text-slate-600">Please wait</div>
+          <div className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Loading pull...</div>
+          <div className="text-sm text-slate-600 dark:text-slate-400">Please wait</div>
         </div>
       </div>
     );
@@ -90,11 +90,11 @@ export default function PullPublicViewPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
         <div className="max-w-md text-center">
           <div className="mb-4 text-6xl">🔒</div>
-          <h1 className="mb-2 text-2xl font-bold text-slate-900">Access Denied</h1>
-          <p className="text-slate-600">{error}</p>
+          <h1 className="mb-2 text-2xl font-bold text-slate-900 dark:text-slate-100">Access Denied</h1>
+          <p className="text-slate-600 dark:text-slate-400">{error}</p>
         </div>
       </div>
     );
@@ -117,18 +117,18 @@ export default function PullPublicViewPage() {
   const totalQuantity = items.reduce((sum, item) => sum + getTotalQuantity(item), 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 py-8">
       <div className="mx-auto max-w-6xl px-4">
         {/* Header */}
         <div className="mb-6">
           <div className="mb-2 flex items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+            <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300">
               Shared View
             </span>
-            <span className="text-xs text-slate-500">Read-only</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Read-only</span>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900">{pull.title || "Pull Sheet"}</h1>
-          <div className="mt-1 flex gap-4 text-sm text-slate-600">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{pull.title || "Pull Sheet"}</h1>
+          <div className="mt-1 flex gap-4 text-sm text-slate-600 dark:text-slate-400">
             <span>Created: {createdDate}</span>
             <span>•</span>
             <span>
@@ -150,7 +150,7 @@ export default function PullPublicViewPage() {
         </Card>
 
         {/* Footer */}
-        <div className="mt-6 text-center text-xs text-slate-500">
+        <div className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
           This is a read-only view. Contact the pull creator to request changes.
         </div>
       </div>

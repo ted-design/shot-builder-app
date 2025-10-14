@@ -501,8 +501,8 @@ class PlannerErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="space-y-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <div className="text-base font-semibold text-red-800">
+        <div className="space-y-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+          <div className="text-base font-semibold text-red-800 dark:text-red-200">
             Something went wrong loading the planner.
           </div>
           <p>
@@ -512,7 +512,7 @@ class PlannerErrorBoundary extends Component {
           <button
             type="button"
             onClick={this.handleReset}
-            className="inline-flex items-center rounded-md border border-red-200 bg-white px-3 py-1 text-sm font-medium text-red-700 transition hover:bg-red-100"
+            className="inline-flex items-center rounded-md border border-red-200 bg-white px-3 py-1 text-sm font-medium text-red-700 transition hover:bg-red-100 dark:border-red-800 dark:bg-slate-800 dark:text-red-300 dark:hover:bg-slate-700"
           >
             Dismiss error
           </button>
@@ -636,13 +636,13 @@ function ShotCard({
 
   const cardBaseClass =
     viewMode === "list"
-      ? "flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
-      : "flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm";
+      ? "flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+      : "flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800";
 
   const metaContainerClass =
     viewMode === "list"
-      ? "grid gap-2 text-xs text-slate-600 md:grid-cols-3"
-      : "flex flex-col gap-2 text-xs text-slate-600";
+      ? "grid gap-2 text-xs text-slate-600 md:grid-cols-3 dark:text-slate-400"
+      : "flex flex-col gap-2 text-xs text-slate-600 dark:text-slate-400";
 
   return (
     <div
@@ -660,12 +660,12 @@ function ShotCard({
               className="h-12 w-12 flex-none overflow-hidden rounded-md"
               imageClassName="h-full w-full object-cover"
               placeholder={
-                <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500">
+                <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                   Loading
                 </div>
               }
               fallback={
-                <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500">
+                <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                   No image
                 </div>
               }
@@ -674,7 +674,7 @@ function ShotCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <h4 className="text-sm font-semibold text-slate-900">{shot.name}</h4>
+                <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{shot.name}</h4>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
                   {shot.type && (
                     <StatusBadge variant="default" className="text-xs">
@@ -686,13 +686,13 @@ function ShotCard({
                     <span>{dateLabel}</span>
                   </div>
                   {productLabels.length > 0 && (
-                    <div className="flex items-center gap-1 text-xs text-slate-600">
+                    <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
                       <Package className="h-3.5 w-3.5" />
                       <span>{productLabels.length} {productLabels.length === 1 ? 'product' : 'products'}</span>
                     </div>
                   )}
                   {shot.laneId && shot.laneId === UNASSIGNED_LANE_ID && (
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">Unassigned</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs dark:bg-slate-700">Unassigned</span>
                   )}
                 </div>
                 {Array.isArray(shot.tags) && shot.tags.length > 0 && (
@@ -706,8 +706,8 @@ function ShotCard({
                   aria-label={`${shot.name} status`}
                   className={`h-8 min-w-[130px] rounded-md border px-2 text-xs font-medium transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 ${
                     statusControlDisabled
-                      ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                      ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500"
                   }`}
                   value={statusValue}
                   onChange={handleStatusChange}
@@ -736,7 +736,7 @@ function ShotCard({
                     onPointerUpCapture={(event) => {
                       event.stopPropagation();
                     }}
-                    className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900"
+                    className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900 dark:hover:border-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-100"
                     aria-label={`Edit ${shot.name}`}
                   >
                     <PencilLine className="h-4 w-4" aria-hidden="true" />
@@ -746,7 +746,7 @@ function ShotCard({
             </div>
             {visibleFields.notes && notesHtml && (
               <div
-                className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-700"
+                className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-700 dark:bg-slate-900 dark:text-slate-300"
                 dangerouslySetInnerHTML={{ __html: notesHtml }}
               />
             )}
@@ -757,22 +757,22 @@ function ShotCard({
             {visibleFields.location && (
               <div className="flex items-center gap-1.5">
                 <MapPin className="h-4 w-4 flex-shrink-0 text-slate-500" />
-                <span className="font-medium text-slate-700">Location:</span>
-                <span className="text-slate-600">{locationLabel}</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">Location:</span>
+                <span className="text-slate-600 dark:text-slate-400">{locationLabel}</span>
               </div>
             )}
             {visibleFields.talent && (
               <div className="flex items-center gap-1.5">
                 <User className="h-4 w-4 flex-shrink-0 text-slate-500" />
-                <span className="font-medium text-slate-700">Talent:</span>
-                <span className="text-slate-600">{talentList.length ? talentList.join(", ") : "–"}</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">Talent:</span>
+                <span className="text-slate-600 dark:text-slate-400">{talentList.length ? talentList.join(", ") : "–"}</span>
               </div>
             )}
             {visibleFields.products && (
               <div className="flex items-center gap-1.5">
                 <Package className="h-4 w-4 flex-shrink-0 text-slate-500" />
-                <span className="font-medium text-slate-700">Products:</span>
-                <span className="text-slate-600">
+                <span className="font-medium text-slate-700 dark:text-slate-300">Products:</span>
+                <span className="text-slate-600 dark:text-slate-400">
                   {productLabels.length ? productLabels.slice(0, 3).join(", ") : "–"}
                   {productLabels.length > 3 && "…"}
                 </span>
@@ -1533,8 +1533,8 @@ function PlannerPageContent() {
 
   const isListView = viewMode === "list";
   const laneWrapperClass = isListView
-    ? "flex w-full flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-    : "flex min-w-[280px] flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm";
+    ? "flex w-full flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+    : "flex min-w-[280px] flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800";
   const shotListClass = isListView
     ? "flex flex-col gap-3"
     : "flex flex-col gap-3";
@@ -1560,10 +1560,10 @@ function PlannerPageContent() {
           isActiveLane ? "border-primary/60 shadow-lg ring-1 ring-primary/20" : ""
         }`}
       >
-        <div className="mb-3 flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+        <div className="mb-3 flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-            <div className="flex items-center gap-1 text-xs text-slate-600">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
+            <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
               <Camera className="h-3.5 w-3.5" />
               <span>{displayShots.length} {displayShots.length === 1 ? 'shot' : 'shots'}</span>
             </div>
@@ -1601,8 +1601,8 @@ function PlannerPageContent() {
             </div>
           ))}
           {placeholderVisible && (
-            <div className="flex h-20 items-center justify-center rounded-lg border-2 border-dashed border-primary/60 bg-primary/5 transition-all duration-150">
-              <span className="text-xs font-medium text-primary/60">Drop here</span>
+            <div className="flex h-20 items-center justify-center rounded-lg border-2 border-dashed border-primary/60 bg-primary/5 transition-all duration-150 dark:bg-primary/10">
+              <span className="text-xs font-medium text-primary/60 dark:text-primary/80">Drop here</span>
             </div>
           )}
         </div>
@@ -1975,19 +1975,19 @@ function PlannerPageContent() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold text-slate-900">Planner</h1>
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Planner</h1>
         {currentProject && (
-          <p className="text-sm font-medium text-slate-700">
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
             {currentProject.name}
           </p>
         )}
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-slate-400">
           Arrange shots into lanes for the active project. Drag cards between lanes to
           update assignments and keep shoot days organised.
         </p>
       </div>
       {subscriptionError && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
           We could not refresh all planner data. Try again shortly or reload the page.
         </div>
       )}
@@ -1997,14 +1997,14 @@ function PlannerPageContent() {
             <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
               View
             </span>
-            <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+            <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <button
                 type="button"
                 onClick={() => updateViewMode("board")}
                 className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
                   viewMode === "board"
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-600 hover:bg-slate-100"
+                    ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                    : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
                 }`}
                 aria-pressed={viewMode === "board"}
               >
@@ -2016,8 +2016,8 @@ function PlannerPageContent() {
                 onClick={() => updateViewMode("list")}
                 className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
                   viewMode === "list"
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-600 hover:bg-slate-100"
+                    ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                    : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
                 }`}
                 aria-pressed={viewMode === "list"}
               >
@@ -2035,7 +2035,7 @@ function PlannerPageContent() {
             </label>
             <select
               id="planner-group-select"
-              className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+              className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
               value={groupBy}
               onChange={(event) => updateGroupBy(event.target.value)}
             >
@@ -2055,7 +2055,7 @@ function PlannerPageContent() {
             </label>
             <select
               id="planner-sort-select"
-              className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+              className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
               value={sortBy}
               onChange={(event) => updatePlannerSort(event.target.value)}
             >
@@ -2076,7 +2076,7 @@ function PlannerPageContent() {
               </label>
               <select
                 id="planner-tag-filter"
-                className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                 value={selectedTagIds.length === 1 ? selectedTagIds[0] : ""}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -2107,7 +2107,7 @@ function PlannerPageContent() {
             <button
               type="button"
               onClick={() => setFieldSettingsOpen((prev) => !prev)}
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-100"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
               aria-haspopup="menu"
               aria-expanded={fieldSettingsOpen}
               aria-label="Select visible fields"
@@ -2115,7 +2115,7 @@ function PlannerPageContent() {
               <Settings2 className="h-4 w-4" aria-hidden="true" />
             </button>
             {fieldSettingsOpen && (
-              <div className="absolute right-0 z-20 mt-2 w-52 rounded-md border border-slate-200 bg-white p-3 shadow-lg">
+              <div className="absolute right-0 z-20 mt-2 w-52 rounded-md border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-800">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Shot details
                 </p>
@@ -2127,7 +2127,7 @@ function PlannerPageContent() {
                 ].map((option) => (
                   <label
                     key={option.key}
-                    className="mt-2 flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50"
+                    className="mt-2 flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
                   >
                     <input
                       type="checkbox"
@@ -2152,12 +2152,12 @@ function PlannerPageContent() {
         laneSummary={laneSummary}
         talentSummary={talentSummary}
       />
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <input
           placeholder="New lane (e.g., 2025-09-12 or Unassigned)"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="h-10 min-w-[220px] flex-1 rounded-md border border-slate-200 px-3 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+          className="h-10 min-w-[220px] flex-1 rounded-md border border-slate-200 px-3 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
           disabled={!canEditPlanner}
         />
         <button
@@ -2169,7 +2169,7 @@ function PlannerPageContent() {
         </button>
       </div>
       {isPlannerLoading ? (
-        <div className="flex min-h-[200px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+        <div className="flex min-h-[200px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Loading planner…
         </div>
       ) : groupBy === "none" ? (
@@ -2251,14 +2251,14 @@ function PlannerPageContent() {
               </div>
             ))
           ) : (
-            <div className="flex min-h-[160px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+            <div className="flex min-h-[160px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
               No shots available for the current grouping.
             </div>
           )}
         </div>
       )}
       {!isPlannerLoading && lanes.length === 0 && totalShots === 0 && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           No shots have been scheduled for this project yet. Create shots from the Shots page or
           drag existing shots into lanes once they appear here.
         </div>
@@ -2286,7 +2286,7 @@ function PlannerPageContent() {
         />
       )}
       {!canEditPlanner && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Planner actions are read-only for your role. Producers or crew can organise shot lanes.
         </div>
       )}

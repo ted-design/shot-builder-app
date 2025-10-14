@@ -50,35 +50,35 @@ function TalentCard({ talent, canManage, onEdit, editDisabled }) {
         path={talent.headshotPath || null}
         size={480}
         alt={displayName}
-        className="aspect-[3/4] w-full overflow-hidden bg-slate-100"
+        className="aspect-[3/4] w-full overflow-hidden bg-slate-100 dark:bg-slate-900"
         imageClassName="h-full w-full object-cover"
         fallback={
-          <div className="flex h-full items-center justify-center text-sm text-slate-500">No image</div>
+          <div className="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400">No image</div>
         }
       />
       <CardContent className="flex flex-1 flex-col gap-3">
         <div className="space-y-1">
-          <div className="text-base font-semibold text-slate-900" title={displayName}>
+          <div className="text-base font-semibold text-slate-900 dark:text-slate-100" title={displayName}>
             <span className="block truncate">{displayName}</span>
           </div>
           {talent.agency && (
-            <div className="text-sm text-slate-600" title={talent.agency}>
+            <div className="text-sm text-slate-600 dark:text-slate-400" title={talent.agency}>
               <span className="block truncate">{talent.agency}</span>
             </div>
           )}
           {contactLine && (
-            <div className="text-sm text-slate-600" title={contactLine}>
+            <div className="text-sm text-slate-600 dark:text-slate-400" title={contactLine}>
               <span className="block truncate">{contactLine}</span>
             </div>
           )}
           {talent.gender && (
-            <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500">
+            <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
               <User className="h-4 w-4" aria-hidden="true" />
               <span>{talent.gender}</span>
             </div>
           )}
           {sizingLine && (
-            <div className="text-xs text-slate-500" title={sizingLine}>
+            <div className="text-xs text-slate-500 dark:text-slate-400" title={sizingLine}>
               <span className="block truncate">{sizingLine}</span>
             </div>
           )}
@@ -100,7 +100,7 @@ function TalentCard({ talent, canManage, onEdit, editDisabled }) {
               Edit
             </Button>
           ) : (
-            <div className="text-xs text-slate-500">Read only</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">Read only</div>
           )}
         </div>
       </CardContent>
@@ -114,14 +114,14 @@ function CreateTalentCard({ onClick, disabled }) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-white p-6 text-center transition hover:border-primary/50 hover:bg-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
+      className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 text-center transition hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:border-slate-200 dark:disabled:border-slate-700 disabled:bg-slate-50 dark:disabled:bg-slate-900"
       aria-label="Create talent"
     >
       <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-3xl font-semibold text-primary">
         +
       </span>
-      <span className="text-base font-semibold text-slate-900">Create talent</span>
-      <span className="mt-1 max-w-[220px] text-sm text-slate-500">
+      <span className="text-base font-semibold text-slate-900 dark:text-slate-100">Create talent</span>
+      <span className="mt-1 max-w-[220px] text-sm text-slate-500 dark:text-slate-400">
         Keep track of models, contact details, and wardrobe notes.
       </span>
     </button>
@@ -401,11 +401,11 @@ export default function TalentPage() {
 
   return (
     <div className="space-y-6">
-      <div className="sticky inset-x-0 top-14 z-20 bg-white/95 py-4 px-6 backdrop-blur">
+      <div className="sticky inset-x-0 top-14 z-20 bg-white/95 dark:bg-slate-800/95 py-4 px-6 backdrop-blur">
         <Card className="border-b-2">
           <CardContent className="py-4">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="flex-none text-2xl font-semibold text-slate-900">Talent</h1>
+              <h1 className="flex-none text-2xl font-semibold text-slate-900 dark:text-slate-100">Talent</h1>
               <Input
                 placeholder="Search talent by name, agency, or contact..."
                 aria-label="Search talent"
@@ -440,14 +440,16 @@ export default function TalentPage() {
         </Card>
       </div>
 
-      <p className="px-6 text-sm text-slate-600">
+      <p className="px-6 text-sm text-slate-600 dark:text-slate-400">
         Track models, their agencies, and wardrobe notes for the active project.
       </p>
 
       {feedback && (
         <div
           className={`mx-6 rounded-md px-4 py-2 text-sm ${
-            feedback.type === "success" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
+            feedback.type === "success"
+              ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+              : "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400"
           }`}
         >
           {feedback.text}
@@ -455,7 +457,7 @@ export default function TalentPage() {
       )}
 
       {!canManage && (
-        <div className="mx-6 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <div className="mx-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
           Talent records are read-only for your role. Producers can add or edit talent details.
         </div>
       )}
@@ -475,7 +477,7 @@ export default function TalentPage() {
         ))}
         {!loading && !filteredTalent.length && (
           <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-4 2xl:col-span-5">
-            <CardContent className="p-8 text-center text-sm text-slate-500">
+            <CardContent className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
               No talent matches the current filters.
             </CardContent>
           </Card>

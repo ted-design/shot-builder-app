@@ -170,7 +170,7 @@ export default function BulkAddItemsModal({
           <h2 id="bulk-add-title" className="text-lg font-semibold">
             Bulk Add Items from Shots
           </h2>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             Select shots to add all their products to this pull at once. Products will be aggregated automatically.
           </p>
         </CardHeader>
@@ -186,7 +186,7 @@ export default function BulkAddItemsModal({
           ) : (
             <>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-700">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   {selectedShots.size} shot{selectedShots.size === 1 ? "" : "s"} selected
                 </span>
                 <Button variant="ghost" size="sm" onClick={toggleAll}>
@@ -194,7 +194,7 @@ export default function BulkAddItemsModal({
                 </Button>
               </div>
 
-              <div className="max-h-96 space-y-4 overflow-y-auto rounded-lg border border-slate-200 p-4">
+              <div className="max-h-96 space-y-4 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
                 {/* Shots grouped by lane */}
                 {shotsByLane.map(({ lane, shots: laneShots }) => {
                   if (laneShots.length === 0) return null;
@@ -202,7 +202,7 @@ export default function BulkAddItemsModal({
 
                   return (
                     <div key={lane.id} className="space-y-2">
-                      <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2">
+                      <div className="flex items-center justify-between rounded-md bg-slate-50 dark:bg-slate-900 px-3 py-2">
                         <label className="flex cursor-pointer items-center gap-2">
                           <input
                             type="checkbox"
@@ -210,10 +210,10 @@ export default function BulkAddItemsModal({
                             onChange={() => toggleLane(lane.id)}
                             className="h-4 w-4"
                           />
-                          <span className="text-sm font-semibold text-slate-900">
+                          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                             {lane.name || "Untitled lane"}
                           </span>
-                          <span className="text-xs text-slate-500">
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
                             ({laneShots.length} shot{laneShots.length === 1 ? "" : "s"})
                           </span>
                         </label>
@@ -224,7 +224,7 @@ export default function BulkAddItemsModal({
                           return (
                             <label
                               key={shot.id}
-                              className="flex cursor-pointer items-center justify-between rounded-md px-3 py-2 hover:bg-slate-50"
+                              className="flex cursor-pointer items-center justify-between rounded-md px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700"
                             >
                               <div className="flex items-center gap-3">
                                 <input
@@ -234,10 +234,10 @@ export default function BulkAddItemsModal({
                                   className="h-4 w-4"
                                 />
                                 <div>
-                                  <div className="text-sm font-medium text-slate-900">
+                                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                                     {shot.title || "Untitled shot"}
                                   </div>
-                                  <div className="text-xs text-slate-500">
+                                  <div className="text-xs text-slate-500 dark:text-slate-400">
                                     {productCount} product{productCount === 1 ? "" : "s"}
                                   </div>
                                 </div>
@@ -253,8 +253,8 @@ export default function BulkAddItemsModal({
                 {/* Unassigned shots */}
                 {unassignedShots.length > 0 && (
                   <div className="space-y-2">
-                    <div className="rounded-md bg-slate-50 px-3 py-2">
-                      <span className="text-sm font-semibold text-slate-900">
+                    <div className="rounded-md bg-slate-50 dark:bg-slate-900 px-3 py-2">
+                      <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                         Unassigned Shots
                       </span>
                     </div>
@@ -264,7 +264,7 @@ export default function BulkAddItemsModal({
                         return (
                           <label
                             key={shot.id}
-                            className="flex cursor-pointer items-center justify-between rounded-md px-3 py-2 hover:bg-slate-50"
+                            className="flex cursor-pointer items-center justify-between rounded-md px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700"
                           >
                             <div className="flex items-center gap-3">
                               <input
@@ -274,10 +274,10 @@ export default function BulkAddItemsModal({
                                 className="h-4 w-4"
                               />
                               <div>
-                                <div className="text-sm font-medium text-slate-900">
+                                <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                                   {shot.title || "Untitled shot"}
                                 </div>
-                                <div className="text-xs text-slate-500">
+                                <div className="text-xs text-slate-500 dark:text-slate-400">
                                   {productCount} product{productCount === 1 ? "" : "s"}
                                 </div>
                               </div>

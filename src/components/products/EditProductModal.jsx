@@ -34,7 +34,7 @@ export default function EditProductModal({
                 {family?.styleName || "Edit product"}
               </h2>
               {family?.styleNumber && (
-                <p className="text-sm text-slate-500">Style #{family.styleNumber}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Style #{family.styleNumber}</p>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -55,7 +55,7 @@ export default function EditProductModal({
                 type="button"
                 aria-label="Close"
                 onClick={onClose}
-                className="text-xl text-slate-500 hover:text-slate-600"
+                className="text-xl text-slate-500 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300"
               >
                 ×
               </button>
@@ -64,14 +64,14 @@ export default function EditProductModal({
         </CardHeader>
         <CardContent className="pb-6">
           {confirmingDelete && (
-            <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4">
-              <p className="mb-2 text-sm text-red-700">
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/20">
+              <p className="mb-2 text-sm text-red-700 dark:text-red-400">
                 This will permanently remove this product family and all SKUs. To confirm, type
                 "DELETE" below and press Permanently delete.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <input
-                  className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-400"
                   value={deleteText}
                   onChange={(e) => setDeleteText(e.target.value)}
                   placeholder="Type DELETE to confirm"

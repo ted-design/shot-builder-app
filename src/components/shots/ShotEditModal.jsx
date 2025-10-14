@@ -76,7 +76,7 @@ export default function ShotEditModal({
               <h2 id={titleId} className="text-lg font-semibold">
                 {modalHeading}
               </h2>
-              <p className="text-sm text-slate-500">{description}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{description}</p>
             </div>
             <div className="flex items-center gap-2">
               {onDelete && (
@@ -96,7 +96,7 @@ export default function ShotEditModal({
             <button
               type="button"
               aria-label="Close"
-              className="text-xl text-slate-500 transition hover:text-slate-600"
+              className="text-xl text-slate-500 dark:text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-300"
               onClick={onClose}
             >
               ×
@@ -106,8 +106,8 @@ export default function ShotEditModal({
         </CardHeader>
         <CardContent className="space-y-4">
           {confirmingDelete && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-4">
-              <p className="mb-2 text-sm text-red-700">
+            <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4">
+              <p className="mb-2 text-sm text-red-700 dark:text-red-400">
                 This will permanently remove this shot and cannot be undone. To confirm, type "DELETE"
                 below and press Permanently delete.
               </p>
@@ -153,7 +153,7 @@ export default function ShotEditModal({
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium">Name</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Name</label>
                 <Input
                   value={draft.name}
                   onChange={(event) => handleFieldChange({ name: event.target.value })}
@@ -162,7 +162,7 @@ export default function ShotEditModal({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Type</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Type</label>
                 <Input
                   value={draft.type}
                   onChange={(event) => handleFieldChange({ type: event.target.value })}
@@ -170,7 +170,7 @@ export default function ShotEditModal({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Date</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Date</label>
                 <Input
                   type="date"
                   value={draft.date || ""}
@@ -180,7 +180,7 @@ export default function ShotEditModal({
               </div>
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium">Notes</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
               <NotesEditor
                 value={draft.description}
                 onChange={(next) => handleFieldChange({ description: next })}
@@ -188,9 +188,9 @@ export default function ShotEditModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Location</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Location</label>
               <select
-                className="w-full rounded-md border border-slate-200 p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                className="w-full rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:focus:ring-indigo-500"
                 value={draft.locationId}
                 disabled={isSaving || deleting}
                 onChange={(event) => handleFieldChange({ locationId: event.target.value || "" })}
@@ -204,7 +204,7 @@ export default function ShotEditModal({
               </select>
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium">Products</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Products</label>
               <ShotProductsEditor
                 value={draft.products}
                 onChange={(next) => handleFieldChange({ products: next })}
@@ -218,7 +218,7 @@ export default function ShotEditModal({
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium">Talent</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Talent</label>
               <TalentMultiSelect
                 options={talentOptions}
                 value={draft.talent}
@@ -228,7 +228,7 @@ export default function ShotEditModal({
                 noOptionsMessage={talentMessage}
               />
               {talentLoadError && (
-                <p className="text-xs text-red-600">{talentLoadError}</p>
+                <p className="text-xs text-red-600 dark:text-red-400">{talentLoadError}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -238,17 +238,17 @@ export default function ShotEditModal({
               />
             </div>
             {onMoveToProject && projects.length > 0 && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-4">
+              <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-900/20 p-4">
                 <div className="space-y-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-blue-700">Move to another project</h3>
-                    <p className="mt-1 text-sm text-blue-600">
+                    <h3 className="text-sm font-semibold text-blue-700 dark:text-blue-400">Move to another project</h3>
+                    <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
                       Transfer this shot to a different project. The shot will be removed from this project's planner.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <select
-                      className="flex-1 rounded-md border border-slate-200 p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                      className="flex-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:focus:ring-indigo-500"
                       disabled={isSaving || deleting || movingProject || copyingProject}
                       onChange={(event) => {
                         const targetProjectId = event.target.value;
@@ -272,17 +272,17 @@ export default function ShotEditModal({
               </div>
             )}
             {onCopyToProject && projects.length > 0 && (
-              <div className="rounded-lg border border-green-200 bg-green-50/70 p-4">
+              <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50/70 dark:bg-green-900/20 p-4">
                 <div className="space-y-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-green-700">Copy to another project</h3>
-                    <p className="mt-1 text-sm text-green-600">
+                    <h3 className="text-sm font-semibold text-green-700 dark:text-green-400">Copy to another project</h3>
+                    <p className="mt-1 text-sm text-green-600 dark:text-green-400">
                       Create a duplicate of this shot in a different project. The original shot will remain in this project.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <select
-                      className="flex-1 rounded-md border border-slate-200 p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                      className="flex-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 p-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:focus:ring-indigo-500"
                       disabled={isSaving || deleting || movingProject || copyingProject}
                       onChange={(event) => {
                         const targetProjectId = event.target.value;

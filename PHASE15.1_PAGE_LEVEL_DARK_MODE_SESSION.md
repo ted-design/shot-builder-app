@@ -1,9 +1,9 @@
 # Phase 15.1: Page-Level Dark Mode - Implementation Session
 
-**Date**: October 13, 2025
+**Date**: October 13-14, 2025
 **Branch**: `feat/phase15.1-page-level-dark-mode`
-**Status**: ✅ In Progress (Core Components Complete)
-**PR**: TBD
+**Status**: ✅ Complete (Foundation Merged)
+**PR**: [#193](https://github.com/ted-design/shot-builder-app/pull/193) (merged Oct 14, 2025)
 
 ---
 

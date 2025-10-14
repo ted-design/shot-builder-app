@@ -13,7 +13,7 @@ export default function ProjectCreateModal({ open, busy = false, onClose, onSubm
     >
       <Card className="border-0 shadow-none">
         <CardHeader>
-          <h2 id="create-project-title" className="text-lg font-semibold">
+          <h2 id="create-project-title" className="text-lg font-semibold dark:text-slate-200">
             Create Project
           </h2>
         </CardHeader>

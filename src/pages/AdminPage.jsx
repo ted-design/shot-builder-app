@@ -194,8 +194,8 @@ export default function AdminPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold text-slate-900">Admin</h1>
-        <p className="text-sm text-slate-600">
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Admin</h1>
+        <p className="text-sm text-slate-600 dark:text-slate-400">
           Manage team roles and project access. Updates sync to Firebase custom claims so security
           rules stay in lockstep.
         </p>
@@ -208,9 +208,9 @@ export default function AdminPage() {
         <CardContent>
           <form
             onSubmit={handleAddUser}
-            className="mb-6 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
+            className="mb-6 grid gap-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4 text-sm text-slate-700 dark:text-slate-300"
           >
-            <div className="font-medium text-slate-800">Invite or Update User</div>
+            <div className="font-medium text-slate-800 dark:text-slate-200">Invite or Update User</div>
             <div className="grid gap-2 sm:grid-cols-2">
               <input
                 type="email"
@@ -218,22 +218,22 @@ export default function AdminPage() {
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 placeholder="Email"
-                className="rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/60"
+                className="rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/60"
               />
               <input
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Display name (optional)"
-                className="rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/60"
+                className="rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/60"
               />
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <label className="text-xs uppercase tracking-wide text-slate-500">Role</label>
+              <label className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Role</label>
               <select
                 value={newRole}
                 onChange={(e) => setNewRole(e.target.value)}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/60"
+                className="rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/60"
               >
                 {ROLE_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -249,14 +249,14 @@ export default function AdminPage() {
                 {adding ? "Saving..." : "Apply role"}
               </button>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               The user must sign in at least once before appearing in the roster. Claims take effect
               immediately after this action.
             </p>
           </form>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
+            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-900 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 <tr>
                   <th className="px-3 py-2 text-left">Name</th>
                   <th className="px-3 py-2 text-left">Email</th>
@@ -264,17 +264,17 @@ export default function AdminPage() {
                   <th className="px-3 py-2 text-left">Projects</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                 {users.map((user) => {
                   const projectCount = user.projects ? Object.keys(user.projects).length : 0;
                   const roleValue = user.role || ROLE.VIEWER;
                   return (
                     <tr key={user.id} className="whitespace-nowrap">
-                      <td className="px-3 py-2 text-slate-800">{user.displayName || "—"}</td>
-                      <td className="px-3 py-2 text-slate-600">{user.email || "—"}</td>
+                      <td className="px-3 py-2 text-slate-800 dark:text-slate-200">{user.displayName || "—"}</td>
+                      <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{user.email || "—"}</td>
                       <td className="px-3 py-2">
                         <select
-                          className="min-w-[140px] rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/60"
+                          className="min-w-[140px] rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/60"
                           value={roleValue}
                           disabled={updatingId === user.id}
                           onChange={(e) => handleRoleChange(user, e.target.value)}
@@ -286,13 +286,13 @@ export default function AdminPage() {
                           ))}
                         </select>
                       </td>
-                      <td className="px-3 py-2 text-slate-600">{projectCount}</td>
+                      <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{projectCount}</td>
                     </tr>
                   );
                 })}
                 {!users.length && (
                   <tr>
-                    <td colSpan={4} className="px-3 py-6 text-center text-slate-500">
+                    <td colSpan={4} className="px-3 py-6 text-center text-slate-500 dark:text-slate-400">
                       No users found for this client yet.
                     </td>
                   </tr>
@@ -311,14 +311,14 @@ export default function AdminPage() {
             <h2 className="text-lg font-semibold">Development Utilities</h2>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Seed sample talent and locations to verify permissions in a sandbox environment.
             </p>
             <button
               type="button"
               onClick={handleSeedSamples}
               disabled={seeding}
-              className="inline-flex items-center rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-50"
+              className="inline-flex items-center rounded-md bg-slate-800 dark:bg-slate-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 dark:hover:bg-slate-600 disabled:opacity-50"
             >
               {seeding ? "Seeding…" : "Seed sample talent & locations"}
             </button>
@@ -327,7 +327,7 @@ export default function AdminPage() {
       )}
 
       {status && (
-        <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+        <div className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
           {status}
         </div>
       )}

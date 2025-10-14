@@ -120,10 +120,10 @@ export default function TalentEditModal({
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 id={titleId} className="text-lg font-semibold text-slate-900">
+              <h2 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 {displayName}
               </h2>
-              {talent?.agency && <p className="text-sm text-slate-500">{talent.agency}</p>}
+              {talent?.agency && <p className="text-sm text-slate-500 dark:text-slate-400">{talent.agency}</p>}
             </div>
             <div className="flex items-center gap-2">
               {onDelete && (
@@ -144,7 +144,7 @@ export default function TalentEditModal({
                 type="button"
                 aria-label="Close"
                 onClick={onClose}
-                className="text-xl text-slate-500 hover:text-slate-600"
+                className="text-xl text-slate-500 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300"
               >
                 ×
               </button>
@@ -204,9 +204,9 @@ export default function TalentEditModal({
                   path={currentImage}
                   size={512}
                   alt={displayName}
-                  className="h-40 w-32 overflow-hidden rounded-lg bg-slate-100"
+                  className="h-40 w-32 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800"
                   imageClassName="h-full w-full object-cover"
-                  fallback={<div className="flex h-full items-center justify-center text-sm text-slate-500">No image</div>}
+                  fallback={<div className="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400">No image</div>}
                 />
                 <div className="flex flex-col items-center gap-2 text-sm">
                   <Input type="file" accept="image/*" onChange={handleFileChange} />
@@ -220,7 +220,7 @@ export default function TalentEditModal({
               <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="talent-first-name">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-first-name">
                       First name
                     </label>
                     <Input
@@ -232,7 +232,7 @@ export default function TalentEditModal({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="talent-last-name">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-last-name">
                       Last name
                     </label>
                     <Input
@@ -246,7 +246,7 @@ export default function TalentEditModal({
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="talent-agency">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-agency">
                       Agency
                     </label>
                     <Input
@@ -258,7 +258,7 @@ export default function TalentEditModal({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="talent-gender">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-gender">
                       Gender
                     </label>
                     <Input
@@ -272,7 +272,7 @@ export default function TalentEditModal({
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="talent-phone">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-phone">
                       Phone
                     </label>
                     <Input
@@ -284,7 +284,7 @@ export default function TalentEditModal({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="talent-email">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-email">
                       Email
                     </label>
                     <Input
@@ -298,7 +298,7 @@ export default function TalentEditModal({
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-sizing">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-sizing">
                     Sizing notes
                   </label>
                   <Input
@@ -310,7 +310,7 @@ export default function TalentEditModal({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="talent-url">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-url">
                     Reference URL
                   </label>
                   <Input

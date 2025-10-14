@@ -66,10 +66,10 @@ export default function BatchImageUploadModal({
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <h2 id={modalTitleId} className="text-lg font-semibold text-slate-900">
+              <h2 id={modalTitleId} className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 Upload {entityName}
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Drag and drop multiple images or click to browse. Images will be automatically compressed before upload.
               </p>
             </div>
@@ -77,7 +77,7 @@ export default function BatchImageUploadModal({
               type="button"
               aria-label="Close"
               onClick={handleClose}
-              className="text-xl text-slate-500 hover:text-slate-600"
+              className="text-xl text-slate-500 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300"
             >
               ×
             </button>
@@ -93,8 +93,8 @@ export default function BatchImageUploadModal({
           />
 
           {uploadsCompleted && (
-            <div className="mt-4 rounded-lg bg-emerald-50 p-4 text-center">
-              <p className="text-sm font-medium text-emerald-900">
+            <div className="mt-4 rounded-lg bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-900 p-4 text-center">
+              <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
                 ✓ Upload complete! You can close this dialog or upload more files.
               </p>
             </div>
