@@ -156,12 +156,12 @@ const FamilyHeaderImage = memo(function FamilyHeaderImage({ path, alt, className
       className={containerClass}
       imageClassName="h-full w-full object-cover"
       placeholder={
-        <div className="flex h-full items-center justify-center text-xs text-slate-500">
+        <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-slate-400">
           Loading image…
         </div>
       }
       fallback={
-        <div className="flex h-full items-center justify-center text-xs text-slate-500">
+        <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-slate-400">
           No image
         </div>
       }
@@ -179,7 +179,7 @@ const CreateProductCard = memo(function CreateProductCard({ onClick }) {
 
   return (
     <Card
-      className="border-dashed border-2 border-slate-300 bg-slate-50 cursor-pointer transition-all duration-150 hover:border-slate-400 hover:shadow-md focus-within:ring-2 focus-within:ring-primary/60"
+      className="border-dashed border-2 border-slate-300 bg-slate-50 cursor-pointer transition-all duration-150 hover:border-slate-400 hover:shadow-md focus-within:ring-2 focus-within:ring-primary/60 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-slate-500"
       role="button"
       tabIndex={0}
       onClick={onClick}
@@ -187,8 +187,8 @@ const CreateProductCard = memo(function CreateProductCard({ onClick }) {
       aria-label="Create new product family"
     >
       <CardContent className="flex h-full flex-col items-center justify-center gap-3 py-10 text-center">
-        <div className="text-lg font-semibold text-slate-700">Create Product</div>
-        <p className="text-sm text-slate-500">
+        <div className="text-lg font-semibold text-slate-700 dark:text-slate-300">Create Product</div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           Add a new product family with colours, sizes, and SKUs.
         </p>
         <Button
@@ -224,13 +224,13 @@ const ProductActionMenu = memo(function ProductActionMenu({
     <div
       role="menu"
       aria-label={`Actions for ${family.styleName || 'product'}`}
-      className="absolute right-0 top-10 z-20 w-48 rounded-md border border-slate-200 bg-white/95 backdrop-blur-md shadow-lg"
+      className="absolute right-0 top-10 z-20 w-48 rounded-md border border-slate-200 bg-white/95 backdrop-blur-md shadow-lg dark:border-slate-700 dark:bg-slate-800/95"
       onClick={(event) => event.stopPropagation()}
     >
       <button
         type="button"
         role="menuitem"
-        className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
+        className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
         onClick={() => {
           onEdit(family);
           onClose();
@@ -242,7 +242,7 @@ const ProductActionMenu = memo(function ProductActionMenu({
         <button
           type="button"
           role="menuitem"
-          className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
+          className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
           onClick={() => {
             onRename(family);
             onClose();
@@ -255,7 +255,7 @@ const ProductActionMenu = memo(function ProductActionMenu({
         <button
           type="button"
           role="menuitem"
-          className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
+          className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
           onClick={() => {
             onToggleStatus(family);
             onClose();
@@ -268,7 +268,7 @@ const ProductActionMenu = memo(function ProductActionMenu({
         <button
           type="button"
           role="menuitem"
-          className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50"
+          className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
           onClick={() => {
             onArchive(family);
             onClose();
@@ -281,7 +281,7 @@ const ProductActionMenu = memo(function ProductActionMenu({
         <button
           type="button"
           role="menuitem"
-          className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50 text-emerald-600 font-medium"
+          className="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50 text-emerald-600 font-medium dark:hover:bg-slate-700"
           onClick={() => {
             onRestore(family);
             onClose();
@@ -1215,7 +1215,7 @@ export default function ProductsPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 space-y-1">
                     <h3
-                      className="text-lg font-semibold text-slate-900"
+                      className="text-lg font-semibold text-slate-900 dark:text-slate-100"
                       title={family.styleName}
                       style={twoLineClampStyle}
                     >
@@ -1223,7 +1223,7 @@ export default function ProductsPage() {
                     </h3>
                     {family.styleNumber && (
                       <p
-                        className="hidden text-base font-semibold text-slate-800 sm:block"
+                        className="hidden text-base font-semibold text-slate-800 sm:block dark:text-slate-200"
                         title={`Style #${family.styleNumber}`}
                       >
                         Style #{family.styleNumber}
@@ -1235,14 +1235,14 @@ export default function ProductsPage() {
                       {statusLabel(family.status)}
                     </StatusBadge>
                     {family.archived && (
-                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-700">
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-700 dark:bg-slate-700 dark:text-slate-300">
                         Archived
                       </span>
                     )}
                   </div>
                   <span className="sr-only">{statusLabel(family.status)}</span>
                 </div>
-                <div className="hidden flex-wrap gap-2 text-sm text-slate-600 sm:flex">
+                <div className="hidden flex-wrap gap-2 text-sm text-slate-600 sm:flex dark:text-slate-400">
                   <span className="font-medium">{genderLabel(family.gender)}</span>
                   <span>•</span>
                   <span className="flex items-center gap-1">
@@ -1257,13 +1257,13 @@ export default function ProductsPage() {
                   {family.updatedAt && (
                     <>
                       <span>•</span>
-                      <span className="text-xs text-slate-400">Updated {formatUpdatedAt(family.updatedAt)}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">Updated {formatUpdatedAt(family.updatedAt)}</span>
                     </>
                   )}
                 </div>
                 {!!colourList.length && (
                   <div
-                    className="hidden truncate text-xs text-slate-600 md:block"
+                    className="hidden truncate text-xs text-slate-600 md:block dark:text-slate-400"
                     title={`Colours: ${coloursLabel}`}
                   >
                     Colours: {colourList.slice(0, 4).join(", ")}
@@ -1272,7 +1272,7 @@ export default function ProductsPage() {
                 )}
                 {!!sizeList.length && (
                   <div
-                    className="hidden truncate text-xs text-slate-600 lg:block"
+                    className="hidden truncate text-xs text-slate-600 lg:block dark:text-slate-400"
                     title={`Sizes: ${sizesLabel}`}
                   >
                     Sizes: {sizeList.join(", ")}
@@ -1328,8 +1328,8 @@ export default function ProductsPage() {
     const joinedSizes = sizeList.slice(0, 6).join(", ");
     const hasMoreSizes = sizeList.length > 6;
     const isSelected = selectedFamilyIds.has(family.id);
-    const rowClassName = `odd:bg-white even:bg-slate-50/40 hover:bg-slate-100 ${
-      isSelected ? "bg-primary/5" : ""
+    const rowClassName = `odd:bg-white even:bg-slate-50/40 hover:bg-slate-100 dark:odd:bg-slate-900 dark:even:bg-slate-800/40 dark:hover:bg-slate-800 ${
+      isSelected ? "bg-primary/5 dark:bg-primary/10" : ""
     }`.trim();
 
     return (
@@ -1359,7 +1359,7 @@ export default function ProductsPage() {
                 <button
                   type="button"
                   onClick={handleManageColours}
-                  className="cursor-pointer text-left text-lg font-semibold text-slate-900 transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  className="cursor-pointer text-left text-lg font-semibold text-slate-900 transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 dark:text-slate-100"
                   title={family.styleName}
                   data-testid={`style-name-${family.id}`}
                 >
@@ -1367,7 +1367,7 @@ export default function ProductsPage() {
                 </button>
               ) : (
                 <span
-                  className="block text-lg font-semibold text-slate-900"
+                  className="block text-lg font-semibold text-slate-900 dark:text-slate-100"
                   title={family.styleName}
                   style={twoLineClampStyle}
                   data-testid={`style-name-${family.id}`}
@@ -1375,7 +1375,7 @@ export default function ProductsPage() {
                   {family.styleName}
                 </span>
               )}
-              <div className="flex flex-wrap gap-2 text-sm text-slate-600">
+              <div className="flex flex-wrap gap-2 text-sm text-slate-600 dark:text-slate-400">
                 <span>{genderLabel(family.gender)}</span>
                 <span>•</span>
                 <span className="flex items-center gap-1.5">
@@ -1385,13 +1385,13 @@ export default function ProductsPage() {
                 {family.updatedAt && (
                   <>
                     <span>•</span>
-                    <span className="text-xs text-slate-400">Updated {formatUpdatedAt(family.updatedAt)}</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">Updated {formatUpdatedAt(family.updatedAt)}</span>
                   </>
                 )}
               </div>
               {!!colourList.length && (
                 <div
-                  className="text-xs text-slate-500"
+                  className="text-xs text-slate-500 dark:text-slate-400"
                   title={`Colours: ${coloursLabel}`}
                 >
                   Colours: {joinedColours}
@@ -1402,7 +1402,7 @@ export default function ProductsPage() {
           )}
         </td>
         {showStyleNumberColumn && (
-          <td className="px-4 py-3 align-top text-base font-semibold text-slate-800" title={family.styleNumber || undefined}>
+          <td className="px-4 py-3 align-top text-base font-semibold text-slate-800 dark:text-slate-200" title={family.styleNumber || undefined}>
             {family.styleNumber || "–"}
           </td>
         )}
@@ -1412,12 +1412,12 @@ export default function ProductsPage() {
               {statusLabel(family.status)}
             </StatusBadge>
             {family.archived && (
-              <div className="mt-2 text-xs text-slate-500">Archived</div>
+              <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">Archived</div>
             )}
           </td>
         )}
         {showSizesColumn && (
-          <td className="px-4 py-3 align-top text-sm text-slate-600" title={sizesLabel || undefined}>
+          <td className="px-4 py-3 align-top text-sm text-slate-600 dark:text-slate-400" title={sizesLabel || undefined}>
             {sizeList.length ? (
               <span>
                 {joinedSizes}
@@ -1444,7 +1444,7 @@ export default function ProductsPage() {
                   type="button"
                   size="sm"
                   variant="ghost"
-                  className="text-slate-600 hover:text-slate-900"
+                  className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
                   onClick={() =>
                     setMenuFamilyId((current) => (current === family.id ? null : family.id))
                   }
@@ -1492,7 +1492,7 @@ export default function ProductsPage() {
       }
       return (
         <Card className="mx-6">
-          <CardContent className="p-6 text-center text-sm text-slate-500">
+          <CardContent className="p-6 text-center text-sm text-slate-500 dark:text-slate-400">
             No products match the current filters.
           </CardContent>
         </Card>
@@ -1502,8 +1502,8 @@ export default function ProductsPage() {
       <Card className="mx-6">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
+              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                 <tr>
                   {canUseBatchActions && (
                     <th scope="col" className="px-4 py-3">
@@ -1532,14 +1532,14 @@ export default function ProductsPage() {
                   <th scope="col" className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
+              <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900">
                 {displayedFamilies.map((family) => renderFamilyRow(family))}
               </tbody>
             </table>
           </div>
           {hasMoreItems && (
-            <div className="border-t border-slate-200 p-4 text-center">
-              <p className="mb-3 text-sm text-slate-600">
+            <div className="border-t border-slate-200 p-4 text-center dark:border-slate-700">
+              <p className="mb-3 text-sm text-slate-600 dark:text-slate-400">
                 Showing {displayedFamilies.length} of {totalCount} products
               </p>
               <Button
@@ -1573,7 +1573,7 @@ export default function ProductsPage() {
           />
         ) : noMatchingFilters ? (
           <Card>
-            <CardContent className="p-6 text-center text-sm text-slate-500">
+            <CardContent className="p-6 text-center text-sm text-slate-500 dark:text-slate-400">
               No products match the current filters.
             </CardContent>
           </Card>
@@ -1617,12 +1617,12 @@ export default function ProductsPage() {
   return (
     <div className="space-y-6">
       {/* Sticky header with shadow - design system pattern */}
-      <div className="sticky inset-x-0 top-14 z-40 border-b border-gray-200 bg-white shadow-sm">
+      <div className="sticky inset-x-0 top-14 z-40 border-b border-gray-200 bg-white shadow-sm dark:bg-slate-900 dark:border-slate-700">
         <div className="px-6 py-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-0 space-y-1">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">Products</h1>
-              <p className="text-sm text-slate-600">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate dark:text-slate-100">Products</h1>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
                 Manage product families and SKUs across all projects
               </p>
             </div>
@@ -1637,13 +1637,13 @@ export default function ProductsPage() {
               />
             </div>
             <label
-              className="flex flex-none items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500"
+              className="flex flex-none items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400"
               htmlFor="products-sort-order"
             >
               <span className="whitespace-nowrap">Sort</span>
               <select
                 id="products-sort-order"
-                className="h-10 rounded-button border border-slate-300 px-3 text-sm"
+                className="h-10 rounded-button border border-slate-300 px-3 text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
                 value={sortOrder}
                 onChange={(event) => setSortOrder(event.target.value)}
               >
@@ -1664,9 +1664,9 @@ export default function ProductsPage() {
       </div>
 
       {canUseBatchActions && selectedCount > 0 && (
-        <div className="mx-6 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 shadow-sm">
+        <div className="mx-6 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 shadow-sm dark:bg-primary/10 dark:border-primary/40">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm font-medium text-slate-700">
+            <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
               {selectedCount} selected
               {sortedFamilies.length > selectedCount
                 ? ` of ${sortedFamilies.length} visible`
@@ -1749,10 +1749,10 @@ export default function ProductsPage() {
       )}
 
       <div className="space-y-1 px-6">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-slate-400">
           Product families group shared metadata, while SKUs capture individual colour and size combinations.
         </p>
-        <p className="text-xs text-slate-500">{recommendedImageText}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{recommendedImageText}</p>
       </div>
 
       <Card className="mx-6">
@@ -1767,8 +1767,8 @@ export default function ProductsPage() {
                     onClick={() => setFiltersOpen((prev) => !prev)}
                     className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
                       activeFilterCount > 0
-                        ? "border-primary/60 bg-primary/5 text-primary"
-                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                        ? "border-primary/60 bg-primary/5 text-primary dark:bg-primary/10 dark:border-primary/40"
+                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
                     }`}
                     aria-haspopup="menu"
                     aria-expanded={filtersOpen}
@@ -1784,10 +1784,10 @@ export default function ProductsPage() {
 
                   {/* Filter panel */}
                   {filtersOpen && (
-                    <div className="absolute left-0 z-20 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 shadow-lg animate-slide-in-from-right">
+                    <div className="absolute left-0 z-20 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 shadow-lg animate-slide-in-from-right dark:bg-slate-800 dark:border-slate-700">
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-slate-900">Filter products</p>
+                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Filter products</p>
                           {activeFilterCount > 0 && (
                             <button
                               type="button"
@@ -1804,11 +1804,11 @@ export default function ProductsPage() {
                         </div>
 
                       <div>
-                        <label className="mb-1 block text-xs font-medium text-slate-700">
+                        <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
                           Status
                         </label>
                         <select
-                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
                           value={statusFilter}
                           onChange={(event) => setStatusFilter(event.target.value)}
                         >
@@ -1819,11 +1819,11 @@ export default function ProductsPage() {
                       </div>
 
                       <div>
-                        <label className="mb-1 block text-xs font-medium text-slate-700">
+                        <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
                           Gender
                         </label>
                         <select
-                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
                           value={genderFilter}
                           onChange={(event) => setGenderFilter(event.target.value)}
                         >
@@ -1836,7 +1836,7 @@ export default function ProductsPage() {
                         </select>
                       </div>
 
-                        <label className="flex items-center gap-2 text-sm text-slate-700">
+                        <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                           <input
                             type="checkbox"
                             checked={showArchived}
@@ -1877,17 +1877,17 @@ export default function ProductsPage() {
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   View
                 </span>
-                <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+                <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
                   <button
                     type="button"
                     onClick={() => handleViewModeChange("gallery")}
                     className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
                       viewMode === "gallery"
-                        ? "bg-slate-900 text-white"
-                        : "text-slate-600 hover:bg-slate-100"
+                        ? "bg-slate-900 text-white dark:bg-slate-700"
+                        : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
                     }`}
                     aria-pressed={viewMode === "gallery"}
                   >
@@ -1899,8 +1899,8 @@ export default function ProductsPage() {
                     onClick={() => handleViewModeChange("list")}
                     className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
                       viewMode === "list"
-                        ? "bg-slate-900 text-white"
-                        : "text-slate-600 hover:bg-slate-100"
+                        ? "bg-slate-900 text-white dark:bg-slate-700"
+                        : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
                     }`}
                     aria-pressed={viewMode === "list"}
                   >
@@ -1915,7 +1915,7 @@ export default function ProductsPage() {
                   <button
                     type="button"
                     onClick={() => setListSettingsOpen((prev) => !prev)}
-                    className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-100"
+                    className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700"
                     aria-haspopup="menu"
                     aria-expanded={listSettingsOpen}
                     aria-label="Toggle list columns"
@@ -1923,11 +1923,11 @@ export default function ProductsPage() {
                     <MoreVertical className="h-4 w-4" aria-hidden="true" />
                   </button>
                   {listSettingsOpen && (
-                    <div className="absolute right-0 z-20 mt-2 w-48 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
-                      <p className="px-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                    <div className="absolute right-0 z-20 mt-2 w-48 rounded-md border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                      <p className="px-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         List columns
                       </p>
-                      <label className="mt-2 flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50">
+                      <label className="mt-2 flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700">
                         <input
                           type="checkbox"
                           checked={listColumns.styleNumber}
@@ -1940,7 +1940,7 @@ export default function ProductsPage() {
                         />
                         Style number
                       </label>
-                      <label className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50">
+                      <label className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700">
                         <input
                           type="checkbox"
                           checked={listColumns.status}
@@ -1953,7 +1953,7 @@ export default function ProductsPage() {
                         />
                         Status
                       </label>
-                      <label className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50">
+                      <label className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700">
                         <input
                           type="checkbox"
                           checked={listColumns.sizes}
@@ -1972,7 +1972,7 @@ export default function ProductsPage() {
               )}
             </div>
           </div>
-          <div className="mt-4 text-xs text-slate-500">
+          <div className="mt-4 text-xs text-slate-500 dark:text-slate-400">
             Showing {filteredFamilies.length} of {families.length} product families
           </div>
         </CardHeader>
@@ -1989,11 +1989,11 @@ export default function ProductsPage() {
         closeOnOverlay={!batchWorking}
       >
         <div className="flex h-full flex-col">
-          <div className="border-b border-slate-200 px-6 py-4">
-            <h2 className="text-lg font-semibold text-slate-900" id="batch-style-title">
+          <div className="border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100" id="batch-style-title">
               Edit style numbers
             </h2>
-            <p className="mt-1 text-sm text-slate-600" id="batch-style-description">
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400" id="batch-style-description">
               Update the style numbers for the selected product families. Leave a field blank to clear the value.
             </p>
           </div>
@@ -2003,8 +2003,8 @@ export default function ProductsPage() {
                 {batchStyleDraft.map((entry, index) => (
                   <div key={entry.id} className="grid gap-3 sm:grid-cols-12">
                     <div className="sm:col-span-5">
-                      <p className="text-sm font-medium text-slate-800">{entry.styleName}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{entry.styleName}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         Current: {entry.currentStyleNumber || "—"}
                       </p>
                     </div>
@@ -2021,13 +2021,13 @@ export default function ProductsPage() {
                   </div>
                 ))}
                 {!batchStyleDraft.length && (
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
                     No products selected. Close this dialog to continue.
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-700">
               <Button type="button" variant="ghost" onClick={closeBatchStyleModal} disabled={batchWorking}>
                 Cancel
               </Button>
@@ -2047,11 +2047,11 @@ export default function ProductsPage() {
         closeOnOverlay={!batchWorking}
       >
         <div className="flex h-full flex-col">
-          <div className="border-b border-slate-200 px-6 py-4">
-            <h2 className="text-lg font-semibold text-slate-900" id="confirm-delete-title">
+          <div className="border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100" id="confirm-delete-title">
               Confirm deletion
             </h2>
-            <p className="mt-1 text-sm text-slate-600" id="confirm-delete-description">
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400" id="confirm-delete-description">
               This will permanently remove {selectedFamilies.length} product {selectedFamilies.length === 1 ? "family" : "families"} and all SKUs and images. Type "DELETE" to confirm.
             </p>
           </div>
@@ -2063,7 +2063,7 @@ export default function ProductsPage() {
                 placeholder="Type DELETE to confirm"
               />
             </div>
-            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-700">
               <Button
                 type="button"
                 variant="ghost"
