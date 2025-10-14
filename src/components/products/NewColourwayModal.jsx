@@ -125,9 +125,9 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
                 Add colourway
               </h2>
               {family?.styleName && (
-                <p className="text-sm text-slate-500">{family.styleName}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{family.styleName}</p>
               )}
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 New colourways inherit the family size list. Update sizes from the products page if needed.
               </p>
             </div>
@@ -135,7 +135,7 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
               type="button"
               aria-label="Close"
               onClick={onClose}
-              className="text-xl text-slate-500 hover:text-slate-600"
+              className="text-xl text-slate-500 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300"
             >
               ×
             </button>
@@ -144,7 +144,7 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700" htmlFor="colourway-name">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="colourway-name">
                 Colour name
               </label>
               <Input
@@ -156,7 +156,7 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700" htmlFor="colourway-sku">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="colourway-sku">
                 SKU (optional)
               </label>
               <Input
@@ -167,12 +167,12 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700" htmlFor="colourway-status">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="colourway-status">
                 Status
               </label>
               <select
                 id="colourway-status"
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                 value={status}
                 onChange={(event) => setStatus(event.target.value)}
               >
@@ -184,7 +184,7 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Colour image</label>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Colour image</label>
               {imageState.preview && (
                 <AppImage
                   src={imageState.preview}
@@ -194,7 +194,7 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
                   imageClassName="h-full w-full object-cover"
                   placeholder={null}
                   fallback={
-                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
+                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-500 dark:text-slate-400">
                       Preview unavailable
                     </div>
                   }
@@ -219,15 +219,15 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
                 )}
               </div>
               {imageState.file && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   {imageState.name} • {formatFileSize(imageState.size)}
                 </p>
               )}
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Images are optional but help identify the colour quickly in the planner.
               </p>
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" onClick={onClose} disabled={isSaving}>
                 Cancel

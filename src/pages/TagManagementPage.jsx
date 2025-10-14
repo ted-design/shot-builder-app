@@ -434,7 +434,7 @@ export default function TagManagementPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-slate-600">Loading tags...</p>
+        <p className="text-slate-600 dark:text-slate-400">Loading tags...</p>
       </div>
     );
   }
@@ -442,12 +442,12 @@ export default function TagManagementPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="sticky inset-x-0 top-14 z-40 border-b border-gray-200 bg-white shadow-sm">
+      <div className="sticky inset-x-0 top-14 z-40 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
         <div className="px-6 py-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-0 space-y-1">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">Tag Management</h1>
-              <p className="text-sm text-slate-600">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-100 truncate">Tag Management</h1>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
                 Centralized tag library with global rename, merge, and delete operations
               </p>
             </div>
@@ -485,8 +485,8 @@ export default function TagManagementPage() {
                 <Tag className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total Tags</p>
-                <p className="text-2xl font-bold text-slate-900">{analytics.totalTags}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Total Tags</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{analytics.totalTags}</p>
               </div>
             </div>
           </CardContent>
@@ -499,8 +499,8 @@ export default function TagManagementPage() {
                 <TrendingUp className="h-5 w-5 text-emerald-600" />
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total Usages</p>
-                <p className="text-2xl font-bold text-slate-900">{analytics.totalUsages}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Total Usages</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{analytics.totalUsages}</p>
               </div>
             </div>
           </CardContent>
@@ -513,12 +513,12 @@ export default function TagManagementPage() {
                 <Tag className="h-5 w-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Most Used</p>
-                <p className="text-sm font-bold text-slate-900 truncate" title={analytics.mostUsedTag?.label}>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Most Used</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate" title={analytics.mostUsedTag?.label}>
                   {analytics.mostUsedTag ? analytics.mostUsedTag.label : "—"}
                 </p>
                 {analytics.mostUsedTag && (
-                  <p className="text-xs text-slate-500">{analytics.mostUsedTag.usageCount} shots</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{analytics.mostUsedTag.usageCount} shots</p>
                 )}
               </div>
             </div>
@@ -528,12 +528,12 @@ export default function TagManagementPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="rounded-full bg-slate-100 p-2">
-                <Trash2 className="h-5 w-5 text-slate-600" />
+              <div className="rounded-full bg-slate-100 dark:bg-slate-700 p-2">
+                <Trash2 className="h-5 w-5 text-slate-600 dark:text-slate-300" />
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Unused Tags</p>
-                <p className="text-2xl font-bold text-slate-900">{analytics.unusedTags}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Unused Tags</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{analytics.unusedTags}</p>
               </div>
             </div>
           </CardContent>
@@ -553,7 +553,7 @@ export default function TagManagementPage() {
             />
           ) : (
             <Card>
-              <CardContent className="p-6 text-center text-sm text-slate-500">
+              <CardContent className="p-6 text-center text-sm text-slate-500 dark:text-slate-400">
                 No tags match your search.
               </CardContent>
             </Card>
@@ -562,16 +562,16 @@ export default function TagManagementPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-900">Tag Library</h2>
-                <p className="text-sm text-slate-600">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Tag Library</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
                   Showing {filteredTags.length} of {tagLibrary.length} tags
                 </p>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200 text-sm">
-                  <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+                  <thead className="bg-slate-50 dark:bg-slate-900 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     <tr>
                       {canEdit && (
                         <th scope="col" className="px-4 py-3 w-10">
@@ -586,9 +586,9 @@ export default function TagManagementPage() {
                       )}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200 bg-white">
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
                     {filteredTags.map((tag) => (
-                      <tr key={tag.id} className="hover:bg-slate-50 transition">
+                      <tr key={tag.id} className="hover:bg-slate-50 dark:hover:bg-slate-700 transition">
                         {canEdit && (
                           <td className="px-4 py-3">
                             <input
@@ -606,11 +606,11 @@ export default function TagManagementPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="font-medium text-slate-900">{tag.usageCount}</span>
-                          <span className="text-slate-500"> shots</span>
+                          <span className="font-medium text-slate-900 dark:text-slate-100">{tag.usageCount}</span>
+                          <span className="text-slate-500 dark:text-slate-400"> shots</span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="inline-flex items-center gap-2 text-slate-600 capitalize">
+                          <span className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-300 capitalize">
                             <span
                               className={`h-4 w-4 rounded-full border ${TAG_COLORS[tag.color] || TAG_COLORS.gray}`}
                               aria-label={tag.color}
@@ -666,23 +666,23 @@ export default function TagManagementPage() {
           closeOnOverlay={!isRenaming}
         >
           <div className="flex h-full flex-col">
-            <div className="border-b border-slate-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-900" id="rename-tag-title">
+            <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100" id="rename-tag-title">
                 Rename Tag
               </h2>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 This will update the tag across all {selectedTag.usageCount} shots.
               </p>
             </div>
             <div className="flex-1 px-6 py-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Current Tag
                 </label>
                 <TagBadge tag={selectedTag} />
               </div>
               <div>
-                <label htmlFor="new-tag-label" className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="new-tag-label" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   New Label
                 </label>
                 <Input
@@ -693,10 +693,10 @@ export default function TagManagementPage() {
                   maxLength={50}
                   autoFocus
                 />
-                <p className="mt-1 text-xs text-slate-500">{newTagLabel.length}/50 characters</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{newTagLabel.length}/50 characters</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   New Color
                 </label>
                 <div className="grid grid-cols-6 gap-2">
@@ -709,8 +709,8 @@ export default function TagManagementPage() {
                         TAG_COLORS[color]
                       } ${
                         newTagColor === color
-                          ? "border-slate-900 ring-2 ring-slate-900 ring-offset-2"
-                          : "border-transparent hover:border-slate-300"
+                          ? "border-slate-900 dark:border-slate-100 ring-2 ring-slate-900 dark:ring-slate-100 ring-offset-2"
+                          : "border-transparent hover:border-slate-300 dark:hover:border-slate-600"
                       }`}
                       title={color}
                       aria-label={`Select ${color} color`}
@@ -721,13 +721,13 @@ export default function TagManagementPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Preview
                 </label>
                 <TagBadge tag={{ id: selectedTag.id, label: newTagLabel || selectedTag.label, color: newTagColor }} />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-700 px-6 py-4">
               <Button
                 type="button"
                 variant="ghost"
@@ -765,23 +765,23 @@ export default function TagManagementPage() {
           closeOnOverlay={!isMerging}
         >
           <div className="flex h-full flex-col">
-            <div className="border-b border-slate-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-900" id="merge-tags-title">
+            <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100" id="merge-tags-title">
                 Merge Tags
               </h2>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 Merge {selectedForMerge.length} selected tags into one. The first selected tag will be kept.
               </p>
             </div>
             <div className="flex-1 px-6 py-4 space-y-4">
               {selectedForMerge.length === 0 ? (
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-slate-600 dark:text-slate-400">
                   Select at least 2 tags from the table to merge them.
                 </p>
               ) : (
                 <>
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-2">Tags to merge:</p>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Tags to merge:</p>
                     <div className="flex flex-wrap gap-2">
                       {selectedForMerge.map((tagId) => {
                         const tag = tagLibrary.find((t) => t.id === tagId);
@@ -789,8 +789,8 @@ export default function TagManagementPage() {
                       })}
                     </div>
                   </div>
-                  <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
-                    <p className="text-sm text-amber-800">
+                  <div className="rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3">
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
                       <strong>Note:</strong> The first selected tag will be kept. All other tags will be replaced with it
                       across all shots.
                     </p>
@@ -798,7 +798,7 @@ export default function TagManagementPage() {
                 </>
               )}
             </div>
-            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-700 px-6 py-4">
               <Button
                 type="button"
                 variant="ghost"
@@ -832,26 +832,26 @@ export default function TagManagementPage() {
           closeOnOverlay={!isDeleting}
         >
           <div className="flex h-full flex-col">
-            <div className="border-b border-slate-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-900" id="delete-tag-title">
+            <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100" id="delete-tag-title">
                 Delete Tag
               </h2>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 This will remove the tag from all {tagToDelete.usageCount} shots.
               </p>
             </div>
             <div className="flex-1 px-6 py-4 space-y-4">
               <div>
-                <p className="text-sm font-medium text-slate-700 mb-2">Tag to delete:</p>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Tag to delete:</p>
                 <TagBadge tag={tagToDelete} />
               </div>
-              <div className="rounded-md bg-red-50 border border-red-200 p-3">
-                <p className="text-sm text-red-800">
+              <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
+                <p className="text-sm text-red-800 dark:text-red-200">
                   <strong>Warning:</strong> This action cannot be undone. The tag will be permanently removed from all shots.
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-700 px-6 py-4">
               <Button
                 type="button"
                 variant="ghost"

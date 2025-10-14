@@ -35,10 +35,10 @@ function ColourOption({ colour, selected, onSelect }) {
       type="button"
       onClick={handleClick}
       className={`flex flex-col gap-2 rounded-lg border ${
-        selected ? "border-primary ring-2 ring-primary/40" : "border-slate-200"
-      } bg-white p-3 text-left transition hover:border-primary`}
+        selected ? "border-primary ring-2 ring-primary/40" : "border-slate-200 dark:border-slate-700"
+      } bg-white dark:bg-slate-800 p-3 text-left transition hover:border-primary`}
     >
-      <div className="aspect-square w-full overflow-hidden rounded bg-slate-100">
+      <div className="aspect-square w-full overflow-hidden rounded bg-slate-100 dark:bg-slate-700">
         <AppImage
           src={colour.imagePath}
           alt={`${colour.colorName} swatch`}
@@ -46,26 +46,26 @@ function ColourOption({ colour, selected, onSelect }) {
           className="h-full w-full"
           imageClassName="h-full w-full object-cover"
           fallback={
-            <div className="flex h-full items-center justify-center text-xs text-slate-500">No image</div>
+            <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-slate-400">No image</div>
           }
           placeholder={
-            <div className="flex h-full items-center justify-center text-xs text-slate-500">
+            <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-slate-400">
               Loading…
             </div>
           }
         />
       </div>
       <div className="space-y-1">
-        <div className="truncate text-sm font-medium text-slate-800" title={colour.colorName}>
+        <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-200" title={colour.colorName}>
           {colour.colorName}
         </div>
         {colour.skuCode && (
-          <div className="truncate text-xs text-slate-500" title={colour.skuCode}>
+          <div className="truncate text-xs text-slate-500 dark:text-slate-400" title={colour.skuCode}>
             {colour.skuCode}
           </div>
         )}
         {colour.status !== "active" && (
-          <div className="text-xs text-amber-600">{colour.status}</div>
+          <div className="text-xs text-amber-600 dark:text-amber-400">{colour.status}</div>
         )}
       </div>
     </button>
@@ -392,13 +392,13 @@ export default function ShotProductAddModal({
         initialFocusRef={scrollRegionRef}
       >
       <Card className="flex h-full flex-col border-0 shadow-none">
-        <CardHeader className="flex items-center justify-between border-b border-slate-200">
+        <CardHeader className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700">
           <div>
             <h2 id="shot-product-picker-title" className="text-lg font-semibold">
               {view === "list" ? "Select product family" : "Choose colour & size"}
             </h2>
             {view === "details" && activeFamily && (
-              <p className="text-sm text-slate-500">{activeFamily.styleName}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{activeFamily.styleName}</p>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -411,7 +411,7 @@ export default function ShotProductAddModal({
               type="button"
               aria-label="Close"
               onClick={onClose}
-              className="text-xl text-slate-500 hover:text-slate-600"
+              className="text-xl text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
             >
               ×
             </button>
@@ -437,13 +437,13 @@ export default function ShotProductAddModal({
                     <div className="flex flex-col gap-1">
                       <label
                         htmlFor="shot-product-gender-filter"
-                        className="text-xs font-medium uppercase tracking-wide text-slate-500"
+                        className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400"
                       >
                         Gender
                       </label>
                       <select
                         id="shot-product-gender-filter"
-                        className="w-full rounded border border-slate-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="w-full rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:focus:ring-indigo-500"
                         value={genderFilter}
                         onChange={(event) => setGenderFilter(event.target.value)}
                       >
@@ -471,18 +471,18 @@ export default function ShotProductAddModal({
                       <button
                         key={family.id}
                         type="button"
-                        className="w-full rounded-lg border border-slate-200 p-3 text-left transition hover:border-primary"
+                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 p-3 text-left transition hover:border-primary"
                         onClick={() => handleFamilySelect(family)}
                       >
-                        <div className="text-sm font-medium text-slate-800">{family.styleName}</div>
-                        <div className="text-xs text-slate-500">Style #{family.styleNumber}</div>
+                        <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{family.styleName}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Style #{family.styleNumber}</div>
                         {family.gender && (
-                          <div className="mt-1 text-xs text-slate-500">
+                          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                             Gender: {genderLabel(family.gender)}
                           </div>
                         )}
                         {family.colorNames?.length ? (
-                          <div className="mt-1 text-xs text-slate-500">
+                          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                             Colours: {family.colorNames.slice(0, 3).join(", ")}
                             {family.colorNames.length > 3 && "…"}
                           </div>
@@ -490,7 +490,7 @@ export default function ShotProductAddModal({
                       </button>
                     ))}
                     {!filteredFamilies.length && (
-                      <div className="rounded border border-slate-200 p-6 text-center text-sm text-slate-500">
+                      <div className="rounded border border-slate-200 dark:border-slate-700 p-6 text-center text-sm text-slate-500 dark:text-slate-400">
                         No matching product families.
                       </div>
                     )}
@@ -504,15 +504,15 @@ export default function ShotProductAddModal({
                     <>
                       <div className="space-y-3">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="text-sm font-medium text-slate-700">
+                          <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
                             Colourway
                             {!selectedColour && colours.length > 0 && (
-                              <span className="ml-1 text-red-500">*</span>
+                              <span className="ml-1 text-red-500 dark:text-red-400">*</span>
                             )}
                           </div>
                           <div className="flex flex-wrap items-center justify-end gap-2">
                             {selectedColour && (
-                              <div className="text-xs font-medium text-green-600">
+                              <div className="text-xs font-medium text-green-600 dark:text-green-400">
                                 ✓ {selectedColour.colorName} selected
                               </div>
                             )}
@@ -547,19 +547,19 @@ export default function ShotProductAddModal({
                           ))}
                         </div>
                         {!colours.length && (
-                          <div className="rounded border border-slate-200 p-4 text-sm text-slate-500">
+                          <div className="rounded border border-slate-200 dark:border-slate-700 p-4 text-sm text-slate-500 dark:text-slate-400">
                             No colourways available for this family.
                           </div>
                         )}
                         {!selectedColour && colours.length > 0 && (
-                          <p className="text-xs text-red-600">Please select a colourway to continue</p>
+                          <p className="text-xs text-red-600 dark:text-red-400">Please select a colourway to continue</p>
                         )}
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <label className="text-sm font-medium text-slate-700">Size selection</label>
+                          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Size selection</label>
                           {selectedSize && selectedSize !== "" && (
-                            <div className="text-xs font-medium text-green-600">
+                            <div className="text-xs font-medium text-green-600 dark:text-green-400">
                               ✓ {selectedSize === ALL_SIZES_VALUE ? "All sizes" : selectedSize} selected
                             </div>
                           )}
@@ -567,9 +567,9 @@ export default function ShotProductAddModal({
                         <select
                           className={`w-full rounded border px-3 py-2 text-sm transition-colors ${
                             selectedSize === ""
-                              ? "border-amber-300 bg-amber-50"
-                              : "border-slate-300"
-                          }`}
+                              ? "border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20"
+                              : "border-slate-300 dark:border-slate-600"
+                          } bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100`}
                           value={selectedSize}
                           onChange={(event) => setSelectedSize(event.target.value)}
                         >
@@ -582,16 +582,16 @@ export default function ShotProductAddModal({
                           ))}
                         </select>
                         <div className="space-y-1">
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
                             Add the colourway now or pick a specific size to lock it in.
                           </p>
                           {selectedSize === "" && (
-                            <p className="text-xs text-amber-600">
+                            <p className="text-xs text-amber-600 dark:text-amber-400">
                               Size will be marked as "pending" - you can specify it later
                             </p>
                           )}
                           {selectedSize && selectedSize !== "" && (
-                            <p className="text-xs text-green-600">
+                            <p className="text-xs text-green-600 dark:text-green-400">
                               {selectedSize === ALL_SIZES_VALUE
                                 ? "All available sizes will be added to the shot"
                                 : `Only size ${selectedSize} will be added to the shot`}
@@ -607,7 +607,7 @@ export default function ShotProductAddModal({
           </div>
           <footer
             data-testid="shot-product-modal-footer"
-            className="shrink-0 border-t border-slate-200 bg-white px-4 pt-4 pb-[max(env(safe-area-inset-bottom),1rem)] shadow-[0_-4px_12px_rgba(15,23,42,0.08)] sm:px-6"
+            className="shrink-0 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 pt-4 pb-[max(env(safe-area-inset-bottom),1rem)] shadow-[0_-4px_12px_rgba(15,23,42,0.08)] sm:px-6"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
               <Button type="button" variant="ghost" onClick={onClose}>
@@ -625,7 +625,7 @@ export default function ShotProductAddModal({
                     {initialProduct ? "Save without size" : "Add colourway"}
                   </Button>
                   {!canAddColourway && !loadingDetails && (
-                    <p className="text-center text-xs text-slate-500">Select a colourway to enable</p>
+                    <p className="text-center text-xs text-slate-500 dark:text-slate-400">Select a colourway to enable</p>
                   )}
                   {loadingDetails && (
                     <div className="flex justify-center">
@@ -649,12 +649,12 @@ export default function ShotProductAddModal({
                       : "Add & choose size now"}
                   </Button>
                   {!canAddWithSize && !loadingDetails && hasValidSelection && (
-                    <p className="text-center text-xs text-slate-500">
+                    <p className="text-center text-xs text-slate-500 dark:text-slate-400">
                       {selectedSize === "" ? "Select a size to enable" : "Choose a specific size"}
                     </p>
                   )}
                   {!canAddWithSize && !hasValidSelection && !loadingDetails && (
-                    <p className="text-center text-xs text-slate-500">Select colourway and size</p>
+                    <p className="text-center text-xs text-slate-500 dark:text-slate-400">Select colourway and size</p>
                   )}
                   {loadingDetails && (
                     <div className="flex justify-center">

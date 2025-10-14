@@ -17,7 +17,7 @@ export default function NewProductModal({ open, onClose, onSubmit }) {
               <h2 id="new-product-title" className="text-lg font-semibold">
                 New product family
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Capture shared style details, then add colourway SKUs.
               </p>
             </div>
@@ -25,7 +25,7 @@ export default function NewProductModal({ open, onClose, onSubmit }) {
               type="button"
               aria-label="Close"
               onClick={onClose}
-              className="text-xl text-slate-500 hover:text-slate-600"
+              className="text-xl text-slate-500 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300"
             >
               ×
             </button>

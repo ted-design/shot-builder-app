@@ -293,8 +293,8 @@ export default function PullsPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold text-slate-900">Pulls</h1>
-        <p className="text-sm text-slate-600">
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Pulls</h1>
+        <p className="text-sm text-slate-600 dark:text-slate-400">
           Aggregate products needed for shoots, publish to the warehouse, and track fulfilment.
         </p>
       </div>
@@ -324,16 +324,16 @@ export default function PullsPage() {
                 </Button>
               </div>
               <div className="flex items-center gap-2">
-                <div className="h-px flex-1 bg-slate-200" />
-                <span className="text-xs text-slate-500">OR</span>
-                <div className="h-px flex-1 bg-slate-200" />
+                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+                <span className="text-xs text-slate-500 dark:text-slate-400">OR</span>
+                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
               </div>
               <Button variant="secondary" onClick={() => setShowAutoGenerateModal(true)}>
                 Auto-generate from Planner Lanes
               </Button>
             </>
           ) : (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Pulls are read-only for your role. Producers or warehouse staff can create and update them.
             </p>
           )}
@@ -377,8 +377,8 @@ export default function PullsPage() {
               <Card key={pull.id}>
                 <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
-                    <div className="text-base font-semibold">{pull.title || "Untitled pull"}</div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-base font-semibold dark:text-slate-100">{pull.title || "Untitled pull"}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
                       {statusLabel(pull.status)} · {itemCount} item{itemCount === 1 ? "" : "s"}
                       {updatedLabel && ` · Updated ${updatedLabel}`}
                     </div>
@@ -411,7 +411,7 @@ export default function PullsPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDeletePull(pull.id, pull.title || "Untitled pull")}
-                          className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/20 dark:hover:text-red-300"
                         >
                           Delete
                         </Button>
@@ -589,16 +589,16 @@ function AutoGeneratePullModal({ projectId, clientId, onClose }) {
     <Modal open onClose={onClose} labelledBy="auto-generate-title" contentClassName="max-w-2xl">
       <Card className="border-0 shadow-none">
         <CardHeader>
-          <h2 id="auto-generate-title" className="text-lg font-semibold">
+          <h2 id="auto-generate-title" className="text-lg font-semibold dark:text-slate-100">
             Auto-generate Pull from Planner
           </h2>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             Select which lanes to include. Products from shots in those lanes will be aggregated into the pull.
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <label htmlFor="pull-title" className="text-sm font-medium text-slate-700">
+            <label htmlFor="pull-title" className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Pull Title
             </label>
             <Input
@@ -611,7 +611,7 @@ function AutoGeneratePullModal({ projectId, clientId, onClose }) {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700">Select Lanes</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Select Lanes</span>
               {lanes.length > 0 && (
                 <Button variant="ghost" size="sm" onClick={toggleAll}>
                   {selectedLanes.size === lanes.length ? "Deselect All" : "Select All"}
@@ -628,11 +628,11 @@ function AutoGeneratePullModal({ projectId, clientId, onClose }) {
                 description="Create lanes in your planner first to use auto-generation. Lanes help organize your shots for production."
               />
             ) : (
-              <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-3">
+              <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
                 {shotsByLane.map(({ lane, shotCount }) => (
                   <label
                     key={lane.id}
-                    className="flex cursor-pointer items-center justify-between rounded-md px-3 py-2 hover:bg-slate-50"
+                    className="flex cursor-pointer items-center justify-between rounded-md px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700"
                   >
                     <div className="flex items-center gap-3">
                       <input
@@ -641,11 +641,11 @@ function AutoGeneratePullModal({ projectId, clientId, onClose }) {
                         onChange={() => toggleLane(lane.id)}
                         className="h-4 w-4"
                       />
-                      <span className="text-sm font-medium text-slate-900">
+                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                         {lane.name || "Untitled lane"}
                       </span>
                     </div>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
                       {shotCount} shot{shotCount === 1 ? "" : "s"}
                     </span>
                   </label>
@@ -1110,10 +1110,10 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <h2 id="pull-details-title" className="text-lg font-semibold">
+              <h2 id="pull-details-title" className="text-lg font-semibold dark:text-slate-100">
                 {pull.title || "Untitled pull"}
               </h2>
-              <p className="text-xs text-slate-500">Created {createdLabel}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Created {createdLabel}</p>
             </div>
             <div className="flex gap-2">
               <Button variant="secondary" onClick={() => setExportModalOpen(true)}>
@@ -1128,9 +1128,9 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
         <CardContent className="space-y-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Status</span>
+              <span className="text-sm font-medium dark:text-slate-200">Status</span>
               <select
-                className="rounded border px-3 py-2 text-sm"
+                className="rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm"
                 value={pull.status || "draft"}
                 onChange={handleStatusChange}
                 disabled={!canManage}
@@ -1142,14 +1142,14 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
                 ))}
               </select>
             </div>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-slate-500 dark:text-slate-400">
               {items.length} line item{items.length === 1 ? "" : "s"}
             </span>
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-700">Line items</h3>
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Line items</h3>
               {canManage && (
                 <div className="flex gap-2">
                   <Button size="sm" variant="secondary" onClick={() => setBulkAddModalOpen(true)}>
@@ -1181,9 +1181,9 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
 
             return (
               <div className="space-y-3">
-                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                   Pending Change Requests
-                  <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
                     {countPendingChangeOrders(items)}
                   </span>
                 </h3>
@@ -1192,14 +1192,14 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
                     changeOrders.map((co) => (
                       <div
                         key={co.id}
-                        className="rounded-lg border border-amber-200 bg-amber-50 p-4"
+                        className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-4"
                       >
                         <div className="mb-2 flex items-start justify-between">
                           <div>
-                            <div className="text-sm font-medium text-amber-900">
+                            <div className="text-sm font-medium text-amber-900 dark:text-amber-100">
                               {getPullItemDisplayName(item)}
                             </div>
-                            <div className="text-xs text-amber-700">
+                            <div className="text-xs text-amber-700 dark:text-amber-400">
                               Requested by {co.requestedByName || "Unknown"}
                             </div>
                           </div>
@@ -1214,7 +1214,7 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
                             Review
                           </Button>
                         </div>
-                        <p className="text-xs text-amber-800">{co.reason}</p>
+                        <p className="text-xs text-amber-800 dark:text-amber-300">{co.reason}</p>
                       </div>
                     ))
                   )}
@@ -1224,25 +1224,25 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
           })()}
 
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-slate-700">Messages</h3>
-            <div className="max-h-60 space-y-2 overflow-y-auto rounded border border-slate-200 p-3">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Messages</h3>
+            <div className="max-h-60 space-y-2 overflow-y-auto rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
               {messages.map((message) => {
                 const timestampMillis = toMillis(message.createdAt);
                 const timestamp = timestampMillis ? new Date(timestampMillis).toLocaleString() : "";
                 return (
-                  <div key={message.id} className="text-xs text-slate-700">
+                  <div key={message.id} className="text-xs text-slate-700 dark:text-slate-300">
                     <span className="font-medium">{message.authorName || "Unknown"}</span>
-                    <span className="text-slate-500"> · {message.role}</span>
-                    {timestamp && <span className="text-slate-500"> · {timestamp}</span>}
-                    <div className="text-slate-600">{message.text}</div>
+                    <span className="text-slate-500 dark:text-slate-400"> · {message.role}</span>
+                    {timestamp && <span className="text-slate-500 dark:text-slate-400"> · {timestamp}</span>}
+                    <div className="text-slate-600 dark:text-slate-400">{message.text}</div>
                   </div>
                 );
               })}
-              {!messages.length && <p className="text-xs text-slate-500">No messages yet.</p>}
+              {!messages.length && <p className="text-xs text-slate-500 dark:text-slate-400">No messages yet.</p>}
             </div>
             <div className="space-y-2">
               <textarea
-                className="w-full rounded border border-slate-300 p-2 text-sm"
+                className="w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 p-2 text-sm"
                 rows={3}
                 placeholder="Message the warehouse…"
                 value={messageText}

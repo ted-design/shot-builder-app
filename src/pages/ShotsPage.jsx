@@ -1982,12 +1982,12 @@ export default function ShotsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="sticky inset-x-0 top-14 z-20 bg-white/95 py-4 px-6 backdrop-blur">
+      <div className="sticky inset-x-0 top-14 z-20 bg-white/95 dark:bg-slate-800/95 py-4 px-6 backdrop-blur">
         <Card className="border-b-2">
           <CardContent className="py-4">
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="flex-none text-2xl md:text-3xl font-bold text-slate-900">Shots</h1>
+                <h1 className="flex-none text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-100">Shots</h1>
                 <Input
                   placeholder="Search shots by name, talent, product, or location..."
                   aria-label="Search shots"
@@ -2017,7 +2017,7 @@ export default function ShotsPage() {
                 <ChevronDown className="h-4 w-4 text-slate-500" />
               </Button>
               {displayMenuOpen && (
-                <div className="absolute right-0 z-50 mt-2 w-64 rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg">
+                <div className="absolute right-0 z-50 mt-2 w-64 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm shadow-lg">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sort</p>
                     <div className="mt-2 space-y-1">
@@ -2031,7 +2031,7 @@ export default function ShotsPage() {
                             className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 transition ${
                               active
                                 ? "bg-primary/10 text-primary font-medium"
-                                : "text-slate-600 hover:bg-slate-100"
+                                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
                             }`}
                           >
                             {option.label}
@@ -2041,13 +2041,13 @@ export default function ShotsPage() {
                       })}
                     </div>
                   </div>
-                  <div className="mt-3 border-t border-slate-200 pt-3">
+                  <div className="mt-3 border-t border-slate-200 dark:border-slate-700 pt-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Details</p>
-                    <div className="mt-2 space-y-2 text-slate-600">
+                    <div className="mt-2 space-y-2 text-slate-600 dark:text-slate-400">
                       <label className="flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300"
+                          className="h-4 w-4 rounded border-slate-300 dark:border-slate-600"
                           checked={viewPrefs.showNotes}
                           onChange={() => toggleViewPref("showNotes")}
                         />
@@ -2056,7 +2056,7 @@ export default function ShotsPage() {
                       <label className="flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300"
+                          className="h-4 w-4 rounded border-slate-300 dark:border-slate-600"
                           checked={viewPrefs.showProducts}
                           onChange={() => toggleViewPref("showProducts")}
                         />
@@ -2065,7 +2065,7 @@ export default function ShotsPage() {
                       <label className="flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300"
+                          className="h-4 w-4 rounded border-slate-300 dark:border-slate-600"
                           checked={viewPrefs.showTalent}
                           onChange={() => toggleViewPref("showTalent")}
                         />
@@ -2074,7 +2074,7 @@ export default function ShotsPage() {
                       <label className="flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300"
+                          className="h-4 w-4 rounded border-slate-300 dark:border-slate-600"
                           checked={viewPrefs.showLocation}
                           onChange={() => toggleViewPref("showLocation")}
                         />
@@ -2089,12 +2089,12 @@ export default function ShotsPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">View</span>
-              <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+              <div className="inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
                 <button
                   type="button"
                   onClick={() => updateViewMode("gallery")}
                   className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
-                    isGalleryView ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                    isGalleryView ? "bg-slate-900 text-white" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
                   }`}
                   aria-pressed={isGalleryView}
                 >
@@ -2105,7 +2105,7 @@ export default function ShotsPage() {
                   type="button"
                   onClick={() => updateViewMode("list")}
                   className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
-                    isListView ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                    isListView ? "bg-slate-900 text-white" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
                   }`}
                   aria-pressed={isListView}
                 >
@@ -2115,12 +2115,12 @@ export default function ShotsPage() {
               </div>
               <ExportButton data={filteredShots} entityType="shots" />
               {canEditShots && sortedShots.length > 0 && (
-                <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">
+                <label className="flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={selectedShotIds.size > 0 && selectedShotIds.size === sortedShots.length}
                     onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                    className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
                   />
                   <span className="text-xs font-medium">
                     {selectedShotIds.size > 0 ? `${selectedShotIds.size} selected` : 'Select all'}
@@ -2138,7 +2138,7 @@ export default function ShotsPage() {
                   className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
                     activeFilterCount > 0
                       ? "border-primary/60 bg-primary/5 text-primary"
-                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                   }`}
                   aria-haspopup="menu"
                   aria-expanded={filtersOpen}
@@ -2154,10 +2154,10 @@ export default function ShotsPage() {
 
               {/* Filter panel */}
               {filtersOpen && (
-                <div className="absolute right-0 z-20 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 shadow-lg animate-slide-in-from-right">
+                <div className="absolute right-0 z-20 mt-2 w-80 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-lg animate-slide-in-from-right">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-slate-900">Filter shots</p>
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Filter shots</p>
                       {activeFilterCount > 0 && (
                         <button
                           type="button"
@@ -2175,12 +2175,12 @@ export default function ShotsPage() {
 
                     {/* Location filter */}
                     <div className="space-y-2">
-                      <label htmlFor="location-filter" className="text-xs font-medium text-slate-700">
+                      <label htmlFor="location-filter" className="text-xs font-medium text-slate-700 dark:text-slate-300">
                         Location
                       </label>
                       <select
                         id="location-filter"
-                        className="h-9 w-full rounded-md border border-slate-200 px-3 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                        className="h-9 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
                         value={filters.locationId}
                         onChange={(event) => handleLocationFilterChange(event.target.value)}
                       >
@@ -2195,7 +2195,7 @@ export default function ShotsPage() {
 
                     {/* Talent filter */}
                     <div className="space-y-2">
-                      <label className="text-xs font-medium text-slate-700">Talent</label>
+                      <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Talent</label>
                       <Select
                         isMulti
                         classNamePrefix="filter-select"
@@ -2216,7 +2216,7 @@ export default function ShotsPage() {
 
                     {/* Product filter */}
                     <div className="space-y-2">
-                      <label className="text-xs font-medium text-slate-700">Products</label>
+                      <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Products</label>
                       <Select
                         isMulti
                         classNamePrefix="filter-select"
@@ -2237,7 +2237,7 @@ export default function ShotsPage() {
 
                     {/* Tags filter */}
                     <div className="space-y-2">
-                      <label className="text-xs font-medium text-slate-700">Tags</label>
+                      <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Tags</label>
                       <Select
                         isMulti
                         classNamePrefix="filter-select"
@@ -2318,7 +2318,7 @@ export default function ShotsPage() {
         />
       )}
 
-      <p className="px-6 text-sm text-slate-600">
+      <p className="px-6 text-sm text-slate-600 dark:text-slate-400">
         Build and manage the shot list for the active project. Set the active project from the Dashboard.
       </p>
       {canEditShots ? (
@@ -2326,7 +2326,7 @@ export default function ShotsPage() {
           <CreateShotCard onClick={openCreateModal} disabled={isCreatingShot} />
         </div>
       ) : (
-        <div className="mx-6 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <div className="mx-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
           You can browse shots but need producer or crew access to create or edit them.
         </div>
       )}
@@ -2341,7 +2341,7 @@ export default function ShotsPage() {
               onAction={canEditShots ? openCreateModal : null}
             />
           ) : (
-            <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
               No shots match the current search or filters.
             </div>
           )
@@ -2450,7 +2450,7 @@ export default function ShotsPage() {
         />
       )}
       {!canEditShots && (
-        <div className="mx-6 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <div className="mx-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
           Shot actions are read-only for your role.
         </div>
       )}
@@ -2520,8 +2520,8 @@ const ShotProductChips = memo(function ShotProductChips({ products }) {
             : "";
         const chipClass =
           product.status === "pending-size"
-            ? "rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-800"
-            : "rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700";
+            ? "rounded-full bg-amber-100 dark:bg-amber-900/30 px-3 py-1 text-xs text-amber-800 dark:text-amber-200"
+            : "rounded-full bg-slate-100 dark:bg-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-300";
         const key =
           product.id ||
           `${product.familyId || "family"}-${product.colourId || "colour"}-${index}`;
@@ -2547,7 +2547,7 @@ const ShotTalentList = memo(function ShotTalentList({ talent }) {
         if (!entry) return null;
         const key = entry.talentId || entry.name;
         return (
-          <span key={key} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
+          <span key={key} className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-xs text-slate-700 dark:text-slate-300">
             {entry.name}
           </span>
         );
@@ -2587,13 +2587,13 @@ const ShotListCard = memo(function ShotListCard({
                 type="checkbox"
                 checked={isSelected}
                 onChange={() => onToggleSelect(shot.id)}
-                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-slate-900 line-clamp-2" title={shot.name}>
+            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 line-clamp-2" title={shot.name}>
               {shot.name}
             </h3>
             <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-slate-500">
@@ -2620,7 +2620,7 @@ const ShotListCard = memo(function ShotListCard({
         {showNotes && (
           notesHtml ? (
             <div
-              className="rounded-md bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-700 line-clamp-3"
+              className="rounded-md bg-slate-50 dark:bg-slate-900 px-3 py-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300 line-clamp-3"
               dangerouslySetInnerHTML={{ __html: notesHtml }}
             />
           ) : (
@@ -2699,7 +2699,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
               type="checkbox"
               checked={isSelected}
               onChange={() => onToggleSelect(shot.id)}
-              className="h-5 w-5 rounded border-slate-300 bg-white text-primary focus:ring-primary shadow-sm"
+              className="h-5 w-5 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary shadow-sm"
               onClick={(e) => e.stopPropagation()}
             />
           </div>
@@ -2714,7 +2714,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
       </div>
       <CardContent className="space-y-2 px-4 pb-4 pt-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-base font-semibold text-slate-900 line-clamp-2" title={shot.name}>
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 line-clamp-2" title={shot.name}>
             {shot.name}
           </h3>
           {shot.type && <span className="text-xs uppercase tracking-wide text-primary">{shot.type}</span>}
@@ -2730,7 +2730,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
         )}
         {showNotes && (
           plainNotes ? (
-            <p className="text-sm text-slate-600 line-clamp-3">{plainNotes}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-3">{plainNotes}</p>
           ) : (
             <p className="text-sm text-slate-500">No notes added yet.</p>
           )

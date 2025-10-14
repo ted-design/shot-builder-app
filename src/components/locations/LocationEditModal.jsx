@@ -119,11 +119,11 @@ export default function LocationEditModal({
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 id={titleId} className="text-lg font-semibold text-slate-900">
+              <h2 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 {displayName || "Edit location"}
               </h2>
               {location?.street && (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   {[location.street, location.city, location.province].filter(Boolean).join(", ")}
                 </p>
               )}
@@ -147,7 +147,7 @@ export default function LocationEditModal({
                 type="button"
                 aria-label="Close"
                 onClick={onClose}
-                className="text-xl text-slate-500 hover:text-slate-600"
+                className="text-xl text-slate-500 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300"
               >
                 ×
               </button>
@@ -207,9 +207,9 @@ export default function LocationEditModal({
                   path={currentImagePath}
                   size={640}
                   alt={displayName}
-                  className="h-40 w-56 overflow-hidden rounded-lg bg-slate-100 text-slate-500"
+                  className="h-40 w-56 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800"
                   imageClassName="h-full w-full object-cover"
-                  fallback={<div className="flex h-full items-center justify-center text-sm">No photo</div>}
+                  fallback={<div className="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400">No photo</div>}
                 />
                 <div className="flex flex-col items-center gap-2 text-sm">
                   <Input type="file" accept="image/*" onChange={handleFileChange} />
@@ -222,7 +222,7 @@ export default function LocationEditModal({
               </div>
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="location-name">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-name">
                     Name
                   </label>
                   <Input
@@ -234,7 +234,7 @@ export default function LocationEditModal({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="location-street">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-street">
                     Street address
                   </label>
                   <Input
@@ -247,7 +247,7 @@ export default function LocationEditModal({
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="location-unit">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-unit">
                       Unit / Suite
                     </label>
                     <Input
@@ -259,7 +259,7 @@ export default function LocationEditModal({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="location-city">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-city">
                       City
                     </label>
                     <Input
@@ -273,7 +273,7 @@ export default function LocationEditModal({
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="location-province">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-province">
                       Province / State
                     </label>
                     <Input
@@ -285,7 +285,7 @@ export default function LocationEditModal({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="location-postal">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-postal">
                       Postal / ZIP
                     </label>
                     <Input
@@ -298,7 +298,7 @@ export default function LocationEditModal({
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="location-phone">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-phone">
                     Phone
                   </label>
                   <Input
@@ -310,7 +310,7 @@ export default function LocationEditModal({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="location-notes">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-notes">
                     Notes
                   </label>
                   <textarea
@@ -319,7 +319,7 @@ export default function LocationEditModal({
                     onChange={handleFieldChange("notes")}
                     rows={4}
                     disabled={saving || busy || deleting}
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-70"
+                    className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 placeholder:text-slate-500 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-70"
                     placeholder="Access instructions, loading details, parking notes…"
                   />
                 </div>

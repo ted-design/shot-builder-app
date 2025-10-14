@@ -70,10 +70,10 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
     >
       <Card className="border-0 shadow-none">
         <CardHeader>
-          <h2 id={modalTitleId} className="text-lg font-semibold text-slate-900">
+          <h2 id={modalTitleId} className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             Create talent
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Provide at least a first or last name. Headshots can be added now or later.
           </p>
         </CardHeader>
@@ -81,7 +81,7 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-first">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-first">
                   First name
                 </label>
                 <Input
@@ -94,7 +94,7 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-last">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-last">
                   Last name
                 </label>
                 <Input
@@ -108,7 +108,7 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-agency">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-agency">
                   Agency
                 </label>
                 <Input
@@ -120,7 +120,7 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-gender">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-gender">
                   Gender
                 </label>
                 <Input
@@ -134,7 +134,7 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-phone">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-phone">
                   Phone
                 </label>
                 <Input
@@ -146,7 +146,7 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-email">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-email">
                   Email
                 </label>
                 <Input
@@ -160,7 +160,7 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-sizing">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-sizing">
                 Sizing notes
               </label>
               <Input
@@ -172,7 +172,7 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-url">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-url">
                 Reference URL
               </label>
               <Input
@@ -185,17 +185,17 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700" htmlFor="talent-create-headshot">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-headshot">
                 Headshot
               </label>
               <Thumb
                 path={preview || null}
                 size={512}
                 alt="Selected headshot preview"
-                className="h-40 w-32 overflow-hidden rounded-lg bg-slate-100"
+                className="h-40 w-32 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800"
                 imageClassName="h-full w-full object-cover"
                 fallback={
-                  <div className="flex h-full items-center justify-center text-xs text-slate-500">
+                  <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-slate-400">
                     Optional 4:5 image
                   </div>
                 }

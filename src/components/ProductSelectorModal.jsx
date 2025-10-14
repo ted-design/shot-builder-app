@@ -108,28 +108,28 @@ export default function ProductSelectorModal({
             <h2 id="product-selector-title" className="text-lg font-semibold">
               {title}
             </h2>
-            <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">
+            <button onClick={onClose} className="text-sm text-slate-500 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300">
               ×
             </button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-600">Selected products</div>
+            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">Selected products</div>
             <div className="flex flex-wrap gap-2">
-              {!selection.length && <span className="text-xs text-slate-500">No products selected.</span>}
+              {!selection.length && <span className="text-xs text-slate-500 dark:text-slate-400">No products selected.</span>}
               {selection.map((id) => {
                 const product = productsById.get(id);
                 return (
                   <span
                     key={id}
-                    className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs"
+                    className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs dark:bg-slate-700 dark:text-slate-200"
                   >
                     {product ? product.styleName : id}
                     <button
                       type="button"
                       onClick={() => toggleProduct(id)}
-                      className="text-slate-500 hover:text-slate-700"
+                      className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                     >
                       ×
                     </button>
@@ -141,9 +141,9 @@ export default function ProductSelectorModal({
           <Input placeholder="Search products…" value={query} onChange={(event) => setQuery(event.target.value)} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium">Gender</label>
+              <label className="mb-1 block text-sm font-medium dark:text-slate-300">Gender</label>
               <select
-                className="w-full rounded border p-2 text-sm"
+                className="w-full rounded border p-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                 value={gender}
                 onChange={(event) => setGender(event.target.value)}
               >
@@ -156,9 +156,9 @@ export default function ProductSelectorModal({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Category</label>
+              <label className="mb-1 block text-sm font-medium dark:text-slate-300">Category</label>
               <select
-                className="w-full rounded border p-2 text-sm"
+                className="w-full rounded border p-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
               >
@@ -177,13 +177,13 @@ export default function ProductSelectorModal({
               return (
                 <div
                   key={product.id}
-                  className={`flex items-center justify-between rounded border p-2 ${
-                    added ? "bg-gray-100" : ""
+                  className={`flex items-center justify-between rounded border p-2 dark:border-slate-700 ${
+                    added ? "bg-slate-100 dark:bg-slate-700" : "dark:bg-slate-800/50"
                   }`}
                 >
                   <div className="text-sm">
                     <div className="font-medium">{product.styleName}</div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
                       {product.styleNumber} • {product.activeSkuCount || 0} active of {product.skuCount || 0} SKUs
                     </div>
                   </div>
@@ -193,14 +193,14 @@ export default function ProductSelectorModal({
                 </div>
               );
             })}
-            {!filtered.length && <p className="text-sm text-gray-500">No products found</p>}
+            {!filtered.length && <p className="text-sm text-slate-500 dark:text-slate-400">No products found</p>}
           </div>
           <div className="flex items-center justify-between">
             <Button variant="ghost" size="sm" onClick={handleClear}>
               Clear selection
             </Button>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500">{selection.length} selected</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">{selection.length} selected</span>
               <Button onClick={handleSave} disabled={!selection.length}>
                 Save selection
               </Button>

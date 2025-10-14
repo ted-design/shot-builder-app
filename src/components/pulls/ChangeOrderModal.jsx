@@ -112,23 +112,23 @@ export default function ChangeOrderModal({
           <h2 id="change-order-title" className="text-lg font-semibold">
             Request Product Substitution
           </h2>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             The originally requested item cannot be fulfilled. Propose a substitute product for
             approval.
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Original Item */}
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">Original Request</h3>
-            <div className="text-sm font-medium text-slate-900">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4">
+            <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-300">Original Request</h3>
+            <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
               {getPullItemDisplayName(originalItem)}
             </div>
             {originalItem.styleNumber && (
-              <div className="text-xs text-slate-500">Style: {originalItem.styleNumber}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">Style: {originalItem.styleNumber}</div>
             )}
             {originalItem.sizes && originalItem.sizes.length > 0 && (
-              <div className="mt-2 text-xs text-slate-600">
+              <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
                 Sizes:{" "}
                 {originalItem.sizes
                   .map((s) => `${s.size} (${s.quantity})`)
@@ -139,12 +139,12 @@ export default function ChangeOrderModal({
 
           {/* Reason */}
           <div className="space-y-2">
-            <label htmlFor="reason" className="text-sm font-medium text-slate-700">
-              Reason for Substitution <span className="text-red-500">*</span>
+            <label htmlFor="reason" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Reason for Substitution <span className="text-red-500 dark:text-red-400">*</span>
             </label>
             <textarea
               id="reason"
-              className="w-full rounded-md border border-slate-200 p-3 text-sm"
+              className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-3 text-sm"
               rows={3}
               placeholder="e.g., Size L out of stock, suggesting size M instead..."
               value={reason}
@@ -154,18 +154,18 @@ export default function ChangeOrderModal({
 
           {/* Substitute Product */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">
-              Substitute Product <span className="text-red-500">*</span>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Substitute Product <span className="text-red-500 dark:text-red-400">*</span>
             </label>
             {selectedProduct ? (
-              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3">
+              <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
                 <div>
-                  <div className="text-sm font-medium text-slate-900">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {selectedProduct.familyName}
                     {selectedProduct.colourName && ` – ${selectedProduct.colourName}`}
                   </div>
                   {selectedProduct.styleNumber && (
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
                       Style: {selectedProduct.styleNumber}
                     </div>
                   )}
@@ -189,8 +189,8 @@ export default function ChangeOrderModal({
           {selectedProduct && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-slate-700">
-                  Substitute Sizes & Quantities <span className="text-red-500">*</span>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Substitute Sizes & Quantities <span className="text-red-500 dark:text-red-400">*</span>
                 </label>
                 <Button variant="ghost" size="sm" onClick={handleAddSize}>
                   Add Size
@@ -198,7 +198,7 @@ export default function ChangeOrderModal({
               </div>
 
               {sizes.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
+                <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4 text-center text-sm text-slate-500 dark:text-slate-400">
                   No sizes added. Click "Add Size" to specify substitute sizes and quantities.
                 </div>
               ) : (
@@ -206,7 +206,7 @@ export default function ChangeOrderModal({
                   {sizes.map((size, index) => (
                     <div
                       key={index}
-                      className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-white p-3"
+                      className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3"
                     >
                       <Input
                         placeholder="Size (e.g., M, L, 32)"

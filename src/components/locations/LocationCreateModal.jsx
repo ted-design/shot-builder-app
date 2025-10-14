@@ -77,17 +77,17 @@ export default function LocationCreateModal({
       >
       <Card className="border-0 shadow-none">
         <CardHeader>
-          <h2 id={modalTitleId} className="text-lg font-semibold text-slate-900">
+          <h2 id={modalTitleId} className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             Create location
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Provide a venue name and any helpful contact or access notes. Photos can be added now or later.
           </p>
         </CardHeader>
         <CardContent className="pb-6">
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700" htmlFor="location-create-name">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-create-name">
                 Name
               </label>
               <Input
@@ -100,7 +100,7 @@ export default function LocationCreateModal({
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700" htmlFor="location-create-street">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-create-street">
                 Street address
               </label>
               <Input
@@ -113,7 +113,7 @@ export default function LocationCreateModal({
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700" htmlFor="location-create-unit">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-create-unit">
                   Unit / Suite
                 </label>
                 <Input
@@ -125,7 +125,7 @@ export default function LocationCreateModal({
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700" htmlFor="location-create-city">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-create-city">
                   City
                 </label>
                 <Input
@@ -139,7 +139,7 @@ export default function LocationCreateModal({
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700" htmlFor="location-create-province">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-create-province">
                   Province / State
                 </label>
                 <Input
@@ -151,7 +151,7 @@ export default function LocationCreateModal({
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700" htmlFor="location-create-postal">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-create-postal">
                   Postal / ZIP
                 </label>
                 <Input
@@ -164,7 +164,7 @@ export default function LocationCreateModal({
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700" htmlFor="location-create-phone">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-create-phone">
                 Phone
               </label>
               <Input
@@ -176,7 +176,7 @@ export default function LocationCreateModal({
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700" htmlFor="location-create-notes">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-create-notes">
                 Notes
               </label>
               <textarea
@@ -185,22 +185,22 @@ export default function LocationCreateModal({
                 onChange={updateField("notes")}
                 rows={4}
                 disabled={busy}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-70"
+                className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 placeholder:text-slate-500 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-70"
                 placeholder="Access instructions, load-in timing, parking details…"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700" htmlFor="location-create-photo">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="location-create-photo">
                 Photo
               </label>
               <Thumb
                 path={preview || null}
                 size={640}
                 alt="Selected location preview"
-                className="h-40 w-56 overflow-hidden rounded-lg bg-slate-100"
+                className="h-40 w-56 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800"
                 imageClassName="h-full w-full object-cover"
                 fallback={
-                  <div className="flex h-full items-center justify-center text-xs text-slate-500">
+                  <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-slate-400">
                     Optional reference photo
                   </div>
                 }
