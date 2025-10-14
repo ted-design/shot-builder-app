@@ -3,7 +3,7 @@
  * Provides fuzzy search across all entities (shots, products, talent, locations, projects)
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { Search, Camera, Package, User, MapPin, FolderOpen, X } from 'lucide-react';
