@@ -12,6 +12,7 @@ import TopNavigationLayout from "./routes/TopNavigationLayout";
 import RequireRole from "./routes/RequireRole";
 import { ProjectScopeProvider } from "./context/ProjectScopeContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { SearchCommandProvider } from "./context/SearchCommandContext";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import SearchCommand from "./components/ui/SearchCommand";
 
@@ -105,13 +106,14 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <BrowserRouter>
-          <ProjectScopeProvider>
-            {/* Global search command palette (Cmd+K) */}
-            <SearchCommand />
-            {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
-            <PDFDemoMount />
-            <MaybeRedirectLogin user={userForGuard} />
+        <SearchCommandProvider>
+          <BrowserRouter>
+            <ProjectScopeProvider>
+              {/* Global search command palette (Cmd+K) */}
+              <SearchCommand />
+              {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
+              <PDFDemoMount />
+              <MaybeRedirectLogin user={userForGuard} />
             <Routes>
           <Route
             path="/login"
@@ -232,9 +234,10 @@ export default function App() {
             />
             <Route path="*" element={<Navigate to="/projects" replace />} />
           </Route>
-          </Routes>
-        </ProjectScopeProvider>
-      </BrowserRouter>
+            </Routes>
+          </ProjectScopeProvider>
+        </BrowserRouter>
+        </SearchCommandProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

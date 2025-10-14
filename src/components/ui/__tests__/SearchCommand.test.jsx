@@ -44,6 +44,19 @@ vi.mock('../../../lib/safeStorage', () => ({
   writeStorage: vi.fn(),
 }));
 
+// Mock SearchCommandContext with controllable state
+const mockState = { isOpen: false };
+const mockOpenSearch = vi.fn(() => { mockState.isOpen = true; });
+const mockCloseSearch = vi.fn(() => { mockState.isOpen = false; });
+
+vi.mock('../../../context/SearchCommandContext', () => ({
+  useSearchCommand: () => ({
+    get isOpen() { return mockState.isOpen; },
+    openSearch: mockOpenSearch,
+    closeSearch: mockCloseSearch,
+  }),
+}));
+
 describe('SearchCommand', () => {
   const renderComponent = () => {
     return render(
@@ -55,6 +68,9 @@ describe('SearchCommand', () => {
 
   beforeEach(() => {
     mockGlobalSearch.mockClear();
+    mockOpenSearch.mockClear();
+    mockCloseSearch.mockClear();
+    mockState.isOpen = false;
   });
 
   test('renders without crashing', () => {
@@ -77,12 +93,19 @@ describe('SearchCommand', () => {
   });
 
   test('debounces search input to reduce search operations', async () => {
-    const { container } = renderComponent();
+    // Set modal to open state
+    mockState.isOpen = true;
 
-    // Open search modal by simulating Cmd+K
-    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+    const { rerender } = renderComponent();
 
-    // Wait for modal to appear
+    // Force re-render with open state
+    rerender(
+      <BrowserRouter>
+        <SearchCommand />
+      </BrowserRouter>
+    );
+
+    // Modal should be visible
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });

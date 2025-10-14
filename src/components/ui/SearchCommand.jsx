@@ -3,7 +3,7 @@
  * Provides fuzzy search across all entities (shots, products, talent, locations, projects)
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { Search, Camera, Package, User, MapPin, FolderOpen, X } from 'lucide-react';
@@ -11,6 +11,7 @@ import { globalSearch } from '../../lib/search';
 import { useShots, useProducts, useTalent, useLocations, useProjects } from '../../hooks/useFirestoreQuery';
 import { useAuth } from '../../context/AuthContext';
 import { useProjectScope } from '../../context/ProjectScopeContext';
+import { useSearchCommand } from '../../context/SearchCommandContext';
 import { readStorage, writeStorage } from '../../lib/safeStorage';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 
@@ -161,7 +162,7 @@ function saveRecentSearch(query) {
  * SearchCommand component
  */
 export default function SearchCommand() {
-  const [isOpen, setIsOpen] = useState(false);
+  const { isOpen, openSearch, closeSearch } = useSearchCommand();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [recentSearches, setRecentSearches] = useState(loadRecentSearches);
@@ -213,18 +214,20 @@ export default function SearchCommand() {
     return flat;
   }, [searchResults]);
 
-  // Open/close handlers
-  const open = useCallback(() => {
-    setIsOpen(true);
-    setQuery('');
-    setSelectedIndex(0);
-  }, []);
+  // Reset state when opening
+  useEffect(() => {
+    if (isOpen) {
+      setQuery('');
+      setSelectedIndex(0);
+    }
+  }, [isOpen]);
 
+  // Close handler with state cleanup
   const close = useCallback(() => {
-    setIsOpen(false);
+    closeSearch();
     setQuery('');
     setSelectedIndex(0);
-  }, []);
+  }, [closeSearch]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -235,7 +238,7 @@ export default function SearchCommand() {
         if (isOpen) {
           close();
         } else {
-          open();
+          openSearch();
         }
       }
 
@@ -247,7 +250,7 @@ export default function SearchCommand() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, open, close]);
+  }, [isOpen, openSearch, close]);
 
   // Focus input when opened
   useEffect(() => {

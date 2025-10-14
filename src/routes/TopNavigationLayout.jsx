@@ -8,7 +8,10 @@ import { roleLabel } from "../lib/rbac";
 import { SkipLink } from "../components/ui/SkipLink";
 import ProjectIndicator from "../components/ui/ProjectIndicator";
 import ThemeToggle from "../components/ui/ThemeToggle";
-import { Menu, X, ChevronDown, LogOut } from "lucide-react";
+import QuickActionsMenu from "../components/ui/QuickActionsMenu";
+import Avatar from "../components/ui/Avatar";
+import { useSearchCommand } from "../context/SearchCommandContext";
+import { Menu, X, ChevronDown, LogOut, Search } from "lucide-react";
 
 const navItems = [
   { to: "/projects", label: "Dashboard" },
@@ -90,7 +93,7 @@ function MobileNavLinks({ onNavigate, role }) {
   );
 }
 
-function UserMenu({ userLabel, navRoleLabel, onSignOut }) {
+function UserMenu({ userLabel, navRoleLabel, userEmail, userPhotoUrl, onSignOut }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -121,11 +124,17 @@ function UserMenu({ userLabel, navRoleLabel, onSignOut }) {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="hidden items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light md:flex"
+        className="hidden items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light md:flex"
         aria-haspopup="true"
         aria-expanded={isOpen}
       >
-        <span className="max-w-[150px] truncate">{userLabel}</span>
+        <Avatar
+          name={userLabel}
+          email={userEmail}
+          photoUrl={userPhotoUrl}
+          size="sm"
+        />
+        <span className="max-w-[120px] truncate">{userLabel}</span>
         <ChevronDown
           className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
         />
@@ -134,14 +143,29 @@ function UserMenu({ userLabel, navRoleLabel, onSignOut }) {
       {isOpen && (
         <div className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg animate-fade-in-down">
           <div className="p-3 border-b border-slate-200 dark:border-slate-700">
-            <div className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate" title={userLabel}>
-              {userLabel}
-            </div>
-            {navRoleLabel && (
-              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wide">
-                {navRoleLabel}
+            <div className="flex items-center gap-3">
+              <Avatar
+                name={userLabel}
+                email={userEmail}
+                photoUrl={userPhotoUrl}
+                size="md"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate" title={userLabel}>
+                  {userLabel}
+                </div>
+                {userEmail && (
+                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate" title={userEmail}>
+                    {userEmail}
+                  </div>
+                )}
+                {navRoleLabel && (
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 uppercase tracking-wide">
+                    {navRoleLabel}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
           <div className="p-2">
             <button
@@ -165,6 +189,7 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user: authUser, role: ctxRole } = useAuth();
+  const { openSearch } = useSearchCommand();
 
   const derivedUser = useMemo(() => adaptUser(authUser), [authUser]);
   const navUser = derivedUser || fallbackUser || null;
@@ -179,6 +204,8 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
   };
 
   const userLabel = navUser?.name || navUser?.displayName || navUser?.email || "Signed in";
+  const userEmail = navUser?.email || null;
+  const userPhotoUrl = navUser?.photoURL || null;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
@@ -198,9 +225,26 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
           {/* Right: Actions */}
           <div className="flex items-center gap-3">
             <ProjectIndicator />
+
+            {/* Quick Actions Menu */}
+            <QuickActionsMenu />
+
+            {/* Search Trigger Button */}
+            <button
+              onClick={openSearch}
+              className="hidden items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 transition hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light md:flex"
+              aria-label="Open search"
+              title="Search (Cmd+K)"
+            >
+              <Search className="h-4 w-4" />
+              <span className="text-xs text-slate-500 dark:text-slate-500">Cmd+K</span>
+            </button>
+
             <ThemeToggle />
             <UserMenu
               userLabel={userLabel}
+              userEmail={userEmail}
+              userPhotoUrl={userPhotoUrl}
               navRoleLabel={navRoleLabel}
               onSignOut={signOutUser}
             />
@@ -225,15 +269,28 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
 
               {/* Mobile User Info & Sign Out */}
               <div className="mt-4 border-t border-slate-200 dark:border-slate-700 pt-4 space-y-3">
-                <div className="text-sm">
-                  <div className="font-medium text-slate-900 dark:text-slate-100 truncate" title={userLabel}>
-                    {userLabel}
-                  </div>
-                  {navRoleLabel && (
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wide">
-                      {navRoleLabel}
+                <div className="flex items-center gap-3">
+                  <Avatar
+                    name={userLabel}
+                    email={userEmail}
+                    photoUrl={userPhotoUrl}
+                    size="md"
+                  />
+                  <div className="flex-1 min-w-0 text-sm">
+                    <div className="font-medium text-slate-900 dark:text-slate-100 truncate" title={userLabel}>
+                      {userLabel}
                     </div>
-                  )}
+                    {userEmail && (
+                      <div className="text-xs text-slate-500 dark:text-slate-400 truncate" title={userEmail}>
+                        {userEmail}
+                      </div>
+                    )}
+                    {navRoleLabel && (
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 uppercase tracking-wide">
+                        {navRoleLabel}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <button
                   onClick={signOutUser}
