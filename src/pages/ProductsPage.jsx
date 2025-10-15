@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import {
+  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -694,19 +695,28 @@ export default function ProductsPage() {
       setEditLoading(true);
       setEditFamily({ ...family, skus: [] });
       setEditModalOpen(true);
-      const skuSnapshot = await getDocs(
-        query(
-          collection(db, ...productFamilySkusPathForClient(family.id)),
-          where("deleted", "==", false),
-          orderBy("colorName", "asc")
-        )
-      );
-      const skus = skuSnapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-      skuCacheRef.current = new Map(skus.map((sku) => [sku.id, sku]));
-      setEditFamily({ ...family, skus });
-      setEditLoading(false);
+      try {
+        const skuSnapshot = await getDocs(
+          query(
+            collection(db, ...productFamilySkusPathForClient(family.id)),
+            where("deleted", "==", false),
+            orderBy("colorName", "asc")
+          )
+        );
+        const skus = skuSnapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        skuCacheRef.current = new Map(skus.map((sku) => [sku.id, sku]));
+        setEditFamily({ ...family, skus });
+      } catch (error) {
+        console.error("[Products] Failed to load SKUs for edit:", error);
+        toast.error({
+          title: "Failed to load product details",
+          description: error?.message || "Unable to load SKUs. Please try again.",
+        });
+      } finally {
+        setEditLoading(false);
+      }
     },
-    []
+    [productFamilySkusPathForClient] // productFamilySkusPathForClient depends on clientId
   );
 
   const handleUpdateFamily = useCallback(

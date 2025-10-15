@@ -1121,11 +1121,22 @@ function PlannerPageContent() {
       handleLegacyShotsError
     );
 
+    // Safety timeout: if legacy shots don't load within 5 seconds, clear loading state
+    // This prevents infinite loading if the subscription fails silently
+    const loadingTimeout = setTimeout(() => {
+      if (!cancelled && !legacyLoaded) {
+        console.warn("[Planner] Legacy shots took too long to load, clearing loading state");
+        legacyLoaded = true;
+        setShotsLoading(false);
+      }
+    }, 5000);
+
     // Trigger applyCombinedShots when primaryShots from hook changes
     applyCombinedShots();
 
     return () => {
       cancelled = true;
+      clearTimeout(loadingTimeout);
       unsubLegacyShots();
       unassignedUnsubs.forEach((unsubscribe) => unsubscribe());
     };
