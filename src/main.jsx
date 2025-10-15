@@ -42,6 +42,43 @@ Sentry.init({
   },
 });
 
+// Global handler for chunk loading errors (catches errors outside React error boundary)
+const CHUNK_RELOAD_KEY = "chunk-reload-attempted";
+
+function isChunkLoadError(error) {
+  const message = error?.message || "";
+  return (
+    message.includes("Failed to fetch dynamically imported module") ||
+    message.includes("ChunkLoadError") ||
+    message.includes("Loading chunk") ||
+    (message.includes("Failed to fetch") && message.includes("import"))
+  );
+}
+
+window.addEventListener("unhandledrejection", (event) => {
+  if (isChunkLoadError(event.reason)) {
+    const hasReloadedBefore = sessionStorage.getItem(CHUNK_RELOAD_KEY) === "true";
+
+    if (!hasReloadedBefore) {
+      sessionStorage.setItem(CHUNK_RELOAD_KEY, "true");
+      console.log("Chunk load error detected (unhandled rejection). Reloading page...");
+
+      Sentry.captureMessage("Auto-reloading due to chunk load error (unhandled rejection)", {
+        level: "info",
+        contexts: {
+          error: {
+            message: event.reason?.message,
+            stack: event.reason?.stack,
+          },
+        },
+      });
+
+      event.preventDefault();
+      window.location.reload();
+    }
+  }
+});
+
 const rootEl = document.getElementById("root");
 
 function Root() {
