@@ -2086,43 +2086,43 @@ export default function ShotsPage() {
               )}
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">View</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 hidden sm:inline">View</span>
               <div className="inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
                 <button
                   type="button"
                   onClick={() => updateViewMode("gallery")}
-                  className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
-                    isGalleryView ? "bg-slate-900 text-white" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 text-sm transition ${
+                    isGalleryView ? "bg-slate-900 text-white dark:bg-slate-700" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
                   }`}
                   aria-pressed={isGalleryView}
                 >
                   <LayoutGrid className="h-4 w-4" aria-hidden="true" />
-                  Gallery
+                  <span className="hidden sm:inline">Gallery</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => updateViewMode("list")}
-                  className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
-                    isListView ? "bg-slate-900 text-white" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 text-sm transition ${
+                    isListView ? "bg-slate-900 text-white dark:bg-slate-700" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
                   }`}
                   aria-pressed={isListView}
                 >
                   <List className="h-4 w-4" aria-hidden="true" />
-                  List
+                  <span className="hidden sm:inline">List</span>
                 </button>
               </div>
               <ExportButton data={filteredShots} entityType="shots" />
               {canEditShots && sortedShots.length > 0 && (
-                <label className="flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
+                <label className="flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 sm:px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={selectedShotIds.size > 0 && selectedShotIds.size === sortedShots.length}
                     onChange={toggleSelectAll}
                     className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
                   />
-                  <span className="text-xs font-medium">
+                  <span className="text-xs font-medium whitespace-nowrap">
                     {selectedShotIds.size > 0 ? `${selectedShotIds.size} selected` : 'Select all'}
                   </span>
                 </label>
