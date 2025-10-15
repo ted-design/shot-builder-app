@@ -699,11 +699,13 @@ export default function ProductsPage() {
         const skuSnapshot = await getDocs(
           query(
             collection(db, ...productFamilySkusPathForClient(family.id)),
-            where("deleted", "==", false),
             orderBy("colorName", "asc")
           )
         );
-        const skus = skuSnapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        // Filter out deleted SKUs in memory to handle SKUs without a deleted field
+        const skus = skuSnapshot.docs
+          .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+          .filter((sku) => !sku.deleted);
         skuCacheRef.current = new Map(skus.map((sku) => [sku.id, sku]));
         setEditFamily({ ...family, skus });
       } catch (error) {

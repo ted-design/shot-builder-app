@@ -35,6 +35,23 @@ const formatShootDates = (dates) => {
   // Format dates for display
   const formatted = validDates.map(dateStr => {
     try {
+      // Parse date string as local date to avoid timezone issues
+      // "2025-10-17" should display as Oct 17, not Oct 16
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+        const day = parseInt(parts[2], 10);
+        const date = new Date(year, month, day);
+        if (!Number.isNaN(date.getTime())) {
+          return date.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+        }
+      }
+      // Fallback for other date formats
       const date = new Date(dateStr);
       if (!Number.isNaN(date.getTime())) {
         return date.toLocaleDateString(undefined, {

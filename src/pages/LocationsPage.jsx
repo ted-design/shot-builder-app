@@ -365,7 +365,7 @@ export default function LocationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="sticky inset-x-0 top-14 z-20 bg-white/95 dark:bg-slate-800/95 py-4 px-6 backdrop-blur">
+      <div className="sticky inset-x-0 top-14 z-40 bg-white/95 dark:bg-slate-800/95 py-4 px-6 backdrop-blur">
         <Card className="border-b-2">
           <CardContent className="py-4">
             <div className="flex flex-wrap items-center gap-3">
