@@ -1539,7 +1539,7 @@ function PlannerPageContent() {
   const laneSummary = useMemo(() => calculateLaneSummaries(lanesForExport), [lanesForExport]);
   const talentSummary = useMemo(() => calculateTalentSummaries(lanesForExport), [lanesForExport]);
 
-  const isPlannerLoading = isAuthLoading || lanesLoading || shotsLoading || familiesLoading;
+  const isPlannerLoading = isAuthLoading || lanesLoading || primaryShotsLoading || familiesLoading;
   const totalShots = laneSummary.totalShots;
 
   const isListView = viewMode === "list";
