@@ -1,9 +1,23 @@
+import React, { useMemo } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { StatusBadge } from "../ui/StatusBadge";
 import ProgressBar from "../ui/ProgressBar";
 import { Calendar, Camera, User, MapPin } from "lucide-react";
 
+// Date validation constants
+const MIN_VALID_YEAR = 1900;
+const MAX_VALID_YEAR = 2100;
+const MIN_MONTH = 0;
+const MAX_MONTH = 11;
+const MIN_DAY = 1;
+const MAX_DAY = 31;
+
+/**
+ * Formats a Firestore timestamp to a localized date string.
+ * @param {Date|Object|number} value - Firestore timestamp, Date object, or milliseconds
+ * @returns {string|null} Formatted date string (e.g., "Jan 15, 2025") or null if invalid
+ */
 const formatTimestamp = (value) => {
   if (!value) return null;
   try {
@@ -27,6 +41,19 @@ const formatTimestamp = (value) => {
   return null;
 };
 
+/**
+ * Formats shoot dates for display, avoiding timezone shifts.
+ * YYYY-MM-DD strings are parsed as local dates to prevent timezone issues
+ * (e.g., "2025-10-17" displaying as "Oct 16" in some timezones).
+ *
+ * @param {string[]} dates - Array of YYYY-MM-DD date strings
+ * @returns {string|null} Formatted date(s) as string or range, or null if no valid dates
+ *
+ * @example
+ * formatShootDates(['2025-10-17']) // "Oct 17, 2025"
+ * formatShootDates(['2025-10-17', '2025-10-18']) // "Oct 17, 2025 - Oct 18, 2025"
+ * formatShootDates(['2025-10-17', '2025-10-18', '2025-10-19']) // "Oct 17, 2025, Oct 18, 2025, Oct 19, 2025"
+ */
 const formatShootDates = (dates) => {
   if (!Array.isArray(dates) || dates.length === 0) return null;
   const validDates = dates.filter(Boolean);
@@ -35,6 +62,37 @@ const formatShootDates = (dates) => {
   // Format dates for display
   const formatted = validDates.map(dateStr => {
     try {
+      // Parse date string as local date to avoid timezone issues
+      // "2025-10-17" should display as Oct 17, not Oct 16
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+        const day = parseInt(parts[2], 10);
+
+        // Validate parsed values
+        if (year < MIN_VALID_YEAR || year > MAX_VALID_YEAR || month < MIN_MONTH || month > MAX_MONTH || day < MIN_DAY || day > MAX_DAY) {
+          console.warn("[ProjectCard] Invalid date components", { year, month: month + 1, day });
+          return dateStr;
+        }
+
+        const date = new Date(year, month, day);
+
+        // Check if JavaScript rolled the date forward (e.g., Feb 30 → Mar 2)
+        if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
+          console.warn("[ProjectCard] Date rolled forward - likely invalid", dateStr);
+          return dateStr;
+        }
+
+        if (!Number.isNaN(date.getTime())) {
+          return date.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+        }
+      }
+      // Fallback for other date formats
       const date = new Date(dateStr);
       if (!Number.isNaN(date.getTime())) {
         return date.toLocaleDateString(undefined, {
@@ -55,6 +113,12 @@ const formatShootDates = (dates) => {
   return formatted.join(", ");
 };
 
+/**
+ * Renders a stat label-value pair if value is a number.
+ * @param {string} label - The stat label
+ * @param {number} value - The stat value
+ * @returns {string|null} Formatted stat string or null
+ */
 const renderStat = (label, value) => {
   if (typeof value === "number") {
     return `${label}: ${value}`;
@@ -72,9 +136,12 @@ export function ProjectCard({
   const cardClass = isActive
     ? "border-primary dark:border-indigo-500 bg-primary/5 dark:bg-indigo-900/20 ring-2 ring-primary/20 dark:ring-indigo-500/30 shadow-md"
     : "border-slate-200 dark:border-slate-700 hover:border-primary/40 dark:hover:border-indigo-500/40";
-  const shootDates = formatShootDates(project?.shootDates);
+
+  // Memoize expensive date formatting to avoid recalculation on every render
+  const shootDates = useMemo(() => formatShootDates(project?.shootDates), [project?.shootDates]);
+  const updatedAt = useMemo(() => formatTimestamp(project?.updatedAt || project?.createdAt), [project?.updatedAt, project?.createdAt]);
+
   const shotCount = project?.shotCount ?? project?.stats?.shots;
-  const updatedAt = formatTimestamp(project?.updatedAt || project?.createdAt);
   const talentCount = project?.stats?.talent ?? 0;
   const locationCount = project?.stats?.locations ?? 0;
 
@@ -136,7 +203,7 @@ export function ProjectCard({
                 {updatedAt && (
                   <>
                     {(typeof shotCount === "number" || talentCount > 0 || locationCount > 0) && <span>•</span>}
-                    <span className="text-xs text-slate-500 dark:text-slate-500">Updated {updatedAt}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Updated {updatedAt}</span>
                   </>
                 )}
               </div>
@@ -163,14 +230,13 @@ export function ProjectCard({
             />
           )}
         </div>
-        <div className="mt-auto flex justify-between items-center text-sm">
+        <div className={`mt-auto flex items-center text-sm ${isActive ? 'justify-between' : 'justify-end'}`}>
           {isActive && (
             <span className="flex items-center gap-1.5 text-primary dark:text-indigo-400 font-medium">
               <span className="inline-block w-2 h-2 rounded-full bg-primary dark:bg-indigo-400 animate-pulse"></span>
               Current project
             </span>
           )}
-          {!isActive && <span></span>}
           <Button
             type="button"
             size="sm"
