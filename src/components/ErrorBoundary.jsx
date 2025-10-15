@@ -2,18 +2,61 @@ import { Component } from "react";
 import * as Sentry from "@sentry/react";
 import { toast } from "../lib/toast";
 
+const CHUNK_RELOAD_KEY = "chunk-reload-attempted";
+
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, isChunkError: false };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    // Detect chunk loading errors
+    const isChunkError = ErrorBoundary.isChunkLoadError(error);
+    return { hasError: true, isChunkError };
+  }
+
+  static isChunkLoadError(error) {
+    const message = error?.message || "";
+    return (
+      message.includes("Failed to fetch dynamically imported module") ||
+      message.includes("ChunkLoadError") ||
+      message.includes("Loading chunk") ||
+      message.includes("Failed to fetch") && message.includes("import")
+    );
   }
 
   componentDidCatch(error, info) {
     console.error("Unhandled error", error, info);
+
+    // Check if this is a chunk loading error and we haven't reloaded yet
+    const isChunkError = ErrorBoundary.isChunkLoadError(error);
+    const hasReloadedBefore = sessionStorage.getItem(CHUNK_RELOAD_KEY) === "true";
+
+    if (isChunkError && !hasReloadedBefore) {
+      // Mark that we've attempted a reload
+      sessionStorage.setItem(CHUNK_RELOAD_KEY, "true");
+
+      console.log("Chunk load error detected. Reloading page to fetch latest code...");
+
+      // Report to Sentry as info (not error) since this is expected during deployments
+      Sentry.captureMessage("Auto-reloading due to chunk load error", {
+        level: "info",
+        contexts: {
+          error: {
+            message: error.message,
+            stack: error.stack,
+          },
+        },
+      });
+
+      // Reload the page to get fresh code
+      window.location.reload();
+      return;
+    }
+
+    // Clear the reload flag if we got here (successful reload or non-chunk error)
+    sessionStorage.removeItem(CHUNK_RELOAD_KEY);
 
     // Report error to Sentry
     Sentry.captureException(error, {
