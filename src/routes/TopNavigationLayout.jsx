@@ -14,6 +14,7 @@ import ThemeToggle from "../components/ui/ThemeToggle";
 import QuickActionsMenu from "../components/ui/QuickActionsMenu";
 import Avatar from "../components/ui/Avatar";
 import Breadcrumb from "../components/ui/Breadcrumb";
+import NotificationBell from "../components/ui/NotificationBell";
 import { useSearchCommand } from "../context/SearchCommandContext";
 import { generateBreadcrumbs, shouldShowBreadcrumbs } from "../lib/breadcrumbs";
 import { Menu, X, ChevronDown, LogOut, Search } from "lucide-react";
@@ -271,6 +272,9 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
 
             {/* Quick Actions Menu */}
             <QuickActionsMenu />
+
+            {/* Notifications */}
+            <NotificationBell />
 
             {/* Search Trigger Button */}
             <button

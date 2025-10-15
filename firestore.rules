@@ -97,6 +97,16 @@ service cloud.firestore {
       allow create, update, delete: if clientMatches(clientId) && isAuthed();
     }
 
+    // Notifications - users can only read/update/delete their own notifications
+    match /clients/{clientId}/notifications/{notificationId} {
+      allow read: if clientMatches(clientId) && isAuthed() &&
+        resource.data.userId == request.auth.uid;
+      allow create: if clientMatches(clientId) && isAuthed() &&
+        request.resource.data.userId is string;
+      allow update, delete: if clientMatches(clientId) && isAuthed() &&
+        resource.data.userId == request.auth.uid;
+    }
+
     // User profiles - users can read their own profile and other users in their client
     match /clients/{clientId}/users/{userId} {
       allow read: if clientMatches(clientId) && isAuthed();
