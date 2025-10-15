@@ -38,6 +38,7 @@ export const queryKeys = {
   locations: (clientId) => ["locations", clientId],
   locationById: (clientId, locationId) => ["locations", clientId, "detail", locationId],
   lanes: (clientId, projectId) => ["lanes", clientId, projectId],
+  notifications: (clientId, userId) => ["notifications", clientId, userId],
 };
 
 /**
@@ -388,6 +389,69 @@ export function useLanes(clientId, projectId, options = {}) {
 
     return () => unsubscribe();
   }, [clientId, projectId, queryClient, queryKey]);
+
+  return result;
+}
+
+/**
+ * Hook for fetching notifications with realtime updates
+ *
+ * @param {string} clientId - Client ID
+ * @param {string} userId - User ID to filter notifications
+ * @param {object} options - Query options
+ * @returns {object} Query result with data, loading, error states
+ *
+ * @example
+ * const { data: notifications, isLoading } = useNotifications(clientId, userId);
+ */
+export function useNotifications(clientId, userId, options = {}) {
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.notifications(clientId, userId);
+
+  const result = useQuery({
+    queryKey,
+    queryFn: async () => {
+      if (!clientId || !userId) return [];
+
+      const notificationsRef = collection(db, "clients", clientId, "notifications");
+      const q = query(
+        notificationsRef,
+        where("userId", "==", userId),
+        orderBy("createdAt", "desc")
+      );
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    },
+    enabled: !!clientId && !!userId,
+    staleTime: 1000 * 60, // 1 minute
+    ...options,
+  });
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!clientId || !userId) return;
+
+    const notificationsRef = collection(db, "clients", clientId, "notifications");
+    const q = query(
+      notificationsRef,
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const notifications = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        queryClient.setQueryData(queryKey, notifications);
+      },
+      (error) => {
+        console.error("[useNotifications] Subscription error:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [clientId, userId, queryClient, queryKey]);
 
   return result;
 }

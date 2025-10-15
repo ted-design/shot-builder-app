@@ -484,3 +484,141 @@ export function useUpdateProduct(clientId, options = {}) {
     },
   });
 }
+
+/**
+ * Hook for marking notification(s) as read
+ *
+ * @param {string} clientId - Client ID
+ * @param {string} userId - User ID
+ * @param {object} options - Mutation options
+ * @returns {object} Mutation result
+ *
+ * @example
+ * const markAsRead = useMarkAsRead(clientId, userId);
+ * markAsRead.mutate({ notificationIds: ["123", "456"] });
+ */
+export function useMarkAsRead(clientId, userId, options = {}) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ notificationIds }) => {
+      const batch = writeBatch(db);
+
+      notificationIds.forEach((notificationId) => {
+        const notificationRef = doc(db, "clients", clientId, "notifications", notificationId);
+        batch.update(notificationRef, { read: true });
+      });
+
+      await batch.commit();
+      return { notificationIds };
+    },
+    onMutate: async ({ notificationIds }) => {
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.notifications(clientId, userId),
+      });
+
+      const previousNotifications = queryClient.getQueryData(
+        queryKeys.notifications(clientId, userId)
+      );
+
+      // Optimistically mark as read
+      queryClient.setQueryData(queryKeys.notifications(clientId, userId), (old) => {
+        if (!old) return old;
+        return old.map((notification) =>
+          notificationIds.includes(notification.id)
+            ? { ...notification, read: true }
+            : notification
+        );
+      });
+
+      return { previousNotifications };
+    },
+    onError: (error, variables, context) => {
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(
+          queryKeys.notifications(clientId, userId),
+          context.previousNotifications
+        );
+      }
+
+      console.error("[useMarkAsRead] Error:", error);
+
+      if (options.onError) {
+        options.onError(error, variables, context);
+      }
+    },
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications(clientId, userId),
+      });
+
+      if (options.onSuccess) {
+        options.onSuccess(data, variables, context);
+      }
+    },
+  });
+}
+
+/**
+ * Hook for dismissing (deleting) a notification
+ *
+ * @param {string} clientId - Client ID
+ * @param {string} userId - User ID
+ * @param {object} options - Mutation options
+ * @returns {object} Mutation result
+ *
+ * @example
+ * const dismissNotification = useDismissNotification(clientId, userId);
+ * dismissNotification.mutate({ notificationId: "123" });
+ */
+export function useDismissNotification(clientId, userId, options = {}) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ notificationId }) => {
+      const notificationRef = doc(db, "clients", clientId, "notifications", notificationId);
+      await deleteDoc(notificationRef);
+      return { notificationId };
+    },
+    onMutate: async ({ notificationId }) => {
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.notifications(clientId, userId),
+      });
+
+      const previousNotifications = queryClient.getQueryData(
+        queryKeys.notifications(clientId, userId)
+      );
+
+      // Optimistically remove notification
+      queryClient.setQueryData(queryKeys.notifications(clientId, userId), (old) => {
+        if (!old) return old;
+        return old.filter((notification) => notification.id !== notificationId);
+      });
+
+      return { previousNotifications };
+    },
+    onError: (error, variables, context) => {
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(
+          queryKeys.notifications(clientId, userId),
+          context.previousNotifications
+        );
+      }
+
+      console.error("[useDismissNotification] Error:", error);
+
+      if (options.onError) {
+        options.onError(error, variables, context);
+      }
+    },
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications(clientId, userId),
+      });
+
+      if (options.onSuccess) {
+        options.onSuccess(data, variables, context);
+      }
+    },
+  });
+}
