@@ -1,30 +1,34 @@
 # Shot Builder App - Continuation Prompt
 
-I'm continuing work on my Shot Builder Firebase app. **All 34 phases complete + production bug fixes deployed.**
+I'm continuing work on my Shot Builder Firebase app. **All 34 phases complete + recent bug fixes deployed to production.**
 
 ## Current Status
 
-**34/34 phases complete + all bug fixes merged** ✅
+**34/34 phases complete + production bug fixes** ✅
 
-- Latest: PR #205 merged - Date timezone, colourway loading, z-index fixes + code review improvements
+- Latest: Additional bug fixes merged (PR #205)
+- Bug fixes: Date timezone, colourway loading, dropdown z-index
 - Bundle: 251.49 kB gzipped
-- Tests: 351 passing
+- Tests: 351 passing, 39 tests in ProjectCard (9 skip in CI environment)
 - Production: Stable and fully operational
 
-**Branch**: `main` (clean slate for new work)
+**Branch**: `main` (up to date, clean slate for new work)
 
 ## Quick Reference
 
 **Master roadmap**: `/docs/MOCKUP_INTEGRATION_ASSESSMENT.md`
-- Complete 34-phase history with PR links (#159-#198, #201-#205)
+- Complete 34-phase history with PR links
 - Bundle size tracking across all phases
 - Test coverage metrics
+- Recent bug fix documentation
 
 **Recent session docs**:
-- `/CODE_REVIEW_IMPROVEMENTS_2025-10-15.md` - Semantic HTML, memoization, JSDoc
-- `/BUGFIX_SESSION_2025-10-15_PART2.md` - Three critical bugs (PR #205)
-- `/BUGFIX_SESSION_2025-10-15.md` - Loading/tag bugs (PR #201)
-- `/UX_IMPROVEMENTS_SESSION_2025-10-15.md` - UI polish (PR #202)
+- `/CODE_REVIEW_IMPROVEMENTS_2025-10-15.md` - Code review improvements (semantic HTML, memoization, JSDoc)
+- `/BUGFIX_SESSION_2025-10-15_PART2.md` - Date timezone, colourways, z-index (PR #205)
+- `/BUGFIX_SESSION_2025-10-15.md` - Three critical bugs fixed (loading, tags)
+- `/UX_IMPROVEMENTS_SESSION_2025-10-15.md` - UI polish (dropdowns, buttons, cards)
+- `/PR_202_CODE_REVIEW_FIXES.md` - Code review feedback addressed
+- `/PHASE16.3_NOTIFICATIONS_SESSION.md` - Real-time notification system
 
 **Tech**: React 18 + Vite 7 + Tailwind + Firebase + TanStack Query
 
@@ -33,7 +37,7 @@ I'm continuing work on my Shot Builder Firebase app. **All 34 phases complete + 
 **[Option 1]** Suggest next improvement
 - Review codebase for optimization opportunities
 - Identify polish/refinement areas
-- Propose next feature from roadmap or new ideas
+- Propose next feature based on roadmap
 
 **[Option 2]** Implement specific feature
 - I'll tell you what I want to build
@@ -61,7 +65,7 @@ Use Read tool before any file modifications. Follow existing design patterns.
 ### Key Patterns
 - **Real-time data**: TanStack Query + Firestore `onSnapshot`
 - **Mutations**: Optimistic updates for instant UX
-- **Dark mode**: Tailwind `dark:` prefix (100% coverage)
+- **Dark mode**: Tailwind `dark:` prefix (e.g., `dark:bg-slate-900`)
 - **Accessibility**: WCAG 2.1 AA compliance required
 - **Multi-tenancy**: All queries scoped to `clientId`
 - **Error handling**: Try-catch-finally for async ops, user feedback via toasts
@@ -94,10 +98,16 @@ src/
 2. **Testing**: Write tests before/during implementation
 3. **Commits**: Conventional commits (`feat:`, `fix:`, `test:`, `docs:`)
 4. **Documentation**: Update session docs in project root
-5. **CI**: All tests must pass (9 skip in CI environment, pass locally)
+5. **CI**: 9 tests skip in CI (environmental, pass locally)
+
+### Firebase Notes
+- Security rules enforce `clientId` scoping
+- Indexes required for compound queries (`firestore.indexes.json`)
+- Storage paths: `clients/{clientId}/[collection]/`
+- Always verify user authentication and client ownership
 
 ### Bundle Management
-- Current: 251.49 kB gzipped
+- Current: 251.50 kB gzipped
 - Code splitting by route with React.lazy()
 - Monitor bundle size in roadmap after changes
 
@@ -111,12 +121,34 @@ src/
 
 **Just Completed - October 15, 2025**:
 
-### Bug Fixes (PRs #201-205 - All Merged)
-- ✅ PR #205: Date timezone fixes (Oct 17 displaying correctly), colourway loading (legacy SKU support), z-index positioning, code review improvements
-- ✅ PR #204: projectsPath function fixes for project updates
-- ✅ PR #203: Product colourway deleted field schema
-- ✅ PR #202: UX improvements (dropdowns, buttons, cards)
-- ✅ PR #201: Critical loading bugs (Product Edit Modal, Planner Page, Shot Edit tags)
+### Bug Fixes Part 2 (PR #205 - ✅ Merged)
+**Documentation**: `/BUGFIX_SESSION_2025-10-15_PART2.md`, `/CODE_REVIEW_IMPROVEMENTS_2025-10-15.md`
+
+- ✅ Fixed project date timezone issue (Oct 17 showing as Oct 16)
+- ✅ Fixed colourways not loading in product edit modal (legacy SKUs)
+- ✅ Fixed dropdown z-index positioning (menus behind headers)
+- ✅ Added comprehensive date validation and test coverage
+- ✅ 10 new tests for date formatting, 39 total tests for ProjectCard
+- ✅ Addressed all code review feedback (semantic HTML, contrast, memoization, constants, JSDoc)
+
+### Bug Fixes Part 1 (PR #201 - ✅ Merged)
+**Documentation**: `/BUGFIX_SESSION_2025-10-15.md`
+
+- ✅ Product Edit Modal infinite loading (missing error handling)
+- ✅ Planner Page infinite loading (legacy shots subscription timeout)
+- ✅ Tags not saving in Shot Edit Modal (missing schema field)
+
+### Product Colourway Fix (PR #203 - ✅ Merged)
+- ✅ Fixed missing `deleted` field when creating new SKUs during product edits
+- ✅ Prevented invisible colourways and duplicate creation
+
+### UX Improvements (PR #202 - ✅ Merged)
+**Documentation**: `/UX_IMPROVEMENTS_SESSION_2025-10-15.md`
+
+- ✅ Fixed Quick Actions and Notification dropdowns z-index
+- ✅ Fixed Shots page button cramming on mobile
+- ✅ Enhanced Project Card active highlighting
+- ✅ Comprehensive dark mode improvements
 
 **Current State**:
 - Modern top navigation (horizontal, responsive, search, quick actions, avatars, breadcrumbs, notifications)
@@ -137,6 +169,17 @@ src/
 - **Update todos**: Mark complete as you progress
 - **Reference docs**: Link to docs, don't duplicate
 - **Ask when unclear**: Clarify before implementing
+
+## Example Flow
+
+**User**: "Add duplicate detection for products"
+
+**Your response**:
+1. ✅ Create todos (Research, Design, Implement, Test, Document)
+2. 📖 Check existing product patterns (found ProductsPage, validation)
+3. 💡 Propose approach using style number matching
+4. 🛠️ Implement systematically, updating todos
+5. 📝 Document in session file
 
 ## Ready
 
