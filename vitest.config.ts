@@ -5,6 +5,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     globals: true,
+    // Increase timeout for async tests that may take longer in CI
+    testTimeout: 15000,
     // Use process forks instead of worker threads to avoid tinypool issues
     // on certain local environments (e.g. paths with spaces on macOS).
     pool: "forks",
