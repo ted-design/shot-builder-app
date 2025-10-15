@@ -35,6 +35,15 @@ export const shotDraftSchema = z.object({
       name: z.string().trim().min(1),
     })
   ),
+  tags: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        color: z.string(),
+      })
+    )
+    .optional(),
 });
 
 export const initialShotDraft = {
@@ -46,6 +55,7 @@ export const initialShotDraft = {
   locationId: "",
   products: [],
   talent: [],
+  tags: [],
 };
 
 export const toDateInputValue = (value) => {
