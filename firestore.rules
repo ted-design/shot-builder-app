@@ -95,6 +95,21 @@ service cloud.firestore {
     match /clients/{clientId}/shots/{docId} {
       allow read: if clientMatches(clientId);
       allow create, update, delete: if clientMatches(clientId) && isAuthed();
+
+      // Comments - subcollection of shots for collaboration
+      match /comments/{commentId} {
+        // Anyone with shot read access can read comments
+        allow read: if clientMatches(clientId) && isAuthed();
+        // Any authenticated client user can create comments
+        allow create: if clientMatches(clientId) && isAuthed() &&
+          request.resource.data.createdBy == request.auth.uid;
+        // Only comment author can update their own comment
+        allow update: if clientMatches(clientId) && isAuthed() &&
+          resource.data.createdBy == request.auth.uid;
+        // Only comment author can delete (soft delete) their own comment
+        allow delete: if clientMatches(clientId) && isAuthed() &&
+          resource.data.createdBy == request.auth.uid;
+      }
     }
 
     // Notifications - users can only read/update/delete their own notifications

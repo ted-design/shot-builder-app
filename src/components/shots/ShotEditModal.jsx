@@ -7,6 +7,8 @@ import NotesEditor from "./NotesEditor";
 import ShotProductsEditor from "./ShotProductsEditor";
 import TalentMultiSelect from "./TalentMultiSelect";
 import TagEditor from "./TagEditor";
+import CommentSection from "../comments/CommentSection";
+import { useAuth } from "../../context/AuthContext";
 
 export default function ShotEditModal({
   open,
@@ -39,8 +41,10 @@ export default function ShotEditModal({
   movingProject = false,
   onCopyToProject,
   copyingProject = false,
+  shotId = null, // ID of existing shot for comments
 }) {
   // Hooks must be called unconditionally at the top level
+  const { clientId } = useAuth();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -314,6 +318,18 @@ export default function ShotEditModal({
               </Button>
             </div>
           </form>
+
+          {/* Comments Section - only for existing shots */}
+          {shotId && clientId && (
+            <>
+              <div className="border-t border-slate-200 dark:border-slate-700 my-6" />
+              <CommentSection
+                clientId={clientId}
+                shotId={shotId}
+                shotName={shotName || draft?.name}
+              />
+            </>
+          )}
         </CardContent>
       </Card>
     </Modal>
