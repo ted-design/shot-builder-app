@@ -715,7 +715,7 @@ export default function ProductsPage() {
         setEditLoading(false);
       }
     },
-    []
+    [productFamilySkusPathForClient] // productFamilySkusPathForClient depends on clientId
   );
 
   const handleUpdateFamily = useCallback(
