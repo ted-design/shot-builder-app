@@ -25,6 +25,19 @@ export default function MentionAutocomplete({
   const dropdownRef = useRef(null);
   const itemRefs = useRef([]);
 
+  // Use refs to store latest callbacks to prevent event listener re-registration
+  const onSelectRef = useRef(onSelect);
+  const onCloseRef = useRef(onClose);
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   // Filter users based on query
   const filteredUsers = users.filter((user) => {
     const displayName = user.displayName || user.email || "";
@@ -74,13 +87,15 @@ export default function MentionAutocomplete({
         case "Enter":
           e.preventDefault();
           if (visibleUsers[selectedIndex]) {
-            onSelect(visibleUsers[selectedIndex]);
+            // Use ref to avoid re-registering event listener
+            onSelectRef.current(visibleUsers[selectedIndex]);
           }
           break;
 
         case "Escape":
           e.preventDefault();
-          onClose();
+          // Use ref to avoid re-registering event listener
+          onCloseRef.current();
           break;
 
         default:
@@ -90,19 +105,20 @@ export default function MentionAutocomplete({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [visibleUsers, selectedIndex, onSelect, onClose]);
+  }, [visibleUsers, selectedIndex]); // Removed onSelect and onClose from dependencies
 
   // Click outside to close
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        onClose();
+        // Use ref to avoid re-registering event listener
+        onCloseRef.current();
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onClose]);
+  }, []); // No dependencies - uses ref for latest callback
 
   // Don't render if no users or loading
   if (isLoading) {

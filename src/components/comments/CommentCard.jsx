@@ -56,7 +56,20 @@ export default function CommentCard({
     // Sanitize HTML to prevent XSS attacks
     const sanitized = DOMPurify.sanitize(html, {
       ALLOWED_TAGS: ['span', 'b', 'i', 'strong', 'em', 'p', 'br', 'div'],
-      ALLOWED_ATTR: ['class'],
+      ALLOWED_ATTR: {
+        // Only allow class attribute on span elements (for mention badges)
+        // and restrict to safe prefixes to prevent CSS-based attacks
+        'span': ['class'],
+      },
+      FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+      // Prevent attribute-based XSS
+      ALLOW_DATA_ATTR: false,
+      ALLOW_UNKNOWN_PROTOCOLS: false,
+      // Prevent DOM clobbering
+      SANITIZE_DOM: true,
+      // Keep content safe
+      KEEP_CONTENT: true,
     });
     return { __html: sanitized };
   };

@@ -196,28 +196,54 @@ export function detectMentionMode(text) {
 export function insertMentionAtCursor(element, mention, query = '') {
   if (!element || !mention) return;
 
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return;
+  try {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      console.warn('[mentions] No selection available for mention insertion');
+      return;
+    }
 
-  const range = selection.getRangeAt(0);
+    const range = selection.getRangeAt(0);
 
-  // Delete the @ and query text
-  const deleteLength = query.length + 1; // +1 for @
-  for (let i = 0; i < deleteLength; i++) {
-    range.setStart(range.startContainer, Math.max(0, range.startOffset - 1));
+    // Validate range properties
+    if (!range.startContainer || typeof range.startOffset !== 'number') {
+      console.warn('[mentions] Invalid range properties');
+      return;
+    }
+
+    // Ensure we're working with a text node or element that can contain text
+    const container = range.startContainer;
+    if (container.nodeType !== Node.TEXT_NODE && container.nodeType !== Node.ELEMENT_NODE) {
+      console.warn('[mentions] Selection is in unexpected node type:', container.nodeType);
+      return;
+    }
+
+    // Delete the @ and query text
+    const deleteLength = query.length + 1; // +1 for @
+    for (let i = 0; i < deleteLength; i++) {
+      const newOffset = Math.max(0, range.startOffset - 1);
+      // Prevent going before the start of the container
+      if (newOffset < 0 || range.startContainer.length !== undefined && newOffset > range.startContainer.length) {
+        break;
+      }
+      range.setStart(range.startContainer, newOffset);
+    }
+    range.deleteContents();
+
+    // Insert mention text + space
+    const textNode = document.createTextNode(mention + ' ');
+    range.insertNode(textNode);
+
+    // Move cursor after the inserted text
+    range.setStartAfter(textNode);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    // Trigger input event for React to detect change
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  } catch (error) {
+    console.error('[mentions] Error inserting mention:', error);
+    // Gracefully fail - don't crash the app
   }
-  range.deleteContents();
-
-  // Insert mention text + space
-  const textNode = document.createTextNode(mention + ' ');
-  range.insertNode(textNode);
-
-  // Move cursor after the inserted text
-  range.setStartAfter(textNode);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
-
-  // Trigger input event for React to detect change
-  element.dispatchEvent(new Event('input', { bubbles: true }));
 }

@@ -100,12 +100,20 @@ service cloud.firestore {
       match /comments/{commentId} {
         // Anyone with shot read access can read comments
         allow read: if clientMatches(clientId) && isAuthed();
+
         // Any authenticated client user can create comments
         allow create: if clientMatches(clientId) && isAuthed() &&
           request.resource.data.createdBy == request.auth.uid;
+
         // Only comment author can update their own comment
+        // Prevent modification of immutable fields
         allow update: if clientMatches(clientId) && isAuthed() &&
-          resource.data.createdBy == request.auth.uid;
+          resource.data.createdBy == request.auth.uid &&
+          request.resource.data.createdBy == resource.data.createdBy &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.createdByName == resource.data.createdByName &&
+          request.resource.data.createdByAvatar == resource.data.createdByAvatar;
+
         // Only comment author can delete (soft delete) their own comment
         allow delete: if clientMatches(clientId) && isAuthed() &&
           resource.data.createdBy == request.auth.uid;

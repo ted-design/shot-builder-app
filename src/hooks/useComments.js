@@ -178,7 +178,8 @@ export function useCreateComment(clientId, shotId, options = {}) {
       if (previousComments) {
         queryClient.setQueryData(queryKey, (old) => [
           {
-            id: `temp-${Date.now()}`,
+            // Use crypto.randomUUID() to prevent race condition with Date.now()
+            id: `temp-${crypto.randomUUID()}`,
             text: newComment.text,
             createdBy: user.uid,
             createdByName: user.displayName || user.email || "Unknown User",
