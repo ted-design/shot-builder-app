@@ -1,9 +1,9 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { addDoc, doc, updateDoc, setDoc, serverTimestamp, deleteField } from "firebase/firestore";
+import { addDoc, collection, doc, updateDoc, setDoc, serverTimestamp, deleteField } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import { useProjects } from "../hooks/useFirestoreQuery";
-import { CLIENT_ID } from "../lib/paths";
+import { CLIENT_ID, projectsPath } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { canManageProjects, ROLE } from "../lib/rbac";
 import { useProjectScope } from "../context/ProjectScopeContext";
@@ -141,7 +141,7 @@ export default function ProjectsPage() {
     const defaultRole = "producer";
     try {
       setCreating(true);
-      const projectDoc = await addDoc(collection(db, ...projectsPath), {
+      const projectDoc = await addDoc(collection(db, ...projectsPath(resolvedClientId)), {
         name: payload.name,
         shootDates: payload.shootDates,
         briefUrl: payload.briefUrl,
@@ -197,7 +197,7 @@ export default function ProjectsPage() {
 
     try {
       setUpdating(true);
-      await updateDoc(doc(db, ...projectsPath, project.id), {
+      await updateDoc(doc(db, ...projectsPath(resolvedClientId), project.id), {
         name: payload.name,
         shootDates: payload.shootDates,
         briefUrl: payload.briefUrl,
@@ -226,7 +226,7 @@ export default function ProjectsPage() {
     }
     try {
       setDeletingProject(true);
-      await updateDoc(doc(db, ...projectsPath, project.id), {
+      await updateDoc(doc(db, ...projectsPath(resolvedClientId), project.id), {
         deletedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -271,7 +271,7 @@ export default function ProjectsPage() {
     try {
       setArchivingProject(true);
       const currentUser = authUser || auth.currentUser;
-      await updateDoc(doc(db, ...projectsPath, project.id), {
+      await updateDoc(doc(db, ...projectsPath(resolvedClientId), project.id), {
         status: "archived",
         archivedAt: serverTimestamp(),
         archivedBy: currentUser?.uid || null,
@@ -301,7 +301,7 @@ export default function ProjectsPage() {
     }
     try {
       setArchivingProject(true);
-      await updateDoc(doc(db, ...projectsPath, project.id), {
+      await updateDoc(doc(db, ...projectsPath(resolvedClientId), project.id), {
         status: "active",
         archivedAt: deleteField(),
         archivedBy: deleteField(),

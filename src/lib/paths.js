@@ -36,6 +36,13 @@ export function getActiveProjectId() {
 // document.  To fetch shots for the active project you query this root
 // collection with `where('projectId', '==', getActiveProjectId())`.
 
+// Path to the projects collection
+export const projectsPath = (clientId) => [
+  "clients",
+  resolveClientId(clientId),
+  "projects",
+];
+
 // Top‑level path to a project document.  Pass a project ID (not optional)
 // because project documents still live under the `projects` subcollection.
 export const projectPath = (projectId, clientId) => [
