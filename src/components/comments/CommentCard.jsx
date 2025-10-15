@@ -4,6 +4,7 @@ import Avatar from "../ui/Avatar";
 import { Button } from "../ui/button";
 import { renderMentions } from "../../lib/mentions";
 import { formatDistanceToNow } from "date-fns";
+import DOMPurify from "dompurify";
 
 /**
  * CommentCard - Display individual comment with author info and actions
@@ -49,10 +50,15 @@ export default function CommentCard({
     }
   };
 
-  // Render comment text with styled mentions
+  // Render comment text with styled mentions and sanitization
   const renderCommentText = () => {
     const html = renderMentions(comment.text || "");
-    return { __html: html };
+    // Sanitize HTML to prevent XSS attacks
+    const sanitized = DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: ['span', 'b', 'i', 'strong', 'em', 'p', 'br', 'div'],
+      ALLOWED_ATTR: ['class'],
+    });
+    return { __html: sanitized };
   };
 
   return (

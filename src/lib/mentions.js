@@ -18,6 +18,19 @@
 const MENTION_REGEX = /@\[([^\]]+)\]\(([^)]+)\)/g;
 
 /**
+ * HTML-escape a string to prevent XSS attacks
+ * @param {string} str - String to escape
+ * @returns {string} - Escaped string
+ */
+function escapeHtml(str) {
+  if (!str || typeof str !== 'string') return '';
+
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/**
  * Extract mentioned user IDs from HTML content
  * @param {string} html - HTML content with mentions
  * @returns {string[]} - Array of unique user IDs
@@ -26,10 +39,9 @@ export function getMentionedUserIds(html) {
   if (!html || typeof html !== 'string') return [];
 
   const userIds = [];
-  const regex = new RegExp(MENTION_REGEX);
-  let match;
+  const matches = html.matchAll(MENTION_REGEX);
 
-  while ((match = regex.exec(html)) !== null) {
+  for (const match of matches) {
     const userId = match[2];
     if (userId && !userIds.includes(userId)) {
       userIds.push(userId);
@@ -48,10 +60,9 @@ export function parseMentions(html) {
   if (!html || typeof html !== 'string') return [];
 
   const mentions = [];
-  const regex = new RegExp(MENTION_REGEX);
-  let match;
+  const matches = html.matchAll(MENTION_REGEX);
 
-  while ((match = regex.exec(html)) !== null) {
+  for (const match of matches) {
     const displayName = match[1];
     const userId = match[2];
 
@@ -75,7 +86,10 @@ export function formatMention(user) {
   if (!user || !user.id) return '';
 
   const displayName = user.displayName || user.email || 'Unknown User';
-  return `@[${displayName}](${user.id})`;
+  // Escape special characters that could break the mention format
+  const sanitizedName = displayName.replace(/[\[\]()]/g, '');
+  const sanitizedId = user.id.replace(/[\[\]()]/g, '');
+  return `@[${sanitizedName}](${sanitizedId})`;
 }
 
 /**
@@ -90,7 +104,8 @@ export function renderMentions(html) {
   return html.replace(
     MENTION_REGEX,
     (match, displayName) => {
-      return `<span class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300">@${displayName}</span>`;
+      const escapedName = escapeHtml(displayName);
+      return `<span class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300">@${escapedName}</span>`;
     }
   );
 }
@@ -106,7 +121,7 @@ export function stripMentionMarkup(html) {
 
   return html.replace(
     MENTION_REGEX,
-    (match, displayName) => `@${displayName}`
+    (match, displayName) => `@${escapeHtml(displayName)}`
   );
 }
 
