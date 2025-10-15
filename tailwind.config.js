@@ -65,6 +65,11 @@ export default {
           '2xl': '1400px',
         },
       },
+      // Z-index scale for proper layering
+      zIndex: {
+        '60': '60',
+        '100': '100',
+      },
       // Animation keyframes and utilities for smooth transitions
       keyframes: {
         // Fade animations

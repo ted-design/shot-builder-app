@@ -13,7 +13,7 @@ const ensureFocus = (element) => {
   if (!element) return;
   element.focus();
   const selection = window.getSelection();
-  if (!selection || selection.rangeCount) return;
+  if (!selection || !selection.rangeCount) return;
   const range = document.createRange();
   range.selectNodeContents(element);
   range.collapse(false);
@@ -130,7 +130,7 @@ export default function NotesEditor({ value = "", onChange, disabled = false, id
             <button
               type="button"
               key={option.value}
-              className="h-8 w-8 rounded-full border border-slate-200"
+              className="h-8 w-8 rounded-full border border-slate-200 dark:border-slate-600 hover:scale-110 transition-transform"
               style={{ backgroundColor: option.value }}
               onMouseDown={(event) => {
                 event.preventDefault();
@@ -147,8 +147,8 @@ export default function NotesEditor({ value = "", onChange, disabled = false, id
       <div
         id={id}
         ref={editorRef}
-        className={`min-h-[140px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm leading-relaxed shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 ${
-          disabled ? "pointer-events-none bg-slate-50 text-slate-500" : ""
+        className={`min-h-[140px] w-full rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm leading-relaxed shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:focus:ring-indigo-500 ${
+          disabled ? "pointer-events-none bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400" : ""
         }`}
         contentEditable={!disabled}
         role="textbox"
