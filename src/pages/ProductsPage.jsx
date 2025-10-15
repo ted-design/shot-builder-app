@@ -851,6 +851,8 @@ export default function ProductsPage() {
             status: sku.status,
             archived: sku.archived,
             imagePath,
+            deleted: false,
+            deletedAt: null,
             createdAt: now,
             updatedAt: now,
             createdBy: user?.uid || null,
