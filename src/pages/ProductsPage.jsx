@@ -703,9 +703,10 @@ export default function ProductsPage() {
           )
         );
         // Filter out deleted SKUs in memory to handle SKUs without a deleted field
+        // Explicitly check for deleted === true to include SKUs with undefined/null deleted field
         const skus = skuSnapshot.docs
           .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
-          .filter((sku) => !sku.deleted);
+          .filter((sku) => sku.deleted !== true);
         skuCacheRef.current = new Map(skus.map((sku) => [sku.id, sku]));
         setEditFamily({ ...family, skus });
       } catch (error) {

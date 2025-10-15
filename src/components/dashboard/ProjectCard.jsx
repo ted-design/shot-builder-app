@@ -1,3 +1,4 @@
+import React from "react";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { StatusBadge } from "../ui/StatusBadge";
@@ -42,7 +43,21 @@ const formatShootDates = (dates) => {
         const year = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
         const day = parseInt(parts[2], 10);
+
+        // Validate parsed values
+        if (year < 1900 || year > 2100 || month < 0 || month > 11 || day < 1 || day > 31) {
+          console.warn("[ProjectCard] Invalid date components", { year, month: month + 1, day });
+          return dateStr;
+        }
+
         const date = new Date(year, month, day);
+
+        // Check if JavaScript rolled the date forward (e.g., Feb 30 → Mar 2)
+        if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
+          console.warn("[ProjectCard] Date rolled forward - likely invalid", dateStr);
+          return dateStr;
+        }
+
         if (!Number.isNaN(date.getTime())) {
           return date.toLocaleDateString(undefined, {
             month: "short",

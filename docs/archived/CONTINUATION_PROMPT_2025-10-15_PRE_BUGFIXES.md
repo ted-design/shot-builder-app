@@ -1,34 +1,33 @@
 # Shot Builder App - Continuation Prompt
 
-I'm continuing work on my Shot Builder Firebase app. **All 34 phases complete + recent bug fixes deployed to production.**
+I'm continuing work on my Shot Builder Firebase app. **Phase 16.3 (Notification System)** just completed and deployed to production.
 
 ## Current Status
 
-**34/34 phases complete + production bug fixes** ✅
+**34/34 phases complete** ✅
 
-- Latest: Critical bug fixes merged and deployed (PRs #201-203)
-- Bug fixes: Product/planner loading, tag persistence, colourway schema, UX improvements
-- Bundle: 251.50 kB gzipped
-- Tests: 351 passing (9 skip in CI environment)
-- Production: Stable and fully operational
+- Latest: Phase 16.3 - Real-time notification system with bell icon, badge, and dropdown panel
+- Production fix: Chunk loading error auto-recovery (PR #200 - deployed)
+- Bundle size: 251.08 kB gzipped
+- Tests: 253 passing (9 skip in CI environment)
+- Production: Stable and live
 
-**Branch**: `main` (up to date, clean slate for new work)
+**Branch**: `main` (up to date)
 
 ## Quick Reference
 
 **Master roadmap**: `/docs/MOCKUP_INTEGRATION_ASSESSMENT.md`
-- Complete 34-phase history with PR links
+- Complete phase history with PR links
 - Bundle size tracking across all phases
 - Test coverage metrics
-- Recent bug fix documentation
 
-**Recent session docs**:
-- `/BUGFIX_SESSION_2025-10-15.md` - Three critical bugs fixed (loading, tags)
-- `/UX_IMPROVEMENTS_SESSION_2025-10-15.md` - UI polish (dropdowns, buttons, cards)
-- `/PR_202_CODE_REVIEW_FIXES.md` - Code review feedback addressed
-- `/PHASE16.3_NOTIFICATIONS_SESSION.md` - Real-time notification system
+**Latest session**: `/PHASE16.3_NOTIFICATIONS_SESSION.md`
+- Real-time notification system implementation
+- NotificationBell and NotificationPanel components
+- TanStack Query + Firestore onSnapshot integration
+- 69 comprehensive tests added
 
-**Tech**: React 18 + Vite 7 + Tailwind + Firebase + TanStack Query
+**Tech**: React + Vite + Tailwind + Firebase + TanStack Query
 
 ## What I Need
 
@@ -66,7 +65,6 @@ Use Read tool before any file modifications. Follow existing design patterns.
 - **Dark mode**: Tailwind `dark:` prefix (e.g., `dark:bg-slate-900`)
 - **Accessibility**: WCAG 2.1 AA compliance required
 - **Multi-tenancy**: All queries scoped to `clientId`
-- **Error handling**: Try-catch-finally for async ops, user feedback via toasts
 
 ### Tech Stack Essentials
 ```
@@ -92,7 +90,7 @@ src/
 ```
 
 ### Development Workflow
-1. **Branches**: `feat/[description]` OR `fix/[description]`
+1. **Branches**: `feat/phase[X]-[description]` OR `fix/[description]`
 2. **Testing**: Write tests before/during implementation
 3. **Commits**: Conventional commits (`feat:`, `fix:`, `test:`, `docs:`)
 4. **Documentation**: Update session docs in project root
@@ -105,7 +103,7 @@ src/
 - Always verify user authentication and client ownership
 
 ### Bundle Management
-- Current: 251.50 kB gzipped
+- Current: 251.08 kB gzipped
 - Code splitting by route with React.lazy()
 - Monitor bundle size in roadmap after changes
 
@@ -117,26 +115,41 @@ src/
 
 ## Recent Context
 
-**Just Completed - October 15, 2025**:
+**Just Completed**:
+- Phase 16.3: Notification system (bell icon, badge, dropdown, real-time updates)
+- Production fix: Chunk loading auto-recovery for stale JavaScript issues
+- Deployed to production: All features live and stable
 
-### Bug Fixes (PR #201 - ✅ Merged)
-**Documentation**: `/BUGFIX_SESSION_2025-10-15.md`
+**Current Work - UI/UX Bug Fixes** (2025-10-15):
+User reported 9 UI/UX issues via annotated screenshots. Fixing bugs one at a time with Option A approach.
 
-- ✅ Product Edit Modal infinite loading (missing error handling)
-- ✅ Planner Page infinite loading (legacy shots subscription timeout)
-- ✅ Tags not saving in Shot Edit Modal (missing schema field)
+**Bug #1 - Product Edit Modal Infinite Loading** ✅ FIXED
+- **File**: `/src/pages/ProductsPage.jsx:692-719`
+- **Root Cause**: `loadFamilyForEdit` lacked error handling - if Firestore query failed, `setEditLoading(false)` never executed
+- **Fix Applied**: Added try-catch-finally block to ensure loading state always clears
+- **Error Handling**: Added toast notification for user feedback on failures
+- **Build Status**: ✅ Passed (9.35s)
 
-### Product Colourway Fix (PR #203 - ✅ Merged)
-- ✅ Fixed missing `deleted` field when creating new SKUs during product edits
-- ✅ Prevented invisible colourways and duplicate creation
+**Bug #2 - Planner Page Infinite Loading** ✅ FIXED
+- **File**: `/src/pages/PlannerPage.jsx:1112-1142`
+- **Root Cause**: Local `shotsLoading` state only cleared when legacy shots `onSnapshot` fired. If subscription failed silently or collection didn't exist, loading state stayed true forever.
+- **Fix Applied**: Added 5-second safety timeout that forces `setShotsLoading(false)` if legacy shots don't load
+- **Safety**: Timeout is cleared on cleanup to prevent memory leaks
+- **Build Status**: ✅ Passed (9.24s)
 
-### UX Improvements (PR #202 - ✅ Merged)
-**Documentation**: `/UX_IMPROVEMENTS_SESSION_2025-10-15.md`
+**Bug #3 - Tags Not Saving in Shot Edit Modal** ✅ FIXED
+- **File**: `/src/lib/shotDraft.js:17-47, 49-59`
+- **Root Cause**: `shotDraftSchema` missing `tags` field - tags were stripped during Zod validation when saving shots
+- **Fix Applied**: Added `tags` field to schema with proper structure (id, label, color) and to `initialShotDraft`
+- **Schema**: `tags: z.array(z.object({ id: z.string(), label: z.string(), color: z.string() })).optional()`
+- **Build Status**: ✅ Passed (9.30s)
 
-- ✅ Fixed Quick Actions and Notification dropdowns z-index
-- ✅ Fixed Shots page button cramming on mobile
-- ✅ Enhanced Project Card active highlighting
-- ✅ Comprehensive dark mode improvements
+**Remaining Issues**:
+- UX: Quick Actions dropdown z-index/positioning
+- UX: Shots page button layout and spacing
+- UX: Project cards spacing and active project highlighting
+- UX: Dark mode text contrast issues
+- Feature: Rich text editor enhancements
 
 **Current State**:
 - Modern top navigation (horizontal, responsive, search, quick actions, avatars, breadcrumbs, notifications)
@@ -144,11 +157,10 @@ src/
 - Premium animations (modals, buttons, dropdowns, micro-interactions)
 - Performance optimized (TanStack Query caching, virtualized lists, debounced search)
 - Comprehensive features (tags, bulk ops, CSV export, drag & drop upload, filter presets)
-- **Production-ready** with all critical bugs fixed
 
 **Known Issues**:
 - 9 integration tests skip in CI environment (pass locally)
-- No major bugs or blockers
+- Monitor Sentry for chunk error recovery metrics (auto-reload messages expected as users update)
 
 ## Communication Style
 
@@ -160,12 +172,12 @@ src/
 
 ## Example Flow
 
-**User**: "Add duplicate detection for products"
+**User**: "Add PDF export to shots"
 
 **Your response**:
 1. ✅ Create todos (Research, Design, Implement, Test, Document)
-2. 📖 Check existing product patterns (found ProductsPage, validation)
-3. 💡 Propose approach using style number matching
+2. 📖 Check for existing PDF patterns (found PlannerExportModal, PullExportModal)
+3. 💡 Propose approach using react-pdf library (already in bundle)
 4. 🛠️ Implement systematically, updating todos
 5. 📝 Document in session file
 
