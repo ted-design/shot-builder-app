@@ -23,6 +23,7 @@ I'm continuing work on my Shot Builder Firebase app. **All 34 phases complete + 
 - Recent bug fix documentation
 
 **Recent session docs**:
+- `/CODE_REVIEW_IMPROVEMENTS_2025-10-15.md` - Code review improvements (semantic HTML, memoization, JSDoc)
 - `/BUGFIX_SESSION_2025-10-15_PART2.md` - Date timezone, colourways, z-index (PR #205)
 - `/BUGFIX_SESSION_2025-10-15.md` - Three critical bugs fixed (loading, tags)
 - `/UX_IMPROVEMENTS_SESSION_2025-10-15.md` - UI polish (dropdowns, buttons, cards)
@@ -121,13 +122,14 @@ src/
 **Just Completed - October 15, 2025**:
 
 ### Bug Fixes Part 2 (PR #205 - ✅ Merged)
-**Documentation**: `/BUGFIX_SESSION_2025-10-15_PART2.md`
+**Documentation**: `/BUGFIX_SESSION_2025-10-15_PART2.md`, `/CODE_REVIEW_IMPROVEMENTS_2025-10-15.md`
 
 - ✅ Fixed project date timezone issue (Oct 17 showing as Oct 16)
 - ✅ Fixed colourways not loading in product edit modal (legacy SKUs)
 - ✅ Fixed dropdown z-index positioning (menus behind headers)
 - ✅ Added comprehensive date validation and test coverage
 - ✅ 10 new tests for date formatting, 39 total tests for ProjectCard
+- ✅ Addressed all code review feedback (semantic HTML, contrast, memoization, constants, JSDoc)
 
 ### Bug Fixes Part 1 (PR #201 - ✅ Merged)
 **Documentation**: `/BUGFIX_SESSION_2025-10-15.md`
