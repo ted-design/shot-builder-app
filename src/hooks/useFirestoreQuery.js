@@ -39,6 +39,8 @@ export const queryKeys = {
   locationById: (clientId, locationId) => ["locations", clientId, "detail", locationId],
   lanes: (clientId, projectId) => ["lanes", clientId, projectId],
   notifications: (clientId, userId) => ["notifications", clientId, userId],
+  comments: (clientId, shotId) => ["comments", clientId, shotId],
+  users: (clientId) => ["users", clientId],
 };
 
 /**

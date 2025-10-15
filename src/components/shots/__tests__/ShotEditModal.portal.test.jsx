@@ -1,7 +1,19 @@
 import React from "react";
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import ShotEditModal from "../ShotEditModal";
+
+// Mock the hooks used by NotesEditor
+vi.mock("../../../context/AuthContext", () => ({
+  useAuth: vi.fn(),
+}));
+
+vi.mock("../../../hooks/useComments", () => ({
+  useUsers: vi.fn(),
+}));
+
+import { useAuth } from "../../../context/AuthContext";
+import { useUsers } from "../../../hooks/useComments";
 
 const baseDraft = {
   name: "Shot A",
@@ -21,6 +33,18 @@ describe("ShotEditModal talent select", () => {
     if (!global.requestAnimationFrame) {
       global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
     }
+
+    // Mock AuthContext
+    useAuth.mockReturnValue({
+      user: { uid: "test-user" },
+      clientId: "test-client",
+    });
+
+    // Mock useUsers hook
+    useUsers.mockReturnValue({
+      data: [],
+      isLoading: false,
+    });
   });
 
   it("renders the talent menu in a body portal with high z-index", async () => {

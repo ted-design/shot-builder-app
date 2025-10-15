@@ -1,6 +1,15 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { sanitizeNotesHtml } from "../../lib/sanitize";
+import MentionAutocomplete from "../mentions/MentionAutocomplete";
+import { useUsers } from "../../hooks/useComments";
+import { useAuth } from "../../context/AuthContext";
+import {
+  getCursorPosition,
+  detectMentionMode,
+  insertMentionAtCursor,
+  formatMention,
+} from "../../lib/mentions";
 
 const colorOptions = [
   { label: "Slate", value: "#1f2937" },
@@ -21,9 +30,18 @@ const ensureFocus = (element) => {
   selection.addRange(range);
 };
 
-export default function NotesEditor({ value = "", onChange, disabled = false, id }) {
+export default function NotesEditor({ value = "", onChange, disabled = false, id, placeholder = "Write notes with basic formatting…" }) {
   const editorRef = useRef(null);
   const lastHtmlRef = useRef("");
+  const { clientId } = useAuth();
+
+  // Mention autocomplete state
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionPosition, setMentionPosition] = useState({ x: 0, y: 0 });
+
+  // Fetch users for mentions
+  const { data: users = [], isLoading: usersLoading } = useUsers(clientId);
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -83,7 +101,47 @@ export default function NotesEditor({ value = "", onChange, disabled = false, id
 
   const handleInput = () => {
     if (disabled) return;
+
+    // Check for mention mode (@)
+    const editor = editorRef.current;
+    if (editor) {
+      const cursorInfo = getCursorPosition(editor);
+      if (cursorInfo) {
+        const { inMentionMode, query } = detectMentionMode(cursorInfo.text);
+
+        if (inMentionMode) {
+          setShowMentions(true);
+          setMentionQuery(query);
+          setMentionPosition({ x: cursorInfo.x, y: cursorInfo.y });
+        } else {
+          setShowMentions(false);
+          setMentionQuery("");
+        }
+      }
+    }
+
     emitChange();
+  };
+
+  const handleMentionSelect = (user) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    // Insert mention at cursor
+    const mention = formatMention(user);
+    insertMentionAtCursor(editor, mention, mentionQuery);
+
+    // Close dropdown
+    setShowMentions(false);
+    setMentionQuery("");
+
+    // Trigger change event
+    setTimeout(emitChange, 0);
+  };
+
+  const handleMentionClose = () => {
+    setShowMentions(false);
+    setMentionQuery("");
   };
 
   return (
@@ -153,12 +211,24 @@ export default function NotesEditor({ value = "", onChange, disabled = false, id
         contentEditable={!disabled}
         role="textbox"
         aria-multiline="true"
-        data-placeholder="Write notes with basic formatting…"
+        data-placeholder={placeholder}
         suppressContentEditableWarning
         onInput={handleInput}
         onBlur={emitChange}
         onPaste={handlePaste}
       />
+
+      {/* Mention Autocomplete Dropdown */}
+      {showMentions && !disabled && (
+        <MentionAutocomplete
+          users={users}
+          query={mentionQuery}
+          onSelect={handleMentionSelect}
+          onClose={handleMentionClose}
+          position={mentionPosition}
+          isLoading={usersLoading}
+        />
+      )}
     </div>
   );
 }

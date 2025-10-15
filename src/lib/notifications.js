@@ -47,6 +47,12 @@ export const NOTIFICATION_TYPES = {
     color: "purple",
     title: "Tag Added",
   },
+  MENTION: {
+    type: "mention",
+    icon: "AtSign",
+    color: "indigo",
+    title: "You were mentioned",
+  },
   GENERIC: {
     type: "generic",
     icon: "Bell",
@@ -210,4 +216,74 @@ export function getUnreadCount(notifications) {
     return 0;
   }
   return notifications.filter((n) => !n.read).length;
+}
+
+/**
+ * Create mention notifications for multiple users
+ *
+ * Creates a notification for each mentioned user when they are @mentioned in a comment or note.
+ * Excludes the author from notifications (users don't get notified when they mention themselves).
+ *
+ * @param {string} clientId - Client ID
+ * @param {Array<string>} mentionedUserIds - Array of user IDs that were mentioned
+ * @param {object} context - Context about where the mention occurred
+ * @param {string} context.authorId - ID of the user who created the mention
+ * @param {string} context.authorName - Display name of the author
+ * @param {string} context.shotId - ID of the shot (optional)
+ * @param {string} context.shotName - Name of the shot (optional)
+ * @param {string} context.commentText - Preview of comment text (optional)
+ * @returns {Promise<Array<string>>} Array of created notification IDs
+ *
+ * @example
+ * await createMentionNotifications(clientId, ['user1', 'user2'], {
+ *   authorId: 'author123',
+ *   authorName: 'John Doe',
+ *   shotId: 'shot123',
+ *   shotName: 'Shot A-101',
+ *   commentText: 'Great work on this shot!'
+ * });
+ */
+export async function createMentionNotifications(clientId, mentionedUserIds, context) {
+  if (!clientId) {
+    throw new Error("clientId is required");
+  }
+
+  if (!mentionedUserIds || !Array.isArray(mentionedUserIds) || mentionedUserIds.length === 0) {
+    return []; // No users to notify
+  }
+
+  if (!context?.authorId || !context?.authorName) {
+    throw new Error("context.authorId and context.authorName are required");
+  }
+
+  // Filter out the author (don't notify yourself)
+  const usersToNotify = mentionedUserIds.filter((userId) => userId !== context.authorId);
+
+  if (usersToNotify.length === 0) {
+    return []; // No one to notify after filtering
+  }
+
+  // Build notification message
+  const shotContext = context.shotName ? ` in ${context.shotName}` : "";
+  const message = `${context.authorName} mentioned you${shotContext}`;
+
+  // Create preview text (first 50 chars of comment)
+  const previewText = context.commentText
+    ? context.commentText.substring(0, 50) + (context.commentText.length > 50 ? "..." : "")
+    : "";
+
+  // Create notifications for all mentioned users
+  const notificationPromises = usersToNotify.map((userId) =>
+    createNotification(clientId, {
+      userId,
+      type: "mention",
+      message: previewText ? `${message}: "${previewText}"` : message,
+      relatedId: context.shotId || null,
+      relatedType: context.shotId ? "shot" : null,
+      actionUrl: context.shotId ? `/shots/${context.shotId}` : null,
+    })
+  );
+
+  const notificationIds = await Promise.all(notificationPromises);
+  return notificationIds;
 }
