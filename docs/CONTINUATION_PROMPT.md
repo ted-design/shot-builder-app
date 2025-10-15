@@ -6,10 +6,10 @@ I'm continuing work on my Shot Builder Firebase app. **All 34 phases complete + 
 
 **34/34 phases complete + production bug fixes** ✅
 
-- Latest: Critical bug fixes merged and deployed (PRs #201-203)
-- Bug fixes: Product/planner loading, tag persistence, colourway schema, UX improvements
-- Bundle: 251.50 kB gzipped
-- Tests: 351 passing (9 skip in CI environment)
+- Latest: Additional bug fixes merged (PR #205)
+- Bug fixes: Date timezone, colourway loading, dropdown z-index
+- Bundle: 251.49 kB gzipped
+- Tests: 351 passing, 39 tests in ProjectCard (9 skip in CI environment)
 - Production: Stable and fully operational
 
 **Branch**: `main` (up to date, clean slate for new work)
@@ -23,6 +23,7 @@ I'm continuing work on my Shot Builder Firebase app. **All 34 phases complete + 
 - Recent bug fix documentation
 
 **Recent session docs**:
+- `/BUGFIX_SESSION_2025-10-15_PART2.md` - Date timezone, colourways, z-index (PR #205)
 - `/BUGFIX_SESSION_2025-10-15.md` - Three critical bugs fixed (loading, tags)
 - `/UX_IMPROVEMENTS_SESSION_2025-10-15.md` - UI polish (dropdowns, buttons, cards)
 - `/PR_202_CODE_REVIEW_FIXES.md` - Code review feedback addressed
@@ -119,7 +120,16 @@ src/
 
 **Just Completed - October 15, 2025**:
 
-### Bug Fixes (PR #201 - ✅ Merged)
+### Bug Fixes Part 2 (PR #205 - ✅ Merged)
+**Documentation**: `/BUGFIX_SESSION_2025-10-15_PART2.md`
+
+- ✅ Fixed project date timezone issue (Oct 17 showing as Oct 16)
+- ✅ Fixed colourways not loading in product edit modal (legacy SKUs)
+- ✅ Fixed dropdown z-index positioning (menus behind headers)
+- ✅ Added comprehensive date validation and test coverage
+- ✅ 10 new tests for date formatting, 39 total tests for ProjectCard
+
+### Bug Fixes Part 1 (PR #201 - ✅ Merged)
 **Documentation**: `/BUGFIX_SESSION_2025-10-15.md`
 
 - ✅ Product Edit Modal infinite loading (missing error handling)
