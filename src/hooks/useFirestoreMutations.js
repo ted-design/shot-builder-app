@@ -25,22 +25,33 @@ import { db } from "../lib/firebase";
 import { queryKeys } from "./useFirestoreQuery";
 import { toast } from "../lib/toast";
 import { describeFirebaseError } from "../lib/firebaseErrors";
+import { useAuth } from "../context/AuthContext";
+import {
+  logActivity,
+  createShotCreatedActivity,
+  createShotUpdatedActivity,
+  createStatusChangedActivity,
+  createShotDeletedActivity,
+} from "../lib/activityLogger";
 
 /**
  * Hook for creating a new shot
  *
  * @param {string} clientId - Client ID
  * @param {object} options - Mutation options
+ * @param {string} options.projectId - Project ID (for activity logging)
  * @returns {object} Mutation result
  *
  * @example
  * const createShot = useCreateShot(clientId, {
+ *   projectId: 'project123',
  *   onSuccess: () => toast.success({ title: "Shot created" })
  * });
  * createShot.mutate({ shotData });
  */
 export function useCreateShot(clientId, options = {}) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (shotData) => {
@@ -58,6 +69,19 @@ export function useCreateShot(clientId, options = {}) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.shots(clientId, newShot.projectId),
       });
+
+      // Log activity (non-blocking)
+      if (options.projectId && user) {
+        const activityData = createShotCreatedActivity(
+          user.uid,
+          user.displayName || user.email || "Unknown User",
+          user.photoURL || null,
+          newShot
+        );
+        logActivity(clientId, options.projectId, activityData).catch((error) => {
+          console.error("[useCreateShot] Activity logging failed:", error);
+        });
+      }
 
       if (options.onSuccess) {
         options.onSuccess(newShot, variables);
@@ -81,14 +105,18 @@ export function useCreateShot(clientId, options = {}) {
  * @param {string} clientId - Client ID
  * @param {string} projectId - Project ID
  * @param {object} options - Mutation options
+ * @param {string} options.shotName - Shot name (for activity logging)
  * @returns {object} Mutation result
  *
  * @example
- * const updateShot = useUpdateShot(clientId, projectId);
+ * const updateShot = useUpdateShot(clientId, projectId, {
+ *   shotName: 'Shot A-101'
+ * });
  * updateShot.mutate({ shotId: "123", updates: { name: "New name" } });
  */
 export function useUpdateShot(clientId, projectId, options = {}) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ shotId, updates }) => {
@@ -108,6 +136,9 @@ export function useUpdateShot(clientId, projectId, options = {}) {
       // Snapshot previous value
       const previousShots = queryClient.getQueryData(queryKeys.shots(clientId, projectId));
 
+      // Find the previous shot to get old values (for status change detection)
+      const previousShot = previousShots?.find((shot) => shot.id === shotId);
+
       // Optimistically update cache
       queryClient.setQueryData(queryKeys.shots(clientId, projectId), (old) => {
         if (!old) return old;
@@ -116,7 +147,7 @@ export function useUpdateShot(clientId, projectId, options = {}) {
         );
       });
 
-      return { previousShots };
+      return { previousShots, previousShot };
     },
     onError: (error, variables, context) => {
       // Rollback on error
@@ -141,6 +172,41 @@ export function useUpdateShot(clientId, projectId, options = {}) {
         queryKey: queryKeys.shots(clientId, projectId),
       });
 
+      // Log activity (non-blocking)
+      if (projectId && user && context?.previousShot) {
+        const { shotId, updates } = variables;
+        const shotName = options.shotName || context.previousShot.name || `Shot ${context.previousShot.shotNumber || shotId}`;
+
+        // Check if this is a status change
+        if (updates.status && updates.status !== context.previousShot.status) {
+          const activityData = createStatusChangedActivity(
+            user.uid,
+            user.displayName || user.email || "Unknown User",
+            user.photoURL || null,
+            shotId,
+            shotName,
+            context.previousShot.status,
+            updates.status
+          );
+          logActivity(clientId, projectId, activityData).catch((error) => {
+            console.error("[useUpdateShot] Activity logging failed:", error);
+          });
+        } else {
+          // Regular update
+          const activityData = createShotUpdatedActivity(
+            user.uid,
+            user.displayName || user.email || "Unknown User",
+            user.photoURL || null,
+            shotId,
+            shotName,
+            updates
+          );
+          logActivity(clientId, projectId, activityData).catch((error) => {
+            console.error("[useUpdateShot] Activity logging failed:", error);
+          });
+        }
+      }
+
       if (options.onSuccess) {
         options.onSuccess(data, variables, context);
       }
@@ -154,14 +220,18 @@ export function useUpdateShot(clientId, projectId, options = {}) {
  * @param {string} clientId - Client ID
  * @param {string} projectId - Project ID
  * @param {object} options - Mutation options
+ * @param {string} options.shotName - Shot name (for activity logging)
  * @returns {object} Mutation result
  *
  * @example
- * const deleteShot = useDeleteShot(clientId, projectId);
+ * const deleteShot = useDeleteShot(clientId, projectId, {
+ *   shotName: 'Shot A-101'
+ * });
  * deleteShot.mutate({ shotId: "123" });
  */
 export function useDeleteShot(clientId, projectId, options = {}) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ shotId }) => {
@@ -182,13 +252,16 @@ export function useDeleteShot(clientId, projectId, options = {}) {
       // Snapshot previous value
       const previousShots = queryClient.getQueryData(queryKeys.shots(clientId, projectId));
 
+      // Find the shot being deleted (for activity logging)
+      const deletedShot = previousShots?.find((shot) => shot.id === shotId);
+
       // Optimistically remove from cache
       queryClient.setQueryData(queryKeys.shots(clientId, projectId), (old) => {
         if (!old) return old;
         return old.filter((shot) => shot.id !== shotId);
       });
 
-      return { previousShots };
+      return { previousShots, deletedShot };
     },
     onError: (error, variables, context) => {
       // Rollback on error
@@ -212,6 +285,23 @@ export function useDeleteShot(clientId, projectId, options = {}) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.shots(clientId, projectId),
       });
+
+      // Log activity (non-blocking)
+      if (projectId && user && context?.deletedShot) {
+        const { shotId } = variables;
+        const shotName = options.shotName || context.deletedShot.name || `Shot ${context.deletedShot.shotNumber || shotId}`;
+
+        const activityData = createShotDeletedActivity(
+          user.uid,
+          user.displayName || user.email || "Unknown User",
+          user.photoURL || null,
+          shotId,
+          shotName
+        );
+        logActivity(clientId, projectId, activityData).catch((error) => {
+          console.error("[useDeleteShot] Activity logging failed:", error);
+        });
+      }
 
       if (options.onSuccess) {
         options.onSuccess(data, variables, context);

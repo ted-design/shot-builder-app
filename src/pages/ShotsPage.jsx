@@ -80,6 +80,7 @@ import { readStorage, writeStorage } from "../lib/safeStorage";
 import { normaliseShotStatus, DEFAULT_SHOT_STATUS } from "../lib/shotStatus";
 import { normaliseShot, sortShotsForView, SHOT_SORT_OPTIONS } from "../lib/shotsSelectors";
 import { getStaggerDelay } from "../lib/animations";
+import { ActivityTimeline } from "../components/activity/ActivityTimeline";
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
@@ -2484,6 +2485,22 @@ export default function ShotsPage() {
           onCopyToProject={handleCopyToProject}
           copyingProject={copyingProject}
         />
+      )}
+
+      {/* Activity Timeline */}
+      {clientId && projectId && (
+        <div className="mx-6 mb-6">
+          <Card>
+            <CardHeader>
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                Recent Activity
+              </h2>
+            </CardHeader>
+            <CardContent>
+              <ActivityTimeline clientId={clientId} projectId={projectId} />
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
