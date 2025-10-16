@@ -74,8 +74,8 @@ jobs:
             echo "No old channels to delete."
           fi
 
-          # Also prune any expired channels as a backup
-          npx firebase-tools@latest hosting:channel:prune um-shotbuilder || true
+          # Note: Firebase auto-deletes expired channels within 24 hours
+          # No manual prune command exists - we rely on the list+delete logic above
 
       - name: Build
         env:
@@ -195,11 +195,8 @@ jobs:
       - name: Cleanup old preview channels
         if: always()
         run: |
-          # Prune expired channels (those past their TTL)
-          echo "Pruning expired channels..."
-          npx firebase-tools@latest hosting:channel:prune um-shotbuilder || true
-
-          # Also enforce the 5-channel limit again (in case deployment failed)
+          # Enforce the 5-channel limit again (in case deployment failed)
+          # Note: Firebase auto-deletes expired channels within 24 hours (no prune command exists)
           echo "Fetching list of preview channels..."
           CHANNELS_JSON=$(npx firebase-tools@latest hosting:channel:list --project um-shotbuilder --json 2>/dev/null || echo '{"result":[]}')
 
