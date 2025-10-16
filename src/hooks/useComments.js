@@ -22,6 +22,12 @@ import { db } from "../lib/firebase";
 import { queryKeys } from "./useFirestoreQuery";
 import { getMentionedUserIds } from "../lib/mentions";
 import { useAuth } from "../context/AuthContext";
+import {
+  logActivity,
+  createCommentAddedActivity,
+  createCommentEditedActivity,
+  createCommentDeletedActivity,
+} from "../lib/activityLogger";
 
 /**
  * Hook for fetching comments with realtime updates
@@ -111,10 +117,14 @@ export function useComments(clientId, shotId, options = {}) {
  * @param {string} clientId - Client ID
  * @param {string} shotId - Shot ID to add comment to
  * @param {object} options - Mutation options
+ * @param {string} options.projectId - Project ID (for activity logging)
+ * @param {string} options.shotName - Shot name (for activity logging)
  * @returns {object} Mutation result with mutate function and states
  *
  * @example
  * const createComment = useCreateComment(clientId, shotId, {
+ *   projectId: 'project123',
+ *   shotName: 'Shot A-101',
  *   onSuccess: (comment) => console.log('Comment created:', comment),
  *   onNotificationCreate: (mentionedUserIds) => { ... }
  * });
@@ -211,8 +221,30 @@ export function useCreateComment(clientId, shotId, options = {}) {
       if (options.onNotificationCreate && data.mentionedUserIds?.length > 0) {
         options.onNotificationCreate(data.mentionedUserIds, data);
       }
+
+      // Log activity (non-blocking)
+      if (options.projectId && user) {
+        const activityData = createCommentAddedActivity(
+          user.uid,
+          user.displayName || user.email || "Unknown User",
+          user.photoURL || null,
+          shotId,
+          options.shotName || "a shot",
+          data.text,
+          data.mentionedUserIds || []
+        );
+        logActivity(clientId, options.projectId, activityData).catch((error) => {
+          console.error("[useCreateComment] Activity logging failed:", error);
+        });
+      }
+
+      // Call original onSuccess if provided
+      if (options.onSuccess) {
+        options.onSuccess(data);
+      }
     },
-    ...options,
+    onError: options.onError,
+    onMutate: options.onMutate,
   });
 }
 
@@ -223,10 +255,15 @@ export function useCreateComment(clientId, shotId, options = {}) {
  * @param {string} shotId - Shot ID
  * @param {string} commentId - Comment ID to update
  * @param {object} options - Mutation options
+ * @param {string} options.projectId - Project ID (for activity logging)
+ * @param {string} options.shotName - Shot name (for activity logging)
  * @returns {object} Mutation result with mutate function and states
  *
  * @example
- * const updateComment = useUpdateComment(clientId, shotId, commentId);
+ * const updateComment = useUpdateComment(clientId, shotId, commentId, {
+ *   projectId: 'project123',
+ *   shotName: 'Shot A-101',
+ * });
  *
  * updateComment.mutate({
  *   text: 'Updated comment text',
@@ -234,6 +271,7 @@ export function useCreateComment(clientId, shotId, options = {}) {
  */
 export function useUpdateComment(clientId, shotId, commentId, options = {}) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const queryKey = queryKeys.comments(clientId, shotId);
 
   return useMutation({
@@ -306,8 +344,28 @@ export function useUpdateComment(clientId, shotId, commentId, options = {}) {
     onSuccess: () => {
       // Invalidate and refetch
       queryClient.invalidateQueries({ queryKey });
+
+      // Log activity (non-blocking)
+      if (options.projectId && user) {
+        const activityData = createCommentEditedActivity(
+          user.uid,
+          user.displayName || user.email || "Unknown User",
+          user.photoURL || null,
+          shotId,
+          options.shotName || "a shot"
+        );
+        logActivity(clientId, options.projectId, activityData).catch((error) => {
+          console.error("[useUpdateComment] Activity logging failed:", error);
+        });
+      }
+
+      // Call original onSuccess if provided
+      if (options.onSuccess) {
+        options.onSuccess();
+      }
     },
-    ...options,
+    onError: options.onError,
+    onMutate: options.onMutate,
   });
 }
 
@@ -317,15 +375,21 @@ export function useUpdateComment(clientId, shotId, commentId, options = {}) {
  * @param {string} clientId - Client ID
  * @param {string} shotId - Shot ID
  * @param {object} options - Mutation options
+ * @param {string} options.projectId - Project ID (for activity logging)
+ * @param {string} options.shotName - Shot name (for activity logging)
  * @returns {object} Mutation result with mutate function and states
  *
  * @example
- * const deleteComment = useDeleteComment(clientId, shotId);
+ * const deleteComment = useDeleteComment(clientId, shotId, {
+ *   projectId: 'project123',
+ *   shotName: 'Shot A-101',
+ * });
  *
  * deleteComment.mutate({ commentId: 'comment-123' });
  */
 export function useDeleteComment(clientId, shotId, options = {}) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const queryKey = queryKeys.comments(clientId, shotId);
 
   return useMutation({
@@ -379,8 +443,28 @@ export function useDeleteComment(clientId, shotId, options = {}) {
     onSuccess: () => {
       // Invalidate and refetch
       queryClient.invalidateQueries({ queryKey });
+
+      // Log activity (non-blocking)
+      if (options.projectId && user) {
+        const activityData = createCommentDeletedActivity(
+          user.uid,
+          user.displayName || user.email || "Unknown User",
+          user.photoURL || null,
+          shotId,
+          options.shotName || "a shot"
+        );
+        logActivity(clientId, options.projectId, activityData).catch((error) => {
+          console.error("[useDeleteComment] Activity logging failed:", error);
+        });
+      }
+
+      // Call original onSuccess if provided
+      if (options.onSuccess) {
+        options.onSuccess();
+      }
     },
-    ...options,
+    onError: options.onError,
+    onMutate: options.onMutate,
   });
 }
 

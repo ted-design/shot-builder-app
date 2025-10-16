@@ -1,186 +1,159 @@
 # Shot Builder - Continuation Prompt
 
-I'm continuing development for my Shot Builder Firebase app. Phase 14C just completed - Advanced Search & Filter Presets with fuzzy matching and Cmd+K command palette!
+I'm continuing development of my Shot Builder Firebase app. Phase 17B (Activity Feed) foundation just completed.
 
-## Current Status
+## Current Status: 35/36 Phases Complete ✅
 
-**Phase 14C Complete** ✅ (PR #190 merged)
-- **26/26 phases done** - All major feature development complete! 🎉
-- Latest work: Phase 14C (Advanced Search & Filter Presets)
-- Branch: `main` (or create new from `main`)
-- All 232 tests passing (48 new tests added)
-- Build: 9.22s | Bundle: 298.65 kB gzipped (+11.64 kB for fuse.js)
+**Latest**: Phase 17B Foundation - Activity Feed & Timeline (3 commits on `feat/phase17b-activity-feed`)
+- Foundation complete: Activity logging, timeline UI, comment integration, Firestore rules/indexes
+- Integration pending: Shot mutation logging, project view integration, Firebase deployment (~1-2 hours)
 
-**Latest Work**:
-- **Phase 14C**: Global command palette (Cmd+K), fuzzy search with fuse.js, filter preset save/load/manage (PR #190 ✅ Merged)
-- Added 48 comprehensive tests for search and filter preset utilities
-- Fixed 6 critical code review issues (deprecated methods, race conditions, missing dependencies)
-- WCAG 2.1 AA compliant with full keyboard navigation
+**Recent**: Phase 17A (Comments & Mentions), Bug fixes (PRs #207, #210), Production cleanup (PR #209)
+
+**Next Options**: Complete Phase 17B integration OR Phase 17C (Enhanced Public Sharing) OR custom improvements
+
+## Branch
+
+Current: `feat/phase17b-activity-feed` (unmerged, foundation complete)
+Main: `main` (create new branch from main for Phase 17C or custom work)
 
 ## Quick Reference
 
-**Documentation** (Read these first):
-1. **Master Roadmap**: `/docs/MOCKUP_INTEGRATION_ASSESSMENT.md`
-   - Complete 26-phase history
-   - Feature priorities and future opportunities
-
-2. **Latest Session**: `/PHASE14C_SEARCH_FILTER_PRESETS_SESSION.md`
-
-3. **Architecture**: `/docs/shot_builder_overview_updated.md`, `/docs/shot_builder_structure.md`
-
-**Tech Stack**:
-- React 18 + Vite 6 + Tailwind CSS 3
-- Firebase (Firestore, Auth, Storage)
-- TanStack Query v5 (100% caching coverage)
-- react-window (list virtualization)
-- fuse.js (fuzzy search, 6 kB gzipped)
-- xlsx (CSV/Excel export, code-split)
-- Testing: Vitest + RTL (232 tests passing)
+**Master Roadmap**: `/docs/MOCKUP_INTEGRATION_ASSESSMENT.md`
+**Latest Session**: `/PHASE17B_ACTIVITY_FEED_SESSION.md`
+**Tech Stack**: React 18 + Vite 6 + Tailwind + Firebase + TanStack Query v5
+**Bundle**: 252.01 kB gzipped | **Tests**: 351 passing | **Build**: ~10s
 
 ## What I Need
 
-**Option 1**: Post-Merge Enhancements from Code Review
-- Add search input debouncing (150-200ms)
-- Add max preset limit (20 per page)
-- Cache Fuse.js instances for performance
-- Monitor bundle size impact
-- Expected time: 2-3 hours
+### Option 1: Complete Phase 17B Integration (Recommended, 1-2 hours)
 
-**Option 2**: Testing & Quality Improvements
+**Remaining Tasks**:
+1. **Deploy Firestore Configuration** (10 min)
+   - Run: `firebase login --reauth` (requires user auth)
+   - Run: `firebase deploy --only firestore:indexes,firestore:rules`
+   - Verify: `firebase firestore:indexes`
+
+2. **Add Activity Logging to Shot Mutations** (30 min)
+   - Update `useCreateShot`, `useUpdateShot`, `useDeleteShot` in `/src/hooks/useFirestoreMutations.js`
+   - Follow pattern from `/src/hooks/useComments.js:109-145` (comment logging)
+   - Import from `/src/lib/activityLogger.js`
+   - Use `onSuccess` callbacks with non-blocking logging
+
+3. **Integrate Timeline into Project View** (20 min)
+   - Import `ActivityTimeline` into project view page (find via Glob: `**/*project*view*.jsx`)
+   - Pass `clientId` and `projectId` props
+   - Add section with heading: "Recent Activity"
+
+4. **Test & Verify** (30 min)
+   - Create test shot → verify activity logged
+   - Add comment with @mention → verify activity logged
+   - Update shot status → verify STATUS_CHANGED activity
+   - Check timeline filters work correctly
+   - Verify dark mode rendering
+
+**Success Criteria**: Timeline displays in project view, all mutations log activities, real-time updates work, 351 tests passing.
+
+### Option 2: Phase 17C - Enhanced Public Sharing (6-8 hours)
+- Project sharing with public links
+- Per-link permissions (view, comment, full access)
+- Expiring share tokens with configurable TTL
+- External collaborator support without Firebase accounts
+- Share management UI (create/revoke/list links)
+
+### Option 3: Testing & Quality Improvements
 - E2E tests with Playwright
-- Expand component test coverage
 - Visual regression testing
-- Performance profiling and benchmarks
+- Performance profiling and optimization
+- Load testing for scale validation
 
-**Option 3**: Mobile Optimization
-- Responsive design refinements
+### Option 4: Mobile Optimization
+- Responsive refinements for mobile layouts
 - Touch gesture improvements
-- Mobile-specific UI patterns
-- Progressive Web App (PWA) capabilities
+- PWA capabilities (offline support, installable)
+- Mobile-specific UX enhancements
 
-**Option 4**: Future Enhancements
-- Search result highlighting
-- Preset categories/folders
-- Cloud sync for presets
-- Search analytics
-- Real-time collaboration features
-
-**Option 5**: Specific feature/improvement
-- Tell me what you want to build/fix
-- I'll create a plan and implement
+### Option 5: Custom Improvement
+Tell me what specific feature or improvement you want, and I'll implement it following the established architecture patterns.
 
 ## Your Approach
 
-Please:
-1. **Read `/docs/MOCKUP_INTEGRATION_ASSESSMENT.md`** for full context
-2. Suggest the best next step based on current state
-3. Create implementation plan with TodoWrite
-4. Work efficiently - test builds, update docs, create PR
+**Implementation Protocol**:
 
-## Important Guardrails
+1. **Plan with TodoWrite** - Break task into subtasks for tracking
+2. **Read Context** - Use Read tool on session docs and relevant files
+3. **Follow Patterns** - Match established architecture (see roadmap for examples)
+4. **Test Incrementally** - Run tests during implementation, not just at end
+5. **Update Docs** - Keep session docs and roadmap current
 
-- ✅ **Read files before editing** - Use Read tool first
-- ✅ **Follow patterns** - Check similar implementations
-- ✅ **Test thoroughly** - All 232 tests must pass
-- ✅ **Document changes** - Create session docs for significant work
-- ✅ **Zero regressions** - Maintain backwards compatibility
-- ✅ **Performance** - Monitor bundle size and build time
-- ✅ **Accessibility** - WCAG 2.1 AA compliance required
-- ✅ **Security** - Validate inputs, prevent injection attacks
+**Quality Standards**:
+- Zero test regressions (351 tests must pass)
+- WCAG 2.1 AA compliant (keyboard nav, ARIA, contrast)
+- Bundle monitoring (target: <260 kB gzipped)
+- Build time: <12s target
+- Dark mode compatible
+- Input validation and security
+
+**If Choosing Option 1** (Phase 17B Integration):
+- Read `/PHASE17B_ACTIVITY_FEED_SESSION.md:296-330` for integration checklist
+- Reference `/src/hooks/useComments.js:109-145` for activity logging pattern
+- Reference `/src/lib/activityLogger.js` for helper functions
+- Test each integration step before moving to next
+
+**Deliverables**:
+- Working implementation with tests passing
+- Session documentation (if significant changes)
+- Git commits with descriptive messages
+- Update roadmap status when complete
+
+## Key Principles
+
+✅ **Reference, don't embed** - Point to file paths, don't copy large code blocks
+✅ **Just-in-time context** - Read files when needed, not upfront
+✅ **Forward-focused** - Solve the problem, minimize retrospectives
+✅ **Test incrementally** - Don't batch testing at end
+✅ **Zero breaking changes** - Backwards compatibility critical
+✅ **Non-blocking operations** - Activity logging must never break core features
 
 ## Project Health
 
-**Status**: ✅ Production Ready
+**Status**: ✅ Production Ready (35/36 phases complete)
 
-**Features**:
-- 🎨 Modern UI design system
-- ♿ WCAG 2.1 AA compliant
-- 🎭 Premium polish animations
-- ⚡ 298.65 kB gzipped (optimized)
-- 🔍 Advanced search (Cmd+K, fuzzy matching)
-- 💾 Filter presets (save/load/manage)
-- 🏷️ Complete tag system with centralized management
-- 📦 Comprehensive bulk operations
-- 💾 Intelligent caching (50-80% Firestore reduction)
-- 📜 List virtualization (98% DOM reduction)
-- 📊 Universal CSV/Excel export (all major pages)
-- 📤 Batch image upload (drag & drop)
-- ✅ 232 tests passing (48 new search/preset tests)
-- 🔒 Security hardened (injection prevention, validation)
-
-**Recent PRs**:
-- #187: Animation & Interaction Polish (✅ Merged)
-- #188: CSV/Excel Export System (✅ Merged)
-- #189: Batch Image Upload (✅ Merged)
-- #190: Advanced Search & Filter Presets (✅ Merged)
+**Recent Improvements**:
+- 🎨 Modern top navigation (horizontal layout, breadcrumbs, quick actions)
+- 💬 Collaboration (comments, @mentions, real-time notifications)
+- 🎯 Activity tracking foundation (90-day retention, real-time timeline)
+- 🌙 Complete dark mode (100% coverage)
+- ⚡ Performance (TanStack caching, virtualization, debounced search)
+- 🔍 Advanced search (Cmd+K, fuzzy matching, filter presets)
+- 📊 CSV/Excel export (universal)
+- 🧪 351 tests passing (comprehensive coverage)
 
 **Metrics**:
-- Build time: 9.22s
-- Bundle size: 298.65 kB gzipped
-- Test coverage: 232 tests, all passing
-- Performance: 60 FPS, smooth scrolling with 10,000+ items
-- Firestore reads: 50-80% reduction via TanStack Query
+- Build: ~10s
+- Tests: 351 passing (100% pass rate)
+- Performance: 60 FPS with 10k+ items
+- Firestore: 50-80% read reduction via caching
+- Zero critical issues
 
-## Potential Next Steps
+## Firebase Deployment Note
 
-Based on the roadmap, here are high-value opportunities:
-
-### Option 1: Post-Merge Improvements (Recommended from Code Review)
-**Why**: Address technical debt and optimize recent features
-**What**:
-- Add debouncing to search input (150-200ms)
-- Implement max preset limit (20 per page)
-- Cache Fuse.js instances (performance)
-- Bundle size monitoring
-
-**Impact**: MEDIUM - Improved performance and UX polish
-**Effort**: LOW - 2-3 hours
-**Risk**: LOW - Minor enhancements to existing features
-
-### Option 2: Testing Infrastructure
-**Why**: Increase confidence and catch regressions early
-**What**:
-- E2E tests with Playwright
-- Visual regression testing
-- Performance benchmarks
-- Higher test coverage (>90%)
-
-**Impact**: HIGH - Better quality assurance
-**Effort**: MEDIUM - 4-6 hours
-**Risk**: LOW - No user-facing changes
-
-### Option 3: Mobile Experience
-**Why**: Optimize for mobile users
-**What**:
-- Touch gesture improvements
-- Responsive refinements
-- Mobile-first UI patterns
-- Progressive Web App (PWA)
-
-**Impact**: HIGH - Better mobile experience
-**Effort**: MEDIUM - 4-6 hours
-**Risk**: LOW - Progressive enhancement
-
-### Option 4: Advanced Features
-**Why**: Future-proofing and competitive advantages
-**What**:
-- Real-time collaboration indicators
-- Activity feed / changelog
-- Advanced filtering (date ranges, complex queries)
-- Search result highlighting
-- Preset sharing/cloud sync
-
-**Impact**: HIGH - Differentiation and power features
-**Effort**: HIGH - 8-12 hours per feature
-**Risk**: MEDIUM - Complex integrations
+**Current Firebase State**:
+- Firestore rules and indexes updated locally
+- **Deployment required** to activate Phase 17B in production
+- Commands: `firebase deploy --only firestore:indexes,firestore:rules`
+- Note: Requires `firebase login --reauth` (user authentication)
 
 ## Notes
 
-- All 26 phases of mockup-inspired UI/UX work are complete
-- Focus areas: Polish, Testing, Mobile, Advanced Features
-- Bundle size is healthy (~299 kB gzipped)
-- No critical issues or tech debt
-- Clean architecture with solid test coverage
-- Ready for production deployment
+- Phase 17B foundation complete (3 commits: activity logger, UI components, comment integration)
+- Integration tasks are straightforward and well-documented
+- All patterns established, just need to apply to remaining hooks and integrate UI
+- Option 1 (integration) is quickest path to complete Phase 17B
+- Ready for Phase 17C or custom improvements after Option 1
 
-Let me know which direction you'd like to go, or tell me about a specific improvement you have in mind!
+---
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
