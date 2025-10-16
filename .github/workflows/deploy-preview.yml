@@ -31,8 +31,8 @@ jobs:
       - name: Pre-cleanup old preview channels (avoid quota)
         run: |
           # Use latest CLI to ensure prune options/behavior are supported
-          # Keep only the 5 most recent channels, delete the rest
-          npx firebase-tools@latest hosting:channel:prune --project um-shotbuilder --max-channels 5 || true
+          # Prune expired and stale channels
+          npx firebase-tools@latest hosting:channel:prune um-shotbuilder || true
 
       - name: Build
         env:
@@ -151,5 +151,5 @@ jobs:
         if: always()
         run: |
           # Prune old preview channels to avoid hitting quota limits.
-          # Keep only the 5 most recent channels, delete the rest.
-          npx firebase-tools@latest hosting:channel:prune --project um-shotbuilder --max-channels 5 || true
+          # Removes expired and stale channels automatically.
+          npx firebase-tools@latest hosting:channel:prune um-shotbuilder || true

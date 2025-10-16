@@ -2458,6 +2458,7 @@ export default function ShotsPage() {
         <ShotEditModal
           open
           titleId="edit-shot-modal-title"
+          shotId={editingShot.shot.id}
           shotName={editingShot.shot.name}
           draft={editingShot.draft}
           onChange={updateEditingDraft}

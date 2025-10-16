@@ -316,21 +316,20 @@ export function useUpdateComment(clientId, shotId, commentId, options = {}) {
  *
  * @param {string} clientId - Client ID
  * @param {string} shotId - Shot ID
- * @param {string} commentId - Comment ID to delete
  * @param {object} options - Mutation options
  * @returns {object} Mutation result with mutate function and states
  *
  * @example
- * const deleteComment = useDeleteComment(clientId, shotId, commentId);
+ * const deleteComment = useDeleteComment(clientId, shotId);
  *
- * deleteComment.mutate();
+ * deleteComment.mutate({ commentId: 'comment-123' });
  */
-export function useDeleteComment(clientId, shotId, commentId, options = {}) {
+export function useDeleteComment(clientId, shotId, options = {}) {
   const queryClient = useQueryClient();
   const queryKey = queryKeys.comments(clientId, shotId);
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ commentId }) => {
       if (!clientId || !shotId || !commentId) {
         throw new Error("Missing required parameters");
       }
@@ -354,7 +353,7 @@ export function useDeleteComment(clientId, shotId, commentId, options = {}) {
 
       return { id: commentId };
     },
-    onMutate: async () => {
+    onMutate: async ({ commentId }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey });
 
