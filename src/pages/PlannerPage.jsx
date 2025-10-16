@@ -2278,6 +2278,7 @@ function PlannerPageContent() {
         <ShotEditModal
           open
           titleId="planner-shot-edit-title"
+          shotId={editingShot.shot.id}
           shotName={editingShot.shot.name}
           description="Update shot details, linked products, and talent assignments."
           draft={editingShot.draft}

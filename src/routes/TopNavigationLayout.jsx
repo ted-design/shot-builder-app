@@ -147,7 +147,7 @@ function UserMenu({ userLabel, navRoleLabel, userEmail, userPhotoUrl, onSignOut 
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg animate-fade-in-down z-100">
+        <div className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg animate-fade-in-down z-50">
           <div className="p-3 border-b border-slate-200 dark:border-slate-700">
             <div className="flex items-center gap-3">
               <Avatar

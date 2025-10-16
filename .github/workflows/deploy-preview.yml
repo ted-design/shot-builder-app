@@ -27,13 +27,6 @@ jobs:
       - name: Install deps
         run: npm ci || npm install
 
-      # Clean up old channels first to avoid hitting the quota before creating a new one.
-      - name: Pre-cleanup old preview channels (avoid quota)
-        run: |
-          # Use latest CLI to ensure prune options/behavior are supported
-          # Keep only the 5 most recent channels, delete the rest
-          npx firebase-tools@latest hosting:channel:prune --project um-shotbuilder --max-channels 5 || true
-
       - name: Build
         env:
           VITE_FIREBASE_API_KEY:             ${{ secrets.VITE_FIREBASE_API_KEY }}
@@ -68,11 +61,13 @@ jobs:
           VITE_FIREBASE_APP_ID:              ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID:      ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }} # optional
         # Channel name uses PR number (stable across pushes)
+        # Set expiration to 3 days (instead of default 7) to help with quota management
         # Pipe through tee so CLI output still appears in the GitHub log when the command fails.
         run: |
           set -o pipefail
           npx firebase-tools@latest hosting:channel:deploy pr-${{ github.event.number }} \
             --project um-shotbuilder \
+            --expires 3d \
             --json \
             --non-interactive \
             | tee deploy.json
@@ -149,7 +144,118 @@ jobs:
 
       - name: Cleanup old preview channels
         if: always()
+        continue-on-error: true
         run: |
-          # Prune old preview channels to avoid hitting quota limits.
-          # Keep only the 5 most recent channels, delete the rest.
-          npx firebase-tools@latest hosting:channel:prune --project um-shotbuilder --max-channels 5 || true
+          # Production-grade cleanup with comprehensive error handling
+          # Firebase auto-deletes expired channels within 24 hours (no prune command exists)
+          # This cleanup is optional - deployment succeeds even if this step fails
+
+          echo "::group::Fetching preview channel list"
+          echo "Querying Firebase Hosting channels..."
+
+          # Fetch channel list with proper error handling
+          set +e  # Temporarily disable exit-on-error for this command
+          CHANNELS_JSON=$(npx firebase-tools@latest hosting:channel:list \
+            --project um-shotbuilder \
+            --json 2>&1)
+          FIREBASE_EXIT_CODE=$?
+          set -e
+
+          if [ $FIREBASE_EXIT_CODE -ne 0 ]; then
+            echo "::warning::Failed to list channels (exit code: $FIREBASE_EXIT_CODE)"
+            echo "Error output: $CHANNELS_JSON"
+            echo "Skipping cleanup - this is non-critical"
+            echo "::endgroup::"
+            exit 0
+          fi
+
+          # Validate JSON response
+          if echo "$CHANNELS_JSON" | grep -qi '<!DOCTYPE\|<html\|error\|unauthorized'; then
+            echo "::warning::Received non-JSON response from Firebase CLI"
+            echo "Response: $CHANNELS_JSON"
+            echo "Skipping cleanup - this is non-critical"
+            echo "::endgroup::"
+            exit 0
+          fi
+
+          echo "Successfully fetched channel list"
+          echo "::endgroup::"
+
+          # Parse channels with robust error handling
+          echo "::group::Analyzing channels for cleanup"
+
+          # Write diagnostic output to stderr, channel IDs to stdout
+          node -e "
+            try {
+              const data = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
+
+              // Handle different JSON response formats
+              let channels = [];
+              if (data.result && Array.isArray(data.result.channels)) {
+                channels = data.result.channels;
+              } else if (Array.isArray(data.result)) {
+                channels = data.result;
+              } else if (Array.isArray(data.channels)) {
+                channels = data.channels;
+              }
+
+              console.error('Total channels found: ' + channels.length);
+
+              // Keep 15 most recent channels (generous buffer below 50 limit)
+              // Sort by createTime (oldest first)
+              channels.sort((a, b) => {
+                const timeA = new Date(a.createTime || 0).getTime();
+                const timeB = new Date(b.createTime || 0).getTime();
+                return timeA - timeB;
+              });
+
+              const keepCount = 15;
+              const toDelete = channels.slice(0, Math.max(0, channels.length - keepCount));
+
+              console.error('Channels to keep: ' + Math.min(channels.length, keepCount));
+              console.error('Channels to delete: ' + toDelete.length);
+
+              // Extract channel ID from full path
+              toDelete.forEach(ch => {
+                if (ch.name) {
+                  const channelId = ch.name.split('/').pop();
+                  const expireTime = ch.expireTime ? new Date(ch.expireTime).toISOString() : 'unknown';
+                  console.error('  - ' + channelId + ' (expires: ' + expireTime + ')');
+                  console.log(channelId);
+                }
+              });
+            } catch (err) {
+              console.error('Error parsing channel data: ' + err.message);
+              process.exit(0);  // Exit successfully - cleanup is optional
+            }
+          " <<< "$CHANNELS_JSON" > /tmp/channels_to_delete.txt
+
+          CHANNEL_IDS=$(cat /tmp/channels_to_delete.txt)
+
+          echo "::endgroup::"
+
+          # Delete old channels
+          if [ -n "$CHANNEL_IDS" ]; then
+            echo "::group::Deleting old preview channels"
+            echo "$CHANNEL_IDS" | while IFS= read -r CHANNEL_ID; do
+              if [ -n "$CHANNEL_ID" ]; then
+                echo "Deleting channel: $CHANNEL_ID"
+                set +e
+                npx firebase-tools@latest hosting:channel:delete "$CHANNEL_ID" \
+                  --project um-shotbuilder \
+                  --force 2>&1
+                DELETE_EXIT_CODE=$?
+                set -e
+
+                if [ $DELETE_EXIT_CODE -eq 0 ]; then
+                  echo "  ✓ Successfully deleted $CHANNEL_ID"
+                else
+                  echo "  ⚠ Failed to delete $CHANNEL_ID (may not exist) - continuing"
+                fi
+              fi
+            done
+            echo "::endgroup::"
+            echo "✓ Cleanup completed"
+          else
+            echo "No old channels to delete - all channels are recent"
+          fi

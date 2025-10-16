@@ -66,7 +66,7 @@ export default function CommentSection({ clientId, shotId, shotName }) {
     },
   });
 
-  const deleteComment = useDeleteComment(clientId, shotId, deletingCommentId, {
+  const deleteComment = useDeleteComment(clientId, shotId, {
     onSuccess: () => {
       toast.success("Comment deleted");
       setDeletingCommentId(null);
@@ -92,7 +92,7 @@ export default function CommentSection({ clientId, shotId, shotName }) {
       return;
     }
     setDeletingCommentId(commentId);
-    deleteComment.mutate();
+    deleteComment.mutate({ commentId });
   };
 
   const handleCancelEdit = () => {
