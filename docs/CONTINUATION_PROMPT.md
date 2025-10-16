@@ -1,45 +1,52 @@
 # Shot Builder - Continuation Prompt
 
-I'm continuing work on my Shot Builder Firebase app. **All 34 phases complete + production bug fixes deployed.**
+I'm continuing work on my Shot Builder Firebase app. **All 35 phases complete + critical security fixes applied.**
 
 ## Current Status
 
-**34/34 phases complete + all bug fixes merged** ✅
+**35/35 phases complete** ✅
 
-- Latest: PR #207 merged - Planner loading fix, dropdown z-index corrections, editor dark mode
-- Bundle: 251.49 kB gzipped
-- Tests: 351 passing
-- Production: Stable and fully operational
+- **Latest**: Phase 17A Comments & Mentions (PR #209 - ready for review after critical fixes)
+- **Bundle**: 251.92 kB gzipped
+- **Tests**: 351 passing
+- **Production**: Stable and fully operational
 
-**Branch**: `main` (clean slate for new work)
+**Branch**: `feat/phase17a-comments-mentions` (ready to merge after review)
 
 ## Quick Reference
 
 **Master roadmap**: `/docs/MOCKUP_INTEGRATION_ASSESSMENT.md`
-- Complete 34-phase history with PR links (#159-#207)
-- Bundle size tracking across all phases
-- Test coverage metrics
-- All recent bug fixes and improvements
+- Complete 35-phase history with PR links (#159-#208)
+- Bundle size tracking and test coverage metrics
+- All recent features and bug fixes documented
+
+**Latest session**: `/PHASE17A_COMMENTS_MENTIONS_SESSION.md`
+- Comments & mentions system implementation details
+- Security fixes and code review improvements
 
 **Tech**: React 18 + Vite 7 + Tailwind + Firebase + TanStack Query
 
 ## What I Need
 
-**[Option 1]** Suggest next improvement
-- Review codebase for optimization opportunities
-- Identify polish/refinement areas
-- Propose next feature or enhancement
+**[Option 1]** Review and merge PR #209
+- Phase 17A: Comments & Mentions collaboration system
+- All critical security/reliability fixes applied (Phase 1)
+- XSS prevention, immutable field validation, memory leak fixes
+- 351 tests passing, bundle optimized
 
-**[Option 2]** Implement specific feature
-- I'll tell you what I want to build
-- You review existing patterns from docs
-- Create implementation plan with TodoWrite
-- Build, test, and document
+**[Option 2]** Phase 17B: Activity Feed
+- Auto-log shot updates, comments, status changes
+- Project-level activity timeline
+- Filter by type, user, date range
 
-**[Option 3]** Production support
-- Fix bugs or errors
-- Address performance issues
-- Resolve deployment problems
+**[Option 3]** Phase 17C: Enhanced Sharing
+- Project sharing with public links
+- Per-link permissions (view, comment, full access)
+- External collaborator support
+
+**[Option 4]** Production support or custom feature
+- Tell me what you want to build/fix
+- I'll review existing patterns and create a plan
 
 ## Please
 
@@ -58,52 +65,63 @@ I'm continuing work on my Shot Builder Firebase app. **All 34 phases complete + 
 ### UI & Styling
 - **Dark mode**: Tailwind `dark:` prefix (100% coverage)
 - **Accessibility**: WCAG 2.1 AA compliance
-- **Z-index**: z-40 (headers), z-60 (modals), z-100 (dropdowns)
+- **Z-index hierarchy**:
+  - `z-40`: Sticky page headers, navigation bars
+  - `z-50`: Dropdowns, popovers, tooltips, sidebars
+  - `z-60`: Reserved (defined in config, use for layered modals if needed)
+  - `z-100`: Top-level overlays (use sparingly for highest priority UI)
+
+### Security (Critical)
+- **DOMPurify**: Strict sanitization for user-generated HTML
+- **Firestore rules**: Immutable field validation, ownership checks
+- **Error handling**: Try-catch with graceful degradation
 
 ### Development
 - **Branches**: `feat/[name]` or `fix/[name]`
-- **Testing**: Write tests during implementation
+- **Testing**: All tests must pass (9 skip in CI, pass locally)
 - **Commits**: Conventional commits with Claude Code footer
-- **CI**: All tests must pass (9 skip in CI, pass locally)
+- **CI**: Firebase preview channels (max 5, auto-pruned)
 
 ## Git Workflow
 
 ```bash
-# Create branch
+# Create branch from main
+git checkout main
+git pull
 git checkout -b [feat|fix]/description
 
 # After changes
-git add . && git commit -m "..."
+git add .
+git commit -m "type: description"
 git push -u origin [branch]
 
 # Create PR
 gh pr create --title "..." --body "..."
 
-# Wait for checks, then merge
+# Merge after review
 gh pr merge [number] --squash
 ```
 
-## Debugging Checklist
-
-When fixing bugs:
-1. Use TodoWrite to track issues
-2. Grep/Read to locate problem areas
-3. Check for variable name mismatches
-4. Verify Tailwind classes are valid
-5. Test dark mode variants
-6. Run build and tests
-7. Update documentation
-
 ## Recent Context
 
-**PR #207 (Just Merged)** - Three bug fixes:
-1. **Planner loading**: Fixed undefined `shotsLoading` variable (should be `primaryShotsLoading`)
-2. **Dropdown z-index**: Added z-100 to tailwind.config, updated QuickActionsMenu, NotificationPanel, UserMenu
-3. **Editor dark mode**: Fixed NotesEditor focus bug, added dark mode support, enhanced color picker
+**Phase 17A Critical Fixes (PR #209)**:
+1. **XSS Prevention**: DOMPurify config hardened (restricted class attributes, forbidden tags/attrs)
+2. **Firestore Security**: Immutable field validation (createdBy, createdAt, createdByName, createdByAvatar)
+3. **Race Condition**: Replaced Date.now() with crypto.randomUUID() for temp IDs
+4. **DOM Safety**: Try-catch wrapper with validation in insertMentionAtCursor
+5. **Memory Leak**: useRef pattern for event listener callbacks
+6. **CI/CD**: Firebase preview channel quota management (--max-channels 5)
 
-**Previous PRs #201-#206**: Loading bugs, UX improvements, schema fixes, timezone corrections, colourway support
+All fixes tested ✅, build passing ✅, zero regressions ✅
 
-See `/docs/MOCKUP_INTEGRATION_ASSESSMENT.md` for complete history.
+**Phase 17A Features**:
+- Real-time comments on shots (create, edit, delete)
+- @user mentions with autocomplete and keyboard navigation
+- Automatic notifications for mentioned users
+- Comment subcollections with security rules
+- Full dark mode and WCAG 2.1 AA compliance
+
+See `/PHASE17A_COMMENTS_MENTIONS_SESSION.md` for complete details.
 
 ## Communication Style
 
