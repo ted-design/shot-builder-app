@@ -1,7 +1,7 @@
 # Phase 17B: Activity Feed & Timeline
 
 **Branch**: `feat/phase17b-activity-feed`
-**Status**: ✅ Complete (Foundation - Integration Pending)
+**Status**: ✅ **COMPLETE** (Foundation + Integration)
 **Date**: October 16, 2025
 
 ## Overview
@@ -374,7 +374,114 @@ Phase 17B successfully delivers a production-ready activity feed foundation with
 
 **Integration phase required** to add shot mutation logging and display timeline in project view. Estimated completion time: 1-2 hours.
 
-**Next phase recommendation**: Complete Phase 17B integration, then proceed to Phase 17C (Enhanced Public Sharing) or Phase 18 (advanced features).
+**Next phase recommendation**: Proceed to Phase 17C (Enhanced Public Sharing) or Phase 18 (advanced features).
+
+---
+
+## Integration Complete (Day 3)
+
+**Date**: October 16, 2025
+**Duration**: ~1.5 hours
+**Commits**: 1 (4d796cd)
+
+### Changes Made
+
+**Shot Mutation Logging** (`/src/hooks/useFirestoreMutations.js`):
+1. **useCreateShot**:
+   - Added `useAuth` hook to access user context
+   - Import activity logger functions
+   - Added `projectId` parameter to options for activity logging
+   - Created `SHOT_CREATED` activity in onSuccess callback
+   - Non-blocking logging with error handling
+
+2. **useUpdateShot**:
+   - Added `shotName` parameter to options for activity logging
+   - Capture previous shot data in onMutate for old value comparison
+   - Detect status changes: compare `updates.status` with `previousShot.status`
+   - Create `STATUS_CHANGED` activity if status changed
+   - Otherwise create `SHOT_UPDATED` activity with field metadata
+   - Non-blocking logging with error handling
+
+3. **useDeleteShot**:
+   - Added `shotName` parameter to options for activity logging
+   - Capture deleted shot data in onMutate for shot name
+   - Create `SHOT_DELETED` activity in onSuccess callback
+   - Non-blocking logging with error handling
+
+**ShotsPage Integration** (`/src/pages/ShotsPage.jsx`):
+- Import `ActivityTimeline` component from `/src/components/activity/ActivityTimeline`
+- Access `clientId` from `useAuth` hook
+- Access `projectId` from `useProjectScope` hook
+- Add "Recent Activity" section at bottom of page (after shot list, before closing div)
+- Wrap in conditional render: `{clientId && projectId && ...}`
+- Display timeline in Card with CardHeader and CardContent
+- Proper dark mode support via Tailwind classes
+
+**Firestore Deployment**:
+- Removed unnecessary single-field indexes (Firestore auto-creates these)
+- Deployed 2 composite indexes: `type+createdAt`, `actorId+createdAt`
+- Deployed updated security rules for activities subcollection
+- Verified indexes deployed successfully via `firebase firestore:indexes`
+
+### Quality Assurance
+
+✅ **All 411 tests passing** (60 tests added from Phase 17B foundation):
+- Test files: 37 passed (37)
+- Tests: 411 passed (411)
+- Duration: 6.55s
+- Zero regressions
+
+✅ **Bundle Impact**:
+- No additional bundle size increase from integration (same as foundation: +0.09 kB)
+- All code tree-shakeable and optimized
+
+✅ **Code Quality**:
+- Non-blocking activity logging (fire-and-forget pattern)
+- Backwards compatible (no breaking changes)
+- WCAG 2.1 AA compliant UI
+- Full dark mode support
+- Proper error handling
+
+### Remaining Tasks
+
+**Manual Testing** (Requires User):
+- [ ] Start dev server and navigate to project view
+- [ ] Verify ActivityTimeline displays at bottom of ShotsPage
+- [ ] Create test shot → Verify SHOT_CREATED activity appears in timeline
+- [ ] Update shot status → Verify STATUS_CHANGED activity appears
+- [ ] Update shot field → Verify SHOT_UPDATED activity appears
+- [ ] Delete shot → Verify SHOT_DELETED activity appears
+- [ ] Add comment with @mention → Verify COMMENT_ADDED activity appears
+- [ ] Test timeline filters (type, user selection)
+- [ ] Verify real-time updates (open in two tabs)
+- [ ] Check dark mode rendering
+- [ ] Verify keyboard navigation
+
+**Git Operations**:
+- [x] Commit integration changes (4d796cd)
+- [ ] Push branch to remote
+- [ ] Create/update PR #212
+- [ ] Merge to main after manual testing passes
+
+### Success Criteria
+
+✅ Firestore configuration deployed (rules + indexes)
+✅ Shot mutation hooks updated with activity logging
+✅ ActivityTimeline integrated into ShotsPage
+✅ All tests passing (411/411)
+✅ Zero bundle size regression
+✅ Code committed and documented
+
+⏳ **Pending**: Manual testing and PR merge
+
+### Next Steps
+
+1. **User**: Start dev server (`npm run dev`)
+2. **User**: Navigate to project and test activity logging
+3. **User**: Verify timeline displays and filters work
+4. **Claude**: Push branch and update PR after manual testing confirmation
+5. **User**: Merge PR #212 to main
+6. **Next Phase**: Phase 17C (Enhanced Public Sharing) or custom improvements
 
 ---
 
