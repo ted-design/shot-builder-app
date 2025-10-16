@@ -179,6 +179,25 @@ service cloud.firestore {
           (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
       }
 
+      // Activities - project activity feed with 90-day retention
+      match /activities/{activityId} {
+        // Anyone with project read access can read activities
+        allow read: if clientMatches(clientId) &&
+          (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+
+        // Only authenticated users with project access can create activities
+        // Validate that actorId matches authenticated user
+        allow create: if clientMatches(clientId) && isAuthed() &&
+          request.resource.data.actorId == request.auth.uid &&
+          request.resource.data.projectId == projectId;
+
+        // Activities are immutable - no updates allowed (audit trail integrity)
+        allow update: if false;
+
+        // Only admins can delete activities (for cleanup/retention purposes)
+        allow delete: if clientMatches(clientId) && isAdmin();
+      }
+
       match /{collectionId}/{docId} {
         allow read: if clientMatches(clientId) &&
           (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));

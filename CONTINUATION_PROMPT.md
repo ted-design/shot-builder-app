@@ -1,186 +1,168 @@
-# Shot Builder - Continuation Prompt
+# Shot Builder - Continuation Prompt (Lean)
 
-I'm continuing development for my Shot Builder Firebase app. Phase 14C just completed - Advanced Search & Filter Presets with fuzzy matching and Cmd+K command palette!
+I'm continuing UI/UX improvements for my Shot Builder Firebase app. Phase 17A (Comments & Mentions) just completed.
 
-## Current Status
+## Current Status: 35/35 phases done ✅
 
-**Phase 14C Complete** ✅ (PR #190 merged)
-- **26/26 phases done** - All major feature development complete! 🎉
-- Latest work: Phase 14C (Advanced Search & Filter Presets)
-- Branch: `main` (or create new from `main`)
-- All 232 tests passing (48 new tests added)
-- Build: 9.22s | Bundle: 298.65 kB gzipped (+11.64 kB for fuse.js)
+- **Latest**: Phase 17A - Comments & Mentions Collaboration System (PR #209 merged)
+- **Recent**: Bug fixes (PRs #207, #210), production cleanup
+- **Next**: Phase 17B (Activity Feed) OR custom improvements
 
-**Latest Work**:
-- **Phase 14C**: Global command palette (Cmd+K), fuzzy search with fuse.js, filter preset save/load/manage (PR #190 ✅ Merged)
-- Added 48 comprehensive tests for search and filter preset utilities
-- Fixed 6 critical code review issues (deprecated methods, race conditions, missing dependencies)
-- WCAG 2.1 AA compliant with full keyboard navigation
+## Branch
+
+`main` (or create new from `main`)
 
 ## Quick Reference
 
-**Documentation** (Read these first):
-1. **Master Roadmap**: `/docs/MOCKUP_INTEGRATION_ASSESSMENT.md`
-   - Complete 26-phase history
-   - Feature priorities and future opportunities
-
-2. **Latest Session**: `/PHASE14C_SEARCH_FILTER_PRESETS_SESSION.md`
-
-3. **Architecture**: `/docs/shot_builder_overview_updated.md`, `/docs/shot_builder_structure.md`
-
-**Tech Stack**:
-- React 18 + Vite 6 + Tailwind CSS 3
-- Firebase (Firestore, Auth, Storage)
-- TanStack Query v5 (100% caching coverage)
-- react-window (list virtualization)
-- fuse.js (fuzzy search, 6 kB gzipped)
-- xlsx (CSV/Excel export, code-split)
-- Testing: Vitest + RTL (232 tests passing)
+- **Roadmap**: `/docs/MOCKUP_INTEGRATION_ASSESSMENT.md`
+- **Latest Session**: `/PHASE17A_COMMENTS_MENTIONS_SESSION.md`
+- **Tech**: React 18 + Vite 6 + Tailwind + Firebase + TanStack Query v5
 
 ## What I Need
 
-**Option 1**: Post-Merge Enhancements from Code Review
-- Add search input debouncing (150-200ms)
-- Add max preset limit (20 per page)
-- Cache Fuse.js instances for performance
-- Monitor bundle size impact
-- Expected time: 2-3 hours
+**Option 1**: Phase 17B - Activity Feed & Timeline
+- Project-level activity logging (shot updates, comments, status changes)
+- Timeline component with filtering
+- Real-time updates via TanStack Query
+- 90-day retention with cleanup
+- Estimated: 6-8 hours
 
-**Option 2**: Testing & Quality Improvements
-- E2E tests with Playwright
-- Expand component test coverage
+**Option 2**: Phase 17C - Enhanced Public Sharing
+- Project sharing with public links
+- Per-link permissions (view, comment, full)
+- Expiring share tokens
+- External collaborator support
+- Estimated: 6-8 hours
+
+**Option 3**: Testing & Quality
+- E2E tests (Playwright)
 - Visual regression testing
-- Performance profiling and benchmarks
+- Performance profiling
 
-**Option 3**: Mobile Optimization
-- Responsive design refinements
+**Option 4**: Mobile Optimization
+- Responsive refinements
 - Touch gesture improvements
-- Mobile-specific UI patterns
-- Progressive Web App (PWA) capabilities
+- PWA capabilities
 
-**Option 4**: Future Enhancements
-- Search result highlighting
-- Preset categories/folders
-- Cloud sync for presets
-- Search analytics
-- Real-time collaboration features
-
-**Option 5**: Specific feature/improvement
-- Tell me what you want to build/fix
-- I'll create a plan and implement
+**Option 5**: Custom improvement (I'll specify)
 
 ## Your Approach
 
 Please:
-1. **Read `/docs/MOCKUP_INTEGRATION_ASSESSMENT.md`** for full context
-2. Suggest the best next step based on current state
-3. Create implementation plan with TodoWrite
-4. Work efficiently - test builds, update docs, create PR
 
-## Important Guardrails
+1. **RAG Integration** (Single Source of Truth):
+   - Query RAG BEFORE any implementation: `http://127.0.0.1:8000/search`
+   - Auth: `X-API-Key: claude-code-rag-key-2025`
+   - Collection: `shot_builder_knowledge_base`
+   - Top_k: 6-12 results
+   - Summarize findings - reference paths, don't embed code
 
-- ✅ **Read files before editing** - Use Read tool first
-- ✅ **Follow patterns** - Check similar implementations
-- ✅ **Test thoroughly** - All 232 tests must pass
-- ✅ **Document changes** - Create session docs for significant work
-- ✅ **Zero regressions** - Maintain backwards compatibility
-- ✅ **Performance** - Monitor bundle size and build time
-- ✅ **Accessibility** - WCAG 2.1 AA compliance required
-- ✅ **Security** - Validate inputs, prevent injection attacks
+2. **Sub-Agent Orchestration** (select 3-5 based on task):
+   - **Feature/Phase**: Staff Engineer, shadcn Builder, Code Reviewer, Git Helper
+   - **Refactor/Perf**: Code Refactorer, Senior Reviewer, System Architect
+   - **UX/Polish**: Premium UX Designer, shadcn Analyzer, Component Researcher
+   - **Strategy**: Product Strategy Advisor, System Architect, Staff Engineer
+   - **Protocol**: Query RAG → Summarize → Tag outputs `[Agent]: <recommendation>`
+
+3. **Implementation**:
+   - Create plan with **TodoWrite** (break into tasks)
+   - Read patterns via RAG before editing
+   - Follow established architecture
+   - Test incrementally
+   - Update docs
+
+4. **Quality Standards**:
+   - 351 tests passing (zero regressions)
+   - WCAG 2.1 AA compliant
+   - Bundle: 251.92 kB gzipped (monitor)
+   - Build: <10s target
+   - Dark mode compatible
+   - Input validation & security
+
+5. **Deliverables**:
+   - Working implementation with tests
+   - Session doc (if significant)
+   - PR with description
+   - Update roadmap
 
 ## Project Health
 
 **Status**: ✅ Production Ready
 
 **Features**:
-- 🎨 Modern UI design system
-- ♿ WCAG 2.1 AA compliant
-- 🎭 Premium polish animations
-- ⚡ 298.65 kB gzipped (optimized)
-- 🔍 Advanced search (Cmd+K, fuzzy matching)
-- 💾 Filter presets (save/load/manage)
-- 🏷️ Complete tag system with centralized management
-- 📦 Comprehensive bulk operations
-- 💾 Intelligent caching (50-80% Firestore reduction)
-- 📜 List virtualization (98% DOM reduction)
-- 📊 Universal CSV/Excel export (all major pages)
-- 📤 Batch image upload (drag & drop)
-- ✅ 232 tests passing (48 new search/preset tests)
-- 🔒 Security hardened (injection prevention, validation)
-
-**Recent PRs**:
-- #187: Animation & Interaction Polish (✅ Merged)
-- #188: CSV/Excel Export System (✅ Merged)
-- #189: Batch Image Upload (✅ Merged)
-- #190: Advanced Search & Filter Presets (✅ Merged)
+- 🎨 Modern UI (top nav, mobile responsive)
+- 🔍 Advanced search (Cmd+K, fuzzy, 80-90% faster)
+- 💾 Filter presets (20 max per page)
+- 🏷️ Tag system (color-coded, bulk ops, centralized)
+- 💬 Collaboration (comments, @mentions, notifications)
+- 🌙 Dark mode (100% coverage)
+- 🎭 Premium animations
+- ⚡ Performance (TanStack caching, virtualization, debouncing)
+- 📊 CSV/Excel export
+- 📤 Batch image upload
+- ♿ WCAG 2.1 AA
+- 🧪 351 tests passing
+- 📦 251.92 kB gzipped
 
 **Metrics**:
-- Build time: 9.22s
-- Bundle size: 298.65 kB gzipped
-- Test coverage: 232 tests, all passing
-- Performance: 60 FPS, smooth scrolling with 10,000+ items
-- Firestore reads: 50-80% reduction via TanStack Query
+- Build: ~9-10s
+- Tests: 351 passing
+- Performance: 60 FPS with 10k+ items
+- Firestore: 50-80% read reduction
+- Zero critical issues
 
-## Potential Next Steps
+## RAG Server Setup
 
-Based on the roadmap, here are high-value opportunities:
+**Current State**:
+- ✅ Server running on http://127.0.0.1:8000
+- ✅ Virtual env + dependencies installed
+- ⚠️ Collection has 0 documents (needs indexing)
 
-### Option 1: Post-Merge Improvements (Recommended from Code Review)
-**Why**: Address technical debt and optimize recent features
-**What**:
-- Add debouncing to search input (150-200ms)
-- Implement max preset limit (20 per page)
-- Cache Fuse.js instances (performance)
-- Bundle size monitoring
+**Index Codebase** (run once):
+```bash
+cd /Users/tedghanime/Documents/App\ Development/A-simlified-RAG-tool-for-Claude-Code-context-management-main
 
-**Impact**: MEDIUM - Improved performance and UX polish
-**Effort**: LOW - 2-3 hours
-**Risk**: LOW - Minor enhancements to existing features
+source venv/bin/activate
 
-### Option 2: Testing Infrastructure
-**Why**: Increase confidence and catch regressions early
-**What**:
-- E2E tests with Playwright
-- Visual regression testing
-- Performance benchmarks
-- Higher test coverage (>90%)
+python main.py index /Users/tedghanime/Documents/App\ Development/Shot\ Builder\ Development/shot-builder-workdir/shot-builder-app
 
-**Impact**: HIGH - Better quality assurance
-**Effort**: MEDIUM - 4-6 hours
-**Risk**: LOW - No user-facing changes
+# Wait ~2-3 minutes for indexing
+# Expected: ~1,216 docs indexed
+```
 
-### Option 3: Mobile Experience
-**Why**: Optimize for mobile users
-**What**:
-- Touch gesture improvements
-- Responsive refinements
-- Mobile-first UI patterns
-- Progressive Web App (PWA)
+**Verify** (after indexing):
+```bash
+./rag_server.sh health
+# Expected: "OK"
 
-**Impact**: HIGH - Better mobile experience
-**Effort**: MEDIUM - 4-6 hours
-**Risk**: LOW - Progressive enhancement
+curl -s "http://127.0.0.1:8000/stats" -H "X-API-Key: claude-code-rag-key-2025"
+# Expected: collection=shot_builder_knowledge_base, total_documents≈1,216
+```
 
-### Option 4: Advanced Features
-**Why**: Future-proofing and competitive advantages
-**What**:
-- Real-time collaboration indicators
-- Activity feed / changelog
-- Advanced filtering (date ranges, complex queries)
-- Search result highlighting
-- Preset sharing/cloud sync
+**Management**:
+- Scripts: `/Users/tedghanime/Documents/App Development/A-simlified-RAG-tool-for-Claude-Code-context-management-main`
+- Commands: `./rag_server.sh status|start|stop|health|logs|restart`
 
-**Impact**: HIGH - Differentiation and power features
-**Effort**: HIGH - 8-12 hours per feature
-**Risk**: MEDIUM - Complex integrations
+**Note**: Until indexed, use direct `Read` tool instead of `doc-searcher` agent.
+
+## Key Principles
+
+✅ **Reference, don't embed** (~40% token savings)
+✅ **RAG-first** (query before implementing)
+✅ **Concise reasoning** (forward-focused, no retrospectives)
+✅ **3-5 agents per task** (orchestrated, tagged outputs)
+✅ **Test incrementally** (don't batch at end)
+✅ **Zero breaking changes** (backwards compatibility critical)
 
 ## Notes
 
-- All 26 phases of mockup-inspired UI/UX work are complete
-- Focus areas: Polish, Testing, Mobile, Advanced Features
-- Bundle size is healthy (~299 kB gzipped)
-- No critical issues or tech debt
-- Clean architecture with solid test coverage
-- Ready for production deployment
+- All 35 phases complete 🎉
+- Production-ready with comprehensive features
+- Clean architecture, solid test coverage
+- Ready for Phase 17B or custom work
 
-Let me know which direction you'd like to go, or tell me about a specific improvement you have in mind!
+---
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>

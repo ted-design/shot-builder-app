@@ -41,6 +41,26 @@ export const queryKeys = {
   notifications: (clientId, userId) => ["notifications", clientId, userId],
   comments: (clientId, shotId) => ["comments", clientId, shotId],
   users: (clientId) => ["users", clientId],
+  activities: (clientId, projectId, filters = {}) => {
+    const baseKey = ["activities", clientId, projectId];
+
+    // Include filters in key for separate caches
+    if (Object.keys(filters).length === 0) {
+      return baseKey;
+    }
+
+    return [
+      ...baseKey,
+      "filtered",
+      {
+        types: filters.types || null,
+        actorIds: filters.actorIds || null,
+        startDate: filters.startDate?.toISOString?.() || null,
+        endDate: filters.endDate?.toISOString?.() || null,
+        limit: filters.limit || null,
+      },
+    ];
+  },
 };
 
 /**
