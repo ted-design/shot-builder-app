@@ -30,8 +30,51 @@ jobs:
       # Clean up old channels first to avoid hitting the quota before creating a new one.
       - name: Pre-cleanup old preview channels (avoid quota)
         run: |
-          # Use latest CLI to ensure prune options/behavior are supported
-          # Prune expired and stale channels
+          # Strategy: Delete oldest channels to stay under quota (Firebase limit is typically 10-20 channels)
+          # We'll keep only the 5 most recent channels and delete the rest
+
+          echo "Fetching list of preview channels..."
+          CHANNELS_JSON=$(npx firebase-tools@latest hosting:channel:list --project um-shotbuilder --json 2>/dev/null || echo '{"result":[]}')
+
+          # Extract channel IDs and sort by creation time (oldest first)
+          # Format: "projects/PROJECT/sites/SITE/channels/CHANNEL_ID"
+          CHANNEL_IDS=$(echo "$CHANNELS_JSON" | node -e "
+            const data = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
+            const channels = data.result || data.channels || [];
+
+            // Sort by createTime (oldest first)
+            channels.sort((a, b) => {
+              const timeA = new Date(a.createTime || 0);
+              const timeB = new Date(b.createTime || 0);
+              return timeA - timeB;
+            });
+
+            // Keep only 5 most recent, delete the rest
+            const toDelete = channels.slice(0, Math.max(0, channels.length - 5));
+
+            // Extract channel ID from full path (last segment after '/')
+            toDelete.forEach(ch => {
+              if (ch.name) {
+                const channelId = ch.name.split('/').pop();
+                console.log(channelId);
+              }
+            });
+          " 2>/dev/null)
+
+          # Delete old channels
+          if [ -n "$CHANNEL_IDS" ]; then
+            echo "Deleting old preview channels to free up quota..."
+            echo "$CHANNEL_IDS" | while read -r CHANNEL_ID; do
+              if [ -n "$CHANNEL_ID" ]; then
+                echo "Deleting channel: $CHANNEL_ID"
+                npx firebase-tools@latest hosting:channel:delete "$CHANNEL_ID" --project um-shotbuilder --force || echo "Failed to delete $CHANNEL_ID (may not exist)"
+              fi
+            done
+          else
+            echo "No old channels to delete."
+          fi
+
+          # Also prune any expired channels as a backup
           npx firebase-tools@latest hosting:channel:prune um-shotbuilder || true
 
       - name: Build
@@ -68,11 +111,13 @@ jobs:
           VITE_FIREBASE_APP_ID:              ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID:      ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }} # optional
         # Channel name uses PR number (stable across pushes)
+        # Set expiration to 3 days (instead of default 7) to help with quota management
         # Pipe through tee so CLI output still appears in the GitHub log when the command fails.
         run: |
           set -o pipefail
           npx firebase-tools@latest hosting:channel:deploy pr-${{ github.event.number }} \
             --project um-shotbuilder \
+            --expires 3d \
             --json \
             --non-interactive \
             | tee deploy.json
@@ -150,6 +195,25 @@ jobs:
       - name: Cleanup old preview channels
         if: always()
         run: |
-          # Prune old preview channels to avoid hitting quota limits.
-          # Removes expired and stale channels automatically.
+          # Prune expired channels (those past their TTL)
+          echo "Pruning expired channels..."
           npx firebase-tools@latest hosting:channel:prune um-shotbuilder || true
+
+          # Also enforce the 5-channel limit again (in case deployment failed)
+          echo "Fetching list of preview channels..."
+          CHANNELS_JSON=$(npx firebase-tools@latest hosting:channel:list --project um-shotbuilder --json 2>/dev/null || echo '{"result":[]}')
+
+          CHANNEL_IDS=$(echo "$CHANNELS_JSON" | node -e "
+            const data = JSON.parse(require('fs').readFileSync(0, 'utf-8'));
+            const channels = data.result || data.channels || [];
+            channels.sort((a, b) => new Date(a.createTime || 0) - new Date(b.createTime || 0));
+            const toDelete = channels.slice(0, Math.max(0, channels.length - 5));
+            toDelete.forEach(ch => ch.name && console.log(ch.name.split('/').pop()));
+          " 2>/dev/null)
+
+          if [ -n "$CHANNEL_IDS" ]; then
+            echo "Deleting old preview channels..."
+            echo "$CHANNEL_IDS" | while read -r CHANNEL_ID; do
+              [ -n "$CHANNEL_ID" ] && npx firebase-tools@latest hosting:channel:delete "$CHANNEL_ID" --project um-shotbuilder --force || true
+            done
+          fi
