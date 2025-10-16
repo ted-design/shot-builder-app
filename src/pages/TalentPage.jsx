@@ -513,11 +513,9 @@ export default function TalentPage() {
           entityName="Talent Headshots (Demo)"
           maxFiles={10}
           onFileUploaded={(upload) => {
-            console.log("File uploaded:", upload);
             toast.success(`Uploaded ${upload.filename}`);
           }}
           onUploadComplete={(successfulUploads) => {
-            console.log("All uploads complete:", successfulUploads);
             toast.success(`Successfully uploaded ${successfulUploads.length} file${successfulUploads.length === 1 ? "" : "s"}!`);
           }}
         />
