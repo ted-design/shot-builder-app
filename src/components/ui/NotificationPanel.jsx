@@ -173,7 +173,7 @@ export default function NotificationPanel({ notifications = [], isLoading, onClo
   };
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg animate-fade-in-down z-100">
+    <div className="absolute right-0 top-full mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg animate-fade-in-down z-50">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 p-4">
         <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
