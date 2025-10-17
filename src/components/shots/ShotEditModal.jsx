@@ -239,6 +239,8 @@ export default function ShotEditModal({
               <TagEditor
                 tags={draft.tags || []}
                 onChange={(next) => handleFieldChange({ tags: next })}
+                clientId={clientId}
+                projectId={currentProjectId}
               />
             </div>
             {onMoveToProject && projects.length > 0 && (
