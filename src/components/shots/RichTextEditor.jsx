@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import PropTypes from "prop-types";
+import DOMPurify from "dompurify";
 import ReactTiptapEditor from "reactjs-tiptap-editor";
 import { BaseKit } from "reactjs-tiptap-editor";
 import { Mention } from "reactjs-tiptap-editor/mention";
@@ -21,6 +22,7 @@ import { History } from "reactjs-tiptap-editor/history";
 import "reactjs-tiptap-editor/style.css";
 import "./RichTextEditor.overrides.css"; // CSS fixes for dropdown/picker interactions
 import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
 import { useUsers } from "../../hooks/useComments";
 
 /**
@@ -53,6 +55,7 @@ export default function RichTextEditor({
   className = "",
 }) {
   const { clientId } = useAuth();
+  const { theme } = useTheme();
 
   // Fetch users for mentions
   const { data: users = [], isLoading: usersLoading } = useUsers(clientId);
@@ -121,10 +124,37 @@ export default function RichTextEditor({
     ];
   }, [placeholder, characterLimit, users]);
 
-  // Handle content changes
+  // Handle content changes with HTML sanitization
   const handleChange = (content) => {
     if (onChange && !disabled) {
-      onChange(content);
+      // Sanitize HTML to prevent XSS attacks
+      // Allow comprehensive HTML tags for rich text editing
+      const sanitized = DOMPurify.sanitize(content, {
+        ALLOWED_TAGS: [
+          'p', 'br', 'span', 'div', 'strong', 'em', 'b', 'i', 'u', 's', 'code', 'pre',
+          'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+          'ul', 'ol', 'li',
+          'blockquote',
+          'a', 'img',
+          'table', 'thead', 'tbody', 'tr', 'th', 'td',
+          'hr',
+          'sub', 'sup'
+        ],
+        ALLOWED_ATTR: {
+          'span': ['class', 'style', 'data-*'],
+          'a': ['href', 'target', 'rel', 'class'],
+          'img': ['src', 'alt', 'width', 'height', 'class'],
+          'td': ['colspan', 'rowspan', 'class'],
+          'th': ['colspan', 'rowspan', 'class'],
+          'p': ['class'],
+          'div': ['class'],
+          'code': ['class'],
+          'pre': ['class'],
+        },
+        ALLOW_DATA_ATTR: true, // For mentions and other data attributes
+        KEEP_CONTENT: true,
+      });
+      onChange(sanitized);
     }
   };
 
@@ -139,7 +169,7 @@ export default function RichTextEditor({
         hideToolbar={hideToolbar}
         hideBubble={hideBubble}
         contentClass="prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[200px]"
-        dark={false} // We'll handle dark mode via Tailwind classes
+        dark={theme === 'dark'}
         minHeight={minHeight}
         maxHeight={maxHeight}
       />
