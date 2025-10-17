@@ -80,7 +80,7 @@ import { readStorage, writeStorage } from "../lib/safeStorage";
 import { normaliseShotStatus, DEFAULT_SHOT_STATUS } from "../lib/shotStatus";
 import { normaliseShot, sortShotsForView, SHOT_SORT_OPTIONS } from "../lib/shotsSelectors";
 import { getStaggerDelay } from "../lib/animations";
-import { ActivityTimeline } from "../components/activity/ActivityTimeline";
+import ActivityTimeline from "../components/activity/ActivityTimeline";
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
