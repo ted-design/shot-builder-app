@@ -12,8 +12,14 @@ vi.mock("../../../hooks/useComments", () => ({
   useUsers: vi.fn(),
 }));
 
+// Mock useAvailableTags hook to prevent TanStack Query requirement
+vi.mock("../../../hooks/useAvailableTags", () => ({
+  useAvailableTags: vi.fn(),
+}));
+
 import { useAuth } from "../../../context/AuthContext";
 import { useUsers } from "../../../hooks/useComments";
+import { useAvailableTags } from "../../../hooks/useAvailableTags";
 
 const baseDraft = {
   name: "Shot A",
@@ -44,6 +50,13 @@ describe("ShotEditModal talent select", () => {
     useUsers.mockReturnValue({
       data: [],
       isLoading: false,
+    });
+
+    // Mock useAvailableTags hook
+    useAvailableTags.mockReturnValue({
+      availableTags: [],
+      isLoading: false,
+      error: null,
     });
   });
 
