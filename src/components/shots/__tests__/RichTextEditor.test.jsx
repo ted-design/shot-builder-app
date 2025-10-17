@@ -27,6 +27,12 @@ vi.mock("reactjs-tiptap-editor", () => ({
       config,
     }),
   },
+  Mention: {
+    configure: (config) => ({
+      type: "Mention",
+      config,
+    }),
+  },
 }));
 
 describe("RichTextEditor", () => {

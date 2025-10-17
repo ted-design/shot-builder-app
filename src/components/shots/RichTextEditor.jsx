@@ -2,7 +2,10 @@ import React, { useMemo } from "react";
 import PropTypes from "prop-types";
 import ReactTiptapEditor from "reactjs-tiptap-editor";
 import { BaseKit } from "reactjs-tiptap-editor";
+import Mention from "@tiptap/extension-mention";
+import tippy from "tippy.js";
 import "reactjs-tiptap-editor/style.css";
+import "tippy.js/dist/tippy.css";
 import { useAuth } from "../../context/AuthContext";
 import { useUsers } from "../../hooks/useComments";
 
@@ -42,7 +45,7 @@ export default function RichTextEditor({
 
   // Configure extensions with all required features
   const extensions = useMemo(() => {
-    const config = {
+    const baseKitConfig = {
       placeholder: {
         showOnlyCurrent: true,
         placeholder: placeholder,
@@ -54,8 +57,111 @@ export default function RichTextEditor({
       bubbleMenu: !hideBubble,
     };
 
-    return [BaseKit.configure(config)];
-  }, [placeholder, characterLimit, hideBubble]);
+    // Configure mention extension with user data
+    const mentionConfig = {
+      HTMLAttributes: {
+        class: "mention px-1 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300",
+      },
+      suggestion: {
+        items: ({ query }) => {
+          if (!users || users.length === 0) return [];
+
+          return users
+            .filter((user) => {
+              const name = user.displayName || user.email || "";
+              return name.toLowerCase().includes(query.toLowerCase());
+            })
+            .slice(0, 5)
+            .map((user) => ({
+              id: user.uid,
+              label: user.displayName || user.email,
+            }));
+        },
+        render: () => {
+          let component;
+          let popup;
+
+          return {
+            onStart: (props) => {
+              component = document.createElement("div");
+              component.className =
+                "mention-suggestions bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg overflow-hidden";
+
+              const list = document.createElement("div");
+              list.className = "mention-list max-h-60 overflow-y-auto";
+
+              if (props.items.length === 0) {
+                list.innerHTML = '<div class="px-3 py-2 text-sm text-slate-500">No users found</div>';
+              } else {
+                props.items.forEach((item, index) => {
+                  const button = document.createElement("button");
+                  button.className = `mention-item w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 ${
+                    index === props.selectedIndex ? "bg-slate-100 dark:bg-slate-700" : ""
+                  }`;
+                  button.textContent = item.label;
+                  button.onclick = () => props.command(item);
+                  list.appendChild(button);
+                });
+              }
+
+              component.appendChild(list);
+
+              popup = tippy("body", {
+                getReferenceClientRect: props.clientRect,
+                appendTo: () => document.body,
+                content: component,
+                showOnCreate: true,
+                interactive: true,
+                trigger: "manual",
+                placement: "bottom-start",
+              });
+            },
+
+            onUpdate(props) {
+              const list = component.querySelector(".mention-list");
+              if (!list) return;
+
+              if (props.items.length === 0) {
+                list.innerHTML = '<div class="px-3 py-2 text-sm text-slate-500">No users found</div>';
+              } else {
+                list.innerHTML = "";
+                props.items.forEach((item, index) => {
+                  const button = document.createElement("button");
+                  button.className = `mention-item w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 ${
+                    index === props.selectedIndex ? "bg-slate-100 dark:bg-slate-700" : ""
+                  }`;
+                  button.textContent = item.label;
+                  button.onclick = () => props.command(item);
+                  list.appendChild(button);
+                });
+              }
+
+              popup[0].setProps({
+                getReferenceClientRect: props.clientRect,
+              });
+            },
+
+            onKeyDown(props) {
+              if (props.event.key === "Escape") {
+                popup[0].hide();
+                return true;
+              }
+              return false;
+            },
+
+            onExit() {
+              popup[0].destroy();
+            },
+          };
+        },
+      },
+    };
+
+    return [
+      BaseKit.configure(baseKitConfig),
+      Mention.configure(mentionConfig),
+    ];
+  }, [placeholder, characterLimit, hideBubble, users]);
 
   // Handle content changes
   const handleChange = (content) => {
