@@ -1,0 +1,56 @@
+/**
+ * RichTextEditor CSS Overrides
+ *
+ * Fixes for dropdown and color picker interaction issues in reactjs-tiptap-editor
+ * when used inside modals or high z-index contexts.
+ *
+ * Issues fixed:
+ * 1. Heading dropdown disappearing when mouse moves
+ * 2. Color picker not responding to clicks
+ */
+
+/* Fix for Radix UI Popper content (used by dropdowns) */
+[data-radix-popper-content-wrapper] {
+  z-index: 99999 !important;
+}
+
+/* Ensure dropdown menu content is above modals and clickable */
+[role="menu"][data-radix-menu-content] {
+  z-index: 99999 !important;
+  pointer-events: auto !important;
+}
+
+/* Fix for Color picker popover */
+[data-radix-popover-content] {
+  z-index: 99999 !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure popover trigger buttons are clickable */
+.rich-text-editor-wrapper [data-radix-popover-trigger] {
+  pointer-events: auto !important;
+}
+
+/* Ensure dropdown trigger buttons are clickable */
+.rich-text-editor-wrapper [data-radix-dropdown-trigger] {
+  pointer-events: auto !important;
+}
+
+/* Additional safety: ensure all Radix portals are above everything */
+[data-radix-portal] {
+  z-index: 99999 !important;
+}
+
+/* Ensure menu items are interactive */
+[data-radix-menu-item] {
+  pointer-events: auto !important;
+}
+
+/* Ensure color picker internal elements are clickable */
+.react-colorful {
+  pointer-events: auto !important;
+}
+
+.react-colorful * {
+  pointer-events: auto !important;
+}

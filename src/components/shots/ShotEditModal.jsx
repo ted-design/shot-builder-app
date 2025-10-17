@@ -3,7 +3,7 @@ import { Modal } from "../ui/modal";
 import { Card, CardHeader, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import NotesEditor from "./NotesEditor";
+import RichTextEditor from "./RichTextEditor";
 import ShotProductsEditor from "./ShotProductsEditor";
 import TalentMultiSelect from "./TalentMultiSelect";
 import TagEditor from "./TagEditor";
@@ -185,10 +185,12 @@ export default function ShotEditModal({
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
-              <NotesEditor
+              <RichTextEditor
                 value={draft.description}
                 onChange={(next) => handleFieldChange({ description: next })}
                 disabled={isSaving || deleting}
+                placeholder="Add detailed notes with rich formatting, @mentions, links, and more…"
+                characterLimit={50000}
               />
             </div>
             <div>
