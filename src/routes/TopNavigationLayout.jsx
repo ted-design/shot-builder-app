@@ -17,7 +17,8 @@ import Breadcrumb from "../components/ui/Breadcrumb";
 import NotificationBell from "../components/ui/NotificationBell";
 import { useSearchCommand } from "../context/SearchCommandContext";
 import { generateBreadcrumbs, shouldShowBreadcrumbs } from "../lib/breadcrumbs";
-import { Menu, X, ChevronDown, LogOut, Search } from "lucide-react";
+import { Menu, ChevronDown, LogOut, Search } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "../components/ui/sheet";
 
 const navItems = [
   { to: "/projects", label: "Dashboard" },
@@ -205,7 +206,6 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
   const navRoleLabel = rawRole ? roleLabel(rawRole) : null;
 
   const closeMobile = () => setMobileOpen(false);
-  const toggleMobile = () => setMobileOpen((open) => !open);
 
   const signOutUser = async () => {
     await signOut(auth);
@@ -296,60 +296,60 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
               onSignOut={signOutUser}
             />
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={toggleMobile}
-              className="inline-flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 p-2 text-slate-600 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 md:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light"
-              aria-label={mobileOpen ? "Close menu" : "Open menu"}
-              aria-expanded={mobileOpen}
-            >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
-        </div>
+            {/* Mobile Menu Button - Sheet Trigger */}
+            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+              <SheetTrigger asChild>
+                <button
+                  className="inline-flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 p-2 text-slate-600 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 md:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light"
+                  aria-label="Open menu"
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              </SheetTrigger>
 
-        {/* Mobile Navigation Dropdown */}
-        {mobileOpen && (
-          <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 md:hidden animate-fade-in-down">
-            <div className="mx-auto max-w-[1440px] px-4 py-3">
-              <MobileNavLinks onNavigate={closeMobile} role={rawRole} />
+              {/* Mobile Navigation Sheet */}
+              <SheetContent side="right" className="w-[280px] sm:w-[350px]">
+                <div className="flex flex-col gap-4 mt-8">
+                  <MobileNavLinks onNavigate={closeMobile} role={rawRole} />
 
-              {/* Mobile User Info & Sign Out */}
-              <div className="mt-4 border-t border-slate-200 dark:border-slate-700 pt-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  <Avatar
-                    name={userLabel}
-                    email={userEmail}
-                    photoUrl={userPhotoUrl}
-                    size="md"
-                  />
-                  <div className="flex-1 min-w-0 text-sm">
-                    <div className="font-medium text-slate-900 dark:text-slate-100 truncate" title={userLabel}>
-                      {userLabel}
+                  {/* Mobile User Info & Sign Out */}
+                  <div className="mt-4 border-t border-slate-200 dark:border-slate-700 pt-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar
+                        name={userLabel}
+                        email={userEmail}
+                        photoUrl={userPhotoUrl}
+                        size="md"
+                      />
+                      <div className="flex-1 min-w-0 text-sm">
+                        <div className="font-medium text-slate-900 dark:text-slate-100 truncate" title={userLabel}>
+                          {userLabel}
+                        </div>
+                        {userEmail && (
+                          <div className="text-xs text-slate-500 dark:text-slate-400 truncate" title={userEmail}>
+                            {userEmail}
+                          </div>
+                        )}
+                        {navRoleLabel && (
+                          <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 uppercase tracking-wide">
+                            {navRoleLabel}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {userEmail && (
-                      <div className="text-xs text-slate-500 dark:text-slate-400 truncate" title={userEmail}>
-                        {userEmail}
-                      </div>
-                    )}
-                    {navRoleLabel && (
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 uppercase tracking-wide">
-                        {navRoleLabel}
-                      </div>
-                    )}
+                    <button
+                      onClick={signOutUser}
+                      className="flex w-full items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign out
+                    </button>
                   </div>
                 </div>
-                <button
-                  onClick={signOutUser}
-                  className="flex w-full items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign out
-                </button>
-              </div>
-            </div>
+              </SheetContent>
+            </Sheet>
           </div>
-        )}
+        </div>
       </header>
 
       {/* Breadcrumb Navigation */}
