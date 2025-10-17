@@ -2,10 +2,24 @@ import React, { useMemo } from "react";
 import PropTypes from "prop-types";
 import ReactTiptapEditor from "reactjs-tiptap-editor";
 import { BaseKit } from "reactjs-tiptap-editor";
-import Mention from "@tiptap/extension-mention";
-import tippy from "tippy.js";
+import { Mention } from "reactjs-tiptap-editor/mention";
+import { Bold } from "reactjs-tiptap-editor/bold";
+import { Italic } from "reactjs-tiptap-editor/italic";
+import { TextUnderline } from "reactjs-tiptap-editor/textunderline";
+import { Strike } from "reactjs-tiptap-editor/strike";
+import { Heading } from "reactjs-tiptap-editor/heading";
+import { BulletList } from "reactjs-tiptap-editor/bulletlist";
+import { OrderedList } from "reactjs-tiptap-editor/orderedlist";
+import { ListItem } from "reactjs-tiptap-editor/listitem";
+import { Blockquote } from "reactjs-tiptap-editor/blockquote";
+import { Color } from "reactjs-tiptap-editor/color";
+import { Code } from "reactjs-tiptap-editor/code";
+import { CodeBlock } from "reactjs-tiptap-editor/codeblock";
+import { Link } from "reactjs-tiptap-editor/link";
+import { HorizontalRule } from "reactjs-tiptap-editor/horizontalrule";
+import { History } from "reactjs-tiptap-editor/history";
 import "reactjs-tiptap-editor/style.css";
-import "tippy.js/dist/tippy.css";
+import "./RichTextEditor.overrides.css"; // CSS fixes for dropdown/picker interactions
 import { useAuth } from "../../context/AuthContext";
 import { useUsers } from "../../hooks/useComments";
 
@@ -53,11 +67,10 @@ export default function RichTextEditor({
       characterCount: {
         limit: characterLimit,
       },
-      // Enable bubble menu (inline toolbar on selection)
-      bubbleMenu: !hideBubble,
     };
 
     // Configure mention extension with user data
+    // reactjs-tiptap-editor's Mention handles rendering internally
     const mentionConfig = {
       HTMLAttributes: {
         class: "mention px-1 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300",
@@ -77,91 +90,36 @@ export default function RichTextEditor({
               label: user.displayName || user.email,
             }));
         },
-        render: () => {
-          let component;
-          let popup;
-
-          return {
-            onStart: (props) => {
-              component = document.createElement("div");
-              component.className =
-                "mention-suggestions bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg overflow-hidden";
-
-              const list = document.createElement("div");
-              list.className = "mention-list max-h-60 overflow-y-auto";
-
-              if (props.items.length === 0) {
-                list.innerHTML = '<div class="px-3 py-2 text-sm text-slate-500">No users found</div>';
-              } else {
-                props.items.forEach((item, index) => {
-                  const button = document.createElement("button");
-                  button.className = `mention-item w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 ${
-                    index === props.selectedIndex ? "bg-slate-100 dark:bg-slate-700" : ""
-                  }`;
-                  button.textContent = item.label;
-                  button.onclick = () => props.command(item);
-                  list.appendChild(button);
-                });
-              }
-
-              component.appendChild(list);
-
-              popup = tippy("body", {
-                getReferenceClientRect: props.clientRect,
-                appendTo: () => document.body,
-                content: component,
-                showOnCreate: true,
-                interactive: true,
-                trigger: "manual",
-                placement: "bottom-start",
-              });
-            },
-
-            onUpdate(props) {
-              const list = component.querySelector(".mention-list");
-              if (!list) return;
-
-              if (props.items.length === 0) {
-                list.innerHTML = '<div class="px-3 py-2 text-sm text-slate-500">No users found</div>';
-              } else {
-                list.innerHTML = "";
-                props.items.forEach((item, index) => {
-                  const button = document.createElement("button");
-                  button.className = `mention-item w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 ${
-                    index === props.selectedIndex ? "bg-slate-100 dark:bg-slate-700" : ""
-                  }`;
-                  button.textContent = item.label;
-                  button.onclick = () => props.command(item);
-                  list.appendChild(button);
-                });
-              }
-
-              popup[0].setProps({
-                getReferenceClientRect: props.clientRect,
-              });
-            },
-
-            onKeyDown(props) {
-              if (props.event.key === "Escape") {
-                popup[0].hide();
-                return true;
-              }
-              return false;
-            },
-
-            onExit() {
-              popup[0].destroy();
-            },
-          };
-        },
       },
     };
 
     return [
       BaseKit.configure(baseKitConfig),
+      // Text formatting
+      Bold,
+      Italic,
+      TextUnderline,
+      Strike,
+      Code,
+      // Block formatting
+      Heading,
+      Blockquote,
+      CodeBlock,
+      HorizontalRule,
+      // Lists (CRITICAL: ListItem required!)
+      ListItem,
+      BulletList,
+      OrderedList,
+      // Colors
+      Color,
+      // Links
+      Link,
+      // History
+      History,
+      // Mentions
       Mention.configure(mentionConfig),
     ];
-  }, [placeholder, characterLimit, hideBubble, users]);
+  }, [placeholder, characterLimit, users]);
 
   // Handle content changes
   const handleChange = (content) => {
