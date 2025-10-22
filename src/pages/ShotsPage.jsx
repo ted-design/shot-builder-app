@@ -1129,6 +1129,10 @@ export default function ShotsPage() {
       docPatch.tags = Array.isArray(patch.tags) ? patch.tags : [];
     }
 
+    if (Object.prototype.hasOwnProperty.call(patch, "referenceImagePath")) {
+      docPatch.referenceImagePath = patch.referenceImagePath || null;
+    }
+
     const after = {
       productIds: docPatch.productIds ?? before.productIds,
       products: docPatch.products ?? before.products,
@@ -1420,6 +1424,22 @@ export default function ShotsPage() {
         ...editingShot.draft,
         locationId: editingShot.draft.locationId || "",
       });
+
+      // Handle reference image upload if provided
+      let referenceImagePath = parsed.referenceImagePath || null;
+      if (editingShot.draft.referenceImageFile) {
+        try {
+          const result = await uploadImageFile(editingShot.draft.referenceImageFile, {
+            folder: "shots/references",
+            id: editingShot.shot.id,
+          });
+          referenceImagePath = result.path;
+        } catch (uploadError) {
+          console.error("[Shots] Failed to upload reference image:", uploadError);
+          toast.error({ title: "Image upload failed", description: "Continuing without updating reference image" });
+        }
+      }
+
       await updateShot(editingShot.shot, {
         name: parsed.name,
         description: parsed.description || "",
@@ -1429,6 +1449,7 @@ export default function ShotsPage() {
         talent: parsed.talent,
         products: parsed.products,
         tags: parsed.tags || [],
+        referenceImagePath,
       });
       toast.success(`Shot "${parsed.name}" updated.`);
       setEditingShot(null);
@@ -2560,7 +2581,13 @@ export default function ShotsPage() {
 }
 
 
-function selectShotImage(products = []) {
+function selectShotImage(shot, products = []) {
+  // Prioritize reference/storyboard image if available
+  if (shot?.referenceImagePath) {
+    return shot.referenceImagePath;
+  }
+
+  // Fall back to product images
   for (const product of products) {
     if (!product) continue;
     if (product.thumbnailImagePath) return product.thumbnailImagePath;
@@ -2731,7 +2758,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   isSelected = false,
   onToggleSelect = null,
 }) {
-  const imagePath = useMemo(() => selectShotImage(products), [products]);
+  const imagePath = useMemo(() => selectShotImage(shot, products), [shot, products]);
   const formattedDate = toDateInputValue(shot.date);
   const {
     showProducts = true,

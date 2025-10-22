@@ -311,6 +311,8 @@ const normaliseShotTalent = (shot) => {
 const resolveShotImageForExport = (shot, products = []) => {
   const candidates = [];
   if (shot) {
+    // Prioritize reference/storyboard image if available
+    candidates.push(shot.referenceImagePath);
     candidates.push(shot.previewImageUrl);
     candidates.push(shot.thumbnailUrl);
     candidates.push(shot.thumbnailImagePath);
@@ -622,6 +624,7 @@ function ShotCard({
   };
   const firstProduct = Array.isArray(products) && products.length ? products[0] : null;
   const derivedThumbnail =
+    shot.referenceImagePath ||
     firstProduct?.colourImagePath ||
     firstProduct?.thumbnailImagePath ||
     (Array.isArray(firstProduct?.images) && firstProduct.images.length
