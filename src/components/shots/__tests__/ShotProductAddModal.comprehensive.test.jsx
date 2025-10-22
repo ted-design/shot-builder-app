@@ -82,14 +82,14 @@ describe("ShotProductAddModal - Comprehensive Test Suite", () => {
             });
 
             const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
+            const addWithSizeButton = screen.getByText("Add (size pending)");
 
             // Both buttons should be disabled when no colours available
             expect(addColourwayButton).toBeDisabled();
             expect(addWithSizeButton).toBeDisabled();
         });
 
-        it("enables 'Add colourway' button when colourway is selected, keeps 'Add & choose size' disabled when no size selected", async () => {
+        it("enables both buttons when colourway is selected, even without size selected", async () => {
             render(<ShotProductAddModal {...defaultProps} />);
 
             // Navigate to details view
@@ -106,11 +106,11 @@ describe("ShotProductAddModal - Comprehensive Test Suite", () => {
             });
 
             const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
+            const addWithSizeButton = screen.getByText("Add (size pending)");
 
-            // Add colourway should be enabled (auto-selected), Add & choose size should be disabled (no size selected)
+            // Both buttons should be enabled when colourway is selected (new behavior allows adding without size)
             expect(addColourwayButton).not.toBeDisabled();
-            expect(addWithSizeButton).toBeDisabled();
+            expect(addWithSizeButton).not.toBeDisabled();
         });
 
         it("enables both buttons when colourway and specific size are selected", async () => {
@@ -189,14 +189,14 @@ describe("ShotProductAddModal - Comprehensive Test Suite", () => {
             });
 
             const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
+            const addWithSizeButton = screen.getByText("Add (size pending)");
 
             // Both buttons should be disabled during loading
             expect(addColourwayButton).toBeDisabled();
             expect(addWithSizeButton).toBeDisabled();
         });
 
-        it("keeps 'Add & choose size' disabled when 'Decide later' is selected", async () => {
+        it("enables both buttons when 'Decide later' is selected", async () => {
             render(<ShotProductAddModal {...defaultProps} />);
 
             // Navigate to details view
@@ -217,11 +217,11 @@ describe("ShotProductAddModal - Comprehensive Test Suite", () => {
             expect(sizeSelect.value).toBe("");
 
             const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
+            const addWithSizeButton = screen.getByText("Add (size pending)");
 
-            // Add colourway should be enabled, Add & choose size should be disabled
+            // Both buttons should be enabled even with "Decide later" (new behavior)
             expect(addColourwayButton).not.toBeDisabled();
-            expect(addWithSizeButton).toBeDisabled();
+            expect(addWithSizeButton).not.toBeDisabled();
         });
     });
 
@@ -259,7 +259,7 @@ describe("ShotProductAddModal - Comprehensive Test Suite", () => {
             expect(defaultProps.onClose).toHaveBeenCalled();
         });
 
-        it("successfully completes 'Add & choose size now' workflow with specific size", async () => {
+        it("successfully completes 'Add (size pending)' workflow with specific size", async () => {
             render(<ShotProductAddModal {...defaultProps} />);
 
             // Navigate to details view
@@ -356,18 +356,18 @@ describe("ShotProductAddModal - Comprehensive Test Suite", () => {
             // Switch to Blue
             await user.click(blueButton);
 
-            // Verify buttons are still properly enabled/disabled
+            // Verify both buttons are enabled even without size (new behavior)
             const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
+            const addWithSizeButton = screen.getByText("Add (size pending)");
 
             expect(addColourwayButton).not.toBeDisabled();
-            expect(addWithSizeButton).toBeDisabled(); // No size selected
+            expect(addWithSizeButton).not.toBeDisabled(); // Enabled even without size
 
             // Add a size
             const sizeSelect = screen.getByRole("combobox");
             await user.selectOptions(sizeSelect, "L");
 
-            // Now both buttons should be enabled
+            // Both buttons should still be enabled, but text changes
             expect(addColourwayButton).not.toBeDisabled();
             expect(screen.getByText("Add with L")).not.toBeDisabled();
         });
@@ -446,7 +446,7 @@ describe("ShotProductAddModal - Comprehensive Test Suite", () => {
             const stickyFooter = within(dialog).getByTestId("shot-product-modal-footer");
 
             const addColourwayButton = within(stickyFooter).getByRole("button", { name: /add colourway/i });
-            const addWithSizeButton = within(stickyFooter).getByRole("button", { name: /add & choose size now/i });
+            const addWithSizeButton = within(stickyFooter).getByRole("button", { name: /add \(size pending\)/i });
             const cancelButton = within(stickyFooter).getByRole("button", { name: /cancel/i });
 
             expect(addColourwayButton).toBeInTheDocument();
@@ -649,18 +649,13 @@ describe("ShotProductAddModal - Comprehensive Test Suite", () => {
 
             // Check initial state feedback
             const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
+            const addWithSizeButton = screen.getByText("Add (size pending)");
 
-            // Add colourway should be enabled (not have opacity-40 class)
+            // Both buttons should be enabled (new behavior)
             expect(addColourwayButton).not.toHaveClass("opacity-40");
             expect(addColourwayButton).not.toBeDisabled();
-
-            // Add & choose size should be disabled (have opacity-40 class)
-            expect(addWithSizeButton).toHaveClass("opacity-40");
-            expect(addWithSizeButton).toBeDisabled();
-
-            // Check helper text
-            expect(screen.getByText("Select a size to enable")).toBeInTheDocument();
+            expect(addWithSizeButton).not.toHaveClass("opacity-40");
+            expect(addWithSizeButton).not.toBeDisabled();
         });
 
         it("shows loading state visual feedback", async () => {
@@ -688,7 +683,7 @@ describe("ShotProductAddModal - Comprehensive Test Suite", () => {
 
             // Both buttons should have visual disabled state
             const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
+            const addWithSizeButton = screen.getByText("Add (size pending)");
 
             expect(addColourwayButton).toBeDisabled();
             expect(addWithSizeButton).toBeDisabled();
