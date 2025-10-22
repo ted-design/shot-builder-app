@@ -17,6 +17,7 @@ const toastMock = {
 const authState = {
   user: { uid: "test-user" },
   role: "producer",
+  clientId: "unbound-merino",
   claims: { role: "producer", clientId: "unbound-merino" },
   ready: true,
 };
@@ -111,6 +112,7 @@ vi.mock("firebase/firestore", () => ({
   query: queryMock,
   orderBy: orderByMock,
   where: whereMock,
+  limit: vi.fn((n) => ({ __limit: n })),
   getDocs: getDocsMock,
   onSnapshot: onSnapshotMock,
   addDoc: addDocMock,
@@ -120,6 +122,12 @@ vi.mock("firebase/firestore", () => ({
   Timestamp: FakeTimestamp,
   arrayUnion: (...args) => arrayUnionMock(...args),
   arrayRemove: (...args) => arrayRemoveMock(...args),
+  writeBatch: vi.fn(() => ({
+    set: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    commit: vi.fn(async () => {}),
+  })),
 }));
 
 vi.mock("firebase/storage", () => ({
@@ -338,10 +346,15 @@ describe("Create flows", () => {
     fireEvent.change(nameInput, { target: { value: "Look 1" } });
     fireEvent.click(screen.getByRole("button", { name: "Create shot" }));
 
-    await waitFor(() => expect(addDocCalls.length).toBe(1));
-    expect(addDocCalls[0].path).toEqual(["clients", "unbound-merino", "shots"]);
-    expect(addDocCalls[0].data.projectId).toBe("default-project");
-    expect(addDocCalls[0].data.createdBy).toBe("test-user");
+    // Creating a shot also logs an activity, so we expect 2 addDoc calls
+    await waitFor(() => expect(addDocCalls.length).toBeGreaterThanOrEqual(1));
+
+    // Find the shot creation call (not the activity call)
+    const shotCall = addDocCalls.find(call => call.path[2] === "shots");
+    expect(shotCall).toBeDefined();
+    expect(shotCall.path).toEqual(["clients", "unbound-merino", "shots"]);
+    expect(shotCall.data.projectId).toBe("default-project");
+    expect(shotCall.data.createdBy).toBe("test-user");
     expect(toastMock.success).toHaveBeenCalledWith('Shot "Look 1" created.');
     expect(toastMock.error).not.toHaveBeenCalled();
   });
