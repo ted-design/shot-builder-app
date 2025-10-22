@@ -221,7 +221,8 @@ export default function ShotProductAddModal({
   // Enhanced button state logic for improved workflow
   const hasValidSelection = selectedFamilyId && selectedColour;
   const canAddColourway = hasValidSelection && !loadingDetails;
-  const canAddWithSize = hasValidSelection && selectedSize && selectedSize !== "" && !loadingDetails;
+  const canAddProduct = hasValidSelection && !loadingDetails; // Allow adding even without size
+  const hasSize = selectedSize && selectedSize !== "";
 
   // Debug button state logic
 
@@ -636,25 +637,22 @@ export default function ShotProductAddModal({
                 <div className="flex flex-col gap-1">
                   <Button
                     type="button"
-                    disabled={!canAddWithSize}
+                    disabled={!canAddProduct}
                     onClick={() => submitSelection({ status: "complete" })}
-                    className={!canAddWithSize ? "opacity-40" : ""}
+                    className={!canAddProduct ? "opacity-40" : ""}
                   >
                     {initialProduct
-                      ? "Save with size"
+                      ? hasSize ? "Save with size" : "Save (size pending)"
                       : selectedSize === ALL_SIZES_VALUE
                       ? "Add all sizes"
-                      : selectedSize && selectedSize !== ""
+                      : hasSize
                       ? `Add with ${selectedSize}`
-                      : "Add & choose size now"}
+                      : "Add (size pending)"}
                   </Button>
-                  {!canAddWithSize && !loadingDetails && hasValidSelection && (
+                  {!canAddProduct && !loadingDetails && (
                     <p className="text-center text-xs text-slate-500 dark:text-slate-400">
-                      {selectedSize === "" ? "Select a size to enable" : "Choose a specific size"}
+                      Select a colourway to continue
                     </p>
-                  )}
-                  {!canAddWithSize && !hasValidSelection && !loadingDetails && (
-                    <p className="text-center text-xs text-slate-500 dark:text-slate-400">Select colourway and size</p>
                   )}
                   {loadingDetails && (
                     <div className="flex justify-center">

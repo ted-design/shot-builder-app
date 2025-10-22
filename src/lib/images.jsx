@@ -1,4 +1,21 @@
 // src/lib/images.js
+//
+// Image compression and optimization utilities
+//
+// AUTOMATIC WEBP CONVERSION:
+// All images uploaded through compressImageFile are automatically converted to WebP format
+// for better compression and smaller file sizes. This happens transparently - JPG, PNG, and
+// other formats are converted during the compression process.
+//
+// Benefits:
+// - 25-35% smaller file sizes compared to JPEG (same quality)
+// - 25-50% smaller than PNG for most images
+// - Reduced storage costs
+// - Faster page loads
+// - Better user experience
+//
+// Browser support: All modern browsers (Chrome, Firefox, Safari 14+, Edge)
+
 import { storage } from "./firebase";
 import { ref, getDownloadURL } from "firebase/storage";
 
@@ -28,14 +45,21 @@ function loadImageFromFile(file) {
 
 function canvasToFile(canvas, originalFile, quality) {
   return new Promise((resolve, reject) => {
-    const type = originalFile.type === "image/png" ? "image/png" : "image/jpeg";
+    // Always convert to WebP for better compression and smaller file sizes
+    const type = "image/webp";
+
+    // Generate new filename with .webp extension
+    const originalName = originalFile.name || "image";
+    const baseName = originalName.replace(/\.[^.]+$/, ""); // Remove existing extension
+    const newName = `${baseName}.webp`;
+
     canvas.toBlob(
       (blob) => {
         if (!blob) {
           reject(new Error("Failed to compress image"));
           return;
         }
-        const output = new File([blob], originalFile.name, {
+        const output = new File([blob], newName, {
           type: blob.type,
           lastModified: Date.now(),
         });
@@ -73,10 +97,13 @@ export async function compressImageFile(file, options = {}) {
   const maxHeight = options.maxHeight || maxDimension;
   const quality = options.quality == null ? DEFAULT_QUALITY : options.quality;
   const targetSize = options.maxSizeBytes || DEFAULT_MAX_SIZE;
+  // Option to force WebP conversion even if file is already small
+  const convertToWebP = options.convertToWebP !== false; // default true
 
   const { image, width, height } = await loadImageFromFile(file);
 
-  if (file.size <= targetSize && width <= maxWidth && height <= maxHeight) {
+  // If file is already small enough AND dimensions are OK AND we don't need WebP conversion
+  if (!convertToWebP && file.size <= targetSize && width <= maxWidth && height <= maxHeight) {
     return file;
   }
 
@@ -88,8 +115,14 @@ export async function compressImageFile(file, options = {}) {
   const ctx = canvas.getContext("2d", { alpha: false });
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-  const compressed = await canvasToFile(canvas, file, quality);
-  return compressed.size < file.size ? compressed : file;
+  try {
+    const compressed = await canvasToFile(canvas, file, quality);
+    return compressed.size < file.size ? compressed : file;
+  } catch (error) {
+    // WebP conversion failed (old browser?), return original file
+    console.warn("Image compression/conversion failed, using original file:", error);
+    return file;
+  }
 }
 
 export function formatFileSize(bytes) {

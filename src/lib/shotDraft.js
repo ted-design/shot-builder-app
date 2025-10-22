@@ -44,6 +44,7 @@ export const shotDraftSchema = z.object({
       })
     )
     .optional(),
+  referenceImagePath: z.string().optional(), // Storyboard/reference image path
 });
 
 export const initialShotDraft = {
@@ -56,6 +57,7 @@ export const initialShotDraft = {
   products: [],
   talent: [],
   tags: [],
+  referenceImagePath: "",
 };
 
 export const toDateInputValue = (value) => {

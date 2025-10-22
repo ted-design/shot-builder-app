@@ -3,6 +3,55 @@ import { uploadImageFile } from "./firebase";
 import { productFamiliesPath, productFamilyPath, productFamilySkusPath } from "./paths";
 import { createProductFamilySchema, createProductSkuSchema } from "../schemas/index.js";
 
+/**
+ * Formats a product image filename based on product metadata
+ * Format: StyleNumber_StyleName_Colour.webp
+ * Example: UM2025-1026_MerinoShortSleeveHenley_Black.webp
+ *
+ * @param {string} styleNumber - Product style number
+ * @param {string} styleName - Product style name
+ * @param {string} colorName - SKU color name
+ * @returns {string} Formatted filename
+ */
+const formatProductImageFilename = (styleNumber, styleName, colorName) => {
+  // Sanitize a string for use in filename: remove special chars, convert to PascalCase
+  const sanitize = (str) => {
+    if (!str) return '';
+    return str
+      .trim()
+      // Remove special characters except hyphens and spaces
+      .replace(/[^a-zA-Z0-9\s-]/g, '')
+      // Convert to PascalCase by capitalizing first letter of each word and removing spaces
+      .split(/\s+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join('');
+  };
+
+  const parts = [];
+
+  // Style number: keep as-is (with hyphens), just remove unsafe chars
+  if (styleNumber) {
+    parts.push(styleNumber.trim().replace(/[^a-zA-Z0-9-]/g, ''));
+  }
+
+  // Style name: convert to PascalCase
+  if (styleName) {
+    parts.push(sanitize(styleName));
+  }
+
+  // Color name: convert to PascalCase
+  if (colorName) {
+    parts.push(sanitize(colorName));
+  }
+
+  // If we have no parts, return a timestamp-based fallback
+  if (parts.length === 0) {
+    return `product-${Date.now()}.webp`;
+  }
+
+  return `${parts.join('_')}.webp`;
+};
+
 const buildSkuAggregates = (skus, familySizes = []) => {
   const skuCodes = new Set();
   const colorNames = new Set();
@@ -120,9 +169,17 @@ export const createProductFamily = async ({ db, clientId, payload, userId }) => 
     let imagePath = sku.imagePath || null;
 
     if (sku.imageFile) {
+      // Generate formatted filename: StyleNumber_StyleName_Colour.webp
+      const filename = formatProductImageFilename(
+        payload.family?.styleNumber,
+        payload.family?.styleName,
+        sku.colorName
+      );
+
       const result = await uploadImageFile(sku.imageFile, {
         folder: `productFamilies/${familyId}/skus`,
         id: skuRef.id,
+        filename,
       });
       imagePath = result.path;
     }
@@ -200,9 +257,17 @@ export const createProductColourway = async ({
   let imagePath = payload?.imagePath || null;
 
   if (payload?.imageFile) {
+    // Generate formatted filename: StyleNumber_StyleName_Colour.webp
+    const filename = formatProductImageFilename(
+      family?.styleNumber,
+      family?.styleName,
+      colourName
+    );
+
     const result = await uploadImageFile(payload.imageFile, {
       folder: `productFamilies/${familyId}/skus`,
       id: skuRef.id,
+      filename,
     });
     imagePath = result.path;
   }
@@ -255,4 +320,4 @@ export const createProductColourway = async ({
   return { id: skuRef.id, ...newSkuData };
 };
 
-export { buildSkuAggregates };
+export { buildSkuAggregates, formatProductImageFilename };

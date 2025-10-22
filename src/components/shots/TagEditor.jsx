@@ -203,9 +203,10 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
 
                 {/* Show existing tags or color picker */}
                 {!showColorPicker && newTagLabel.trim() === "" && filteredAvailableTags.length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-slate-700 mb-2">
-                      Available tags ({filteredAvailableTags.length})
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-md p-2 border border-blue-200 dark:border-blue-800">
+                    <p className="text-xs font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-1">
+                      <TagIcon className="h-3 w-3" />
+                      Select from existing tags ({filteredAvailableTags.length})
                     </p>
                     <div className="max-h-48 overflow-y-auto space-y-1">
                       {filteredAvailableTags.map((tag) => (
@@ -213,9 +214,10 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
                           key={tag.id}
                           type="button"
                           onClick={() => handleSelectExistingTag(tag)}
-                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-sm hover:bg-slate-100 transition-colors"
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-sm hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors bg-white dark:bg-slate-800"
                         >
                           <TagBadge tag={tag} />
+                          <Check className="h-3 w-3 ml-auto text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100" />
                         </button>
                       ))}
                     </div>
@@ -223,22 +225,44 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
                 )}
 
                 {!showColorPicker && newTagLabel.trim() !== "" && filteredAvailableTags.length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-slate-700 mb-2">
-                      Matching tags ({filteredAvailableTags.length})
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-md p-2 border border-green-200 dark:border-green-800">
+                    <p className="text-xs font-semibold text-green-900 dark:text-green-100 mb-2 flex items-center gap-1">
+                      <Check className="h-3 w-3" />
+                      Click to reuse existing tag ({filteredAvailableTags.length} match{filteredAvailableTags.length !== 1 ? 'es' : ''})
                     </p>
                     <div className="max-h-48 overflow-y-auto space-y-1">
-                      {filteredAvailableTags.map((tag) => (
-                        <button
-                          key={tag.id}
-                          type="button"
-                          onClick={() => handleSelectExistingTag(tag)}
-                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-sm hover:bg-slate-100 transition-colors"
-                        >
-                          <TagBadge tag={tag} />
-                        </button>
-                      ))}
+                      {filteredAvailableTags.map((tag) => {
+                        const isExactMatch = tag.label.toLowerCase() === newTagLabel.trim().toLowerCase();
+                        return (
+                          <button
+                            key={tag.id}
+                            type="button"
+                            onClick={() => handleSelectExistingTag(tag)}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-sm transition-colors ${
+                              isExactMatch
+                                ? 'bg-green-100 dark:bg-green-900/40 hover:bg-green-200 dark:hover:bg-green-900/60 ring-2 ring-green-500'
+                                : 'bg-white dark:bg-slate-800 hover:bg-green-100 dark:hover:bg-green-900/30'
+                            }`}
+                          >
+                            <TagBadge tag={tag} />
+                            {isExactMatch && (
+                              <span className="ml-auto text-xs font-medium text-green-700 dark:text-green-300">
+                                Exact match
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
+                  </div>
+                )}
+
+                {/* No matching tags message */}
+                {!showColorPicker && newTagLabel.trim() !== "" && filteredAvailableTags.length === 0 && !exactMatch && (
+                  <div className="bg-slate-50 dark:bg-slate-800 rounded-md p-3 border border-slate-200 dark:border-slate-700">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 text-center">
+                      No existing tags match "{newTagLabel.trim()}"
+                    </p>
                   </div>
                 )}
 

@@ -746,7 +746,7 @@ function ShotCard({
             </div>
             {visibleFields.notes && notesHtml && (
               <div
-                className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                className="mt-3 rounded-md bg-slate-50 px-3 py-2 prose prose-xs dark:prose-invert max-w-none dark:bg-slate-900"
                 dangerouslySetInnerHTML={{ __html: notesHtml }}
               />
             )}
