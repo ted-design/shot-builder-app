@@ -13,6 +13,7 @@ import {
   storagePathSchema,
   stringArraySchema,
   notesSchema,
+  notesArraySchema,
 } from "./common.js";
 
 /**
@@ -34,6 +35,8 @@ export const productSkuSchema = z.object({
  * Product SKU creation payload (for forms)
  */
 export const createProductSkuSchema = z.object({
+  id: z.string().nullable().optional(), // Existing SKU ID for updates
+  localId: z.string().optional(), // Local form ID for tracking
   colorName: z.string().min(1, "Color name is required").max(100),
   skuCode: z.string().max(100).default(""),
   sizes: stringArraySchema,
@@ -41,7 +44,7 @@ export const createProductSkuSchema = z.object({
   archived: z.boolean().default(false),
   imageFile: z.any().nullable().optional(), // File object
   imagePath: storagePathSchema,
-  removeImage: z.boolean().optional(),
+  removeImage: z.boolean().optional().default(false),
 });
 
 /**
@@ -79,16 +82,24 @@ export const createProductFamilySchema = z.object({
   family: z.object({
     styleName: z.string().min(1, "Style name is required").max(200),
     styleNumber: z.string().max(100).default(""),
-    previousStyleNumber: z.string().max(100).default(""),
-    gender: genderSchema.default(""),
+    previousStyleNumber: z.string().max(100).nullable().optional().default(""),
+    gender: genderSchema.default("unisex"),
     status: productStatusSchema.default("active"),
     archived: z.boolean().default(false),
-    notes: z.string().default(""),
+    notes: notesArraySchema,
     sizes: stringArraySchema,
-    headerImageFile: z.any().nullable().optional(), // File object
-    thumbnailImageFile: z.any().nullable().optional(), // File object
+    // Image file uploads
+    headerImageFile: z.any().nullable().optional(),
+    thumbnailImageFile: z.any().nullable().optional(),
+    // Image removal flags
+    removeHeaderImage: z.boolean().optional().default(false),
+    removeThumbnailImage: z.boolean().optional().default(false),
+    // Current image paths (for updates)
+    currentHeaderImagePath: storagePathSchema,
+    currentThumbnailImagePath: storagePathSchema,
   }),
   skus: z.array(createProductSkuSchema).min(1, "At least one SKU is required"),
+  removedSkuIds: z.array(z.string()).optional().default([]),
 });
 
 /**

@@ -88,6 +88,20 @@ export const storagePathSchema = z.string().nullable().optional();
 export const stringArraySchema = z.array(z.string()).default([]);
 
 /**
- * Notes/description field
+ * Notes/description field (legacy string format)
  */
 export const notesSchema = z.string().max(10000, "Notes too long (max 10,000 characters)").nullable().optional();
+
+/**
+ * Note object schema (for structured notes array)
+ */
+export const noteObjectSchema = z.object({
+  id: z.string(),
+  text: z.string().max(10000, "Note text too long"),
+  createdAt: z.union([z.number(), timestampSchema]),
+});
+
+/**
+ * Notes array schema (for product families and other entities with structured notes)
+ */
+export const notesArraySchema = z.array(noteObjectSchema).default([]);
