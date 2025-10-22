@@ -34,9 +34,14 @@ export default function NewProductModal({ open, onClose, onSubmit }) {
         <CardContent className="pb-6">
           <ProductFamilyForm
             onSubmit={async (payload) => {
-              const result = await onSubmit?.(payload);
-              onClose?.();
-              return result;
+              try {
+                const result = await onSubmit?.(payload);
+                onClose?.(); // Only close on success
+                return result;
+              } catch (error) {
+                // Re-throw error so form can display it
+                throw error;
+              }
             }}
             onCancel={onClose}
             submitLabel="Create product"
