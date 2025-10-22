@@ -76,14 +76,14 @@ describe("ShotProductAddModal - Button State Logic", () => {
         });
 
         const addColourwayButton = screen.getByText("Add colourway");
-        const addWithSizeButton = screen.getByText("Add & choose size now");
+        const addWithSizeButton = screen.getByText("Add (size pending)");
 
         // Both buttons should be enabled since a colourway is auto-selected
         expect(addColourwayButton).not.toBeDisabled();
-        expect(addWithSizeButton).toBeDisabled(); // No size selected
+        expect(addWithSizeButton).not.toBeDisabled(); // Now enabled even without size
     });
 
-    it("enables 'Add colourway' button when colourway is selected, keeps 'Add & choose size' disabled when no size selected", async () => {
+    it("enables both 'Add colourway' and 'Add (size pending)' buttons when colourway is selected", async () => {
         const user = userEvent.setup();
         render(<ShotProductAddModal {...defaultProps} />);
 
@@ -103,11 +103,11 @@ describe("ShotProductAddModal - Button State Logic", () => {
         await user.click(redColorButton);
 
         const addColourwayButton = screen.getByText("Add colourway");
-        const addWithSizeButton = screen.getByText("Add & choose size now");
+        const addWithSizeButton = screen.getByText("Add (size pending)");
 
-        // Add colourway should be enabled, Add & choose size should be disabled (no size selected)
+        // Both buttons should be enabled
         expect(addColourwayButton).not.toBeDisabled();
-        expect(addWithSizeButton).toBeDisabled();
+        expect(addWithSizeButton).not.toBeDisabled();
     });
 
     it("enables both buttons when colourway and specific size are selected", async () => {
@@ -190,7 +190,7 @@ describe("ShotProductAddModal - Button State Logic", () => {
         });
 
         const addColourwayButton = screen.getByText("Add colourway");
-        const addWithSizeButton = screen.getByText("Add & choose size now");
+        const addWithSizeButton = screen.getByText("Add (size pending)");
 
         // Both buttons should be disabled during loading
         expect(addColourwayButton).toBeDisabled();
@@ -481,7 +481,7 @@ describe("ShotProductAddModal - Scrolling and Layout", () => {
         const stickyFooter = within(dialog).getByTestId("shot-product-modal-footer");
 
         const addColourwayButton = within(stickyFooter).getByRole("button", { name: /add colourway/i });
-        const addWithSizeButton = within(stickyFooter).getByRole("button", { name: /add & choose size now/i });
+        const addWithSizeButton = within(stickyFooter).getByRole("button", { name: /add \(size pending\)/i });
         const cancelButton = within(stickyFooter).getByRole("button", { name: /cancel/i });
 
         expect(addColourwayButton).toBeInTheDocument();

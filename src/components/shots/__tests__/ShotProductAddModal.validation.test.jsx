@@ -63,7 +63,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
     });
 
     describe("Button State Logic Tests (Requirements 2.1, 2.2, 2.4, 3.1, 3.2, 3.5)", () => {
-        it("enables 'Add colourway' when colourway is selected, keeps 'Add & choose size' disabled when no size selected", async () => {
+        it("enables 'Add colourway' when colourway is selected, and 'Add (size pending)' is enabled even without size", async () => {
             render(<ShotProductAddModal {...defaultProps} />);
 
             // Navigate to details view
@@ -80,12 +80,11 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
             });
 
             const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
+            const addWithSizeButton = screen.getByText("Add (size pending)");
 
-            // Add colourway should be enabled (auto-selected), Add & choose size should be disabled (no size selected)
+            // Both buttons should be enabled (auto-selected colourway, size can be pending)
             expect(addColourwayButton).not.toBeDisabled();
-            expect(addWithSizeButton).toBeDisabled();
-            expect(addWithSizeButton).toHaveClass("opacity-40");
+            expect(addWithSizeButton).not.toBeDisabled();
         });
 
         it("enables both buttons when colourway and specific size are selected", async () => {
@@ -166,14 +165,14 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
             });
 
             const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
+            const addWithSizeButton = screen.getByText("Add (size pending)");
 
             // Both buttons should be disabled during loading
             expect(addColourwayButton).toBeDisabled();
             expect(addWithSizeButton).toBeDisabled();
         });
 
-        it("keeps 'Add & choose size' disabled when 'Decide later' is selected", async () => {
+        it("enables 'Add (size pending)' when 'Decide later' is selected", async () => {
             render(<ShotProductAddModal {...defaultProps} />);
 
             // Navigate to details view
@@ -194,11 +193,11 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
             expect(sizeSelect.value).toBe("");
 
             const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
+            const addWithSizeButton = screen.getByText("Add (size pending)");
 
-            // Add colourway should be enabled, Add & choose size should be disabled
+            // Both buttons should be enabled
             expect(addColourwayButton).not.toBeDisabled();
-            expect(addWithSizeButton).toBeDisabled();
+            expect(addWithSizeButton).not.toBeDisabled();
         });
     });
 
@@ -332,12 +331,12 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
             // Switch to Blue
             await user.click(blueButton);
 
-            // Verify buttons are still properly enabled/disabled
+            // Verify buttons are still properly enabled
             const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
+            const addWithSizeButton = screen.getByText("Add (size pending)");
 
             expect(addColourwayButton).not.toBeDisabled();
-            expect(addWithSizeButton).toBeDisabled(); // No size selected
+            expect(addWithSizeButton).not.toBeDisabled(); // Now enabled even without size
 
             // Add a size
             const sizeSelect = screen.getByRole("combobox");
@@ -422,7 +421,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
             const stickyFooter = within(dialog).getByTestId("shot-product-modal-footer");
 
             const addColourwayButton = within(stickyFooter).getByRole("button", { name: /add colourway/i });
-            const addWithSizeButton = within(stickyFooter).getByRole("button", { name: /add & choose size now/i });
+            const addWithSizeButton = within(stickyFooter).getByRole("button", { name: /add \(size pending\)/i });
             const cancelButton = within(stickyFooter).getByRole("button", { name: /cancel/i });
 
             expect(addColourwayButton).toBeInTheDocument();
@@ -625,18 +624,15 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Check initial state feedback
             const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
+            const addWithSizeButton = screen.getByText("Add (size pending)");
 
-            // Add colourway should be enabled (not have opacity-40 class)
+            // Both buttons should be enabled (not have opacity-40 class)
             expect(addColourwayButton).not.toHaveClass("opacity-40");
             expect(addColourwayButton).not.toBeDisabled();
 
-            // Add & choose size should be disabled (have opacity-40 class)
-            expect(addWithSizeButton).toHaveClass("opacity-40");
-            expect(addWithSizeButton).toBeDisabled();
-
-            // Check helper text
-            expect(screen.getByText("Select a size to enable")).toBeInTheDocument();
+            // Add (size pending) should also be enabled
+            expect(addWithSizeButton).not.toHaveClass("opacity-40");
+            expect(addWithSizeButton).not.toBeDisabled();
         });
 
         it("shows loading state visual feedback", async () => {
@@ -664,7 +660,7 @@ describe("ShotProductAddModal - Task 4 Validation Tests", () => {
 
             // Both buttons should have visual disabled state
             const addColourwayButton = screen.getByText("Add colourway");
-            const addWithSizeButton = screen.getByText("Add & choose size now");
+            const addWithSizeButton = screen.getByText("Add (size pending)");
 
             expect(addColourwayButton).toBeDisabled();
             expect(addWithSizeButton).toBeDisabled();

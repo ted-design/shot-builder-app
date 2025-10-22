@@ -17,6 +17,16 @@ import {
   useLocations,
 } from "../hooks/useFirestoreQuery";
 import {
+  useCreateShot,
+  useUpdateShot,
+  useDeleteShot,
+  useBulkUpdateShots,
+  useCreateProduct,
+  useUpdateProduct,
+  useCreateProject,
+  useUpdateProject,
+} from "../hooks/useFirestoreMutations";
+import {
   collection,
   addDoc,
   getDocs,
@@ -31,7 +41,7 @@ import {
   serverTimestamp,
   writeBatch,
 } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { db, uploadImageFile } from "../lib/firebase";
 import {
   shotsPath as getShotsPath,
   productFamiliesPath,
@@ -230,6 +240,17 @@ export default function ShotsPage() {
   const { data: talent = [], isLoading: talentLoading } = useTalent(clientId);
   const { data: locations = [], isLoading: locationsLoading } = useLocations(clientId);
   const { data: projects = [], isLoading: projectsLoading } = useProjects(clientId);
+
+  // TanStack Query mutation hooks for create/update/delete operations
+  const createShotMutation = useCreateShot(clientId, { projectId });
+  const updateShotMutation = useUpdateShot(clientId, projectId);
+  const deleteShotMutation = useDeleteShot(clientId, projectId);
+  const bulkUpdateShotsMutation = useBulkUpdateShots(clientId, projectId);
+  const createProductMutation = useCreateProduct(clientId);
+  const updateProductMutation = useUpdateProduct(clientId);
+  const createProjectMutation = useCreateProject(clientId);
+  const updateProjectMutation = useUpdateProject(clientId);
+
   const userRole = useMemo(
     () => resolveEffectiveRole(globalRole, projectRoles, projectId),
     [globalRole, projectRoles, projectId]
@@ -931,7 +952,23 @@ export default function ShotsPage() {
       const notesHtml = sanitizeNotesHtml(validation.data.description || "");
       const resolvedStatus = normaliseShotStatus(validation.data.status);
 
-      const payload = {
+      // Handle reference image upload if provided
+      let referenceImagePath = validation.data.referenceImagePath || null;
+      if (createDraft.referenceImageFile) {
+        try {
+          const tempId = `temp-${Date.now()}`;
+          const result = await uploadImageFile(createDraft.referenceImageFile, {
+            folder: "shots/references",
+            id: tempId,
+          });
+          referenceImagePath = result.path;
+        } catch (uploadError) {
+          console.error("[Shots] Failed to upload reference image:", uploadError);
+          toast.error({ title: "Image upload failed", description: "Continuing without reference image" });
+        }
+      }
+
+      const shotData = {
         name: validation.data.name,
         description: notesHtml,
         notes: notesHtml,
@@ -946,33 +983,44 @@ export default function ShotsPage() {
         tags: validation.data.tags || [],
         projectId: resolvedProjectId,
         status: resolvedStatus,
-        deleted: false,
-        deletedAt: null,
-        createdAt: serverTimestamp(),
         createdBy: user?.uid || null,
+        referenceImagePath,
       };
 
-      const docRefSnap = await writeDoc("create shot", () => addDoc(collRef(...shotPathSegments), payload));
+      // Use TanStack Query mutation hook for automatic cache invalidation
+      const newShot = await new Promise((resolve, reject) => {
+        createShotMutation.mutate(shotData, {
+          onSuccess: (data) => {
+            resolve(data);
+          },
+          onError: (error) => {
+            reject(error);
+          },
+        });
+      });
+
       console.info("[Shots] Shot created", {
         path: targetPath,
         projectId: resolvedProjectId,
-        docId: docRefSnap.id,
+        docId: newShot.id,
         ...authInfo,
       });
+
+      // Update reverse indexes for product/talent lookups
       await updateReverseIndexes({
-        shotId: docRefSnap.id,
+        shotId: newShot.id,
         before: { productIds: [], products: [], talentIds: [], locationId: null },
         after: {
-          productIds: payload.productIds,
+          productIds: shotData.productIds,
           products: productsForWrite,
-          talentIds: payload.talentIds,
-          locationId: payload.locationId,
+          talentIds: shotData.talentIds,
+          locationId: shotData.locationId,
         },
       });
 
       setCreateDraft({ ...initialShotDraft });
       setCreateModalOpen(false);
-      toast.success(`Shot "${payload.name}" created.`);
+      toast.success(`Shot "${shotData.name}" created.`);
     } catch (error) {
       if (error instanceof z.ZodError) {
         const message = error.issues.map((issue) => issue.message).join("; ");
@@ -1089,7 +1137,16 @@ export default function ShotsPage() {
     };
 
     try {
-      await writeDoc("update shot", () => updateDoc(docRef(...currentShotsPath, shot.id), docPatch));
+      // Use TanStack Query mutation hook for automatic cache invalidation
+      await new Promise((resolve, reject) => {
+        updateShotMutation.mutate(
+          { shotId: shot.id, updates: docPatch },
+          {
+            onSuccess: () => resolve(),
+            onError: (error) => reject(error),
+          }
+        );
+      });
       await updateReverseIndexes({ shotId: shot.id, before, after });
     } catch (error) {
       const { code, message } = describeFirebaseError(error, "Unable to update shot.");
@@ -1101,11 +1158,16 @@ export default function ShotsPage() {
   // Soft delete a shot by marking it as deleted
   const removeShot = async (shot) => {
     if (!canEditShots) return;
-    const now = Date.now();
-    await writeDoc("delete shot", () => updateDoc(docRef(...currentShotsPath, shot.id), {
-      deleted: true,
-      deletedAt: now,
-    }));
+    // Use TanStack Query mutation hook for automatic cache invalidation
+    await new Promise((resolve, reject) => {
+      deleteShotMutation.mutate(
+        { shotId: shot.id },
+        {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        }
+      );
+    });
   };
 
   // Restore a soft-deleted shot
@@ -1308,6 +1370,7 @@ export default function ShotsPage() {
             talent: talentSelection,
             products,
             tags: Array.isArray(shot.tags) ? shot.tags : [],
+            referenceImagePath: shot.referenceImagePath || "",
           },
         });
       } catch (error) {
@@ -1622,38 +1685,28 @@ export default function ShotsPage() {
 
     setIsProcessingBulk(true);
     try {
-      let batch = writeBatch(db);
-      let updateCount = 0;
-
       // Get location name for denormalization
       const locationName = locationId
         ? locations.find((loc) => loc.id === locationId)?.name || null
         : null;
 
-      // Process in batches (Firestore limit)
-      for (let i = 0; i < selectedShots.length; i++) {
-        const shot = selectedShots[i];
-        const shotDocRef = docRef(...currentShotsPath, shot.id);
-
-        batch.update(shotDocRef, {
-          locationId: locationId || null,
-          locationName: locationName,
-          updatedAt: serverTimestamp()
-        });
-        updateCount++;
-
-        // Commit every FIRESTORE_BATCH_LIMIT operations
-        if (updateCount === FIRESTORE_BATCH_LIMIT) {
-          await batch.commit();
-          batch = writeBatch(db);
-          updateCount = 0;
-        }
-      }
-
-      // Commit remaining operations
-      if (updateCount > 0) {
-        await batch.commit();
-      }
+      // Use TanStack Query bulk mutation hook
+      const shotIds = selectedShots.map(shot => shot.id);
+      await new Promise((resolve, reject) => {
+        bulkUpdateShotsMutation.mutate(
+          {
+            shotIds,
+            updates: {
+              locationId: locationId || null,
+              locationName: locationName,
+            }
+          },
+          {
+            onSuccess: () => resolve(),
+            onError: (error) => reject(error),
+          }
+        );
+      });
 
       const locationLabel = locationId ? (locationName || "Unknown location") : "None";
       toast.success({
@@ -1677,7 +1730,7 @@ export default function ShotsPage() {
     } finally {
       setIsProcessingBulk(false);
     }
-  }, [canEditShots, selectedShots, currentShotsPath, db, locations, isProcessingBulk]);
+  }, [canEditShots, selectedShots, locations, isProcessingBulk, bulkUpdateShotsMutation]);
 
   /**
    * Bulk set date for selected shots
@@ -2638,7 +2691,7 @@ const ShotListCard = memo(function ShotListCard({
         {showNotes && (
           notesHtml ? (
             <div
-              className="rounded-md bg-slate-50 dark:bg-slate-900 px-3 py-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300 line-clamp-3"
+              className="rounded-md bg-slate-50 dark:bg-slate-900 px-3 py-2 prose prose-sm dark:prose-invert max-w-none line-clamp-3"
               dangerouslySetInnerHTML={{ __html: notesHtml }}
             />
           ) : (
@@ -2680,9 +2733,6 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
 }) {
   const imagePath = useMemo(() => selectShotImage(products), [products]);
   const formattedDate = toDateInputValue(shot.date);
-  const plainNotes = notesHtml
-    ? notesHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
-    : "";
   const {
     showProducts = true,
     showTalent = true,
@@ -2747,8 +2797,11 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
           </div>
         )}
         {showNotes && (
-          plainNotes ? (
-            <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-3">{plainNotes}</p>
+          notesHtml ? (
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none line-clamp-3"
+              dangerouslySetInnerHTML={{ __html: notesHtml }}
+            />
           ) : (
             <p className="text-sm text-slate-500">No notes added yet.</p>
           )

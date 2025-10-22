@@ -100,7 +100,7 @@ describe("TagEditor", () => {
 
     fireEvent.click(screen.getByText("Add tag"));
 
-    expect(screen.getByText("Available tags (3)")).toBeInTheDocument();
+    expect(screen.getByText("Select from existing tags (3)")).toBeInTheDocument();
     expect(screen.getByText("Outdoor")).toBeInTheDocument();
     expect(screen.getByText("Priority")).toBeInTheDocument();
     expect(screen.getByText("Action")).toBeInTheDocument();
@@ -133,7 +133,7 @@ describe("TagEditor", () => {
 
     fireEvent.change(input, { target: { value: "out" } });
 
-    expect(screen.getByText("Matching tags (1)")).toBeInTheDocument();
+    expect(screen.getByText("Click to reuse existing tag (1 match)")).toBeInTheDocument();
     expect(screen.getByText("Outdoor")).toBeInTheDocument();
     expect(screen.queryByText("Priority")).not.toBeInTheDocument();
     expect(screen.queryByText("Action")).not.toBeInTheDocument();
@@ -316,7 +316,7 @@ describe("TagEditor", () => {
     fireEvent.click(screen.getByText("Add tag"));
 
     // Should only show Priority, not Outdoor (which is already added)
-    expect(screen.getByText("Available tags (1)")).toBeInTheDocument();
+    expect(screen.getByText("Select from existing tags (1)")).toBeInTheDocument();
 
     // Find all instances of "Priority" text
     const priorityElements = screen.getAllByText("Priority");
@@ -462,7 +462,7 @@ describe("TagEditor", () => {
     fireEvent.change(input, { target: { value: "outdoor" } });
 
     // Should show matching tag in the list
-    expect(screen.getByText("Matching tags (1)")).toBeInTheDocument();
+    expect(screen.getByText("Click to reuse existing tag (1 match)")).toBeInTheDocument();
 
     // Should NOT show create option since there's an exact match
     expect(screen.queryByText('Create "outdoor"')).not.toBeInTheDocument();

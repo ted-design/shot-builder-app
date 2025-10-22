@@ -36,7 +36,7 @@ import { useAuth } from "../context/AuthContext";
 import { ROLE, canArchiveProducts, canDeleteProducts, canEditProducts } from "../lib/rbac";
 import Modal from "../components/ui/modal";
 import { toast, showConfirm } from "../lib/toast";
-import { buildSkuAggregates, createProductFamily, genderLabel } from "../lib/productMutations";
+import { buildSkuAggregates, createProductFamily, genderLabel, formatProductImageFilename } from "../lib/productMutations";
 import { readStorage, writeStorage } from "../lib/safeStorage";
 import { getStaggerDelay } from "../lib/animations";
 import { searchProducts } from "../lib/search";
@@ -822,9 +822,17 @@ export default function ProductsPage() {
             nextImagePath = null;
           }
           if (sku.imageFile) {
+            // Generate formatted filename for new image upload
+            const filename = formatProductImageFilename(
+              payload.family?.styleNumber,
+              payload.family?.styleName,
+              sku.colorName
+            );
+
             const result = await uploadImageFile(sku.imageFile, {
               folder: `productFamilies/${familyId}/skus`,
               id: sku.id,
+              filename,
             });
             update.imagePath = result.path;
             if (sku.imagePath && sku.imagePath !== result.path) {
@@ -841,9 +849,17 @@ export default function ProductsPage() {
           const skuRef = doc(skuCollection);
           let imagePath = sku.imagePath || null;
           if (sku.imageFile) {
+            // Generate formatted filename for new colourway image
+            const filename = formatProductImageFilename(
+              payload.family?.styleNumber,
+              payload.family?.styleName,
+              sku.colorName
+            );
+
             const result = await uploadImageFile(sku.imageFile, {
               folder: `productFamilies/${familyId}/skus`,
               id: skuRef.id,
+              filename,
             });
             imagePath = result.path;
           }

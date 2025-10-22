@@ -59,7 +59,7 @@ describe("ShotProductAddModal - Enhanced Button State Logic", () => {
         appImageMock.mockClear();
     });
 
-    it("enables 'Add colourway' button when colourway is selected, keeps 'Add & choose size' disabled when no size selected", async () => {
+    it("enables both 'Add colourway' and 'Add (size pending)' buttons when colourway is selected", async () => {
         render(<ShotProductAddModal {...defaultProps} />);
 
         // Navigate to details view
@@ -80,11 +80,11 @@ describe("ShotProductAddModal - Enhanced Button State Logic", () => {
         fireEvent.click(redColorButton);
 
         const addColourwayButton = screen.getByText("Add colourway");
-        const addWithSizeButton = screen.getByText("Add & choose size now");
+        const addWithSizeButton = screen.getByText("Add (size pending)");
 
-        // Add colourway should be enabled, Add & choose size should be disabled (no size selected)
+        // Both buttons should be enabled
         expect(addColourwayButton).not.toBeDisabled();
-        expect(addWithSizeButton).toBeDisabled();
+        expect(addWithSizeButton).not.toBeDisabled();
     });
 
     it("enables both buttons when colourway and specific size are selected", async () => {
@@ -171,7 +171,7 @@ describe("ShotProductAddModal - Enhanced Button State Logic", () => {
         });
 
         const addColourwayButton = screen.getByText("Add colourway");
-        const addWithSizeButton = screen.getByText("Add & choose size now");
+        const addWithSizeButton = screen.getByText("Add (size pending)");
 
         // Both buttons should be disabled during loading
         expect(addColourwayButton).toBeDisabled();
