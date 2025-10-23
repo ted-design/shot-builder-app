@@ -189,16 +189,35 @@ Before deploying rule changes:
 
 ### Image Upload Pattern
 
-Images are uploaded to Firebase Storage with compression:
+Images are uploaded to Firebase Storage with compression. **Always wrap image operations in try-catch blocks:**
 
 ```javascript
 import { uploadImageFile } from '../lib/firebase';
+import { compressImageFile } from '../lib/images';
 
-const { downloadURL, path } = await uploadImageFile(file, {
-  folder: 'shots',      // images/shots/{id}/{filename}
-  id: shotId,
-  filename: 'optional-name.jpg', // Defaults to timestamped name
-});
+// For direct uploads to Firebase Storage
+try {
+  const { downloadURL, path } = await uploadImageFile(file, {
+    folder: 'shots',      // images/shots/{id}/{filename}
+    id: shotId,
+    filename: 'optional-name.jpg', // Defaults to timestamped name
+  });
+} catch (error) {
+  console.error('Upload failed:', error);
+  setError('Unable to upload image. Please try a different file.');
+}
+
+// For client-side compression before upload
+try {
+  const compressed = await compressImageFile(file, {
+    maxDimension: 1600,
+    quality: 0.82,
+  });
+  // Use compressed file...
+} catch (error) {
+  console.error('Compression failed:', error);
+  setError('Unable to process image. Please try a different file.');
+}
 ```
 
 ### Activity Logging
@@ -268,11 +287,12 @@ const result = await measurePerformance('load_products', async () => {
 1. **Custom claims don't update immediately**: Call `user.getIdToken(true)` to force refresh
 2. **Client scoping**: Always check `clientId` matches in queries and security rules
 3. **Offline behavior**: Firestore caches data; handle stale reads gracefully
-4. **Image compression**: Client-side compression in `uploadImageFile` may take time
-5. **Activity feed**: Activities are immutable (audit trail); updates blocked by rules
-6. **Pull sheet sharing**: Public sharing uses `shareToken` (32+ char cryptographic string)
-7. **Legacy data**: Old root-level collections are blocked; migration required
-8. **Role-based UI**: Always check permissions before rendering admin/producer actions
+4. **Image compression**: Client-side compression in `compressImageFile` may take time and can fail with invalid/corrupted files
+5. **Image upload errors**: Always wrap `compressImageFile()` and `uploadImageFile()` in try-catch blocks to handle invalid files gracefully
+6. **Activity feed**: Activities are immutable (audit trail); updates blocked by rules
+7. **Pull sheet sharing**: Public sharing uses `shareToken` (32+ char cryptographic string)
+8. **Legacy data**: Old root-level collections are blocked; migration required
+9. **Role-based UI**: Always check permissions before rendering admin/producer actions
 
 ## Documentation References
 

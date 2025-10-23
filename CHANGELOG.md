@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Planner board now preloads date lanes (plus an Unassigned lane), offers a talent filter, and exports the current view to PDF for offline sharing.
 - Products page multi-select enables archiving, restoring, deleting, and bulk editing style numbers across multiple families with chunked batched writes.
+- Reference images for shots now persist and display as preview thumbnails in planner and gallery views (#220)
 
 ### Changed
 - Sticky headers keep titles, search, and primary actions visible on the Shots, Products, Talent, and Locations pages.
@@ -16,3 +17,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Environment detection in firebase.ts now correctly uses `import.meta.env.MODE` to prevent App Check from blocking local development (#157)
+- Product image uploads now handle errors gracefully with user-friendly messages instead of silent failures (Sentry #6967516025, #220)
