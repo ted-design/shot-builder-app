@@ -333,18 +333,23 @@ export default function ProductFamilyForm({
       URL.revokeObjectURL(thumbnailObjectUrl.current);
       thumbnailObjectUrl.current = null;
     }
-    const compressed = await compressImageFile(file, {
-      maxDimension: 1600,
-      quality: 0.82,
-    });
-    const url = URL.createObjectURL(compressed);
-    thumbnailObjectUrl.current = url;
-    setThumbnailImage((prev) => ({
-      file: compressed,
-      preview: url,
-      path: prev.path,
-      remove: false,
-    }));
+    try {
+      const compressed = await compressImageFile(file, {
+        maxDimension: 1600,
+        quality: 0.82,
+      });
+      const url = URL.createObjectURL(compressed);
+      thumbnailObjectUrl.current = url;
+      setThumbnailImage((prev) => ({
+        file: compressed,
+        preview: url,
+        path: prev.path,
+        remove: false,
+      }));
+    } catch (err) {
+      console.error("Failed to process thumbnail image", err);
+      setError("Unable to load thumbnail image. Please try a different file.");
+    }
   };
 
   const clearThumbnailImage = () => {
@@ -361,18 +366,23 @@ export default function ProductFamilyForm({
       URL.revokeObjectURL(headerObjectUrl.current);
       headerObjectUrl.current = null;
     }
-    const compressed = await compressImageFile(file, {
-      maxDimension: 1600,
-      quality: 0.82,
-    });
-    const url = URL.createObjectURL(compressed);
-    headerObjectUrl.current = url;
-    setHeaderImage((prev) => ({
-      file: compressed,
-      preview: url,
-      path: prev.path,
-      remove: false,
-    }));
+    try {
+      const compressed = await compressImageFile(file, {
+        maxDimension: 1600,
+        quality: 0.82,
+      });
+      const url = URL.createObjectURL(compressed);
+      headerObjectUrl.current = url;
+      setHeaderImage((prev) => ({
+        file: compressed,
+        preview: url,
+        path: prev.path,
+        remove: false,
+      }));
+    } catch (err) {
+      console.error("Failed to process header image", err);
+      setError("Unable to load header image. Please try a different file.");
+    }
   };
 
   const clearHeaderImage = () => {
@@ -389,18 +399,23 @@ export default function ProductFamilyForm({
       URL.revokeObjectURL(target.previewObjectUrl);
       colourObjectUrls.current.delete(target.previewObjectUrl);
     }
-    const compressed = await compressImageFile(file, {
-      maxDimension: 1600,
-      quality: 0.82,
-    });
-    const url = URL.createObjectURL(compressed);
-    colourObjectUrls.current.add(url);
-    setColourAt(localId, {
-      imageFile: compressed,
-      imagePreview: url,
-      removeImage: false,
-      previewObjectUrl: url,
-    });
+    try {
+      const compressed = await compressImageFile(file, {
+        maxDimension: 1600,
+        quality: 0.82,
+      });
+      const url = URL.createObjectURL(compressed);
+      colourObjectUrls.current.add(url);
+      setColourAt(localId, {
+        imageFile: compressed,
+        imagePreview: url,
+        removeImage: false,
+        previewObjectUrl: url,
+      });
+    } catch (err) {
+      console.error("Failed to process colour image", err);
+      setError("Unable to load colour image. Please try a different file.");
+    }
   };
 
   const clearColourImage = (localId) => {
