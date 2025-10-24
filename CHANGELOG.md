@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Planner board now preloads date lanes (plus an Unassigned lane), offers a talent filter, and exports the current view to PDF for offline sharing.
 - Products page multi-select enables archiving, restoring, deleting, and bulk editing style numbers across multiple families with chunked batched writes.
 - Reference images for shots now persist and display as preview thumbnails in planner and gallery views (#220)
+- Playwright E2E testing infrastructure with Firebase emulator support for testing sidebar summary autosave functionality (#223)
 
 ### Changed
 - Sticky headers keep titles, search, and primary actions visible on the Shots, Products, Talent, and Locations pages.
