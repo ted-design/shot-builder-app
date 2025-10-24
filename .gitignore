@@ -80,3 +80,8 @@ _phase0_*
 codex_step.sh
 *.bak
 shot_builder_materials.zip
+
+# Playwright
+playwright-report/
+test-results/
+*.zip

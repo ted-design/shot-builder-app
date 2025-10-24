@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, type CSSProperties, type ImgHTMLAttributes,
 import { useImageLoader, type UseImageLoaderOptions } from "../../hooks/useImageLoader";
 
 export type AppImageFit = CSSProperties["objectFit"];
+export type AppImagePosition = CSSProperties["objectPosition"];
 
 export interface AppImageProps
   extends Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "crossOrigin" | "onError" | "style" | "className">,
     Pick<UseImageLoaderOptions, "preferredSize" | "retries" | "cacheTtlMs" | "timeoutMs"> {
   src: Parameters<typeof useImageLoader>[0];
   fit?: AppImageFit;
+  position?: AppImagePosition;
   placeholder?: ReactNode;
   fallback?: ReactNode;
   crossOrigin?: "" | "anonymous" | "use-credentials";
@@ -57,6 +59,7 @@ export function AppImage({
   src,
   alt = "",
   fit = "cover",
+  position,
   placeholder,
   fallback,
   loading = "lazy",
@@ -99,7 +102,11 @@ export function AppImage({
     };
   }, [src]);
 
-  const combinedImageStyle = useMemo(() => ({ ...imageStyle, objectFit: fit }), [fit, imageStyle]);
+  const combinedImageStyle = useMemo(() => ({
+    ...imageStyle,
+    objectFit: fit,
+    ...(position && { objectPosition: position })
+  }), [fit, position, imageStyle]);
 
   const handleImageError: ImgHTMLAttributes<HTMLImageElement>["onError"] = (event) => {
     onError?.(event);

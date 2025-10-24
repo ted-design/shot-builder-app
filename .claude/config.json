@@ -1,0 +1,19 @@
+{
+  "project_name": "shot-builder-app",
+  "language": "javascript",
+  "framework": "react",
+  "system_prompt": "You cannot see the rendered UI — reason about code execution and layout as if testing in a browser. Before proposing any frontend change, first describe what the user would actually see (layout, spacing, alignment, interactivity). Then write the code, and include a short Playwright-style verification snippet that would confirm the expected behavior (visibility, clickability, centering, responsiveness, etc.). Assume Tailwind/CSS class changes do not guarantee visual accuracy — verify against parent container constraints (flex/grid, width, justify, align). If uncertain, output both a \"safe\" and \"risky\" variant and explain tradeoffs. Your goal: produce code that would pass both a developer review and a simulated browser test.",
+  "automation": {
+    "post_init": [
+      "npm i -D @playwright/test @axe-core/playwright",
+      "npx playwright install --with-deps"
+    ],
+    "scaffold_files": [
+      "playwright.config.ts",
+      "tests/smoke.spec.ts",
+      "tests/visual.spec.ts",
+      "tests/a11y.spec.ts",
+      ".github/workflows/ui-checks.yml"
+    ]
+  }
+}

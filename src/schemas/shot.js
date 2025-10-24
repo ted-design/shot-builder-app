@@ -74,6 +74,14 @@ export const shotDraftSchema = z.object({
 });
 
 /**
+ * Image crop position schema
+ */
+export const imageCropPositionSchema = z.object({
+  x: z.number().min(0).max(100).default(50), // 0-100 percentage
+  y: z.number().min(0).max(100).default(50), // 0-100 percentage
+});
+
+/**
  * Shot document schema (full Firestore document)
  */
 export const shotSchema = z.object({
@@ -92,6 +100,7 @@ export const shotSchema = z.object({
   talentIds: stringArraySchema,
   tags: z.array(shotTagSchema).default([]),
   notes: z.string().nullable().optional(),
+  referenceImageCrop: imageCropPositionSchema.nullable().optional(),
   ...softDeleteSchema.shape,
   ...auditFieldsSchema.shape,
 });

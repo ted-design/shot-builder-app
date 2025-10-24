@@ -34,6 +34,11 @@ export interface ShotProduct {
   status?: "pending-size" | "complete";
 }
 
+export interface ImageCropPosition {
+  x: number; // 0-100 percentage
+  y: number; // 0-100 percentage
+}
+
 export interface Shot {
   id: string;
   title?: string;
@@ -49,6 +54,7 @@ export interface Shot {
   productIds?: string[];
   products?: ShotProduct[];
   status?: ShotStatus;
+  referenceImageCrop?: ImageCropPosition | null;
   createdAt?: Timestamp | Date | null;
   updatedAt?: Timestamp | Date | null;
 }
