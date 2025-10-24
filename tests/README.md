@@ -4,7 +4,7 @@ This directory contains end-to-end tests for the Shot Builder application using 
 
 ## Test Files
 
-- `sidebar-summary.spec.ts` - Tests for Shot Edit modal sidebar summary (status, schedule, tags) with autosave verification
+- `sidebar-summary.spec.ts` - Tests for Shot Edit modal sidebar summary (status, schedule, tags) with autosave verification (requires Firebase emulators, skipped in CI unless `VITE_USE_FIREBASE_EMULATORS=1`)
 - `smoke.spec.ts` - Basic smoke tests (currently skipped, awaiting auth setup)
 - `a11y.spec.ts` - Accessibility tests
 - `visual.spec.ts` - Visual regression tests

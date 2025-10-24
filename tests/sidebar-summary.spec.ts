@@ -12,8 +12,13 @@ import { authenticateTestUser, setupFirebaseEmulators } from './helpers/auth';
  *
  * To run these tests:
  *   VITE_USE_FIREBASE_EMULATORS=1 npx playwright test tests/sidebar-summary.spec.ts
+ *
+ * NOTE: These tests are skipped in CI unless VITE_USE_FIREBASE_EMULATORS is set
  */
 test.describe('Shot Edit Modal - Sidebar Summary', () => {
+  // Skip these tests in CI unless emulators are configured
+  test.skip(!process.env.VITE_USE_FIREBASE_EMULATORS, 'Requires Firebase emulators');
+
   test.beforeEach(async ({ page }) => {
     // Setup Firebase emulators
     await setupFirebaseEmulators(page);
