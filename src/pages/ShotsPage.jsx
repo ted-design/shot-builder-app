@@ -985,6 +985,7 @@ export default function ShotsPage() {
         status: resolvedStatus,
         createdBy: user?.uid || null,
         referenceImagePath,
+        referenceImageCrop: createDraft.referenceImageCrop || null,
       };
 
       // Use TanStack Query mutation hook for automatic cache invalidation
@@ -1375,6 +1376,7 @@ export default function ShotsPage() {
             products,
             tags: Array.isArray(shot.tags) ? shot.tags : [],
             referenceImagePath: shot.referenceImagePath || "",
+            referenceImageCrop: shot.referenceImageCrop || null,
           },
         });
       } catch (error) {
@@ -1450,6 +1452,7 @@ export default function ShotsPage() {
         products: parsed.products,
         tags: parsed.tags || [],
         referenceImagePath,
+        referenceImageCrop: editingShot.draft.referenceImageCrop || null,
       });
       toast.success(`Shot "${parsed.name}" updated.`);
       setEditingShot(null);
@@ -1533,6 +1536,8 @@ export default function ShotsPage() {
         status: shotData.status || "todo",
         products: shotData.products || [],
         talent: shotData.talent || [],
+        referenceImagePath: shotData.referenceImagePath || null,
+        referenceImageCrop: shotData.referenceImageCrop || null,
         deleted: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -2759,6 +2764,13 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   onToggleSelect = null,
 }) {
   const imagePath = useMemo(() => selectShotImage(shot, products), [shot, products]);
+  const imagePosition = useMemo(() => {
+    // Only apply crop position if the image is the reference image
+    if (imagePath === shot?.referenceImagePath && shot?.referenceImageCrop) {
+      return `${shot.referenceImageCrop.x}% ${shot.referenceImageCrop.y}%`;
+    }
+    return undefined;
+  }, [imagePath, shot]);
   const formattedDate = toDateInputValue(shot.date);
   const {
     showProducts = true,
@@ -2777,6 +2789,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
           preferredSize={640}
           className="h-full w-full"
           imageClassName="h-full w-full object-cover"
+          position={imagePosition}
           fallback={
             <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
               No preview available

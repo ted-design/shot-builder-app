@@ -633,6 +633,9 @@ function ShotCard({
     null;
   const thumbnailSrc = visibleFields.products ? derivedThumbnail : null;
   const showThumbnailFrame = Boolean(visibleFields.products && firstProduct);
+  const imagePosition = shot.referenceImagePath && shot.referenceImageCrop
+    ? `${shot.referenceImageCrop.x}% ${shot.referenceImageCrop.y}%`
+    : undefined;
   const locationLabel = shot.locationName || "–";
   const showDetailsSection =
     visibleFields.location || visibleFields.talent || visibleFields.products;
@@ -662,6 +665,7 @@ function ShotCard({
               loading="lazy"
               className="h-12 w-12 flex-none overflow-hidden rounded-md"
               imageClassName="h-full w-full object-cover"
+              position={imagePosition}
               placeholder={
                 <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                   Loading

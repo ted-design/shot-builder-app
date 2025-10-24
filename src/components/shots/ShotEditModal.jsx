@@ -8,6 +8,7 @@ import ShotProductsEditor from "./ShotProductsEditor";
 import TalentMultiSelect from "./TalentMultiSelect";
 import TagEditor from "./TagEditor";
 import CommentSection from "../comments/CommentSection";
+import ImageCropPositionEditor from "../common/ImageCropPositionEditor";
 import { useAuth } from "../../context/AuthContext";
 
 export default function ShotEditModal({
@@ -211,20 +212,27 @@ export default function ShotEditModal({
                 className="w-full text-sm text-slate-700 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-white hover:file:bg-primary/90 file:cursor-pointer disabled:opacity-50"
               />
               {draft.referenceImagePath && (
-                <div className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-md">
-                  <img
-                    src={draft.referenceImagePath}
-                    alt="Reference"
-                    className="h-20 w-20 object-cover rounded"
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-md">
+                    <img
+                      src={draft.referenceImagePath}
+                      alt="Reference"
+                      className="h-20 w-20 object-cover rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleFieldChange({ referenceImagePath: "", referenceImageFile: null, referenceImageCrop: null })}
+                      className="text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                      disabled={isSaving || deleting}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <ImageCropPositionEditor
+                    imageSrc={draft.referenceImagePath}
+                    cropPosition={draft.referenceImageCrop || { x: 50, y: 50 }}
+                    onCropChange={(position) => handleFieldChange({ referenceImageCrop: position })}
                   />
-                  <button
-                    type="button"
-                    onClick={() => handleFieldChange({ referenceImagePath: "", referenceImageFile: null })}
-                    className="text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                    disabled={isSaving || deleting}
-                  >
-                    Remove
-                  </button>
                 </div>
               )}
             </div>
