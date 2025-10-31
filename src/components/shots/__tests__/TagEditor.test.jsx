@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { TagEditor } from "../TagEditor";
+import { DEFAULT_TAGS, DEFAULT_TAG_GROUPS } from "../../../lib/defaultTags";
 
 // Mock the useAvailableTags hook
 vi.mock("../../../hooks/useAvailableTags", () => ({
@@ -104,6 +105,7 @@ describe("TagEditor", () => {
     expect(screen.getByText("Outdoor")).toBeInTheDocument();
     expect(screen.getByText("Priority")).toBeInTheDocument();
     expect(screen.getByText("Action")).toBeInTheDocument();
+    expect(screen.getByText("Project Tags")).toBeInTheDocument();
   });
 
   it("filters available tags based on input", () => {
@@ -135,6 +137,7 @@ describe("TagEditor", () => {
 
     expect(screen.getByText("Click to reuse existing tag (1 match)")).toBeInTheDocument();
     expect(screen.getByText("Outdoor")).toBeInTheDocument();
+    expect(screen.getByText("Project Tags")).toBeInTheDocument();
     expect(screen.queryByText("Priority")).not.toBeInTheDocument();
     expect(screen.queryByText("Action")).not.toBeInTheDocument();
   });
@@ -166,7 +169,14 @@ describe("TagEditor", () => {
     fireEvent.click(tagButtons[0]);
 
     expect(mockOnChange).toHaveBeenCalledWith([
-      { id: "tag-1", label: "Outdoor", color: "blue" },
+      expect.objectContaining({
+        id: "tag-1",
+        label: "Outdoor",
+        color: "blue",
+        groupId: "project",
+        groupLabel: "Project Tags",
+        isDefault: false,
+      }),
     ]);
   });
 
@@ -196,6 +206,62 @@ describe("TagEditor", () => {
     fireEvent.change(input, { target: { value: "New Tag" } });
 
     expect(screen.getByText('Create "New Tag"')).toBeInTheDocument();
+  });
+
+  it("displays grouped default tags from the library", () => {
+    useAvailableTags.mockReturnValue({
+      availableTags: DEFAULT_TAGS,
+      isLoading: false,
+      error: null,
+    });
+
+    render(
+      <TagEditor
+        tags={[]}
+        onChange={mockOnChange}
+        clientId={mockClientId}
+        projectId={mockProjectId}
+      />
+    );
+
+    fireEvent.click(screen.getByText("Add tag"));
+
+    expect(
+      screen.getByText(`Select from existing tags (${DEFAULT_TAGS.length})`)
+    ).toBeInTheDocument();
+
+    DEFAULT_TAG_GROUPS.forEach((group) => {
+      expect(screen.getByText(group.label)).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText("Default").length).toBeGreaterThan(0);
+  });
+
+  it("shows a message when every available tag is already added", () => {
+    const availableTags = [
+      { id: "tag-1", label: "Outdoor", color: "blue" },
+    ];
+
+    useAvailableTags.mockReturnValue({
+      availableTags,
+      isLoading: false,
+      error: null,
+    });
+
+    render(
+      <TagEditor
+        tags={availableTags}
+        onChange={mockOnChange}
+        clientId={mockClientId}
+        projectId={mockProjectId}
+      />
+    );
+
+    fireEvent.click(screen.getByText("Add tag"));
+
+    expect(
+      screen.getByText("All available tags are already added. Start typing to create a new tag.")
+    ).toBeInTheDocument();
   });
 
   it("allows creating a new tag with color selection", async () => {
@@ -233,6 +299,9 @@ describe("TagEditor", () => {
           expect.objectContaining({
             label: "New Tag",
             color: expect.any(String),
+            groupId: "project",
+            groupLabel: "Project Tags",
+            isDefault: false,
           })
         ])
       );
@@ -473,7 +542,14 @@ describe("TagEditor", () => {
 
     // Should reuse the existing tag
     expect(mockOnChange).toHaveBeenCalledWith([
-      { id: "tag-1", label: "Outdoor", color: "blue" },
+      expect.objectContaining({
+        id: "tag-1",
+        label: "Outdoor",
+        color: "blue",
+        groupId: "project",
+        groupLabel: "Project Tags",
+        isDefault: false,
+      }),
     ]);
   });
 });

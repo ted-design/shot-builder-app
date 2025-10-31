@@ -25,6 +25,17 @@ import { canManageShots, resolveEffectiveRole } from "../lib/rbac";
 import { toast } from "../lib/toast";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { TAG_COLORS, TagBadge } from "../components/ui/TagBadge";
+import { DEFAULT_TAGS, DEFAULT_TAG_GROUPS } from "../lib/defaultTags";
+
+const PROJECT_GROUP_ID = "project";
+const PROJECT_GROUP_LABEL = "Project Tags";
+const DEFAULT_TAG_INDEX = new Map(DEFAULT_TAGS.map((tag) => [tag.id, tag]));
+const DEFAULT_GROUP_LABELS = new Map(
+  DEFAULT_TAG_GROUPS.map((group) => [group.id, group.label])
+);
+const DEFAULT_GROUP_DESCRIPTIONS = new Map(
+  DEFAULT_TAG_GROUPS.map((group) => [group.id, group.description])
+);
 
 /**
  * TagManagementPage - Centralized tag library and management
@@ -120,28 +131,70 @@ export default function TagManagementPage() {
   const tagLibrary = useMemo(() => {
     const tagMap = new Map();
 
+    DEFAULT_TAGS.forEach((tag) => {
+      tagMap.set(tag.id, {
+        id: tag.id,
+        label: tag.label,
+        color: tag.color,
+        usageCount: 0,
+        shotIds: [],
+        groupId: tag.groupId,
+        groupLabel: tag.groupLabel,
+        groupDescription: tag.groupDescription,
+        isDefault: true,
+      });
+    });
+
     shots.forEach((shot) => {
-      if (Array.isArray(shot.tags)) {
-        shot.tags.forEach((tag) => {
-          if (tag && tag.id && tag.label) {
-            if (tagMap.has(tag.id)) {
-              // Update usage count
-              const existing = tagMap.get(tag.id);
-              existing.usageCount++;
-              existing.shotIds.push(shot.id);
-            } else {
-              // New tag
-              tagMap.set(tag.id, {
-                id: tag.id,
-                label: tag.label,
-                color: tag.color || "gray",
-                usageCount: 1,
-                shotIds: [shot.id],
-              });
-            }
-          }
-        });
-      }
+      if (!Array.isArray(shot.tags)) return;
+
+      shot.tags.forEach((tag) => {
+        if (!tag || !tag.id || !tag.label) return;
+
+        const trimmedLabel = String(tag.label).trim();
+        if (!trimmedLabel) return;
+
+        const defaultTag = DEFAULT_TAG_INDEX.get(tag.id) || null;
+        const groupId = tag.groupId || defaultTag?.groupId || PROJECT_GROUP_ID;
+        const groupLabel = tag.groupLabel
+          || defaultTag?.groupLabel
+          || DEFAULT_GROUP_LABELS.get(groupId)
+          || (groupId === PROJECT_GROUP_ID ? PROJECT_GROUP_LABEL : null);
+        const groupDescription = tag.groupDescription
+          || defaultTag?.groupDescription
+          || DEFAULT_GROUP_DESCRIPTIONS.get(groupId)
+          || null;
+        const color = tag.color || defaultTag?.color || "gray";
+        const isDefault = Boolean(tag.isDefault || defaultTag?.isDefault);
+
+        if (tagMap.has(tag.id)) {
+          const existing = tagMap.get(tag.id);
+          tagMap.set(tag.id, {
+            ...existing,
+            label: trimmedLabel || existing.label,
+            color,
+            usageCount: existing.usageCount + 1,
+            shotIds: [...existing.shotIds, shot.id],
+            groupId: groupId || existing.groupId,
+            groupLabel: groupLabel || existing.groupLabel,
+            groupDescription:
+              groupDescription ?? existing.groupDescription ?? null,
+            isDefault: existing.isDefault || isDefault,
+          });
+        } else {
+          tagMap.set(tag.id, {
+            id: tag.id,
+            label: trimmedLabel,
+            color,
+            usageCount: 1,
+            shotIds: [shot.id],
+            groupId,
+            groupLabel,
+            groupDescription,
+            isDefault,
+          });
+        }
+      });
     });
 
     return Array.from(tagMap.values()).sort((a, b) => {
@@ -164,8 +217,8 @@ export default function TagManagementPage() {
   const analytics = useMemo(() => {
     const totalTags = tagLibrary.length;
     const totalUsages = tagLibrary.reduce((sum, tag) => sum + tag.usageCount, 0);
-    const unusedTags = tagLibrary.filter((tag) => tag.usageCount === 0).length;
-    const mostUsedTag = tagLibrary.length > 0 ? tagLibrary[0] : null;
+    const unusedTags = tagLibrary.filter((tag) => tag.usageCount === 0 && !tag.isDefault).length;
+    const mostUsedTag = tagLibrary.find((tag) => tag.usageCount > 0) || null;
 
     // Tags by color
     const colorDistribution = tagLibrary.reduce((acc, tag) => {
@@ -418,6 +471,10 @@ export default function TagManagementPage() {
   const openDeleteModal = useCallback(
     (tag) => {
       if (!canEdit) return;
+      if (tag.isDefault) {
+        toast.info("Default tags are always available and can't be deleted.");
+        return;
+      }
       setTagToDelete(tag);
       setDeleteModalOpen(true);
     },
@@ -600,9 +657,21 @@ export default function TagManagementPage() {
                             />
                           </td>
                         )}
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <TagBadge tag={tag} />
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <TagBadge tag={tag} />
+                              {tag.isDefault && (
+                                <span className="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            {tag.groupLabel && (
+                              <span className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                                {tag.groupLabel}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -633,8 +702,11 @@ export default function TagManagementPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => openDeleteModal(tag)}
-                                title="Delete tag"
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                title={tag.isDefault ? "Default tags cannot be deleted" : "Delete tag"}
+                                className={`text-red-600 hover:text-red-700 hover:bg-red-50 ${
+                                  tag.isDefault ? "pointer-events-none opacity-40" : ""
+                                }`}
+                                disabled={tag.isDefault}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

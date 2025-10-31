@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      plugins: [require('@tailwindcss/typography')],
+    }
+  </script>
+</head>
+<body class="p-8">
+  <h2 class="text-xl font-bold mb-4">Testing HTML Output</h2>
+  
+  <div class="mb-8">
+    <h3>Test 1: H3 with span color wrapper</h3>
+    <div class="prose prose-sm dark:prose-invert max-w-none border p-4">
+      <h3><span style="color: rgb(251, 146, 60)">Orange H3 Text</span></h3>
+    </div>
+  </div>
+  
+  <div class="mb-8">
+    <h3>Test 2: H3 with inline color</h3>
+    <div class="prose prose-sm dark:prose-invert max-w-none border p-4">
+      <h3 style="color: rgb(251, 146, 60)">Orange H3 Text</h3>
+    </div>
+  </div>
+  
+  <div class="mb-8">
+    <h3>Test 3: Paragraph with span color wrapper</h3>
+    <div class="prose prose-sm dark:prose-invert max-w-none border p-4">
+      <p><span style="color: rgb(251, 146, 60)">Orange paragraph text</span></p>
+    </div>
+  </div>
+  
+  <div class="mb-8">
+    <h3>Test 4: After DOMPurify sanitization</h3>
+    <textarea id="input" class="w-full border p-2 mb-2" rows="3"><h3><span style="color: rgb(251, 146, 60)">Orange H3</span></h3></textarea>
+    <button onclick="sanitizeAndShow()" class="bg-blue-500 text-white px-4 py-2 rounded">Sanitize</button>
+    <div class="mt-2">
+      <strong>Output:</strong>
+      <div id="output" class="prose prose-sm dark:prose-invert max-w-none border p-4 mt-2"></div>
+    </div>
+  </div>
+  
+  <script>
+    function sanitizeAndShow() {
+      const input = document.getElementById('input').value;
+      const config = {
+        ALLOWED_TAGS: [
+          'p', 'br', 'span', 'div', 'strong', 'em', 'b', 'i', 'u', 's', 'code', 'pre',
+          'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+          'ul', 'ol', 'li',
+          'blockquote',
+          'a', 'img',
+          'table', 'thead', 'tbody', 'tr', 'th', 'td',
+          'hr',
+          'sub', 'sup'
+        ],
+        ALLOWED_ATTR: {
+          'span': ['class', 'style', 'data-*'],
+          'p': ['class', 'style'],
+          'div': ['class', 'style'],
+          'h1': ['class', 'style'],
+          'h2': ['class', 'style'],
+          'h3': ['class', 'style'],
+          'h4': ['class', 'style'],
+          'h5': ['class', 'style'],
+          'h6': ['class', 'style'],
+          'strong': ['class', 'style'],
+          'em': ['class', 'style'],
+          'b': ['class', 'style'],
+          'i': ['class', 'style'],
+          'u': ['class', 'style'],
+          's': ['class', 'style'],
+          'code': ['class', 'style'],
+          'pre': ['class', 'style'],
+          'blockquote': ['class', 'style'],
+          'li': ['class', 'style'],
+          'ul': ['class', 'style'],
+          'ol': ['class', 'style'],
+          'a': ['href', 'target', 'rel', 'class', 'style'],
+          'img': ['src', 'alt', 'width', 'height', 'class'],
+          'td': ['colspan', 'rowspan', 'class', 'style'],
+          'th': ['colspan', 'rowspan', 'class', 'style'],
+        },
+        ALLOW_DATA_ATTR: true,
+        KEEP_CONTENT: true,
+      };
+      
+      const sanitized = DOMPurify.sanitize(input, config);
+      document.getElementById('output').innerHTML = sanitized;
+      console.log('Sanitized:', sanitized);
+    }
+  </script>
+</body>
+</html>

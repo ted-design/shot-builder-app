@@ -339,7 +339,12 @@ describe("Create flows", () => {
     const { default: ShotsPage } = await import("../ShotsPage.jsx");
     renderWithRouter(<ShotsPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "New shot" }));
+    // Wait for the page to render and toolbar to portal
+    await screen.findByRole("heading", { name: "Shots" });
+
+    // The button text is "Create shot" on desktop, "New" on mobile - look for it by text content
+    const createButton = screen.getByRole("button", { name: /^(Create shot|New)$/i });
+    fireEvent.click(createButton);
 
     const modal = await screen.findByRole("dialog", { name: /create shot/i });
     const [nameInput] = within(modal).getAllByRole("textbox");

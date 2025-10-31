@@ -11,8 +11,8 @@
  * - Optimistic updates for mutations
  */
 
+import { useMemo, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
 import {
   collection,
   query,
@@ -22,6 +22,52 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
+
+const listenerRegistry = new Map();
+
+const serializeQueryKey = (key) => JSON.stringify(key);
+
+function releaseListener(key) {
+  const entry = listenerRegistry.get(key);
+  if (!entry) return;
+  entry.count -= 1;
+  if (entry.count <= 0) {
+    try {
+      if (typeof entry.unsubscribe === "function") {
+        entry.unsubscribe();
+      }
+    } catch (error) {
+      console.error("[useFirestoreQuery] Failed to remove listener", error);
+    } finally {
+      listenerRegistry.delete(key);
+    }
+  }
+}
+
+function registerSnapshotListener(queryKey, subscribe) {
+  const key = serializeQueryKey(queryKey);
+  const existing = listenerRegistry.get(key);
+  if (existing) {
+    existing.count += 1;
+    return () => releaseListener(key);
+  }
+
+  let unsubscribe;
+  try {
+    unsubscribe = subscribe();
+  } catch (error) {
+    console.error("[useFirestoreQuery] Failed to subscribe", error);
+    return () => {};
+  }
+
+  if (typeof unsubscribe !== "function") {
+    console.warn("[useFirestoreQuery] subscribe did not return an unsubscribe function for key", key);
+    return () => {};
+  }
+
+  listenerRegistry.set(key, { count: 1, unsubscribe });
+  return () => releaseListener(key);
+}
 
 /**
  * Query key factory for consistent cache keys
@@ -88,59 +134,56 @@ const normalizeShotRecord = (id, data, fallbackProjectId) => {
  */
 export function useShots(clientId, projectId, options = {}) {
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.shots(clientId, projectId);
+  const queryKey = useMemo(() => queryKeys.shots(clientId, projectId), [clientId, projectId]);
+  const { enabled: enabledOverride, ...restOptions } = options;
+  const isEnabled = Boolean((enabledOverride ?? true) && clientId && projectId);
 
-  // Initial query with cache
-  const result = useQuery({
-    queryKey,
-    queryFn: async () => {
-      if (!clientId || !projectId) return [];
+  const mapSnapshot = useCallback(
+    (snapshot) =>
+      snapshot.docs.map((doc) => normalizeShotRecord(doc.id, doc.data(), projectId)),
+    [projectId]
+  );
 
-      const shotsRef = collection(db, "clients", clientId, "shots");
-      const q = query(
-        shotsRef,
-        where("projectId", "==", projectId),
-        where("deleted", "==", false),
-        orderBy("date", "asc")
-      );
-
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) =>
-        normalizeShotRecord(doc.id, doc.data(), projectId)
-      );
-    },
-    enabled: !!clientId && !!projectId,
-    ...options,
-  });
-
-  // Set up realtime subscription
-  useEffect(() => {
-    if (!clientId || !projectId) return;
-
+  const shotsQuery = useMemo(() => {
+    if (!clientId || !projectId) return null;
     const shotsRef = collection(db, "clients", clientId, "shots");
-    const q = query(
+    return query(
       shotsRef,
       where("projectId", "==", projectId),
       where("deleted", "==", false),
       orderBy("date", "asc")
     );
+  }, [clientId, projectId]);
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const shots = snapshot.docs.map((doc) =>
-          normalizeShotRecord(doc.id, doc.data(), projectId)
-        );
-        // Update cache with realtime data
-        queryClient.setQueryData(queryKey, shots);
-      },
-      (error) => {
-        console.error("[useShots] Subscription error:", error);
-      }
+  // Initial query with cache
+  const result = useQuery({
+    queryKey,
+    queryFn: async () => {
+      if (!isEnabled || !shotsQuery) return [];
+      const snapshot = await getDocs(shotsQuery);
+      return mapSnapshot(snapshot);
+    },
+    enabled: isEnabled,
+    ...restOptions,
+  });
+
+  // Set up realtime subscription with shared listener registry
+  useEffect(() => {
+    if (!isEnabled || !shotsQuery) return undefined;
+
+    return registerSnapshotListener(queryKey, () =>
+      onSnapshot(
+        shotsQuery,
+        (snapshot) => {
+          const shots = mapSnapshot(snapshot);
+          queryClient.setQueryData(queryKey, shots);
+        },
+        (error) => {
+          console.error("[useShots] Subscription error:", error);
+        }
+      )
     );
-
-    return () => unsubscribe();
-  }, [clientId, projectId, queryClient, queryKey]);
+  }, [isEnabled, queryClient, queryKey, shotsQuery, mapSnapshot]);
 
   return result;
 }
@@ -157,47 +200,49 @@ export function useShots(clientId, projectId, options = {}) {
  */
 export function useProjects(clientId, options = {}) {
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.projects(clientId);
+  const queryKey = useMemo(() => queryKeys.projects(clientId), [clientId]);
+  const { enabled: enabledOverride, ...restOptions } = options;
+  const isEnabled = Boolean((enabledOverride ?? true) && clientId);
+
+  const mapSnapshot = useCallback((snapshot) => {
+    return snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((p) => !p.deletedAt);
+  }, []);
+
+  const projectsQuery = useMemo(() => {
+    if (!clientId) return null;
+    const projectsRef = collection(db, "clients", clientId, "projects");
+    return query(projectsRef, orderBy("createdAt", "desc"));
+  }, [clientId]);
 
   const result = useQuery({
     queryKey,
     queryFn: async () => {
-      if (!clientId) return [];
-
-      const projectsRef = collection(db, "clients", clientId, "projects");
-      const q = query(projectsRef, orderBy("createdAt", "desc"));
-
-      const snapshot = await getDocs(q);
-      return snapshot.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
-        .filter((p) => !p.deletedAt);
+      if (!isEnabled || !projectsQuery) return [];
+      const snapshot = await getDocs(projectsQuery);
+      return mapSnapshot(snapshot);
     },
-    enabled: !!clientId,
-    ...options,
+    enabled: isEnabled,
+    ...restOptions,
   });
 
-  // Realtime subscription
   useEffect(() => {
-    if (!clientId) return;
+    if (!isEnabled || !projectsQuery) return undefined;
 
-    const projectsRef = collection(db, "clients", clientId, "projects");
-    const q = query(projectsRef, orderBy("createdAt", "desc"));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const projects = snapshot.docs
-          .map((doc) => ({ id: doc.id, ...doc.data() }))
-          .filter((p) => !p.deletedAt);
-        queryClient.setQueryData(queryKey, projects);
-      },
-      (error) => {
-        console.error("[useProjects] Subscription error:", error);
-      }
+    return registerSnapshotListener(queryKey, () =>
+      onSnapshot(
+        projectsQuery,
+        (snapshot) => {
+          const projects = mapSnapshot(snapshot);
+          queryClient.setQueryData(queryKey, projects);
+        },
+        (error) => {
+          console.error("[useProjects] Subscription error:", error);
+        }
+      )
     );
-
-    return () => unsubscribe();
-  }, [clientId, queryClient, queryKey]);
+  }, [isEnabled, queryClient, queryKey, projectsQuery, mapSnapshot]);
 
   return result;
 }
@@ -214,43 +259,47 @@ export function useProjects(clientId, options = {}) {
  */
 export function useProducts(clientId, options = {}) {
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.products(clientId);
+  const queryKey = useMemo(() => queryKeys.products(clientId), [clientId]);
+  const { enabled: enabledOverride, ...restOptions } = options;
+  const isEnabled = Boolean((enabledOverride ?? true) && clientId);
+
+  const mapSnapshot = useCallback((snapshot) => {
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  }, []);
+
+  const productsQuery = useMemo(() => {
+    if (!clientId) return null;
+    const productsRef = collection(db, "clients", clientId, "productFamilies");
+    return query(productsRef, orderBy("styleName", "asc"));
+  }, [clientId]);
 
   const result = useQuery({
     queryKey,
     queryFn: async () => {
-      if (!clientId) return [];
-
-      const productsRef = collection(db, "clients", clientId, "productFamilies");
-      const q = query(productsRef, orderBy("styleName", "asc"));
-
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      if (!isEnabled || !productsQuery) return [];
+      const snapshot = await getDocs(productsQuery);
+      return mapSnapshot(snapshot);
     },
-    enabled: !!clientId,
-    ...options,
+    enabled: isEnabled,
+    ...restOptions,
   });
 
-  // Realtime subscription
   useEffect(() => {
-    if (!clientId) return;
+    if (!isEnabled || !productsQuery) return undefined;
 
-    const productsRef = collection(db, "clients", clientId, "productFamilies");
-    const q = query(productsRef, orderBy("styleName", "asc"));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const products = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        queryClient.setQueryData(queryKey, products);
-      },
-      (error) => {
-        console.error("[useProducts] Subscription error:", error);
-      }
+    return registerSnapshotListener(queryKey, () =>
+      onSnapshot(
+        productsQuery,
+        (snapshot) => {
+          const products = mapSnapshot(snapshot);
+          queryClient.setQueryData(queryKey, products);
+        },
+        (error) => {
+          console.error("[useProducts] Subscription error:", error);
+        }
+      )
     );
-
-    return () => unsubscribe();
-  }, [clientId, queryClient, queryKey]);
+  }, [isEnabled, queryClient, queryKey, productsQuery, mapSnapshot]);
 
   return result;
 }
@@ -267,43 +316,47 @@ export function useProducts(clientId, options = {}) {
  */
 export function useTalent(clientId, options = {}) {
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.talent(clientId);
+  const queryKey = useMemo(() => queryKeys.talent(clientId), [clientId]);
+  const { enabled: enabledOverride, ...restOptions } = options;
+  const isEnabled = Boolean((enabledOverride ?? true) && clientId);
+
+  const mapSnapshot = useCallback((snapshot) => {
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  }, []);
+
+  const talentQuery = useMemo(() => {
+    if (!clientId) return null;
+    const talentRef = collection(db, "clients", clientId, "talent");
+    return query(talentRef, orderBy("name", "asc"));
+  }, [clientId]);
 
   const result = useQuery({
     queryKey,
     queryFn: async () => {
-      if (!clientId) return [];
-
-      const talentRef = collection(db, "clients", clientId, "talent");
-      const q = query(talentRef, orderBy("name", "asc"));
-
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      if (!isEnabled || !talentQuery) return [];
+      const snapshot = await getDocs(talentQuery);
+      return mapSnapshot(snapshot);
     },
-    enabled: !!clientId,
-    ...options,
+    enabled: isEnabled,
+    ...restOptions,
   });
 
-  // Realtime subscription
   useEffect(() => {
-    if (!clientId) return;
+    if (!isEnabled || !talentQuery) return undefined;
 
-    const talentRef = collection(db, "clients", clientId, "talent");
-    const q = query(talentRef, orderBy("name", "asc"));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const talent = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        queryClient.setQueryData(queryKey, talent);
-      },
-      (error) => {
-        console.error("[useTalent] Subscription error:", error);
-      }
+    return registerSnapshotListener(queryKey, () =>
+      onSnapshot(
+        talentQuery,
+        (snapshot) => {
+          const talent = mapSnapshot(snapshot);
+          queryClient.setQueryData(queryKey, talent);
+        },
+        (error) => {
+          console.error("[useTalent] Subscription error:", error);
+        }
+      )
     );
-
-    return () => unsubscribe();
-  }, [clientId, queryClient, queryKey]);
+  }, [isEnabled, queryClient, queryKey, talentQuery, mapSnapshot]);
 
   return result;
 }
@@ -320,43 +373,47 @@ export function useTalent(clientId, options = {}) {
  */
 export function useLocations(clientId, options = {}) {
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.locations(clientId);
+  const queryKey = useMemo(() => queryKeys.locations(clientId), [clientId]);
+  const { enabled: enabledOverride, ...restOptions } = options;
+  const isEnabled = Boolean((enabledOverride ?? true) && clientId);
+
+  const mapSnapshot = useCallback((snapshot) => {
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  }, []);
+
+  const locationsQuery = useMemo(() => {
+    if (!clientId) return null;
+    const locationsRef = collection(db, "clients", clientId, "locations");
+    return query(locationsRef, orderBy("name", "asc"));
+  }, [clientId]);
 
   const result = useQuery({
     queryKey,
     queryFn: async () => {
-      if (!clientId) return [];
-
-      const locationsRef = collection(db, "clients", clientId, "locations");
-      const q = query(locationsRef, orderBy("name", "asc"));
-
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      if (!isEnabled || !locationsQuery) return [];
+      const snapshot = await getDocs(locationsQuery);
+      return mapSnapshot(snapshot);
     },
-    enabled: !!clientId,
-    ...options,
+    enabled: isEnabled,
+    ...restOptions,
   });
 
-  // Realtime subscription
   useEffect(() => {
-    if (!clientId) return;
+    if (!isEnabled || !locationsQuery) return undefined;
 
-    const locationsRef = collection(db, "clients", clientId, "locations");
-    const q = query(locationsRef, orderBy("name", "asc"));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const locations = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        queryClient.setQueryData(queryKey, locations);
-      },
-      (error) => {
-        console.error("[useLocations] Subscription error:", error);
-      }
+    return registerSnapshotListener(queryKey, () =>
+      onSnapshot(
+        locationsQuery,
+        (snapshot) => {
+          const locations = mapSnapshot(snapshot);
+          queryClient.setQueryData(queryKey, locations);
+        },
+        (error) => {
+          console.error("[useLocations] Subscription error:", error);
+        }
+      )
     );
-
-    return () => unsubscribe();
-  }, [clientId, queryClient, queryKey]);
+  }, [isEnabled, queryClient, queryKey, locationsQuery, mapSnapshot]);
 
   return result;
 }
@@ -374,43 +431,47 @@ export function useLocations(clientId, options = {}) {
  */
 export function useLanes(clientId, projectId, options = {}) {
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.lanes(clientId, projectId);
+  const queryKey = useMemo(() => queryKeys.lanes(clientId, projectId), [clientId, projectId]);
+  const { enabled: enabledOverride, ...restOptions } = options;
+  const isEnabled = Boolean((enabledOverride ?? true) && clientId && projectId);
+
+  const mapSnapshot = useCallback((snapshot) => {
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  }, []);
+
+  const lanesQuery = useMemo(() => {
+    if (!clientId || !projectId) return null;
+    const lanesRef = collection(db, "clients", clientId, "projects", projectId, "lanes");
+    return query(lanesRef, orderBy("order", "asc"));
+  }, [clientId, projectId]);
 
   const result = useQuery({
     queryKey,
     queryFn: async () => {
-      if (!clientId || !projectId) return [];
-
-      const lanesRef = collection(db, "clients", clientId, "projects", projectId, "lanes");
-      const q = query(lanesRef, orderBy("order", "asc"));
-
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      if (!isEnabled || !lanesQuery) return [];
+      const snapshot = await getDocs(lanesQuery);
+      return mapSnapshot(snapshot);
     },
-    enabled: !!clientId && !!projectId,
-    ...options,
+    enabled: isEnabled,
+    ...restOptions,
   });
 
-  // Realtime subscription
   useEffect(() => {
-    if (!clientId || !projectId) return;
+    if (!isEnabled || !lanesQuery) return undefined;
 
-    const lanesRef = collection(db, "clients", clientId, "projects", projectId, "lanes");
-    const q = query(lanesRef, orderBy("order", "asc"));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const lanes = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        queryClient.setQueryData(queryKey, lanes);
-      },
-      (error) => {
-        console.error("[useLanes] Subscription error:", error);
-      }
+    return registerSnapshotListener(queryKey, () =>
+      onSnapshot(
+        lanesQuery,
+        (snapshot) => {
+          const lanes = mapSnapshot(snapshot);
+          queryClient.setQueryData(queryKey, lanes);
+        },
+        (error) => {
+          console.error("[useLanes] Subscription error:", error);
+        }
+      )
     );
-
-    return () => unsubscribe();
-  }, [clientId, projectId, queryClient, queryKey]);
+  }, [isEnabled, queryClient, queryKey, lanesQuery, mapSnapshot]);
 
   return result;
 }
@@ -428,52 +489,52 @@ export function useLanes(clientId, projectId, options = {}) {
  */
 export function useNotifications(clientId, userId, options = {}) {
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.notifications(clientId, userId);
+  const queryKey = useMemo(() => queryKeys.notifications(clientId, userId), [clientId, userId]);
+  const { enabled: enabledOverride, ...restOptions } = options;
+  const isEnabled = Boolean((enabledOverride ?? true) && clientId && userId);
 
-  const result = useQuery({
-    queryKey,
-    queryFn: async () => {
-      if (!clientId || !userId) return [];
+  const mapSnapshot = useCallback((snapshot) => {
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  }, []);
 
-      const notificationsRef = collection(db, "clients", clientId, "notifications");
-      const q = query(
-        notificationsRef,
-        where("userId", "==", userId),
-        orderBy("createdAt", "desc")
-      );
-
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    },
-    enabled: !!clientId && !!userId,
-    staleTime: 1000 * 60, // 1 minute
-    ...options,
-  });
-
-  // Realtime subscription
-  useEffect(() => {
-    if (!clientId || !userId) return;
-
+  const notificationsQuery = useMemo(() => {
+    if (!clientId || !userId) return null;
     const notificationsRef = collection(db, "clients", clientId, "notifications");
-    const q = query(
+    return query(
       notificationsRef,
       where("userId", "==", userId),
       orderBy("createdAt", "desc")
     );
+  }, [clientId, userId]);
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const notifications = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        queryClient.setQueryData(queryKey, notifications);
-      },
-      (error) => {
-        console.error("[useNotifications] Subscription error:", error);
-      }
+  const result = useQuery({
+    queryKey,
+    queryFn: async () => {
+      if (!isEnabled || !notificationsQuery) return [];
+      const snapshot = await getDocs(notificationsQuery);
+      return mapSnapshot(snapshot);
+    },
+    enabled: isEnabled,
+    staleTime: 1000 * 60, // 1 minute
+    ...restOptions,
+  });
+
+  useEffect(() => {
+    if (!isEnabled || !notificationsQuery) return undefined;
+
+    return registerSnapshotListener(queryKey, () =>
+      onSnapshot(
+        notificationsQuery,
+        (snapshot) => {
+          const notifications = mapSnapshot(snapshot);
+          queryClient.setQueryData(queryKey, notifications);
+        },
+        (error) => {
+          console.error("[useNotifications] Subscription error:", error);
+        }
+      )
     );
-
-    return () => unsubscribe();
-  }, [clientId, userId, queryClient, queryKey]);
+  }, [isEnabled, queryClient, queryKey, notificationsQuery, mapSnapshot]);
 
   return result;
 }

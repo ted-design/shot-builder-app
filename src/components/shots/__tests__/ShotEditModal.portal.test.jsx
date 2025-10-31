@@ -80,7 +80,30 @@ const baseDraft = {
 
 const noop = () => {};
 
-describe("ShotEditModal talent select", () => {
+const createDraft = (overrides = {}) => ({
+  ...baseDraft,
+  ...overrides,
+});
+
+const renderShotEditModal = (props = {}) => {
+  const draft = props.draft ?? createDraft();
+  return render(
+    <ShotEditModal
+      open
+      draft={draft}
+      shotName="Shot A"
+      onChange={noop}
+      onClose={noop}
+      onSubmit={noop}
+      families={[]}
+      locations={[]}
+      talentOptions={[]}
+      {...props}
+    />
+  );
+};
+
+describe("ShotEditModal interactions", () => {
   beforeEach(() => {
     if (!global.requestAnimationFrame) {
       global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
@@ -107,19 +130,13 @@ describe("ShotEditModal talent select", () => {
   });
 
   it("renders the talent menu in a body portal with high z-index", async () => {
-    render(
-      <ShotEditModal
-        open
-        draft={baseDraft}
-        shotName="Shot A"
-        onChange={noop}
-        onClose={noop}
-        onSubmit={noop}
-        families={[]}
-        locations={[]}
-        talentOptions={[{ talentId: "tal-1", name: "Jane Doe" }]}
-      />
-    );
+    renderShotEditModal({
+      draft: createDraft(),
+      talentOptions: [{ talentId: "tal-1", name: "Jane Doe" }],
+    });
+
+    const logisticsTab = await screen.findByRole("tab", { name: /Logistics/i });
+    fireEvent.click(logisticsTab);
 
     const comboboxes = await screen.findAllByRole("combobox");
     const talentCombobox = comboboxes.find((element) => element.id?.startsWith("react-select"));
@@ -133,5 +150,62 @@ describe("ShotEditModal talent select", () => {
     expect(portalContainer?.parentElement).toBe(document.body);
     const computedZ = portalContainer ? window.getComputedStyle(portalContainer).zIndex : "";
     expect(computedZ).toBe("1200");
+  });
+
+  it("supports arrow key navigation between tabs with maintained focus", async () => {
+    renderShotEditModal();
+
+    const tabs = await screen.findAllByRole("tab");
+    expect(tabs).toHaveLength(4);
+
+    tabs[0].focus();
+    expect(tabs[0]).toHaveFocus();
+    expect(tabs[0]).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.keyDown(tabs[0], { key: "ArrowRight" });
+    await waitFor(() => expect(tabs[1]).toHaveAttribute("aria-selected", "true"));
+    await waitFor(() => expect(tabs[1]).toHaveFocus());
+
+    fireEvent.keyDown(tabs[1], { key: "ArrowDown" });
+    await waitFor(() => expect(tabs[2]).toHaveAttribute("aria-selected", "true"));
+    await waitFor(() => expect(tabs[2]).toHaveFocus());
+
+    fireEvent.keyDown(tabs[2], { key: "ArrowLeft" });
+    await waitFor(() => expect(tabs[1]).toHaveAttribute("aria-selected", "true"));
+    await waitFor(() => expect(tabs[1]).toHaveFocus());
+
+    fireEvent.keyDown(tabs[1], { key: "ArrowUp" });
+    await waitFor(() => expect(tabs[0]).toHaveAttribute("aria-selected", "true"));
+    await waitFor(() => expect(tabs[0]).toHaveFocus());
+  });
+
+  it("wraps tab focus when navigating past the ends", async () => {
+    renderShotEditModal();
+
+    const tabs = await screen.findAllByRole("tab");
+    tabs[0].focus();
+
+    fireEvent.keyDown(tabs[0], { key: "ArrowLeft" });
+    await waitFor(() => expect(tabs[3]).toHaveAttribute("aria-selected", "true"));
+    await waitFor(() => expect(tabs[3]).toHaveFocus());
+
+    fireEvent.keyDown(tabs[3], { key: "ArrowRight" });
+    await waitFor(() => expect(tabs[0]).toHaveAttribute("aria-selected", "true"));
+    await waitFor(() => expect(tabs[0]).toHaveFocus());
+  });
+
+  it("handles Home and End shortcuts for tab selection", async () => {
+    renderShotEditModal();
+
+    const tabs = await screen.findAllByRole("tab");
+    tabs[1].focus();
+
+    fireEvent.keyDown(tabs[1], { key: "End" });
+    await waitFor(() => expect(tabs[3]).toHaveAttribute("aria-selected", "true"));
+    await waitFor(() => expect(tabs[3]).toHaveFocus());
+
+    fireEvent.keyDown(tabs[3], { key: "Home" });
+    await waitFor(() => expect(tabs[0]).toHaveAttribute("aria-selected", "true"));
+    await waitFor(() => expect(tabs[0]).toHaveFocus());
   });
 });

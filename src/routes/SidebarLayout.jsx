@@ -12,7 +12,6 @@ import ThemeToggle from "../components/ui/ThemeToggle";
 const navItems = [
   { to: "/projects", label: "Dashboard" },
   { to: "/shots", label: "Shots" },
-  { to: "/planner", label: "Planner" },
   { to: "/products", label: "Products" },
   { to: "/talent", label: "Talent" },
   { to: "/locations", label: "Locations" },

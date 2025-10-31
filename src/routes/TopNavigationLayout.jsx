@@ -23,7 +23,6 @@ import { Sheet, SheetContent, SheetTrigger } from "../components/ui/sheet";
 const navItems = [
   { to: "/projects", label: "Dashboard" },
   { to: "/shots", label: "Shots" },
-  { to: "/planner", label: "Planner" },
   { to: "/products", label: "Products" },
   { to: "/talent", label: "Talent" },
   { to: "/locations", label: "Locations" },
@@ -256,7 +255,10 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
       <SkipLink />
 
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 supports-[backdrop-filter]:dark:bg-slate-800/80">
+      <header
+        className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 supports-[backdrop-filter]:dark:bg-slate-800/80"
+        data-app-top-nav
+      >
         <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-4 md:px-6">
           {/* Left: Logo + Desktop Nav */}
           <div className="flex items-center gap-6">
@@ -354,7 +356,10 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
 
       {/* Breadcrumb Navigation */}
       {showBreadcrumbs && breadcrumbItems.length > 0 && (
-        <div className="border-b border-slate-200 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50">
+        <div
+          className="border-b border-slate-200 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50"
+          data-app-breadcrumb
+        >
           <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8">
             <Breadcrumb items={breadcrumbItems} />
           </div>
