@@ -1,5 +1,16 @@
 import { useMemo } from "react";
 import { useShots } from "./useFirestoreQuery";
+import { DEFAULT_TAGS, DEFAULT_TAG_GROUPS } from "../lib/defaultTags";
+
+const PROJECT_TAG_GROUP_ID = "project";
+const PROJECT_TAG_GROUP_LABEL = "Project Tags";
+const DEFAULT_TAG_INDEX = new Map(DEFAULT_TAGS.map((tag) => [tag.id, tag]));
+const DEFAULT_GROUP_LABELS = new Map(
+  DEFAULT_TAG_GROUPS.map((group) => [group.id, group.label])
+);
+const DEFAULT_GROUP_DESCRIPTIONS = new Map(
+  DEFAULT_TAG_GROUPS.map((group) => [group.id, group.description])
+);
 
 /**
  * Hook for aggregating unique tags from all shots in a project
@@ -23,25 +34,53 @@ export function useAvailableTags(clientId, projectId) {
   const availableTags = useMemo(() => {
     const tagMap = new Map();
 
-    shots.forEach((shot) => {
-      if (Array.isArray(shot.tags)) {
-        shot.tags.forEach((tag) => {
-          if (tag && tag.id && tag.label) {
-            // Only store unique tags by ID
-            // If the same tag ID appears multiple times, we keep the first occurrence
-            if (!tagMap.has(tag.id)) {
-              tagMap.set(tag.id, {
-                id: tag.id,
-                label: tag.label,
-                color: tag.color || "gray",
-              });
-            }
-          }
-        });
-      }
+    // Seed with default tags so they are always available
+    DEFAULT_TAGS.forEach((tag) => {
+      tagMap.set(tag.id, { ...tag });
     });
 
-    // Convert to array and sort alphabetically by label
+    shots.forEach((shot) => {
+      if (!Array.isArray(shot.tags)) return;
+
+      shot.tags.forEach((tag) => {
+        if (!tag || !tag.id || !tag.label) return;
+
+        const trimmedLabel = String(tag.label).trim();
+        if (!trimmedLabel) return;
+
+        const defaultTag = DEFAULT_TAG_INDEX.get(tag.id) || null;
+        const groupId = tag.groupId || defaultTag?.groupId || PROJECT_TAG_GROUP_ID;
+        const groupLabel = tag.groupLabel
+          || defaultTag?.groupLabel
+          || DEFAULT_GROUP_LABELS.get(groupId)
+          || (groupId === PROJECT_TAG_GROUP_ID ? PROJECT_TAG_GROUP_LABEL : null);
+        const groupDescription = tag.groupDescription
+          || defaultTag?.groupDescription
+          || DEFAULT_GROUP_DESCRIPTIONS.get(groupId)
+          || null;
+
+        const entry = {
+          id: tag.id,
+          label: trimmedLabel,
+          color: tag.color || defaultTag?.color || "gray",
+          groupId,
+          groupLabel,
+          groupDescription,
+          isDefault: Boolean(tag.isDefault || defaultTag?.isDefault),
+        };
+
+        if (tagMap.has(entry.id)) {
+          const existing = tagMap.get(entry.id);
+          tagMap.set(entry.id, {
+            ...existing,
+            ...entry,
+          });
+        } else {
+          tagMap.set(entry.id, entry);
+        }
+      });
+    });
+
     return Array.from(tagMap.values()).sort((a, b) =>
       a.label.localeCompare(b.label)
     );

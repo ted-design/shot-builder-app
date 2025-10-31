@@ -32,7 +32,6 @@ const queryClient = new QueryClient({
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ProjectsPage = lazy(() => import("./pages/ProjectsPage"));
 const ShotsPage = lazy(() => import("./pages/ShotsPage"));
-const PlannerPage = lazy(() => import("./pages/PlannerPage"));
 const ProductsPage = lazy(() => import("./pages/ProductsPage"));
 const ImportProducts = lazy(() => import("./pages/ImportProducts"));
 const TalentPage = lazy(() => import("./pages/TalentPage"));
@@ -156,14 +155,7 @@ export default function App() {
                 </Suspense>
               }
             />
-            <Route
-              path="/planner"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <PlannerPage />
-                </Suspense>
-              }
-            />
+            <Route path="/planner" element={<Navigate to="/shots?view=planner" replace />} />
             <Route
               path="/products"
               element={

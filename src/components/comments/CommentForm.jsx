@@ -1,7 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { Send } from "lucide-react";
 import { Button } from "../ui/button";
-import NotesEditor from "../shots/NotesEditor";
+import RichTextEditor from "../shots/RichTextEditor";
 import { stripMentionMarkup } from "../../lib/mentions";
 
 /**
@@ -28,7 +28,6 @@ export default function CommentForm({
   maxLength = 1000,
 }) {
   const [text, setText] = useState(initialText);
-  const editorRef = useRef(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -48,10 +47,6 @@ export default function CommentForm({
     // Clear form if not editing
     if (!initialText) {
       setText("");
-      // Reset editor
-      if (editorRef.current) {
-        editorRef.current.innerHTML = "";
-      }
     }
   };
 
@@ -76,12 +71,16 @@ export default function CommentForm({
     <form onSubmit={handleSubmit} className="space-y-3">
       {/* Editor */}
       <div className="relative">
-        <NotesEditor
+        <RichTextEditor
           value={text}
           onChange={setText}
           disabled={isSubmitting}
           placeholder={placeholder}
           id="comment-editor"
+          characterLimit={maxLength}
+          minHeight="120px"
+          maxHeight="260px"
+          hideBubble
         />
 
         {/* Character Count */}
@@ -121,7 +120,7 @@ export default function CommentForm({
             type="submit"
             size="sm"
             disabled={isSubmitting || !text.trim() || isOverLimit}
-            className="gap-1.5"
+            className="gap-1.5 whitespace-nowrap"
           >
             {isSubmitting ? (
               "Sending..."

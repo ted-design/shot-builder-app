@@ -6,8 +6,18 @@
 // a `where('projectId', '==', projectId)` clause.  This makes it easy to
 // reassign shots to other projects—simply update the `projectId` field.
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  lazy,
+  memo,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import {
   useShots,
@@ -50,22 +60,39 @@ import {
   talentPath,
   locationsPath,
 } from "../lib/paths";
-import { LayoutGrid, List, SlidersHorizontal, ChevronDown, Camera, Filter, X } from "lucide-react";
+import {
+  LayoutGrid,
+  List,
+  Filter,
+  ArrowUpDown,
+  Search,
+  Eye,
+  ChevronDown,
+  Camera,
+  Calendar,
+  X,
+  Plus,
+  Table,
+} from "lucide-react";
 import Select from "react-select";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/ui/EmptyState";
 import ExportButton from "../components/common/ExportButton";
-import FilterPresetManager from "../components/ui/FilterPresetManager";
+import { createPortal } from "react-dom";
 import { searchShots } from "../lib/search";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { ShotsOverviewProvider, useShotsOverview } from "../context/ShotsOverviewContext";
+
+const PlannerPage = lazy(() => import("./PlannerPage"));
 import VirtualizedList, { VirtualizedGrid } from "../components/ui/VirtualizedList";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
 import ShotEditModal from "../components/shots/ShotEditModal";
-import CreateShotCard from "../components/shots/CreateShotCard";
 import BulkOperationsToolbar from "../components/shots/BulkOperationsToolbar";
+import ShotTableView from "../components/shots/ShotTableView";
 import { useAuth } from "../context/AuthContext";
 import { useProjectScope } from "../context/ProjectScopeContext";
 import { canEditProducts, canManageShots, resolveEffectiveRole } from "../lib/rbac";
@@ -91,6 +118,13 @@ import { normaliseShotStatus, DEFAULT_SHOT_STATUS } from "../lib/shotStatus";
 import { normaliseShot, sortShotsForView, SHOT_SORT_OPTIONS } from "../lib/shotsSelectors";
 import { getStaggerDelay } from "../lib/animations";
 import ActivityTimeline from "../components/activity/ActivityTimeline";
+import {
+  createInitialSectionStatuses,
+  cloneShotDraft,
+  deriveSectionStatuses,
+  markSectionsForState,
+  buildSectionDiffMap,
+} from "../lib/shotSectionStatus";
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
@@ -117,6 +151,7 @@ const defaultShotFilters = {
   talentIds: [],
   productFamilyIds: [],
   tagIds: [],
+  showArchived: false,
 };
 
 const SHOTS_PREFS_STORAGE_KEY = "shots:viewPrefs";
@@ -131,6 +166,15 @@ const defaultViewPrefs = {
 
 const normaliseShotRecord = (id, data, fallbackProjectId) =>
   normaliseShot({ id, ...data }, { fallbackProjectId }) || { id, ...data };
+
+const AUTOSAVE_DELAY_MS = 1200;
+
+const DETAIL_TOGGLE_OPTIONS = [
+  { key: "showNotes", label: "Notes" },
+  { key: "showProducts", label: "Products" },
+  { key: "showTalent", label: "Talent" },
+  { key: "showLocation", label: "Location" },
+];
 
 const filterSelectStyles = {
   control: (base, state) => ({
@@ -166,7 +210,8 @@ const filterSelectStyles = {
 
 const readStoredShotsView = () => {
   const stored = readStorage(SHOTS_VIEW_STORAGE_KEY);
-  return stored === "list" ? "list" : "gallery";
+  if (stored === "list" || stored === "table") return stored;
+  return "gallery";
 };
 
 const readStoredShotFilters = () => {
@@ -185,6 +230,7 @@ const readStoredShotFilters = () => {
       tagIds: Array.isArray(parsed.tagIds)
         ? parsed.tagIds.filter((value) => typeof value === "string" && value)
         : [],
+      showArchived: parsed.showArchived === true,
     };
   } catch (error) {
     console.warn("[Shots] Failed to parse stored filters", error);
@@ -210,24 +256,41 @@ const readStoredViewPrefs = () => {
   }
 };
 
-export default function ShotsPage() {
+export function ShotsWorkspace() {
   const [queryText, setQueryText] = useState("");
   const debouncedQueryText = useDebouncedValue(queryText, 300);
   const [createDraft, setCreateDraft] = useState({ ...initialShotDraft });
+  const [createAutoStatus, setCreateAutoStatus] = useState(() => createInitialSectionStatuses());
   const [talentLoadError, setTalentLoadError] = useState(null);
   const [isCreatingShot, setIsCreatingShot] = useState(false);
   const [viewMode, setViewMode] = useState(() => readStoredShotsView());
-  const [filters, setFilters] = useState(() => readStoredShotFilters());
+  const [localFilters, setLocalFilters] = useState(() => readStoredShotFilters());
   const [viewPrefs, setViewPrefs] = useState(() => readStoredViewPrefs());
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [editingShot, setEditingShot] = useState(null);
+  const [editAutoStatus, setEditAutoStatus] = useState(() => createInitialSectionStatuses());
   const [isSavingShot, setIsSavingShot] = useState(false);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
-  const [displayMenuOpen, setDisplayMenuOpen] = useState(false);
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [visibilityMenuOpen, setVisibilityMenuOpen] = useState(false);
   const [movingProject, setMovingProject] = useState(false);
   const [copyingProject, setCopyingProject] = useState(false);
-  const [selectedShotIds, setSelectedShotIds] = useState(new Set());
+  const [localSelectedShotIds, setLocalSelectedShotIds] = useState(() => new Set());
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
+  const [activityExpanded, setActivityExpanded] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [stickyOffset, setStickyOffset] = useState(80);
+  const autoSaveTimerRef = useRef(null);
+  const autoSaveInflightRef = useRef(false);
+  const editingShotRef = useRef(editingShot);
+  const isSavingShotRef = useRef(isSavingShot);
+  const overview = useShotsOverview();
+  const filters = overview?.filters ?? localFilters;
+  const setFilters = overview?.setFilters ?? setLocalFilters;
+  const selectedShotIds = overview?.selectedShotIds ?? localSelectedShotIds;
+  const setSelectedShotIds = overview?.setSelectedShotIds ?? setLocalSelectedShotIds;
+  const focusShotId = overview?.focusShotId ?? null;
+  const setFocusShotId = overview?.setFocusShotId ?? (() => {});
   const navigate = useNavigate();
   const { currentProjectId, ready: scopeReady, setLastVisitedPath } = useProjectScope();
   const redirectNotifiedRef = useRef(false);
@@ -283,6 +346,14 @@ export default function ShotsPage() {
   );
 
   useEffect(() => {
+    editingShotRef.current = editingShot;
+  }, [editingShot]);
+
+  useEffect(() => {
+    isSavingShotRef.current = isSavingShot;
+  }, [isSavingShot]);
+
+  useEffect(() => {
     setLastVisitedPath("/shots");
   }, [setLastVisitedPath]);
 
@@ -332,6 +403,27 @@ export default function ShotsPage() {
       })),
     [families]
   );
+
+  // Location filter options for react-select (single-select)
+  const locationFilterOptions = useMemo(
+    () =>
+      locations.map((loc) => ({
+        value: loc.id,
+        label: loc.name || "Untitled location",
+      })),
+    [locations]
+  );
+
+  const locationFilterValue = useMemo(() => {
+    const id = filters.locationId || "";
+    if (!id) return null;
+    return (
+      locationFilterOptions.find((opt) => opt.value === id) || {
+        value: id,
+        label: "Unknown location",
+      }
+    );
+  }, [filters.locationId, locationFilterOptions]);
 
   const talentFilterValue = useMemo(
     () =>
@@ -400,6 +492,10 @@ export default function ShotsPage() {
 
     // Apply non-text filters first
     const preFiltered = shots.filter((shot) => {
+      if (!filters.showArchived && shot.deleted) {
+        return false;
+      }
+
       if (selectedLocation && (shot.locationId || "") !== selectedLocation) {
         return false;
       }
@@ -446,7 +542,9 @@ export default function ShotsPage() {
   );
 
   useEffect(() => {
-    writeStorage(SHOTS_VIEW_STORAGE_KEY, viewMode);
+    if (viewMode === "gallery" || viewMode === "list" || viewMode === "table") {
+      writeStorage(SHOTS_VIEW_STORAGE_KEY, viewMode);
+    }
   }, [viewMode]);
 
   useEffect(() => {
@@ -459,9 +557,93 @@ export default function ShotsPage() {
           ? filters.productFamilyIds
           : [],
         tagIds: Array.isArray(filters.tagIds) ? filters.tagIds : [],
+        showArchived: filters.showArchived === true,
       })
     );
   }, [filters]);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let frameId = null;
+    let timeoutId = null;
+
+    const measure = () => {
+      // Get the sticky elements that contribute to the sticky offset
+      const navElement = document.querySelector("[data-app-top-nav]");
+      const shotOverviewHeader = document.querySelector("[data-shot-overview-header]");
+
+      if (!navElement) return;
+
+      // Calculate total height of sticky elements above the sticky toolbar
+      // IMPORTANT: Only include elements with position:sticky that remain visible when scrolling
+      let totalOffset = 0;
+
+      // Navigation bar height (sticky, always visible)
+      const navHeight = navElement.offsetHeight || 64; // Default to 64px if not found
+      totalOffset += navHeight;
+
+      // Shot Overview header height (sticky, always visible)
+      const headerHeight = shotOverviewHeader?.offsetHeight || 73; // Default to 73px if not found
+      totalOffset += headerHeight;
+
+      // Note: We do NOT include breadcrumb height because it has position:static
+      // and scrolls away with the page content.
+
+      // Update the sticky offset if it changed
+      setStickyOffset((current) => {
+        const newOffset = totalOffset;
+
+        // Log measurements for debugging (only when offset changes)
+        if (current !== newOffset) {
+          console.log('📏 Sticky Toolbar Offset Calculation:', {
+            navHeight,
+            headerHeight,
+            calculatedOffset: totalOffset,
+            finalOffset: newOffset,
+            previousOffset: current
+          });
+        }
+
+        return newOffset;
+      });
+    };
+
+    const scheduleMeasure = () => {
+      if (frameId != null) return;
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null;
+        measure();
+      });
+    };
+
+    // Initial measurement with a small delay to ensure DOM is ready
+    timeoutId = setTimeout(() => {
+      measure();
+    }, 100);
+
+    // Re-measure on scroll and resize
+    window.addEventListener("resize", scheduleMeasure);
+    const scrollListenerOptions = { passive: true };
+    window.addEventListener("scroll", scheduleMeasure, scrollListenerOptions);
+
+    // Use ResizeObserver for dynamic content changes
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(scheduleMeasure);
+
+      const navElement = document.querySelector("[data-app-top-nav]");
+      if (navElement) resizeObserver.observe(navElement);
+    }
+
+    return () => {
+      window.removeEventListener("resize", scheduleMeasure);
+      window.removeEventListener("scroll", scheduleMeasure, scrollListenerOptions);
+      resizeObserver?.disconnect();
+      if (frameId != null) window.cancelAnimationFrame(frameId);
+      if (timeoutId != null) clearTimeout(timeoutId);
+    };
+  }, []);
 
   useEffect(() => {
     writeStorage(
@@ -477,13 +659,13 @@ export default function ShotsPage() {
   }, [viewPrefs]);
 
   useEffect(() => {
-    if (!displayMenuOpen) return undefined;
+    if (!sortMenuOpen) return undefined;
     const handleClick = (event) => {
-      if (!displayMenuRef.current || displayMenuRef.current.contains(event.target)) return;
-      setDisplayMenuOpen(false);
+      if (!sortMenuRef.current || sortMenuRef.current.contains(event.target)) return;
+      setSortMenuOpen(false);
     };
     const handleKey = (event) => {
-      if (event.key === "Escape") setDisplayMenuOpen(false);
+      if (event.key === "Escape") setSortMenuOpen(false);
     };
     document.addEventListener("mousedown", handleClick);
     document.addEventListener("keydown", handleKey);
@@ -491,7 +673,7 @@ export default function ShotsPage() {
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("keydown", handleKey);
     };
-  }, [displayMenuOpen]);
+  }, [sortMenuOpen]);
 
   // Click-outside handler for filter panel
   useEffect(() => {
@@ -506,9 +688,40 @@ export default function ShotsPage() {
     return () => window.removeEventListener("mousedown", onFiltersClick);
   }, [filtersOpen]);
 
+  useEffect(() => {
+    if (!visibilityMenuOpen) return undefined;
+    const handleClick = (event) => {
+      if (!visibilityMenuRef.current || visibilityMenuRef.current.contains(event.target)) return;
+      setVisibilityMenuOpen(false);
+    };
+    const handleKey = (event) => {
+      if (event.key === "Escape") setVisibilityMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [visibilityMenuOpen]);
+
+  useEffect(() => {
+    if (!isSearchExpanded) return undefined;
+    const frame = requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isSearchExpanded]);
+
   const familyDetailCacheRef = useRef(new Map());
-  const displayMenuRef = useRef(null);
+  const sortMenuRef = useRef(null);
   const filtersRef = useRef(null);
+  const visibilityMenuRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  useEffect(() => {
+    familyDetailCacheRef.current.clear();
+  }, [families]);
 
   // Helper to build references
   const collRef = (...segments) => collection(db, ...segments);
@@ -747,6 +960,27 @@ export default function ShotsPage() {
     [talentOptions]
   );
 
+  const tableRows = useMemo(
+    () =>
+      sortedShots.map((shot) => {
+        const products = normaliseShotProducts(shot);
+        const talentSelection = mapShotTalentToSelection(shot);
+        const notesHtml = formatNotesForDisplay(shot.description);
+        const locationName =
+          shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
+
+        return {
+          id: shot.id,
+          shot,
+          products,
+          talent: talentSelection,
+          notesHtml,
+          locationName,
+        };
+      }),
+    [sortedShots, normaliseShotProducts, mapShotTalentToSelection, locationById]
+  );
+
   const buildShotProduct = useCallback(
     (selection, previous = null) => {
       const { family, colour, size, status: requestedStatus, sizeScope } = selection;
@@ -935,6 +1169,9 @@ export default function ShotsPage() {
         ? validation.data.projectId.trim()
         : projectId;
 
+    setCreateAutoStatus((current) =>
+      markSectionsForState(current, createDraft, initialShotDraft, "saving")
+    );
     setIsCreatingShot(true);
     console.info("[Shots] Attempting to create shot", {
       path: targetPath,
@@ -1020,12 +1257,18 @@ export default function ShotsPage() {
       });
 
       setCreateDraft({ ...initialShotDraft });
+      setCreateAutoStatus(createInitialSectionStatuses());
       setCreateModalOpen(false);
       toast.success(`Shot "${shotData.name}" created.`);
     } catch (error) {
       if (error instanceof z.ZodError) {
         const message = error.issues.map((issue) => issue.message).join("; ");
         toast.error({ title: "Invalid product selection", description: message });
+        setCreateAutoStatus((current) =>
+          markSectionsForState(current, createDraft, initialShotDraft, "error", {
+            message,
+          })
+        );
       } else {
         const { code, message } = describeFirebaseError(error, "Unable to create shot.");
         console.error("[Shots] Failed to create shot", {
@@ -1040,6 +1283,11 @@ export default function ShotsPage() {
           title: "Failed to create shot",
           description: `${code}: ${message} (${targetPath})`,
         });
+        setCreateAutoStatus((current) =>
+          markSectionsForState(current, createDraft, initialShotDraft, "error", {
+            message: message || "Auto-save failed",
+          })
+        );
       }
     } finally {
       setIsCreatingShot(false);
@@ -1057,8 +1305,9 @@ export default function ShotsPage() {
       projectId: projectId,
       status: DEFAULT_SHOT_STATUS,
     });
+    setCreateAutoStatus(createInitialSectionStatuses());
     setCreateModalOpen(true);
-  }, [canEditShots, projectId]);
+  }, [canEditShots, projectId, setCreateAutoStatus]);
 
   const toggleViewPref = useCallback((key) => {
     setViewPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1067,6 +1316,10 @@ export default function ShotsPage() {
   const selectSort = useCallback((sortValue) => {
     setViewPrefs((prev) => ({ ...prev, sort: sortValue }));
     setDisplayMenuOpen(false);
+  }, []);
+
+  const toggleActivityExpanded = useCallback(() => {
+    setActivityExpanded((prev) => !prev);
   }, []);
 
   // Update an existing shot.  We compute before/after arrays for reverse
@@ -1221,28 +1474,9 @@ export default function ShotsPage() {
     []
   );
 
-  // Preset callbacks
-  const handleLoadPreset = useCallback((presetFilters) => {
-    if (presetFilters.locationId !== undefined) {
-      setFilters((prev) => ({ ...prev, locationId: presetFilters.locationId }));
-    }
-    if (presetFilters.talentIds !== undefined) {
-      setFilters((prev) => ({ ...prev, talentIds: presetFilters.talentIds }));
-    }
-    if (presetFilters.productFamilyIds !== undefined) {
-      setFilters((prev) => ({ ...prev, productFamilyIds: presetFilters.productFamilyIds }));
-    }
-    if (presetFilters.tagIds !== undefined) {
-      setFilters((prev) => ({ ...prev, tagIds: presetFilters.tagIds }));
-    }
+  const toggleShowArchived = useCallback(() => {
+    setFilters((prev) => ({ ...prev, showArchived: !prev.showArchived }));
   }, []);
-
-  const getCurrentFilters = useCallback(() => ({
-    locationId: filters.locationId,
-    talentIds: filters.talentIds,
-    productFamilyIds: filters.productFamilyIds,
-    tagIds: filters.tagIds,
-  }), [filters.locationId, filters.talentIds, filters.productFamilyIds, filters.tagIds]);
 
   // Build active filters array for pills
   const activeFilters = useMemo(() => {
@@ -1293,8 +1527,15 @@ export default function ShotsPage() {
         }
       });
     }
+    if (filters.showArchived) {
+      pills.push({
+        key: "showArchived",
+        label: "Status",
+        value: "Including archived",
+      });
+    }
     return pills;
-  }, [filters.locationId, filters.talentIds, filters.productFamilyIds, filters.tagIds, locations, talentFilterOptions, productFilterOptions, tagFilterOptions]);
+  }, [filters.locationId, filters.talentIds, filters.productFamilyIds, filters.tagIds, filters.showArchived, locations, talentFilterOptions, productFilterOptions, tagFilterOptions]);
 
   // Remove individual filter
   const removeFilter = useCallback((filterKey) => {
@@ -1318,6 +1559,8 @@ export default function ShotsPage() {
         ...prev,
         tagIds: prev.tagIds.filter((id) => id !== tagId),
       }));
+    } else if (filterKey === "showArchived") {
+      setFilters((prev) => ({ ...prev, showArchived: false }));
     }
   }, []);
 
@@ -1328,63 +1571,124 @@ export default function ShotsPage() {
   );
 
   // Selection handlers
-  const toggleShotSelection = useCallback((shotId) => {
-    setSelectedShotIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(shotId)) {
-        next.delete(shotId);
-      } else {
-        next.add(shotId);
-      }
-      return next;
-    });
-  }, []);
+  const toggleShotSelection = useCallback(
+    (shotId) => {
+      setSelectedShotIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(shotId)) {
+          next.delete(shotId);
+          if (focusShotId === shotId) {
+            const iterator = next.values();
+            const first = iterator.next();
+            setFocusShotId(first.done ? null : first.value);
+          }
+        } else {
+          next.add(shotId);
+          setFocusShotId(shotId);
+        }
+        return next;
+      });
+    },
+    [focusShotId, setFocusShotId, setSelectedShotIds]
+  );
 
   const toggleSelectAll = useCallback(() => {
     if (selectedShotIds.size === sortedShots.length && sortedShots.length > 0) {
-      // Deselect all
       setSelectedShotIds(new Set());
+      setFocusShotId(null);
     } else {
-      // Select all visible shots
-      setSelectedShotIds(new Set(sortedShots.map((shot) => shot.id)));
+      const next = sortedShots.map((shot) => shot.id);
+      setSelectedShotIds(new Set(next));
+      setFocusShotId(next.length ? next[0] : null);
     }
-  }, [selectedShotIds.size, sortedShots]);
+  }, [selectedShotIds.size, sortedShots, setFocusShotId, setSelectedShotIds]);
 
   const clearSelection = useCallback(() => {
     setSelectedShotIds(new Set());
-  }, []);
+    setFocusShotId(null);
+  }, [setSelectedShotIds, setFocusShotId]);
 
   const selectedShots = useMemo(() => {
     return sortedShots.filter((shot) => selectedShotIds.has(shot.id));
   }, [sortedShots, selectedShotIds]);
 
+  const handleFocusShot = useCallback(
+    (candidate, options = {}) => {
+      const mirrorSelection = Boolean(options?.mirrorSelection);
+      let nextId = null;
+
+      if (!candidate && typeof options === "string") {
+        nextId = options;
+      } else if (typeof candidate === "string") {
+        nextId = candidate;
+      } else {
+        nextId = candidate?.id || null;
+      }
+
+      if (!nextId) {
+        setFocusShotId(null);
+        if (mirrorSelection) {
+          setSelectedShotIds(new Set());
+        }
+        return;
+      }
+
+      setFocusShotId(nextId);
+      if (mirrorSelection) {
+        setSelectedShotIds(new Set([nextId]));
+      }
+    },
+    [setFocusShotId, setSelectedShotIds]
+  );
+
+  const handleSearchClear = useCallback(() => {
+    setQueryText("");
+    setIsSearchExpanded(false);
+  }, []);
+
+  const handleSearchKeyDown = useCallback(
+    (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setIsSearchExpanded(false);
+      }
+    },
+    []
+  );
+
   const openShotEditor = useCallback(
     (shot) => {
       if (!shot) return;
+      setFocusShotId(shot.id);
       try {
         const products = normaliseShotProducts(shot);
         const talentSelection = mapShotTalentToSelection(shot);
+        const draft = {
+          name: shot.name || "",
+          description: shot.description || "",
+          type: shot.type || "",
+          date: toDateInputValue(shot.date),
+          locationId: shot.locationId || "",
+          status: normaliseShotStatus(shot.status || DEFAULT_SHOT_STATUS),
+          talent: talentSelection,
+          products,
+          tags: Array.isArray(shot.tags) ? shot.tags : [],
+          referenceImagePath: shot.referenceImagePath || "",
+          referenceImageCrop: shot.referenceImageCrop || null,
+          referenceImageFile: null,
+        };
         setEditingShot({
           shot,
-          draft: {
-            name: shot.name || "",
-            description: shot.description || "",
-            type: shot.type || "",
-            date: toDateInputValue(shot.date),
-            locationId: shot.locationId || "",
-            talent: talentSelection,
-            products,
-            tags: Array.isArray(shot.tags) ? shot.tags : [],
-            referenceImagePath: shot.referenceImagePath || "",
-            referenceImageCrop: shot.referenceImageCrop || null,
-          },
+          draft,
+          initialDraft: cloneShotDraft(draft),
         });
+        setEditAutoStatus(createInitialSectionStatuses());
       } catch (error) {
         console.error("[Shots] Failed to prepare shot for editing", error);
         toast.error("Unable to open shot editor");
       }
-    },
-    [mapShotTalentToSelection, normaliseShotProducts]
+  },
+    [mapShotTalentToSelection, normaliseShotProducts, setEditAutoStatus, setFocusShotId]
   );
 
   const handleEditShot = useCallback(
@@ -1395,23 +1699,187 @@ export default function ShotsPage() {
     [canEditShots, openShotEditor]
   );
 
-  const updateEditingDraft = useCallback((patch) => {
-    setEditingShot((previous) => {
-      if (!previous) return previous;
-      return {
-        ...previous,
-        draft: {
+  const handleCreateDraftChange = useCallback(
+    (patch) => {
+      setCreateDraft((previous) => {
+        const nextDraft = { ...previous, ...patch };
+        setCreateAutoStatus((current) => deriveSectionStatuses(nextDraft, initialShotDraft, current));
+        return nextDraft;
+      });
+    },
+    [setCreateAutoStatus]
+  );
+
+  const updateEditingDraft = useCallback(
+    (patch) => {
+      setEditingShot((previous) => {
+        if (!previous) return previous;
+        const nextDraft = {
           ...previous.draft,
           ...patch,
-        },
-      };
-    });
-  }, []);
+        };
+        const baseline = previous.initialDraft || cloneShotDraft(previous.draft);
+        setEditAutoStatus((current) => deriveSectionStatuses(nextDraft, baseline, current));
+        return {
+          ...previous,
+          draft: nextDraft,
+        };
+      });
+    },
+    [setEditAutoStatus]
+  );
 
   const closeShotEditor = useCallback(() => {
     setEditingShot(null);
     setIsSavingShot(false);
-  }, []);
+    setEditAutoStatus(createInitialSectionStatuses());
+  }, [setEditAutoStatus]);
+
+  const performAutoSave = useCallback(async () => {
+    const snapshot = editingShotRef.current;
+    if (!snapshot || isSavingShotRef.current || autoSaveInflightRef.current) {
+      return;
+    }
+
+    const draft = snapshot.draft;
+    const baseline = snapshot.initialDraft || cloneShotDraft(draft);
+    const diffMap = buildSectionDiffMap(draft, baseline);
+    const hasChanges = Object.values(diffMap).some(Boolean);
+    if (!hasChanges) {
+      return;
+    }
+
+    autoSaveInflightRef.current = true;
+
+    setEditAutoStatus((current) => markSectionsForState(current, draft, baseline, "saving"));
+
+    const patch = {};
+
+    if (diffMap.basics) {
+      patch.name = draft.name;
+      patch.status = draft.status ?? DEFAULT_SHOT_STATUS;
+      patch.type = draft.type || "";
+      patch.date = draft.date || "";
+      patch.locationId = draft.locationId || "";
+    }
+
+    if (diffMap.logistics) {
+      patch.products = Array.isArray(draft.products) ? draft.products.map((product) => ({ ...product })) : [];
+      patch.talent = Array.isArray(draft.talent) ? draft.talent.map((entry) => ({ ...entry })) : [];
+      patch.tags = Array.isArray(draft.tags) ? draft.tags.map((tag) => ({ ...tag })) : [];
+    }
+
+    if (diffMap.creative) {
+      patch.description = draft.description || "";
+    }
+
+    if (diffMap.attachments) {
+      let referenceImagePath = draft.referenceImagePath || null;
+      const referenceImageCrop = draft.referenceImageCrop || null;
+      if (draft.referenceImageFile) {
+        try {
+          const uploadResult = await uploadImageFile(draft.referenceImageFile, {
+            folder: "shots/references",
+            id: snapshot.shot.id,
+          });
+          referenceImagePath = uploadResult.path;
+        } catch (uploadError) {
+          const { message: uploadMessage } = describeFirebaseError(uploadError, "Unable to upload reference image.");
+          console.error("[Shots] Auto-save upload failed", uploadError);
+          setEditAutoStatus((current) =>
+            markSectionsForState(current, draft, baseline, "error", {
+              message: uploadMessage || "Auto-save failed",
+            })
+          );
+          toast.error({ title: "Auto-save failed", description: uploadMessage });
+          autoSaveInflightRef.current = false;
+          return;
+        }
+      }
+      patch.referenceImagePath = referenceImagePath;
+      patch.referenceImageCrop = referenceImageCrop || null;
+    }
+
+    if (!Object.keys(patch).length) {
+      autoSaveInflightRef.current = false;
+      return;
+    }
+
+    try {
+      await updateShot(snapshot.shot, patch);
+      const timestamp = Date.now();
+      const draftUpdate = {
+        ...draft,
+        ...(diffMap.attachments
+          ? {
+              referenceImagePath: patch.referenceImagePath || null,
+              referenceImageCrop: patch.referenceImageCrop || null,
+              referenceImageFile: null,
+            }
+          : {}),
+      };
+
+      setEditAutoStatus((current) =>
+        markSectionsForState(current, draftUpdate, baseline, "saved", { timestamp })
+      );
+
+      setEditingShot((previous) => {
+        if (!previous || previous.shot.id !== snapshot.shot.id) {
+          return previous;
+        }
+
+        const shotUpdate = { ...previous.shot };
+
+        if (diffMap.basics) {
+          shotUpdate.name = draftUpdate.name;
+          shotUpdate.status = normaliseShotStatus(draftUpdate.status ?? DEFAULT_SHOT_STATUS);
+          shotUpdate.type = draftUpdate.type || "";
+          shotUpdate.date = draftUpdate.date || "";
+          shotUpdate.locationId = draftUpdate.locationId || null;
+        }
+
+        if (diffMap.logistics) {
+          shotUpdate.products = Array.isArray(draftUpdate.products)
+            ? draftUpdate.products.map((product) => ({ ...product }))
+            : [];
+          shotUpdate.talent = Array.isArray(draftUpdate.talent)
+            ? draftUpdate.talent.map((entry) => ({ ...entry }))
+            : [];
+          shotUpdate.tags = Array.isArray(draftUpdate.tags)
+            ? draftUpdate.tags.map((tag) => ({ ...tag }))
+            : [];
+        }
+
+        if (diffMap.creative) {
+          shotUpdate.description = draftUpdate.description || "";
+          shotUpdate.notes = draftUpdate.description || "";
+        }
+
+        if (diffMap.attachments) {
+          shotUpdate.referenceImagePath = draftUpdate.referenceImagePath || null;
+          shotUpdate.referenceImageCrop = draftUpdate.referenceImageCrop || null;
+        }
+
+        return {
+          ...previous,
+          shot: shotUpdate,
+          draft: draftUpdate,
+          initialDraft: cloneShotDraft(draftUpdate),
+        };
+      });
+    } catch (error) {
+      const { message: errorMessage } = describeFirebaseError(error, "Unable to auto-save shot.");
+      console.error("[Shots] Auto-save failed", error);
+      setEditAutoStatus((current) =>
+        markSectionsForState(current, draft, baseline, "error", {
+          message: errorMessage || "Auto-save failed",
+        })
+      );
+      toast.error({ title: "Auto-save failed", description: errorMessage });
+    } finally {
+      autoSaveInflightRef.current = false;
+    }
+  }, [updateShot, setEditAutoStatus, setEditingShot]);
 
   const handleSaveShot = useCallback(async () => {
     if (!editingShot) return;
@@ -1420,6 +1888,10 @@ export default function ShotsPage() {
       return;
     }
 
+    const baselineDraft = editingShot.initialDraft || cloneShotDraft(editingShot.draft);
+    setEditAutoStatus((current) =>
+      markSectionsForState(current, editingShot.draft, baselineDraft, "saving")
+    );
     setIsSavingShot(true);
     try {
       const parsed = shotDraftSchema.parse({
@@ -1455,20 +1927,70 @@ export default function ShotsPage() {
         referenceImageCrop: editingShot.draft.referenceImageCrop || null,
       });
       toast.success(`Shot "${parsed.name}" updated.`);
+      setEditAutoStatus((current) =>
+        markSectionsForState(current, editingShot.draft, baselineDraft, "saved", {
+          timestamp: Date.now(),
+        })
+      );
       setEditingShot(null);
+      setEditAutoStatus(createInitialSectionStatuses());
     } catch (error) {
       if (error instanceof z.ZodError) {
         const message = error.issues.map((issue) => issue.message).join("; ");
         toast.error({ title: "Invalid shot details", description: message });
+        setEditAutoStatus((current) =>
+          markSectionsForState(current, editingShot.draft, baselineDraft, "error", {
+            message,
+          })
+        );
       } else {
         const { code, message } = describeFirebaseError(error, "Unable to update shot.");
         toast.error({ title: "Failed to update shot", description: `${code}: ${message}` });
+        setEditAutoStatus((current) =>
+          markSectionsForState(current, editingShot.draft, baselineDraft, "error", {
+            message: message || "Auto-save failed",
+          })
+        );
       }
       console.error("[Shots] Failed to save shot", error);
     } finally {
       setIsSavingShot(false);
     }
-  }, [editingShot, canEditShots, updateShot]);
+  }, [editingShot, canEditShots, updateShot, setEditAutoStatus]);
+
+  useEffect(() => {
+    if (!editingShot) {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+      return;
+    }
+
+    const hasPending = Object.values(editAutoStatus || {}).some((entry) => entry?.state === "pending");
+
+    if (hasPending && !isSavingShot && !autoSaveInflightRef.current) {
+      if (!autoSaveTimerRef.current) {
+        autoSaveTimerRef.current = setTimeout(() => {
+          autoSaveTimerRef.current = null;
+          performAutoSave();
+        }, AUTOSAVE_DELAY_MS);
+      }
+    } else if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+  }, [editingShot, editAutoStatus, isSavingShot, performAutoSave]);
+
+  useEffect(
+    () => () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    },
+    []
+  );
 
   const handleMoveToProject = useCallback(async (targetProjectId) => {
     if (!editingShot) return;
@@ -1498,6 +2020,7 @@ export default function ShotsPage() {
         description: `"${editingShot.shot.name}" has been moved to ${targetProject.name}.`,
       });
       setEditingShot(null);
+      setEditAutoStatus(createInitialSectionStatuses());
     } catch (error) {
       const { code, message } = describeFirebaseError(error, "Unable to move shot.");
       console.error("[Shots] Failed to move shot", error);
@@ -1505,7 +2028,7 @@ export default function ShotsPage() {
     } finally {
       setMovingProject(false);
     }
-  }, [editingShot, canEditShots, projects, currentShotsPath]);
+  }, [editingShot, canEditShots, projects, currentShotsPath, setEditAutoStatus]);
 
   const handleCopyToProject = useCallback(async (targetProjectId) => {
     if (!editingShot) return;
@@ -1616,6 +2139,7 @@ export default function ShotsPage() {
 
       // Clear selection after successful operation
       setSelectedShotIds(new Set());
+      setFocusShotId(null);
     } catch (error) {
       const { code, message } = describeFirebaseError(error, "Unable to apply tags.");
       console.error("[Shots] Failed to apply tags in bulk", {
@@ -1683,6 +2207,7 @@ export default function ShotsPage() {
 
       // Clear selection after successful operation
       setSelectedShotIds(new Set());
+      setFocusShotId(null);
     } catch (error) {
       const { code, message } = describeFirebaseError(error, "Unable to remove tags.");
       console.error("[Shots] Failed to remove tags in bulk", {
@@ -1744,6 +2269,7 @@ export default function ShotsPage() {
 
       // Clear selection after successful operation
       setSelectedShotIds(new Set());
+      setFocusShotId(null);
     } catch (error) {
       const { code, message } = describeFirebaseError(error, "Unable to update location.");
       console.error("[Shots] Failed to set location in bulk", {
@@ -1812,6 +2338,7 @@ export default function ShotsPage() {
 
       // Clear selection after successful operation
       setSelectedShotIds(new Set());
+      setFocusShotId(null);
     } catch (error) {
       const { code, message } = describeFirebaseError(error, "Unable to update date.");
       console.error("[Shots] Failed to set date in bulk", {
@@ -1877,6 +2404,7 @@ export default function ShotsPage() {
 
       // Clear selection after successful operation
       setSelectedShotIds(new Set());
+      setFocusShotId(null);
     } catch (error) {
       const { code, message } = describeFirebaseError(error, "Unable to update type.");
       console.error("[Shots] Failed to set type in bulk", {
@@ -1951,6 +2479,7 @@ export default function ShotsPage() {
 
       // Clear selection after successful operation
       setSelectedShotIds(new Set());
+      setFocusShotId(null);
     } catch (error) {
       const { code, message } = describeFirebaseError(error, "Unable to move shots.");
       console.error("[Shots] Failed to move shots to project in bulk", {
@@ -2049,132 +2578,240 @@ export default function ShotsPage() {
 
   const selectPortalTarget =
     typeof window === "undefined" ? undefined : window.document.body;
-  const filtersApplied = Boolean(
-    (filters.locationId && filters.locationId.length) ||
-      (Array.isArray(filters.talentIds) && filters.talentIds.length) ||
-      (Array.isArray(filters.productFamilyIds) && filters.productFamilyIds.length)
-  );
   const isGalleryView = viewMode === "gallery";
   const isListView = viewMode === "list";
+  const isTableView = viewMode === "table";
   const talentNoOptionsMessage =
     talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available");
-  const activeSortOption = SHOT_SORT_OPTIONS.find((option) => option.value === viewPrefs.sort) || SHOT_SORT_OPTIONS[0];
+  const showArchived = Boolean(filters.showArchived);
+  const activityLimit = activityExpanded ? 60 : 12;
+  const activityTimelineKey = activityExpanded ? "timeline-expanded" : "timeline-compact";
 
-  return (
-    <div className="space-y-6">
-      <div className="sticky inset-x-0 top-14 z-40 bg-white/95 dark:bg-slate-800/95 py-4 px-6 backdrop-blur">
-        <Card className="border-b-2">
-          <CardContent className="py-4">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="flex-none text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-100">Shots</h1>
-                <Input
-                  placeholder="Search shots by name, talent, product, or location..."
-                  aria-label="Search shots"
-                  value={queryText}
-                  onChange={(event) => setQueryText(event.target.value)}
-                  className="min-w-[200px] max-w-md flex-1"
-                />
-            {canEditShots && (
-              <Button type="button" onClick={openCreateModal} className="flex-none whitespace-nowrap">
-                New shot
-              </Button>
-            )}
-            <div className="relative flex-none" ref={displayMenuRef}>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-3"
-                onClick={() => setDisplayMenuOpen((open) => !open)}
-                aria-expanded={displayMenuOpen}
-                aria-haspopup="menu"
-              >
-                <div className="flex flex-col items-start leading-tight">
-                  <span className="text-sm font-medium">Display</span>
-                  <span className="text-xs text-slate-500">{activeSortOption.label}</span>
+  // Build the toolbar UI once; we will portal it into the header anchor
+  const toolbar = (
+    <Card className="border-b-2">
+      <CardContent className="py-4">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 md:text-3xl">Shots</h1>
+              <div className="flex items-center gap-1.5">
+                <div className="relative" ref={filtersRef}>
+                  <Button
+                    type="button"
+                    variant={filtersOpen ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={() => setFiltersOpen((open) => !open)}
+                    aria-haspopup="dialog"
+                    aria-expanded={filtersOpen}
+                    aria-label="Filter shots"
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                  {filtersOpen && (
+                    <div className="absolute left-0 z-50 mt-2 w-[640px] max-w-[calc(100vw-2rem)] rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Filters</p>
+                      <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Location</label>
+                          <Select
+                            classNamePrefix="filter-select"
+                            styles={filterSelectStyles}
+                            options={locationFilterOptions}
+                            value={locationFilterValue}
+                            onChange={(opt) => handleLocationFilterChange(opt?.value || "")}
+                            placeholder={locationFilterOptions.length ? "Select location..." : "No locations available"}
+                            isDisabled={!locationFilterOptions.length}
+                            noOptionsMessage={() =>
+                              locationFilterOptions.length ? "No matching locations" : "No locations available"
+                            }
+                            menuPortalTarget={selectPortalTarget}
+                            menuShouldBlockScroll
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Talent</label>
+                          <Select
+                            isMulti
+                            classNamePrefix="filter-select"
+                            styles={filterSelectStyles}
+                            options={talentFilterOptions}
+                            value={talentFilterValue}
+                            onChange={handleTalentFilterChange}
+                            placeholder={talentFilterOptions.length ? "Select talent..." : "No talent available"}
+                            isDisabled={!talentFilterOptions.length}
+                            noOptionsMessage={() =>
+                              talentFilterOptions.length ? "No matching talent" : "No talent available"
+                            }
+                            menuPortalTarget={selectPortalTarget}
+                            menuShouldBlockScroll
+                            closeMenuOnSelect={false}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Products</label>
+                          <Select
+                            isMulti
+                            classNamePrefix="filter-select"
+                            styles={filterSelectStyles}
+                            options={productFilterOptions}
+                            value={productFilterValue}
+                            onChange={handleProductFilterChange}
+                            placeholder={productFilterOptions.length ? "Select products..." : "No products available"}
+                            isDisabled={!productFilterOptions.length}
+                            noOptionsMessage={() =>
+                              productFilterOptions.length ? "No matching products" : "No products available"
+                            }
+                            menuPortalTarget={selectPortalTarget}
+                            menuShouldBlockScroll
+                            closeMenuOnSelect={false}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Tags</label>
+                          <Select
+                            isMulti
+                            classNamePrefix="filter-select"
+                            styles={filterSelectStyles}
+                            options={tagFilterOptions}
+                            value={tagFilterValue}
+                            onChange={handleTagFilterChange}
+                            placeholder={tagFilterOptions.length ? "Select tags..." : "No tags available"}
+                            isDisabled={!tagFilterOptions.length}
+                            noOptionsMessage={() =>
+                              tagFilterOptions.length ? "No matching tags" : "No tags available"
+                            }
+                            menuPortalTarget={selectPortalTarget}
+                            menuShouldBlockScroll
+                            closeMenuOnSelect={false}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <ChevronDown className="h-4 w-4 text-slate-500" />
-              </Button>
-              {displayMenuOpen && (
-                <div className="absolute right-0 z-50 mt-2 w-64 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm shadow-lg">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sort</p>
-                    <div className="mt-2 space-y-1">
-                      {SHOT_SORT_OPTIONS.map((option) => {
-                        const active = viewPrefs.sort === option.value;
-                        return (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => selectSort(option.value)}
-                            className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 transition ${
-                              active
-                                ? "bg-primary/10 text-primary font-medium"
-                                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
-                            }`}
+                <div className="relative" ref={sortMenuRef}>
+                  <Button
+                    type="button"
+                    variant={sortMenuOpen ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={() => setSortMenuOpen((open) => !open)}
+                    aria-haspopup="menu"
+                    aria-expanded={sortMenuOpen}
+                    aria-label="Sort shots"
+                  >
+                    <ArrowUpDown className="h-4 w-4" />
+                  </Button>
+                  {sortMenuOpen && (
+                    <div className="absolute left-0 z-50 mt-2 w-56 rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sort shots</p>
+                      <div className="mt-2 space-y-1">
+                        {SHOT_SORT_OPTIONS.map((option) => {
+                          const active = viewPrefs.sort === option.value;
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => {
+                                selectSort(option.value);
+                                setSortMenuOpen(false);
+                              }}
+                              className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 transition ${
+                                active
+                                  ? "bg-primary/10 text-primary font-medium"
+                                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+                              }`}
+                            >
+                              {option.label}
+                              {active && <span className="text-[10px] uppercase">Active</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="relative" ref={visibilityMenuRef}>
+                  <Button
+                    type="button"
+                    variant={visibilityMenuOpen ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={() => setVisibilityMenuOpen((open) => !open)}
+                    aria-haspopup="menu"
+                    aria-expanded={visibilityMenuOpen}
+                    aria-label="Toggle visible shot properties"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  {visibilityMenuOpen && (
+                    <div className="absolute left-0 z-50 mt-2 w-64 rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Visible properties</p>
+                      <div className="mt-2 space-y-2">
+                        {DETAIL_TOGGLE_OPTIONS.map((option) => (
+                          <label
+                            key={`visibility-${option.key}`}
+                            className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
                           >
+                            <input
+                              type="checkbox"
+                              checked={Boolean(viewPrefs[option.key])}
+                              onChange={() => toggleViewPref(option.key)}
+                              className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
+                            />
                             {option.label}
-                            {active && <span className="text-[10px] uppercase">Active</span>}
-                          </button>
-                        );
-                      })}
+                          </label>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-3 border-t border-slate-200 dark:border-slate-700 pt-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Details</p>
-                    <div className="mt-2 space-y-2 text-slate-600 dark:text-slate-400">
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300 dark:border-slate-600"
-                          checked={viewPrefs.showNotes}
-                          onChange={() => toggleViewPref("showNotes")}
-                        />
-                        Notes
-                      </label>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300 dark:border-slate-600"
-                          checked={viewPrefs.showProducts}
-                          onChange={() => toggleViewPref("showProducts")}
-                        />
-                        Products
-                      </label>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300 dark:border-slate-600"
-                          checked={viewPrefs.showTalent}
-                          onChange={() => toggleViewPref("showTalent")}
-                        />
-                        Talent
-                      </label>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300 dark:border-slate-600"
-                          checked={viewPrefs.showLocation}
-                          onChange={() => toggleViewPref("showLocation")}
-                        />
-                        Location
-                      </label>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant={isSearchExpanded ? "secondary" : "ghost"}
+                  size="icon"
+                  onClick={() => setIsSearchExpanded(true)}
+                  aria-label="Search shots"
+                  aria-expanded={isSearchExpanded}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+                <div
+                  className={"relative flex items-center overflow-hidden transition-all duration-200 " + (isSearchExpanded ? "w-48 sm:w-56 opacity-100" : "w-0 opacity-0 pointer-events-none")}
+                >
+                  <Input
+                    ref={searchInputRef}
+                    value={queryText}
+                    onChange={(event) => setQueryText(event.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                    placeholder="Type to search..."
+                    aria-label="Search shots"
+                    className="h-9 w-full border-slate-200 bg-white pr-8 text-sm dark:border-slate-700 dark:bg-slate-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSearchClear}
+                    className="absolute right-2 text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 hidden sm:inline">View</span>
-              <div className="inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
+              <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:inline">
+                View
+              </span>
+              <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
                 <button
                   type="button"
                   onClick={() => updateViewMode("gallery")}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 text-sm transition ${
-                    isGalleryView ? "bg-slate-900 text-white dark:bg-slate-700" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className={`flex items-center gap-1.5 px-2 py-1.5 text-sm transition sm:gap-2 sm:px-3 ${
+                    isGalleryView
+                      ? "bg-slate-900 text-white dark:bg-slate-700"
+                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
                   }`}
                   aria-pressed={isGalleryView}
                 >
@@ -2184,171 +2821,389 @@ export default function ShotsPage() {
                 <button
                   type="button"
                   onClick={() => updateViewMode("list")}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 text-sm transition ${
-                    isListView ? "bg-slate-900 text-white dark:bg-slate-700" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className={`flex items-center gap-1.5 px-2 py-1.5 text-sm transition sm:gap-2 sm:px-3 ${
+                    isListView
+                      ? "bg-slate-900 text-white dark:bg-slate-700"
+                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
                   }`}
                   aria-pressed={isListView}
                 >
                   <List className="h-4 w-4" aria-hidden="true" />
                   <span className="hidden sm:inline">List</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => updateViewMode("table")}
+                  className={`flex items-center gap-1.5 px-2 py-1.5 text-sm transition sm:gap-2 sm:px-3 ${
+                    isTableView
+                      ? "bg-slate-900 text-white dark:bg-slate-700"
+                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+                  }`}
+                  aria-pressed={isTableView}
+                >
+                  <Table className="h-4 w-4" aria-hidden="true" />
+                  <span className="hidden sm:inline">Table</span>
+                </button>
               </div>
               <ExportButton data={filteredShots} entityType="shots" />
               {canEditShots && sortedShots.length > 0 && (
-                <label className="flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 sm:px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
+                <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
                   <input
                     type="checkbox"
                     checked={selectedShotIds.size > 0 && selectedShotIds.size === sortedShots.length}
                     onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
+                    className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
                   />
                   <span className="text-xs font-medium whitespace-nowrap">
-                    {selectedShotIds.size > 0 ? `${selectedShotIds.size} selected` : 'Select all'}
+                    {selectedShotIds.size > 0 ? `${selectedShotIds.size} selected` : "Select all"}
                   </span>
                 </label>
               )}
+              {canEditShots && (
+                <Button type="button" onClick={openCreateModal} className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  <span className="hidden sm:inline">Create shot</span>
+                  <span className="sm:hidden">New</span>
+                </Button>
+              )}
             </div>
-
-            {/* Filter button and presets */}
-            <div className="flex items-center gap-2">
-              <div className="relative" ref={filtersRef}>
+          </div>
+          {/* Active filter pills */}
+          {activeFilters.length > 0 && (
+            <div className="flex w-full flex-wrap gap-2">
+              {activeFilters.map((filter) => (
                 <button
-                  type="button"
-                  onClick={() => setFiltersOpen((prev) => !prev)}
-                  className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
-                    activeFilterCount > 0
-                      ? "border-primary/60 bg-primary/5 text-primary"
-                      : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-                  }`}
-                  aria-haspopup="menu"
-                  aria-expanded={filtersOpen}
+                  key={filter.key}
+                  onClick={() => removeFilter(filter.key)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 px-3 py-1 text-xs font-medium hover:bg-primary/20 transition"
                 >
-                  <Filter className="h-4 w-4" aria-hidden="true" />
-                  <span>Filters</span>
-                  {activeFilterCount > 0 && (
-                    <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
-                      {activeFilterCount}
-                    </span>
-                  )}
+                  <span>{filter.label}: {filter.value}</span>
+                  <X className="h-3 w-3" />
                 </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
 
-              {/* Filter panel */}
-              {filtersOpen && (
-                <div className="absolute right-0 z-20 mt-2 w-80 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-lg animate-slide-in-from-right">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Filter shots</p>
+  // Render toolbar inside header if the anchor exists; otherwise inline
+  const anchor = typeof window !== "undefined" ? document.getElementById("shots-toolbar-anchor") : null;
+
+  return (
+    <div>
+      {anchor ? createPortal(toolbar, anchor) : toolbar}
+      {/* Legacy inline toolbar (removed) — start
+      <>
+              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 md:text-3xl">Shots</h1>
+                  <div className="flex items-center gap-1.5">
+                    <div className="relative" ref={filtersRef}>
+                      <Button
+                        type="button"
+                        variant={filtersOpen ? "secondary" : "ghost"}
+                        size="icon"
+                        onClick={() => setFiltersOpen((prev) => !prev)}
+                        aria-haspopup="dialog"
+                        aria-expanded={filtersOpen}
+                        aria-label="Filter shots"
+                      >
+                        <Filter className="h-4 w-4" />
+                      </Button>
                       {activeFilterCount > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            clearFilters();
-                            setFiltersOpen(false);
-                          }}
-                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
-                        >
-                          <X className="h-3 w-3" />
-                          Clear all
-                        </button>
+                        <span className="absolute -right-1 -top-1 inline-flex min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-4 text-white">
+                          {activeFilterCount}
+                        </span>
+                      )}
+                      {filtersOpen && (
+                        <div className="absolute left-0 z-50 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Filter shots</p>
+                              {activeFilterCount > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    clearFilters();
+                                    setFiltersOpen(false);
+                                  }}
+                                  className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+                                >
+                                  <X className="h-3 w-3" />
+                                  Clear all
+                                </button>
+                              )}
+                            </div>
+                            <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
+                              <input
+                                type="checkbox"
+                                checked={showArchived}
+                                onChange={toggleShowArchived}
+                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
+                              />
+                              Show archived shots
+                            </label>
+                            <div className="space-y-2">
+                              <label htmlFor="location-filter" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                                Location
+                              </label>
+                              <select
+                                id="location-filter"
+                                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                value={filters.locationId}
+                                onChange={(event) => handleLocationFilterChange(event.target.value)}
+                              >
+                                <option value="">All locations</option>
+                                {locations.map((location) => (
+                                  <option key={location.id} value={location.id}>
+                                    {location.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Talent</label>
+                              <Select
+                                isMulti
+                                classNamePrefix="filter-select"
+                                styles={filterSelectStyles}
+                                options={talentFilterOptions}
+                                value={talentFilterValue}
+                                onChange={handleTalentFilterChange}
+                                placeholder={talentOptions.length ? "Select talent..." : "No talent available"}
+                                isDisabled={!talentOptions.length}
+                                noOptionsMessage={() =>
+                                  talentOptions.length ? "No matching talent" : "No talent available"
+                                }
+                                menuPortalTarget={selectPortalTarget}
+                                menuShouldBlockScroll
+                                closeMenuOnSelect={false}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Products</label>
+                              <Select
+                                isMulti
+                                classNamePrefix="filter-select"
+                                styles={filterSelectStyles}
+                                options={productFilterOptions}
+                                value={productFilterValue}
+                                onChange={handleProductFilterChange}
+                                placeholder={productFilterOptions.length ? "Select products..." : "No products available"}
+                                isDisabled={!productFilterOptions.length}
+                                noOptionsMessage={() =>
+                                  productFilterOptions.length ? "No matching products" : "No products available"
+                                }
+                                menuPortalTarget={selectPortalTarget}
+                                menuShouldBlockScroll
+                                closeMenuOnSelect={false}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Tags</label>
+                              <Select
+                                isMulti
+                                classNamePrefix="filter-select"
+                                styles={filterSelectStyles}
+                                options={tagFilterOptions}
+                                value={tagFilterValue}
+                                onChange={handleTagFilterChange}
+                                placeholder={tagFilterOptions.length ? "Select tags..." : "No tags available"}
+                                isDisabled={!tagFilterOptions.length}
+                                noOptionsMessage={() =>
+                                  tagFilterOptions.length ? "No matching tags" : "No tags available"
+                                }
+                                menuPortalTarget={selectPortalTarget}
+                                menuShouldBlockScroll
+                                closeMenuOnSelect={false}
+                              />
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
-
-                    {/* Location filter */}
-                    <div className="space-y-2">
-                      <label htmlFor="location-filter" className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                        Location
-                      </label>
-                      <select
-                        id="location-filter"
-                        className="h-9 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-3 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
-                        value={filters.locationId}
-                        onChange={(event) => handleLocationFilterChange(event.target.value)}
+                    <div className="relative" ref={sortMenuRef}>
+                      <Button
+                        type="button"
+                        variant={sortMenuOpen ? "secondary" : "ghost"}
+                        size="icon"
+                        onClick={() => setSortMenuOpen((open) => !open)}
+                        aria-haspopup="menu"
+                        aria-expanded={sortMenuOpen}
+                        aria-label="Sort shots"
                       >
-                        <option value="">All locations</option>
-                        {locations.map((location) => (
-                          <option key={location.id} value={location.id}>
-                            {location.name}
-                          </option>
-                        ))}
-                      </select>
+                        <ArrowUpDown className="h-4 w-4" />
+                      </Button>
+                      {sortMenuOpen && (
+                        <div className="absolute left-0 z-50 mt-2 w-56 rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sort shots</p>
+                          <div className="mt-2 space-y-1">
+                            {SHOT_SORT_OPTIONS.map((option) => {
+                              const active = viewPrefs.sort === option.value;
+                              return (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  onClick={() => {
+                                    selectSort(option.value);
+                                    setSortMenuOpen(false);
+                                  }}
+                                  className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 transition ${
+                                    active
+                                      ? "bg-primary/10 text-primary font-medium"
+                                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+                                  }`}
+                                >
+                                  {option.label}
+                                  {active && <span className="text-[10px] uppercase">Active</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
-
-                    {/* Talent filter */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Talent</label>
-                      <Select
-                        isMulti
-                        classNamePrefix="filter-select"
-                        styles={filterSelectStyles}
-                        options={talentFilterOptions}
-                        value={talentFilterValue}
-                        onChange={handleTalentFilterChange}
-                        placeholder={talentOptions.length ? "Select talent..." : "No talent available"}
-                        isDisabled={!talentOptions.length}
-                        noOptionsMessage={() =>
-                          talentOptions.length ? "No matching talent" : "No talent available"
-                        }
-                        menuPortalTarget={selectPortalTarget}
-                        menuShouldBlockScroll
-                        closeMenuOnSelect={false}
-                      />
+                    <div className="relative" ref={visibilityMenuRef}>
+                      <Button
+                        type="button"
+                        variant={visibilityMenuOpen ? "secondary" : "ghost"}
+                        size="icon"
+                        onClick={() => setVisibilityMenuOpen((open) => !open)}
+                        aria-haspopup="menu"
+                        aria-expanded={visibilityMenuOpen}
+                        aria-label="Toggle visible shot properties"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {visibilityMenuOpen && (
+                        <div className="absolute left-0 z-50 mt-2 w-64 rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Visible properties</p>
+                          <div className="mt-2 space-y-2">
+                            {DETAIL_TOGGLE_OPTIONS.map((option) => (
+                              <label
+                                key={`visibility-${option.key}`}
+                                className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(viewPrefs[option.key])}
+                                  onChange={() => toggleViewPref(option.key)}
+                                  className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
+                                />
+                                {option.label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-
-                    {/* Product filter */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Products</label>
-                      <Select
-                        isMulti
-                        classNamePrefix="filter-select"
-                        styles={filterSelectStyles}
-                        options={productFilterOptions}
-                        value={productFilterValue}
-                        onChange={handleProductFilterChange}
-                        placeholder={productFilterOptions.length ? "Select products..." : "No products available"}
-                        isDisabled={!productFilterOptions.length}
-                        noOptionsMessage={() =>
-                          productFilterOptions.length ? "No matching products" : "No products available"
-                        }
-                        menuPortalTarget={selectPortalTarget}
-                        menuShouldBlockScroll
-                        closeMenuOnSelect={false}
-                      />
-                    </div>
-
-                    {/* Tags filter */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Tags</label>
-                      <Select
-                        isMulti
-                        classNamePrefix="filter-select"
-                        styles={filterSelectStyles}
-                        options={tagFilterOptions}
-                        value={tagFilterValue}
-                        onChange={handleTagFilterChange}
-                        placeholder={tagFilterOptions.length ? "Select tags..." : "No tags available"}
-                        isDisabled={!tagFilterOptions.length}
-                        noOptionsMessage={() =>
-                          tagFilterOptions.length ? "No matching tags" : "No tags available"
-                        }
-                        menuPortalTarget={selectPortalTarget}
-                        menuShouldBlockScroll
-                        closeMenuOnSelect={false}
-                      />
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant={isSearchExpanded ? "secondary" : "ghost"}
+                        size="icon"
+                        onClick={() => setIsSearchExpanded(true)}
+                        aria-label="Search shots"
+                        aria-expanded={isSearchExpanded}
+                      >
+                        <Search className="h-4 w-4" />
+                      </Button>
+                      <div
+                        className={"relative flex items-center overflow-hidden transition-all duration-200 " + (isSearchExpanded ? "w-48 sm:w-56 opacity-100" : "w-0 opacity-0 pointer-events-none")}
+                      >
+                        <Input
+                          ref={searchInputRef}
+                          value={queryText}
+                          onChange={(event) => setQueryText(event.target.value)}
+                          onKeyDown={handleSearchKeyDown}
+                          placeholder="Type to search..."
+                          aria-label="Search shots"
+                          className="h-9 w-full border-slate-200 bg-white pr-8 text-sm dark:border-slate-700 dark:bg-slate-900"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSearchClear}
+                          className="absolute right-2 text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                          aria-label="Clear search"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              )}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:inline">
+                    View
+                  </span>
+                  <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => updateViewMode("gallery")}
+                      className={`flex items-center gap-1.5 px-2 py-1.5 text-sm transition sm:gap-2 sm:px-3 ${
+                        isGalleryView
+                          ? "bg-slate-900 text-white dark:bg-slate-700"
+                          : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+                      }`}
+                      aria-pressed={isGalleryView}
+                    >
+                      <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+                      <span className="hidden sm:inline">Gallery</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateViewMode("list")}
+                      className={`flex items-center gap-1.5 px-2 py-1.5 text-sm transition sm:gap-2 sm:px-3 ${
+                        isListView
+                          ? "bg-slate-900 text-white dark:bg-slate-700"
+                          : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+                      }`}
+                      aria-pressed={isListView}
+                    >
+                      <List className="h-4 w-4" aria-hidden="true" />
+                      <span className="hidden sm:inline">List</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateViewMode("table")}
+                      className={`flex items-center gap-1.5 px-2 py-1.5 text-sm transition sm:gap-2 sm:px-3 ${
+                        isTableView
+                          ? "bg-slate-900 text-white dark:bg-slate-700"
+                          : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+                      }`}
+                      aria-pressed={isTableView}
+                    >
+                      <Table className="h-4 w-4" aria-hidden="true" />
+                      <span className="hidden sm:inline">Table</span>
+                    </button>
+                  </div>
+                  <ExportButton data={filteredShots} entityType="shots" />
+                  {canEditShots && sortedShots.length > 0 && (
+                    <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={selectedShotIds.size > 0 && selectedShotIds.size === sortedShots.length}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
+                      />
+                      <span className="text-xs font-medium whitespace-nowrap">
+                        {selectedShotIds.size > 0 ? `${selectedShotIds.size} selected` : "Select all"}
+                      </span>
+                    </label>
+                  )}
+                  {canEditShots && (
+                    <Button type="button" onClick={openCreateModal} className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                      <span className="hidden sm:inline">Create shot</span>
+                      <span className="sm:hidden">New</span>
+                    </Button>
+                  )}
+                </div>
               </div>
-
-              <FilterPresetManager
-                page="shots"
-                currentFilters={getCurrentFilters()}
-                onLoadPreset={handleLoadPreset}
-                onClearFilters={clearFilters}
-              />
-            </div>
-
-            {/* Active filter pills */}
+            {/* Active filter pills * /}
             {activeFilters.length > 0 && (
               <div className="flex w-full flex-wrap gap-2">
                 {activeFilters.map((filter) => (
@@ -2363,11 +3218,9 @@ export default function ShotsPage() {
                 ))}
               </div>
             )}
-          </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+        </>
+      */}
 
       {/* Bulk Tagging Toolbar - appears when shots are selected */}
       {canEditShots && selectedShotIds.size > 0 && (
@@ -2398,101 +3251,153 @@ export default function ShotsPage() {
         />
       )}
 
-      <p className="px-6 text-sm text-slate-600 dark:text-slate-400">
-        Build and manage the shot list for the active project. Set the active project from the Dashboard.
-      </p>
-      {canEditShots ? (
-        <div className="mx-6">
-          <CreateShotCard onClick={openCreateModal} disabled={isCreatingShot} />
-        </div>
-      ) : (
-        <div className="mx-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
-          You can browse shots but need producer or crew access to create or edit them.
-        </div>
-      )}
-      <div className="mx-6 space-y-4">
-        {sortedShots.length === 0 ? (
-          shots.length === 0 ? (
-            <EmptyState
-              icon={Camera}
-              title="No shots yet"
-              description="Start building your shot list to plan and organize your photo shoot."
-              action={canEditShots ? "Create Shot" : null}
-              onAction={canEditShots ? openCreateModal : null}
-            />
-          ) : (
+      <div className="mx-6 flex flex-col gap-6 xl:flex-row xl:items-start">
+        <div className="flex-1 min-w-0 space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Build and manage the shot list for the active project. Set the active project from the Dashboard.
+          </p>
+          {!canEditShots && (
             <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
-              No shots match the current search or filters.
+              You can browse shots but need producer or crew access to create or edit them.
             </div>
-          )
-        ) : isGalleryView ? (
-          <VirtualizedGrid
-            items={sortedShots}
-            itemHeight={420}
-            threshold={100}
-            className="mx-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
-            renderItem={(shot, index, isVirtualized) => {
-              const shotProducts = normaliseShotProducts(shot);
-              const shotTalentSelection = mapShotTalentToSelection(shot);
-              const notesHtml = formatNotesForDisplay(shot.description);
-              const locationName =
-                shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
-              return (
-                <div
-                  className={isVirtualized ? "" : "animate-fade-in opacity-0"}
-                  style={isVirtualized ? {} : getStaggerDelay(index)}
-                >
-                  <ShotGalleryCard
-                    shot={shot}
-                    locationName={locationName}
-                    products={shotProducts}
-                    talent={shotTalentSelection}
-                    notesHtml={notesHtml}
-                    canEditShots={canEditShots}
-                    onEdit={() => handleEditShot(shot)}
-                    viewPrefs={viewPrefs}
-                    isSelected={selectedShotIds.has(shot.id)}
-                    onToggleSelect={canEditShots ? toggleShotSelection : null}
-                  />
+          )}
+          <div className="space-y-4">
+            {sortedShots.length === 0 ? (
+              shots.length === 0 ? (
+                <EmptyState
+                  icon={Camera}
+                  title="No shots yet"
+                  description="Start building your shot list to plan and organize your photo shoot."
+                  action={canEditShots ? "Create Shot" : null}
+                  onAction={canEditShots ? openCreateModal : null}
+                />
+              ) : (
+                <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
+                  No shots match the current search or filters.
                 </div>
-              );
-            }}
-          />
-        ) : (
-          <VirtualizedList
-            items={sortedShots}
-            itemHeight={280}
-            threshold={100}
-            className="space-y-4"
-            renderItem={(shot, index, isVirtualized) => {
-              const shotProducts = normaliseShotProducts(shot);
-              const shotTalentSelection = mapShotTalentToSelection(shot);
-              const notesHtml = formatNotesForDisplay(shot.description);
-              const locationName =
-                shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
-              return (
-                <div
-                  className={isVirtualized ? "" : "animate-fade-in opacity-0"}
-                  style={isVirtualized ? {} : getStaggerDelay(index)}
+              )
+            ) : isGalleryView ? (
+              <VirtualizedGrid
+                items={sortedShots}
+                itemHeight={360}
+                threshold={80}
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+                renderItem={(shot, index, isVirtualized) => {
+                  const shotProducts = normaliseShotProducts(shot);
+                  const shotTalentSelection = mapShotTalentToSelection(shot);
+                  const notesHtml = formatNotesForDisplay(shot.description);
+                  const locationName =
+                    shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
+                  return (
+                    <div
+                      className={isVirtualized ? "" : "animate-fade-in opacity-0"}
+                      style={isVirtualized ? {} : getStaggerDelay(index)}
+                    >
+                      <ShotGalleryCard
+                        shot={shot}
+                        locationName={locationName}
+                        products={shotProducts}
+                        talent={shotTalentSelection}
+                        notesHtml={notesHtml}
+                        canEditShots={canEditShots}
+                        onEdit={() => handleEditShot(shot)}
+                        viewPrefs={viewPrefs}
+                        isSelected={selectedShotIds.has(shot.id)}
+                        onToggleSelect={canEditShots ? toggleShotSelection : null}
+                        isFocused={focusShotId === shot.id}
+                        onFocus={() => handleFocusShot(shot)}
+                      />
+                    </div>
+                  );
+                }}
+              />
+            ) : isListView ? (
+              <VirtualizedList
+                items={sortedShots}
+                itemHeight={240}
+                threshold={80}
+                className="space-y-3"
+                renderItem={(shot, index, isVirtualized) => {
+                  const shotProducts = normaliseShotProducts(shot);
+                  const shotTalentSelection = mapShotTalentToSelection(shot);
+                  const notesHtml = formatNotesForDisplay(shot.description);
+                  const locationName =
+                    shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
+                  return (
+                    <div
+                      className={isVirtualized ? "" : "animate-fade-in opacity-0"}
+                      style={isVirtualized ? {} : getStaggerDelay(index)}
+                    >
+                      <ShotListCard
+                        shot={shot}
+                        locationName={locationName}
+                        products={shotProducts}
+                        talent={shotTalentSelection}
+                        notesHtml={notesHtml}
+                        canEditShots={canEditShots}
+                        onEdit={() => handleEditShot(shot)}
+                        viewPrefs={viewPrefs}
+                        isSelected={selectedShotIds.has(shot.id)}
+                        onToggleSelect={canEditShots ? toggleShotSelection : null}
+                        isFocused={focusShotId === shot.id}
+                        onFocus={() => handleFocusShot(shot)}
+                      />
+                    </div>
+                  );
+                }}
+              />
+            ) : (
+              <ShotTableView
+                rows={tableRows}
+                viewPrefs={viewPrefs}
+                canEditShots={canEditShots}
+                selectedShotIds={selectedShotIds}
+                onToggleSelect={canEditShots ? toggleShotSelection : null}
+                onEditShot={canEditShots ? handleEditShot : null}
+                focusedShotId={focusShotId}
+                onFocusShot={handleFocusShot}
+              />
+            )}
+          </div>
+        </div>
+
+        {clientId && projectId && (
+          <aside className="xl:w-64 2xl:w-72 flex-shrink-0">
+            <div className="sticky top-8 z-[38] space-y-3">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-3">
+                  <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Recent Activity</h2>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={toggleActivityExpanded}
+                  aria-expanded={activityExpanded}
                 >
-                  <ShotListCard
-                    shot={shot}
-                    locationName={locationName}
-                    products={shotProducts}
-                    talent={shotTalentSelection}
-                    notesHtml={notesHtml}
-                    canEditShots={canEditShots}
-                    onEdit={() => handleEditShot(shot)}
-                    viewPrefs={viewPrefs}
-                    isSelected={selectedShotIds.has(shot.id)}
-                    onToggleSelect={canEditShots ? toggleShotSelection : null}
+                  {activityExpanded ? "Collapse" : "Show more"}
+                </Button>
+              </CardHeader>
+                <CardContent
+                  className={`${
+                    activityExpanded
+                      ? "max-h-[calc(100vh-16rem)] overflow-y-auto pr-1"
+                      : "max-h-[360px] overflow-y-auto pr-1"
+                  } space-y-3 text-xs`}
+                >
+                  <ActivityTimeline
+                    key={activityTimelineKey}
+                    clientId={clientId}
+                    projectId={projectId}
+                    limit={activityLimit}
+                    showFilters={activityExpanded}
                   />
-                </div>
-              );
-            }}
-          />
+                </CardContent>
+              </Card>
+            </div>
+          </aside>
         )}
       </div>
+
       {canEditShots && isCreateModalOpen && (
         <ShotEditModal
           open
@@ -2500,7 +3405,7 @@ export default function ShotsPage() {
           heading="Create shot"
           shotName={createDraft.name || "New shot"}
           draft={createDraft}
-          onChange={(patch) => setCreateDraft((prev) => ({ ...prev, ...patch }))}
+          onChange={handleCreateDraftChange}
           onClose={() => {
             if (isCreatingShot) return;
             setCreateModalOpen(false);
@@ -2511,6 +3416,7 @@ export default function ShotsPage() {
                 status: DEFAULT_SHOT_STATUS,
               });
             }
+            setCreateAutoStatus(createInitialSectionStatuses());
           }}
           onSubmit={handleCreateShot}
           isSaving={isCreatingShot}
@@ -2527,12 +3433,8 @@ export default function ShotsPage() {
           talentPlaceholder={talentLoadError ? "Talent unavailable" : "Select talent"}
           talentNoOptionsMessage={talentNoOptionsMessage}
           talentLoadError={talentLoadError}
+          autoSaveStatus={createAutoStatus}
         />
-      )}
-      {!canEditShots && (
-        <div className="mx-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
-          Shot actions are read-only for your role.
-        </div>
       )}
       {canEditShots && editingShot && (
         <ShotEditModal
@@ -2563,23 +3465,8 @@ export default function ShotsPage() {
           movingProject={movingProject}
           onCopyToProject={handleCopyToProject}
           copyingProject={copyingProject}
+          autoSaveStatus={editAutoStatus}
         />
-      )}
-
-      {/* Activity Timeline */}
-      {clientId && projectId && (
-        <div className="mx-6 mb-6">
-          <Card>
-            <CardHeader>
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                Recent Activity
-              </h2>
-            </CardHeader>
-            <CardContent>
-              <ActivityTimeline clientId={clientId} projectId={projectId} />
-            </CardContent>
-          </Card>
-        </div>
       )}
     </div>
   );
@@ -2670,6 +3557,8 @@ const ShotListCard = memo(function ShotListCard({
   viewPrefs = defaultViewPrefs,
   isSelected = false,
   onToggleSelect = null,
+  isFocused = false,
+  onFocus = null,
 }) {
   const formattedDate = toDateInputValue(shot.date);
   const {
@@ -2679,9 +3568,14 @@ const ShotListCard = memo(function ShotListCard({
     showNotes = true,
   } = viewPrefs || defaultViewPrefs;
   const tags = Array.isArray(shot.tags) ? shot.tags : [];
+  const focusClasses = isFocused
+    ? "ring-2 ring-primary shadow-md"
+    : isSelected
+    ? "ring-2 ring-primary/60"
+    : "";
 
   return (
-    <Card className={`border shadow-sm transition ${isSelected ? 'ring-2 ring-primary' : ''}`}>
+    <Card className={`border shadow-sm transition ${focusClasses}`} onClick={() => onFocus?.(shot)}>
       <CardHeader className="px-4 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           {onToggleSelect && (
@@ -2696,7 +3590,7 @@ const ShotListCard = memo(function ShotListCard({
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 line-clamp-2" title={shot.name}>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 md:text-base line-clamp-2" title={shot.name}>
               {shot.name}
             </h3>
             <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-slate-500">
@@ -2719,15 +3613,15 @@ const ShotListCard = memo(function ShotListCard({
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-2 px-4 pb-3 pt-2">
+      <CardContent className="space-y-1.5 px-4 pb-3 pt-2 text-[13px]">
         {showNotes && (
           notesHtml ? (
             <div
-              className="rounded-md bg-slate-50 dark:bg-slate-900 px-3 py-2 prose prose-sm dark:prose-invert max-w-none line-clamp-3"
+              className="rounded-md bg-slate-50 dark:bg-slate-900 px-3 py-2 prose prose-sm dark:prose-invert max-w-none text-xs line-clamp-3"
               dangerouslySetInnerHTML={{ __html: notesHtml }}
             />
           ) : (
-            <p className="text-sm text-slate-500">No notes added yet.</p>
+            <p className="text-xs text-slate-500">No notes added yet.</p>
           )
         )}
         {showProducts && (
@@ -2762,6 +3656,8 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   viewPrefs = defaultViewPrefs,
   isSelected = false,
   onToggleSelect = null,
+  isFocused = false,
+  onFocus = null,
 }) {
   const imagePath = useMemo(() => selectShotImage(shot, products), [shot, products]);
   const imagePosition = useMemo(() => {
@@ -2779,10 +3675,18 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     showNotes = true,
   } = viewPrefs || defaultViewPrefs;
   const tags = Array.isArray(shot.tags) ? shot.tags : [];
+  const focusClasses = isFocused
+    ? "ring-2 ring-primary shadow-md"
+    : isSelected
+    ? "ring-2 ring-primary/60"
+    : "";
 
   return (
-    <Card className={`overflow-hidden border shadow-sm transition ${isSelected ? 'ring-2 ring-primary' : ''}`}>
-      <div className="relative h-48 bg-slate-100">
+    <Card
+      className={`overflow-hidden border shadow-sm transition ${focusClasses}`}
+      onClick={() => onFocus?.(shot)}
+    >
+      <div className="relative h-40 bg-slate-100 sm:h-44">
         <AppImage
           src={imagePath}
           alt={`${shot.name} preview`}
@@ -2820,14 +3724,14 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
           </div>
         )}
       </div>
-      <CardContent className="space-y-2 px-4 pb-4 pt-3">
+      <CardContent className="space-y-1.5 px-4 pb-4 pt-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 line-clamp-2" title={shot.name}>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 md:text-base line-clamp-2" title={shot.name}>
             {shot.name}
           </h3>
-          {shot.type && <span className="text-xs uppercase tracking-wide text-primary">{shot.type}</span>}
+          {shot.type && <span className="text-[10px] uppercase tracking-wide text-primary">{shot.type}</span>}
         </div>
-        <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+        <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
           {formattedDate && <span>{formattedDate}</span>}
           {showLocation && locationName && <span title={locationName}>{locationName}</span>}
         </div>
@@ -2866,3 +3770,204 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     </Card>
   );
 });
+
+const OVERVIEW_TAB_STORAGE_KEY = "shots:overviewTab";
+
+const normaliseOverviewTab = (value) => {
+  if (value === "planner") return "planner";
+  return "shots";
+};
+
+const overviewTabs = [
+  { value: "shots", label: "Shots", icon: Camera },
+  { value: "planner", label: "Planner", icon: Calendar },
+];
+
+const shallowEqual = (a, b) => {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const key of keysA) {
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+};
+
+export default function ShotsPage({ initialView = null }) {
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryTab = searchParams.get("view");
+  const normalisedPropTab = initialView ? normaliseOverviewTab(initialView) : null;
+  const normalisedQueryTab = queryTab ? normaliseOverviewTab(queryTab) : null;
+  const [activeTab, setActiveTab] = useState(() => {
+    if (normalisedPropTab) return normalisedPropTab;
+    if (normalisedQueryTab) return normalisedQueryTab;
+    const stored = readStorage(OVERVIEW_TAB_STORAGE_KEY);
+    return stored ? normaliseOverviewTab(stored) : "shots";
+  });
+  const [sharedFilters, setSharedFiltersState] = useState(() => readStoredShotFilters());
+  const [sharedSelectedShotIds, setSharedSelectedShotIdsState] = useState(() => new Set());
+  const [focusShotId, setFocusShotIdState] = useState(null);
+
+  const updateSharedFilters = useCallback((updater) => {
+    setSharedFiltersState((prev) => {
+      const resolved = typeof updater === "function" ? updater(prev) : updater;
+      const base = resolved && typeof resolved === "object" ? resolved : defaultShotFilters;
+      const next = { ...defaultShotFilters, ...base };
+      return shallowEqual(next, prev) ? prev : next;
+    });
+  }, []);
+
+  const updateSharedSelectedShotIds = useCallback((updater) => {
+    setSharedSelectedShotIdsState((prev) => {
+      const resolved = typeof updater === "function" ? updater(prev) : updater;
+      let nextSet;
+      if (resolved instanceof Set) {
+        nextSet = resolved === prev ? new Set(resolved) : new Set(resolved);
+      } else if (Array.isArray(resolved)) {
+        nextSet = new Set(resolved);
+      } else if (!resolved) {
+        nextSet = new Set();
+      } else {
+        nextSet = new Set(resolved);
+      }
+
+      if (nextSet.size === prev.size) {
+        let identical = true;
+        for (const id of nextSet) {
+          if (!prev.has(id)) {
+            identical = false;
+            break;
+          }
+        }
+        if (identical) {
+          return prev;
+        }
+      }
+
+      return nextSet;
+    });
+  }, []);
+
+  const setFocusShotId = useCallback((value) => {
+    setFocusShotIdState(value ?? null);
+  }, []);
+
+  const overviewValue = useMemo(
+    () => ({
+      filters: sharedFilters,
+      setFilters: updateSharedFilters,
+      selectedShotIds: sharedSelectedShotIds,
+      setSelectedShotIds: updateSharedSelectedShotIds,
+      focusShotId,
+      setFocusShotId,
+    }),
+    [sharedFilters, updateSharedFilters, sharedSelectedShotIds, updateSharedSelectedShotIds, focusShotId, setFocusShotId]
+  );
+
+  useEffect(() => {
+    if (normalisedPropTab && normalisedPropTab !== activeTab) {
+      setActiveTab(normalisedPropTab);
+      return;
+    }
+    if (normalisedQueryTab && normalisedQueryTab !== activeTab) {
+      setActiveTab(normalisedQueryTab);
+    }
+  }, [normalisedPropTab, normalisedQueryTab, activeTab]);
+
+  useEffect(() => {
+    writeStorage(OVERVIEW_TAB_STORAGE_KEY, activeTab);
+  }, [activeTab]);
+
+  const handleTabChange = useCallback(
+    (nextTab) => {
+      const resolved = normaliseOverviewTab(nextTab);
+      setActiveTab(resolved);
+      writeStorage(OVERVIEW_TAB_STORAGE_KEY, resolved);
+      const existing = new URLSearchParams(location.search);
+      if (resolved === "shots") {
+        existing.delete("view");
+      } else {
+        existing.set("view", resolved);
+      }
+      setSearchParams(existing, { replace: true });
+    },
+    [location.search, setSearchParams]
+  );
+
+  const activeContent = useMemo(() => {
+    if (activeTab === "planner") {
+      return (
+        <Suspense
+          fallback={
+            <div className="flex min-h-[240px] items-center justify-center">
+              <LoadingSpinner size="lg" />
+            </div>
+          }
+        >
+          <PlannerPage embedded />
+        </Suspense>
+      );
+    }
+    return <ShotsWorkspace />;
+  }, [activeTab]);
+
+  const activeLabel = activeTab === "planner" ? "Planner" : "Shots";
+
+  return (
+    <ShotsOverviewProvider value={overviewValue}>
+      <div className="flex min-h-screen flex-col bg-slate-50">
+        <div className="sticky top-[65px] z-[39] border-b border-slate-200 bg-white/95 backdrop-blur" data-shot-overview-header>
+          <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+            <div>
+              <h1 className="text-xl font-semibold text-slate-900">Shot overview</h1>
+              <p className="text-sm text-slate-500">Create, plan, and review shots without leaving the page.</p>
+          </div>
+          <div
+            className="flex items-center space-x-1 rounded-full border border-slate-200 bg-slate-100 p-1"
+            role="tablist"
+            aria-label="Shot overview tabs"
+            aria-orientation="horizontal"
+          >
+            {overviewTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = tab.value === activeTab;
+              return (
+                <button
+                  key={tab.value}
+                  type="button"
+                  className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                    isActive
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                  onClick={() => handleTabChange(tab.value)}
+                  role="tab"
+                  id={`overview-tab-${tab.value}`}
+                  aria-controls={`overview-panel-${tab.value}`}
+                  aria-selected={isActive}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          </div>
+          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 pb-3" id="shots-toolbar-anchor" />
+        </div>
+      <div
+        className="flex-1 overflow-auto"
+        id={`overview-panel-${activeTab}`}
+        role="tabpanel"
+        aria-labelledby={`overview-tab-${activeTab}`}
+        aria-label={`${activeLabel} workspace`}
+      >
+        {activeContent}
+      </div>
+      </div>
+    </ShotsOverviewProvider>
+  );
+}

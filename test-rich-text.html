@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      plugins: [require('@tailwindcss/typography')],
+    }
+  </script>
+</head>
+<body class="p-8">
+  <h2 class="text-xl font-bold mb-4">Test: H3 with Orange Color</h2>
+  
+  <div class="prose prose-sm max-w-none border p-4 mb-4">
+    <h3 style="color: orange;">This is H3 with inline orange color</h3>
+    <h3 class="text-orange-500">This is H3 with Tailwind class</h3>
+    <p style="color: orange;">This is a paragraph with orange color</p>
+  </div>
+  
+  <div class="prose prose-sm dark:prose-invert max-w-none border p-4">
+    <h3 style="color: rgb(251, 146, 60);">This is H3 with RGB orange</h3>
+  </div>
+</body>
+</html>

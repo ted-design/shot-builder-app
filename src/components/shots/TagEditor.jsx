@@ -4,6 +4,16 @@ import { Plus, Tag as TagIcon, Check } from "lucide-react";
 import { TagBadge, TagList, TAG_COLORS } from "../ui/TagBadge";
 import { Button } from "../ui/button";
 import { useAvailableTags } from "../../hooks/useAvailableTags";
+import { DEFAULT_TAG_GROUPS, DEFAULT_TAG_GROUP_ORDER } from "../../lib/defaultTags";
+
+const PROJECT_GROUP_ID = "project";
+const PROJECT_GROUP_LABEL = "Project Tags";
+const DEFAULT_GROUP_META = new Map(
+  DEFAULT_TAG_GROUPS.map((group) => [group.id, group])
+);
+const GROUP_ORDER_INDEX = new Map(
+  DEFAULT_TAG_GROUP_ORDER.map((groupId, index) => [groupId, index])
+);
 
 /**
  * TagEditor component for adding/removing tags on shots
@@ -31,33 +41,89 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
   const [showColorPicker, setShowColorPicker] = useState(false);
   const pickerRef = useRef(null);
 
-  // Filter available tags based on input, excluding already-added tags
-  const filteredAvailableTags = React.useMemo(() => {
+  const closePicker = useCallback(() => {
+    setPickerOpen(false);
+    setShowColorPicker(false);
+    setNewTagLabel("");
+  }, []);
+
+  const trimmedInput = newTagLabel.trim();
+  const normalizedInput = trimmedInput.toLowerCase();
+
+  // Organise available tags into groups, applying search filters and excluding already selected tags
+  const filteredTagGroups = React.useMemo(() => {
     const currentTagIds = new Set(tags.map((t) => t.id));
-    const trimmedInput = newTagLabel.trim().toLowerCase();
+    const groups = new Map();
 
-    if (!trimmedInput) {
-      // Show all available tags (that aren't already added) when input is empty
-      return availableTags.filter((tag) => !currentTagIds.has(tag.id));
-    }
+    availableTags.forEach((tag) => {
+      if (!tag || !tag.id || !tag.label) return;
+      if (currentTagIds.has(tag.id)) return;
 
-    // Filter tags that match the input and aren't already added
-    return availableTags.filter(
-      (tag) =>
-        !currentTagIds.has(tag.id) &&
-        tag.label.toLowerCase().includes(trimmedInput)
-    );
-  }, [availableTags, newTagLabel, tags]);
+      const tagLabel = tag.label.trim();
+      if (!tagLabel) return;
+
+      if (normalizedInput && !tagLabel.toLowerCase().includes(normalizedInput)) {
+        return;
+      }
+
+      const tagGroupId = tag.groupId || PROJECT_GROUP_ID;
+      const meta = DEFAULT_GROUP_META.get(tagGroupId) || null;
+      const groupLabel = tag.groupLabel || meta?.label || (tagGroupId === PROJECT_GROUP_ID ? PROJECT_GROUP_LABEL : "Other Tags");
+      const groupDescription = tag.groupDescription || meta?.description || null;
+
+      if (!groups.has(tagGroupId)) {
+        groups.set(tagGroupId, {
+          groupId: tagGroupId,
+          groupLabel,
+          groupDescription,
+          tags: [],
+        });
+      }
+
+      groups.get(tagGroupId).tags.push(tag);
+    });
+
+    const groupArray = Array.from(groups.values()).map((group) => ({
+      ...group,
+      tags: group.tags.sort((a, b) => a.label.localeCompare(b.label)),
+    }));
+
+    return groupArray.sort((a, b) => {
+      const orderA = GROUP_ORDER_INDEX.has(a.groupId) ? GROUP_ORDER_INDEX.get(a.groupId) : Number.MAX_SAFE_INTEGER;
+      const orderB = GROUP_ORDER_INDEX.has(b.groupId) ? GROUP_ORDER_INDEX.get(b.groupId) : Number.MAX_SAFE_INTEGER;
+
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+
+      return a.groupLabel.localeCompare(b.groupLabel);
+    });
+  }, [availableTags, normalizedInput, tags]);
+
+  const totalFilteredTags = React.useMemo(
+    () => filteredTagGroups.reduce((count, group) => count + group.tags.length, 0),
+    [filteredTagGroups]
+  );
 
   // Check if there's an exact match (case-insensitive) in available tags
   const exactMatch = React.useMemo(() => {
-    const trimmedInput = newTagLabel.trim().toLowerCase();
-    if (!trimmedInput) return null;
+    if (!normalizedInput) return null;
 
     return availableTags.find(
-      (tag) => tag.label.toLowerCase() === trimmedInput
+      (tag) => tag.label.toLowerCase() === normalizedInput
     );
-  }, [availableTags, newTagLabel]);
+  }, [availableTags, normalizedInput]);
+
+  const hasSearchTerm = Boolean(trimmedInput);
+  const highlightContainerClass = hasSearchTerm
+    ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+    : "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800";
+  const highlightTextClass = hasSearchTerm
+    ? "text-green-900 dark:text-green-100"
+    : "text-blue-900 dark:text-blue-100";
+  const highlightIconTone = hasSearchTerm
+    ? "text-green-600 dark:text-green-300"
+    : "text-blue-600 dark:text-blue-300";
 
   // Close picker on click outside
   useEffect(() => {
@@ -65,20 +131,16 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
 
     function handleClickOutside(event) {
       if (pickerRef.current && !pickerRef.current.contains(event.target)) {
-        setPickerOpen(false);
-        setShowColorPicker(false);
-        setNewTagLabel("");
+        closePicker();
       }
     }
 
     function handleEscape(event) {
       if (event.key === "Escape") {
-        // If color picker is open, just close it, otherwise close the whole dropdown
         if (showColorPicker) {
           setShowColorPicker(false);
         } else {
-          setPickerOpen(false);
-          setNewTagLabel("");
+          closePicker();
         }
       }
     }
@@ -90,7 +152,7 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [isPickerOpen, showColorPicker]);
+  }, [isPickerOpen, showColorPicker, closePicker]);
 
   // Handler for selecting an existing tag
   const handleSelectExistingTag = useCallback(
@@ -103,13 +165,32 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
       }
 
       // Add the existing tag with its original color
-      onChange([...tags, { id: tag.id, label: tag.label, color: tag.color }]);
+      const fallbackMeta = tag.groupId ? DEFAULT_GROUP_META.get(tag.groupId) : null;
+      const groupId = tag.groupId || PROJECT_GROUP_ID;
+      const groupLabel = tag.groupLabel
+        || fallbackMeta?.label
+        || (groupId === PROJECT_GROUP_ID ? PROJECT_GROUP_LABEL : null);
+      const groupDescription = tag.groupDescription
+        || fallbackMeta?.description
+        || null;
+
+      onChange([
+        ...tags,
+        {
+          id: tag.id,
+          label: tag.label,
+          color: tag.color,
+          groupId,
+          groupLabel,
+          groupDescription,
+          isDefault: Boolean(tag.isDefault),
+        },
+      ]);
       setNewTagLabel("");
       setSelectedColor("blue");
-      setShowColorPicker(false);
-      setPickerOpen(false);
+      closePicker();
     },
-    [tags, onChange]
+    [tags, onChange, closePicker]
   );
 
   // Handler for creating a new tag
@@ -138,14 +219,17 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
       id: `tag-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       label: trimmedLabel,
       color: selectedColor,
+      groupId: PROJECT_GROUP_ID,
+      groupLabel: PROJECT_GROUP_LABEL,
+      groupDescription: null,
+      isDefault: false,
     };
 
     onChange([...tags, newTag]);
     setNewTagLabel("");
     setSelectedColor("blue");
-    setShowColorPicker(false);
-    setPickerOpen(false);
-  }, [newTagLabel, selectedColor, tags, onChange, exactMatch, handleSelectExistingTag]);
+    closePicker();
+  }, [newTagLabel, selectedColor, tags, onChange, exactMatch, handleSelectExistingTag, closePicker]);
 
   const handleRemoveTag = useCallback(
     (tagToRemove) => {
@@ -170,19 +254,38 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
         <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Tags
         </label>
-        <div className="relative" ref={pickerRef}>
+        <div className="relative">
           <button
             type="button"
-            onClick={() => setPickerOpen(!isPickerOpen)}
+            onClick={() => {
+              if (isPickerOpen) {
+                closePicker();
+              } else {
+                setPickerOpen(true);
+              }
+            }}
             className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-all hover:-translate-y-0.5 active:translate-y-0"
           >
             <Plus className={`h-3.5 w-3.5 transition-transform ${isPickerOpen ? 'rotate-45' : ''}`} />
             Add tag
           </button>
+        </div>
 
-          {isPickerOpen && (
-            <div className="absolute right-0 top-full mt-2 z-50 w-72 rounded-md border border-slate-200 bg-white shadow-lg animate-fade-in animate-slide-in-from-top origin-top" style={{ animationDuration: '200ms' }}>
-              <div className="p-3 space-y-3">
+        {isPickerOpen && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 py-6 sm:px-6">
+            <div
+              role="presentation"
+              className="absolute inset-0 bg-slate-900/10 backdrop-blur-sm"
+              onMouseDown={closePicker}
+            />
+            <div
+              ref={pickerRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Tag picker"
+              className="relative z-10 w-full max-w-md overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl animate-fade-in dark:border-slate-700 dark:bg-slate-900"
+            >
+              <div className="p-4 space-y-3">
                 {/* Input field */}
                 <div>
                   <label htmlFor="tag-label" className="block text-xs font-medium text-slate-700 mb-1">
@@ -202,79 +305,100 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
                 </div>
 
                 {/* Show existing tags or color picker */}
-                {!showColorPicker && newTagLabel.trim() === "" && filteredAvailableTags.length > 0 && (
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-md p-2 border border-blue-200 dark:border-blue-800">
-                    <p className="text-xs font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-1">
-                      <TagIcon className="h-3 w-3" />
-                      Select from existing tags ({filteredAvailableTags.length})
-                    </p>
-                    <div className="max-h-48 overflow-y-auto space-y-1">
-                      {filteredAvailableTags.map((tag) => (
-                        <button
-                          key={tag.id}
-                          type="button"
-                          onClick={() => handleSelectExistingTag(tag)}
-                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-sm hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors bg-white dark:bg-slate-800"
-                        >
-                          <TagBadge tag={tag} />
-                          <Check className="h-3 w-3 ml-auto text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {!showColorPicker && (
+                  <>
+                    {totalFilteredTags > 0 && (
+                      <div className={`${highlightContainerClass} rounded-md p-2`}>
+                        <p className={`mb-2 flex items-center gap-1 text-xs font-semibold ${highlightTextClass}`}>
+                          {hasSearchTerm ? (
+                            <Check className={`h-3 w-3 ${highlightIconTone}`} />
+                          ) : (
+                            <TagIcon className={`h-3 w-3 ${highlightIconTone}`} />
+                          )}
+                          {hasSearchTerm
+                            ? `Click to reuse existing tag (${totalFilteredTags} match${totalFilteredTags !== 1 ? 'es' : ''})`
+                            : `Select from existing tags (${totalFilteredTags})`}
+                        </p>
+                        <div className="max-h-[48vh] space-y-3 overflow-y-auto pr-1">
+                          {filteredTagGroups.map((group) => (
+                            <div key={group.groupId} className="space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
+                                  {group.groupLabel}
+                                </p>
+                                {!hasSearchTerm && group.groupDescription && (
+                                  <span className="ml-2 text-[10px] text-slate-400 dark:text-slate-500">
+                                    {group.groupDescription}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="space-y-1">
+                                {group.tags.map((tag) => {
+                                  const isExactMatch = hasSearchTerm && tag.label.toLowerCase() === normalizedInput;
+                                  const buttonClasses = [
+                                    "group flex w-full items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-left text-sm transition-colors",
+                                    hasSearchTerm
+                                      ? "hover:bg-green-100 dark:hover:bg-green-900/30"
+                                      : "hover:bg-blue-100 dark:hover:bg-blue-900/30",
+                                    isExactMatch
+                                      ? "bg-green-100 dark:bg-green-900/40 ring-1 ring-green-500"
+                                      : "bg-white dark:bg-slate-800",
+                                  ].join(" ");
 
-                {!showColorPicker && newTagLabel.trim() !== "" && filteredAvailableTags.length > 0 && (
-                  <div className="bg-green-50 dark:bg-green-900/20 rounded-md p-2 border border-green-200 dark:border-green-800">
-                    <p className="text-xs font-semibold text-green-900 dark:text-green-100 mb-2 flex items-center gap-1">
-                      <Check className="h-3 w-3" />
-                      Click to reuse existing tag ({filteredAvailableTags.length} match{filteredAvailableTags.length !== 1 ? 'es' : ''})
-                    </p>
-                    <div className="max-h-48 overflow-y-auto space-y-1">
-                      {filteredAvailableTags.map((tag) => {
-                        const isExactMatch = tag.label.toLowerCase() === newTagLabel.trim().toLowerCase();
-                        return (
-                          <button
-                            key={tag.id}
-                            type="button"
-                            onClick={() => handleSelectExistingTag(tag)}
-                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-sm transition-colors ${
-                              isExactMatch
-                                ? 'bg-green-100 dark:bg-green-900/40 hover:bg-green-200 dark:hover:bg-green-900/60 ring-2 ring-green-500'
-                                : 'bg-white dark:bg-slate-800 hover:bg-green-100 dark:hover:bg-green-900/30'
-                            }`}
-                          >
-                            <TagBadge tag={tag} />
-                            {isExactMatch && (
-                              <span className="ml-auto text-xs font-medium text-green-700 dark:text-green-300">
-                                Exact match
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                                  return (
+                                    <button
+                                      key={tag.id}
+                                      type="button"
+                                      onClick={() => handleSelectExistingTag(tag)}
+                                      className={buttonClasses}
+                                    >
+                                      <TagBadge tag={tag} />
+                                      <div className="ml-auto flex items-center gap-2">
+                                        {tag.isDefault && (
+                                          <span className="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                                            Default
+                                          </span>
+                                        )}
+                                        {isExactMatch && (
+                                          <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                                            Exact match
+                                          </span>
+                                        )}
+                                        <Check className={`h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100 ${highlightIconTone}`} />
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                {/* No matching tags message */}
-                {!showColorPicker && newTagLabel.trim() !== "" && filteredAvailableTags.length === 0 && !exactMatch && (
-                  <div className="bg-slate-50 dark:bg-slate-800 rounded-md p-3 border border-slate-200 dark:border-slate-700">
-                    <p className="text-xs text-slate-600 dark:text-slate-400 text-center">
-                      No existing tags match "{newTagLabel.trim()}"
-                    </p>
-                  </div>
+                    {!hasSearchTerm && totalFilteredTags === 0 && !loadingTags && (
+                      <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-center text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                        All available tags are already added. Start typing to create a new tag.
+                      </div>
+                    )}
+
+                    {hasSearchTerm && totalFilteredTags === 0 && !exactMatch && (
+                      <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-center text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                        No existing tags match "{trimmedInput}"
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Create new tag option */}
-                {!showColorPicker && newTagLabel.trim() !== "" && !exactMatch && (
+                {!showColorPicker && hasSearchTerm && !exactMatch && (
                   <button
                     type="button"
                     onClick={() => setShowColorPicker(true)}
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-md border border-dashed border-slate-300 text-sm text-slate-600 hover:border-primary hover:bg-primary/5 hover:text-primary transition-colors"
                   >
                     <Plus className="h-4 w-4" />
-                    Create "{newTagLabel.trim()}"
+                    Create "{trimmedInput}"
                   </button>
                 )}
 
@@ -315,7 +439,7 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
               </div>
 
               {/* Footer buttons */}
-              <div className="flex items-center gap-2 px-3 py-2 border-t border-slate-100">
+              <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-3">
                 {showColorPicker ? (
                   <>
                     <Button
@@ -341,10 +465,7 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
                     type="button"
                     size="sm"
                     variant="ghost"
-                    onClick={() => {
-                      setPickerOpen(false);
-                      setNewTagLabel("");
-                    }}
+                    onClick={closePicker}
                     className="flex-1"
                   >
                     Close
@@ -352,8 +473,8 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
                 )}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Display tags */}

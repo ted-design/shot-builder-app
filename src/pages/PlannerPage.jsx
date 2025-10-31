@@ -35,6 +35,7 @@ import {
   getDocs,
   arrayUnion,
   arrayRemove,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import {
@@ -52,7 +53,22 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useProjectScope } from "../context/ProjectScopeContext";
 import { canManagePlanner, canManageShots, ROLE, resolveEffectiveRole } from "../lib/rbac";
-import { Download, LayoutGrid, List, Settings2, PencilLine, User, MapPin, Package, Camera, Calendar } from "lucide-react";
+import {
+  Download,
+  LayoutGrid,
+  List,
+  Settings2,
+  PencilLine,
+  User,
+  MapPin,
+  Package,
+  Camera,
+  Calendar,
+  Info,
+  GripVertical,
+  ListRestart,
+  MoreVertical,
+} from "lucide-react";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { Button } from "../components/ui/button";
 import { StatusBadge } from "../components/ui/StatusBadge";
@@ -84,10 +100,12 @@ import {
 } from "../lib/shotStatus";
 import { getStaggerDelay } from "../lib/animations";
 import { useLanes, useShots, useProducts, useTalent, useLocations } from "../hooks/useFirestoreQuery";
+import { useShotsOverview } from "../context/ShotsOverviewContext";
 
 const PLANNER_VIEW_STORAGE_KEY = "planner:viewMode";
 const PLANNER_FIELDS_STORAGE_KEY = "planner:visibleFields";
 const UNASSIGNED_LANE_ID = "__unassigned__";
+const LANE_END_DROPPABLE_ID = "__end__";
 
 const defaultVisibleFields = {
   notes: true,
@@ -97,9 +115,11 @@ const defaultVisibleFields = {
 };
 
 const PLANNER_PREFS_STORAGE_KEY = "planner:prefs";
+const PLANNER_PREFS_VERSION = 2;
 
 const defaultPlannerPrefs = {
-  groupBy: "date",
+  version: PLANNER_PREFS_VERSION,
+  groupBy: "none",
   sort: "alpha",
 };
 
@@ -132,6 +152,11 @@ const normalisePlannerSort = (value) => {
   if (value === "byTalent") return "alpha";
   if (PLANNER_SORT_VALUES.has(value)) return value;
   return defaultPlannerPrefs.sort;
+};
+
+const buildLaneShotNumber = (laneName, index) => {
+  const label = typeof laneName === "string" && laneName.trim() ? laneName.trim() : "Lane";
+  return `${label} | Shot #${index + 1}`;
 };
 
 const toLaneKey = (laneId) => (laneId ? String(laneId) : UNASSIGNED_LANE_ID);
@@ -472,9 +497,18 @@ const readStoredPlannerPrefs = () => {
     const raw = readStorage(PLANNER_PREFS_STORAGE_KEY);
     if (!raw) return { ...defaultPlannerPrefs };
     const parsed = JSON.parse(raw);
-    const groupBy = normalisePlannerGroup(parsed.groupBy);
+    const storedVersion = typeof parsed.version === "number" ? parsed.version : 1;
     const sort = normalisePlannerSort(parsed.sort);
-    return { groupBy, sort };
+
+    if (storedVersion < PLANNER_PREFS_VERSION) {
+      const usedLegacyDefault = parsed.groupBy == null || parsed.groupBy === "date";
+      if (usedLegacyDefault) {
+        return { ...defaultPlannerPrefs, sort };
+      }
+    }
+
+    const groupBy = normalisePlannerGroup(parsed.groupBy);
+    return { version: PLANNER_PREFS_VERSION, groupBy, sort };
   } catch (error) {
     console.warn("[Planner] Failed to parse planner preferences", error);
     return { ...defaultPlannerPrefs };
@@ -528,7 +562,10 @@ class PlannerErrorBoundary extends Component {
 
 // Simple droppable component for DnD kit
 function DroppableLane({ laneId, children }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `lane-${laneId}` });
+  const { setNodeRef, isOver } = useDroppable({
+    id: `lane-${laneId}`,
+    data: { type: "lane-shot-target", laneId },
+  });
   return (
     <div ref={setNodeRef} data-droppable-over={isOver ? "" : undefined}>
       {children}
@@ -548,8 +585,15 @@ function DraggableShot({
   statusOptions,
   onChangeStatus,
   isActive = false,
+  isSelected = false,
+  isFocused = false,
+  onFocus = null,
 }) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: shot.id, disabled });
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    id: shot.id,
+    disabled,
+    data: { type: "shot", shotId: shot.id },
+  });
   const dragStyle = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : {};
@@ -573,7 +617,65 @@ function DraggableShot({
         products={products}
         statusOptions={statusOptions}
         onChangeStatus={onChangeStatus}
+        isSelected={isSelected}
+        isFocused={isFocused}
+        onFocus={onFocus}
       />
+    </div>
+  );
+}
+
+
+function DraggableLane({ laneId, disabled, children }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragNodeRef,
+    transform,
+    isDragging,
+  } = useDraggable({
+    id: `lane-item-${laneId}`,
+    data: { type: "lane", laneId },
+    disabled,
+  });
+  const { setNodeRef: setDropNodeRef, isOver } = useDroppable({
+    id: `lane-slot-${laneId}`,
+    data: { type: "lane-slot", laneId },
+    disabled,
+  });
+
+  const setNodeRef = useCallback(
+    (node) => {
+      setDragNodeRef(node);
+      setDropNodeRef(node);
+    },
+    [setDragNodeRef, setDropNodeRef]
+  );
+
+  const dragStyle = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : {};
+  const style = isDragging ? { ...dragStyle, opacity: 0.8 } : dragStyle;
+
+  return children({
+    setNodeRef,
+    dragListeners: disabled ? {} : listeners,
+    dragAttributes: disabled ? {} : attributes,
+    isDragging,
+    isOver,
+    style,
+  });
+}
+
+function LaneEndDropZone({ disabled, children }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: "lane-slot-__end__",
+    data: { type: "lane-slot", laneId: LANE_END_DROPPABLE_ID },
+    disabled,
+  });
+  return (
+    <div ref={setNodeRef} data-lane-drop-over={isOver ? "" : undefined}>
+      {typeof children === "function" ? children(isOver) : children}
     </div>
   );
 }
@@ -588,9 +690,16 @@ function ShotCard({
   products,
   statusOptions,
   onChangeStatus,
+  isSelected = false,
+  isFocused = false,
+  onFocus = null,
 }) {
   const typeLabel = shot.type || "–";
   const dateLabel = formatShotDate(shot.date) || "—";
+  const shotNumberLabel =
+    typeof shot.shotNumber === "string" && shot.shotNumber.trim() ? shot.shotNumber.trim() : null;
+  const shotNameLabel = shot.name || (shotNumberLabel ? shotNumberLabel : "Untitled shot");
+  const isUnassignedShot = toLaneKey(shot.laneId) === UNASSIGNED_LANE_ID;
   const notesHtml = visibleFields.notes ? formatNotesForDisplay(shot.description) : "";
   const talentList = Array.isArray(shot.talent)
     ? shot.talent
@@ -644,26 +753,27 @@ function ShotCard({
     viewMode === "list"
       ? "flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800"
       : "flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800";
-
-  const metaContainerClass =
-    viewMode === "list"
-      ? "grid gap-2 text-xs text-slate-600 md:grid-cols-3 dark:text-slate-400"
-      : "flex flex-col gap-2 text-xs text-slate-600 dark:text-slate-400";
+  const highlightClasses = isFocused
+    ? "ring-2 ring-primary shadow-lg"
+    : isSelected
+    ? "ring-1 ring-primary/50"
+    : "";
 
   return (
     <div
       data-shot-id={shot.id}
-      className={`${cardBaseClass} transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg`}
+      className={`${cardBaseClass} transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg ${highlightClasses}`}
+      onClick={() => onFocus?.(shot)}
     >
       <div className="flex flex-col gap-3">
-        <div className="flex items-start gap-3">
-          {showThumbnailFrame && (
+        {showThumbnailFrame ? (
+          <div className="aspect-[4/3] w-full overflow-hidden rounded-md border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900">
             <AppImage
               src={thumbnailSrc}
               alt={`${shot.name} thumbnail`}
-              preferredSize={160}
+              preferredSize={240}
               loading="lazy"
-              className="h-12 w-12 flex-none overflow-hidden rounded-md"
+              className="h-full w-full"
               imageClassName="h-full w-full object-cover"
               position={imagePosition}
               placeholder={
@@ -677,109 +787,99 @@ function ShotCard({
                 </div>
               }
             />
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{shot.name}</h4>
-                <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                  {shot.type && (
-                    <StatusBadge variant="default" className="text-xs">
-                      {shot.type}
-                    </StatusBadge>
-                  )}
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>{dateLabel}</span>
-                  </div>
-                  {productLabels.length > 0 && (
-                    <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
-                      <Package className="h-3.5 w-3.5" />
-                      <span>{productLabels.length} {productLabels.length === 1 ? 'product' : 'products'}</span>
-                    </div>
-                  )}
-                  {shot.laneId && shot.laneId === UNASSIGNED_LANE_ID && (
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs dark:bg-slate-700">Unassigned</span>
-                  )}
-                </div>
-                {Array.isArray(shot.tags) && shot.tags.length > 0 && (
-                  <div className="mt-2">
-                    <TagList tags={shot.tags} emptyMessage={null} />
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <select
-                  aria-label={`${shot.name} status`}
-                  className={`h-8 min-w-[130px] rounded-md border px-2 text-xs font-medium transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 ${
-                    statusControlDisabled
-                      ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500"
-                  }`}
-                  value={statusValue}
-                  onChange={handleStatusChange}
-                  disabled={statusControlDisabled}
-                  onPointerDownCapture={(event) => event.stopPropagation()}
-                  onPointerUpCapture={(event) => event.stopPropagation()}
-                >
-                  {statusList.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onEdit?.(shot);
-                    }}
-                    onPointerDownCapture={(event) => {
-                      // Prevent the parent draggable from hijacking pointer events.
-                      event.stopPropagation();
-                    }}
-                    onPointerUpCapture={(event) => {
-                      event.stopPropagation();
-                    }}
-                    className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900 dark:hover:border-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-                    aria-label={`Edit ${shot.name}`}
-                  >
-                    <PencilLine className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                )}
-              </div>
-            </div>
-            {visibleFields.notes && notesHtml && (
-              <div
-                className="mt-3 rounded-md bg-slate-50 px-3 py-2 prose prose-xs dark:prose-invert max-w-none dark:bg-slate-900"
-                dangerouslySetInnerHTML={{ __html: notesHtml }}
-              />
+          </div>
+        ) : (
+          <div className="flex h-28 w-full items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500">
+            No image
+          </div>
+        )}
+        {shotNumberLabel && (
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-primary/80 dark:text-primary/70">
+            {shotNumberLabel}
+          </p>
+        )}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h4 className="flex-1 min-w-[200px] text-base font-semibold text-slate-900 dark:text-slate-100" title={shotNameLabel}>
+            {shotNameLabel}
+          </h4>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <select
+              aria-label={`${shotNameLabel} status`}
+              className={`h-8 rounded-md border px-2 text-xs font-medium transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 ${
+                statusControlDisabled
+                  ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500"
+              }`}
+              value={statusValue}
+              onChange={handleStatusChange}
+              disabled={statusControlDisabled}
+              onPointerDownCapture={(event) => event.stopPropagation()}
+              onPointerUpCapture={(event) => event.stopPropagation()}
+            >
+              {statusList.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onEdit?.(shot);
+                }}
+                onPointerDownCapture={(event) => event.stopPropagation()}
+                onPointerUpCapture={(event) => event.stopPropagation()}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 dark:hover:border-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                aria-label={`Edit ${shot.name}`}
+              >
+                <PencilLine className="h-4 w-4" aria-hidden="true" />
+              </button>
             )}
           </div>
         </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          {shot.type && (
+            <StatusBadge variant="default" className="text-xs">
+              {typeLabel}
+            </StatusBadge>
+          )}
+          <div className="flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5" />
+            <span>{dateLabel}</span>
+          </div>
+          {productLabels.length > 0 && (
+            <div className="flex items-center gap-1">
+              <Package className="h-3.5 w-3.5" />
+              <span>{productLabels.length} {productLabels.length === 1 ? "product" : "products"}</span>
+            </div>
+          )}
+          {isUnassignedShot && (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+              Unassigned
+            </span>
+          )}
+        </div>
         {showDetailsSection && (
-          <div className={metaContainerClass}>
+          <div className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
             {visibleFields.location && (
               <div className="flex items-center gap-1.5">
                 <MapPin className="h-4 w-4 flex-shrink-0 text-slate-500" />
-                <span className="font-medium text-slate-700 dark:text-slate-300">Location:</span>
-                <span className="text-slate-600 dark:text-slate-400">{locationLabel}</span>
+                <span>{locationLabel}</span>
               </div>
             )}
             {visibleFields.talent && (
               <div className="flex items-center gap-1.5">
                 <User className="h-4 w-4 flex-shrink-0 text-slate-500" />
-                <span className="font-medium text-slate-700 dark:text-slate-300">Talent:</span>
-                <span className="text-slate-600 dark:text-slate-400">{talentList.length ? talentList.join(", ") : "–"}</span>
+                <span>{talentList.length ? talentList.join(", ") : "–"}</span>
               </div>
             )}
             {visibleFields.products && (
               <div className="flex items-center gap-1.5">
                 <Package className="h-4 w-4 flex-shrink-0 text-slate-500" />
-                <span className="font-medium text-slate-700 dark:text-slate-300">Products:</span>
-                <span className="text-slate-600 dark:text-slate-400">
+                <span>
                   {productLabels.length ? productLabels.slice(0, 3).join(", ") : "–"}
                   {productLabels.length > 3 && "…"}
                 </span>
@@ -787,12 +887,21 @@ function ShotCard({
             )}
           </div>
         )}
+        {Array.isArray(shot.tags) && shot.tags.length > 0 && (
+          <TagList tags={shot.tags} emptyMessage={null} className="text-xs" />
+        )}
+        {visibleFields.notes && notesHtml && (
+          <div
+            className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300"
+            dangerouslySetInnerHTML={{ __html: notesHtml }}
+          />
+        )}
       </div>
     </div>
   );
 }
 
-function PlannerPageContent() {
+function PlannerPageContent({ embedded = false }) {
   const [name, setName] = useState("");
   const [shotsByLane, setShotsByLane] = useState({});
   const [plannerShots, setPlannerShots] = useState([]);
@@ -803,19 +912,32 @@ function PlannerPageContent() {
   const [exportOpen, setExportOpen] = useState(false);
   const [fieldSettingsOpen, setFieldSettingsOpen] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState([]);
+  const [renumberingLaneIds, setRenumberingLaneIds] = useState(() => new Set());
+  const [openLaneMenuId, setOpenLaneMenuId] = useState(null);
   const fieldSettingsRef = useRef(null);
+  const laneMenuRef = useRef(null);
   const [editingShot, setEditingShot] = useState(null);
   const [isSavingShot, setIsSavingShot] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState(null);
   const [currentProject, setCurrentProject] = useState(null);
   const [activeDragShot, setActiveDragShot] = useState(null);
   const [overLaneId, setOverLaneId] = useState(null);
+  const [activeLaneId, setActiveLaneId] = useState(null);
+  const [laneOverId, setLaneOverId] = useState(null);
   const familyDetailCacheRef = useRef(new Map());
   const pendingShotEditRef = useRef(null);
   const subscriptionErrorNotifiedRef = useRef(false);
   const statusBackfillRef = useRef(new Set());
   const autoScrollRef = useRef({ lastTick: 0, active: false });
   const boardScrollRef = useRef(null);
+  const overview = useShotsOverview();
+  const sharedFilters = overview?.filters || null;
+  const focusShotId = overview?.focusShotId ?? null;
+  const setFocusShotId = overview?.setFocusShotId ?? (() => {});
+  const sharedSelectedShotIds = overview?.selectedShotIds || null;
+  const setSharedSelectedShotIds = overview?.setSelectedShotIds ?? (() => {});
+  const groupBy = plannerPrefs.groupBy;
+  const sortBy = plannerPrefs.sort;
   const navigate = useNavigate();
   const { currentProjectId, ready: scopeReady, setLastVisitedPath } = useProjectScope();
   const redirectNotifiedRef = useRef(false);
@@ -872,13 +994,13 @@ function PlannerPageContent() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
+      activationConstraint: { distance: 4 },
     })
   );
 
   useEffect(() => {
-    setLastVisitedPath("/planner");
-  }, [setLastVisitedPath]);
+    setLastVisitedPath(embedded ? "/shots?view=planner" : "/planner");
+  }, [embedded, setLastVisitedPath]);
 
   useEffect(() => {
     if (!scopeReady) return;
@@ -965,20 +1087,84 @@ function PlannerPageContent() {
   }, [plannerShots]);
 
   const filteredPlannerShots = useMemo(() => {
-    if (!selectedTagIds.length) return plannerShots;
+    if (!Array.isArray(plannerShots) || plannerShots.length === 0) {
+      return [];
+    }
 
-    const selectedTagSet = new Set(selectedTagIds);
+    const baseFilters = sharedFilters || {};
+    const locationFilter = typeof baseFilters.locationId === "string" ? baseFilters.locationId : "";
+    const talentFilterSet = new Set(Array.isArray(baseFilters.talentIds) ? baseFilters.talentIds.filter(Boolean) : []);
+    const productFilterSet = new Set(
+      Array.isArray(baseFilters.productFamilyIds) ? baseFilters.productFamilyIds.filter(Boolean) : []
+    );
+    const sharedTagList = Array.isArray(baseFilters.tagIds) ? baseFilters.tagIds.filter(Boolean) : [];
+    const combinedTagSet = new Set([
+      ...sharedTagList,
+      ...selectedTagIds.filter((id) => typeof id === "string" && id),
+    ]);
+    const includeArchived = baseFilters.showArchived === true;
+
     return plannerShots.filter((shot) => {
-      const shotTagIds = Array.isArray(shot.tags)
-        ? shot.tags.map((tag) => tag.id).filter(Boolean)
-        : [];
-      return shotTagIds.some((id) => selectedTagSet.has(id));
+      if (!includeArchived && shot?.deleted) {
+        return false;
+      }
+
+      if (locationFilter && (shot?.locationId || "") !== locationFilter) {
+        return false;
+      }
+
+      if (talentFilterSet.size) {
+        const shotTalentIds = Array.isArray(shot?.talent)
+          ? shot.talent.map((entry) => entry?.talentId).filter(Boolean)
+          : Array.isArray(shot?.talentIds)
+          ? shot.talentIds.filter(Boolean)
+          : [];
+        if (!shotTalentIds.some((id) => talentFilterSet.has(id))) {
+          return false;
+        }
+      }
+
+      if (productFilterSet.size) {
+        const productIds = extractProductIds(shot?.products || [])
+          .concat(Array.isArray(shot?.productIds) ? shot.productIds : [])
+          .filter(Boolean);
+        if (!productIds.some((id) => productFilterSet.has(id))) {
+          return false;
+        }
+      }
+
+      if (combinedTagSet.size) {
+        const shotTagIds = Array.isArray(shot?.tags)
+          ? shot.tags.map((tag) => tag?.id).filter(Boolean)
+          : [];
+        if (!shotTagIds.some((id) => combinedTagSet.has(id))) {
+          return false;
+        }
+      }
+
+      return true;
     });
-  }, [plannerShots, selectedTagIds]);
+  }, [plannerShots, sharedFilters, selectedTagIds]);
 
   const filteredShotsByLane = useMemo(() => {
     return groupShotsByLane(filteredPlannerShots);
   }, [filteredPlannerShots]);
+
+  const resolvedShotsByLane = useMemo(() => {
+    const copy = { ...filteredShotsByLane };
+    const knownLaneIds = new Set([UNASSIGNED_LANE_ID, ...lanes.map((lane) => lane.id)]);
+    let orphans = [];
+    Object.entries(copy).forEach(([laneId, shots]) => {
+      if (!knownLaneIds.has(laneId)) {
+        orphans = orphans.concat(shots);
+        delete copy[laneId];
+      }
+    });
+    if (orphans.length) {
+      copy[UNASSIGNED_LANE_ID] = (copy[UNASSIGNED_LANE_ID] || []).concat(orphans);
+    }
+    return copy;
+  }, [filteredShotsByLane, lanes]);
 
   const talentNoOptionsMessage =
     talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available");
@@ -1171,6 +1357,7 @@ function PlannerPageContent() {
     writeStorage(
       PLANNER_PREFS_STORAGE_KEY,
       JSON.stringify({
+        version: PLANNER_PREFS_VERSION,
         groupBy: plannerPrefs.groupBy,
         sort: plannerPrefs.sort,
       })
@@ -1188,6 +1375,23 @@ function PlannerPageContent() {
     window.addEventListener("mousedown", handleClick);
     return () => window.removeEventListener("mousedown", handleClick);
   }, [fieldSettingsOpen]);
+
+  useEffect(() => {
+    if (!openLaneMenuId) return undefined;
+    const handleClick = (event) => {
+      if (laneMenuRef.current && !laneMenuRef.current.contains(event.target)) {
+        setOpenLaneMenuId(null);
+      }
+    };
+    window.addEventListener("mousedown", handleClick);
+    return () => window.removeEventListener("mousedown", handleClick);
+  }, [openLaneMenuId]);
+
+  useEffect(() => {
+    if (!openLaneMenuId) {
+      laneMenuRef.current = null;
+    }
+  }, [openLaneMenuId]);
 
   // Create a new lane with a given name.  Lanes are ordered sequentially
   // based on the length of the current lane array.  Names are arbitrary but
@@ -1383,9 +1587,27 @@ function PlannerPageContent() {
         toast.error("You do not have permission to edit shots.");
         return;
       }
+      setFocusShotId(shot.id);
+      setSharedSelectedShotIds(new Set([shot.id]));
       openShotEditor(shot);
     },
-    [canEditShots, isAuthLoading, openShotEditor]
+    [canEditShots, isAuthLoading, openShotEditor, setFocusShotId, setSharedSelectedShotIds]
+  );
+
+  const handleFocusShot = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        setFocusShotId(null);
+        setSharedSelectedShotIds(new Set());
+        return;
+      }
+      const nextId = typeof candidate === "string" ? candidate : candidate?.id;
+      setFocusShotId(nextId || null);
+      if (nextId) {
+        setSharedSelectedShotIds(new Set([nextId]));
+      }
+    },
+    [setFocusShotId, setSharedSelectedShotIds]
   );
 
   const updateEditingDraft = useCallback((patch) => {
@@ -1478,23 +1700,160 @@ function PlannerPageContent() {
     window.removeEventListener("pointermove", handleAutoScrollPointerMove);
   }, [handleAutoScrollPointerMove]);
 
+  const renumberLaneShots = useCallback(
+    async ({ laneId, laneName }, { silent = false } = {}) => {
+      if (!canEditPlanner || !currentShotsPath) return;
+      const targetLaneKey = laneId || UNASSIGNED_LANE_ID;
+      const resolvedLaneId = laneId === UNASSIGNED_LANE_ID ? null : laneId;
+      const targetProjectId = projectId || DEFAULT_PROJECT_ID;
+
+      setRenumberingLaneIds((prev) => {
+        const next = new Set(prev);
+        next.add(targetLaneKey);
+        return next;
+      });
+
+      try {
+        const baseConstraints = [where("projectId", "==", targetProjectId)];
+        const laneQuery = resolvedLaneId === null
+          ? query(collection(db, ...currentShotsPath), ...baseConstraints)
+          : query(collection(db, ...currentShotsPath), ...baseConstraints, where("laneId", "==", resolvedLaneId));
+
+        const snapshot = await getDocs(laneQuery);
+        if (snapshot.empty) {
+          if (!silent) {
+            toast.info(`No shots to renumber in ${laneName || "lane"}`);
+          }
+          return;
+        }
+
+        const entries = snapshot.docs
+          .map((docSnapshot) => ({
+            id: docSnapshot.id,
+            ...docSnapshot.data(),
+          }))
+          .filter((shot) =>
+            resolvedLaneId === null
+              ? !shot.laneId || shot.laneId === null || shot.laneId === UNASSIGNED_LANE_ID
+              : shot.laneId === resolvedLaneId
+          );
+
+        if (!entries.length) {
+          if (!silent) {
+            toast.info(`No shots to renumber in ${laneName || "lane"}`);
+          }
+          return;
+        }
+
+        const laneSortBy = typeof sortBy === "string" ? sortBy : defaultPlannerPrefs.sort;
+        const orderedEntries = sortShotsForView(entries, { sortBy: laneSortBy });
+
+        const batch = writeBatch(db);
+        orderedEntries.forEach((shot, index) => {
+          const docRef = doc(db, ...currentShotsPath, shot.id);
+          const nextNumber = resolvedLaneId === null ? null : buildLaneShotNumber(laneName, index);
+          batch.update(docRef, { shotNumber: nextNumber });
+        });
+
+        await batch.commit();
+
+        if (!silent) {
+          toast.success(`Renumbered ${entries.length} shots in ${laneName || "lane"}`);
+        }
+      } catch (error) {
+        console.error(`[Planner] Failed to renumber lane ${laneId}`, error);
+        if (!silent) {
+          toast.error("Could not renumber shots");
+        }
+      } finally {
+        setRenumberingLaneIds((prev) => {
+          const next = new Set(prev);
+          next.delete(targetLaneKey);
+          return next;
+        });
+      }
+    },
+    [canEditPlanner, currentShotsPath, projectId, toast, sortBy]
+  );
+
+  const reorderPlannerLanes = useCallback(
+    async (sourceLaneId, targetLaneId) => {
+      if (!canEditPlanner || !currentLanesPath) return;
+      const laneIds = Array.isArray(lanes) ? lanes.map((entry) => entry.id) : [];
+      const fromIndex = laneIds.indexOf(sourceLaneId);
+      if (fromIndex === -1) return;
+
+      const working = [...laneIds];
+      const [removed] = working.splice(fromIndex, 1);
+
+      if (targetLaneId === LANE_END_DROPPABLE_ID) {
+        working.push(removed);
+      } else {
+        let insertIndex = working.indexOf(targetLaneId);
+        if (insertIndex === -1) {
+          working.push(removed);
+        } else {
+          working.splice(insertIndex, 0, removed);
+        }
+      }
+
+      const batch = writeBatch(db);
+      working.forEach((laneId, index) => {
+        batch.update(doc(db, ...currentLanesPath, laneId), { order: index });
+      });
+
+      await batch.commit();
+    },
+    [canEditPlanner, currentLanesPath, lanes]
+  );
+
   const handleDragStart = useCallback(
     ({ active }) => {
-      const shotId = active?.id;
+      const type = active?.data?.current?.type;
+      if (type === "lane") {
+        const laneId = active?.data?.current?.laneId || null;
+        if (!laneId || !canEditPlanner) return;
+        setActiveLaneId(laneId);
+        setLaneOverId(laneId);
+        return;
+      }
+      if (type && type !== "shot") return;
+      const shotId = active?.data?.current?.shotId || active?.id;
       if (!shotId) return;
       const shot = plannerShotsById.get(shotId) || null;
       setActiveDragShot(shot);
       setOverLaneId(shot?.laneId ?? null);
+      if (shot) {
+        setFocusShotId(shot.id);
+        setSharedSelectedShotIds(new Set([shot.id]));
+      }
       if (!autoScrollRef.current.active) {
         autoScrollRef.current.active = true;
         autoScrollRef.current.lastTick = 0;
         window.addEventListener("pointermove", handleAutoScrollPointerMove, { passive: true });
       }
     },
-    [plannerShotsById, handleAutoScrollPointerMove]
+    [
+      plannerShotsById,
+      handleAutoScrollPointerMove,
+      setFocusShotId,
+      setSharedSelectedShotIds,
+      canEditPlanner,
+    ]
   );
 
-  const handleDragOver = useCallback(({ over }) => {
+  const handleDragOver = useCallback(({ active, over }) => {
+    const activeType = active?.data?.current?.type;
+    if (activeType === "lane") {
+      const overLane = over?.data?.current?.laneId || null;
+      setLaneOverId(overLane);
+      return;
+    }
+    if (activeType && activeType !== "shot") return;
+    if (over?.data?.current?.type === "lane-slot") {
+      setOverLaneId(null);
+      return;
+    }
     if (!over?.id || typeof over.id !== "string") {
       setOverLaneId(null);
       return;
@@ -1507,41 +1866,111 @@ function PlannerPageContent() {
   const handleDragEnd = useCallback(
     async (event) => {
       cleanupAutoScroll();
-      const shotId = event.active?.id;
-      const overRawId = event.over?.id;
+      const { active, over } = event;
+      const activeType = active?.data?.current?.type;
+
+      if (activeType === "lane") {
+        setActiveLaneId(null);
+        const sourceLaneId = active?.data?.current?.laneId;
+        const targetLaneId = over?.data?.current?.laneId || null;
+        if (!canEditPlanner || !sourceLaneId || !targetLaneId || sourceLaneId === targetLaneId) {
+          setLaneOverId(null);
+          return;
+        }
+        try {
+          await reorderPlannerLanes(sourceLaneId, targetLaneId);
+        } catch (error) {
+          console.error("[Planner] Failed to reorder lanes", error);
+          toast.error("Could not move lane");
+        } finally {
+          setLaneOverId(null);
+        }
+        return;
+      }
+
+      setActiveLaneId(null);
+      setLaneOverId(null);
+
+      if (activeType && activeType !== "shot") return;
+
+      const shotId = active?.data?.current?.shotId || active?.id;
+      const overRawId = over?.id;
       setActiveDragShot(null);
       setOverLaneId(null);
       if (!canEditPlanner) return;
       if (!shotId || typeof overRawId !== "string" || !overRawId.startsWith("lane-")) return;
-      const laneId = overRawId.slice(5);
+      if (over?.data?.current?.type === "lane-slot") return;
+      const laneIdKey = overRawId.slice(5);
       const shot = plannerShotsById.get(shotId);
-      if (shot && shot.laneId === laneId) return;
-      const patch = { laneId };
-      if (laneId) {
-        const lane = lanes.find((l) => l.id === laneId);
+      const previousLaneKey = toLaneKey(shot?.laneId);
+      if (shot && previousLaneKey === laneIdKey) return;
+      if (shot) {
+        setFocusShotId(shot.id);
+        setSharedSelectedShotIds(new Set([shot.id]));
+      }
+      const isUnassignedTarget = laneIdKey === UNASSIGNED_LANE_ID;
+      const nextLaneId = isUnassignedTarget ? null : laneIdKey;
+      const lane = lanes.find((l) => l.id === laneIdKey);
+      const patch = { laneId: nextLaneId };
+      if (nextLaneId) {
         if (lane && /^\d{4}-\d{2}-\d{2}$/.test(lane.name)) patch.date = lane.name;
+      } else {
+        patch.date = null;
       }
       try {
         await updateDoc(doc(db, ...currentShotsPath, shotId), patch);
+        const renumberPromises = [];
+        const targetLaneName = lane?.name || (isUnassignedTarget ? "Unassigned" : laneIdKey);
+        renumberPromises.push(
+          renumberLaneShots({ laneId: laneIdKey, laneName: targetLaneName }, { silent: true })
+        );
+        if (previousLaneKey !== laneIdKey) {
+          const previousLane = shot?.laneId
+            ? lanes.find((l) => l.id === shot.laneId)
+            : null;
+          const previousLaneName = previousLane?.name || (previousLaneKey === UNASSIGNED_LANE_ID ? "Unassigned" : previousLaneKey);
+          renumberPromises.push(
+            renumberLaneShots(
+              { laneId: previousLaneKey, laneName: previousLaneName },
+              { silent: true }
+            )
+          );
+        }
+        if (renumberPromises.length) {
+          await Promise.allSettled(renumberPromises);
+        }
       } catch (error) {
         console.error("[Planner] Failed to move shot", error);
         toast.error("Could not move shot");
       }
     },
-    [cleanupAutoScroll, canEditPlanner, plannerShotsById, lanes, currentShotsPath, toast]
+    [
+      cleanupAutoScroll,
+      canEditPlanner,
+      reorderPlannerLanes,
+      toast,
+      plannerShotsById,
+      lanes,
+      currentShotsPath,
+      setFocusShotId,
+      setSharedSelectedShotIds,
+      renumberLaneShots,
+    ]
   );
 
   const handleDragCancel = useCallback(() => {
     cleanupAutoScroll();
     setActiveDragShot(null);
     setOverLaneId(null);
+    setActiveLaneId(null);
+    setLaneOverId(null);
   }, [cleanupAutoScroll]);
 
   useEffect(() => () => cleanupAutoScroll(), [cleanupAutoScroll]);
 
   const lanesForExport = useMemo(
-    () => buildPlannerExportLanes(filteredShotsByLane, lanes, normaliseShotProducts),
-    [filteredShotsByLane, lanes, normaliseShotProducts]
+    () => buildPlannerExportLanes(resolvedShotsByLane, lanes, normaliseShotProducts),
+    [resolvedShotsByLane, lanes, normaliseShotProducts]
   );
   const laneSummary = useMemo(() => calculateLaneSummaries(lanesForExport), [lanesForExport]);
   const talentSummary = useMemo(() => calculateTalentSummaries(lanesForExport), [lanesForExport]);
@@ -1552,13 +1981,12 @@ function PlannerPageContent() {
   const isListView = viewMode === "list";
   const laneWrapperClass = isListView
     ? "flex w-full flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800"
-    : "flex min-w-[280px] flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800";
+    : "flex flex-1 min-w-[320px] flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800";
   const shotListClass = isListView
     ? "flex flex-col gap-3"
     : "flex flex-col gap-3";
-  const unassignedShots = filteredShotsByLane[UNASSIGNED_LANE_ID] || [];
-  const groupBy = plannerPrefs.groupBy;
-  const sortBy = plannerPrefs.sort;
+  const unassignedShots = resolvedShotsByLane[UNASSIGNED_LANE_ID] || [];
+  const lanesLockedByGrouping = groupBy !== "none";
   const derivedGroups = useMemo(
     () => (groupBy === "none" ? [] : selectPlannerGroups(filteredPlannerShots, { groupBy, sortBy })),
     [filteredPlannerShots, groupBy, sortBy]
@@ -1567,43 +1995,128 @@ function PlannerPageContent() {
   const renderLaneBlock = (laneId, title, laneShots, laneMeta = null, options = {}) => {
     const droppable = options.droppable !== false;
     const laneList = Array.isArray(laneShots) ? laneShots : [];
-    const displayShots = options.sortBy
-      ? sortShotsForView(laneList, { sortBy: options.sortBy })
-      : laneList;
-    const isActiveLane = droppable && overLaneId === laneId;
+    const displayShots = options.sortBy ? sortShotsForView(laneList, { sortBy: options.sortBy }) : laneList;
+    const isActiveShotTarget = droppable && overLaneId === laneId;
     const placeholderVisible = shouldShowLanePlaceholder(activeDragShot, laneId, overLaneId, droppable);
-    const card = (
+    const isUnassignedLane = laneId === UNASSIGNED_LANE_ID;
+    const laneDraggableEnabled = droppable && laneMeta && canEditPlanner && !lanesLockedByGrouping;
+    const isLaneDropTarget = laneDraggableEnabled && activeLaneId && laneOverId === laneId && activeLaneId !== laneId;
+    const animationClass =
+      typeof options.animationIndex === "number" ? "animate-fade-in opacity-0" : "";
+    const animationStyle =
+      typeof options.animationIndex === "number" ? getStaggerDelay(options.animationIndex) : undefined;
+    const laneContainerClass = isListView ? "w-full" : "flex-1 min-w-[320px]";
+
+    const buildCard = (dragHandleProps = {}) => (
       <div
         className={`${laneWrapperClass} ${
-          isActiveLane ? "border-primary/60 shadow-lg ring-1 ring-primary/20" : ""
+          isActiveShotTarget ? "border-primary/60 shadow-lg ring-1 ring-primary/20" : ""
+        } ${
+          isLaneDropTarget ? "border-primary/70 ring-2 ring-primary/40" : ""
+        } ${
+          isUnassignedLane ? "border-dashed border-slate-300 bg-slate-50/80 dark:border-slate-600 dark:bg-slate-900/40" : ""
         }`}
       >
-        <div className="mb-3 flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
-            <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
-              <Camera className="h-3.5 w-3.5" />
-              <span>{displayShots.length} {displayShots.length === 1 ? 'shot' : 'shots'}</span>
+        <div
+          className={`mb-3 flex items-start justify-between rounded-md border px-3 py-2 ${
+            isUnassignedLane
+              ? "border-slate-300 bg-white/70 text-slate-600 dark:border-slate-700 dark:bg-slate-900/60"
+              : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900"
+          }`}
+        >
+          <div className="flex items-start gap-2">
+            {laneDraggableEnabled && (
+              <button
+                type="button"
+                className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                aria-label={`Reorder lane ${title}`}
+                {...dragHandleProps}
+              >
+                <GripVertical className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+            <div className="flex flex-col gap-1">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
+              <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
+                <Camera className="h-3.5 w-3.5" />
+                <span>{displayShots.length} {displayShots.length === 1 ? "shot" : "shots"}</span>
+              </div>
             </div>
           </div>
           {droppable && laneMeta && canEditPlanner && (
-            <span className="flex items-center gap-2 text-xs text-primary">
-              <button onClick={() => renameLane(laneMeta)} className="hover:underline">
-                Rename
+            <div className="flex items-center gap-1 text-slate-500">
+              <button
+                type="button"
+                onClick={() =>
+                  renumberLaneShots(
+                    { laneId: laneMeta.id, laneName: laneMeta.name },
+                    { silent: false }
+                  )
+                }
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent transition hover:border-slate-200 hover:bg-slate-100 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:border-slate-700 dark:hover:bg-slate-700 dark:hover:text-primary/80"
+                title="Renumber shots"
+                aria-label="Renumber shots"
+                disabled={renumberingLaneIds.has(laneMeta.id)}
+              >
+                <ListRestart className="h-4 w-4" aria-hidden="true" />
               </button>
-              <button onClick={() => removeLane(laneMeta)} className="hover:underline">
-                Delete
-              </button>
-            </span>
+              <div className="relative" ref={openLaneMenuId === laneMeta.id ? (node) => {
+                if (node) {
+                  laneMenuRef.current = node;
+                  node.dataset.laneMenu = laneMeta.id;
+                }
+              } : null}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenLaneMenuId((previous) =>
+                      previous === laneMeta.id ? null : laneMeta.id
+                    )
+                  }
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 dark:hover:border-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                  aria-haspopup="menu"
+                  aria-expanded={openLaneMenuId === laneMeta.id}
+                  aria-label={`Lane actions for ${laneMeta.name}`}
+                >
+                  <MoreVertical className="h-4 w-4" aria-hidden="true" />
+                </button>
+                {openLaneMenuId === laneMeta.id && (
+                  <div className="absolute right-0 z-20 mt-2 w-40 overflow-hidden rounded-md border border-slate-200 bg-white py-1 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800" role="menu">
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
+                      onClick={() => {
+                        setOpenLaneMenuId(null);
+                        renameLane(laneMeta);
+                      }}
+                    >
+                      Rename lane
+                    </button>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-600 transition hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/60"
+                      onClick={() => {
+                        setOpenLaneMenuId(null);
+                        removeLane(laneMeta);
+                      }}
+                    >
+                      Delete lane
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
+        {isUnassignedLane && (
+          <p className="mb-2 rounded-md border border-dashed border-slate-300 bg-white/60 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/40 dark:text-slate-300">
+            Shots without a lane land here until they are scheduled.
+          </p>
+        )}
         <div className={shotListClass}>
           {displayShots.map((sh, index) => (
-            <div
-              key={sh.id}
-              className="animate-fade-in opacity-0"
-              style={getStaggerDelay(index)}
-            >
+            <div key={sh.id} className="animate-fade-in opacity-0" style={getStaggerDelay(index)}>
               <DraggableShot
                 shot={sh}
                 disabled={!droppable || !canEditPlanner}
@@ -1615,11 +2128,14 @@ function PlannerPageContent() {
                 statusOptions={shotStatusOptions}
                 onChangeStatus={handleUpdateShotStatus}
                 isActive={activeDragShot?.id === sh.id}
+                isFocused={focusShotId === sh.id}
+                isSelected={sharedSelectedShotIds instanceof Set ? sharedSelectedShotIds.has(sh.id) : false}
+                onFocus={handleFocusShot}
               />
             </div>
           ))}
           {placeholderVisible && (
-            <div className="flex h-20 items-center justify-center rounded-lg border-2 border-dashed border-primary/60 bg-primary/5 transition-all duration-150 dark:bg-primary/10">
+            <div className="flex min-h-[72px] items-center justify-center rounded-lg border-2 border-dashed border-primary/60 bg-primary/5 transition-all duration-150 dark:bg-primary/10">
               <span className="text-xs font-medium text-primary/60 dark:text-primary/80">Drop here</span>
             </div>
           )}
@@ -1629,15 +2145,33 @@ function PlannerPageContent() {
 
     if (!droppable) {
       return (
-        <div key={laneId} className="min-w-[260px] flex-1">
-          {card}
+        <div key={laneId} className={`${laneContainerClass} ${animationClass}`} style={animationStyle}>
+          {buildCard()}
         </div>
+      );
+    }
+
+    if (laneDraggableEnabled) {
+      return (
+        <DraggableLane key={laneId} laneId={laneId} disabled={!laneDraggableEnabled}>
+          {({ setNodeRef, dragListeners, dragAttributes, style }) => (
+            <div
+              ref={setNodeRef}
+              style={{ ...style, ...animationStyle }}
+              className={`${laneContainerClass} ${animationClass}`}
+            >
+              <DroppableLane laneId={laneId}>{buildCard({ ...dragListeners, ...dragAttributes })}</DroppableLane>
+            </div>
+          )}
+        </DraggableLane>
       );
     }
 
     return (
       <DroppableLane key={laneId} laneId={laneId}>
-        {card}
+        <div className={`${laneContainerClass} ${animationClass}`} style={animationStyle}>
+          {buildCard()}
+        </div>
       </DroppableLane>
     );
   };
@@ -1935,6 +2469,7 @@ function PlannerPageContent() {
     if (!trimmed) return;
     try {
       await updateDoc(doc(db, ...currentLanesPath, lane.id), { name: trimmed });
+      await renumberLaneShots({ laneId: lane.id, laneName: trimmed }, { silent: true });
     } catch (error) {
       console.error("[Planner] Failed to rename lane", error);
       toast.error("Could not rename lane");
@@ -2186,6 +2721,14 @@ function PlannerPageContent() {
           Add lane
         </button>
       </div>
+      {lanesLockedByGrouping && (
+        <div className="flex items-start gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+          <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+          <p>
+            Lanes are read-only while grouping shots. Switch Group to "None" to drag, rename, or delete lanes.
+          </p>
+        </div>
+      )}
       {isPlannerLoading ? (
         <div className="flex min-h-[200px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Loading planner…
@@ -2201,41 +2744,48 @@ function PlannerPageContent() {
         >
           {isListView ? (
             <div className="flex flex-col gap-4 pb-6">
-              <div className="animate-fade-in opacity-0" style={getStaggerDelay(0)}>
-                {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots, null, {
+              {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots, null, {
+                sortBy,
+                animationIndex: 0,
+              })}
+              {lanes.map((lane, index) =>
+                renderLaneBlock(lane.id, lane.name, resolvedShotsByLane[lane.id] || [], lane, {
                   sortBy,
-                })}
-              </div>
-              {lanes.map((lane, index) => (
-                <div
-                  key={lane.id}
-                  className="animate-fade-in opacity-0"
-                  style={getStaggerDelay(index + 1)}
-                >
-                  {renderLaneBlock(lane.id, lane.name, filteredShotsByLane[lane.id] || [], lane, {
-                    sortBy,
-                  })}
-                </div>
-              ))}
+                  animationIndex: index + 1,
+                })
+              )}
             </div>
           ) : (
-            <div ref={boardScrollRef} className="flex gap-4 overflow-x-auto pb-6">
-              <div className="animate-fade-in opacity-0" style={getStaggerDelay(0)}>
+            <div className="pb-6">
+              <div
+                ref={boardScrollRef}
+                className="grid min-w-full gap-4 overflow-x-auto [grid-auto-flow:row] md:grid-cols-[repeat(auto-fit,minmax(320px,1fr))]"
+              >
                 {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots, null, {
                   sortBy,
+                  animationIndex: 0,
                 })}
-              </div>
-              {lanes.map((lane, index) => (
-                <div
-                  key={lane.id}
-                  className="animate-fade-in opacity-0"
-                  style={getStaggerDelay(index + 1)}
-                >
-                  {renderLaneBlock(lane.id, lane.name, filteredShotsByLane[lane.id] || [], lane, {
+                {lanes.map((lane, index) =>
+                  renderLaneBlock(lane.id, lane.name, resolvedShotsByLane[lane.id] || [], lane, {
                     sortBy,
-                  })}
-                </div>
-              ))}
+                    animationIndex: index + 1,
+                  })
+                )}
+                {canEditPlanner && !lanesLockedByGrouping && activeLaneId && (
+                  <LaneEndDropZone disabled={!canEditPlanner || lanesLockedByGrouping}>
+                    {(isOver) => (
+                      <div
+                        className={`flex h-full items-center justify-center rounded-lg border border-dashed border-slate-300 text-slate-400 transition dark:border-slate-600 dark:text-slate-500 ${
+                          isOver ? "bg-primary/10 text-primary" : ""
+                        }`}
+                      >
+                        <GripVertical className="h-4 w-4" aria-hidden="true" />
+                        <span className="sr-only">Drop lane at end</span>
+                      </div>
+                    )}
+                  </LaneEndDropZone>
+                )}
+              </div>
             </div>
           )}
           <DragOverlay>
@@ -2326,10 +2876,10 @@ function PlannerPageContent() {
   );
 }
 
-export default function PlannerPage() {
+export default function PlannerPage(props) {
   return (
     <PlannerErrorBoundary>
-      <PlannerPageContent />
+      <PlannerPageContent {...props} />
     </PlannerErrorBoundary>
   );
 }
@@ -2337,6 +2887,7 @@ export default function PlannerPage() {
 export const __test = {
   readStoredPlannerView,
   readStoredVisibleFields,
+  readStoredPlannerPrefs,
   ShotCard,
   groupShotsByLane,
   UNASSIGNED_LANE_ID,

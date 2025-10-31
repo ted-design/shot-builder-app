@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Edit2, Trash2 } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { Edit2, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import Avatar from "../ui/Avatar";
 import { Button } from "../ui/button";
 import { renderMentions } from "../../lib/mentions";
@@ -24,6 +24,7 @@ import DOMPurify from "dompurify";
  * @param {function} [props.onEdit] - Callback when edit button clicked
  * @param {function} [props.onDelete] - Callback when delete button clicked
  * @param {boolean} [props.isDeleting] - Whether delete is in progress
+ * @param {boolean} [props.initiallyCollapsed] - Whether to collapse long comments initially
  */
 export default function CommentCard({
   comment,
@@ -32,8 +33,10 @@ export default function CommentCard({
   onEdit,
   onDelete,
   isDeleting = false,
+  initiallyCollapsed = false,
 }) {
   const [showActions, setShowActions] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(!initiallyCollapsed);
 
   // Format timestamp
   const getTimestamp = () => {
@@ -73,6 +76,15 @@ export default function CommentCard({
     });
     return { __html: sanitized };
   };
+
+  const shouldOfferCollapse = useMemo(() => {
+    if (!initiallyCollapsed) return false;
+    const plainText = comment.text?.replace(/<[^>]*>/g, "").trim();
+    if (!plainText) return false;
+    return plainText.length > 280 || plainText.includes("\n");
+  }, [comment.text, initiallyCollapsed]);
+
+  const isCollapsed = shouldOfferCollapse && !isExpanded;
 
   return (
     <div
@@ -141,9 +153,35 @@ export default function CommentCard({
 
       {/* Comment Text */}
       <div
-        className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 break-words"
+        className={`prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 break-words ${
+          isCollapsed ? "line-clamp-3" : ""
+        }`.trim()}
         dangerouslySetInnerHTML={renderCommentText()}
       />
+
+      {shouldOfferCollapse && (
+        <div className="mt-2 flex justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs font-medium text-primary hover:text-primary/80"
+            onClick={() => setIsExpanded((value) => !value)}
+          >
+            {isExpanded ? (
+              <>
+                <ChevronUp className="mr-1 h-3 w-3" />
+                Show less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="mr-1 h-3 w-3" />
+                Show more
+              </>
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Deleting Overlay */}
       {isDeleting && (

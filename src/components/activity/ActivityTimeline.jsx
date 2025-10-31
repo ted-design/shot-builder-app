@@ -5,7 +5,7 @@
  * with real-time updates, loading states, and error handling.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useActivities } from "../../hooks/useActivities";
 import { useAuth } from "../../context/AuthContext";
 import ActivityFilters from "./ActivityFilters";
@@ -20,9 +20,15 @@ import { Loader2 } from "lucide-react";
  * @param {string} props.clientId - Client ID
  * @param {string} props.projectId - Project ID
  * @param {number} props.limit - Max activities to display (default: 100)
+ * @param {boolean} [props.showFilters=true] - Whether to render filter controls
  * @returns {JSX.Element}
- */
-export default function ActivityTimeline({ clientId, projectId, limit = 100 }) {
+*/
+export default function ActivityTimeline({
+  clientId,
+  projectId,
+  limit = 100,
+  showFilters = true,
+}) {
   const { user } = useAuth();
 
   // Filter state
@@ -33,6 +39,10 @@ export default function ActivityTimeline({ clientId, projectId, limit = 100 }) {
     endDate: null,
     limit,
   });
+
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, limit }));
+  }, [limit]);
 
   // Fetch activities with realtime updates
   const { data: activities, isLoading, error } = useActivities(
@@ -61,13 +71,13 @@ export default function ActivityTimeline({ clientId, projectId, limit = 100 }) {
   if (isLoading) {
     return (
       <div
-        className="flex items-center justify-center h-64"
+        className="flex h-48 items-center justify-center"
         role="status"
         aria-live="polite"
         aria-label="Loading activities"
       >
         <Loader2
-          className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin"
+          className="h-6 w-6 animate-spin text-blue-600 dark:text-blue-400"
           aria-hidden="true"
         />
         <span className="sr-only">Loading activities...</span>
@@ -99,37 +109,47 @@ export default function ActivityTimeline({ clientId, projectId, limit = 100 }) {
 
   // Empty state
   if (!activities || activities.length === 0) {
-    return (
-      <div className="space-y-4">
+    return showFilters ? (
+      <div className="space-y-3 text-xs">
+        {showFilters && (
+          <ActivityFilters
+            clientId={clientId}
+            filters={filters}
+            onChange={handleFilterChange}
+            onClear={handleClearFilters}
+          />
+        )}
+        <EmptyState hasFilters={hasFilters} />
+      </div>
+    ) : (
+      <div className="text-xs">
+        <EmptyState hasFilters={false} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 text-xs">
+      {/* Filters */}
+      {showFilters && (
         <ActivityFilters
           clientId={clientId}
           filters={filters}
           onChange={handleFilterChange}
           onClear={handleClearFilters}
         />
-        <EmptyState hasFilters={hasFilters} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <ActivityFilters
-        clientId={clientId}
-        filters={filters}
-        onChange={handleFilterChange}
-        onClear={handleClearFilters}
-      />
+      )}
 
       {/* Activity count */}
-      <div className="text-sm text-gray-600 dark:text-gray-400">
+      <div className="text-xs text-gray-600 dark:text-gray-400">
         Showing {activities.length} {activities.length === 1 ? "activity" : "activities"}
         {hasFilters && " (filtered)"}
       </div>
 
       {/* Activity list */}
-      <ActivityList activities={activities} currentUserId={user?.uid} />
+      <div className="text-[12px] leading-relaxed">
+        <ActivityList activities={activities} currentUserId={user?.uid} />
+      </div>
     </div>
   );
 }

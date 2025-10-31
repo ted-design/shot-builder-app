@@ -26,6 +26,7 @@ const { __test } = await import("../PlannerPage.jsx");
 const {
   readStoredPlannerView,
   readStoredVisibleFields,
+  readStoredPlannerPrefs,
   ShotCard,
   groupShotsByLane,
   UNASSIGNED_LANE_ID,
@@ -64,6 +65,41 @@ describe("Planner view preferences", () => {
       talent: true,
       products: true,
     });
+  });
+
+  it("defaults to lane grouping when no planner prefs are stored", () => {
+    const prefs = readStoredPlannerPrefs();
+    expect(prefs).toMatchObject({ groupBy: "none", sort: "alpha" });
+  });
+
+  it("migrates legacy planner prefs without version to the lane board", () => {
+    window.localStorage.setItem(
+      "planner:prefs",
+      JSON.stringify({ groupBy: "date", sort: "alpha_desc" })
+    );
+    const prefs = readStoredPlannerPrefs();
+    expect(prefs.groupBy).toBe("none");
+    expect(prefs.sort).toBe("alpha_desc");
+  });
+
+  it("preserves legacy custom grouping when stored without a version", () => {
+    window.localStorage.setItem(
+      "planner:prefs",
+      JSON.stringify({ groupBy: "talent", sort: "alpha" })
+    );
+    const prefs = readStoredPlannerPrefs();
+    expect(prefs.groupBy).toBe("talent");
+    expect(prefs.sort).toBe("alpha");
+  });
+
+  it("respects stored grouping when a version is present", () => {
+    window.localStorage.setItem(
+      "planner:prefs",
+      JSON.stringify({ version: 2, groupBy: "talent", sort: "date_desc" })
+    );
+    const prefs = readStoredPlannerPrefs();
+    expect(prefs.groupBy).toBe("talent");
+    expect(prefs.sort).toBe("date_desc");
   });
 });
 
@@ -179,6 +215,21 @@ describe("ShotCard thumbnails", () => {
     fireEvent.change(statusSelect, { target: { value: "complete" } });
 
     expect(handleStatusChange).toHaveBeenCalledWith(expect.objectContaining({ id: "shot-1" }), "complete");
+  });
+
+  it("renders the shot number when available", () => {
+    render(
+      <ShotCard
+        shot={{ ...baseShot, shotNumber: "2025-10-23 | Shot #2" }}
+        products={[]}
+        viewMode="board"
+        visibleFields={visibleFields}
+        onEdit={() => {}}
+        canEdit
+      />
+    );
+
+    expect(screen.getByText("2025-10-23 | Shot #2")).toBeInTheDocument();
   });
 });
 

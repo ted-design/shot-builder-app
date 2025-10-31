@@ -8,7 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { Search, Camera, Package, User, MapPin, FolderOpen, X } from 'lucide-react';
 import { globalSearch } from '../../lib/search';
-import { useShots, useProducts, useTalent, useLocations, useProjects } from '../../hooks/useFirestoreQuery';
+import { useQueryClient } from '@tanstack/react-query';
+import { useShots, useProducts, useTalent, useLocations, useProjects, queryKeys } from '../../hooks/useFirestoreQuery';
 import { useAuth } from '../../context/AuthContext';
 import { useProjectScope } from '../../context/ProjectScopeContext';
 import { useSearchCommand } from '../../context/SearchCommandContext';
@@ -173,17 +174,60 @@ export default function SearchCommand() {
   const navigate = useNavigate();
   const { clientId } = useAuth();
   const { currentProjectId } = useProjectScope();
+  const queryClient = useQueryClient();
 
   // Debounce search query to reduce expensive fuzzy search operations
   // 150ms provides responsive feel while reducing search calls by ~80-90%
   const debouncedQuery = useDebouncedValue(query, 150);
 
-  // Load data from TanStack Query hooks
-  const { data: shots = [] } = useShots(clientId, currentProjectId);
-  const { data: products = [] } = useProducts(clientId);
-  const { data: talent = [] } = useTalent(clientId);
-  const { data: locations = [] } = useLocations(clientId);
-  const { data: projects = [] } = useProjects(clientId);
+  const cachedShots = useMemo(() => {
+    if (!clientId || !currentProjectId) return [];
+    return (
+      queryClient.getQueryData(queryKeys.shots(clientId, currentProjectId)) || []
+    );
+  }, [queryClient, clientId, currentProjectId]);
+
+  const cachedProducts = useMemo(() => {
+    if (!clientId) return [];
+    return queryClient.getQueryData(queryKeys.products(clientId)) || [];
+  }, [queryClient, clientId]);
+
+  const cachedTalent = useMemo(() => {
+    if (!clientId) return [];
+    return queryClient.getQueryData(queryKeys.talent(clientId)) || [];
+  }, [queryClient, clientId]);
+
+  const cachedLocations = useMemo(() => {
+    if (!clientId) return [];
+    return queryClient.getQueryData(queryKeys.locations(clientId)) || [];
+  }, [queryClient, clientId]);
+
+  const cachedProjects = useMemo(() => {
+    if (!clientId) return [];
+    return queryClient.getQueryData(queryKeys.projects(clientId)) || [];
+  }, [queryClient, clientId]);
+
+  // Load data from TanStack Query hooks only when palette open, seeding with cache
+  const { data: shots = cachedShots } = useShots(clientId, currentProjectId, {
+    enabled: isOpen && !!clientId && !!currentProjectId,
+    placeholderData: cachedShots,
+  });
+  const { data: products = cachedProducts } = useProducts(clientId, {
+    enabled: isOpen && !!clientId,
+    placeholderData: cachedProducts,
+  });
+  const { data: talent = cachedTalent } = useTalent(clientId, {
+    enabled: isOpen && !!clientId,
+    placeholderData: cachedTalent,
+  });
+  const { data: locations = cachedLocations } = useLocations(clientId, {
+    enabled: isOpen && !!clientId,
+    placeholderData: cachedLocations,
+  });
+  const { data: projects = cachedProjects } = useProjects(clientId, {
+    enabled: isOpen && !!clientId,
+    placeholderData: cachedProjects,
+  });
 
   // Perform global search with debounced query
   const searchResults = useMemo(() => {

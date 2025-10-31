@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useAvailableTags } from "../useAvailableTags";
+import { DEFAULT_TAGS } from "../../lib/defaultTags";
 
 // Mock the useShots hook
 vi.mock("../useFirestoreQuery", () => ({
@@ -13,12 +14,13 @@ import { useShots } from "../useFirestoreQuery";
 describe("useAvailableTags", () => {
   const mockClientId = "test-client";
   const mockProjectId = "test-project";
+  const getSortedDefaultTags = () => [...DEFAULT_TAGS].sort((a, b) => a.label.localeCompare(b.label));
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("returns empty array when no shots exist", () => {
+  it("returns default tags when no shots exist", () => {
     useShots.mockReturnValue({
       data: [],
       isLoading: false,
@@ -29,7 +31,10 @@ describe("useAvailableTags", () => {
       useAvailableTags(mockClientId, mockProjectId)
     );
 
-    expect(result.current.availableTags).toEqual([]);
+    const expectedDefaults = getSortedDefaultTags();
+
+    expect(result.current.availableTags).toEqual(expectedDefaults);
+    expect(result.current.availableTags).toHaveLength(DEFAULT_TAGS.length);
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBe(null);
   });
@@ -68,12 +73,16 @@ describe("useAvailableTags", () => {
       useAvailableTags(mockClientId, mockProjectId)
     );
 
-    // Should have 4 unique tags (tag-1 appears twice but should only be counted once)
-    expect(result.current.availableTags).toHaveLength(4);
+    const expectedLength = DEFAULT_TAGS.length + 4;
+    expect(result.current.availableTags).toHaveLength(expectedLength);
 
-    // Check that each tag ID appears only once
     const tagIds = result.current.availableTags.map(tag => tag.id);
-    expect(new Set(tagIds).size).toBe(4);
+    expect(new Set(tagIds).size).toBe(expectedLength);
+
+    // Ensure default tag IDs are present
+    DEFAULT_TAGS.forEach((defaultTag) => {
+      expect(tagIds).toContain(defaultTag.id);
+    });
 
     // Verify tag structure
     expect(result.current.availableTags[0]).toHaveProperty("id");
@@ -104,7 +113,15 @@ describe("useAvailableTags", () => {
     );
 
     const labels = result.current.availableTags.map(tag => tag.label);
-    expect(labels).toEqual(["Alpha", "Mike", "Zebra"]);
+    const sortedLabels = [...labels].sort((a, b) => a.localeCompare(b));
+    expect(labels).toEqual(sortedLabels);
+
+    const trackedLabels = ["Alpha", "Mike", "Zebra"];
+    const customOrdering = result.current.availableTags
+      .filter((tag) => trackedLabels.includes(tag.label))
+      .map((tag) => tag.label);
+
+    expect(customOrdering).toEqual(trackedLabels);
   });
 
   it("handles shots with no tags", () => {
@@ -124,7 +141,7 @@ describe("useAvailableTags", () => {
       useAvailableTags(mockClientId, mockProjectId)
     );
 
-    expect(result.current.availableTags).toEqual([]);
+    expect(result.current.availableTags).toEqual(getSortedDefaultTags());
   });
 
   it("filters out invalid tags (missing id or label)", () => {
@@ -153,12 +170,23 @@ describe("useAvailableTags", () => {
       useAvailableTags(mockClientId, mockProjectId)
     );
 
-    // Should only have the one valid tag
-    expect(result.current.availableTags).toHaveLength(1);
-    expect(result.current.availableTags[0]).toEqual({
+    const { availableTags } = result.current;
+
+    expect(availableTags).toHaveLength(DEFAULT_TAGS.length + 1);
+
+    const validTag = availableTags.find((tag) => tag.id === "tag-1");
+    expect(validTag).toMatchObject({
       id: "tag-1",
       label: "Valid",
       color: "blue",
+      groupId: "project",
+      groupLabel: "Project Tags",
+      isDefault: false,
+    });
+
+    const invalidIds = ["", "tag-2", "tag-3"];
+    invalidIds.forEach((invalidId) => {
+      expect(availableTags.some((tag) => tag.id === invalidId)).toBe(false);
     });
   });
 
@@ -182,7 +210,8 @@ describe("useAvailableTags", () => {
       useAvailableTags(mockClientId, mockProjectId)
     );
 
-    expect(result.current.availableTags[0].color).toBe("gray");
+    const missingColorTag = result.current.availableTags.find((tag) => tag.id === "tag-1");
+    expect(missingColorTag?.color).toBe("gray");
   });
 
   it("passes through loading state from useShots", () => {
@@ -244,8 +273,8 @@ describe("useAvailableTags", () => {
       useAvailableTags(mockClientId, mockProjectId)
     );
 
-    expect(result.current.availableTags).toHaveLength(1);
-    expect(result.current.availableTags[0].label).toBe("Initial");
+    expect(result.current.availableTags).toHaveLength(DEFAULT_TAGS.length + 1);
+    expect(result.current.availableTags.some((tag) => tag.id === "tag-1" && tag.label === "Initial")).toBe(true);
 
     // Update shots data
     const updatedShots = [
@@ -266,8 +295,8 @@ describe("useAvailableTags", () => {
 
     rerender();
 
-    expect(result.current.availableTags).toHaveLength(2);
-    expect(result.current.availableTags.map(t => t.label)).toContain("New Tag");
+    expect(result.current.availableTags).toHaveLength(DEFAULT_TAGS.length + 2);
+    expect(result.current.availableTags.some((tag) => tag.id === "tag-2" && tag.label === "New Tag")).toBe(true);
   });
 
   it("handles large number of shots efficiently", () => {
@@ -291,8 +320,8 @@ describe("useAvailableTags", () => {
       useAvailableTags(mockClientId, mockProjectId)
     );
 
-    // Should deduplicate to only 10 unique tags
-    expect(result.current.availableTags).toHaveLength(10);
+    // Should deduplicate to default tags plus the 10 unique tags from shots
+    expect(result.current.availableTags).toHaveLength(DEFAULT_TAGS.length + 10);
 
     // Verify all tags are sorted
     const labels = result.current.availableTags.map(t => t.label);
