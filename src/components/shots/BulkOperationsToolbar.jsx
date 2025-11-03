@@ -1,6 +1,6 @@
 // src/components/shots/BulkOperationsToolbar.jsx
 import { useState, useRef, useEffect } from "react";
-import { X, Tag, Plus, Minus, MapPin, Calendar, Film, ArrowRight, Copy } from "lucide-react";
+import { X, Tag, Plus, Minus, MapPin, Calendar, Film, ArrowRight, Copy, List, CheckSquare, Check } from "lucide-react";
 import { Button } from "../ui/button";
 import { TagBadge, TAG_COLORS } from "../ui/TagBadge";
 
@@ -20,6 +20,10 @@ const DEFAULT_TAG_COLOR = "blue";
 export default function BulkOperationsToolbar({
   selectedCount,
   onClearSelection,
+  onExitSelection,
+  onSelectAll,
+  totalCount = 0,
+  isSticky = true,
   // Tag operations
   onApplyTags,
   onRemoveTags,
@@ -30,6 +34,9 @@ export default function BulkOperationsToolbar({
   onSetType,
   availableLocations = [],
   availableTypes = [],
+  // Lane operations
+  onSetLane,
+  availableLanes = [],
   // Project operations
   onMoveToProject,
   onCopyToProject,
@@ -38,12 +45,20 @@ export default function BulkOperationsToolbar({
   // State
   isProcessing = false,
 }) {
-  const [mode, setMode] = useState(null); // 'apply-tags', 'remove-tags', 'location', 'date', 'type', 'move', 'copy'
+  const [mode, setMode] = useState(null); // 'apply-tags', 'remove-tags', 'location', 'date', 'type', 'lane', 'move', 'copy'
   const [newTagLabel, setNewTagLabel] = useState("");
   const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLOR);
   const [isCreatingNewTag, setIsCreatingNewTag] = useState(false);
   const [dateValue, setDateValue] = useState("");
   const dropdownRef = useRef(null);
+  const operationsDisabled = selectedCount === 0 || isProcessing;
+  const allSelected = totalCount > 0 && selectedCount === totalCount;
+  const wrapperClasses = isSticky ? "sticky top-28 z-40 px-3 sm:px-6" : "px-3 sm:px-6";
+  const panelClasses =
+    "mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 px-4 py-3 shadow-lg" +
+    (isSticky
+      ? " bg-white/95 dark:border-slate-700 dark:bg-slate-900/95"
+      : " bg-white dark:border-slate-700 dark:bg-slate-900");
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -75,11 +90,13 @@ export default function BulkOperationsToolbar({
   };
 
   const handleApplyExistingTag = (tag) => {
+    if (selectedCount === 0) return;
     onApplyTags([tag]);
     setMode(null);
   };
 
   const handleCreateAndApplyTag = () => {
+    if (selectedCount === 0) return;
     const trimmed = newTagLabel.trim();
     if (!trimmed) return;
 
@@ -97,6 +114,7 @@ export default function BulkOperationsToolbar({
   };
 
   const handleRemoveTag = (tag) => {
+    if (selectedCount === 0) return;
     onRemoveTags([tag.id]);
     setMode(null);
   };
@@ -117,6 +135,7 @@ export default function BulkOperationsToolbar({
   };
 
   const handleSelectLocation = (locationId) => {
+    if (selectedCount === 0) return;
     onSetLocation(locationId);
     setMode(null);
   };
@@ -127,6 +146,7 @@ export default function BulkOperationsToolbar({
   };
 
   const handleSetDate = () => {
+    if (selectedCount === 0) return;
     onSetDate(dateValue || null);
     setMode(null);
     setDateValue("");
@@ -147,7 +167,19 @@ export default function BulkOperationsToolbar({
   };
 
   const handleSelectType = (typeValue) => {
+    if (selectedCount === 0) return;
     onSetType(typeValue);
+    setMode(null);
+  };
+
+  // Lane operations
+  const handleLaneClick = () => {
+    setMode(mode === "lane" ? null : "lane");
+  };
+
+  const handleSelectLane = (laneId) => {
+    if (selectedCount === 0) return;
+    onSetLane?.(laneId);
     setMode(null);
   };
 
@@ -157,6 +189,7 @@ export default function BulkOperationsToolbar({
   };
 
   const handleSelectMoveProject = (projectId) => {
+    if (selectedCount === 0) return;
     onMoveToProject(projectId);
     setMode(null);
   };
@@ -166,6 +199,7 @@ export default function BulkOperationsToolbar({
   };
 
   const handleSelectCopyProject = (projectId) => {
+    if (selectedCount === 0) return;
     onCopyToProject(projectId);
     setMode(null);
   };
@@ -174,13 +208,41 @@ export default function BulkOperationsToolbar({
   const otherProjects = availableProjects.filter((p) => p.id !== currentProjectId);
 
   return (
-    <div className="sticky top-28 z-30 border-b border-primary/20 bg-primary/10 px-6 py-3 backdrop-blur">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-primary">
-            {selectedCount} {selectedCount === 1 ? "shot" : "shots"} selected
-          </span>
-          <div className="h-4 w-px bg-primary/30" />
+    <div className={wrapperClasses}>
+      <div className={panelClasses}>
+        <div className="flex flex-1 flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-primary dark:text-primary/80">
+              {selectedCount === 0
+                ? "No shots selected"
+                : `${selectedCount} ${selectedCount === 1 ? "shot" : "shots"} selected`}
+            </span>
+            {typeof onSelectAll === "function" && totalCount > 0 && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onSelectAll}
+                disabled={totalCount === 0 || isProcessing}
+                className="flex items-center gap-1.5"
+              >
+                <CheckSquare className="h-4 w-4" />
+                <span>{allSelected ? "Deselect all" : "Select all"}</span>
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={onClearSelection}
+              disabled={selectedCount === 0 || isProcessing}
+              className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900"
+            >
+              <X className="h-4 w-4" />
+              Clear
+            </Button>
+          </div>
+          <div className="hidden h-4 w-px bg-primary/40 dark:bg-primary/30 md:block" />
 
           {/* All operations in one container */}
           <div className="flex flex-wrap items-center gap-2" ref={dropdownRef}>
@@ -193,7 +255,7 @@ export default function BulkOperationsToolbar({
                   size="sm"
                   variant={mode === "apply-tags" ? "default" : "outline"}
                   onClick={handleApplyTagsClick}
-                  disabled={isProcessing}
+                  disabled={operationsDisabled}
                   className="flex items-center gap-1.5"
                 >
                   <Plus className="h-4 w-4" />
@@ -315,14 +377,14 @@ export default function BulkOperationsToolbar({
 
               {/* Remove Tags Button */}
               <div className="relative">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={mode === "remove-tags" ? "default" : "outline"}
-                  onClick={handleRemoveTagsClick}
-                  disabled={isProcessing || availableTags.length === 0}
-                  className="flex items-center gap-1.5"
-                >
+              <Button
+                type="button"
+                size="sm"
+                variant={mode === "remove-tags" ? "default" : "outline"}
+                onClick={handleRemoveTagsClick}
+                disabled={operationsDisabled || availableTags.length === 0}
+                className="flex items-center gap-1.5"
+              >
                   <Minus className="h-4 w-4" />
                 </Button>
 
@@ -364,7 +426,7 @@ export default function BulkOperationsToolbar({
                   size="sm"
                   variant={mode === "location" ? "default" : "outline"}
                   onClick={handleLocationClick}
-                  disabled={isProcessing}
+                  disabled={operationsDisabled}
                   className="flex items-center gap-1.5"
                   title="Set location"
                 >
@@ -410,15 +472,15 @@ export default function BulkOperationsToolbar({
 
               {/* Date Button */}
               <div className="relative">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={mode === "date" ? "default" : "outline"}
-                  onClick={handleDateClick}
-                  disabled={isProcessing}
-                  className="flex items-center gap-1.5"
-                  title="Set date"
-                >
+              <Button
+                type="button"
+                size="sm"
+                variant={mode === "date" ? "default" : "outline"}
+                onClick={handleDateClick}
+                disabled={operationsDisabled}
+                className="flex items-center gap-1.5"
+                title="Set date"
+              >
                   <Calendar className="h-4 w-4" />
                 </Button>
 
@@ -473,7 +535,7 @@ export default function BulkOperationsToolbar({
                   size="sm"
                   variant={mode === "type" ? "default" : "outline"}
                   onClick={handleTypeClick}
-                  disabled={isProcessing}
+                  disabled={operationsDisabled}
                   className="flex items-center gap-1.5"
                   title="Set type"
                 >
@@ -516,6 +578,52 @@ export default function BulkOperationsToolbar({
                   </div>
                 )}
               </div>
+
+              {/* Lane Button */}
+              <div className="relative">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={mode === "lane" ? "default" : "outline"}
+                  onClick={handleLaneClick}
+                  disabled={operationsDisabled}
+                  className="flex items-center gap-1.5"
+                  title="Set lane"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                {mode === "lane" && (
+                  <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-md border border-slate-200 bg-white p-3 shadow-lg">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Set lane for {selectedCount} shot{selectedCount === 1 ? "" : "s"}
+                    </p>
+                    <div className="max-h-64 space-y-1 overflow-y-auto">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectLane(null)}
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-100"
+                      >
+                        <span className="text-slate-500">Unassigned</span>
+                      </button>
+                      {availableLanes.length > 0 ? (
+                        availableLanes.map((lane) => (
+                          <button
+                            key={lane.id}
+                            type="button"
+                            onClick={() => handleSelectLane(lane.id)}
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-100"
+                          >
+                            <List className="h-3.5 w-3.5 text-slate-400" />
+                            <span className="truncate">{lane.name || 'Untitled lane'}</span>
+                          </button>
+                        ))
+                      ) : (
+                        <p className="px-2 py-1 text-sm text-slate-500">No lanes available</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* PROJECT OPERATIONS */}
@@ -527,7 +635,7 @@ export default function BulkOperationsToolbar({
                   size="sm"
                   variant={mode === "move" ? "default" : "outline"}
                   onClick={handleMoveClick}
-                  disabled={isProcessing || otherProjects.length === 0}
+                  disabled={operationsDisabled || otherProjects.length === 0}
                   className="flex items-center gap-1.5"
                   title="Move to project"
                 >
@@ -569,7 +677,7 @@ export default function BulkOperationsToolbar({
                   size="sm"
                   variant={mode === "copy" ? "default" : "outline"}
                   onClick={handleCopyClick}
-                  disabled={isProcessing || otherProjects.length === 0}
+                  disabled={operationsDisabled || otherProjects.length === 0}
                   className="flex items-center gap-1.5"
                   title="Copy to project"
                 >
@@ -607,24 +715,22 @@ export default function BulkOperationsToolbar({
           </div>
         </div>
 
-        {/* Clear selection button */}
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={onClearSelection}
-          disabled={isProcessing}
-          className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900"
-        >
-          <X className="h-4 w-4" />
-          Clear
-        </Button>
+        <div className="flex items-center gap-2">
+          {isProcessing && <span className="text-xs text-primary">Processing bulk operation...</span>}
+          {onExitSelection && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={onExitSelection}
+              className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900"
+            >
+              <Check className="h-4 w-4" />
+              Done
+            </Button>
+          )}
+        </div>
       </div>
-
-      {/* Processing indicator */}
-      {isProcessing && (
-        <div className="mt-2 text-xs text-primary">Processing bulk operation...</div>
-      )}
     </div>
   );
 }

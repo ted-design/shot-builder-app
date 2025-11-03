@@ -77,13 +77,31 @@ const styles = StyleSheet.create({
   shotHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 6,
+  },
+  shotHeaderContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    flexGrow: 1,
+    marginRight: 8,
+  },
+  shotNumber: {
+    fontSize: 10,
+    fontWeight: 600,
+    color: "#0f172a",
+    backgroundColor: "#e2e8f0",
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginRight: 6,
+    marginBottom: 2,
   },
   shotTitle: {
     fontSize: 12,
     fontWeight: 600,
     color: "#111827",
-    marginRight: 8,
   },
   shotMeta: {
     fontSize: 10,
@@ -101,9 +119,22 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginBottom: 6,
   },
+  galleryContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
+  },
+  galleryShotImage: {
+    width: "100%",
+    height: 140,
+    objectFit: "cover",
+    borderRadius: 4,
+    marginBottom: 6,
+  },
 });
 
 const fieldOptions = [
+  { key: "shotNumber", label: "Shot number" },
   { key: "name", label: "Shot title" },
   { key: "type", label: "Shot type" },
   { key: "date", label: "Date" },
@@ -223,12 +254,91 @@ const prepareLanesForPdf = async (lanes, { includeImages }) => {
 
 const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
   const orientation = options.orientation === "landscape" ? "landscape" : "portrait";
+  const layout = options.layout === "gallery" ? "gallery" : "list";
+  const parsedColumns = Number.parseInt(options.galleryColumns, 10);
+  const galleryColumns =
+    layout === "gallery"
+      ? Math.min(6, Math.max(1, Number.isNaN(parsedColumns) ? 3 : parsedColumns))
+      : 1;
+  const columnWidth = `${(100 / galleryColumns).toFixed(4)}%`;
   const visibleFields = options.fields || {};
   const showLaneSummary = options.includeLaneSummary && laneSummary?.lanes?.length;
   const showTalentSummary = options.includeTalentSummary && talentSummary?.rows?.length;
   const talentLanes = Array.isArray(talentSummary?.lanes) ? talentSummary.lanes : [];
   const talentRows = Array.isArray(talentSummary?.rows) ? talentSummary.rows : [];
   const exportLanes = Array.isArray(lanes) ? lanes : [];
+  const shotImageStyle = layout === "gallery" ? styles.galleryShotImage : styles.shotImage;
+
+  const ensureStringList = (value) => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((item) => {
+        if (typeof item === "string") return item.trim();
+        if (item == null) return "";
+        return String(item);
+      })
+      .filter(Boolean);
+  };
+
+  const normaliseShotNumber = (value) => {
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    return "";
+  };
+
+  const renderShotCard = (shot, lane, index) => {
+    const shotNumber = normaliseShotNumber(shot?.shotNumber);
+    const talentList = ensureStringList(shot?.talent);
+    const productList = ensureStringList(shot?.products);
+    const cardStyle = [styles.shotCard];
+    if (layout === "gallery") {
+      cardStyle.push({
+        width: columnWidth,
+        maxWidth: columnWidth,
+        flexGrow: 0,
+        flexShrink: 0,
+        marginBottom: 12,
+      });
+    }
+    const headerHasContent =
+      (visibleFields.shotNumber && shotNumber) ||
+      (visibleFields.name && shot?.name) ||
+      layout === "list";
+
+    return (
+      <View key={shot?.id || index} style={cardStyle} wrap={false}>
+        {visibleFields.image && shot?.image ? <Image src={shot.image} style={shotImageStyle} /> : null}
+        {headerHasContent ? (
+          <View style={styles.shotHeader}>
+            <View style={styles.shotHeaderContent}>
+              {visibleFields.shotNumber && shotNumber ? (
+                <Text style={styles.shotNumber}>{shotNumber}</Text>
+              ) : null}
+              {visibleFields.name && shot?.name ? <Text style={styles.shotTitle}>{shot.name}</Text> : null}
+            </View>
+            {layout === "list" ? <Text style={styles.shotMeta}>{lane.name}</Text> : null}
+          </View>
+        ) : null}
+        {visibleFields.type || visibleFields.date ? (
+          <Text style={styles.shotMeta}>
+            {visibleFields.type && shot?.type ? `Type: ${shot.type}` : ""}
+            {visibleFields.type && visibleFields.date && shot?.type && shot?.date ? "  •  " : ""}
+            {visibleFields.date && shot?.date ? `Date: ${shot.date}` : ""}
+          </Text>
+        ) : null}
+        {visibleFields.location && shot?.location ? (
+          <Text style={styles.shotDetails}>Location: {shot.location}</Text>
+        ) : null}
+        {visibleFields.talent && talentList.length ? (
+          <Text style={styles.shotDetails}>Talent: {talentList.join(", ")}</Text>
+        ) : null}
+        {visibleFields.products && productList.length ? (
+          <Text style={styles.shotDetails}>Products: {productList.join(", ")}</Text>
+        ) : null}
+        {visibleFields.notes && shot?.notes ? <Text style={styles.shotDetails}>{shot.notes}</Text> : null}
+      </View>
+    );
+  };
 
   const renderSummaryTable = (headers, rows) => (
     <View style={styles.summarySection} wrap={false}>
@@ -292,49 +402,24 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
               }))
             )
           : null}
-        {exportLanes.map((lane) => (
-          <View key={lane.id} style={styles.laneSection}>
-            <Text style={styles.laneHeading}>
-              {lane.name} ({lane.shots.length} shots)
-            </Text>
-            {lane.shots.length === 0 ? (
-              <Text style={styles.tableCell}>No shots in this lane.</Text>
-            ) : (
-              lane.shots.map((shot) => (
-                <View key={shot.id} style={styles.shotCard} wrap={false}>
-                  {visibleFields.image && shot.image ? (
-                    <Image src={shot.image} style={styles.shotImage} />
-                  ) : null}
-                  <View style={styles.shotHeader}>
-                    {visibleFields.name ? (
-                      <Text style={styles.shotTitle}>{shot.name}</Text>
-                    ) : null}
-                    <Text style={styles.shotMeta}>{lane.name}</Text>
-                  </View>
-                  {visibleFields.type || visibleFields.date ? (
-                    <Text style={styles.shotMeta}>
-                      {visibleFields.type && shot.type ? `Type: ${shot.type}` : ""}
-                      {visibleFields.type && visibleFields.date && shot.type && shot.date ? "  •  " : ""}
-                      {visibleFields.date && shot.date ? `Date: ${shot.date}` : ""}
-                    </Text>
-                  ) : null}
-                  {visibleFields.location && shot.location ? (
-                    <Text style={styles.shotDetails}>Location: {shot.location}</Text>
-                  ) : null}
-                  {visibleFields.talent && shot.talent.length ? (
-                    <Text style={styles.shotDetails}>Talent: {shot.talent.join(", ")}</Text>
-                  ) : null}
-                  {visibleFields.products && shot.products.length ? (
-                    <Text style={styles.shotDetails}>Products: {shot.products.join(", ")}</Text>
-                  ) : null}
-                  {visibleFields.notes && shot.notes ? (
-                    <Text style={styles.shotDetails}>{shot.notes}</Text>
-                  ) : null}
-                </View>
-              ))
-            )}
-          </View>
-        ))}
+        {exportLanes.map((lane) => {
+          const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+          const shotCards = laneShots.map((shot, index) => renderShotCard(shot, lane, index));
+          return (
+            <View key={lane.id} style={styles.laneSection}>
+              <Text style={styles.laneHeading}>
+                {lane.name} ({laneShots.length} shots)
+              </Text>
+              {laneShots.length === 0 ? (
+                <Text style={styles.tableCell}>No shots in this lane.</Text>
+              ) : layout === "gallery" ? (
+                <View style={styles.galleryContainer}>{shotCards}</View>
+              ) : (
+                shotCards
+              )}
+            </View>
+          );
+        })}
       </Page>
     </Document>
   );
@@ -353,6 +438,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
   const [title, setTitle] = useState("Planner export");
   const [subtitle, setSubtitle] = useState("");
   const [orientation, setOrientation] = useState("portrait");
+  const [layoutMode, setLayoutMode] = useState("list");
+  const [galleryColumns, setGalleryColumns] = useState("3");
   const [fields, setFields] = useState({});
   const [includeLaneSummary, setIncludeLaneSummary] = useState(true);
   const [includeTalentSummary, setIncludeTalentSummary] = useState(true);
@@ -415,12 +502,20 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     return Array.from(values).sort();
   }, [lanes]);
 
+  const resolvedGalleryColumns = useMemo(() => {
+    const parsed = Number.parseInt(galleryColumns, 10);
+    if (Number.isNaN(parsed)) return 1;
+    return Math.min(6, Math.max(1, parsed));
+  }, [galleryColumns]);
+
   useEffect(() => {
     if (!open) return;
     const now = new Date();
     setTitle("Planner export");
     setSubtitle(`Generated ${now.toLocaleString()}`);
     setOrientation("portrait");
+    setLayoutMode("list");
+    setGalleryColumns("3");
     setIncludeLaneSummary(true);
     setIncludeTalentSummary(true);
     setLaneFilterMode("all");
@@ -429,6 +524,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     setDateFilterMode("any");
     setSelectedDate("");
     setFields({
+      shotNumber: true,
       name: true,
       type: true,
       date: true,
@@ -574,11 +670,22 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       title,
       subtitle,
       orientation,
+      layout: layoutMode,
+      galleryColumns: resolvedGalleryColumns,
       fields,
       includeLaneSummary,
       includeTalentSummary,
     }),
-    [title, subtitle, orientation, fields, includeLaneSummary, includeTalentSummary]
+    [
+      title,
+      subtitle,
+      orientation,
+      layoutMode,
+      resolvedGalleryColumns,
+      fields,
+      includeLaneSummary,
+      includeTalentSummary,
+    ]
   );
 
   const handleToggleLane = useCallback((laneId) => {
@@ -662,6 +769,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       return;
     }
     const headers = ["Lane"];
+    if (fields.shotNumber) headers.push("Shot number");
     if (fields.name) headers.push("Shot title");
     if (fields.type) headers.push("Shot type");
     if (fields.date) headers.push("Date");
@@ -676,6 +784,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
       laneShots.forEach((shot) => {
         const row = [lane.name];
+        if (fields.shotNumber) row.push(shot.shotNumber || "");
         if (fields.name) row.push(shot.name || "");
         if (fields.type) row.push(shot.type || "");
         if (fields.date) row.push(shot.date || "");
@@ -781,6 +890,51 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                         </button>
                       ))}
                     </div>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Layout</span>
+                    <p className="text-xs text-slate-500 dark:text-gray-400">
+                      Switch between a detailed list or gallery-style cards for the PDF export.
+                    </p>
+                    <div className="mt-2 inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+                      {[
+                        { value: "list", label: "List view" },
+                        { value: "gallery", label: "Gallery view" },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setLayoutMode(option.value)}
+                          className={`px-3 py-1.5 text-sm transition ${
+                            layoutMode === option.value
+                              ? "bg-slate-900 dark:bg-gray-700 text-white"
+                              : "text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-700"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                    {layoutMode === "gallery" ? (
+                      <div className="mt-3 space-y-2">
+                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400" htmlFor="planner-export-gallery-columns">
+                          Columns
+                        </label>
+                        <input
+                          id="planner-export-gallery-columns"
+                          type="number"
+                          min={1}
+                          max={6}
+                          step={1}
+                          value={galleryColumns}
+                          onChange={(event) => setGalleryColumns(event.target.value)}
+                          className="w-full rounded-md border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                        />
+                        <p className="text-xs text-slate-500 dark:text-gray-400">
+                          Cards flow left to right using {resolvedGalleryColumns} column{resolvedGalleryColumns === 1 ? "" : "s"} and never split between pages.
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                   <div>
                     <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Include sections</span>

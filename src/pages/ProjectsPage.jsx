@@ -215,7 +215,13 @@ export default function ProjectsPage() {
   const handleSelectProject = (project) => {
     if (!project) return;
     setCurrentProjectId(project.id);
-    navigate(lastVisitedPath || "/shots");
+    const lastPath = lastVisitedPath || "/shots";
+    // Support legacy '/planner' by redirecting route which we have defined.
+    if (lastPath === "/planner") {
+      navigate(`/projects/${project.id}/planner`);
+    } else {
+      navigate(`/projects/${project.id}${lastPath}`);
+    }
   };
 
   const handleDeleteProject = async (project) => {

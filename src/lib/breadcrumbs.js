@@ -23,6 +23,8 @@ const ROUTE_LABELS = {
  * @returns {string|null} Page label or null if not found
  */
 function getPageLabel(pathname) {
+  if (/^\/projects\/[^/]+\/shots$/.test(pathname)) return 'Shots';
+  if (/^\/projects\/[^/]+\/planner$/.test(pathname)) return 'Planner';
   return ROUTE_LABELS[pathname] || null;
 }
 
@@ -67,8 +69,9 @@ export function generateBreadcrumbs(pathname, context = {}) {
     },
   ];
 
-  // Special handling for Planner page with project context
-  if (pathname === '/planner' && projectName) {
+  // Special handling for project-scoped pages
+  const isProjectScoped = /^\/projects\//.test(pathname);
+  if ((pathname === '/planner' || /^(?:\/projects\/[^/]+\/(?:shots|planner))$/.test(pathname)) && projectName) {
     breadcrumbs.push({
       label: projectName,
       href: '/projects', // Link back to projects list

@@ -7,6 +7,7 @@ import { Input } from "../ui/input";
 import RichTextEditor from "./RichTextEditor";
 import ShotProductsEditor from "./ShotProductsEditor";
 import TalentMultiSelect from "./TalentMultiSelect";
+import LocationSelect from "./LocationSelect";
 import TagEditor from "./TagEditor";
 import CommentSection from "../comments/CommentSection";
 import ImageCropPositionEditor from "../common/ImageCropPositionEditor";
@@ -374,20 +375,12 @@ export default function ShotEditModal({
                       <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor={`${uniquePrefix}-location`}>
                         Location
                       </label>
-                      <select
-                        id={`${uniquePrefix}-location`}
-                        className="w-full rounded-md border border-slate-200 bg-white p-2 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-indigo-500"
-                        value={draft.locationId}
-                        disabled={navigationDisabled}
-                        onChange={(event) => handleFieldChange({ locationId: event.target.value || "" })}
-                      >
-                        <option value="">(none)</option>
-                        {locations.map((location) => (
-                          <option key={location.id} value={location.id}>
-                            {location.name}
-                          </option>
-                        ))}
-                      </select>
+                      <LocationSelect
+                        options={locations}
+                        value={draft.locationId || ""}
+                        onChange={(id) => handleFieldChange({ locationId: id || "" })}
+                        isDisabled={navigationDisabled}
+                      />
                     </div>
                   </div>
                 </section>

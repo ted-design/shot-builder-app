@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
-import Select from "react-select";
+import Select, { components } from "react-select";
+import Avatar from "../ui/Avatar";
+import Thumb from "../Thumb";
 
 const selectStyles = {
   control: (base, state) => ({
@@ -43,14 +45,13 @@ export default function TalentMultiSelect({
   noOptionsMessage = defaultNoOptionsMessage,
   isDisabled = false,
 }) {
-  const selectOptions = useMemo(
-    () =>
-      (options || []).map((option) => ({
-        value: option.talentId,
-        label: option.name,
-      })),
-    [options]
-  );
+  const selectOptions = useMemo(() =>
+    (options || []).map((option) => ({
+      value: option.talentId,
+      label: option.name,
+      imagePath: option.headshotPath || option.photoPath || null,
+    })),
+  [options]);
 
   const selectValue = useMemo(
     () =>
@@ -74,6 +75,44 @@ export default function TalentMultiSelect({
   const portalTarget = typeof window === "undefined" ? undefined : document.body;
   const noOptions = typeof noOptionsMessage === "function" ? noOptionsMessage : () => noOptionsMessage;
 
+  const Option = (props) => {
+    const { data } = props;
+    const img = data.imagePath;
+    return (
+      <components.Option {...props}>
+        <div className="flex items-center gap-2">
+          {img ? (
+            <div className="h-6 w-6 overflow-hidden rounded-full bg-slate-100">
+              <Thumb path={img} size={96} alt={data.label} className="h-6 w-6" imageClassName="h-full w-full object-cover" />
+            </div>
+          ) : (
+            <Avatar name={data.label} size="xs" />
+          )}
+          <span>{data.label}</span>
+        </div>
+      </components.Option>
+    );
+  };
+
+  const MultiValueLabel = (props) => {
+    const { data } = props;
+    const img = data.imagePath;
+    return (
+      <components.MultiValueLabel {...props}>
+        <div className="flex items-center gap-1">
+          {img ? (
+            <div className="h-4 w-4 overflow-hidden rounded-full">
+              <Thumb path={img} size={64} alt={data.label} className="h-4 w-4" imageClassName="h-full w-full object-cover" />
+            </div>
+          ) : (
+            <Avatar name={data.label} size="xs" />
+          )}
+          <span>{data.label}</span>
+        </div>
+      </components.MultiValueLabel>
+    );
+  };
+
   return (
     <Select
       isMulti
@@ -87,6 +126,7 @@ export default function TalentMultiSelect({
       noOptionsMessage={noOptions}
       menuPortalTarget={portalTarget}
       menuShouldBlockScroll
+      components={{ Option, MultiValueLabel }}
     />
   );
 }

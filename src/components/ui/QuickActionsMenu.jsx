@@ -4,6 +4,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useProjectScope } from '../../context/ProjectScopeContext';
+import { toast } from '../../lib/toast';
 import {
   Zap,
   Camera,
@@ -89,6 +91,7 @@ export default function QuickActionsMenu() {
   const menuRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentProjectId } = useProjectScope();
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -114,12 +117,36 @@ export default function QuickActionsMenu() {
     }
   }, [isOpen]);
 
-  const handleActionClick = (action) => {
-    setIsOpen(false);
-    navigate(action.path);
+  const resolvePath = (action) => {
+    if (action.id === 'shots') {
+      return currentProjectId ? `/projects/${currentProjectId}/shots` : '/projects';
+    }
+    if (action.id === 'planner') {
+      return currentProjectId ? `/projects/${currentProjectId}/shots?view=planner` : '/projects';
+    }
+    return action.path;
   };
 
-  const isCurrentPath = (path) => location.pathname === path;
+  const handleActionClick = (action) => {
+    const requiresProject = action.id === 'shots' || action.id === 'planner';
+    const target = resolvePath(action);
+    if (requiresProject && !currentProjectId) {
+      setIsOpen(false);
+      toast.info({ title: 'Please select a project' });
+      navigate(target);
+      return;
+    }
+    setIsOpen(false);
+    navigate(target);
+  };
+
+  const isCurrentPath = (path) => {
+    // handle planner query param as well
+    if (path.includes('/shots?view=planner')) {
+      return location.pathname.endsWith('/shots') && new URLSearchParams(location.search).get('view') === 'planner';
+    }
+    return location.pathname === path;
+  };
 
   return (
     <div className="relative" ref={menuRef}>
@@ -154,32 +181,53 @@ export default function QuickActionsMenu() {
             <div className="grid grid-cols-2 gap-1">
               {quickActions.map((action) => {
                 const Icon = action.icon;
-                const isCurrent = isCurrentPath(action.path);
+                const targetPath = resolvePath(action);
+                const isCurrent = isCurrentPath(targetPath);
+                const requiresProject = action.id === 'shots' || action.id === 'planner';
+                const disabled = requiresProject && !currentProjectId;
 
                 return (
                   <button
                     key={action.id}
                     onClick={() => handleActionClick(action)}
+                    disabled={disabled}
+                    title={disabled ? 'Select a project to access this section' : undefined}
                     className={`flex flex-col items-start gap-2 rounded-md p-3 text-left transition ${
-                      isCurrent
+                      disabled
+                        ? 'opacity-60 cursor-not-allowed'
+                        : isCurrent
                         ? 'bg-primary/10 dark:bg-primary/20'
                         : 'hover:bg-slate-100 dark:hover:bg-slate-700'
                     }`}
                     role="menuitem"
                   >
                     <div className={`flex h-8 w-8 items-center justify-center rounded-md ${
-                      isCurrent ? 'bg-primary/20 dark:bg-primary/30' : 'bg-slate-100 dark:bg-slate-700'
+                      disabled
+                        ? 'bg-slate-100 dark:bg-slate-700'
+                        : isCurrent
+                        ? 'bg-primary/20 dark:bg-primary/30'
+                        : 'bg-slate-100 dark:bg-slate-700'
                     }`}>
-                      <Icon className={`h-4 w-4 ${isCurrent ? 'text-primary dark:text-indigo-400' : action.color}`} />
+                      <Icon className={`h-4 w-4 ${
+                        disabled
+                          ? 'text-slate-400 dark:text-slate-500'
+                          : isCurrent
+                          ? 'text-primary dark:text-indigo-400'
+                          : action.color
+                      }`} />
                     </div>
                     <div className="min-w-0">
                       <div className={`text-sm font-medium ${
-                        isCurrent ? 'text-primary dark:text-indigo-400' : 'text-slate-900 dark:text-slate-100'
+                        disabled
+                          ? 'text-slate-500 dark:text-slate-400'
+                          : isCurrent
+                          ? 'text-primary dark:text-indigo-400'
+                          : 'text-slate-900 dark:text-slate-100'
                       }`}>
                         {action.label}
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                        {action.description}
+                        {disabled ? 'Select a project first' : action.description}
                       </div>
                     </div>
                   </button>

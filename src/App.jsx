@@ -10,7 +10,8 @@ import { adaptUser } from "./auth/adapter";
 import AuthReadyGate from "./auth/AuthReadyGate";
 import TopNavigationLayout from "./routes/TopNavigationLayout";
 import RequireRole from "./routes/RequireRole";
-import { ProjectScopeProvider } from "./context/ProjectScopeContext";
+import ProjectParamScope from "./routes/ProjectParamScope";
+import { ProjectScopeProvider, useProjectScope } from "./context/ProjectScopeContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { SearchCommandProvider } from "./context/SearchCommandContext";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
@@ -42,6 +43,7 @@ const TagManagementPage = lazy(() => import("./pages/TagManagementPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const ImageDiagnosticsPage = lazy(() => import("./pages/dev/ImageDiagnosticsPage"));
 const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
+const ProjectAssetsPage = lazy(() => import("./pages/ProjectAssetsPage"));
 
 function MaybeRedirectLogin({ user }) {
   const location = useLocation();
@@ -59,6 +61,23 @@ function AuthenticatedLayout({ guardUser, navUser, fallbackRole }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   return <TopNavigationLayout fallbackUser={navUser} fallbackRole={fallbackRole} />;
+}
+
+// Legacy redirects to new project-scoped routes
+function LegacyShotsRedirect() {
+  const { currentProjectId } = useProjectScope();
+  if (currentProjectId) {
+    return <Navigate to={`/projects/${currentProjectId}/shots`} replace />;
+  }
+  return <Navigate to="/projects" replace />;
+}
+
+function LegacyPlannerRedirect() {
+  const { currentProjectId } = useProjectScope();
+  if (currentProjectId) {
+    return <Navigate to={`/projects/${currentProjectId}/shots?view=planner`} replace />;
+  }
+  return <Navigate to="/projects" replace />;
 }
 
 export default function App() {
@@ -147,15 +166,30 @@ export default function App() {
                 </Suspense>
               }
             />
-            <Route
-              path="/shots"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <ShotsPage />
-                </Suspense>
-              }
-            />
-            <Route path="/planner" element={<Navigate to="/shots?view=planner" replace />} />
+            {/* Legacy unscoped routes */}
+            <Route path="/shots" element={<LegacyShotsRedirect />} />
+            <Route path="/planner" element={<LegacyPlannerRedirect />} />
+
+            {/* Project-scoped routes */}
+            <Route path="/projects/:projectId" element={<ProjectParamScope />}>
+              <Route
+                path="shots"
+                element={
+                  <Suspense fallback={<PageLoadingFallback />}>
+                    <ShotsPage />
+                  </Suspense>
+                }
+              />
+              <Route path="planner" element={<Navigate to="../shots?view=planner" replace />} />
+              <Route
+                path="assets"
+                element={
+                  <Suspense fallback={<PageLoadingFallback />}>
+                    <ProjectAssetsPage />
+                  </Suspense>
+                }
+              />
+            </Route>
             <Route
               path="/products"
               element={

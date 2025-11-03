@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
+import { useProjectScope } from "../context/ProjectScopeContext";
 import { adaptUser } from "../auth/adapter";
 import { roleLabel } from "../lib/rbac";
 import { SkipLink } from "../components/ui/SkipLink";
@@ -11,7 +12,7 @@ import ThemeToggle from "../components/ui/ThemeToggle";
 
 const navItems = [
   { to: "/projects", label: "Dashboard" },
-  { to: "/shots", label: "Shots" },
+  { to: "/shots", label: "Shots", requiresProject: true },
   { to: "/products", label: "Products" },
   { to: "/talent", label: "Talent" },
   { to: "/locations", label: "Locations" },
@@ -23,7 +24,7 @@ const navItems = [
 const linkBase =
   "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light";
 
-function SidebarLinks({ onNavigate, role }) {
+function SidebarLinks({ onNavigate, role, currentProjectId }) {
   return (
     <nav className="mt-6 space-y-1">
       {navItems
@@ -32,22 +33,38 @@ function SidebarLinks({ onNavigate, role }) {
           if (!role) return false;
           return item.roles.includes(role);
         })
-        .map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            `${linkBase} ${
-              isActive
-                ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-indigo-400"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-            }`
+        .map((item) => {
+          const disabled = item.requiresProject && !currentProjectId;
+          if (disabled) {
+            return (
+              <span
+                key={item.to}
+                aria-disabled="true"
+                title="Select a project to access Shots"
+                className={`${linkBase} cursor-not-allowed text-slate-400 dark:text-slate-500`}
+              >
+                {item.label}
+              </span>
+            );
           }
-        >
-          {item.label}
-        </NavLink>
-        ))}
+          const to = item.requiresProject ? `/projects/${currentProjectId}/shots` : item.to;
+          return (
+            <NavLink
+              key={item.to}
+              to={to}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                `${linkBase} ${
+                  isActive
+                    ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-indigo-400"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                }`
+              }
+            >
+              {item.label}
+            </NavLink>
+          );
+        })}
     </nav>
   );
 }
@@ -56,6 +73,7 @@ export default function SidebarLayout({ fallbackUser = null, fallbackRole = null
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user: authUser, role: ctxRole } = useAuth();
+  const { currentProjectId } = useProjectScope();
 
   const derivedUser = useMemo(() => adaptUser(authUser), [authUser]);
   const navUser = derivedUser || fallbackUser || null;
@@ -78,7 +96,7 @@ export default function SidebarLayout({ fallbackUser = null, fallbackRole = null
         {/* Desktop sidebar */}
         <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-6 md:flex">
           <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Shot Builder</div>
-          <SidebarLinks role={rawRole} />
+          <SidebarLinks role={rawRole} currentProjectId={currentProjectId} />
           <div className="mt-auto space-y-2 text-sm text-slate-600 dark:text-slate-400">
             <div className="truncate" title={userLabel}>
               {userLabel}
@@ -119,7 +137,7 @@ export default function SidebarLayout({ fallbackUser = null, fallbackRole = null
               </svg>
             </button>
           </div>
-          <SidebarLinks onNavigate={closeMobile} role={rawRole} />
+          <SidebarLinks onNavigate={closeMobile} role={rawRole} currentProjectId={currentProjectId} />
           <div className="mt-auto space-y-2 text-sm text-slate-600 dark:text-slate-400">
             <div className="truncate" title={userLabel}>
               {userLabel}

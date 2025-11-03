@@ -40,7 +40,7 @@ export function Button({
   return (
     <button
       className={
-        `${variantClasses} ${sizeClasses} rounded-button shadow-sm transition-all duration-150 ` +
+        `${variantClasses} ${sizeClasses} inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-button shadow-sm transition-all duration-150 ` +
         `focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ` +
         `${disabledClasses} ${className}`
       }
