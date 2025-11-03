@@ -22,7 +22,7 @@ import { Sheet, SheetContent, SheetTrigger } from "../components/ui/sheet";
 
 const navItems = [
   { to: "/projects", label: "Dashboard" },
-  { to: "/shots", label: "Shots" },
+  { to: "/shots", label: "Shots", requiresProject: true },
   { to: "/products", label: "Products" },
   { to: "/talent", label: "Talent" },
   { to: "/locations", label: "Locations" },
@@ -34,7 +34,7 @@ const navItems = [
 const linkBase =
   "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light";
 
-function DesktopNavLinks({ role }) {
+function DesktopNavLinks({ role, currentProjectId }) {
   const visibleNavItems = useMemo(
     () =>
       navItems.filter((item) => {
@@ -47,26 +47,42 @@ function DesktopNavLinks({ role }) {
 
   return (
     <nav className="hidden items-center gap-1 md:flex">
-      {visibleNavItems.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          className={({ isActive }) =>
-            `${linkBase} ${
-              isActive
-                ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-indigo-400"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-            }`
-          }
-        >
-          {item.label}
-        </NavLink>
-      ))}
+      {visibleNavItems.map((item) => {
+        const disabled = item.requiresProject && !currentProjectId;
+        if (disabled) {
+          return (
+            <span
+              key={item.to}
+              aria-disabled="true"
+              title="Select a project to access Shots"
+              className={`${linkBase} cursor-not-allowed text-slate-400 dark:text-slate-500`}
+            >
+              {item.label}
+            </span>
+          );
+        }
+        const to = item.requiresProject ? `/projects/${currentProjectId}/shots` : item.to;
+        return (
+          <NavLink
+            key={item.to}
+            to={to}
+            className={({ isActive }) =>
+              `${linkBase} ${
+                isActive
+                  ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-indigo-400"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              }`
+            }
+          >
+            {item.label}
+          </NavLink>
+        );
+      })}
     </nav>
   );
 }
 
-function MobileNavLinks({ onNavigate, role }) {
+function MobileNavLinks({ onNavigate, role, currentProjectId }) {
   const visibleNavItems = useMemo(
     () =>
       navItems.filter((item) => {
@@ -79,22 +95,38 @@ function MobileNavLinks({ onNavigate, role }) {
 
   return (
     <nav className="flex flex-col gap-1 py-2">
-      {visibleNavItems.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            `${linkBase} ${
-              isActive
-                ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-indigo-400"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-            }`
-          }
-        >
-          {item.label}
-        </NavLink>
-      ))}
+      {visibleNavItems.map((item) => {
+        const disabled = item.requiresProject && !currentProjectId;
+        if (disabled) {
+          return (
+            <span
+              key={item.to}
+              aria-disabled="true"
+              title="Select a project to access Shots"
+              className={`${linkBase} cursor-not-allowed text-slate-400 dark:text-slate-500`}
+            >
+              {item.label}
+            </span>
+          );
+        }
+        const to = item.requiresProject ? `/projects/${currentProjectId}/shots` : item.to;
+        return (
+          <NavLink
+            key={item.to}
+            to={to}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              `${linkBase} ${
+                isActive
+                  ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-indigo-400"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              }`
+            }
+          >
+            {item.label}
+          </NavLink>
+        );
+      })}
     </nav>
   );
 }
@@ -265,7 +297,7 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
             <div className="text-lg font-bold text-slate-900 dark:text-slate-100">
               Shot Builder
             </div>
-            <DesktopNavLinks role={rawRole} />
+            <DesktopNavLinks role={rawRole} currentProjectId={currentProjectId} />
           </div>
 
           {/* Right: Actions */}
@@ -312,7 +344,7 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
               {/* Mobile Navigation Sheet */}
               <SheetContent side="right" className="w-[280px] sm:w-[350px]">
                 <div className="flex flex-col gap-4 mt-8">
-                  <MobileNavLinks onNavigate={closeMobile} role={rawRole} />
+                  <MobileNavLinks onNavigate={closeMobile} role={rawRole} currentProjectId={currentProjectId} />
 
                   {/* Mobile User Info & Sign Out */}
                   <div className="mt-4 border-t border-slate-200 dark:border-slate-700 pt-4 space-y-3">

@@ -87,4 +87,24 @@ describe("prepareLanesForPdf", () => {
     expect(prepared[0].shots[0].image).toMatch(/^data:image/);
     expect(prepared[0].shots[1].image).toMatch(/^data:image/);
   });
+
+  it("preserves shot numbers and other metadata", async () => {
+    const lanes = [
+      {
+        id: "lane-a",
+        shots: [
+          {
+            id: "shot-1",
+            shotNumber: "Scene 5A",
+            name: "Catalog hero",
+          },
+        ],
+      },
+    ];
+
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: false });
+
+    expect(prepared[0].shots[0].shotNumber).toBe("Scene 5A");
+    expect(prepared[0].shots[0].name).toBe("Catalog hero");
+  });
 });

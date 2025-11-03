@@ -79,9 +79,9 @@ export const queryKeys = {
   projectById: (clientId, projectId) => ["projects", clientId, "detail", projectId],
   products: (clientId) => ["products", clientId],
   productById: (clientId, productId) => ["products", clientId, "detail", productId],
-  talent: (clientId) => ["talent", clientId],
+  talent: (clientId, projectId = null, scope = "all") => ["talent", clientId, scope, projectId],
   talentById: (clientId, talentId) => ["talent", clientId, "detail", talentId],
-  locations: (clientId) => ["locations", clientId],
+  locations: (clientId, projectId = null, scope = "all") => ["locations", clientId, scope, projectId],
   locationById: (clientId, locationId) => ["locations", clientId, "detail", locationId],
   lanes: (clientId, projectId) => ["lanes", clientId, projectId],
   notifications: (clientId, userId) => ["notifications", clientId, userId],
@@ -264,7 +264,10 @@ export function useProducts(clientId, options = {}) {
   const isEnabled = Boolean((enabledOverride ?? true) && clientId);
 
   const mapSnapshot = useCallback((snapshot) => {
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const list = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    // Sort by name client-side to avoid composite index needs
+    list.sort((a, b) => (a?.name || "").localeCompare(b?.name || ""));
+    return list;
   }, []);
 
   const productsQuery = useMemo(() => {
@@ -316,19 +319,25 @@ export function useProducts(clientId, options = {}) {
  */
 export function useTalent(clientId, options = {}) {
   const queryClient = useQueryClient();
-  const queryKey = useMemo(() => queryKeys.talent(clientId), [clientId]);
-  const { enabled: enabledOverride, ...restOptions } = options;
-  const isEnabled = Boolean((enabledOverride ?? true) && clientId);
+  const { enabled: enabledOverride, projectId = null, scope = "all", ...restOptions } = options;
+  const queryKey = useMemo(() => queryKeys.talent(clientId, projectId, scope), [clientId, projectId, scope]);
+  const isEnabled = Boolean((enabledOverride ?? true) && clientId && (scope === "all" || projectId));
 
   const mapSnapshot = useCallback((snapshot) => {
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const list = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    list.sort((a, b) => (a?.name || "").localeCompare(b?.name || ""));
+    return list;
   }, []);
 
   const talentQuery = useMemo(() => {
     if (!clientId) return null;
     const talentRef = collection(db, "clients", clientId, "talent");
+    if (scope === "project" && projectId) {
+      // Avoid composite index requirement by sorting client-side for project-scoped lists
+      return query(talentRef, where("projectIds", "array-contains", projectId));
+    }
     return query(talentRef, orderBy("name", "asc"));
-  }, [clientId]);
+  }, [clientId, projectId, scope]);
 
   const result = useQuery({
     queryKey,
@@ -373,9 +382,9 @@ export function useTalent(clientId, options = {}) {
  */
 export function useLocations(clientId, options = {}) {
   const queryClient = useQueryClient();
-  const queryKey = useMemo(() => queryKeys.locations(clientId), [clientId]);
-  const { enabled: enabledOverride, ...restOptions } = options;
-  const isEnabled = Boolean((enabledOverride ?? true) && clientId);
+  const { enabled: enabledOverride, projectId = null, scope = "all", ...restOptions } = options;
+  const queryKey = useMemo(() => queryKeys.locations(clientId, projectId, scope), [clientId, projectId, scope]);
+  const isEnabled = Boolean((enabledOverride ?? true) && clientId && (scope === "all" || projectId));
 
   const mapSnapshot = useCallback((snapshot) => {
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -384,8 +393,12 @@ export function useLocations(clientId, options = {}) {
   const locationsQuery = useMemo(() => {
     if (!clientId) return null;
     const locationsRef = collection(db, "clients", clientId, "locations");
+    if (scope === "project" && projectId) {
+      // Avoid composite index requirement by sorting client-side for project-scoped lists
+      return query(locationsRef, where("projectIds", "array-contains", projectId));
+    }
     return query(locationsRef, orderBy("name", "asc"));
-  }, [clientId]);
+  }, [clientId, projectId, scope]);
 
   const result = useQuery({
     queryKey,

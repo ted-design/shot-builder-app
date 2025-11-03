@@ -11,8 +11,9 @@ import { globalSearch } from '../../lib/search';
 import { useQueryClient } from '@tanstack/react-query';
 import { useShots, useProducts, useTalent, useLocations, useProjects, queryKeys } from '../../hooks/useFirestoreQuery';
 import { useAuth } from '../../context/AuthContext';
-import { useProjectScope } from '../../context/ProjectScopeContext';
 import { useSearchCommand } from '../../context/SearchCommandContext';
+import { useProjectScope } from '../../context/ProjectScopeContext';
+import { toast } from '../../lib/toast';
 import { readStorage, writeStorage } from '../../lib/safeStorage';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 
@@ -100,12 +101,12 @@ function getResultSecondary(result) {
 /**
  * Get navigation path for a search result
  */
-function getResultPath(result) {
+function getResultPath(result, currentProjectId) {
   const { type } = result;
 
   switch (type) {
     case 'shot':
-      return '/shots';
+      return currentProjectId ? `/projects/${currentProjectId}/shots` : '/projects';
     case 'product':
       return '/products';
     case 'talent':
@@ -164,6 +165,7 @@ function saveRecentSearch(query) {
  */
 export default function SearchCommand() {
   const { isOpen, openSearch, closeSearch } = useSearchCommand();
+  const { currentProjectId } = useProjectScope();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [recentSearches, setRecentSearches] = useState(loadRecentSearches);
@@ -173,7 +175,6 @@ export default function SearchCommand() {
 
   const navigate = useNavigate();
   const { clientId } = useAuth();
-  const { currentProjectId } = useProjectScope();
   const queryClient = useQueryClient();
 
   // Debounce search query to reduce expensive fuzzy search operations
@@ -306,13 +307,22 @@ export default function SearchCommand() {
   // Handle result selection
   const handleSelectResult = useCallback(
     result => {
-      const path = getResultPath(result);
+      const path = getResultPath(result, currentProjectId);
+      const requiresProject = result?.type === 'shot' || path.includes('/shots');
+
       saveRecentSearch(query);
       setRecentSearches(loadRecentSearches());
       close();
+
+      if (requiresProject && !currentProjectId) {
+        toast.info({ title: 'Please select a project' });
+        navigate('/projects');
+        return;
+      }
+
       navigate(path);
     },
-    [query, close, navigate]
+    [query, close, navigate, currentProjectId]
   );
 
   // Handle keyboard navigation in results

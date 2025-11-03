@@ -25,6 +25,7 @@ import {
   useProducts,
   useTalent,
   useLocations,
+  useLanes,
 } from "../hooks/useFirestoreQuery";
 import {
   useCreateShot,
@@ -63,27 +64,32 @@ import {
 import {
   LayoutGrid,
   List,
-  Filter,
-  ArrowUpDown,
   Search,
-  Eye,
   ChevronDown,
   Camera,
   Calendar,
+  Users,
   X,
+  CheckSquare,
   Plus,
   Table,
 } from "lucide-react";
-import Select from "react-select";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/ui/EmptyState";
 import ExportButton from "../components/common/ExportButton";
-import { createPortal } from "react-dom";
 import { searchShots } from "../lib/search";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ShotsOverviewProvider, useShotsOverview } from "../context/ShotsOverviewContext";
+import {
+  FiltersPopover,
+  FieldVisibilityMenu,
+  OverviewToolbar,
+  OverviewToolbarRow,
+  SegmentedControl,
+  SortMenu,
+} from "../components/overview";
 
 const PlannerPage = lazy(() => import("./PlannerPage"));
 import VirtualizedList, { VirtualizedGrid } from "../components/ui/VirtualizedList";
@@ -94,6 +100,7 @@ import ShotEditModal from "../components/shots/ShotEditModal";
 import BulkOperationsToolbar from "../components/shots/BulkOperationsToolbar";
 import ShotTableView from "../components/shots/ShotTableView";
 import { useAuth } from "../context/AuthContext";
+import { FLAGS } from "../lib/flags";
 import { useProjectScope } from "../context/ProjectScopeContext";
 import { canEditProducts, canManageShots, resolveEffectiveRole } from "../lib/rbac";
 import { describeFirebaseError } from "../lib/firebaseErrors";
@@ -114,10 +121,12 @@ import {
   mapTalentForWrite,
 } from "../lib/shotDraft";
 import { readStorage, writeStorage } from "../lib/safeStorage";
+import { buildActiveFilterPills, defaultOverviewFilters, removeFilterKey } from "../lib/overviewFilters";
 import { normaliseShotStatus, DEFAULT_SHOT_STATUS } from "../lib/shotStatus";
 import { normaliseShot, sortShotsForView, SHOT_SORT_OPTIONS } from "../lib/shotsSelectors";
 import { getStaggerDelay } from "../lib/animations";
 import ActivityTimeline from "../components/activity/ActivityTimeline";
+import ShotsAssetsTab from "../components/shots/ShotsAssetsTab";
 import {
   createInitialSectionStatuses,
   cloneShotDraft,
@@ -146,15 +155,9 @@ const AVAILABLE_SHOT_TYPES = [
   "establishing",
 ];
 
-const defaultShotFilters = {
-  locationId: "",
-  talentIds: [],
-  productFamilyIds: [],
-  tagIds: [],
-  showArchived: false,
-};
-
 const SHOTS_PREFS_STORAGE_KEY = "shots:viewPrefs";
+
+const DEFAULT_SHOT_DENSITY = "extra";
 
 const defaultViewPrefs = {
   showProducts: true,
@@ -162,6 +165,7 @@ const defaultViewPrefs = {
   showLocation: true,
   showNotes: true,
   sort: "alpha",
+  density: DEFAULT_SHOT_DENSITY,
 };
 
 const normaliseShotRecord = (id, data, fallbackProjectId) =>
@@ -176,36 +180,21 @@ const DETAIL_TOGGLE_OPTIONS = [
   { key: "showLocation", label: "Location" },
 ];
 
-const filterSelectStyles = {
-  control: (base, state) => ({
-    ...base,
-    minHeight: 38,
-    borderRadius: 6,
-    borderColor: state.isFocused ? "#2563eb" : "#cbd5f5",
-    boxShadow: state.isFocused ? "0 0 0 1px rgba(37, 99, 235, 0.35)" : "none",
-    "&:hover": {
-      borderColor: state.isFocused ? "#2563eb" : "#94a3b8",
-    },
-  }),
-  multiValue: (base) => ({
-    ...base,
-    backgroundColor: "#e2e8f0",
-    borderRadius: 9999,
-  }),
-  multiValueLabel: (base) => ({
-    ...base,
-    color: "#0f172a",
-    fontWeight: 500,
-  }),
-  multiValueRemove: (base) => ({
-    ...base,
-    color: "#475569",
-    ":hover": {
-      backgroundColor: "#cbd5f5",
-      color: "#1d4ed8",
-    },
-  }),
-  menuPortal: (base) => ({ ...base, zIndex: 1200 }),
+const SHOT_VIEW_OPTIONS = [
+  { value: "gallery", label: "Gallery", icon: LayoutGrid, hideLabelOnSmallScreen: true },
+  { value: "list", label: "List", icon: List, hideLabelOnSmallScreen: true },
+  { value: "table", label: "Table", icon: Table, hideLabelOnSmallScreen: true },
+];
+
+const SHOT_DENSITY_OPTIONS = [
+  { value: "comfortable", label: "Comfort" },
+  { value: "extra", label: "Compact" },
+];
+
+const normaliseShotDensity = (value) => {
+  if (value === "comfortable") return "comfortable";
+  if (value === "extra" || value === "compact") return "extra";
+  return DEFAULT_SHOT_DENSITY;
 };
 
 const readStoredShotsView = () => {
@@ -217,7 +206,7 @@ const readStoredShotsView = () => {
 const readStoredShotFilters = () => {
   try {
     const raw = readStorage(SHOTS_FILTERS_STORAGE_KEY);
-    if (!raw) return { ...defaultShotFilters };
+    if (!raw) return { ...defaultOverviewFilters };
     const parsed = JSON.parse(raw);
     return {
       locationId: typeof parsed.locationId === "string" ? parsed.locationId : "",
@@ -234,7 +223,7 @@ const readStoredShotFilters = () => {
     };
   } catch (error) {
     console.warn("[Shots] Failed to parse stored filters", error);
-    return { ...defaultShotFilters };
+    return { ...defaultOverviewFilters };
   }
 };
 
@@ -249,6 +238,7 @@ const readStoredViewPrefs = () => {
       showLocation: parsed.showLocation !== false,
       showNotes: parsed.showNotes !== false,
       sort: typeof parsed.sort === "string" ? parsed.sort : defaultViewPrefs.sort,
+      density: normaliseShotDensity(parsed.density),
     };
   } catch (error) {
     console.warn("[Shots] Failed to read view prefs", error);
@@ -266,17 +256,15 @@ export function ShotsWorkspace() {
   const [viewMode, setViewMode] = useState(() => readStoredShotsView());
   const [localFilters, setLocalFilters] = useState(() => readStoredShotFilters());
   const [viewPrefs, setViewPrefs] = useState(() => readStoredViewPrefs());
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [editingShot, setEditingShot] = useState(null);
   const [editAutoStatus, setEditAutoStatus] = useState(() => createInitialSectionStatuses());
   const [isSavingShot, setIsSavingShot] = useState(false);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
-  const [sortMenuOpen, setSortMenuOpen] = useState(false);
-  const [visibilityMenuOpen, setVisibilityMenuOpen] = useState(false);
   const [movingProject, setMovingProject] = useState(false);
   const [copyingProject, setCopyingProject] = useState(false);
   const [localSelectedShotIds, setLocalSelectedShotIds] = useState(() => new Set());
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
   const [activityExpanded, setActivityExpanded] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [stickyOffset, setStickyOffset] = useState(80);
@@ -300,8 +288,11 @@ export function ShotsWorkspace() {
   // TanStack Query hooks for data fetching with intelligent caching
   const { data: shots = [], isLoading: shotsLoading } = useShots(clientId, projectId);
   const { data: families = [], isLoading: familiesLoading } = useProducts(clientId);
-  const { data: talent = [], isLoading: talentLoading } = useTalent(clientId);
-  const { data: locations = [], isLoading: locationsLoading } = useLocations(clientId);
+  const talentOptionsScope = FLAGS.projectScopedAssets ? { projectId, scope: "project" } : {};
+  const locationOptionsScope = FLAGS.projectScopedAssets ? { projectId, scope: "project" } : {};
+  const { data: talent = [], isLoading: talentLoading } = useTalent(clientId, talentOptionsScope);
+  const { data: locations = [], isLoading: locationsLoading } = useLocations(clientId, locationOptionsScope);
+  const { data: lanes = [] } = useLanes(clientId, projectId);
   const { data: projects = [], isLoading: projectsLoading } = useProjects(clientId);
 
   // TanStack Query mutation hooks for create/update/delete operations
@@ -377,7 +368,7 @@ export function ShotsWorkspace() {
           entry.name ||
           [entry.firstName, entry.lastName].filter(Boolean).join(" ").trim() ||
           "Unnamed talent";
-        return { talentId: entry.id, name };
+        return { talentId: entry.id, name, headshotPath: entry.headshotPath || entry.photoPath || null };
       }),
     [talent]
   );
@@ -474,15 +465,6 @@ export function ShotsWorkspace() {
   );
 
   // Calculate active filter count
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (filters.locationId && filters.locationId.length) count++;
-    if (Array.isArray(filters.talentIds) && filters.talentIds.length) count++;
-    if (Array.isArray(filters.productFamilyIds) && filters.productFamilyIds.length) count++;
-    if (Array.isArray(filters.tagIds) && filters.tagIds.length) count++;
-    return count;
-  }, [filters.locationId, filters.talentIds, filters.productFamilyIds, filters.tagIds]);
-
   const filteredShots = useMemo(() => {
     const term = debouncedQueryText.trim();
     const selectedLocation = filters.locationId || "";
@@ -654,56 +636,10 @@ export function ShotsWorkspace() {
         showLocation: viewPrefs.showLocation,
         showNotes: viewPrefs.showNotes,
         sort: viewPrefs.sort,
+        density: normaliseShotDensity(viewPrefs.density),
       })
     );
   }, [viewPrefs]);
-
-  useEffect(() => {
-    if (!sortMenuOpen) return undefined;
-    const handleClick = (event) => {
-      if (!sortMenuRef.current || sortMenuRef.current.contains(event.target)) return;
-      setSortMenuOpen(false);
-    };
-    const handleKey = (event) => {
-      if (event.key === "Escape") setSortMenuOpen(false);
-    };
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [sortMenuOpen]);
-
-  // Click-outside handler for filter panel
-  useEffect(() => {
-    if (!filtersOpen) return undefined;
-    function onFiltersClick(event) {
-      if (!filtersRef.current) return;
-      if (!filtersRef.current.contains(event.target)) {
-        setFiltersOpen(false);
-      }
-    }
-    window.addEventListener("mousedown", onFiltersClick);
-    return () => window.removeEventListener("mousedown", onFiltersClick);
-  }, [filtersOpen]);
-
-  useEffect(() => {
-    if (!visibilityMenuOpen) return undefined;
-    const handleClick = (event) => {
-      if (!visibilityMenuRef.current || visibilityMenuRef.current.contains(event.target)) return;
-      setVisibilityMenuOpen(false);
-    };
-    const handleKey = (event) => {
-      if (event.key === "Escape") setVisibilityMenuOpen(false);
-    };
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [visibilityMenuOpen]);
 
   useEffect(() => {
     if (!isSearchExpanded) return undefined;
@@ -714,9 +650,6 @@ export function ShotsWorkspace() {
   }, [isSearchExpanded]);
 
   const familyDetailCacheRef = useRef(new Map());
-  const sortMenuRef = useRef(null);
-  const filtersRef = useRef(null);
-  const visibilityMenuRef = useRef(null);
   const searchInputRef = useRef(null);
 
   useEffect(() => {
@@ -1315,7 +1248,6 @@ export function ShotsWorkspace() {
 
   const selectSort = useCallback((sortValue) => {
     setViewPrefs((prev) => ({ ...prev, sort: sortValue }));
-    setDisplayMenuOpen(false);
   }, []);
 
   const toggleActivityExpanded = useCallback(() => {
@@ -1469,100 +1401,25 @@ export function ShotsWorkspace() {
     }));
   }, []);
 
-  const clearFilters = useCallback(
-    () => setFilters({ ...defaultShotFilters }),
-    []
+  // Build active filters array for pills
+  const activeFilters = useMemo(
+    () =>
+      buildActiveFilterPills(filters, {
+        locations,
+        talentOptions: talentFilterOptions,
+        productOptions: productFilterOptions,
+        tagOptions: tagFilterOptions,
+      }),
+    [filters, locations, talentFilterOptions, productFilterOptions, tagFilterOptions]
   );
 
-  const toggleShowArchived = useCallback(() => {
-    setFilters((prev) => ({ ...prev, showArchived: !prev.showArchived }));
-  }, []);
-
-  // Build active filters array for pills
-  const activeFilters = useMemo(() => {
-    const pills = [];
-    if (filters.locationId) {
-      const location = locations.find((loc) => loc.id === filters.locationId);
-      if (location) {
-        pills.push({
-          key: `location-${filters.locationId}`,
-          label: "Location",
-          value: location.name || "Unknown",
-        });
-      }
-    }
-    if (Array.isArray(filters.talentIds) && filters.talentIds.length > 0) {
-      filters.talentIds.forEach((talentId) => {
-        const talentOption = talentFilterOptions.find((opt) => opt.value === talentId);
-        if (talentOption) {
-          pills.push({
-            key: `talent-${talentId}`,
-            label: "Talent",
-            value: talentOption.label,
-          });
-        }
-      });
-    }
-    if (Array.isArray(filters.productFamilyIds) && filters.productFamilyIds.length > 0) {
-      filters.productFamilyIds.forEach((productId) => {
-        const productOption = productFilterOptions.find((opt) => opt.value === productId);
-        if (productOption) {
-          pills.push({
-            key: `product-${productId}`,
-            label: "Product",
-            value: productOption.label,
-          });
-        }
-      });
-    }
-    if (Array.isArray(filters.tagIds) && filters.tagIds.length > 0) {
-      filters.tagIds.forEach((tagId) => {
-        const tagOption = tagFilterOptions.find((opt) => opt.value === tagId);
-        if (tagOption) {
-          pills.push({
-            key: `tag-${tagId}`,
-            label: "Tag",
-            value: tagOption.label,
-          });
-        }
-      });
-    }
-    if (filters.showArchived) {
-      pills.push({
-        key: "showArchived",
-        label: "Status",
-        value: "Including archived",
-      });
-    }
-    return pills;
-  }, [filters.locationId, filters.talentIds, filters.productFamilyIds, filters.tagIds, filters.showArchived, locations, talentFilterOptions, productFilterOptions, tagFilterOptions]);
-
   // Remove individual filter
-  const removeFilter = useCallback((filterKey) => {
-    if (filterKey.startsWith("location-")) {
-      setFilters((prev) => ({ ...prev, locationId: "" }));
-    } else if (filterKey.startsWith("talent-")) {
-      const talentId = filterKey.replace("talent-", "");
-      setFilters((prev) => ({
-        ...prev,
-        talentIds: prev.talentIds.filter((id) => id !== talentId),
-      }));
-    } else if (filterKey.startsWith("product-")) {
-      const productId = filterKey.replace("product-", "");
-      setFilters((prev) => ({
-        ...prev,
-        productFamilyIds: prev.productFamilyIds.filter((id) => id !== productId),
-      }));
-    } else if (filterKey.startsWith("tag-")) {
-      const tagId = filterKey.replace("tag-", "");
-      setFilters((prev) => ({
-        ...prev,
-        tagIds: prev.tagIds.filter((id) => id !== tagId),
-      }));
-    } else if (filterKey === "showArchived") {
-      setFilters((prev) => ({ ...prev, showArchived: false }));
-    }
-  }, []);
+  const removeFilter = useCallback(
+    (filterKey) => {
+      setFilters((prev) => removeFilterKey(prev, filterKey));
+    },
+    []
+  );
 
   const updateViewMode = useCallback(
     (nextMode) =>
@@ -1573,6 +1430,7 @@ export function ShotsWorkspace() {
   // Selection handlers
   const toggleShotSelection = useCallback(
     (shotId) => {
+      if (!selectionMode) return;
       setSelectedShotIds((prev) => {
         const next = new Set(prev);
         if (next.has(shotId)) {
@@ -1589,10 +1447,11 @@ export function ShotsWorkspace() {
         return next;
       });
     },
-    [focusShotId, setFocusShotId, setSelectedShotIds]
+    [selectionMode, focusShotId, setFocusShotId, setSelectedShotIds]
   );
 
   const toggleSelectAll = useCallback(() => {
+    if (!selectionMode) return;
     if (selectedShotIds.size === sortedShots.length && sortedShots.length > 0) {
       setSelectedShotIds(new Set());
       setFocusShotId(null);
@@ -1601,16 +1460,35 @@ export function ShotsWorkspace() {
       setSelectedShotIds(new Set(next));
       setFocusShotId(next.length ? next[0] : null);
     }
-  }, [selectedShotIds.size, sortedShots, setFocusShotId, setSelectedShotIds]);
+  }, [selectionMode, selectedShotIds.size, sortedShots, setFocusShotId, setSelectedShotIds]);
 
   const clearSelection = useCallback(() => {
     setSelectedShotIds(new Set());
     setFocusShotId(null);
   }, [setSelectedShotIds, setFocusShotId]);
 
+  const exitSelectionMode = useCallback(() => {
+    clearSelection();
+    setSelectionMode(false);
+  }, [clearSelection]);
+
+  const handleSelectionModeToggle = useCallback(() => {
+    if (selectionMode) {
+      exitSelectionMode();
+    } else {
+      setSelectionMode(true);
+    }
+  }, [selectionMode, exitSelectionMode]);
+
   const selectedShots = useMemo(() => {
     return sortedShots.filter((shot) => selectedShotIds.has(shot.id));
   }, [sortedShots, selectedShotIds]);
+
+  useEffect(() => {
+    if (!selectionMode && selectedShotIds.size > 0) {
+      clearSelection();
+    }
+  }, [selectionMode, selectedShotIds.size, clearSelection]);
 
   const handleFocusShot = useCallback(
     (candidate, options = {}) => {
@@ -2353,6 +2231,43 @@ export function ShotsWorkspace() {
     }
   }, [canEditShots, selectedShots, currentShotsPath, db, isProcessingBulk]);
 
+  // Bulk set lane for selected shots
+  const handleBulkSetLane = useCallback(async (laneId) => {
+    if (!canEditShots || selectedShots.length === 0) return;
+    if (isProcessingBulk) {
+      toast.info({ title: "Please wait", description: "Another operation is in progress." });
+      return;
+    }
+    setIsProcessingBulk(true);
+    try {
+      const updates = { laneId: laneId || null };
+      if (laneId) {
+        const lane = lanes.find((l) => l.id === laneId);
+        if (lane?.name && /^\d{4}-\d{2}-\d{2}$/.test(lane.name)) {
+          updates.date = lane.name;
+        }
+      } else {
+        updates.date = null;
+      }
+      const shotIds = selectedShots.map((s) => s.id);
+      await new Promise((resolve, reject) => {
+        bulkUpdateShotsMutation.mutate(
+          { shotIds, updates },
+          { onSuccess: () => resolve(), onError: (error) => reject(error) }
+        );
+      });
+      toast.success({ title: "Lane updated", description: `Updated ${selectedShots.length} shots.` });
+      setSelectedShotIds(new Set());
+      setFocusShotId(null);
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Unable to set lane.");
+      console.error("[Shots] Failed to set lane in bulk", error);
+      toast.error({ title: "Failed to set lane", description: `${code}: ${message}` });
+    } finally {
+      setIsProcessingBulk(false);
+    }
+  }, [canEditShots, selectedShots, lanes, bulkUpdateShotsMutation, isProcessingBulk, setSelectedShotIds, setFocusShotId]);
+
   /**
    * Bulk set type for selected shots
    */
@@ -2586,647 +2501,156 @@ export function ShotsWorkspace() {
   const showArchived = Boolean(filters.showArchived);
   const activityLimit = activityExpanded ? 60 : 12;
   const activityTimelineKey = activityExpanded ? "timeline-expanded" : "timeline-compact";
+  const resolvedDensity = normaliseShotDensity(viewPrefs.density);
+  const galleryItemHeight = resolvedDensity === "extra" ? 220 : 360;
+  const listItemHeight = resolvedDensity === "extra" ? 160 : 240;
 
-  // Build the toolbar UI once; we will portal it into the header anchor
-  const toolbar = (
-    <Card className="border-b-2">
-      <CardContent className="py-4">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 md:text-3xl">Shots</h1>
-              <div className="flex items-center gap-1.5">
-                <div className="relative" ref={filtersRef}>
-                  <Button
-                    type="button"
-                    variant={filtersOpen ? "secondary" : "ghost"}
-                    size="icon"
-                    onClick={() => setFiltersOpen((open) => !open)}
-                    aria-haspopup="dialog"
-                    aria-expanded={filtersOpen}
-                    aria-label="Filter shots"
-                  >
-                    <Filter className="h-4 w-4" />
-                  </Button>
-                  {filtersOpen && (
-                    <div className="absolute left-0 z-50 mt-2 w-[640px] max-w-[calc(100vw-2rem)] rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Filters</p>
-                      <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Location</label>
-                          <Select
-                            classNamePrefix="filter-select"
-                            styles={filterSelectStyles}
-                            options={locationFilterOptions}
-                            value={locationFilterValue}
-                            onChange={(opt) => handleLocationFilterChange(opt?.value || "")}
-                            placeholder={locationFilterOptions.length ? "Select location..." : "No locations available"}
-                            isDisabled={!locationFilterOptions.length}
-                            noOptionsMessage={() =>
-                              locationFilterOptions.length ? "No matching locations" : "No locations available"
-                            }
-                            menuPortalTarget={selectPortalTarget}
-                            menuShouldBlockScroll
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Talent</label>
-                          <Select
-                            isMulti
-                            classNamePrefix="filter-select"
-                            styles={filterSelectStyles}
-                            options={talentFilterOptions}
-                            value={talentFilterValue}
-                            onChange={handleTalentFilterChange}
-                            placeholder={talentFilterOptions.length ? "Select talent..." : "No talent available"}
-                            isDisabled={!talentFilterOptions.length}
-                            noOptionsMessage={() =>
-                              talentFilterOptions.length ? "No matching talent" : "No talent available"
-                            }
-                            menuPortalTarget={selectPortalTarget}
-                            menuShouldBlockScroll
-                            closeMenuOnSelect={false}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Products</label>
-                          <Select
-                            isMulti
-                            classNamePrefix="filter-select"
-                            styles={filterSelectStyles}
-                            options={productFilterOptions}
-                            value={productFilterValue}
-                            onChange={handleProductFilterChange}
-                            placeholder={productFilterOptions.length ? "Select products..." : "No products available"}
-                            isDisabled={!productFilterOptions.length}
-                            noOptionsMessage={() =>
-                              productFilterOptions.length ? "No matching products" : "No products available"
-                            }
-                            menuPortalTarget={selectPortalTarget}
-                            menuShouldBlockScroll
-                            closeMenuOnSelect={false}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Tags</label>
-                          <Select
-                            isMulti
-                            classNamePrefix="filter-select"
-                            styles={filterSelectStyles}
-                            options={tagFilterOptions}
-                            value={tagFilterValue}
-                            onChange={handleTagFilterChange}
-                            placeholder={tagFilterOptions.length ? "Select tags..." : "No tags available"}
-                            isDisabled={!tagFilterOptions.length}
-                            noOptionsMessage={() =>
-                              tagFilterOptions.length ? "No matching tags" : "No tags available"
-                            }
-                            menuPortalTarget={selectPortalTarget}
-                            menuShouldBlockScroll
-                            closeMenuOnSelect={false}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="relative" ref={sortMenuRef}>
-                  <Button
-                    type="button"
-                    variant={sortMenuOpen ? "secondary" : "ghost"}
-                    size="icon"
-                    onClick={() => setSortMenuOpen((open) => !open)}
-                    aria-haspopup="menu"
-                    aria-expanded={sortMenuOpen}
-                    aria-label="Sort shots"
-                  >
-                    <ArrowUpDown className="h-4 w-4" />
-                  </Button>
-                  {sortMenuOpen && (
-                    <div className="absolute left-0 z-50 mt-2 w-56 rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sort shots</p>
-                      <div className="mt-2 space-y-1">
-                        {SHOT_SORT_OPTIONS.map((option) => {
-                          const active = viewPrefs.sort === option.value;
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              onClick={() => {
-                                selectSort(option.value);
-                                setSortMenuOpen(false);
-                              }}
-                              className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 transition ${
-                                active
-                                  ? "bg-primary/10 text-primary font-medium"
-                                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-                              }`}
-                            >
-                              {option.label}
-                              {active && <span className="text-[10px] uppercase">Active</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="relative" ref={visibilityMenuRef}>
-                  <Button
-                    type="button"
-                    variant={visibilityMenuOpen ? "secondary" : "ghost"}
-                    size="icon"
-                    onClick={() => setVisibilityMenuOpen((open) => !open)}
-                    aria-haspopup="menu"
-                    aria-expanded={visibilityMenuOpen}
-                    aria-label="Toggle visible shot properties"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  {visibilityMenuOpen && (
-                    <div className="absolute left-0 z-50 mt-2 w-64 rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Visible properties</p>
-                      <div className="mt-2 space-y-2">
-                        {DETAIL_TOGGLE_OPTIONS.map((option) => (
-                          <label
-                            key={`visibility-${option.key}`}
-                            className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={Boolean(viewPrefs[option.key])}
-                              onChange={() => toggleViewPref(option.key)}
-                              className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
-                            />
-                            {option.label}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  type="button"
-                  variant={isSearchExpanded ? "secondary" : "ghost"}
-                  size="icon"
-                  onClick={() => setIsSearchExpanded(true)}
-                  aria-label="Search shots"
-                  aria-expanded={isSearchExpanded}
-                >
-                  <Search className="h-4 w-4" />
-                </Button>
-                <div
-                  className={"relative flex items-center overflow-hidden transition-all duration-200 " + (isSearchExpanded ? "w-48 sm:w-56 opacity-100" : "w-0 opacity-0 pointer-events-none")}
-                >
-                  <Input
-                    ref={searchInputRef}
-                    value={queryText}
-                    onChange={(event) => setQueryText(event.target.value)}
-                    onKeyDown={handleSearchKeyDown}
-                    placeholder="Type to search..."
-                    aria-label="Search shots"
-                    className="h-9 w-full border-slate-200 bg-white pr-8 text-sm dark:border-slate-700 dark:bg-slate-900"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSearchClear}
-                    className="absolute right-2 text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-                    aria-label="Clear search"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:inline">
-                View
-              </span>
-              <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                <button
-                  type="button"
-                  onClick={() => updateViewMode("gallery")}
-                  className={`flex items-center gap-1.5 px-2 py-1.5 text-sm transition sm:gap-2 sm:px-3 ${
-                    isGalleryView
-                      ? "bg-slate-900 text-white dark:bg-slate-700"
-                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-                  }`}
-                  aria-pressed={isGalleryView}
-                >
-                  <LayoutGrid className="h-4 w-4" aria-hidden="true" />
-                  <span className="hidden sm:inline">Gallery</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateViewMode("list")}
-                  className={`flex items-center gap-1.5 px-2 py-1.5 text-sm transition sm:gap-2 sm:px-3 ${
-                    isListView
-                      ? "bg-slate-900 text-white dark:bg-slate-700"
-                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-                  }`}
-                  aria-pressed={isListView}
-                >
-                  <List className="h-4 w-4" aria-hidden="true" />
-                  <span className="hidden sm:inline">List</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateViewMode("table")}
-                  className={`flex items-center gap-1.5 px-2 py-1.5 text-sm transition sm:gap-2 sm:px-3 ${
-                    isTableView
-                      ? "bg-slate-900 text-white dark:bg-slate-700"
-                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-                  }`}
-                  aria-pressed={isTableView}
-                >
-                  <Table className="h-4 w-4" aria-hidden="true" />
-                  <span className="hidden sm:inline">Table</span>
-                </button>
-              </div>
-              <ExportButton data={filteredShots} entityType="shots" />
-              {canEditShots && sortedShots.length > 0 && (
-                <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={selectedShotIds.size > 0 && selectedShotIds.size === sortedShots.length}
-                    onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
-                  />
-                  <span className="text-xs font-medium whitespace-nowrap">
-                    {selectedShotIds.size > 0 ? `${selectedShotIds.size} selected` : "Select all"}
-                  </span>
-                </label>
-              )}
-              {canEditShots && (
-                <Button type="button" onClick={openCreateModal} className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  <span className="hidden sm:inline">Create shot</span>
-                  <span className="sm:hidden">New</span>
-                </Button>
-              )}
-            </div>
-          </div>
-          {/* Active filter pills */}
-          {activeFilters.length > 0 && (
-            <div className="flex w-full flex-wrap gap-2">
-              {activeFilters.map((filter) => (
-                <button
-                  key={filter.key}
-                  onClick={() => removeFilter(filter.key)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 px-3 py-1 text-xs font-medium hover:bg-primary/20 transition"
-                >
-                  <span>{filter.label}: {filter.value}</span>
-                  <X className="h-3 w-3" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+  const handleDensityChange = useCallback((nextDensity) => {
+    setViewPrefs((prev) => ({ ...prev, density: normaliseShotDensity(nextDensity) }));
+  }, []);
 
-  // Render toolbar inside header if the anchor exists; otherwise inline
-  const anchor = typeof window !== "undefined" ? document.getElementById("shots-toolbar-anchor") : null;
+  const productNoOptionsMessage = productFilterOptions.length
+    ? "No matching products"
+    : "No products available";
+  const tagNoOptionsMessage = tagFilterOptions.length
+    ? "No matching tags"
+    : "No tags available";
 
   return (
     <div>
-      {anchor ? createPortal(toolbar, anchor) : toolbar}
-      {/* Legacy inline toolbar (removed) — start
-      <>
-              <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 md:text-3xl">Shots</h1>
-                  <div className="flex items-center gap-1.5">
-                    <div className="relative" ref={filtersRef}>
-                      <Button
-                        type="button"
-                        variant={filtersOpen ? "secondary" : "ghost"}
-                        size="icon"
-                        onClick={() => setFiltersOpen((prev) => !prev)}
-                        aria-haspopup="dialog"
-                        aria-expanded={filtersOpen}
-                        aria-label="Filter shots"
-                      >
-                        <Filter className="h-4 w-4" />
-                      </Button>
-                      {activeFilterCount > 0 && (
-                        <span className="absolute -right-1 -top-1 inline-flex min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-4 text-white">
-                          {activeFilterCount}
-                        </span>
-                      )}
-                      {filtersOpen && (
-                        <div className="absolute left-0 z-50 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Filter shots</p>
-                              {activeFilterCount > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    clearFilters();
-                                    setFiltersOpen(false);
-                                  }}
-                                  className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
-                                >
-                                  <X className="h-3 w-3" />
-                                  Clear all
-                                </button>
-                              )}
-                            </div>
-                            <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
-                              <input
-                                type="checkbox"
-                                checked={showArchived}
-                                onChange={toggleShowArchived}
-                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
-                              />
-                              Show archived shots
-                            </label>
-                            <div className="space-y-2">
-                              <label htmlFor="location-filter" className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                                Location
-                              </label>
-                              <select
-                                id="location-filter"
-                                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                                value={filters.locationId}
-                                onChange={(event) => handleLocationFilterChange(event.target.value)}
-                              >
-                                <option value="">All locations</option>
-                                {locations.map((location) => (
-                                  <option key={location.id} value={location.id}>
-                                    {location.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Talent</label>
-                              <Select
-                                isMulti
-                                classNamePrefix="filter-select"
-                                styles={filterSelectStyles}
-                                options={talentFilterOptions}
-                                value={talentFilterValue}
-                                onChange={handleTalentFilterChange}
-                                placeholder={talentOptions.length ? "Select talent..." : "No talent available"}
-                                isDisabled={!talentOptions.length}
-                                noOptionsMessage={() =>
-                                  talentOptions.length ? "No matching talent" : "No talent available"
-                                }
-                                menuPortalTarget={selectPortalTarget}
-                                menuShouldBlockScroll
-                                closeMenuOnSelect={false}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Products</label>
-                              <Select
-                                isMulti
-                                classNamePrefix="filter-select"
-                                styles={filterSelectStyles}
-                                options={productFilterOptions}
-                                value={productFilterValue}
-                                onChange={handleProductFilterChange}
-                                placeholder={productFilterOptions.length ? "Select products..." : "No products available"}
-                                isDisabled={!productFilterOptions.length}
-                                noOptionsMessage={() =>
-                                  productFilterOptions.length ? "No matching products" : "No products available"
-                                }
-                                menuPortalTarget={selectPortalTarget}
-                                menuShouldBlockScroll
-                                closeMenuOnSelect={false}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Tags</label>
-                              <Select
-                                isMulti
-                                classNamePrefix="filter-select"
-                                styles={filterSelectStyles}
-                                options={tagFilterOptions}
-                                value={tagFilterValue}
-                                onChange={handleTagFilterChange}
-                                placeholder={tagFilterOptions.length ? "Select tags..." : "No tags available"}
-                                isDisabled={!tagFilterOptions.length}
-                                noOptionsMessage={() =>
-                                  tagFilterOptions.length ? "No matching tags" : "No tags available"
-                                }
-                                menuPortalTarget={selectPortalTarget}
-                                menuShouldBlockScroll
-                                closeMenuOnSelect={false}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="relative" ref={sortMenuRef}>
-                      <Button
-                        type="button"
-                        variant={sortMenuOpen ? "secondary" : "ghost"}
-                        size="icon"
-                        onClick={() => setSortMenuOpen((open) => !open)}
-                        aria-haspopup="menu"
-                        aria-expanded={sortMenuOpen}
-                        aria-label="Sort shots"
-                      >
-                        <ArrowUpDown className="h-4 w-4" />
-                      </Button>
-                      {sortMenuOpen && (
-                        <div className="absolute left-0 z-50 mt-2 w-56 rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sort shots</p>
-                          <div className="mt-2 space-y-1">
-                            {SHOT_SORT_OPTIONS.map((option) => {
-                              const active = viewPrefs.sort === option.value;
-                              return (
-                                <button
-                                  key={option.value}
-                                  type="button"
-                                  onClick={() => {
-                                    selectSort(option.value);
-                                    setSortMenuOpen(false);
-                                  }}
-                                  className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 transition ${
-                                    active
-                                      ? "bg-primary/10 text-primary font-medium"
-                                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-                                  }`}
-                                >
-                                  {option.label}
-                                  {active && <span className="text-[10px] uppercase">Active</span>}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="relative" ref={visibilityMenuRef}>
-                      <Button
-                        type="button"
-                        variant={visibilityMenuOpen ? "secondary" : "ghost"}
-                        size="icon"
-                        onClick={() => setVisibilityMenuOpen((open) => !open)}
-                        aria-haspopup="menu"
-                        aria-expanded={visibilityMenuOpen}
-                        aria-label="Toggle visible shot properties"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {visibilityMenuOpen && (
-                        <div className="absolute left-0 z-50 mt-2 w-64 rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Visible properties</p>
-                          <div className="mt-2 space-y-2">
-                            {DETAIL_TOGGLE_OPTIONS.map((option) => (
-                              <label
-                                key={`visibility-${option.key}`}
-                                className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={Boolean(viewPrefs[option.key])}
-                                  onChange={() => toggleViewPref(option.key)}
-                                  className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
-                                />
-                                {option.label}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        type="button"
-                        variant={isSearchExpanded ? "secondary" : "ghost"}
-                        size="icon"
-                        onClick={() => setIsSearchExpanded(true)}
-                        aria-label="Search shots"
-                        aria-expanded={isSearchExpanded}
-                      >
-                        <Search className="h-4 w-4" />
-                      </Button>
-                      <div
-                        className={"relative flex items-center overflow-hidden transition-all duration-200 " + (isSearchExpanded ? "w-48 sm:w-56 opacity-100" : "w-0 opacity-0 pointer-events-none")}
-                      >
-                        <Input
-                          ref={searchInputRef}
-                          value={queryText}
-                          onChange={(event) => setQueryText(event.target.value)}
-                          onKeyDown={handleSearchKeyDown}
-                          placeholder="Type to search..."
-                          aria-label="Search shots"
-                          className="h-9 w-full border-slate-200 bg-white pr-8 text-sm dark:border-slate-700 dark:bg-slate-900"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleSearchClear}
-                          className="absolute right-2 text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-                          aria-label="Clear search"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:inline">
-                    View
-                  </span>
-                  <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => updateViewMode("gallery")}
-                      className={`flex items-center gap-1.5 px-2 py-1.5 text-sm transition sm:gap-2 sm:px-3 ${
-                        isGalleryView
-                          ? "bg-slate-900 text-white dark:bg-slate-700"
-                          : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-                      }`}
-                      aria-pressed={isGalleryView}
-                    >
-                      <LayoutGrid className="h-4 w-4" aria-hidden="true" />
-                      <span className="hidden sm:inline">Gallery</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateViewMode("list")}
-                      className={`flex items-center gap-1.5 px-2 py-1.5 text-sm transition sm:gap-2 sm:px-3 ${
-                        isListView
-                          ? "bg-slate-900 text-white dark:bg-slate-700"
-                          : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-                      }`}
-                      aria-pressed={isListView}
-                    >
-                      <List className="h-4 w-4" aria-hidden="true" />
-                      <span className="hidden sm:inline">List</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateViewMode("table")}
-                      className={`flex items-center gap-1.5 px-2 py-1.5 text-sm transition sm:gap-2 sm:px-3 ${
-                        isTableView
-                          ? "bg-slate-900 text-white dark:bg-slate-700"
-                          : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-                      }`}
-                      aria-pressed={isTableView}
-                    >
-                      <Table className="h-4 w-4" aria-hidden="true" />
-                      <span className="hidden sm:inline">Table</span>
-                    </button>
-                  </div>
-                  <ExportButton data={filteredShots} entityType="shots" />
-                  {canEditShots && sortedShots.length > 0 && (
-                    <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={selectedShotIds.size > 0 && selectedShotIds.size === sortedShots.length}
-                        onChange={toggleSelectAll}
-                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
-                      />
-                      <span className="text-xs font-medium whitespace-nowrap">
-                        {selectedShotIds.size > 0 ? `${selectedShotIds.size} selected` : "Select all"}
-                      </span>
-                    </label>
-                  )}
-                  {canEditShots && (
-                    <Button type="button" onClick={openCreateModal} className="flex items-center gap-2">
-                      <Plus className="h-4 w-4" aria-hidden="true" />
-                      <span className="hidden sm:inline">Create shot</span>
-                      <span className="sm:hidden">New</span>
-                    </Button>
-                  )}
-                </div>
+      <OverviewToolbar filterPills={activeFilters} onRemoveFilter={removeFilter}>
+        <OverviewToolbarRow>
+          <div className="flex flex-wrap items-center gap-2">
+            <FiltersPopover
+              locationOptions={locationFilterOptions}
+              locationValue={locationFilterValue}
+              onLocationChange={handleLocationFilterChange}
+              talentOptions={talentFilterOptions}
+              talentValue={talentFilterValue}
+              onTalentChange={handleTalentFilterChange}
+              talentNoOptionsMessage={talentNoOptionsMessage}
+              productOptions={productFilterOptions}
+              productValue={productFilterValue}
+              onProductChange={handleProductFilterChange}
+              productNoOptionsMessage={productNoOptionsMessage}
+              tagOptions={tagFilterOptions}
+              tagValue={tagFilterValue}
+              onTagChange={handleTagFilterChange}
+              tagNoOptionsMessage={tagNoOptionsMessage}
+              selectPortalTarget={selectPortalTarget}
+            />
+            <SortMenu
+              options={SHOT_SORT_OPTIONS}
+              value={viewPrefs.sort}
+              onChange={selectSort}
+              title="Sort shots"
+            />
+            <FieldVisibilityMenu
+              options={DETAIL_TOGGLE_OPTIONS.map((option) => ({
+                key: option.key,
+                label: option.label,
+                checked: Boolean(viewPrefs[option.key]),
+              }))}
+              onToggle={toggleViewPref}
+            />
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                variant={isSearchExpanded ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => setIsSearchExpanded(true)}
+                aria-label="Search shots"
+                aria-expanded={isSearchExpanded}
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+              <div
+                className={`relative flex items-center overflow-hidden transition-all duration-200 ${
+                  isSearchExpanded ? "w-48 opacity-100 sm:w-56" : "pointer-events-none w-0 opacity-0"
+                }`}
+              >
+                <Input
+                  ref={searchInputRef}
+                  value={queryText}
+                  onChange={(event) => setQueryText(event.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="Type to search..."
+                  aria-label="Search shots"
+                  className="h-9 w-full border-slate-200 bg-white pr-8 text-sm dark:border-slate-700 dark:bg-slate-900"
+                />
+                <button
+                  type="button"
+                  onClick={handleSearchClear}
+                  className="absolute right-2 text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
-            {/* Active filter pills * /}
-            {activeFilters.length > 0 && (
-              <div className="flex w-full flex-wrap gap-2">
-                {activeFilters.map((filter) => (
-                  <button
-                    key={filter.key}
-                    onClick={() => removeFilter(filter.key)}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 px-3 py-1 text-xs font-medium hover:bg-primary/20 transition"
-                  >
-                    <span>{filter.label}: {filter.value}</span>
-                    <X className="h-3 w-3" />
-                  </button>
-                ))}
-              </div>
-            )}
             </div>
-        </>
-      */}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:inline">
+              View
+            </span>
+            <SegmentedControl
+              options={SHOT_VIEW_OPTIONS}
+              value={viewMode}
+              onChange={updateViewMode}
+              ariaLabel="Select view"
+            />
+            <div className="hidden items-center gap-2 sm:flex">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Density
+              </span>
+              <SegmentedControl
+                options={SHOT_DENSITY_OPTIONS}
+                value={viewPrefs.density}
+                onChange={handleDensityChange}
+                size="sm"
+                ariaLabel="Select density"
+              />
+            </div>
+            {canEditShots && sortedShots.length > 0 && (
+              <Button
+                type="button"
+                variant={selectionMode ? "default" : "outline"}
+                size="sm"
+                onClick={handleSelectionModeToggle}
+                aria-pressed={selectionMode}
+                className="flex items-center gap-1.5"
+              >
+                {selectionMode ? <X className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
+                <span>
+                  {selectionMode
+                    ? selectedShotIds.size > 0
+                      ? `Done (${selectedShotIds.size})`
+                      : "Exit selection"
+                    : "Select"}
+                </span>
+              </Button>
+            )}
+            <ExportButton data={filteredShots} entityType="shots" />
+            {canEditShots && (
+              <Button type="button" onClick={openCreateModal} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Create shot</span>
+                <span className="sm:hidden">New</span>
+              </Button>
+            )}
+          </div>
+        </OverviewToolbarRow>
+      </OverviewToolbar>
 
       {/* Bulk Tagging Toolbar - appears when shots are selected */}
-      {canEditShots && selectedShotIds.size > 0 && (
+      {canEditShots && selectionMode && (
         <BulkOperationsToolbar
           selectedCount={selectedShotIds.size}
           onClearSelection={clearSelection}
+          onExitSelection={exitSelectionMode}
+          onSelectAll={toggleSelectAll}
+          totalCount={sortedShots.length}
+          isSticky={false}
           // Tag operations
           onApplyTags={handleBulkApplyTags}
           onRemoveTags={handleBulkRemoveTags}
@@ -3241,6 +2665,9 @@ export function ShotsWorkspace() {
           onSetType={handleBulkSetType}
           availableLocations={locations}
           availableTypes={AVAILABLE_SHOT_TYPES}
+          // Lane operations
+          onSetLane={handleBulkSetLane}
+          availableLanes={lanes}
           // Project operations
           onMoveToProject={handleBulkMoveToProject}
           onCopyToProject={handleBulkCopyToProject}
@@ -3279,7 +2706,7 @@ export function ShotsWorkspace() {
             ) : isGalleryView ? (
               <VirtualizedGrid
                 items={sortedShots}
-                itemHeight={360}
+                itemHeight={galleryItemHeight}
                 threshold={80}
                 className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
                 renderItem={(shot, index, isVirtualized) => {
@@ -3303,7 +2730,7 @@ export function ShotsWorkspace() {
                         onEdit={() => handleEditShot(shot)}
                         viewPrefs={viewPrefs}
                         isSelected={selectedShotIds.has(shot.id)}
-                        onToggleSelect={canEditShots ? toggleShotSelection : null}
+                        onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}
                         isFocused={focusShotId === shot.id}
                         onFocus={() => handleFocusShot(shot)}
                       />
@@ -3314,7 +2741,7 @@ export function ShotsWorkspace() {
             ) : isListView ? (
               <VirtualizedList
                 items={sortedShots}
-                itemHeight={240}
+                itemHeight={listItemHeight}
                 threshold={80}
                 className="space-y-3"
                 renderItem={(shot, index, isVirtualized) => {
@@ -3338,7 +2765,7 @@ export function ShotsWorkspace() {
                         onEdit={() => handleEditShot(shot)}
                         viewPrefs={viewPrefs}
                         isSelected={selectedShotIds.has(shot.id)}
-                        onToggleSelect={canEditShots ? toggleShotSelection : null}
+                        onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}
                         isFocused={focusShotId === shot.id}
                         onFocus={() => handleFocusShot(shot)}
                       />
@@ -3352,7 +2779,7 @@ export function ShotsWorkspace() {
                 viewPrefs={viewPrefs}
                 canEditShots={canEditShots}
                 selectedShotIds={selectedShotIds}
-                onToggleSelect={canEditShots ? toggleShotSelection : null}
+                onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}
                 onEditShot={canEditShots ? handleEditShot : null}
                 focusedShotId={focusShotId}
                 onFocusShot={handleFocusShot}
@@ -3681,12 +3108,14 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     ? "ring-2 ring-primary/60"
     : "";
 
+  const density = normaliseShotDensity(viewPrefs?.density);
+  const imageHeightClass = density === 'extra' ? 'h-28 sm:h-32' : 'h-44 sm:h-48';
   return (
     <Card
       className={`overflow-hidden border shadow-sm transition ${focusClasses}`}
       onClick={() => onFocus?.(shot)}
     >
-      <div className="relative h-40 bg-slate-100 sm:h-44">
+      <div className={`relative ${imageHeightClass} bg-slate-100`}>
         <AppImage
           src={imagePath}
           alt={`${shot.name} preview`}
@@ -3775,12 +3204,14 @@ const OVERVIEW_TAB_STORAGE_KEY = "shots:overviewTab";
 
 const normaliseOverviewTab = (value) => {
   if (value === "planner") return "planner";
+  if (value === "assets") return "assets";
   return "shots";
 };
 
 const overviewTabs = [
-  { value: "shots", label: "Shots", icon: Camera },
+  { value: "shots", label: "Builder", icon: Camera },
   { value: "planner", label: "Planner", icon: Calendar },
+  { value: "assets", label: "Assets", icon: Users },
 ];
 
 const shallowEqual = (a, b) => {
@@ -3798,6 +3229,7 @@ const shallowEqual = (a, b) => {
 export default function ShotsPage({ initialView = null }) {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { setLastVisitedPath } = useProjectScope();
   const queryTab = searchParams.get("view");
   const normalisedPropTab = initialView ? normaliseOverviewTab(initialView) : null;
   const normalisedQueryTab = queryTab ? normaliseOverviewTab(queryTab) : null;
@@ -3814,8 +3246,8 @@ export default function ShotsPage({ initialView = null }) {
   const updateSharedFilters = useCallback((updater) => {
     setSharedFiltersState((prev) => {
       const resolved = typeof updater === "function" ? updater(prev) : updater;
-      const base = resolved && typeof resolved === "object" ? resolved : defaultShotFilters;
-      const next = { ...defaultShotFilters, ...base };
+      const base = resolved && typeof resolved === "object" ? resolved : defaultOverviewFilters;
+      const next = { ...defaultOverviewFilters, ...base };
       return shallowEqual(next, prev) ? prev : next;
     });
   }, []);
@@ -3897,6 +3329,17 @@ export default function ShotsPage({ initialView = null }) {
     [location.search, setSearchParams]
   );
 
+  // Remember last visited path including tab
+  useEffect(() => {
+    if (activeTab === "planner") {
+      setLastVisitedPath("/shots?view=planner");
+    } else if (activeTab === "assets") {
+      setLastVisitedPath("/shots?view=assets");
+    } else {
+      setLastVisitedPath("/shots");
+    }
+  }, [activeTab, setLastVisitedPath]);
+
   const activeContent = useMemo(() => {
     if (activeTab === "planner") {
       return (
@@ -3911,10 +3354,13 @@ export default function ShotsPage({ initialView = null }) {
         </Suspense>
       );
     }
+    if (activeTab === "assets") {
+      return <ShotsAssetsTab />;
+    }
     return <ShotsWorkspace />;
   }, [activeTab]);
 
-  const activeLabel = activeTab === "planner" ? "Planner" : "Shots";
+  const activeLabel = activeTab === "planner" ? "Planner" : activeTab === "assets" ? "Assets" : "Builder";
 
   return (
     <ShotsOverviewProvider value={overviewValue}>
@@ -3922,7 +3368,7 @@ export default function ShotsPage({ initialView = null }) {
         <div className="sticky top-[65px] z-[39] border-b border-slate-200 bg-white/95 backdrop-blur" data-shot-overview-header>
           <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
             <div>
-              <h1 className="text-xl font-semibold text-slate-900">Shot overview</h1>
+              <h1 className="text-xl font-semibold text-slate-900">Shots</h1>
               <p className="text-sm text-slate-500">Create, plan, and review shots without leaving the page.</p>
           </div>
           <div

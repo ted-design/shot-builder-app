@@ -5,7 +5,7 @@ import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useProjectScope } from "../../context/ProjectScopeContext";
 import { useFirestoreCollection } from "../../hooks/useFirestoreCollection";
-import { ChevronDown, FolderOpen, Layout } from "lucide-react";
+import { ChevronDown, FolderOpen, Layout, Settings } from "lucide-react";
 
 export default function ProjectIndicator() {
   const { clientId } = useAuth();
@@ -72,6 +72,15 @@ export default function ProjectIndicator() {
   const handleGoToDashboard = () => {
     setDropdownOpen(false);
     navigate("/projects");
+  };
+
+  const handleManageAssets = () => {
+    setDropdownOpen(false);
+    if (currentProjectId) {
+      navigate(`/projects/${currentProjectId}/assets`);
+    } else {
+      navigate("/projects");
+    }
   };
 
   if (!clientId || loading) {
@@ -154,6 +163,13 @@ export default function ProjectIndicator() {
             >
               <Layout className="h-4 w-4" />
               <span>Manage Projects</span>
+            </button>
+            <button
+              onClick={handleManageAssets}
+              className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-50 hover:translate-x-0.5"
+            >
+              <Settings className="h-4 w-4" />
+              <span>Manage Project Assets</span>
             </button>
           </div>
         </div>
