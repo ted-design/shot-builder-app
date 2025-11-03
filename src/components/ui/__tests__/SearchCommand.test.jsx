@@ -6,6 +6,7 @@ import React from 'react';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SearchCommand from '../SearchCommand';
 
 // Mock global search function
@@ -29,6 +30,13 @@ vi.mock('../../../hooks/useFirestoreQuery', () => ({
   useTalent: () => ({ data: [] }),
   useLocations: () => ({ data: [] }),
   useProjects: () => ({ data: [] }),
+  queryKeys: {
+    shots: (clientId, projectId) => ['shots', clientId, projectId],
+    products: (clientId) => ['products', clientId],
+    talent: (clientId) => ['talent', clientId],
+    locations: (clientId) => ['locations', clientId],
+    projects: (clientId) => ['projects', clientId],
+  },
 }));
 
 vi.mock('../../../context/AuthContext', () => ({
@@ -59,10 +67,18 @@ vi.mock('../../../context/SearchCommandContext', () => ({
 
 describe('SearchCommand', () => {
   const renderComponent = () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
     return render(
-      <BrowserRouter>
-        <SearchCommand />
-      </BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <SearchCommand />
+        </BrowserRouter>
+      </QueryClientProvider>
     );
   };
 
@@ -96,13 +112,22 @@ describe('SearchCommand', () => {
     // Set modal to open state
     mockState.isOpen = true;
 
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
     const { rerender } = renderComponent();
 
     // Force re-render with open state
     rerender(
-      <BrowserRouter>
-        <SearchCommand />
-      </BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <SearchCommand />
+        </BrowserRouter>
+      </QueryClientProvider>
     );
 
     // Modal should be visible
