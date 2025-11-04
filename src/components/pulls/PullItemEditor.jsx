@@ -12,13 +12,7 @@ import ShotProductAddModal from "../shots/ShotProductAddModal";
 import { generatePullItemId, validatePullItem, getPullItemDisplayName } from "../../lib/pullItems";
 import { toast } from "../../lib/toast";
 
-const GENDER_OPTIONS = [
-  { value: "", label: "Auto (from product)" },
-  { value: "mens", label: "Men's" },
-  { value: "womens", label: "Women's" },
-  { value: "kids", label: "Kids" },
-  { value: "unisex", label: "Unisex" },
-];
+// Gender is locked to the product's family; no overrides.
 
 export default function PullItemEditor({
   item = null,
@@ -39,7 +33,7 @@ export default function PullItemEditor({
   const [availableSizes, setAvailableSizes] = useState([]);
 
   // Metadata state
-  const [genderOverride, setGenderOverride] = useState("");
+  // Gender locked; no override.
   const [notes, setNotes] = useState("");
 
   // Initialize form with item data
@@ -56,7 +50,7 @@ export default function PullItemEditor({
           gender: item.gender,
         });
         setSizes(item.sizes?.map((s) => ({ ...s })) || []);
-        setGenderOverride(item.genderOverride || "");
+        // no gender override
         setNotes(item.notes || "");
 
         // Load available sizes for the product family
@@ -73,7 +67,7 @@ export default function PullItemEditor({
         setSelectedProduct(null);
         setSizes([]);
         setAvailableSizes([]);
-        setGenderOverride("");
+        // no gender override
         setNotes("");
       }
     };
@@ -162,7 +156,7 @@ export default function PullItemEditor({
       })),
       notes: notes.trim(),
       gender: selectedProduct.gender || null,
-      genderOverride: genderOverride || null,
+      genderOverride: null,
       fulfillmentStatus: item?.fulfillmentStatus || "pending",
       shotIds: item?.shotIds || [],
       changeOrders: item?.changeOrders || [],
@@ -181,10 +175,15 @@ export default function PullItemEditor({
     onSave(pullItem);
   };
 
-  const displayGender = genderOverride || selectedProduct?.gender || "Not specified";
+  const displayGender = selectedProduct?.gender || "Not specified";
 
   return (
-    <Modal open onClose={onClose} labelledBy="pull-item-editor-title" contentClassName="max-w-2xl">
+    <Modal
+      open
+      onClose={onClose}
+      labelledBy="pull-item-editor-title"
+      contentClassName="md:!max-w-5xl !max-w-[95vw]"
+    >
       <Card className="border-0 shadow-none">
         <CardHeader>
           <h2 id="pull-item-editor-title" className="text-lg font-semibold">
@@ -292,35 +291,13 @@ export default function PullItemEditor({
             )}
           </div>
 
-          {/* Gender */}
+          {/* Gender (read-only from product) */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700">Gender</label>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="text-sm text-slate-900">
-                {displayGender}
-              </div>
-              <p className="text-xs text-slate-500 mt-1">
-                Auto-populated from product family
-              </p>
+              <div className="text-sm text-slate-900">{displayGender}</div>
+              <p className="text-xs text-slate-500 mt-1">Auto-populated from product family</p>
             </div>
-            {canEdit && (
-              <details className="text-xs">
-                <summary className="cursor-pointer text-slate-600 hover:text-slate-900">
-                  Override gender (optional)
-                </summary>
-                <select
-                  className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
-                  value={genderOverride}
-                  onChange={(e) => setGenderOverride(e.target.value)}
-                >
-                  {GENDER_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </details>
-            )}
           </div>
 
           {/* Notes */}

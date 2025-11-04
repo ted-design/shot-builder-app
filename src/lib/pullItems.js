@@ -111,6 +111,70 @@ export const aggregatePullItems = (items) => {
 };
 
 /**
+ * Upsert a pull item into an existing items array, merging on familyId+colourId
+ * and consolidating size quantities when a matching row exists.
+ * - When editing an existing item, pass excludeId to remove the original row
+ *   before upserting (to avoid self-matching).
+ * @param {Array} items - Existing items array
+ * @param {Object} incoming - Item to insert/merge
+ * @param {Object} [options]
+ * @param {string|null} [options.excludeId=null] - Item ID to remove before upsert (edit case)
+ * @returns {Array} New items array with the incoming item upserted
+ */
+export const upsertPullItem = (items, incoming, { excludeId = null } = {}) => {
+  const list = Array.isArray(items) ? items.slice() : [];
+  const base = excludeId ? list.filter((it) => it.id !== excludeId) : list;
+
+  const keyMatch = (a, b) => (a.familyId || "") === (b.familyId || "") && (a.colourId || null) === (b.colourId || null);
+
+  const existingIndex = base.findIndex((it) => keyMatch(it, incoming));
+  if (existingIndex === -1) {
+    // Append new item as-is
+    return [...base, { ...incoming, sizes: (incoming.sizes || []).map((s) => ({ ...s })) }];
+  }
+
+  // Merge into existing row
+  const existing = base[existingIndex];
+  const mergedSizes = Array.isArray(existing.sizes) ? existing.sizes.map((s) => ({ ...s })) : [];
+
+  (incoming.sizes || []).forEach((newSize) => {
+    const idx = mergedSizes.findIndex((s) => s.size === newSize.size);
+    if (idx >= 0) {
+      const current = mergedSizes[idx];
+      mergedSizes[idx] = {
+        ...current,
+        quantity: (current.quantity || 0) + (newSize.quantity || 0),
+        fulfilled: (current.fulfilled || 0) + (newSize.fulfilled || 0),
+        status: newSize.status || current.status || "pending",
+      };
+    } else {
+      mergedSizes.push({ ...newSize });
+    }
+  });
+
+  // Merge notes and shotIds
+  let mergedNotes = existing.notes || "";
+  if (incoming.notes && incoming.notes !== existing.notes) {
+    mergedNotes = mergedNotes ? `${mergedNotes}; ${incoming.notes}` : incoming.notes;
+  }
+  const mergedShotIds = Array.from(new Set([...(existing.shotIds || []), ...(incoming.shotIds || [])]));
+
+  const merged = {
+    ...existing,
+    // Prefer explicit overrides from incoming if present
+    genderOverride: incoming.genderOverride ?? existing.genderOverride ?? null,
+    categoryOverride: incoming.categoryOverride ?? existing.categoryOverride ?? null,
+    sizes: mergedSizes,
+    notes: mergedNotes,
+    shotIds: mergedShotIds,
+  };
+
+  const next = base.slice();
+  next[existingIndex] = merged;
+  return next;
+};
+
+/**
  * Calculate fulfillment status for a pull item based on its sizes
  * @param {Object} item - Pull item
  * @returns {string} "pending" | "fulfilled" | "partial" | "substituted"
@@ -170,8 +234,8 @@ export const sortPullItemsByGender = (items) => {
   if (!Array.isArray(items)) return [];
 
   return [...items].sort((a, b) => {
-    const genderA = (a.genderOverride || a.gender || "").toLowerCase();
-    const genderB = (b.genderOverride || b.gender || "").toLowerCase();
+    const genderA = (a.gender || "").toLowerCase();
+    const genderB = (b.gender || "").toLowerCase();
 
     // Gender comparison
     if (genderA !== genderB) {
@@ -314,7 +378,7 @@ export const groupPullItems = (items, groupBy = "gender") => {
 
     switch (groupBy) {
       case "gender":
-        key = item.genderOverride || item.gender || "unspecified";
+        key = item.gender || "unspecified";
         label = key.charAt(0).toUpperCase() + key.slice(1);
         break;
       case "category":

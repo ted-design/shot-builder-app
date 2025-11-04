@@ -42,7 +42,7 @@ export const exportPullToCSV = (pull, options = {}) => {
       product: item.familyName || "",
       styleNumber: item.styleNumber || "",
       colour: item.colourName || "",
-      gender: item.genderOverride || item.gender || "",
+      gender: item.gender || "",
     };
 
     if (flattenSizes && item.sizes && item.sizes.length > 0) {
@@ -139,6 +139,10 @@ export const formatPullForPDF = (pull, settings = {}) => {
     subheaderText = "",
     includeImages = true,
     pageBreakStrategy = "auto",
+    columns = null,
+    repeatHeaderEachPage = true,
+    columnFlex = null,
+    groupHeaderEachSection = true,
   } = settings;
 
   const items = (pull.items || []).map((item) => normalizePullItem(item));
@@ -167,6 +171,10 @@ export const formatPullForPDF = (pull, settings = {}) => {
       subheaderText,
       includeImages,
       pageBreakStrategy,
+      columns,
+      repeatHeaderEachPage,
+      columnFlex,
+      groupHeaderEachSection,
     },
   };
 };
@@ -178,7 +186,7 @@ const groupByGender = (items) => {
   const groups = new Map();
 
   items.forEach((item) => {
-    const gender = item.genderOverride || item.gender || "Unspecified";
+    const gender = item.gender || "Unspecified";
     const key = gender.toLowerCase();
 
     if (!groups.has(key)) {
