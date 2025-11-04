@@ -24,7 +24,11 @@ import { useProjectScope } from "../context/ProjectScopeContext";
 import { canManageShots, resolveEffectiveRole } from "../lib/rbac";
 import { toast } from "../lib/toast";
 import { describeFirebaseError } from "../lib/firebaseErrors";
-import { TAG_COLORS, TagBadge } from "../components/ui/TagBadge";
+import {
+  TAG_COLORS,
+  TagBadge,
+  getTagSwatchClasses,
+} from "../components/ui/TagBadge";
 import { DEFAULT_TAGS, DEFAULT_TAG_GROUPS } from "../lib/defaultTags";
 
 const PROJECT_GROUP_ID = "project";
@@ -681,7 +685,7 @@ export default function TagManagementPage() {
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-300 capitalize">
                             <span
-                              className={`h-4 w-4 rounded-full border ${TAG_COLORS[tag.color] || TAG_COLORS.gray}`}
+                              className={`h-4 w-4 rounded-full border ${getTagSwatchClasses(tag.color)}`}
                               aria-label={tag.color}
                             />
                             {tag.color || "gray"}
@@ -772,24 +776,25 @@ export default function TagManagementPage() {
                   New Color
                 </label>
                 <div className="grid grid-cols-6 gap-2">
-                  {Object.keys(TAG_COLORS).map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => setNewTagColor(color)}
-                      className={`h-10 w-full rounded border-2 transition ${
-                        TAG_COLORS[color]
-                      } ${
-                        newTagColor === color
-                          ? "border-slate-900 dark:border-slate-100 ring-2 ring-slate-900 dark:ring-slate-100 ring-offset-2"
-                          : "border-transparent hover:border-slate-300 dark:hover:border-slate-600"
-                      }`}
-                      title={color}
-                      aria-label={`Select ${color} color`}
-                    >
-                      <span className="sr-only">{color}</span>
-                    </button>
-                  ))}
+                  {Object.keys(TAG_COLORS).map((color) => {
+                    const swatchClasses = getTagSwatchClasses(color);
+                    return (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setNewTagColor(color)}
+                        className={`h-10 w-full rounded border-2 transition ${swatchClasses} ${
+                          newTagColor === color
+                            ? "border-slate-900 dark:border-slate-100 ring-2 ring-slate-900 dark:ring-slate-100 ring-offset-2"
+                            : "border-transparent hover:border-slate-300 dark:hover:border-slate-600"
+                        }`}
+                        title={color}
+                        aria-label={`Select ${color} color`}
+                      >
+                        <span className="sr-only">{color}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div>

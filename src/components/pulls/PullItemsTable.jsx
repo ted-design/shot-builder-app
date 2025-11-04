@@ -53,7 +53,7 @@ function PullItemRow({
   const totalQty = getTotalQuantity(item);
   const totalFulfilled = getTotalFulfilled(item);
   const fulfillmentStatus = calculateItemFulfillment(item);
-  const displayGender = item.genderOverride || item.gender || "—";
+  const displayGender = item.gender || "—";
   const hasPendingChanges = hasPendingChangeOrders(item);
 
   return (
@@ -219,7 +219,7 @@ function PullItemCard({
   const totalQty = getTotalQuantity(item);
   const totalFulfilled = getTotalFulfilled(item);
   const fulfillmentStatus = calculateItemFulfillment(item);
-  const displayGender = item.genderOverride || item.gender || "—";
+  const displayGender = item.gender || "—";
   const hasPendingChanges = hasPendingChangeOrders(item);
 
   return (

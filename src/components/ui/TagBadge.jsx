@@ -6,7 +6,7 @@ import { X } from "lucide-react";
  * Tag color variants using Tailwind classes
  * Maps color keys to background and text colors
  */
-export const TAG_COLORS = {
+const TAG_COLOR_CLASS_MAP = {
   red: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800",
   orange: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800",
   amber: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800",
@@ -20,6 +20,29 @@ export const TAG_COLORS = {
   gray: "bg-gray-100 text-gray-800 border-gray-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600",
 };
 
+export const TAG_COLORS = TAG_COLOR_CLASS_MAP;
+
+/**
+ * Returns full badge classes for a given tag color
+ */
+export function getTagColorClasses(colorKey) {
+  return TAG_COLOR_CLASS_MAP[colorKey] || TAG_COLOR_CLASS_MAP.gray;
+}
+
+/**
+ * Returns background/border classes for color picker swatches
+ * Filters out text color utilities so swatches stay solid blocks of color
+ */
+export function getTagSwatchClasses(colorKey) {
+  const baseClasses = getTagColorClasses(colorKey);
+  const allowPrefixes = ["bg-", "dark:bg-", "border-", "dark:border-"];
+
+  return baseClasses
+    .split(" ")
+    .filter((utility) => allowPrefixes.some((prefix) => utility.startsWith(prefix)))
+    .join(" ");
+}
+
 /**
  * TagBadge component displays color-coded tags with optional remove action
  *
@@ -31,7 +54,7 @@ export const TAG_COLORS = {
 export function TagBadge({ tag, onRemove, className = "", ...props }) {
   if (!tag || !tag.label) return null;
 
-  const colorClass = TAG_COLORS[tag.color] || TAG_COLORS.gray;
+  const colorClass = getTagColorClasses(tag.color);
   const hasRemove = typeof onRemove === "function";
 
   return (

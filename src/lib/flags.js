@@ -10,6 +10,7 @@ const ENV = (import.meta && import.meta.env) ? import.meta.env : {};
 
 const PROJECT_FLAG_KEY = "flag.projectScoping";
 const ASSETS_FLAG_KEY = "flag.projectScopedAssets";
+const PULLS_EDITOR_FLAG_KEY = "flag.pullsEditorV2";
 const PROJECT_ENV_DEFAULT = (() => {
   if (ENV.VITE_FEATURE_PROJECT_SCOPING != null) {
     return readBool(ENV.VITE_FEATURE_PROJECT_SCOPING);
@@ -37,11 +38,13 @@ const ASSETS_ENV_DEFAULT = (() => {
 let AUTH_OVERRIDE = null;
 let PROJECT_OVERRIDE = null;
 let ASSETS_OVERRIDE = null;
+let PULLS_EDITOR_OVERRIDE = null;
 try {
   if (typeof window !== "undefined") {
     AUTH_OVERRIDE = window.localStorage.getItem("flag.newAuthContext");
     PROJECT_OVERRIDE = window.localStorage.getItem(PROJECT_FLAG_KEY);
     ASSETS_OVERRIDE = window.localStorage.getItem(ASSETS_FLAG_KEY);
+    PULLS_EDITOR_OVERRIDE = window.localStorage.getItem(PULLS_EDITOR_FLAG_KEY);
   }
 } catch {}
 
@@ -53,6 +56,10 @@ export const FLAGS = {
   newAuthContext: AUTH_OVERRIDE != null ? readBool(AUTH_OVERRIDE) : !!AUTH_ENV_DEFAULT,
   projectScoping: PROJECT_OVERRIDE != null ? readBool(PROJECT_OVERRIDE) : PROJECT_ENV_DEFAULT,
   projectScopedAssets: ASSETS_OVERRIDE != null ? readBool(ASSETS_OVERRIDE) : ASSETS_ENV_DEFAULT,
+  pullsEditorV2:
+    PULLS_EDITOR_OVERRIDE != null
+      ? readBool(PULLS_EDITOR_OVERRIDE)
+      : readBool(ENV.VITE_FLAG_PULLS_EDITOR_V2 ?? false),
 };
 
 export const FEATURE_PROJECT_SCOPING = FLAGS.projectScoping;
@@ -75,6 +82,17 @@ export function setProjectScopingOverride(value) {
       window.localStorage.removeItem(PROJECT_FLAG_KEY);
     } else {
       window.localStorage.setItem(PROJECT_FLAG_KEY, value ? "1" : "0");
+    }
+  } catch {}
+}
+
+export function setPullsEditorV2Override(value) {
+  try {
+    if (typeof window === "undefined") return;
+    if (value == null) {
+      window.localStorage.removeItem(PULLS_EDITOR_FLAG_KEY);
+    } else {
+      window.localStorage.setItem(PULLS_EDITOR_FLAG_KEY, value ? "1" : "0");
     }
   } catch {}
 }

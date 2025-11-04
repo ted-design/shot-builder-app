@@ -39,6 +39,7 @@ const TalentPage = lazy(() => import("./pages/TalentPage"));
 const LocationsPage = lazy(() => import("./pages/LocationsPage"));
 const PullsPage = lazy(() => import("./pages/PullsPage"));
 const PullPublicViewPage = lazy(() => import("./pages/PullPublicViewPage"));
+const PullEditorPage = lazy(() => import("./pages/PullEditorPage"));
 const TagManagementPage = lazy(() => import("./pages/TagManagementPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const ImageDiagnosticsPage = lazy(() => import("./pages/dev/ImageDiagnosticsPage"));
@@ -227,6 +228,14 @@ export default function App() {
               element={
                 <Suspense fallback={<PageLoadingFallback />}>
                   <PullsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/pulls/:pullId/edit"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <PullEditorPage />
                 </Suspense>
               }
             />

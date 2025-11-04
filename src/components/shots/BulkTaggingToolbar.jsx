@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Tag, Plus, Minus } from "lucide-react";
 import { Button } from "../ui/button";
-import { TagBadge, TAG_COLORS } from "../ui/TagBadge";
+import { TagBadge, TAG_COLORS, getTagSwatchClasses } from "../ui/TagBadge";
 
 // Default color for new tags
 const DEFAULT_TAG_COLOR = "blue";
@@ -185,14 +185,14 @@ export default function BulkTaggingToolbar({
                           </label>
                           <div className="grid grid-cols-5 gap-2">
                             {Object.keys(TAG_COLORS).map((colorKey) => {
-                              const colorDef = TAG_COLORS[colorKey];
                               const isSelected = newTagColor === colorKey;
+                              const swatchClasses = getTagSwatchClasses(colorKey);
                               return (
                                 <button
                                   key={colorKey}
                                   type="button"
                                   onClick={() => setNewTagColor(colorKey)}
-                                  className={`h-8 rounded border-2 transition ${colorDef.bg} ${
+                                  className={`h-8 rounded border-2 transition ${swatchClasses} ${
                                     isSelected
                                       ? "border-slate-900 ring-2 ring-slate-900 ring-offset-1"
                                       : "border-transparent hover:border-slate-400"

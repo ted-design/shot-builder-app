@@ -22,6 +22,29 @@ export default function PullExportModal({ pull, onClose }) {
   const [subheaderText, setSubheaderText] = useState("");
   const [includeImages, setIncludeImages] = useState(true);
   const [pageBreakStrategy, setPageBreakStrategy] = useState("auto");
+  const [repeatHeaderEachPage, setRepeatHeaderEachPage] = useState(true);
+  const [groupHeaderEachSection, setGroupHeaderEachSection] = useState(true);
+  const [columnFlex, setColumnFlex] = useState({
+    image: 0.7,
+    product: 2,
+    styleNumber: 1,
+    colour: 1,
+    gender: 0.8,
+    size: 0.7,
+    quantity: 0.7,
+    fulfilled: 0.9,
+    notes: 1.5,
+  });
+  const [pdfColumns, setPdfColumns] = useState({
+    product: true,
+    styleNumber: true,
+    colour: true,
+    gender: true,
+    size: true,
+    quantity: true,
+    fulfilled: true,
+    notes: true,
+  });
 
   // CSV settings
   const [includeNotes, setIncludeNotes] = useState(true);
@@ -45,6 +68,10 @@ export default function PullExportModal({ pull, onClose }) {
           subheaderText: subheaderText.trim(),
           includeImages,
           pageBreakStrategy,
+          columns: pdfColumns,
+          repeatHeaderEachPage,
+          groupHeaderEachSection,
+          columnFlex,
         };
 
         const formattedPull = formatPullForPDF(pull, settings);
@@ -172,6 +199,87 @@ export default function PullExportModal({ pull, onClose }) {
                 <p className="text-xs text-slate-500 dark:text-gray-400">
                   Controls how items are grouped across pages
                 </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-slate-700 dark:text-gray-300">Columns</div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  {[
+                    { key: "product", label: "Product" },
+                    { key: "styleNumber", label: "Style Number" },
+                    { key: "colour", label: "Colour" },
+                    { key: "gender", label: "Gender" },
+                    { key: "size", label: "Size" },
+                    { key: "quantity", label: "Qty Requested" },
+                    { key: "fulfilled", label: "Qty Fulfilled" },
+                    { key: "notes", label: "Notes" },
+                  ].map((c) => (
+                    <label key={c.key} className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={!!pdfColumns[c.key]}
+                        onChange={(e) => setPdfColumns((prev) => ({ ...prev, [c.key]: e.target.checked }))}
+                      />
+                      {c.label}
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-gray-400">
+                  Tip: Use landscape orientation when including many columns.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="repeat-header"
+                    type="checkbox"
+                    checked={repeatHeaderEachPage}
+                    onChange={(e) => setRepeatHeaderEachPage(e.target.checked)}
+                  />
+                  <label htmlFor="repeat-header" className="text-sm">Repeat header on each page</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="group-header"
+                    type="checkbox"
+                    checked={groupHeaderEachSection}
+                    onChange={(e) => setGroupHeaderEachSection(e.target.checked)}
+                  />
+                  <label htmlFor="group-header" className="text-sm">Show header under each group title</label>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-700 dark:text-gray-300">Column widths</div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {[
+                      { key: "image", label: "Image" },
+                      { key: "product", label: "Product" },
+                      { key: "styleNumber", label: "Style #" },
+                      { key: "colour", label: "Colour" },
+                      { key: "gender", label: "Gender" },
+                      { key: "size", label: "Size" },
+                      { key: "quantity", label: "Qty Req." },
+                      { key: "fulfilled", label: "Qty Fulfilled" },
+                      { key: "notes", label: "Notes" },
+                    ].map((c) => (
+                      <label key={c.key} className="flex items-center justify-between gap-2">
+                        <span>{c.label}</span>
+                        <input
+                          type="number"
+                          min="0.4"
+                          step="0.1"
+                          className="h-8 w-20 rounded border border-slate-200 bg-white px-2"
+                          value={columnFlex[c.key] ?? ""}
+                          onChange={(e) =>
+                            setColumnFlex((prev) => ({ ...prev, [c.key]: parseFloat(e.target.value || "0") || 0 }))
+                          }
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500">Values are relative widths (flex). Increase Product/Notes if they wrap.</p>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">

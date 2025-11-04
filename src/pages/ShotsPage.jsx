@@ -158,6 +158,26 @@ const AVAILABLE_SHOT_TYPES = [
 const SHOTS_PREFS_STORAGE_KEY = "shots:viewPrefs";
 
 const DEFAULT_SHOT_DENSITY = "extra";
+const UNTITLED_SHOT_FALLBACK_NAME = "Untitled shot";
+const COPY_NAME_PATTERN = /(.*) \(Copy(?: (\d+))?\)$/i;
+
+const buildDuplicateName = (rawName, usedNames) => {
+  const baseInput = typeof rawName === "string" ? rawName.trim() : "";
+  const initial = baseInput || UNTITLED_SHOT_FALLBACK_NAME;
+  const match = initial.match(COPY_NAME_PATTERN);
+  const baseName = match && match[1] ? match[1].trim() || UNTITLED_SHOT_FALLBACK_NAME : initial;
+
+  let attempt = 1;
+  let candidate = `${baseName} (Copy)`;
+
+  while (usedNames.has(candidate.toLowerCase())) {
+    attempt += 1;
+    candidate = `${baseName} (Copy ${attempt})`;
+  }
+
+  usedNames.add(candidate.toLowerCase());
+  return candidate;
+};
 
 const defaultViewPrefs = {
   showProducts: true,
@@ -2335,6 +2355,170 @@ export function ShotsWorkspace() {
   }, [canEditShots, selectedShots, currentShotsPath, db, isProcessingBulk]);
 
   /**
+   * Duplicate selected shots within the current project
+   */
+  const handleBulkDuplicateShots = useCallback(async () => {
+    if (!canEditShots || selectedShots.length === 0) return;
+    if (!projectId) {
+      toast.error({
+        title: "No project selected",
+        description: "Select a project before duplicating shots.",
+      });
+      return;
+    }
+
+    if (isProcessingBulk) {
+      toast.info({ title: "Please wait", description: "Another operation is in progress." });
+      return;
+    }
+
+    const usedNames = new Set(
+      sortedShots
+        .map((shot) => (typeof shot?.name === "string" ? shot.name.trim() : ""))
+        .filter(Boolean)
+        .map((name) => name.toLowerCase())
+    );
+
+    setIsProcessingBulk(true);
+    try {
+      const createdShots = [];
+
+      for (let index = 0; index < selectedShots.length; index += 1) {
+        const shot = selectedShots[index];
+        const duplicateName = buildDuplicateName(shot?.name, usedNames);
+
+        const rawProducts = Array.isArray(shot?.products) ? shot.products : [];
+        const productsForWrite = rawProducts
+          .map((product) => {
+            if (!product) return null;
+            try {
+              return mapProductForWrite(product);
+            } catch (error) {
+              console.warn("[Shots] Skipping product while duplicating shot", {
+                shotId: shot?.id,
+                product,
+                error,
+              });
+              return null;
+            }
+          })
+          .filter(Boolean);
+
+        const productIds = extractProductIds(productsForWrite);
+
+        const talentSource = Array.isArray(shot?.talent) && shot.talent.length
+          ? shot.talent
+          : Array.isArray(shot?.talentIds)
+          ? shot.talentIds
+              .map((entry) => {
+                if (!entry) return null;
+                if (typeof entry === "string") {
+                  return { talentId: entry, name: "" };
+                }
+                if (typeof entry === "object") {
+                  const talentId = entry.talentId || entry.id || null;
+                  if (!talentId) return null;
+                  return { talentId, name: entry.name || "" };
+                }
+                return null;
+              })
+              .filter(Boolean)
+          : [];
+
+        const talentForWrite = mapTalentForWrite(talentSource);
+        const talentIds = talentForWrite.map((entry) => entry.talentId);
+
+        const tagsForWrite = Array.isArray(shot?.tags)
+          ? shot.tags
+              .filter((tag) => tag && tag.id && tag.label)
+              .map((tag) => ({
+                id: tag.id,
+                label: tag.label,
+                color: tag.color || "gray",
+              }))
+          : [];
+
+        const duplicatePayload = {
+          name: duplicateName,
+          description: shot?.description || shot?.notes || "",
+          notes: shot?.notes || shot?.description || "",
+          type: shot?.type || "",
+          status: normaliseShotStatus(shot?.status || DEFAULT_SHOT_STATUS),
+          date: shot?.date || null,
+          locationId: shot?.locationId || null,
+          locationName: shot?.locationName || null,
+          projectId,
+          laneId: typeof shot?.laneId === "string" ? shot.laneId : shot?.laneId ?? null,
+          shotNumber:
+            typeof shot?.shotNumber === "string" && shot.shotNumber.trim()
+              ? shot.shotNumber
+              : null,
+          products: productsForWrite,
+          productIds,
+          talent: talentForWrite,
+          talentIds,
+          tags: tagsForWrite,
+          referenceImagePath: shot?.referenceImagePath || null,
+          referenceImageCrop: shot?.referenceImageCrop
+            ? { ...shot.referenceImageCrop }
+            : null,
+          thumbPath: shot?.thumbPath || null,
+        };
+
+        const newShot = await createShotMutation.mutateAsync(duplicatePayload);
+        createdShots.push({ id: newShot.id, name: duplicateName });
+
+        await updateReverseIndexes({
+          shotId: newShot.id,
+          before: { productIds: [], products: [], talentIds: [], locationId: null },
+          after: {
+            productIds,
+            products: productsForWrite,
+            talentIds,
+            locationId: duplicatePayload.locationId,
+          },
+        });
+      }
+
+      if (createdShots.length === 1) {
+        toast.success({
+          title: "Shot duplicated",
+          description: `Created "${createdShots[0].name}".`,
+        });
+        setFocusShotId(createdShots[0].id);
+      } else {
+        toast.success({
+          title: "Shots duplicated",
+          description: `Created ${createdShots.length} shots.`,
+        });
+        const lastCreated = createdShots[createdShots.length - 1];
+        setFocusShotId(lastCreated ? lastCreated.id : null);
+      }
+
+      setSelectedShotIds(new Set());
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Unable to duplicate shots.");
+      console.error("[Shots] Failed to duplicate shots", {
+        error,
+        shotCount: selectedShots.length,
+        shotIds: selectedShots.map((s) => s.id).slice(0, 10),
+      });
+      toast.error({ title: "Failed to duplicate shots", description: `${code}: ${message}` });
+    } finally {
+      setIsProcessingBulk(false);
+    }
+  }, [
+    canEditShots,
+    selectedShots,
+    projectId,
+    isProcessingBulk,
+    sortedShots,
+    createShotMutation,
+    setSelectedShotIds,
+    setFocusShotId,
+  ]);
+
+  /**
    * Bulk move shots to a different project
    */
   const handleBulkMoveToProject = useCallback(async (targetProjectId) => {
@@ -2659,6 +2843,7 @@ export function ShotsWorkspace() {
             label: opt.label,
             color: opt.color || "blue",
           }))}
+          onDuplicateShots={handleBulkDuplicateShots}
           // Property operations
           onSetLocation={handleBulkSetLocation}
           onSetDate={handleBulkSetDate}

@@ -1,7 +1,12 @@
 // src/components/shots/TagEditor.jsx
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Plus, Tag as TagIcon, Check } from "lucide-react";
-import { TagBadge, TagList, TAG_COLORS } from "../ui/TagBadge";
+import {
+  TagBadge,
+  TagList,
+  TAG_COLORS,
+  getTagSwatchClasses,
+} from "../ui/TagBadge";
 import { Button } from "../ui/button";
 import { useAvailableTags } from "../../hooks/useAvailableTags";
 import { DEFAULT_TAG_GROUPS, DEFAULT_TAG_GROUP_ORDER } from "../../lib/defaultTags";
@@ -411,22 +416,22 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
                     <div className="grid grid-cols-5 gap-2">
                       {Object.keys(TAG_COLORS).map((colorKey, index) => {
                         const isSelected = selectedColor === colorKey;
-                        const colorClass = TAG_COLORS[colorKey];
+                        const swatchClasses = getTagSwatchClasses(colorKey);
 
                         return (
                           <button
                             key={colorKey}
                             type="button"
                             onClick={() => setSelectedColor(colorKey)}
-                            className={`h-8 w-8 rounded-md transition-all duration-150 ${colorClass.split(' ')[0]} ${
+                            className={`h-8 w-8 rounded-md transition-all duration-150 ${swatchClasses} ${
                               isSelected
                                 ? "ring-2 ring-offset-2 ring-slate-900 scale-110"
                                 : "hover:scale-105 active:scale-95 border border-slate-200"
                             }`}
                             style={{
-                              animation: 'fade-in 150ms ease-out',
+                              animation: "fade-in 150ms ease-out",
                               animationDelay: `${index * 30}ms`,
-                              animationFillMode: 'both',
+                              animationFillMode: "both",
                             }}
                             aria-label={`Select ${colorKey} color`}
                             title={colorKey}

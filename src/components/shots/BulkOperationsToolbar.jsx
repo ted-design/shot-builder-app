@@ -1,8 +1,22 @@
 // src/components/shots/BulkOperationsToolbar.jsx
 import { useState, useRef, useEffect } from "react";
-import { X, Tag, Plus, Minus, MapPin, Calendar, Film, ArrowRight, Copy, List, CheckSquare, Check } from "lucide-react";
+import {
+  X,
+  Tag,
+  Plus,
+  Minus,
+  MapPin,
+  Calendar,
+  Film,
+  ArrowRight,
+  Copy,
+  CopyPlus,
+  List,
+  CheckSquare,
+  Check,
+} from "lucide-react";
 import { Button } from "../ui/button";
-import { TagBadge, TAG_COLORS } from "../ui/TagBadge";
+import { TagBadge, TAG_COLORS, getTagSwatchClasses } from "../ui/TagBadge";
 
 // Default color for new tags
 const DEFAULT_TAG_COLOR = "blue";
@@ -13,7 +27,7 @@ const DEFAULT_TAG_COLOR = "blue";
  * Comprehensive toolbar for bulk editing selected shots. Provides:
  * - Tag operations (apply/remove)
  * - Property operations (location, date, type)
- * - Project operations (move/copy)
+ * - Project operations (duplicate, move, copy)
  *
  * Extends the Phase 11C BulkTaggingToolbar with additional operations.
  */
@@ -28,6 +42,7 @@ export default function BulkOperationsToolbar({
   onApplyTags,
   onRemoveTags,
   availableTags = [],
+  onDuplicateShots,
   // Property operations
   onSetLocation,
   onSetDate,
@@ -198,6 +213,12 @@ export default function BulkOperationsToolbar({
     setMode(mode === "copy" ? null : "copy");
   };
 
+  const handleDuplicateClick = () => {
+    if (operationsDisabled || typeof onDuplicateShots !== "function") return;
+    setMode(null);
+    onDuplicateShots();
+  };
+
   const handleSelectCopyProject = (projectId) => {
     if (selectedCount === 0) return;
     onCopyToProject(projectId);
@@ -326,14 +347,14 @@ export default function BulkOperationsToolbar({
                             </label>
                             <div className="grid grid-cols-5 gap-2">
                               {Object.keys(TAG_COLORS).map((colorKey) => {
-                                const colorDef = TAG_COLORS[colorKey];
                                 const isSelected = newTagColor === colorKey;
+                                const swatchClasses = getTagSwatchClasses(colorKey);
                                 return (
                                   <button
                                     key={colorKey}
                                     type="button"
                                     onClick={() => setNewTagColor(colorKey)}
-                                    className={`h-8 rounded border-2 transition ${colorDef.bg} ${
+                                    className={`h-8 rounded border-2 transition ${swatchClasses} ${
                                       isSelected
                                         ? "border-slate-900 ring-2 ring-slate-900 ring-offset-1"
                                         : "border-transparent hover:border-slate-400"
@@ -628,6 +649,20 @@ export default function BulkOperationsToolbar({
 
             {/* PROJECT OPERATIONS */}
             <div className="flex items-center gap-2">
+              {typeof onDuplicateShots === "function" && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleDuplicateClick}
+                  disabled={operationsDisabled}
+                  className="flex items-center gap-1.5"
+                  title="Duplicate in this project"
+                >
+                  <CopyPlus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Duplicate</span>
+                </Button>
+              )}
               {/* Move to Project Button */}
               <div className="relative">
                 <Button

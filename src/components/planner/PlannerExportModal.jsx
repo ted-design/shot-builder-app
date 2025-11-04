@@ -3,9 +3,13 @@ import {
   Document,
   Image,
   Page,
+  Path,
+  Rect,
   StyleSheet,
+  Svg,
   Text,
   View,
+  Circle,
   pdf,
 } from "@react-pdf/renderer";
 import { Modal } from "../ui/modal";
@@ -72,22 +76,30 @@ const styles = StyleSheet.create({
     borderStyle: "solid",
     borderRadius: 6,
     padding: 10,
-    marginBottom: 8,
-  },
-  shotHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     marginBottom: 6,
   },
-  shotHeaderContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    flexGrow: 1,
-    marginRight: 8,
+  shotImage: {
+    width: 100,
+    height: 78,
+    objectFit: "cover",
+    borderRadius: 4,
+    marginBottom: 6,
   },
-  shotNumber: {
+  galleryShotImage: {
+    width: "100%",
+    height: 140,
+    objectFit: "cover",
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  shotTitle: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#111827",
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  shotNumberBadge: {
     fontSize: 10,
     fontWeight: 600,
     color: "#0f172a",
@@ -95,41 +107,225 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
+    alignSelf: "flex-end",
+    marginBottom: 6,
+  },
+  listRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  listColumn: {
+    flexGrow: 1,
+    flexShrink: 1,
+  },
+  listLeftColumn: {
+    flexBasis: "55%",
+    paddingRight: 10,
+  },
+  listRightColumn: {
+    flexBasis: "45%",
+    paddingLeft: 10,
+    borderLeftWidth: 1,
+    borderLeftColor: "#e2e8f0",
+    borderLeftStyle: "solid",
+  },
+  listColumnFull: {
+    flexBasis: "100%",
+    paddingRight: 0,
+    paddingLeft: 0,
+    borderLeftWidth: 0,
+  },
+  listDetailItem: {
+    marginBottom: 4,
+  },
+  listDetailLabel: {
+    fontSize: 9,
+  },
+  listDetailValue: {
+    fontSize: 9,
+  },
+  listDetailBullet: {
+    fontSize: 9,
+  },
+  detailStack: {
+    marginTop: 6,
+  },
+  detailItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 6,
+  },
+  detailIconWrapper: {
+    width: 14,
+    height: 14,
     marginRight: 6,
+  },
+  detailIcon: {
+    width: 14,
+    height: 14,
+  },
+  detailContent: {
+    flexGrow: 1,
+    flexShrink: 1,
+  },
+  detailLabel: {
+    fontSize: 9,
+    fontWeight: 600,
+    color: "#334155",
     marginBottom: 2,
   },
-  shotTitle: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#111827",
-  },
-  shotMeta: {
-    fontSize: 10,
-    color: "#475569",
-  },
-  shotDetails: {
+  detailValue: {
     fontSize: 10,
     color: "#1f2937",
+    lineHeight: 1.35,
+    flexShrink: 1,
+  },
+  detailEmpty: {
+    fontSize: 10,
+    color: "#94a3b8",
+  },
+  detailList: {
+    marginTop: 2,
+  },
+  detailBullet: {
+    fontSize: 10,
+    marginRight: 4,
+    lineHeight: 1.35,
+  },
+  detailListLine: {
+    fontSize: 10,
+    color: "#1f2937",
+    lineHeight: 1.35,
+    marginBottom: 2,
+    flexShrink: 1,
+  },
+  galleryShotNumber: {
+    alignSelf: "flex-end",
+    marginBottom: 4,
+  },
+  galleryShotTitle: {
+    fontSize: 11,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  galleryShotTitleCompact: {
+    fontSize: 10,
+  },
+  galleryDetailStack: {
     marginTop: 4,
   },
-  shotImage: {
-    width: 96,
-    height: 72,
-    objectFit: "cover",
+  galleryDetailItem: {
+    marginBottom: 4,
+  },
+  galleryDetailLabel: {
+    fontSize: 8,
+  },
+  galleryDetailValue: {
+    fontSize: 8.5,
+  },
+  galleryDetailBullet: {
+    fontSize: 8.5,
+  },
+  galleryDetailLabelCompact: {
+    fontSize: 7.5,
+  },
+  galleryDetailValueCompact: {
+    fontSize: 8,
+  },
+  galleryDetailBulletCompact: {
+    fontSize: 8,
+  },
+  galleryNotesContainer: {
+    marginTop: 4,
+    padding: 5,
+  },
+  notesContainer: {
+    marginTop: 6,
+    padding: 6,
+    backgroundColor: "#f8fafc",
     borderRadius: 4,
-    marginBottom: 6,
+  },
+  notesParagraph: {
+    marginBottom: 4,
+  },
+  notesText: {
+    fontSize: 10,
+    color: "#1f2937",
+    lineHeight: 1.4,
+  },
+  notesHeading: {
+    fontSize: 12,
+    fontWeight: 700,
+    marginBottom: 4,
+    color: "#0f172a",
+  },
+  notesHeadingSmall: {
+    fontSize: 11,
+    fontWeight: 700,
+    marginBottom: 3,
+    color: "#0f172a",
+  },
+  notesList: {
+    marginBottom: 4,
+    marginTop: 2,
+  },
+  notesListItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 2,
+  },
+  notesListBullet: {
+    fontSize: 10,
+    marginRight: 4,
+    lineHeight: 1.3,
+  },
+  notesCodeBlock: {
+    backgroundColor: "#e2e8f0",
+    borderRadius: 4,
+    padding: 6,
+    marginBottom: 4,
+  },
+  notesCodeText: {
+    fontSize: 10,
+    fontFamily: "Courier",
+    color: "#0f172a",
+    lineHeight: 1.4,
+  },
+  notesCodeInline: {
+    fontFamily: "Courier",
+    backgroundColor: "#e2e8f0",
+    borderRadius: 3,
+    paddingLeft: 3,
+    paddingRight: 3,
+    paddingTop: 1,
+    paddingBottom: 1,
+  },
+  notesQuote: {
+    borderLeftWidth: 2,
+    borderLeftColor: "#cbd5f5",
+    borderLeftStyle: "solid",
+    paddingLeft: 8,
+    paddingTop: 4,
+    paddingBottom: 4,
+    marginBottom: 4,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 4,
+  },
+  notesQuoteText: {
+    fontSize: 10,
+    color: "#1e293b",
+    fontStyle: "italic",
+    lineHeight: 1.4,
+  },
+  notesLink: {
+    color: "#2563eb",
+    textDecoration: "underline",
   },
   galleryContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "flex-start",
-  },
-  galleryShotImage: {
-    width: "100%",
-    height: 140,
-    objectFit: "cover",
-    borderRadius: 4,
-    marginBottom: 6,
   },
 });
 
@@ -252,6 +448,108 @@ const prepareLanesForPdf = async (lanes, { includeImages }) => {
   return prepared;
 };
 
+const ICON_COLOR = "#475569";
+const ICON_STROKE_WIDTH = 1.5;
+
+const PdfIconCalendar = ({ style }) => (
+  <Svg viewBox="0 0 24 24" style={style}>
+    <Rect
+      x={3}
+      y={5}
+      width={18}
+      height={16}
+      rx={2}
+      stroke={ICON_COLOR}
+      strokeWidth={ICON_STROKE_WIDTH}
+      fill="none"
+    />
+    <Path d="M3 9h18" stroke={ICON_COLOR} strokeWidth={ICON_STROKE_WIDTH} />
+    <Path d="M8 3v4" stroke={ICON_COLOR} strokeWidth={ICON_STROKE_WIDTH} />
+    <Path d="M16 3v4" stroke={ICON_COLOR} strokeWidth={ICON_STROKE_WIDTH} />
+  </Svg>
+);
+
+const PdfIconPackage = ({ style }) => (
+  <Svg viewBox="0 0 24 24" style={style}>
+    <Rect
+      x={3}
+      y={6}
+      width={18}
+      height={12}
+      rx={2}
+      stroke={ICON_COLOR}
+      strokeWidth={ICON_STROKE_WIDTH}
+      fill="none"
+    />
+    <Path d="M3 10h18" stroke={ICON_COLOR} strokeWidth={ICON_STROKE_WIDTH} />
+    <Path d="M12 6v12" stroke={ICON_COLOR} strokeWidth={ICON_STROKE_WIDTH} />
+  </Svg>
+);
+
+const PdfIconTalent = ({ style }) => (
+  <Svg viewBox="0 0 24 24" style={style}>
+    <Circle
+      cx={12}
+      cy={8}
+      r={3}
+      stroke={ICON_COLOR}
+      strokeWidth={ICON_STROKE_WIDTH}
+      fill="none"
+    />
+    <Path
+      d="M6 19c0-3 2.7-5 6-5s6 2 6 5"
+      stroke={ICON_COLOR}
+      strokeWidth={ICON_STROKE_WIDTH}
+      fill="none"
+      strokeLinecap="round"
+    />
+  </Svg>
+);
+
+const PdfIconLocation = ({ style }) => (
+  <Svg viewBox="0 0 24 24" style={style}>
+    <Path
+      d="M12 21s7-5.25 7-11a7 7 0 1 0-14 0c0 5.75 7 11 7 11z"
+      stroke={ICON_COLOR}
+      strokeWidth={ICON_STROKE_WIDTH}
+      fill="none"
+    />
+    <Circle
+      cx={12}
+      cy={10}
+      r={2.5}
+      stroke={ICON_COLOR}
+      strokeWidth={ICON_STROKE_WIDTH}
+      fill="none"
+    />
+  </Svg>
+);
+
+const ELEMENT_NODE = 1;
+const TEXT_NODE = 3;
+const BLOCK_TAGS = new Set([
+  "p",
+  "div",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "ul",
+  "ol",
+  "li",
+  "pre",
+  "blockquote",
+  "table",
+  "thead",
+  "tbody",
+  "tr",
+  "th",
+  "td",
+  "hr",
+]);
+
 const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
   const orientation = options.orientation === "landscape" ? "landscape" : "portrait";
   const layout = options.layout === "gallery" ? "gallery" : "list";
@@ -286,56 +584,541 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
     return "";
   };
 
-  const renderShotCard = (shot, lane, index) => {
+  const extractStyleOverrides = (node) => {
+    const overrides = [];
+    if (!node || typeof node.nodeName !== "string") return overrides;
+    const tag = node.nodeName.toLowerCase();
+
+    if (tag === "strong" || tag === "b") overrides.push({ fontWeight: 700 });
+    if (tag === "em" || tag === "i") overrides.push({ fontStyle: "italic" });
+    if (tag === "u") overrides.push({ textDecoration: "underline" });
+    if (tag === "s") overrides.push({ textDecoration: "line-through" });
+    if (tag === "code") overrides.push(styles.notesCodeInline);
+    if (tag === "a") overrides.push(styles.notesLink);
+
+    const styleAttr =
+      typeof node.getAttribute === "function" ? node.getAttribute("style") : null;
+    if (styleAttr) {
+      styleAttr.split(";").forEach((segment) => {
+        const [rawProp, rawValue] = segment.split(":");
+        if (!rawProp || !rawValue) return;
+        const prop = rawProp.trim().toLowerCase();
+        const value = rawValue.trim();
+        if (!value) return;
+        if (prop === "color") {
+          overrides.push({ color: value });
+          return;
+        }
+        if (prop === "font-weight") {
+          const weight = Number.parseInt(value, 10);
+          if (value === "bold" || (Number.isFinite(weight) && weight >= 600)) {
+            overrides.push({ fontWeight: 700 });
+          }
+          return;
+        }
+        if (prop === "font-style" && value === "italic") {
+          overrides.push({ fontStyle: "italic" });
+          return;
+        }
+        if (prop === "text-decoration") {
+          const tokens = value.split(/\s+/).filter(Boolean);
+          if (tokens.length) {
+            overrides.push({ textDecoration: tokens.join(" ") });
+          }
+        }
+      });
+    }
+
+    return overrides;
+  };
+
+  const renderInlineNodes = (nodes, keyPrefix, styleStack = []) => {
+    const fragments = [];
+    nodes.forEach((child, index) => {
+      if (!child) return;
+      if (child.nodeType === TEXT_NODE) {
+        const rawContent = child.textContent ?? "";
+        const normalised = rawContent.replace(/\s+/g, " ");
+        if (!normalised.trim()) {
+          if (normalised.length) {
+            fragments.push(" ");
+          }
+          return;
+        }
+        fragments.push(
+          <Text key={`${keyPrefix}-text-${index}`} style={[styles.notesText, ...styleStack]}>
+            {normalised}
+          </Text>
+        );
+        return;
+      }
+
+      if (child.nodeType !== ELEMENT_NODE) return;
+      const tag = child.nodeName.toLowerCase();
+      if (BLOCK_TAGS.has(tag)) return;
+      if (tag === "br") {
+        fragments.push("\n");
+        return;
+      }
+
+      const nextStack = [...styleStack, ...extractStyleOverrides(child)];
+      const childNodes = renderInlineNodes(
+        Array.from(child.childNodes || []),
+        `${keyPrefix}-${tag}-${index}`,
+        nextStack
+      );
+
+      if (childNodes.length) {
+        fragments.push(
+          <Text key={`${keyPrefix}-${tag}-${index}`} style={[styles.notesText, ...nextStack]}>
+            {childNodes}
+          </Text>
+        );
+      }
+    });
+    return fragments;
+  };
+
+  const renderListItem = (itemNode, ordered, keyPrefix, index) => {
+    const inlineChildren = [];
+    const blockChildren = [];
+
+    Array.from(itemNode.childNodes || []).forEach((child) => {
+      if (!child) return;
+      if (child.nodeType === TEXT_NODE) {
+        if ((child.textContent || "").trim()) inlineChildren.push(child);
+        return;
+      }
+      if (child.nodeType !== ELEMENT_NODE) return;
+      const childTag = child.nodeName.toLowerCase();
+      if (childTag === "p" || childTag === "div" || childTag === "ul" || childTag === "ol" || childTag === "pre" || childTag === "blockquote") {
+        blockChildren.push(child);
+      } else {
+        inlineChildren.push(child);
+      }
+    });
+
+    const inlineContent = inlineChildren.length
+      ? (
+          <Text style={styles.notesText}>
+            {renderInlineNodes(inlineChildren, `${keyPrefix}-inline-${index}`)}
+          </Text>
+        )
+      : null;
+
+    return (
+      <View key={`${keyPrefix}-item-${index}`} style={styles.notesListItem} wrap={false}>
+        <Text style={styles.notesListBullet}>{ordered ? `${index + 1}.` : "•"}</Text>
+        <View style={{ flex: 1 }}>
+          {inlineContent}
+          {blockChildren.map((child, childIndex) =>
+            renderNode(child, `${keyPrefix}-block-${index}-${childIndex}`)
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  const renderList = (node, ordered, keyPrefix) => {
+    const items = Array.from(node.childNodes || []).filter(
+      (child) => child?.nodeType === ELEMENT_NODE && child.nodeName?.toLowerCase() === "li"
+    );
+    if (!items.length) return null;
+    return (
+      <View key={keyPrefix} style={styles.notesList} wrap={false}>
+        {items.map((item, index) => renderListItem(item, ordered, keyPrefix, index))}
+      </View>
+    );
+  };
+
+  const renderNode = (node, keyPrefix) => {
+    if (!node) return null;
+    if (node.nodeType === TEXT_NODE) {
+      const textContent = (node.textContent || "").replace(/\s+/g, " ");
+      if (!textContent.trim()) return null;
+      return (
+        <View key={`${keyPrefix}-text`} style={styles.notesParagraph} wrap={false}>
+          <Text style={styles.notesText}>{textContent}</Text>
+        </View>
+      );
+    }
+
+    if (node.nodeType !== ELEMENT_NODE) return null;
+    const tag = node.nodeName.toLowerCase();
+
+    if (tag === "p" || tag === "div") {
+      const inlineChildren = renderInlineNodes(
+        Array.from(node.childNodes || []),
+        `${keyPrefix}-${tag}`
+      );
+      if (!inlineChildren.length) return null;
+      return (
+        <View key={`${keyPrefix}-${tag}`} style={styles.notesParagraph} wrap={false}>
+          <Text style={styles.notesText}>{inlineChildren}</Text>
+        </View>
+      );
+    }
+
+    if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4" || tag === "h5" || tag === "h6") {
+      const inlineChildren = renderInlineNodes(
+        Array.from(node.childNodes || []),
+        `${keyPrefix}-${tag}`
+      );
+      if (!inlineChildren.length) return null;
+      const headingStyle = tag === "h1" ? styles.notesHeading : styles.notesHeadingSmall;
+      return (
+        <View key={`${keyPrefix}-${tag}`} style={styles.notesParagraph} wrap={false}>
+          <Text style={headingStyle}>{inlineChildren}</Text>
+        </View>
+      );
+    }
+
+    if (tag === "ul") {
+      return renderList(node, false, `${keyPrefix}-ul`);
+    }
+
+    if (tag === "ol") {
+      return renderList(node, true, `${keyPrefix}-ol`);
+    }
+
+    if (tag === "pre") {
+      const codeText = node.textContent || "";
+      if (!codeText.trim()) return null;
+      return (
+        <View key={`${keyPrefix}-pre`} style={styles.notesCodeBlock} wrap={false}>
+          <Text style={styles.notesCodeText}>{codeText.replace(/\s+$/g, "")}</Text>
+        </View>
+      );
+    }
+
+    if (tag === "blockquote") {
+      const inlineChildren = renderInlineNodes(
+        Array.from(node.childNodes || []),
+        `${keyPrefix}-blockquote`
+      );
+      if (!inlineChildren.length) return null;
+      return (
+        <View key={`${keyPrefix}-blockquote`} style={styles.notesQuote} wrap={false}>
+          <Text style={styles.notesQuoteText}>{inlineChildren}</Text>
+        </View>
+      );
+    }
+
+    if (tag === "hr") {
+      return (
+        <View
+          key={`${keyPrefix}-hr`}
+          style={{
+            height: 1,
+            backgroundColor: "#e2e8f0",
+            marginTop: 6,
+            marginBottom: 6,
+          }}
+          wrap={false}
+        />
+      );
+    }
+
+    const fallbackChildren = renderInlineNodes(
+      Array.from(node.childNodes || []),
+      `${keyPrefix}-${tag}`
+    );
+    if (!fallbackChildren.length) return null;
+    return (
+      <View key={`${keyPrefix}-${tag}`} style={styles.notesParagraph} wrap={false}>
+        <Text style={styles.notesText}>{fallbackChildren}</Text>
+      </View>
+    );
+  };
+
+  const renderBlockNodes = (nodes, keyPrefix) => {
+    const content = [];
+    nodes.forEach((node, index) => {
+      const rendered = renderNode(node, `${keyPrefix}-${index}`);
+      if (Array.isArray(rendered)) {
+        content.push(...rendered);
+      } else if (rendered != null) {
+        content.push(rendered);
+      }
+    });
+    return content;
+  };
+
+  const buildNotesContent = (html, keyPrefix, containerStyle) => {
+    if (!html) return null;
+    if (typeof document === "undefined" || typeof document.createElement !== "function") {
+      const plain = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      if (!plain) return null;
+      return (
+        <View
+          key={`${keyPrefix}-notes`}
+          style={[styles.notesContainer, containerStyle]}
+          wrap={false}
+        >
+          <Text style={styles.notesText}>{plain}</Text>
+        </View>
+      );
+    }
+
+    const temp = document.createElement("div");
+    temp.innerHTML = html;
+    const content = renderBlockNodes(Array.from(temp.childNodes || []), keyPrefix);
+    if (!content.length) return null;
+    return (
+      <View
+        key={`${keyPrefix}-notes`}
+        style={[styles.notesContainer, containerStyle]}
+        wrap={false}
+      >
+        {content}
+      </View>
+    );
+  };
+
+  const renderDetailItem = (item, index) => {
+    const IconComponent = item.icon;
+    const isListValue = Array.isArray(item.value);
+    const hasListItems = isListValue && item.value.length > 0;
+    const displayValue = !isListValue ? item.value : null;
+    const containerStyle = [styles.detailItem];
+    const appendStyle = (target, extra) => {
+      if (!extra) return;
+      if (Array.isArray(extra)) {
+        extra.filter(Boolean).forEach((entry) => appendStyle(target, entry));
+        return;
+      }
+      target.push(extra);
+    };
+    const resolveStyle = (base, extra) => {
+      if (!extra) return base;
+      if (Array.isArray(extra)) {
+        const filtered = extra.filter(Boolean);
+        return filtered.length ? [base, ...filtered] : base;
+      }
+      return [base, extra];
+    };
+
+    appendStyle(containerStyle, item.containerStyle);
+    const labelStyle = resolveStyle(styles.detailLabel, item.labelStyle);
+    const valueStyle = resolveStyle(styles.detailValue, item.valueStyle);
+    const bulletStyle = resolveStyle(styles.detailBullet, item.bulletStyle);
+    const listStyle = resolveStyle(styles.detailList, item.listStyle);
+    const listLineStyle = resolveStyle(styles.detailListLine, item.valueStyle);
+
+    return (
+      <View key={item.key || index} style={containerStyle}>
+        {IconComponent ? (
+          <View style={styles.detailIconWrapper}>
+            <IconComponent style={styles.detailIcon} />
+          </View>
+        ) : null}
+        <View style={styles.detailContent}>
+          <Text style={labelStyle}>{item.label}</Text>
+          {isListValue ? (
+            hasListItems ? (
+              <View style={listStyle}>
+                {item.value.map((entry, entryIndex) => (
+                  <Text
+                    key={`${item.key || index}-entry-${entryIndex}`}
+                    style={listLineStyle}
+                  >
+                    <Text style={bulletStyle}>• </Text>
+                    <Text style={valueStyle}>{entry}</Text>
+                  </Text>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.detailEmpty}>–</Text>
+            )
+          ) : displayValue ? (
+            <Text style={valueStyle}>{displayValue}</Text>
+          ) : (
+            <Text style={styles.detailEmpty}>–</Text>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  const renderShotCard = (shot, _lane, index) => {
     const shotNumber = normaliseShotNumber(shot?.shotNumber);
     const talentList = ensureStringList(shot?.talent);
     const productList = ensureStringList(shot?.products);
     const cardStyle = [styles.shotCard];
-    if (layout === "gallery") {
+    const isGallery = layout === "gallery";
+    const hasShotNumber = visibleFields.shotNumber && shotNumber;
+    const hasImage = Boolean(visibleFields.image && shot?.image);
+    const shotTitle = visibleFields.name && shot?.name ? shot.name : null;
+    const shotKey = shot?.id || index;
+
+    if (isGallery) {
+      const columnIndex = index % galleryColumns;
       cardStyle.push({
         width: columnWidth,
         maxWidth: columnWidth,
+        flexBasis: columnWidth,
         flexGrow: 0,
         flexShrink: 0,
-        marginBottom: 12,
+        marginBottom: 14,
+        marginRight: columnIndex === galleryColumns - 1 ? 0 : 8,
+        padding: 9,
       });
     }
-    const headerHasContent =
-      (visibleFields.shotNumber && shotNumber) ||
-      (visibleFields.name && shot?.name) ||
-      layout === "list";
+
+    const makeItem = (item, overrides = {}) => (item ? { ...item, ...overrides } : null);
+    const productLabel = productList.length === 1 ? "Product" : "Products";
+
+    const productItemBase = visibleFields.products
+      ? { key: "products", icon: PdfIconPackage, label: productLabel, value: productList }
+      : null;
+    const locationItemBase = visibleFields.location
+      ? { key: "location", icon: PdfIconLocation, label: "Location", value: shot?.location || null }
+      : null;
+    const talentItemBase = visibleFields.talent
+      ? {
+          key: "talent",
+          icon: PdfIconTalent,
+          label: "Talent",
+          value: talentList.length ? talentList.join(", ") : null,
+        }
+      : null;
+    const dateItemBase = visibleFields.date
+      ? { key: "date", icon: PdfIconCalendar, label: "Date", value: shot?.date || null }
+      : null;
+    const typeItemBase = visibleFields.type
+      ? { key: "type", icon: null, label: "Shot Type", value: shot?.type || null }
+      : null;
+
+    const notesContent = visibleFields.notes
+      ? buildNotesContent(shot?.notes, `${shotKey}`, isGallery ? styles.galleryNotesContainer : null)
+      : null;
+
+    if (!isGallery) {
+      const leftItems = [
+        makeItem(locationItemBase, {
+          containerStyle: styles.listDetailItem,
+          labelStyle: styles.listDetailLabel,
+          valueStyle: styles.listDetailValue,
+        }),
+        makeItem(talentItemBase, {
+          containerStyle: styles.listDetailItem,
+          labelStyle: styles.listDetailLabel,
+          valueStyle: styles.listDetailValue,
+        }),
+      ].filter(Boolean);
+
+      const rightItems = [
+        makeItem(productItemBase, {
+          containerStyle: styles.listDetailItem,
+          labelStyle: styles.listDetailLabel,
+          valueStyle: styles.listDetailValue,
+          bulletStyle: styles.listDetailBullet,
+        }),
+        makeItem(dateItemBase, {
+          containerStyle: styles.listDetailItem,
+          labelStyle: styles.listDetailLabel,
+          valueStyle: styles.listDetailValue,
+        }),
+        makeItem(typeItemBase, {
+          containerStyle: styles.listDetailItem,
+          labelStyle: styles.listDetailLabel,
+          valueStyle: styles.listDetailValue,
+        }),
+      ].filter(Boolean);
+
+      const hasRightContent = hasShotNumber || rightItems.length > 0;
+      const leftColumnStyles = [styles.listColumn, styles.listLeftColumn];
+      const rightColumnStyles = [styles.listColumn, styles.listRightColumn];
+
+      if (!hasRightContent) {
+        leftColumnStyles.push(styles.listColumnFull);
+      }
+
+      return (
+        <View key={shotKey} style={cardStyle} wrap={false}>
+          <View style={styles.listRow}>
+            <View style={leftColumnStyles}>
+              {hasImage ? <Image src={shot.image} style={shotImageStyle} /> : null}
+              {shotTitle ? <Text style={styles.shotTitle}>{shotTitle}</Text> : null}
+              {leftItems.map((item, itemIndex) => renderDetailItem(item, itemIndex))}
+            </View>
+            {hasRightContent ? (
+              <View style={rightColumnStyles}>
+                {hasShotNumber ? <Text style={styles.shotNumberBadge}>{shotNumber}</Text> : null}
+                {rightItems.map((item, itemIndex) => renderDetailItem(item, itemIndex))}
+              </View>
+            ) : null}
+          </View>
+          {notesContent}
+        </View>
+      );
+    }
+
+    const galleryItems = [
+      makeItem(locationItemBase, {
+        containerStyle: styles.galleryDetailItem,
+        labelStyle: styles.galleryDetailLabel,
+        valueStyle: styles.galleryDetailValue,
+      }),
+      makeItem(talentItemBase, {
+        containerStyle: styles.galleryDetailItem,
+        labelStyle: styles.galleryDetailLabel,
+        valueStyle: styles.galleryDetailValue,
+      }),
+      makeItem(productItemBase, {
+        containerStyle: styles.galleryDetailItem,
+        labelStyle: styles.galleryDetailLabel,
+        valueStyle: styles.galleryDetailValue,
+        bulletStyle: styles.galleryDetailBullet,
+      }),
+      makeItem(dateItemBase, {
+        containerStyle: styles.galleryDetailItem,
+        labelStyle: styles.galleryDetailLabel,
+        valueStyle: styles.galleryDetailValue,
+      }),
+      makeItem(typeItemBase, {
+        containerStyle: styles.galleryDetailItem,
+        labelStyle: styles.galleryDetailLabel,
+        valueStyle: styles.galleryDetailValue,
+      }),
+    ].filter(Boolean);
+
+    const titleStyle = [styles.shotTitle, styles.galleryShotTitle];
+    if (galleryColumns >= 3) {
+      titleStyle.push(styles.galleryShotTitleCompact);
+    }
+
+    const galleryLabelStyle = galleryColumns >= 3 ? styles.galleryDetailLabelCompact : null;
+    const galleryValueStyle = galleryColumns >= 3 ? styles.galleryDetailValueCompact : null;
+    const galleryBulletStyle = galleryColumns >= 3 ? styles.galleryDetailBulletCompact : null;
+
+    const galleryItemsWithSizing = galleryItems.map((item) =>
+      makeItem(item, {
+        labelStyle: item.labelStyle
+          ? [item.labelStyle, galleryLabelStyle].filter(Boolean)
+          : galleryLabelStyle,
+        valueStyle: item.valueStyle
+          ? [item.valueStyle, galleryValueStyle].filter(Boolean)
+          : galleryValueStyle,
+        bulletStyle: item.bulletStyle
+          ? [item.bulletStyle, galleryBulletStyle].filter(Boolean)
+          : galleryBulletStyle,
+      })
+    );
 
     return (
-      <View key={shot?.id || index} style={cardStyle} wrap={false}>
-        {visibleFields.image && shot?.image ? <Image src={shot.image} style={shotImageStyle} /> : null}
-        {headerHasContent ? (
-          <View style={styles.shotHeader}>
-            <View style={styles.shotHeaderContent}>
-              {visibleFields.shotNumber && shotNumber ? (
-                <Text style={styles.shotNumber}>{shotNumber}</Text>
-              ) : null}
-              {visibleFields.name && shot?.name ? <Text style={styles.shotTitle}>{shot.name}</Text> : null}
-            </View>
-            {layout === "list" ? <Text style={styles.shotMeta}>{lane.name}</Text> : null}
+      <View key={shotKey} style={cardStyle} wrap={false}>
+        {hasShotNumber ? (
+          <Text style={[styles.shotNumberBadge, styles.galleryShotNumber]}>{shotNumber}</Text>
+        ) : null}
+        {hasImage ? <Image src={shot.image} style={shotImageStyle} /> : null}
+        {shotTitle ? <Text style={titleStyle}>{shotTitle}</Text> : null}
+        {galleryItemsWithSizing.length ? (
+          <View style={[styles.detailStack, styles.galleryDetailStack]}>
+            {galleryItemsWithSizing.map((item, itemIndex) => renderDetailItem(item, itemIndex))}
           </View>
         ) : null}
-        {visibleFields.type || visibleFields.date ? (
-          <Text style={styles.shotMeta}>
-            {visibleFields.type && shot?.type ? `Type: ${shot.type}` : ""}
-            {visibleFields.type && visibleFields.date && shot?.type && shot?.date ? "  •  " : ""}
-            {visibleFields.date && shot?.date ? `Date: ${shot.date}` : ""}
-          </Text>
-        ) : null}
-        {visibleFields.location && shot?.location ? (
-          <Text style={styles.shotDetails}>Location: {shot.location}</Text>
-        ) : null}
-        {visibleFields.talent && talentList.length ? (
-          <Text style={styles.shotDetails}>Talent: {talentList.join(", ")}</Text>
-        ) : null}
-        {visibleFields.products && productList.length ? (
-          <Text style={styles.shotDetails}>Products: {productList.join(", ")}</Text>
-        ) : null}
-        {visibleFields.notes && shot?.notes ? <Text style={styles.shotDetails}>{shot.notes}</Text> : null}
+        {notesContent}
       </View>
     );
   };

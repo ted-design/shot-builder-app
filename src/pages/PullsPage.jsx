@@ -23,7 +23,7 @@ import {
 import { db } from "../lib/firebase";
 import { showError, showConfirm } from "../lib/toast";
 import { pullsPath, DEFAULT_PROJECT_ID, lanesPath, shotsPath, productFamiliesPath, productFamilySkusPath } from "../lib/paths";
-import { createPullItemFromProduct, aggregatePullItems, normalizePullItem, sortPullItemsByGender, calculateItemFulfillment, getPullItemDisplayName } from "../lib/pullItems";
+import { createPullItemFromProduct, aggregatePullItems, normalizePullItem, sortPullItemsByGender, calculateItemFulfillment, getPullItemDisplayName, upsertPullItem } from "../lib/pullItems";
 import { createPullSchema } from "../schemas/index.js";
 import PullItemEditor from "../components/pulls/PullItemEditor";
 import PullItemsTable from "../components/pulls/PullItemsTable";
@@ -44,6 +44,7 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { useProjectScope } from "../context/ProjectScopeContext";
 import { toast } from "../lib/toast";
 import { FileText, MapPin } from "lucide-react";
+import { FLAGS } from "../lib/flags";
 // Optional: if you've created UI primitives (Card, Input, Button), import
 // them here.  Otherwise, plain HTML elements will work fine.
 
@@ -676,6 +677,7 @@ function AutoGeneratePullModal({ projectId, clientId, onClose }) {
 }
 
 function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role, user }) {
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [families, setFamilies] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -845,17 +847,9 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
   };
 
   const handleSaveItem = async (item) => {
-    let updated;
-    if (editingIndex !== null) {
-      // Update existing item
-      updated = items.map((existingItem, idx) =>
-        idx === editingIndex ? item : existingItem
-      );
-    } else {
-      // Add new item
-      updated = [...items, item];
-    }
-
+    // When editing, remove the original by ID before upserting to avoid self-match
+    const excludeId = editingItem?.id || null;
+    const updated = upsertPullItem(items, item, { excludeId });
     // Sort by gender before saving
     const sorted = sortPullItemsByGender(updated);
     setItems(sorted);
@@ -869,7 +863,7 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
       setEditingItem(null);
       setEditingIndex(null);
       setItemEditorOpen(false);
-      toast.success({ title: editingIndex !== null ? "Item updated" : "Item added" });
+      toast.success({ title: editingIndex !== null ? "Item updated" : "Item added (merged)" });
     } catch (error) {
       console.error("[PullDetailsModal] Failed to save item", error);
       toast.error({ title: "Failed to save item" });
@@ -1116,6 +1110,14 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
               <p className="text-xs text-slate-500 dark:text-slate-400">Created {createdLabel}</p>
             </div>
             <div className="flex gap-2">
+              {FLAGS.pullsEditorV2 && (
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate(`/pulls/${pull.id}/edit`)}
+                >
+                  Open full screen
+                </Button>
+              )}
               <Button variant="secondary" onClick={() => setExportModalOpen(true)}>
                 Export
               </Button>
