@@ -860,9 +860,9 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
       );
     }
 
-    const temp = document.createElement("div");
-    temp.innerHTML = html;
-    const content = renderBlockNodes(Array.from(temp.childNodes || []), keyPrefix);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const content = renderBlockNodes(Array.from(doc.body.childNodes || []), keyPrefix);
     if (!content.length) return null;
     return (
       <View

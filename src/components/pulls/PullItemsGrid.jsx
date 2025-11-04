@@ -682,7 +682,7 @@ export default function PullItemsGrid({
 
                   {expanded && (
                     <tr className="bg-slate-50">
-                      <td colSpan={8} className="px-3 py-3">
+                      <td colSpan={3 + Object.values(showCols).filter(Boolean).length} className="px-3 py-3">
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sizes</h4>

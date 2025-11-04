@@ -213,7 +213,7 @@ export default function PullEditorPage() {
       if (prev) {
         setItems(prev);
         setDirty(true);
-        scheduleSave();
+        scheduleSave(prev);
         e.preventDefault();
       }
     };
