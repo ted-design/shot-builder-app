@@ -10,10 +10,10 @@ const BaseInput = ({ className = "", ...props }, ref) => {
     <input
       ref={ref}
       className={
-        `border border-gray-300 dark:border-slate-600 rounded-md px-3 py-2 text-sm w-full placeholder:text-gray-500 dark:placeholder:text-slate-500 ` +
-        `bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 ` +
+        `border border-slate-300 dark:border-slate-600 rounded-md px-3 py-2 text-sm w-full placeholder:text-slate-500 dark:placeholder:text-slate-500 ` +
+        `bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 ` +
         `focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-indigo-500 focus:border-primary dark:focus:border-indigo-500 ` +
-        `disabled:bg-gray-100 dark:disabled:bg-slate-900 disabled:text-gray-500 dark:disabled:text-slate-600 ${className}`
+        `disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-500 dark:disabled:text-slate-600 ${className}`
       }
       {...props}
     />
@@ -29,7 +29,7 @@ export const Input = React.forwardRef(BaseInput);
 export const Checkbox = ({ className = "", ...props }) => (
   <input
     type="checkbox"
-    className={`h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-primary dark:text-indigo-500 focus:ring-primary dark:focus:ring-indigo-500 dark:bg-slate-800 ${className}`.trim()}
+    className={`h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary dark:text-indigo-500 focus:ring-primary dark:focus:ring-indigo-500 dark:bg-slate-800 ${className}`.trim()}
     {...props}
   />
 );

@@ -190,7 +190,7 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
                   src={imageState.preview}
                   alt={`${colorName || "Colour"} preview`}
                   loading="lazy"
-                  className="h-40 w-full overflow-hidden rounded-lg"
+                  className="h-40 w-full overflow-hidden rounded-card"
                   imageClassName="h-full w-full object-cover"
                   placeholder={null}
                   fallback={

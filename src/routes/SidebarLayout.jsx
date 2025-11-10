@@ -9,6 +9,7 @@ import { roleLabel } from "../lib/rbac";
 import { SkipLink } from "../components/ui/SkipLink";
 import ProjectIndicator from "../components/ui/ProjectIndicator";
 import ThemeToggle from "../components/ui/ThemeToggle";
+import { BrandLockup } from "../components/common/BrandLockup";
 
 const navItems = [
   { to: "/projects", label: "Dashboard" },
@@ -70,6 +71,7 @@ function SidebarLinks({ onNavigate, role, currentProjectId }) {
 }
 
 export default function SidebarLayout({ fallbackUser = null, fallbackRole = null }) {
+  // Updated with BrandLockup component
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user: authUser, role: ctxRole } = useAuth();
@@ -95,7 +97,7 @@ export default function SidebarLayout({ fallbackUser = null, fallbackRole = null
       <div className="mx-auto flex min-h-screen w-full max-w-[1440px]">
         {/* Desktop sidebar */}
         <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-6 md:flex">
-          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Shot Builder</div>
+          <BrandLockup size="md" />
           <SidebarLinks role={rawRole} currentProjectId={currentProjectId} />
           <div className="mt-auto space-y-2 text-sm text-slate-600 dark:text-slate-400">
             <div className="truncate" title={userLabel}>
@@ -126,7 +128,7 @@ export default function SidebarLayout({ fallbackUser = null, fallbackRole = null
           }`}
         >
           <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Shot Builder</div>
+            <BrandLockup size="sm" />
             <button
               onClick={toggleMobile}
               className="rounded-md p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -156,16 +158,19 @@ export default function SidebarLayout({ fallbackUser = null, fallbackRole = null
 
         <div className="flex flex-1 flex-col">
           <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 px-4 backdrop-blur">
-            <button
-              onClick={toggleMobile}
-              className="inline-flex items-center rounded-md border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-sm text-slate-600 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 md:hidden"
-              aria-label="Open navigation"
-            >
-              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-              Menu
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleMobile}
+                className="inline-flex items-center rounded-md border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-sm text-slate-600 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 md:hidden"
+                aria-label="Open navigation"
+              >
+                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                Menu
+              </button>
+              <BrandLockup size="sm" />
+            </div>
             <div className="flex items-center gap-4">
               <ProjectIndicator />
               <ThemeToggle />

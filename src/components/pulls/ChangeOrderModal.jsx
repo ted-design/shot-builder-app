@@ -119,7 +119,7 @@ export default function ChangeOrderModal({
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Original Item */}
-          <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4">
+          <div className="rounded-card border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4">
             <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-300">Original Request</h3>
             <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
               {getPullItemDisplayName(originalItem)}
@@ -158,7 +158,7 @@ export default function ChangeOrderModal({
               Substitute Product <span className="text-red-500 dark:text-red-400">*</span>
             </label>
             {selectedProduct ? (
-              <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
+              <div className="flex items-center justify-between rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
                 <div>
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {selectedProduct.familyName}
@@ -198,7 +198,7 @@ export default function ChangeOrderModal({
               </div>
 
               {sizes.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                <div className="rounded-card border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4 text-center text-sm text-slate-500 dark:text-slate-400">
                   No sizes added. Click "Add Size" to specify substitute sizes and quantities.
                 </div>
               ) : (
@@ -206,7 +206,7 @@ export default function ChangeOrderModal({
                   {sizes.map((size, index) => (
                     <div
                       key={index}
-                      className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3"
+                      className="grid grid-cols-2 gap-2 rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3"
                     >
                       <Input
                         placeholder="Size (e.g., M, L, 32)"

@@ -612,7 +612,7 @@ class PlannerErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="space-y-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+        <div className="space-y-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
           <div className="text-base font-semibold text-red-800 dark:text-red-200">
             Something went wrong loading the planner.
           </div>
@@ -860,8 +860,8 @@ function ShotCard({
   const cardPadList = compact ? 'p-2' : 'p-4';
   const cardBaseClass =
     viewMode === "list"
-      ? `flex flex-col ${cardGap} rounded-lg border border-slate-200 bg-white ${cardPadList} shadow-sm dark:border-slate-700 dark:bg-slate-800`
-      : `flex flex-col ${cardGap} rounded-lg border border-slate-200 bg-white ${cardPadBoard} shadow-sm dark:border-slate-700 dark:bg-slate-800`;
+      ? `flex flex-col ${cardGap} rounded-card border border-slate-200 bg-white ${cardPadList} shadow-sm dark:border-slate-700 dark:bg-slate-800`
+      : `flex flex-col ${cardGap} rounded-card border border-slate-200 bg-white ${cardPadBoard} shadow-sm dark:border-slate-700 dark:bg-slate-800`;
   const selectionHighlight = selectionMode && isSelected ? "ring-1 ring-primary/50" : "";
   const highlightClasses = isFocused ? "ring-2 ring-primary shadow-lg" : selectionHighlight;
 
@@ -1167,7 +1167,7 @@ function PlannerSelectionToolbar({
   const hasSelection = selectedCount > 0;
   return (
     <div className="px-2 sm:px-0">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-white/95 px-4 py-3 shadow-lg dark:border-slate-700 dark:bg-slate-900/95">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 rounded-card border border-primary/30 bg-white/95 px-4 py-3 shadow-lg dark:border-slate-700 dark:bg-slate-900/95">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold text-primary dark:text-primary/80">
             {hasSelection ? `${selectedCount} ${selectedCount === 1 ? "shot" : "shots"} selected` : "No shots selected"}
@@ -3667,7 +3667,7 @@ function PlannerPageContent({ embedded = false }) {
         </p>
       </div>
       {subscriptionError && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+        <div className="rounded-card border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
           We could not refresh all planner data. Try again shortly or reload the page.
         </div>
       )}
@@ -3926,7 +3926,7 @@ function PlannerPageContent({ embedded = false }) {
                   <LaneEndDropZone disabled={!canEditPlanner || lanesLockedByGrouping}>
                     {(isOver) => (
                       <div
-                        className={`flex h-full items-center justify-center rounded-lg border border-dashed border-slate-300 text-slate-400 transition dark:border-slate-600 dark:text-slate-500 ${
+                        className={`flex h-full items-center justify-center rounded-card border border-dashed border-slate-300 text-slate-400 transition dark:border-slate-600 dark:text-slate-500 ${
                           isOver ? "bg-primary/10 text-primary" : ""
                         }`}
                       >
@@ -4007,7 +4007,7 @@ function PlannerPageContent({ embedded = false }) {
         </div>
       )}
       {!isPlannerLoading && lanes.length === 0 && totalShots === 0 && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+        <div className="rounded-card border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           No shots have been scheduled for this project yet. Create shots from the Shots page or
           drag existing shots into lanes once they appear here.
         </div>
@@ -4036,7 +4036,7 @@ function PlannerPageContent({ embedded = false }) {
         />
       )}
       {!canEditPlanner && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+        <div className="rounded-card border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Planner actions are read-only for your role. Producers or crew can organise shot lanes.
         </div>
       )}

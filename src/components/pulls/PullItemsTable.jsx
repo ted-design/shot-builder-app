@@ -391,7 +391,7 @@ export default function PullItemsTable({
   return (
     <>
       {/* Mobile Card View */}
-      <div className="md:hidden rounded-lg border border-slate-200 overflow-hidden">
+      <div className="md:hidden rounded-card border border-slate-200 overflow-hidden">
         {items.map((item, index) => (
           <PullItemCard
             key={item.id || index}
@@ -411,7 +411,7 @@ export default function PullItemsTable({
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-200">
+      <div className="hidden md:block overflow-x-auto rounded-card border border-slate-200">
         <table className="w-full">
           <thead className="bg-slate-100">
             <tr className="border-b border-slate-200">

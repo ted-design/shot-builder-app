@@ -60,7 +60,7 @@ export default function ProjectEditModal({
             busy={busy}
           />
           {(onArchive || onUnarchive) && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+            <div className="rounded-card border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
               <div className="space-y-3">
                 <div>
                   <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-400">Archive project</h3>
@@ -92,7 +92,7 @@ export default function ProjectEditModal({
               </div>
             </div>
           )}
-          <div className="rounded-lg border border-red-200 bg-red-50/70 p-4 dark:border-red-900/50 dark:bg-red-950/30">
+          <div className="rounded-card border border-red-200 bg-red-50/70 p-4 dark:border-red-900/50 dark:bg-red-950/30">
             <div className="space-y-3">
               <div>
                 <h3 className="text-sm font-semibold text-red-700 dark:text-red-400">Danger zone</h3>

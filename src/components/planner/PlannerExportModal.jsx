@@ -1604,22 +1604,22 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       labelledBy="planner-export-title"
       contentClassName="p-0 overflow-hidden"
     >
-      <div className="flex h-full min-h-0 flex-col bg-white dark:bg-gray-900">
+      <div className="flex h-full min-h-0 flex-col bg-white dark:bg-slate-900">
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="flex flex-col gap-6 p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 id="planner-export-title" className="text-lg font-semibold text-slate-900 dark:text-gray-100">
+                <h2 id="planner-export-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                   Export planner
                 </h2>
-                <p className="text-sm text-slate-500 dark:text-gray-400">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   Configure the layout and select which planner details to include in your export.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-md border border-transparent p-2 text-slate-500 dark:text-gray-400 transition hover:border-slate-200 dark:hover:border-gray-700 hover:text-slate-900 dark:hover:text-gray-100"
+                className="rounded-md border border-transparent p-2 text-slate-500 dark:text-slate-400 transition hover:border-slate-200 dark:hover:border-slate-700 hover:text-slate-900 dark:hover:text-slate-100"
                 aria-label="Close export settings"
                 disabled={isGenerating}
               >
@@ -1630,7 +1630,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
               <Card>
                 <CardContent className="space-y-4 pt-6">
                   <div>
-                    <label className="text-sm font-medium text-slate-700 dark:text-gray-300" htmlFor="planner-export-title-input">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="planner-export-title-input">
                       Page title
                     </label>
                     <input
@@ -1638,12 +1638,12 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                       type="text"
                       value={title}
                       onChange={(event) => setTitle(event.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                      className="mt-1 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
                       placeholder="Planner overview"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-slate-700 dark:text-gray-300" htmlFor="planner-export-subtitle-input">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="planner-export-subtitle-input">
                       Subtitle
                     </label>
                     <input
@@ -1651,13 +1651,13 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                       type="text"
                       value={subtitle}
                       onChange={(event) => setSubtitle(event.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                      className="mt-1 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
                       placeholder="Generated automatically"
                     />
                   </div>
                   <div>
-                    <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Page orientation</span>
-                    <div className="mt-2 inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Page orientation</span>
+                    <div className="mt-2 inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
                       {["portrait", "landscape"].map((option) => (
                         <button
                           key={option}
@@ -1665,8 +1665,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                           onClick={() => setOrientation(option)}
                           className={`px-3 py-1.5 text-sm capitalize transition ${
                             orientation === option
-                              ? "bg-slate-900 dark:bg-gray-700 text-white"
-                              : "text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-700"
+                              ? "bg-slate-900 dark:bg-slate-700 text-white"
+                              : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
                           }`}
                         >
                           {option}
@@ -1675,11 +1675,11 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                     </div>
                   </div>
                   <div>
-                    <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Layout</span>
-                    <p className="text-xs text-slate-500 dark:text-gray-400">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Layout</span>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       Switch between a detailed list or gallery-style cards for the PDF export.
                     </p>
-                    <div className="mt-2 inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+                    <div className="mt-2 inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
                       {[
                         { value: "list", label: "List view" },
                         { value: "gallery", label: "Gallery view" },
@@ -1690,8 +1690,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                           onClick={() => setLayoutMode(option.value)}
                           className={`px-3 py-1.5 text-sm transition ${
                             layoutMode === option.value
-                              ? "bg-slate-900 dark:bg-gray-700 text-white"
-                              : "text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-700"
+                              ? "bg-slate-900 dark:bg-slate-700 text-white"
+                              : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
                           }`}
                         >
                           {option.label}
@@ -1700,7 +1700,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                     </div>
                     {layoutMode === "gallery" ? (
                       <div className="mt-3 space-y-2">
-                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400" htmlFor="planner-export-gallery-columns">
+                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400" htmlFor="planner-export-gallery-columns">
                           Columns
                         </label>
                         <input
@@ -1711,23 +1711,23 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                           step={1}
                           value={galleryColumns}
                           onChange={(event) => setGalleryColumns(event.target.value)}
-                          className="w-full rounded-md border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                          className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
                         />
-                        <p className="text-xs text-slate-500 dark:text-gray-400">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
                           Cards flow left to right using {resolvedGalleryColumns} column{resolvedGalleryColumns === 1 ? "" : "s"} and never split between pages.
                         </p>
                       </div>
                     ) : null}
                   </div>
                   <div>
-                    <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Include sections</span>
-                    <div className="mt-2 space-y-2 text-sm text-slate-700 dark:text-gray-300">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Include sections</span>
+                    <div className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-300">
                       <label className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={includeLaneSummary}
                           onChange={(event) => setIncludeLaneSummary(event.target.checked)}
-                          className="rounded border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                          className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                         />
                         Lane summary
                       </label>
@@ -1736,21 +1736,21 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                           type="checkbox"
                           checked={includeTalentSummary}
                           onChange={(event) => setIncludeTalentSummary(event.target.checked)}
-                          className="rounded border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                          className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                         />
                         Talent summary
                       </label>
                     </div>
                   </div>
                   <div>
-                    <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Filter shots</span>
-                    <p className="text-xs text-slate-500 dark:text-gray-400">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Filter shots</span>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       Choose which lanes, talent, and dates to include in your export.
                     </p>
                     <div className="mt-3 space-y-4">
                       <div>
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Lanes</span>
-                        <div className="mt-2 space-y-2 text-sm text-slate-700 dark:text-gray-300">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Lanes</span>
+                        <div className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-300">
                           <label className="flex items-center gap-2">
                             <input
                               type="radio"
@@ -1758,7 +1758,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                               value="all"
                               checked={laneFilterMode === "all"}
                               onChange={() => setLaneFilterMode("all")}
-                              className="border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                              className="border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                             />
                             All lanes
                           </label>
@@ -1774,7 +1774,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                                   handleSelectAllLanes();
                                 }
                               }}
-                              className="border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                              className="border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                             />
                             Specific lanes
                           </label>
@@ -1783,19 +1783,19 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                           <div className="mt-2 space-y-2">
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                               {laneOptions.map((lane) => (
-                                <label key={lane.id} className="flex items-center gap-2 text-sm text-slate-700 dark:text-gray-300">
+                                <label key={lane.id} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                                   <input
                                     type="checkbox"
                                     checked={selectedLaneIdSet.has(lane.id)}
                                     onChange={() => handleToggleLane(lane.id)}
-                                    className="rounded border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                    className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                                   />
                                   {lane.name}
                                 </label>
                               ))}
                             </div>
                             {laneOptions.length > 0 ? (
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-gray-400">
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                 <button
                                   type="button"
                                   className="text-primary dark:text-blue-400 hover:underline"
@@ -1807,32 +1807,32 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                                 <span>{selectedLaneIds.length} selected</span>
                               </div>
                             ) : (
-                              <p className="text-xs text-slate-500 dark:text-gray-400">No lanes available.</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">No lanes available.</p>
                             )}
                           </div>
                         ) : null}
                       </div>
                       <div>
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Talent</span>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-gray-400">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Talent</span>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                           Leave blank to include every talent. Select one or more names to limit the export.
                         </p>
                         {talentOptions.length ? (
                           <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {talentOptions.map((option) => (
-                              <label key={option.value} className="flex items-center gap-2 text-sm text-slate-700 dark:text-gray-300">
+                              <label key={option.value} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                                 <input
                                   type="checkbox"
                                   checked={selectedTalentNames.includes(option.value)}
                                   onChange={() => handleToggleTalent(option.value)}
-                                  className="rounded border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                  className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                                 />
                                 {option.label}
                               </label>
                             ))}
                           </div>
                         ) : (
-                          <p className="mt-2 text-xs text-slate-500 dark:text-gray-400">No talent assignments yet.</p>
+                          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">No talent assignments yet.</p>
                         )}
                         {selectedTalentNames.length ? (
                           <button
@@ -1845,8 +1845,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                         ) : null}
                       </div>
                       <div>
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Dates</span>
-                        <div className="mt-2 space-y-2 text-sm text-slate-700 dark:text-gray-300">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dates</span>
+                        <div className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-300">
                           <label className="flex items-center gap-2">
                             <input
                               type="radio"
@@ -1857,7 +1857,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                                 setDateFilterMode("any");
                                 setSelectedDate("");
                               }}
-                              className="border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                              className="border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                             />
                             Any date
                           </label>
@@ -1873,7 +1873,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                                   setSelectedDate(availableDates[0]);
                                 }
                               }}
-                              className="border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                              className="border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                             />
                             Specific date
                           </label>
@@ -1884,10 +1884,10 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                               type="date"
                               value={selectedDate}
                               onChange={(event) => setSelectedDate(event.target.value)}
-                              className="w-full rounded-md border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                              className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
                             />
                             {availableDates.length ? (
-                              <p className="mt-1 text-xs text-slate-500 dark:text-gray-400">
+                              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                                 Available dates: {availableDates.join(", ")}
                               </p>
                             ) : null}
@@ -1901,11 +1901,11 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
               <Card>
                 <CardContent className="space-y-4 pt-6">
                   <div>
-                    <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Shot details</span>
-                    <p className="text-xs text-slate-500 dark:text-gray-400">Select the information that will appear for each shot.</p>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Shot details</span>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Select the information that will appear for each shot.</p>
                     <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {fieldOptions.map((option) => (
-                        <label key={option.key} className="flex items-center gap-2 text-sm text-slate-700 dark:text-gray-300">
+                        <label key={option.key} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                           <input
                             type="checkbox"
                             checked={Boolean(fields[option.key])}
@@ -1915,14 +1915,14 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                                 [option.key]: event.target.checked,
                               }))
                             }
-                            className="rounded border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                            className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                           />
                           {option.label}
                         </label>
                       ))}
                     </div>
                   </div>
-                  <div className="rounded-md bg-slate-50 dark:bg-gray-800 p-3 text-xs text-slate-600 dark:text-gray-400">
+                  <div className="rounded-md bg-slate-50 dark:bg-slate-800 p-3 text-xs text-slate-600 dark:text-slate-400">
                     Shots that are too tall to fit on the current page will automatically move to the next page so that
                     content never appears cropped.
                   </div>
@@ -1931,9 +1931,9 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
             </div>
           </div>
         </div>
-        <div className="border-t border-slate-200 dark:border-gray-700 p-6">
+        <div className="border-t border-slate-200 dark:border-slate-700 p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-500 dark:text-gray-400">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               {hasShots
                 ? "Exports include shots that match your filters. CSV files can be opened in spreadsheet tools like Excel or Google Sheets."
                 : "Adjust your filters or add shots to the planner to enable exports."}
@@ -1943,7 +1943,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                 type="button"
                 onClick={handleDownloadCsv}
                 disabled={!hasShots || isLoading || isGenerating}
-                className="bg-slate-200 dark:bg-gray-700 text-slate-700 dark:text-gray-300 hover:bg-slate-300 dark:hover:bg-gray-600"
+                className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
               >
                 Download CSV
               </Button>
@@ -1957,7 +1957,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
             </div>
           </div>
           {isGenerating && generationStage ? (
-            <div className="mt-3 rounded-md border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 px-3 py-2 text-xs text-slate-600 dark:text-gray-400">
+            <div className="mt-3 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
               {generationStage}
             </div>
           ) : null}

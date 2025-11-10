@@ -57,12 +57,12 @@ export default function ActivityFilters({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+    <div className="bg-white dark:bg-slate-800 rounded-card border border-slate-200 dark:border-slate-700 p-4">
       {/* Filter header */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded px-2 py-1"
+          className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 rounded px-2 py-1"
           aria-expanded={isOpen}
           aria-controls="filter-panel"
         >
@@ -86,7 +86,7 @@ export default function ActivityFilters({
         {hasActiveFilters && (
           <button
             onClick={onClear}
-            className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded px-2 py-1"
+            className="text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 rounded px-2 py-1"
             aria-label="Clear all filters"
           >
             <X className="w-4 h-4 inline mr-1" aria-hidden="true" />
@@ -105,7 +105,7 @@ export default function ActivityFilters({
           <div>
             <label
               htmlFor="activity-type-filter"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
             >
               Activity Type
             </label>
@@ -114,7 +114,7 @@ export default function ActivityFilters({
               multiple
               value={filters.types || []}
               onChange={handleTypeChange}
-              className="w-full h-32 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full h-32 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               aria-label="Select activity types to filter"
             >
               {activityTypes.map((type) => (
@@ -123,7 +123,7 @@ export default function ActivityFilters({
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               Hold Ctrl/Cmd to select multiple
             </p>
           </div>
@@ -132,7 +132,7 @@ export default function ActivityFilters({
           <div>
             <label
               htmlFor="user-filter"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
             >
               User
             </label>
@@ -141,7 +141,7 @@ export default function ActivityFilters({
               multiple
               value={filters.actorIds || []}
               onChange={handleUserChange}
-              className="w-full h-32 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full h-32 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               aria-label="Select users to filter"
             >
               {users.map((user) => (
@@ -150,7 +150,7 @@ export default function ActivityFilters({
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               Hold Ctrl/Cmd to select multiple
             </p>
           </div>

@@ -16,6 +16,7 @@ import {
 } from "../../lib/paths";
 import { resolveImageSourceToDataUrl } from "../../lib/pdfImageCollector";
 import { Button } from "../../components/ui/button";
+import { PageHeader } from "../../components/ui/PageHeader";
 
 const SAMPLE_LIMIT = 8;
 
@@ -150,27 +151,27 @@ export default function ImageDiagnosticsPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-800 dark:text-slate-100">Image diagnostics</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
-          Samples up to {SAMPLE_LIMIT} documents from shots, product families, talent, and locations. Each candidate
-          image is resolved via the active storage adapter and fetched with CORS enabled. Failures surface below to
-          help debug signed URL or CORS issues.
-        </p>
-        <Button type="button" onClick={runDiagnostics} disabled={state.running}>
-          {state.running ? "Checking…" : "Run diagnostics"}
-        </Button>
-        {state.durationMs != null ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400">Completed in {formatDuration(state.durationMs)}</p>
-        ) : null}
-      </div>
+      <PageHeader
+        title="Image Diagnostics"
+        description={`Samples up to ${SAMPLE_LIMIT} documents from shots, product families, talent, and locations. Each candidate image is resolved via the active storage adapter and fetched with CORS enabled. Failures surface below to help debug signed URL or CORS issues.`}
+        actions={
+          <div className="flex flex-col gap-2">
+            <Button type="button" onClick={runDiagnostics} disabled={state.running}>
+              {state.running ? "Checking…" : "Run diagnostics"}
+            </Button>
+            {state.durationMs != null && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">Completed in {formatDuration(state.durationMs)}</p>
+            )}
+          </div>
+        }
+      />
       {state.error ? (
         <div className="rounded border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 p-4 text-sm text-rose-700 dark:text-rose-300">
           Failed to run diagnostics: {state.error}
         </div>
       ) : null}
       {state.collections.map((collection) => (
-        <div key={collection.key} className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+        <div key={collection.key} className="space-y-3 rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{collection.label}</h2>
             <span className="text-sm text-slate-500 dark:text-slate-400">

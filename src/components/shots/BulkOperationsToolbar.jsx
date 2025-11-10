@@ -70,7 +70,7 @@ export default function BulkOperationsToolbar({
   const allSelected = totalCount > 0 && selectedCount === totalCount;
   const wrapperClasses = isSticky ? "sticky top-28 z-40 px-3 sm:px-6" : "px-3 sm:px-6";
   const panelClasses =
-    "mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 px-4 py-3 shadow-lg" +
+    "mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 rounded-card border border-primary/30 px-4 py-3 shadow-lg" +
     (isSticky
       ? " bg-white/95 dark:border-slate-700 dark:bg-slate-900/95"
       : " bg-white dark:border-slate-700 dark:bg-slate-900");

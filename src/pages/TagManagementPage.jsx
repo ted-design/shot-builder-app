@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { EmptyState } from "../components/ui/EmptyState";
+import { PageHeader } from "../components/ui/PageHeader";
 import Modal from "../components/ui/modal";
 import { Tag, Search, Edit2, Merge, Trash2, TrendingUp, X } from "lucide-react";
 import { db } from "../lib/firebase";
@@ -502,16 +503,11 @@ export default function TagManagementPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="sticky inset-x-0 top-14 z-40 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
-        <div className="px-6 py-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex-1 min-w-0 space-y-1">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-100 truncate">Tag Management</h1>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                Centralized tag library with global rename, merge, and delete operations
-              </p>
-            </div>
+      <PageHeader
+        title="Tag Management"
+        description="Centralized tag library with global rename, merge, and delete operations"
+        actions={
+          <>
             <div className="relative min-w-[200px] max-w-md flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
@@ -533,9 +529,9 @@ export default function TagManagementPage() {
                 Merge Tags ({selectedForMerge.length})
               </Button>
             )}
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Analytics Section */}
       <div className="mx-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -654,7 +650,7 @@ export default function TagManagementPage() {
                           <td className="px-4 py-3">
                             <input
                               type="checkbox"
-                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                              className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
                               checked={selectedForMerge.includes(tag.id)}
                               onChange={() => toggleMergeSelection(tag.id)}
                               aria-label={`Select ${tag.label} for merge`}

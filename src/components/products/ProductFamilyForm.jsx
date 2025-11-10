@@ -560,7 +560,7 @@ export default function ProductFamilyForm({
           <select
             value={familyState.gender}
             onChange={(event) => updateFamily({ gender: event.target.value })}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
           >
             {GENDER_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -574,7 +574,7 @@ export default function ProductFamilyForm({
           <select
             value={familyState.status}
             onChange={(event) => updateFamily({ status: event.target.value })}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
           >
             {FAMILY_STATUS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -599,7 +599,7 @@ export default function ProductFamilyForm({
               src={thumbnailImage.preview}
               alt="Thumbnail preview"
               loading="lazy"
-              className="h-48 w-full overflow-hidden rounded-lg"
+              className="h-48 w-full overflow-hidden rounded-card"
               imageClassName="h-full w-full object-cover"
               placeholder={null}
               fallback={
@@ -657,7 +657,7 @@ export default function ProductFamilyForm({
           {advancedOpen ? "Hide advanced" : "Show advanced"}
         </button>
         {advancedOpen && (
-          <div className="mt-4 space-y-4 rounded-lg border border-slate-200 p-4">
+          <div className="mt-4 space-y-4 rounded-card border border-slate-200 p-4">
             <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-700">Previous style number</label>
               <Input
@@ -675,7 +675,7 @@ export default function ProductFamilyForm({
                   src={headerImage.preview}
                   alt="Header preview"
                   loading="lazy"
-                  className="h-48 w-full overflow-hidden rounded-lg"
+                  className="h-48 w-full overflow-hidden rounded-card"
                   imageClassName="h-full w-full object-cover"
                   placeholder={null}
                   fallback={
@@ -731,7 +731,7 @@ export default function ProductFamilyForm({
                 value={newNoteText}
                 onChange={(event) => setNewNoteText(event.target.value)}
                 rows={3}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
                 placeholder="Add a note (press Add note to save with timestamp)"
               />
               <div className="flex justify-end">

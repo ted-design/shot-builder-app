@@ -81,6 +81,7 @@ import { EmptyState } from "../components/ui/EmptyState";
 import ExportButton from "../components/common/ExportButton";
 import { searchShots } from "../lib/search";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { PageHeader } from "../components/ui/PageHeader";
 import { ShotsOverviewProvider, useShotsOverview } from "../context/ShotsOverviewContext";
 import {
   FiltersPopover,
@@ -2869,7 +2870,7 @@ export function ShotsWorkspace() {
             Build and manage the shot list for the active project. Set the active project from the Dashboard.
           </p>
           {!canEditShots && (
-            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
+            <div className="rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
               You can browse shots but need producer or crew access to create or edit them.
             </div>
           )}
@@ -2884,7 +2885,7 @@ export function ShotsWorkspace() {
                   onAction={canEditShots ? openCreateModal : null}
                 />
               ) : (
-                <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
+                <div className="rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
                   No shots match the current search or filters.
                 </div>
               )
@@ -3550,45 +3551,49 @@ export default function ShotsPage({ initialView = null }) {
   return (
     <ShotsOverviewProvider value={overviewValue}>
       <div className="flex min-h-screen flex-col bg-slate-50">
-        <div className="sticky top-[65px] z-[39] border-b border-slate-200 bg-white/95 backdrop-blur" data-shot-overview-header>
-          <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+        <PageHeader sticky={true} className="top-[65px] z-[39]" data-shot-overview-header>
+          <PageHeader.Content>
             <div>
-              <h1 className="text-xl font-semibold text-slate-900">Shots</h1>
-              <p className="text-sm text-slate-500">Create, plan, and review shots without leaving the page.</p>
-          </div>
-          <div
-            className="flex items-center space-x-1 rounded-full border border-slate-200 bg-slate-100 p-1"
-            role="tablist"
-            aria-label="Shot overview tabs"
-            aria-orientation="horizontal"
-          >
-            {overviewTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = tab.value === activeTab;
-              return (
-                <button
-                  key={tab.value}
-                  type="button"
-                  className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                    isActive
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                  onClick={() => handleTabChange(tab.value)}
-                  role="tab"
-                  id={`overview-tab-${tab.value}`}
-                  aria-controls={`overview-panel-${tab.value}`}
-                  aria-selected={isActive}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-          </div>
-          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 pb-3" id="shots-toolbar-anchor" />
-        </div>
+              <PageHeader.Title>Shots</PageHeader.Title>
+              <PageHeader.Description>
+                Create, plan, and review shots without leaving the page.
+              </PageHeader.Description>
+            </div>
+            <PageHeader.Actions>
+              <div
+                className="flex items-center space-x-1 rounded-full border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-700 dark:bg-neutral-800"
+                role="tablist"
+                aria-label="Shot overview tabs"
+                aria-orientation="horizontal"
+              >
+                {overviewTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = tab.value === activeTab;
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                        isActive
+                          ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-100"
+                          : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                      }`}
+                      onClick={() => handleTabChange(tab.value)}
+                      role="tab"
+                      id={`overview-tab-${tab.value}`}
+                      aria-controls={`overview-panel-${tab.value}`}
+                      aria-selected={isActive}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </PageHeader.Actions>
+          </PageHeader.Content>
+          <div className="pb-3" id="shots-toolbar-anchor" />
+        </PageHeader>
       <div
         className="flex-1 overflow-auto"
         id={`overview-panel-${activeTab}`}

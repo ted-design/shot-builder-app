@@ -152,7 +152,7 @@ export default function OrphanedShotsMigration({ clientId }) {
           Find and migrate shots that don't have a project assignment. These shots won't appear in the normal project views.
         </p>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div className="rounded-card border border-slate-200 bg-slate-50 p-4">
           <div className="mb-3 flex items-center justify-between">
             <div>
               <p className="font-medium text-slate-900">

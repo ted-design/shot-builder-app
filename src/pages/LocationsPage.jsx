@@ -13,6 +13,7 @@ import {
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { PageHeader } from "../components/ui/PageHeader";
 import ExportButton from "../components/common/ExportButton";
 import { searchLocations } from "../lib/search";
 import Thumb from "../components/Thumb";
@@ -44,30 +45,30 @@ function LocationCard({ location, canManage, onEdit, editDisabled }) {
         path={location.photoPath || null}
         size={640}
         alt={name}
-        className="aspect-video w-full overflow-hidden bg-slate-100 dark:bg-slate-900"
+        className="aspect-video w-full overflow-hidden bg-neutral-100 dark:bg-neutral-900"
         imageClassName="h-full w-full object-cover"
         fallback={
-          <div className="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400">No photo</div>
+          <div className="flex h-full items-center justify-center text-sm text-neutral-500 dark:text-neutral-400">No photo</div>
         }
       />
       <CardContent className="flex flex-1 flex-col gap-3">
         <div className="space-y-1">
-          <div className="text-base font-semibold text-slate-900 dark:text-slate-100" title={name}>
+          <div className="text-base font-semibold text-neutral-900 dark:text-neutral-100" title={name}>
             <span className="block truncate">{name}</span>
           </div>
           {address && (
-            <div className="flex items-start gap-1.5 text-sm text-slate-600 dark:text-slate-400" title={address}>
-              <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden="true" />
+            <div className="flex items-start gap-1.5 text-sm text-neutral-600 dark:text-neutral-400" title={address}>
+              <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-neutral-500 dark:text-neutral-400" aria-hidden="true" />
               <span className="block truncate">{address}</span>
             </div>
           )}
           {location.phone && (
-            <div className="text-sm text-slate-600 dark:text-slate-400" title={location.phone}>
+            <div className="text-sm text-neutral-600 dark:text-neutral-400" title={location.phone}>
               <span className="block truncate">☎ {location.phone}</span>
             </div>
           )}
           {location.notes && (
-            <div className="text-xs text-slate-500 dark:text-slate-400" title={location.notes}>
+            <div className="text-xs text-neutral-500 dark:text-neutral-400" title={location.notes}>
               <span className="block truncate">{location.notes}</span>
             </div>
           )}
@@ -78,7 +79,7 @@ function LocationCard({ location, canManage, onEdit, editDisabled }) {
               Edit
             </Button>
           ) : (
-            <div className="text-xs text-slate-500 dark:text-slate-400">Read only</div>
+            <div className="text-xs text-neutral-500 dark:text-neutral-400">Read only</div>
           )}
         </div>
       </CardContent>
@@ -365,11 +366,16 @@ export default function LocationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="sticky inset-x-0 top-14 z-40 bg-white/95 dark:bg-slate-800/95 py-4 px-6 backdrop-blur">
-        <Card className="border-b-2">
-          <CardContent className="py-4">
+      <PageHeader sticky={true} className="top-14 z-40">
+        <PageHeader.Content>
+          <div>
+            <PageHeader.Title>Locations</PageHeader.Title>
+            <PageHeader.Description>
+              Catalogue studios and on-site venues with reference photos and notes.
+            </PageHeader.Description>
+          </div>
+          <PageHeader.Actions>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="flex-none text-2xl font-semibold text-slate-900 dark:text-slate-100">Locations</h1>
               <Input
                 placeholder="Search locations by name, address, or notes..."
                 aria-label="Search locations"
@@ -384,13 +390,9 @@ export default function LocationsPage() {
                 </Button>
               )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <p className="px-6 text-sm text-slate-600 dark:text-slate-400">
-        Catalogue studios and on-site venues with reference photos and notes.
-      </p>
+          </PageHeader.Actions>
+        </PageHeader.Content>
+      </PageHeader>
 
       {feedback && (
         <div
@@ -403,7 +405,7 @@ export default function LocationsPage() {
       )}
 
       {!canManage && (
-        <div className="mx-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
+        <div className="mx-6 rounded-card border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4 text-sm text-neutral-600 dark:text-neutral-400">
           Locations are read-only for your role. Producers can create and update venue records.
         </div>
       )}
@@ -421,7 +423,7 @@ export default function LocationsPage() {
         ))}
         {!loading && !filteredLocations.length && (
           <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-4 2xl:col-span-5">
-            <CardContent className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
+            <CardContent className="p-8 text-center text-sm text-neutral-500 dark:text-neutral-400">
               No locations match the current filters.
             </CardContent>
           </Card>

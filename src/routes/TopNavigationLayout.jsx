@@ -19,6 +19,7 @@ import { useSearchCommand } from "../context/SearchCommandContext";
 import { generateBreadcrumbs, shouldShowBreadcrumbs } from "../lib/breadcrumbs";
 import { Menu, ChevronDown, LogOut, Search } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "../components/ui/sheet";
+import { BrandLockup } from "../components/common/BrandLockup";
 
 const navItems = [
   { to: "/projects", label: "Dashboard" },
@@ -179,7 +180,7 @@ function UserMenu({ userLabel, navRoleLabel, userEmail, userPhotoUrl, onSignOut 
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg animate-fade-in-down z-50">
+        <div className="absolute right-0 top-full mt-2 w-64 rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg animate-fade-in-down z-50">
           <div className="p-3 border-b border-slate-200 dark:border-slate-700">
             <div className="flex items-center gap-3">
               <Avatar
@@ -286,19 +287,20 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <SkipLink />
 
-      {/* Top Navigation Bar */}
+      {/* Top Navigation Bar - Two Row Layout */}
       <header
         className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 supports-[backdrop-filter]:dark:bg-slate-800/80"
         data-app-top-nav
       >
-        <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-4 md:px-6">
-          {/* Left: Logo + Desktop Nav */}
-          <div className="flex items-center gap-6">
-            <div className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              Shot Builder
-            </div>
-            <DesktopNavLinks role={rawRole} currentProjectId={currentProjectId} />
-          </div>
+        {/* Row 1: Centered Brand Lockup */}
+        <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-center border-b border-slate-200/50 dark:border-slate-700/50 px-4 md:px-6">
+          <BrandLockup size="sm" />
+        </div>
+
+        {/* Row 2: Navigation + Actions */}
+        <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between px-4 md:px-6">
+          {/* Left: Desktop Nav */}
+          <DesktopNavLinks role={rawRole} currentProjectId={currentProjectId} />
 
           {/* Right: Actions */}
           <div className="flex items-center gap-3">

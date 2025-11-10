@@ -59,7 +59,7 @@ export default function ActivityItem({ activity, currentUserId }) {
     purple:
       "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400",
     red: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400",
-    gray: "bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400",
+    gray: "bg-slate-100 dark:bg-slate-900/30 text-slate-600 dark:text-slate-400",
     indigo:
       "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400",
   };
@@ -69,7 +69,7 @@ export default function ActivityItem({ activity, currentUserId }) {
 
   return (
     <div
-      className="flex gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
+      className="flex gap-3 p-4 bg-white dark:bg-slate-800 rounded-card border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
       role="article"
       aria-label={`${activity.actorName} ${description}`}
     >
@@ -89,12 +89,12 @@ export default function ActivityItem({ activity, currentUserId }) {
             className={`font-medium ${
               isOwnActivity
                 ? "text-blue-600 dark:text-blue-400"
-                : "text-gray-900 dark:text-white"
+                : "text-slate-900 dark:text-white"
             }`}
           >
             {isOwnActivity ? "You" : activity.actorName}
           </span>{" "}
-          <span className="text-gray-600 dark:text-gray-300">
+          <span className="text-slate-600 dark:text-slate-300">
             {description}
           </span>
         </div>
@@ -102,7 +102,7 @@ export default function ActivityItem({ activity, currentUserId }) {
         {/* Metadata preview (for comments) */}
         {activity.metadata?.commentText && (
           <div
-            className="mt-1 text-sm text-gray-500 dark:text-gray-400 italic truncate"
+            className="mt-1 text-sm text-slate-500 dark:text-slate-400 italic truncate"
             aria-label={`Comment preview: ${activity.metadata.commentText}`}
           >
             "{activity.metadata.commentText}"
@@ -111,7 +111,7 @@ export default function ActivityItem({ activity, currentUserId }) {
 
         {/* Timestamp */}
         <div
-          className="mt-1 text-xs text-gray-500 dark:text-gray-400"
+          className="mt-1 text-xs text-slate-500 dark:text-slate-400"
           aria-label={`Time: ${formatRelativeTime(activity.createdAt)}`}
         >
           {formatRelativeTime(activity.createdAt)}
@@ -123,7 +123,7 @@ export default function ActivityItem({ activity, currentUserId }) {
         <div className="flex-shrink-0">
           <Link
             to={`/shots/${activity.entityId}`}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded px-2 py-1"
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 rounded px-2 py-1"
             aria-label={`View ${activity.entityName}`}
           >
             View

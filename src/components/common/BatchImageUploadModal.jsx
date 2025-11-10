@@ -93,7 +93,7 @@ export default function BatchImageUploadModal({
           />
 
           {uploadsCompleted && (
-            <div className="mt-4 rounded-lg bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-900 p-4 text-center">
+            <div className="mt-4 rounded-card bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-900 p-4 text-center">
               <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
                 ✓ Upload complete! You can close this dialog or upload more files.
               </p>

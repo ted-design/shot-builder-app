@@ -13,6 +13,7 @@ import {
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { PageHeader } from "../components/ui/PageHeader";
 import ExportButton from "../components/common/ExportButton";
 import { searchTalent } from "../lib/search";
 import BatchImageUploadModal from "../components/common/BatchImageUploadModal";
@@ -114,7 +115,7 @@ function CreateTalentCard({ onClick, disabled }) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 text-center transition hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:border-slate-200 dark:disabled:border-slate-700 disabled:bg-slate-50 dark:disabled:bg-slate-900"
+      className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-card border-2 border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 text-center transition hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:border-slate-200 dark:disabled:border-slate-700 disabled:bg-slate-50 dark:disabled:bg-slate-900"
       aria-label="Create talent"
     >
       <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-3xl font-semibold text-primary">
@@ -401,11 +402,16 @@ export default function TalentPage() {
 
   return (
     <div className="space-y-6">
-      <div className="sticky inset-x-0 top-14 z-40 bg-white/95 dark:bg-slate-800/95 py-4 px-6 backdrop-blur">
-        <Card className="border-b-2">
-          <CardContent className="py-4">
+      <PageHeader sticky={true} className="top-14 z-40">
+        <PageHeader.Content>
+          <div>
+            <PageHeader.Title>Talent</PageHeader.Title>
+            <PageHeader.Description>
+              Track models, their agencies, and wardrobe notes for the active project.
+            </PageHeader.Description>
+          </div>
+          <PageHeader.Actions>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="flex-none text-2xl font-semibold text-slate-900 dark:text-slate-100">Talent</h1>
               <Input
                 placeholder="Search talent by name, agency, or contact..."
                 aria-label="Search talent"
@@ -436,13 +442,9 @@ export default function TalentPage() {
                 </>
               )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <p className="px-6 text-sm text-slate-600 dark:text-slate-400">
-        Track models, their agencies, and wardrobe notes for the active project.
-      </p>
+          </PageHeader.Actions>
+        </PageHeader.Content>
+      </PageHeader>
 
       {feedback && (
         <div
@@ -457,7 +459,7 @@ export default function TalentPage() {
       )}
 
       {!canManage && (
-        <div className="mx-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
+        <div className="mx-6 rounded-card border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4 text-sm text-neutral-600 dark:text-neutral-400">
           Talent records are read-only for your role. Producers can add or edit talent details.
         </div>
       )}
@@ -477,7 +479,7 @@ export default function TalentPage() {
         ))}
         {!loading && !filteredTalent.length && (
           <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-4 2xl:col-span-5">
-            <CardContent className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
+            <CardContent className="p-8 text-center text-sm text-neutral-500 dark:text-neutral-400">
               No talent matches the current filters.
             </CardContent>
           </Card>

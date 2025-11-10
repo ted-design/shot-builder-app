@@ -1,12 +1,32 @@
 /**
- * SearchCommand - Global command palette with Cmd+K shortcut
- * Provides fuzzy search across all entities (shots, products, talent, locations, projects)
+ * SearchCommand - Enhanced command palette with search and actions
+ * Now using cmdk library for better keyboard navigation and extensibility
+ *
+ * Features:
+ * - Global search across all entities
+ * - Quick actions (Create, Export, etc.)
+ * - Navigation commands
+ * - Recent searches
+ * - Keyboard shortcuts (Cmd+K)
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
-import { Search, Camera, Package, User, MapPin, FolderOpen, X } from 'lucide-react';
+import { Command } from 'cmdk';
+import {
+  Search,
+  Camera,
+  Package,
+  User,
+  MapPin,
+  FolderOpen,
+  Plus,
+  Download,
+  Home,
+  Tag,
+  Users,
+  Settings,
+} from 'lucide-react';
 import { globalSearch } from '../../lib/search';
 import { useQueryClient } from '@tanstack/react-query';
 import { useShots, useProducts, useTalent, useLocations, useProjects, queryKeys } from '../../hooks/useFirestoreQuery';
@@ -16,43 +36,19 @@ import { useProjectScope } from '../../context/ProjectScopeContext';
 import { toast } from '../../lib/toast';
 import { readStorage, writeStorage } from '../../lib/safeStorage';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import './SearchCommand.css';
 
 const RECENT_SEARCHES_KEY = 'searchCommand:recentSearches';
 const MAX_RECENT_SEARCHES = 5;
 
-/**
- * Get icon component for entity type
- */
-function getEntityIcon(type) {
-  switch (type) {
-    case 'shot':
-      return Camera;
-    case 'product':
-      return Package;
-    case 'talent':
-      return User;
-    case 'location':
-      return MapPin;
-    case 'project':
-      return FolderOpen;
-    default:
-      return Search;
-  }
-}
-
-/**
- * Get display name for entity type
- */
-function getEntityTypeName(type) {
-  const names = {
-    shot: 'Shots',
-    product: 'Products',
-    talent: 'Talent',
-    location: 'Locations',
-    project: 'Projects',
-  };
-  return names[type] || type;
-}
+// Entity type configurations
+const ENTITY_CONFIG = {
+  shot: { icon: Camera, label: 'Shots', path: '/shots' },
+  product: { icon: Package, label: 'Products', path: '/products' },
+  talent: { icon: User, label: 'Talent', path: '/talent' },
+  location: { icon: MapPin, label: 'Locations', path: '/locations' },
+  project: { icon: FolderOpen, label: 'Projects', path: '/projects' },
+};
 
 /**
  * Get display label for a search result item
@@ -99,28 +95,6 @@ function getResultSecondary(result) {
 }
 
 /**
- * Get navigation path for a search result
- */
-function getResultPath(result, currentProjectId) {
-  const { type } = result;
-
-  switch (type) {
-    case 'shot':
-      return currentProjectId ? `/projects/${currentProjectId}/shots` : '/projects';
-    case 'product':
-      return '/products';
-    case 'talent':
-      return '/talent';
-    case 'location':
-      return '/locations';
-    case 'project':
-      return '/projects';
-    default:
-      return '/';
-  }
-}
-
-/**
  * Load recent searches from localStorage
  */
 function loadRecentSearches() {
@@ -136,7 +110,7 @@ function loadRecentSearches() {
 }
 
 /**
- * Save recent searches to localStorage
+ * Save recent search to localStorage
  */
 function saveRecentSearch(query) {
   try {
@@ -166,26 +140,20 @@ function saveRecentSearch(query) {
 export default function SearchCommand() {
   const { isOpen, openSearch, closeSearch } = useSearchCommand();
   const { currentProjectId } = useProjectScope();
-  const [query, setQuery] = useState('');
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [search, setSearch] = useState('');
   const [recentSearches, setRecentSearches] = useState(loadRecentSearches);
-
-  const inputRef = useRef(null);
-  const resultsRef = useRef(null);
 
   const navigate = useNavigate();
   const { clientId } = useAuth();
   const queryClient = useQueryClient();
 
-  // Debounce search query to reduce expensive fuzzy search operations
-  // 150ms provides responsive feel while reducing search calls by ~80-90%
-  const debouncedQuery = useDebouncedValue(query, 150);
+  // Debounce search query
+  const debouncedSearch = useDebouncedValue(search, 150);
 
+  // Get cached data
   const cachedShots = useMemo(() => {
     if (!clientId || !currentProjectId) return [];
-    return (
-      queryClient.getQueryData(queryKeys.shots(clientId, currentProjectId)) || []
-    );
+    return queryClient.getQueryData(queryKeys.shots(clientId, currentProjectId)) || [];
   }, [queryClient, clientId, currentProjectId]);
 
   const cachedProducts = useMemo(() => {
@@ -208,7 +176,7 @@ export default function SearchCommand() {
     return queryClient.getQueryData(queryKeys.projects(clientId)) || [];
   }, [queryClient, clientId]);
 
-  // Load data from TanStack Query hooks only when palette open, seeding with cache
+  // Load data from TanStack Query
   const { data: shots = cachedShots } = useShots(clientId, currentProjectId, {
     enabled: isOpen && !!clientId && !!currentProjectId,
     placeholderData: cachedShots,
@@ -230,89 +198,52 @@ export default function SearchCommand() {
     placeholderData: cachedProjects,
   });
 
-  // Perform global search with debounced query
+  // Perform global search
   const searchResults = useMemo(() => {
-    if (!debouncedQuery.trim()) {
+    if (!debouncedSearch.trim()) {
       return null;
     }
 
     return globalSearch(
       { shots, products, talent, locations, projects },
-      debouncedQuery,
+      debouncedSearch,
       { maxResults: 50, maxPerType: 10 }
     );
-  }, [debouncedQuery, shots, products, talent, locations, projects]);
+  }, [debouncedSearch, shots, products, talent, locations, projects]);
 
-  // Flatten results for keyboard navigation
-  const flatResults = useMemo(() => {
-    if (!searchResults) return [];
-
-    const flat = [];
-    ['shots', 'products', 'talent', 'locations', 'projects'].forEach(type => {
-      if (searchResults[type]?.length > 0) {
-        searchResults[type].forEach(result => {
-          flat.push(result);
-        });
-      }
-    });
-
-    return flat;
-  }, [searchResults]);
-
-  // Reset state when opening
+  // Reset when opening
   useEffect(() => {
     if (isOpen) {
-      setQuery('');
-      setSelectedIndex(0);
+      setSearch('');
     }
   }, [isOpen]);
-
-  // Close handler with state cleanup
-  const close = useCallback(() => {
-    closeSearch();
-    setQuery('');
-    setSelectedIndex(0);
-  }, [closeSearch]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e) {
-      // Cmd+K or Ctrl+K to open
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         if (isOpen) {
-          close();
+          closeSearch();
         } else {
           openSearch();
         }
-      }
-
-      // Escape to close
-      if (e.key === 'Escape' && isOpen) {
-        close();
       }
     }
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, openSearch, close]);
-
-  // Focus input when opened
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
+  }, [isOpen, openSearch, closeSearch]);
 
   // Handle result selection
   const handleSelectResult = useCallback(
     result => {
-      const path = getResultPath(result, currentProjectId);
-      const requiresProject = result?.type === 'shot' || path.includes('/shots');
+      const config = ENTITY_CONFIG[result.type];
+      const requiresProject = result.type === 'shot';
 
-      saveRecentSearch(query);
+      saveRecentSearch(search);
       setRecentSearches(loadRecentSearches());
-      close();
+      closeSearch();
 
       if (requiresProject && !currentProjectId) {
         toast.info({ title: 'Please select a project' });
@@ -320,213 +251,289 @@ export default function SearchCommand() {
         return;
       }
 
+      const path = currentProjectId && result.type === 'shot'
+        ? `/projects/${currentProjectId}/shots`
+        : config.path;
+
       navigate(path);
     },
-    [query, close, navigate, currentProjectId]
+    [search, closeSearch, navigate, currentProjectId]
   );
 
-  // Handle keyboard navigation in results
-  const handleResultsKeyDown = useCallback(
-    e => {
-      if (!flatResults.length) return;
+  // Handle actions
+  const handleAction = useCallback((action) => {
+    closeSearch();
 
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedIndex(prev => (prev + 1) % flatResults.length);
-      }
-
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedIndex(prev => (prev - 1 + flatResults.length) % flatResults.length);
-      }
-
-      if (e.key === 'Enter' && flatResults[selectedIndex]) {
-        e.preventDefault();
-        handleSelectResult(flatResults[selectedIndex]);
-      }
-    },
-    [flatResults, selectedIndex, handleSelectResult]
-  );
-
-  // Handle recent search click
-  const handleRecentSearchClick = useCallback(search => {
-    setQuery(search);
-    if (inputRef.current) {
-      inputRef.current.focus();
+    switch (action) {
+      case 'create-shot':
+        if (!currentProjectId) {
+          toast.info({ title: 'Please select a project first' });
+          navigate('/projects');
+        } else {
+          navigate(`/projects/${currentProjectId}/shots`);
+          // Trigger create modal (would need to be implemented)
+        }
+        break;
+      case 'create-product':
+        navigate('/products');
+        // Trigger create modal
+        break;
+      case 'create-talent':
+        navigate('/talent');
+        // Trigger create modal
+        break;
+      case 'create-location':
+        navigate('/locations');
+        // Trigger create modal
+        break;
+      case 'nav-dashboard':
+        navigate('/projects');
+        break;
+      case 'nav-shots':
+        if (!currentProjectId) {
+          toast.info({ title: 'Please select a project first' });
+          navigate('/projects');
+        } else {
+          navigate(`/projects/${currentProjectId}/shots`);
+        }
+        break;
+      case 'nav-products':
+        navigate('/products');
+        break;
+      case 'nav-talent':
+        navigate('/talent');
+        break;
+      case 'nav-locations':
+        navigate('/locations');
+        break;
+      case 'nav-pulls':
+        navigate('/pulls');
+        break;
+      case 'nav-tags':
+        navigate('/tags');
+        break;
+      case 'nav-admin':
+        navigate('/admin');
+        break;
+      default:
+        break;
     }
+  }, [closeSearch, navigate, currentProjectId]);
+
+  const handleRecentSearchClick = useCallback(searchQuery => {
+    setSearch(searchQuery);
   }, []);
-
-  // Scroll selected item into view
-  useEffect(() => {
-    if (resultsRef.current && selectedIndex >= 0 && selectedIndex < flatResults.length) {
-      const selectedElement = resultsRef.current.children[selectedIndex];
-      if (selectedElement) {
-        selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-    }
-  }, [selectedIndex, flatResults.length]);
 
   if (!isOpen) return null;
 
-  const showRecentSearches = !query.trim() && recentSearches.length > 0;
-  const hasResults = searchResults && flatResults.length > 0;
-  const showEmpty = query.trim() && !hasResults;
+  const showRecentSearches = !search.trim() && recentSearches.length > 0;
+  const hasSearchResults = searchResults && Object.values(searchResults).some(arr => arr.length > 0);
+  const showActions = !search.trim();
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[1000] flex items-start justify-center bg-slate-900/50 dark:bg-black/70 backdrop-blur-sm animate-fade-in pt-[10vh]"
-      onClick={close}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Global search"
+  return (
+    <Command.Dialog
+      open={isOpen}
+      onOpenChange={closeSearch}
+      label="Global Command Menu"
+      className="command-dialog"
     >
-      <div
-        className="w-full max-w-2xl rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl animate-slide-in-from-top"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Search Input */}
-        <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-700 px-4 py-3">
-          <Search className="h-5 w-5 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={e => {
-              setQuery(e.target.value);
-              setSelectedIndex(0);
-            }}
-            onKeyDown={handleResultsKeyDown}
-            placeholder="Search shots, products, talent, locations..."
-            className="flex-1 bg-transparent text-base text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none"
-            aria-label="Search query"
-            aria-autocomplete="list"
-            aria-controls="search-results"
-          />
-          <button
-            onClick={close}
-            className="rounded-md p-1 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition"
-            aria-label="Close search"
-          >
-            <X className="h-5 w-5" />
-          </button>
-          <kbd className="hidden sm:inline-flex items-center gap-1 rounded border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-2 py-1 text-xs text-slate-500 dark:text-slate-400">
-            <span>ESC</span>
-          </kbd>
-        </div>
+      <div className="command-input-wrapper">
+        <Search className="command-search-icon" size={20} />
+        <Command.Input
+          value={search}
+          onValueChange={setSearch}
+          placeholder="Search or type a command..."
+          className="command-input"
+        />
+        <kbd className="command-kbd">ESC</kbd>
+      </div>
 
-        {/* Results */}
-        <div className="max-h-[60vh] overflow-y-auto" id="search-results" ref={resultsRef}>
-          {/* Recent Searches */}
-          {showRecentSearches && (
-            <div className="p-2">
-              <div className="px-3 py-2 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                Recent Searches
-              </div>
-              {recentSearches.map((search, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleRecentSearchClick(search)}
-                  className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                >
-                  <Search className="h-4 w-4 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-                  <span>{search}</span>
-                </button>
-              ))}
-            </div>
-          )}
+      <Command.List className="command-list">
+        <Command.Empty className="command-empty">
+          <Search size={48} />
+          <p>No results found</p>
+          <p className="command-empty-hint">Try adjusting your search</p>
+        </Command.Empty>
 
-          {/* Search Results by Type */}
-          {hasResults && (
-            <div className="p-2">
-              {['shots', 'products', 'talent', 'locations', 'projects'].map(type => {
-                const results = searchResults[type] || [];
-                if (results.length === 0) return null;
+        {/* Recent Searches */}
+        {showRecentSearches && (
+          <Command.Group heading="Recent Searches">
+            {recentSearches.map((recentSearch, index) => (
+              <Command.Item
+                key={index}
+                onSelect={() => handleRecentSearchClick(recentSearch)}
+                className="command-item"
+              >
+                <Search size={16} />
+                <span>{recentSearch}</span>
+              </Command.Item>
+            ))}
+          </Command.Group>
+        )}
 
-                return (
-                  <div key={type} className="mb-4 last:mb-0">
-                    <div className="px-3 py-2 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                      {getEntityTypeName(type)} ({results.length})
-                    </div>
-                    {results.map((result, index) => {
-                      const globalIndex = flatResults.indexOf(result);
-                      const isSelected = globalIndex === selectedIndex;
-                      const Icon = getEntityIcon(type);
-                      const label = getResultLabel(result);
-                      const secondary = getResultSecondary(result);
+        {/* Quick Actions */}
+        {showActions && (
+          <>
+            <Command.Group heading="Actions">
+              <Command.Item
+                onSelect={() => handleAction('create-shot')}
+                className="command-item"
+              >
+                <Camera size={16} />
+                <span>Create Shot</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => handleAction('create-product')}
+                className="command-item"
+              >
+                <Package size={16} />
+                <span>Create Product</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => handleAction('create-talent')}
+                className="command-item"
+              >
+                <User size={16} />
+                <span>Create Talent</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => handleAction('create-location')}
+                className="command-item"
+              >
+                <MapPin size={16} />
+                <span>Create Location</span>
+              </Command.Item>
+            </Command.Group>
 
-                      return (
-                        <button
-                          key={result.item.id}
-                          onClick={() => handleSelectResult(result)}
-                          className={`w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-left transition ${
-                            isSelected ? 'bg-primary/10 dark:bg-indigo-900/30 ring-2 ring-primary/20 dark:ring-indigo-500/30' : 'hover:bg-slate-100 dark:hover:bg-slate-700'
-                          }`}
-                          role="option"
-                          aria-selected={isSelected}
-                        >
-                          <div className={`flex h-8 w-8 items-center justify-center rounded-md ${
-                            isSelected ? 'bg-primary/20 dark:bg-indigo-900/40' : 'bg-slate-100 dark:bg-slate-700'
-                          }`}>
-                            <Icon className={`h-4 w-4 ${isSelected ? 'text-primary dark:text-indigo-400' : 'text-slate-600 dark:text-slate-400'}`} aria-hidden="true" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
-                              {label}
-                            </div>
-                            {secondary && (
-                              <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                                {secondary}
-                              </div>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+            <Command.Separator />
 
-          {/* Empty State */}
-          {showEmpty && (
-            <div className="p-12 text-center">
-              <Search className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600" aria-hidden="true" />
-              <p className="mt-4 text-sm font-medium text-slate-900 dark:text-slate-100">No results found</p>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Try adjusting your search query
-              </p>
-            </div>
-          )}
+            <Command.Group heading="Navigation">
+              <Command.Item
+                onSelect={() => handleAction('nav-dashboard')}
+                className="command-item"
+              >
+                <Home size={16} />
+                <span>Go to Dashboard</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => handleAction('nav-shots')}
+                className="command-item"
+              >
+                <Camera size={16} />
+                <span>Go to Shots</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => handleAction('nav-products')}
+                className="command-item"
+              >
+                <Package size={16} />
+                <span>Go to Products</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => handleAction('nav-talent')}
+                className="command-item"
+              >
+                <User size={16} />
+                <span>Go to Talent</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => handleAction('nav-locations')}
+                className="command-item"
+              >
+                <MapPin size={16} />
+                <span>Go to Locations</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => handleAction('nav-pulls')}
+                className="command-item"
+              >
+                <Download size={16} />
+                <span>Go to Pulls</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => handleAction('nav-tags')}
+                className="command-item"
+              >
+                <Tag size={16} />
+                <span>Go to Tags</span>
+              </Command.Item>
+              <Command.Item
+                onSelect={() => handleAction('nav-admin')}
+                className="command-item"
+              >
+                <Settings size={16} />
+                <span>Go to Admin</span>
+              </Command.Item>
+            </Command.Group>
+          </>
+        )}
 
-          {/* Instructions */}
-          {!query.trim() && !showRecentSearches && (
-            <div className="p-12 text-center">
-              <Search className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600" aria-hidden="true" />
-              <p className="mt-4 text-sm font-medium text-slate-900 dark:text-slate-100">Search Shot Builder</p>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Search across shots, products, talent, and more
-              </p>
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <kbd className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-2 py-1">
-                  <span>↑</span>
-                  <span>↓</span>
-                </kbd>
+        {/* Search Results */}
+        {hasSearchResults && (
+          <>
+            {['shots', 'products', 'talent', 'locations', 'projects'].map(type => {
+              const results = searchResults[type] || [];
+              if (results.length === 0) return null;
+
+              const config = ENTITY_CONFIG[type];
+              const Icon = config.icon;
+
+              return (
+                <Command.Group key={type} heading={`${config.label} (${results.length})`}>
+                  {results.map(result => {
+                    const label = getResultLabel(result);
+                    const secondary = getResultSecondary(result);
+
+                    return (
+                      <Command.Item
+                        key={result.item.id}
+                        onSelect={() => handleSelectResult(result)}
+                        className="command-item"
+                      >
+                        <div className="command-item-icon">
+                          <Icon size={16} />
+                        </div>
+                        <div className="command-item-content">
+                          <div className="command-item-label">{label}</div>
+                          {secondary && (
+                            <div className="command-item-secondary">{secondary}</div>
+                          )}
+                        </div>
+                      </Command.Item>
+                    );
+                  })}
+                </Command.Group>
+              );
+            })}
+          </>
+        )}
+
+        {/* Instructions */}
+        {!search.trim() && !showRecentSearches && (
+          <div className="command-instructions">
+            <Search size={48} />
+            <p>Search Shot Builder</p>
+            <p className="command-instructions-hint">
+              Search across shots, products, talent, and more
+            </p>
+            <div className="command-shortcuts">
+              <div>
+                <kbd>↑</kbd>
+                <kbd>↓</kbd>
                 <span>to navigate</span>
-                <kbd className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-2 py-1">
-                  <span>⏎</span>
-                </kbd>
+              </div>
+              <div>
+                <kbd>⏎</kbd>
                 <span>to select</span>
-                <kbd className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-2 py-1">
-                  <span>ESC</span>
-                </kbd>
+              </div>
+              <div>
+                <kbd>ESC</kbd>
                 <span>to close</span>
               </div>
             </div>
-          )}
-        </div>
-      </div>
-    </div>,
-    document.body
+          </div>
+        )}
+      </Command.List>
+    </Command.Dialog>
   );
 }

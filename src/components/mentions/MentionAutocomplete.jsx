@@ -125,7 +125,7 @@ export default function MentionAutocomplete({
     return (
       <div
         ref={dropdownRef}
-        className="fixed z-[100] w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg p-3"
+        className="fixed z-[100] w-64 rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg p-3"
         style={{
           left: `${position.x}px`,
           top: `${position.y}px`,
@@ -142,7 +142,7 @@ export default function MentionAutocomplete({
     return (
       <div
         ref={dropdownRef}
-        className="fixed z-[100] w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg p-3"
+        className="fixed z-[100] w-64 rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg p-3"
         style={{
           left: `${position.x}px`,
           top: `${position.y}px`,
@@ -158,7 +158,7 @@ export default function MentionAutocomplete({
   return (
     <div
       ref={dropdownRef}
-      className="fixed z-[100] w-72 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg overflow-hidden"
+      className="fixed z-[100] w-72 rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg overflow-hidden"
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,

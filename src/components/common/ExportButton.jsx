@@ -123,7 +123,7 @@ export default function ExportButton({ data, entityType, buttonVariant = "second
                   <button
                     type="button"
                     onClick={() => setFormat('csv')}
-                    className={`flex-1 rounded-lg border-2 p-4 text-center transition-all ${
+                    className={`flex-1 rounded-card border-2 p-4 text-center transition-all ${
                       format === 'csv'
                         ? 'border-primary bg-primary/5 text-primary'
                         : 'border-slate-200 hover:border-slate-300'
@@ -136,7 +136,7 @@ export default function ExportButton({ data, entityType, buttonVariant = "second
                   <button
                     type="button"
                     onClick={() => setFormat('xlsx')}
-                    className={`flex-1 rounded-lg border-2 p-4 text-center transition-all ${
+                    className={`flex-1 rounded-card border-2 p-4 text-center transition-all ${
                       format === 'xlsx'
                         ? 'border-primary bg-primary/5 text-primary'
                         : 'border-slate-200 hover:border-slate-300'
@@ -174,7 +174,7 @@ export default function ExportButton({ data, entityType, buttonVariant = "second
                   </Button>
                 </div>
 
-                <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-3">
+                <div className="max-h-64 space-y-2 overflow-y-auto rounded-card border border-slate-200 p-3">
                   {availableColumns.map((column) => {
                     const isSelected = selectedColumnKeys.has(column.key);
                     return (

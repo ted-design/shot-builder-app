@@ -6,10 +6,10 @@ import React from "react";
 // hover states. Add more variants as needed.
 const VARIANTS = {
   default: "bg-primary text-white hover:bg-primary-dark active:scale-95 dark:bg-indigo-600 dark:hover:bg-indigo-700",
-  secondary: "bg-gray-100 text-gray-800 hover:bg-gray-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600",
+  secondary: "bg-slate-100 text-slate-800 hover:bg-slate-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600",
   destructive: "bg-red-500 text-white hover:bg-red-600 active:scale-95 dark:bg-red-600 dark:hover:bg-red-700",
-  ghost: "bg-transparent text-gray-700 hover:bg-gray-100 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm dark:text-slate-300 dark:hover:bg-slate-800",
-  outline: "bg-transparent border border-gray-300 text-gray-800 hover:border-gray-400 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm dark:border-slate-600 dark:text-slate-300 dark:hover:border-slate-500",
+  ghost: "bg-transparent text-slate-700 hover:bg-slate-100 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm dark:text-slate-300 dark:hover:bg-slate-800",
+  outline: "bg-transparent border border-slate-300 text-slate-800 hover:border-slate-400 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm dark:border-slate-600 dark:text-slate-300 dark:hover:border-slate-500",
 };
 
 // Define sizing options for the button. Each size defines font size and

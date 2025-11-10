@@ -89,7 +89,7 @@ export default function ActivityTimeline({
   if (error) {
     return (
       <div
-        className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4"
+        className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-card p-4"
         role="alert"
         aria-live="assertive"
       >
@@ -141,7 +141,7 @@ export default function ActivityTimeline({
       )}
 
       {/* Activity count */}
-      <div className="text-xs text-gray-600 dark:text-gray-400">
+      <div className="text-xs text-slate-600 dark:text-slate-400">
         Showing {activities.length} {activities.length === 1 ? "activity" : "activities"}
         {hasFilters && " (filtered)"}
       </div>

@@ -67,7 +67,7 @@ export function AppImage({
   retries,
   cacheTtlMs,
   timeoutMs,
-  crossOrigin = "anonymous",
+  crossOrigin = "",
   onImageError,
   decode,
   className,
@@ -77,6 +77,17 @@ export function AppImage({
   onError,
   ...imgProps
 }: AppImageProps) {
+  const isMissingSource = useMemo(() => {
+    if (src == null) return true;
+    if (typeof src === "string") return src.trim().length === 0;
+    if (typeof src === "object") {
+      const anySrc = (src as Record<string, unknown>);
+      const parts = [anySrc.fullPath, anySrc.path, anySrc.src];
+      return !parts.some((v) => typeof v === "string" && v.trim().length > 0);
+    }
+    return true;
+  }, [src]);
+
   const { status, url, error, adapter, reload } = useImageLoader(src, {
     preferredSize,
     retries,
@@ -118,7 +129,9 @@ export function AppImage({
 
   return (
     <div ref={containerRef} className={className} style={style} data-app-image>
-      {status === "loading" || status === "idle" ? (
+      {isMissingSource ? (
+        fallback ?? <FallbackImage />
+      ) : status === "loading" || status === "idle" ? (
         placeholder ?? <PlaceholderImage />
       ) : status === "error" || !url ? (
         fallback ?? (

@@ -94,7 +94,7 @@ const ShotTableView = memo(function ShotTableView({
 
   return (
     <div
-      className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800"
+      className="overflow-x-auto rounded-card border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800"
       role="table"
       aria-label="Shots table view"
     >

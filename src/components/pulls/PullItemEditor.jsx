@@ -200,7 +200,7 @@ export default function PullItemEditor({
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700">Product</label>
             {selectedProduct ? (
-              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-center justify-between rounded-card border border-slate-200 bg-slate-50 p-3">
                 <div>
                   <div className="text-sm font-medium text-slate-900">
                     {getPullItemDisplayName(selectedProduct)}
@@ -243,7 +243,7 @@ export default function PullItemEditor({
             </div>
 
             {sizes.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
+              <div className="rounded-card border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
                 No sizes added. Click "Add Size" to specify sizes and quantities.
               </div>
             ) : (
@@ -251,7 +251,7 @@ export default function PullItemEditor({
                 {sizes.map((size, index) => (
                   <div
                     key={index}
-                    className="flex gap-2 rounded-lg border border-slate-200 bg-white p-3"
+                    className="flex gap-2 rounded-card border border-slate-200 bg-white p-3"
                   >
                     <select
                       className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
@@ -294,7 +294,7 @@ export default function PullItemEditor({
           {/* Gender (read-only from product) */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700">Gender</label>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="rounded-card border border-slate-200 bg-slate-50 p-3">
               <div className="text-sm text-slate-900">{displayGender}</div>
               <p className="text-xs text-slate-500 mt-1">Auto-populated from product family</p>
             </div>

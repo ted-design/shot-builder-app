@@ -22,7 +22,7 @@ export default function ColorListEditor({
       {skuHelper && <p className="text-xs text-slate-500">{skuHelper}</p>}
       <div className="space-y-4">
         {colors.map((color) => (
-          <fieldset key={color.localId} className="space-y-4 rounded-lg border border-slate-200 p-4">
+          <fieldset key={color.localId} className="space-y-4 rounded-card border border-slate-200 p-4">
             <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">Colour name</label>
@@ -45,7 +45,7 @@ export default function ColorListEditor({
                 <select
                   value={color.status}
                   onChange={(event) => onFieldChange(color.localId, { status: event.target.value })}
-                  className="w-full rounded border border-gray-300 px-2 py-2 text-sm md:max-w-[180px]"
+                  className="w-full rounded border border-slate-300 px-2 py-2 text-sm md:max-w-[180px]"
                 >
                   {statusOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -62,7 +62,7 @@ export default function ColorListEditor({
                   src={color.imagePreview}
                   alt={`${color.colorName || "Colour"} preview`}
                   loading="lazy"
-                  className="h-40 w-full overflow-hidden rounded-lg"
+                  className="h-40 w-full overflow-hidden rounded-card"
                   imageClassName="h-full w-full object-cover"
                   placeholder={null}
                   fallback={

@@ -197,7 +197,7 @@ export default function LocationCreateModal({
                 path={preview || null}
                 size={640}
                 alt="Selected location preview"
-                className="h-40 w-56 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800"
+                className="h-40 w-56 overflow-hidden rounded-card bg-slate-100 dark:bg-slate-800"
                 imageClassName="h-full w-full object-cover"
                 fallback={
                   <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-slate-400">

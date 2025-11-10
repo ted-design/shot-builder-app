@@ -41,6 +41,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { LoadingSpinner, LoadingOverlay, LoadingSkeleton } from "../components/ui/LoadingSpinner";
 import { EmptyState } from "../components/ui/EmptyState";
+import { PageHeader } from "../components/ui/PageHeader";
 import { useProjectScope } from "../context/ProjectScopeContext";
 import { toast } from "../lib/toast";
 import { FileText, MapPin } from "lucide-react";
@@ -293,12 +294,16 @@ export default function PullsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Pulls</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
-          Aggregate products needed for shoots, publish to the warehouse, and track fulfilment.
-        </p>
-      </div>
+      <PageHeader sticky={false}>
+        <PageHeader.Content>
+          <div>
+            <PageHeader.Title>Pulls</PageHeader.Title>
+            <PageHeader.Description>
+              Aggregate products needed for shoots, publish to the warehouse, and track fulfilment.
+            </PageHeader.Description>
+          </div>
+        </PageHeader.Content>
+      </PageHeader>
       <Card>
         <CardHeader>
           <h2 className="text-lg font-semibold">Create Pull</h2>
@@ -629,7 +634,7 @@ function AutoGeneratePullModal({ projectId, clientId, onClose }) {
                 description="Create lanes in your planner first to use auto-generation. Lanes help organize your shots for production."
               />
             ) : (
-              <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
+              <div className="max-h-64 space-y-2 overflow-y-auto rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
                 {shotsByLane.map(({ lane, shotCount }) => (
                   <label
                     key={lane.id}
@@ -1194,7 +1199,7 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
                     changeOrders.map((co) => (
                       <div
                         key={co.id}
-                        className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-4"
+                        className="rounded-card border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-4"
                       >
                         <div className="mb-2 flex items-start justify-between">
                           <div>

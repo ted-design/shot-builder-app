@@ -75,18 +75,18 @@ export default function PullShareModal({
     <Modal open onClose={onClose} labelledBy="share-pull-title" contentClassName="max-w-2xl">
       <Card className="border-0 shadow-none">
         <CardHeader>
-          <h2 id="share-pull-title" className="text-lg font-semibold text-slate-900 dark:text-gray-100">
+          <h2 id="share-pull-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             Share Pull
           </h2>
-          <p className="text-sm text-slate-600 dark:text-gray-400">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             Generate a view-only link that anyone can access
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
           {!isShared ? (
             /* Not Shared State */
-            <div className="rounded-lg border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 p-6 text-center">
-              <p className="mb-4 text-sm text-slate-600 dark:text-gray-400">
+            <div className="rounded-card border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-6 text-center">
+              <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
                 This pull is not currently shared. Generate a link to allow anyone with the URL
                 to view it.
               </p>
@@ -99,7 +99,7 @@ export default function PullShareModal({
             <>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Shareable Link</label>
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Shareable Link</label>
                   <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
                     Active
                   </span>
@@ -132,13 +132,13 @@ export default function PullShareModal({
                   </Button>
                 </div>
 
-                <p className="text-xs text-slate-500 dark:text-gray-400">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Anyone with this link can view the pull in read-only mode. They will not be able
                   to edit or export it.
                 </p>
               </div>
 
-              <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
+              <div className="rounded-card border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
                 <h3 className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-400">Security Note</h3>
                 <p className="text-xs text-amber-800 dark:text-amber-300">
                   This link does not require authentication. Only share it with trusted parties.
@@ -146,7 +146,7 @@ export default function PullShareModal({
                 </p>
               </div>
 
-              <div className="flex justify-between border-t border-slate-200 dark:border-gray-700 pt-4">
+              <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-4">
                 <Button
                   variant="secondary"
                   onClick={handleRevoke}

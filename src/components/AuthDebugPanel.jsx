@@ -49,7 +49,7 @@ export function AuthDebugPanel() {
   const allGood = hasRole && hasClientId;
 
   return (
-    <div className="fixed bottom-4 right-4 bg-white border-2 border-gray-300 rounded-lg shadow-lg p-4 max-w-md z-50">
+    <div className="fixed bottom-4 right-4 bg-white border-2 border-slate-300 rounded-card shadow-lg p-4 max-w-md z-50">
       <h3 className="font-bold text-lg mb-2">🔍 Auth Debug Panel</h3>
 
       <div className="mb-2">
@@ -93,7 +93,7 @@ export function AuthDebugPanel() {
 
       <div className="mb-2">
         <strong>All Token Claims:</strong>
-        <pre className="text-xs bg-gray-100 p-2 rounded mt-1 overflow-auto max-h-40">
+        <pre className="text-xs bg-slate-100 p-2 rounded mt-1 overflow-auto max-h-40">
           {JSON.stringify(tokenClaims, null, 2)}
         </pre>
       </div>
