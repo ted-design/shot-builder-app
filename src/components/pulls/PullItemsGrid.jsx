@@ -386,7 +386,7 @@ export default function PullItemsGrid({
   };
 
   return (
-    <div ref={containerRef} className="rounded-lg border border-slate-200 overflow-hidden">
+    <div ref={containerRef} className="rounded-card border border-slate-200 overflow-hidden">
       {/* Grid toolbar */}
       <div className="flex items-center justify-between bg-slate-50 px-3 py-2 border-b gap-3 flex-wrap">
         <div className="flex items-center gap-2">

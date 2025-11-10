@@ -236,7 +236,7 @@ export default function ShotEditModal({
           <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
             <nav
               aria-label="Shot sections"
-              className="rounded-lg border border-slate-200 bg-white/70 p-3 dark:border-slate-700 dark:bg-slate-900/40"
+              className="rounded-card border border-slate-200 bg-white/70 p-3 dark:border-slate-700 dark:bg-slate-900/40"
             >
               <ol
                 className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
@@ -435,7 +435,7 @@ export default function ShotEditModal({
                     />
                   </div>
                   {onMoveToProject && projects.length > 0 && (
-                    <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                    <div className="rounded-card border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-800 dark:bg-blue-900/20">
                       <div className="space-y-3">
                         <div>
                           <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400">Move to another project</h4>
@@ -469,7 +469,7 @@ export default function ShotEditModal({
                     </div>
                   )}
                   {onCopyToProject && projects.length > 0 && (
-                    <div className="rounded-lg border border-green-200 bg-green-50/70 p-4 dark:border-green-800 dark:bg-green-900/20">
+                    <div className="rounded-card border border-green-200 bg-green-50/70 p-4 dark:border-green-800 dark:bg-green-900/20">
                       <div className="space-y-3">
                         <div>
                           <h4 className="text-sm font-semibold text-green-700 dark:text-green-400">Copy to another project</h4>
@@ -562,11 +562,24 @@ export default function ShotEditModal({
                     {draft.referenceImagePath && (
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 rounded-md bg-slate-50 p-2 dark:bg-slate-800">
-                          <img
-                            src={draft.referenceImagePath}
-                            alt="Reference"
-                            className="h-20 w-20 rounded object-cover"
-                          />
+                          <div className="h-20 w-20 overflow-hidden rounded bg-slate-100">
+                            <AppImage
+                              src={draft.referenceImagePath}
+                              alt="Reference"
+                              className="h-20 w-20"
+                              imageClassName="h-full w-full object-cover"
+                              placeholder={
+                                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
+                                  Loading…
+                                </div>
+                              }
+                              fallback={
+                                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
+                                  No image
+                                </div>
+                              }
+                            />
+                          </div>
                           <button
                             type="button"
                             onClick={() => handleFieldChange({ referenceImagePath: "", referenceImageFile: null, referenceImageCrop: null })}

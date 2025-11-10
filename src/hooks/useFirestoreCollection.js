@@ -56,6 +56,13 @@ export function useFirestoreCollection(ref, constraints = [], mapFn) {
   const prevKeyRef = useRef(constraintsKey);
 
   useEffect(() => {
+    // If ref is null/undefined, don't subscribe yet
+    if (!ref) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
+
     // Only re-subscribe if the constraints key actually changed
     if (prevKeyRef.current !== constraintsKey) {
       prevKeyRef.current = constraintsKey;

@@ -66,7 +66,7 @@ export default function ChangeOrderReviewModal({
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Reason */}
-          <div className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950 p-4">
+          <div className="rounded-card border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950 p-4">
             <h3 className="mb-1 text-sm font-semibold text-amber-900 dark:text-amber-200">Reason for Substitution</h3>
             <p className="text-sm text-amber-800 dark:text-amber-300">{changeOrder.reason}</p>
           </div>
@@ -74,7 +74,7 @@ export default function ChangeOrderReviewModal({
           {/* Comparison Grid */}
           <div className="grid gap-4 md:grid-cols-2">
             {/* Original */}
-            <div className="rounded-lg border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+            <div className="rounded-card border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
               <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Original Request</h3>
               <div className="space-y-2">
                 <div>
@@ -114,7 +114,7 @@ export default function ChangeOrderReviewModal({
             </div>
 
             {/* Proposed Substitute */}
-            <div className="rounded-lg border-2 border-blue-300 dark:border-blue-900 bg-blue-50 dark:bg-blue-950 p-4">
+            <div className="rounded-card border-2 border-blue-300 dark:border-blue-900 bg-blue-50 dark:bg-blue-950 p-4">
               <h3 className="mb-3 text-sm font-semibold text-blue-900 dark:text-blue-200">
                 Proposed Substitute
               </h3>

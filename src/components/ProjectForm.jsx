@@ -113,7 +113,7 @@ export default function ProjectForm({
                 type="date"
                 value={dateValue}
                 onChange={(event) => updateDate(index, event.target.value)}
-                className="border border-gray-300 rounded-md px-2 py-1 text-sm flex-1"
+                className="border border-slate-300 rounded-md px-2 py-1 text-sm flex-1"
               />
               {canRemoveDate && (
                 <Button
@@ -140,7 +140,7 @@ export default function ProjectForm({
           id="project-notes"
           value={form.notes}
           onChange={(event) => updateField("notes", event.target.value)}
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm min-h-[120px]"
+          className="border border-slate-300 rounded-md px-3 py-2 text-sm min-h-[120px]"
           placeholder="Key objectives, deliverables, or reminders"
         />
       </div>

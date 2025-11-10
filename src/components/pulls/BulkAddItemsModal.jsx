@@ -194,7 +194,7 @@ export default function BulkAddItemsModal({
                 </Button>
               </div>
 
-              <div className="max-h-96 space-y-4 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+              <div className="max-h-96 space-y-4 overflow-y-auto rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
                 {/* Shots grouped by lane */}
                 {shotsByLane.map(({ lane, shots: laneShots }) => {
                   if (laneShots.length === 0) return null;

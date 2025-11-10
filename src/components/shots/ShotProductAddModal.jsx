@@ -34,7 +34,7 @@ function ColourOption({ colour, selected, onSelect }) {
     <button
       type="button"
       onClick={handleClick}
-      className={`flex flex-col gap-2 rounded-lg border ${
+      className={`flex flex-col gap-2 rounded-card border ${
         selected ? "border-primary ring-2 ring-primary/40" : "border-slate-200 dark:border-slate-700"
       } bg-white dark:bg-slate-800 p-3 text-left transition hover:border-primary`}
     >
@@ -472,7 +472,7 @@ export default function ShotProductAddModal({
                       <button
                         key={family.id}
                         type="button"
-                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 p-3 text-left transition hover:border-primary"
+                        className="w-full rounded-card border border-slate-200 dark:border-slate-700 p-3 text-left transition hover:border-primary"
                         onClick={() => handleFamilySelect(family)}
                       >
                         <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{family.styleName}</div>
@@ -533,7 +533,7 @@ export default function ShotProductAddModal({
                         </div>
                         <div
                           className={`grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
-                            !selectedColour && colours.length > 0 ? "rounded-lg p-2 ring-1 ring-red-200" : ""
+                            !selectedColour && colours.length > 0 ? "rounded-card p-2 ring-1 ring-red-200" : ""
                           }`}
                         >
                           {colours.map((colour) => (

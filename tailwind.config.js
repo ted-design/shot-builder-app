@@ -10,6 +10,11 @@ export default {
     extend: {
       // Extend the default colour palette with custom primary and secondary colours.
       colors: {
+        // Brand colors (Immediate + Unbound co-branding)
+        'immediate-red': '#E31E24',
+        'immediate-red-dark': '#B51A1F',
+
+        // UI colors (primary actions)
         primary: {
           DEFAULT: "#6366f1", // indigo-500
           dark: "#4f46e5",    // indigo-600
@@ -27,6 +32,31 @@ export default {
         },
         info: {
           DEFAULT: "#3b82f6", // blue-500
+        },
+
+        // Neutral scale (standardized on slate)
+        neutral: {
+          50: 'rgb(248 250 252)',   // slate-50
+          100: 'rgb(241 245 249)',  // slate-100
+          200: 'rgb(226 232 240)',  // slate-200
+          300: 'rgb(203 213 225)',  // slate-300
+          400: 'rgb(148 163 184)',  // slate-400
+          500: 'rgb(100 116 139)',  // slate-500
+          600: 'rgb(71 85 105)',    // slate-600
+          700: 'rgb(51 65 85)',     // slate-700
+          800: 'rgb(30 41 59)',     // slate-800
+          900: 'rgb(15 23 42)',     // slate-900
+          950: 'rgb(2 6 23)',       // slate-950
+        },
+
+        // Semantic surface colors
+        surface: {
+          DEFAULT: '#ffffff',
+          dark: 'rgb(30 41 59)', // neutral-800
+        },
+        muted: {
+          DEFAULT: 'rgb(241 245 249)', // neutral-100
+          dark: 'rgb(51 65 85)',       // neutral-700
         },
       },
       // Design system border-radius values for consistency
@@ -144,5 +174,6 @@ export default {
   },
   plugins: [
     require('@tailwindcss/typography'),
+    require('./src/styles/design-tokens'),
   ],
 };

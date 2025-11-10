@@ -13,7 +13,7 @@ export default function ShotProductTile({ product, onEdit, onRemove }) {
   const primaryActionVariant = product.status === "pending-size" ? "default" : "secondary";
 
   return (
-    <div className="flex w-full max-w-xs flex-col gap-2 overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <div className="flex w-full max-w-xs flex-col gap-2 overflow-hidden rounded-card border border-slate-200 bg-white">
       <div className="aspect-square w-full bg-slate-100">
         <AppImage
           src={imagePath}

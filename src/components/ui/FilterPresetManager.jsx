@@ -358,7 +358,7 @@ export default function FilterPresetManager({ page, currentFilters, onLoadPreset
           onClick={() => !saving && setSaveModalOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-xl animate-slide-in-from-top"
+            className="w-full max-w-md rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-xl animate-slide-in-from-top"
             onClick={e => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">

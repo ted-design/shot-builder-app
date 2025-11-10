@@ -91,7 +91,7 @@ export function ImageCropPositionEditor({
 
       <div
         ref={containerRef}
-        className="relative h-64 cursor-crosshair overflow-hidden rounded-lg border-2 border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800"
+        className="relative h-64 cursor-crosshair overflow-hidden rounded-card border-2 border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800"
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}

@@ -16,6 +16,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { SearchCommandProvider } from "./context/SearchCommandContext";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import SearchCommand from "./components/ui/SearchCommand";
+import GlobalKeyboardShortcuts from "./components/GlobalKeyboardShortcuts";
 
 // Configure TanStack Query client
 const queryClient = new QueryClient({
@@ -43,6 +44,8 @@ const PullEditorPage = lazy(() => import("./pages/PullEditorPage"));
 const TagManagementPage = lazy(() => import("./pages/TagManagementPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const ImageDiagnosticsPage = lazy(() => import("./pages/dev/ImageDiagnosticsPage"));
+const BrandLockupTest = lazy(() => import("./pages/dev/BrandLockupTest"));
+const PageHeaderTest = lazy(() => import("./pages/dev/PageHeaderTest"));
 const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
 const ProjectAssetsPage = lazy(() => import("./pages/ProjectAssetsPage"));
 
@@ -130,6 +133,8 @@ export default function App() {
             <ProjectScopeProvider>
               {/* Global search command palette (Cmd+K) */}
               <SearchCommand />
+              {/* Global keyboard shortcuts */}
+              <GlobalKeyboardShortcuts />
               {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
               <PDFDemoMount />
               <MaybeRedirectLogin user={userForGuard} />
@@ -248,14 +253,32 @@ export default function App() {
               }
             />
             {import.meta.env.DEV ? (
-              <Route
-                path="/dev/image-diagnostics"
-                element={
-                  <Suspense fallback={<PageLoadingFallback />}>
-                    <ImageDiagnosticsPage />
-                  </Suspense>
-                }
-              />
+              <>
+                <Route
+                  path="/dev/image-diagnostics"
+                  element={
+                    <Suspense fallback={<PageLoadingFallback />}>
+                      <ImageDiagnosticsPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/dev/brand-lockup-test"
+                  element={
+                    <Suspense fallback={<PageLoadingFallback />}>
+                      <BrandLockupTest />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/dev/page-header-test"
+                  element={
+                    <Suspense fallback={<PageLoadingFallback />}>
+                      <PageHeaderTest />
+                    </Suspense>
+                  }
+                />
+              </>
             ) : null}
             <Route
               path="/admin"

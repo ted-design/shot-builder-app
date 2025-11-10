@@ -1,5 +1,6 @@
 import React from "react";
 import ProjectAssetsManager from "../components/projects/ProjectAssetsManager";
+import { PageHeader } from "../components/ui/PageHeader";
 import { useProjectScope } from "../context/ProjectScopeContext";
 
 export default function ProjectAssetsPage() {
@@ -13,10 +14,10 @@ export default function ProjectAssetsPage() {
   }
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">Project Assets</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400">Choose which global talent and locations are available in this project.</p>
-      </div>
+      <PageHeader
+        title="Project Assets"
+        description="Choose which global talent and locations are available in this project."
+      />
       <ProjectAssetsManager />
     </div>
   );

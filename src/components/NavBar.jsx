@@ -25,7 +25,7 @@ export default function NavBar({ user }) {
   // padding and rounded corners for better touch targets.
   const linkClass = (p) =>
     `px-3 py-2 rounded-md text-sm font-medium hover:text-primary hover:bg-primary/10 ${
-      pathname.startsWith(p) ? "text-primary" : "text-gray-700"
+      pathname.startsWith(p) ? "text-primary" : "text-slate-700"
     }`;
 
   // Define the primary navigation links. Additional links can be added here.
@@ -43,13 +43,13 @@ export default function NavBar({ user }) {
   );
 
   return (
-    <nav className="sticky top-0 z-40 w-full bg-white/90 backdrop-blur border-b border-gray-200">
+    <nav className="sticky top-0 z-40 w-full bg-white/90 backdrop-blur border-b border-slate-200">
       <div className="mx-auto max-w-screen-2xl px-3 sm:px-6">
         <div className="flex h-14 items-center justify-between">
           {/* Left section: brand and mobile toggle */}
           <div className="flex items-center gap-2">
             <button
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:bg-gray-100 sm:hidden"
+              className="inline-flex items-center justify-center p-2 rounded-md text-slate-600 hover:bg-slate-100 sm:hidden"
               onClick={() => setOpen((o) => !o)}
               aria-label="Toggle navigation"
             >
@@ -59,7 +59,7 @@ export default function NavBar({ user }) {
               </svg>
             </button>
             {/* Brand / Logo */}
-            <Link to="/projects" className="hidden sm:inline-flex items-center text-sm font-semibold text-gray-900">
+            <Link to="/projects" className="hidden sm:inline-flex items-center text-sm font-semibold text-slate-900">
               Shot Builder
             </Link>
           </div>
@@ -71,11 +71,11 @@ export default function NavBar({ user }) {
 
           {/* User info & sign-out */}
           <div className="flex items-center gap-2">
-            {user && <span className="hidden sm:inline text-sm text-gray-600">{user.displayName || user.email}</span>}
+            {user && <span className="hidden sm:inline text-sm text-slate-600">{user.displayName || user.email}</span>}
             {user && (
               <button
                 onClick={() => signOut(auth)}
-                className="px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-100"
+                className="px-3 py-1.5 text-sm rounded-md border border-slate-300 hover:bg-slate-100"
               >
                 Sign out
               </button>

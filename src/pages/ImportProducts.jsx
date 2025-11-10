@@ -11,6 +11,7 @@ import {
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input, Checkbox } from "../components/ui/input";
 import { Button } from "../components/ui/button";
+import { PageHeader } from "../components/ui/PageHeader";
 import { useAuth } from "../context/AuthContext";
 import { canEditProducts, ROLE } from "../lib/rbac";
 import { showError } from "../lib/toast";
@@ -243,13 +244,10 @@ export default function ImportProducts() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold text-slate-900">Import products</h1>
-        <p className="text-sm text-slate-600">
-          Upload CSV files to seed product families and SKUs. Future iterations will relocate
-          this flow into the Products section.
-        </p>
-      </div>
+      <PageHeader
+        title="Import Products"
+        description="Upload CSV files to seed product families and SKUs. Future iterations will relocate this flow into the Products section."
+      />
       {canManage ? (
         <Card>
           <CardHeader>
@@ -262,15 +260,15 @@ export default function ImportProducts() {
                 checked={useStyleNumberAsId}
                 onChange={(e) => setUseStyleNumberAsId(e.target.checked)}
               />
-              <span className="text-sm text-gray-700">Use style number as document ID</span>
+              <span className="text-sm text-slate-700">Use style number as document ID</span>
             </div>
 
-            <div className="text-sm text-gray-600">{status}</div>
+            <div className="text-sm text-slate-600">{status}</div>
 
             {(loading || progress > 0) && total > 0 && (
               <div className="space-y-2">
                 <progress value={progress} max={total} className="w-full" />
-                <div className="text-xs text-gray-500">{progress} / {total} ({pct}%)</div>
+                <div className="text-xs text-slate-500">{progress} / {total} ({pct}%)</div>
               </div>
             )}
 
@@ -282,7 +280,7 @@ export default function ImportProducts() {
           </CardContent>
         </Card>
       ) : (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <div className="rounded-card border border-slate-200 bg-white p-4 text-sm text-slate-600">
           Product import is restricted to producers or admins. Reach out to the team if you need
           elevated access.
         </div>

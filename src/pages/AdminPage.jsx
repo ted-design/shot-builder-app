@@ -6,6 +6,7 @@ import { CLIENT_ID, talentPath, locationsPath } from "../lib/paths";
 import { ROLE, roleLabel } from "../lib/rbac";
 import { useAuth } from "../context/AuthContext";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
+import { PageHeader } from "../components/ui/PageHeader";
 import { toast } from "../lib/toast";
 import { writeDoc } from "../lib/firestoreWrites";
 import { describeFirebaseError } from "../lib/firebaseErrors";
@@ -193,13 +194,10 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Admin</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
-          Manage team roles and project access. Updates sync to Firebase custom claims so security
-          rules stay in lockstep.
-        </p>
-      </div>
+      <PageHeader
+        title="Admin"
+        description="Manage team roles and project access. Updates sync to Firebase custom claims so security rules stay in lockstep."
+      />
 
       <Card>
         <CardHeader>
@@ -208,7 +206,7 @@ export default function AdminPage() {
         <CardContent>
           <form
             onSubmit={handleAddUser}
-            className="mb-6 grid gap-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4 text-sm text-slate-700 dark:text-slate-300"
+            className="mb-6 grid gap-3 rounded-card border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4 text-sm text-slate-700 dark:text-slate-300"
           >
             <div className="font-medium text-slate-800 dark:text-slate-200">Invite or Update User</div>
             <div className="grid gap-2 sm:grid-cols-2">

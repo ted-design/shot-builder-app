@@ -94,7 +94,7 @@ export default function ShotSidebarSummary({
   const scheduleDetails = useMemo(() => buildScheduleDetails(dateValue), [dateValue]);
 
   return (
-    <aside className="rounded-lg border border-slate-200 bg-white/70 p-4 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900/40">
+    <aside className="rounded-card border border-slate-200 bg-white/70 p-4 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900/40">
       <div className="space-y-5">
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">

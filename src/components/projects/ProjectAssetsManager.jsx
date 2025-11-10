@@ -53,7 +53,7 @@ export default function ProjectAssetsManager() {
 
   if (!FLAGS.projectScopedAssets) {
     return (
-      <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-4">
+      <div className="rounded-card border border-slate-200 dark:border-slate-700 p-4">
         <h3 className="text-sm font-semibold">Project Assets</h3>
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Project-scoped assets flag is off.</p>
       </div>
@@ -74,7 +74,7 @@ export default function ProjectAssetsManager() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <section className="rounded-lg border border-slate-200 dark:border-slate-700">
+        <section className="rounded-card border border-slate-200 dark:border-slate-700">
           <header className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
             <h3 className="text-sm font-semibold">Talent</h3>
             {loadingTalent ? <span className="text-xs text-slate-500">Loading…</span> : null}
@@ -99,7 +99,7 @@ export default function ProjectAssetsManager() {
           </ul>
         </section>
 
-        <section className="rounded-lg border border-slate-200 dark:border-slate-700">
+        <section className="rounded-card border border-slate-200 dark:border-slate-700">
           <header className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
             <h3 className="text-sm font-semibold">Locations</h3>
             {loadingLocations ? <span className="text-xs text-slate-500">Loading…</span> : null}

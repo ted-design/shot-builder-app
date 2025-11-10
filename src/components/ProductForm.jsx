@@ -227,7 +227,7 @@ export default function ProductForm({
         <div className="space-y-2">
           <label className="block text-sm font-medium text-slate-700">Gender</label>
           <select
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
             value={state.gender}
             onChange={(event) => updateState({ gender: event.target.value })}
           >
@@ -327,7 +327,7 @@ export default function ProductForm({
           </div>
         )}
         {colorways.map((colorway) => (
-          <div key={colorway.id} className="rounded-lg border border-slate-200 p-4 space-y-3">
+          <div key={colorway.id} className="rounded-card border border-slate-200 p-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <Input
                 placeholder="Colour name (e.g. Black)"

@@ -25,6 +25,7 @@ import EditProductModal from "../components/products/EditProductModal";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import AppImage from "../components/common/AppImage";
 import ExportButton from "../components/common/ExportButton";
+import { PageHeader } from "../components/ui/PageHeader";
 import { LayoutGrid, List as ListIcon, MoreVertical, Archive, Trash2, Type, Search, Package, Filter, X } from "lucide-react";
 import {
   productFamiliesPath,
@@ -143,7 +144,7 @@ const formatUpdatedAt = (value) => {
 
 const FamilyHeaderImage = memo(function FamilyHeaderImage({ path, alt, className }) {
   const containerClass = [
-    "overflow-hidden rounded-lg bg-slate-100",
+    "overflow-hidden rounded-card bg-slate-100",
     className || "aspect-[4/5] w-full",
   ]
     .filter(Boolean)
@@ -1542,7 +1543,7 @@ export default function ProductsPage() {
                       <input
                         ref={selectAllRef}
                         type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
                         checked={allVisibleSelected}
                         onChange={handleSelectAllChange}
                         aria-label="Select all visible product families"
@@ -1647,55 +1648,57 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Sticky header with shadow - design system pattern */}
-      <div className="sticky inset-x-0 top-14 z-40 border-b border-gray-200 bg-white shadow-sm dark:bg-slate-900 dark:border-slate-700">
-        <div className="px-6 py-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex-1 min-w-0 space-y-1">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate dark:text-slate-100">Products</h1>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                Manage product families and SKUs across all projects
-              </p>
-            </div>
-            <div className="relative min-w-[200px] max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Search by style, number, colour, or SKU..."
-                aria-label="Search products"
-                value={queryText}
-                onChange={(event) => setQueryText(event.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <label
-              className="flex flex-none items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400"
-              htmlFor="products-sort-order"
-            >
-              <span className="whitespace-nowrap">Sort</span>
-              <select
-                id="products-sort-order"
-                className="h-10 rounded-button border border-slate-300 px-3 text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
-                value={sortOrder}
-                onChange={(event) => setSortOrder(event.target.value)}
-              >
-                {SORT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {canEdit && (
-              <Button onClick={() => setNewModalOpen(true)} className="flex-none whitespace-nowrap">
-                New product
-              </Button>
-            )}
+      {/* PageHeader with search, sort, and actions */}
+      <PageHeader sticky={true} className="top-14 z-40">
+        <PageHeader.Content>
+          <div>
+            <PageHeader.Title>Products</PageHeader.Title>
+            <PageHeader.Description>
+              Manage product families and SKUs across all projects
+            </PageHeader.Description>
           </div>
-        </div>
-      </div>
+          <PageHeader.Actions>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative min-w-[200px] max-w-md flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                <Input
+                  placeholder="Search by style, number, colour, or SKU..."
+                  aria-label="Search products"
+                  value={queryText}
+                  onChange={(event) => setQueryText(event.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <label
+                className="flex flex-none items-center gap-2 text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400"
+                htmlFor="products-sort-order"
+              >
+                <span className="whitespace-nowrap">Sort</span>
+                <select
+                  id="products-sort-order"
+                  className="h-10 rounded-button border border-neutral-300 px-3 text-sm dark:bg-neutral-800 dark:border-neutral-600 dark:text-neutral-100"
+                  value={sortOrder}
+                  onChange={(event) => setSortOrder(event.target.value)}
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {canEdit && (
+                <Button onClick={() => setNewModalOpen(true)} className="flex-none whitespace-nowrap">
+                  New product
+                </Button>
+              )}
+            </div>
+          </PageHeader.Actions>
+        </PageHeader.Content>
+      </PageHeader>
 
       {canUseBatchActions && selectedCount > 0 && (
-        <div className="mx-6 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 shadow-sm dark:bg-primary/10 dark:border-primary/40">
+        <div className="mx-6 rounded-card border border-primary/30 bg-primary/5 px-4 py-3 shadow-sm dark:bg-primary/10 dark:border-primary/40">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
               {selectedCount} selected

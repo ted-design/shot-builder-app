@@ -204,7 +204,7 @@ export default function TalentEditModal({
                   path={currentImage}
                   size={512}
                   alt={displayName}
-                  className="h-40 w-32 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800"
+                  className="h-40 w-32 overflow-hidden rounded-card bg-slate-100 dark:bg-slate-800"
                   imageClassName="h-full w-full object-cover"
                   fallback={<div className="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400">No image</div>}
                 />

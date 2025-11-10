@@ -287,7 +287,7 @@ export default function BatchImageUploader({
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         className={`
-          relative rounded-lg border-2 border-dashed p-8 text-center transition-colors
+          relative rounded-card border-2 border-dashed p-8 text-center transition-colors
           ${isDragging ? "border-primary bg-primary/5" : "border-slate-300 bg-slate-50"}
           ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:border-primary/50 hover:bg-primary/5"}
           ${files.length >= maxFiles ? "cursor-not-allowed opacity-50" : ""}
@@ -375,7 +375,7 @@ function FilePreviewCard({ fileObj, onRemove, disabled }) {
   const StatusIcon = config.icon;
 
   return (
-    <div className={`relative overflow-hidden rounded-lg border ${config.bg} border-slate-200`}>
+    <div className={`relative overflow-hidden rounded-card border ${config.bg} border-slate-200`}>
       {/* Preview Image */}
       <div className="aspect-square w-full overflow-hidden bg-slate-100">
         <img src={preview} alt={file.name} className="h-full w-full object-cover" />

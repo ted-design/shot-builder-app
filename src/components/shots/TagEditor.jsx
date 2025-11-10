@@ -288,7 +288,7 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
               role="dialog"
               aria-modal="true"
               aria-label="Tag picker"
-              className="relative z-10 w-full max-w-md overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl animate-fade-in dark:border-slate-700 dark:bg-slate-900"
+              className="relative z-10 w-full max-w-md overflow-hidden rounded-card border border-slate-200 bg-white shadow-xl animate-fade-in dark:border-slate-700 dark:bg-slate-900"
             >
               <div className="p-4 space-y-3">
                 {/* Input field */}

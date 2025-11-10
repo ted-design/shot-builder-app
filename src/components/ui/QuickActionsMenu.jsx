@@ -166,7 +166,7 @@ export default function QuickActionsMenu() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl animate-fade-in-down z-50">
+        <div className="absolute right-0 top-full mt-2 w-80 rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl animate-fade-in-down z-50">
           <div className="p-3 border-b border-slate-200 dark:border-slate-700">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
               <Zap className="h-4 w-4 text-primary" />

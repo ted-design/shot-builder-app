@@ -88,7 +88,7 @@ export default function CommentCard({
 
   return (
     <div
-      className="group relative rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 transition-shadow hover:shadow-md"
+      className="group relative rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 transition-shadow hover:shadow-md"
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
@@ -185,7 +185,7 @@ export default function CommentCard({
 
       {/* Deleting Overlay */}
       {isDeleting && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-slate-800/80 rounded-lg">
+        <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-slate-800/80 rounded-card">
           <div className="text-sm text-slate-600 dark:text-slate-400">Deleting...</div>
         </div>
       )}

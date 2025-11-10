@@ -282,6 +282,161 @@ const result = await measurePerformance('load_products', async () => {
 
 **Sentry Integration**: Error tracking configured with `@sentry/react` (see `src/main.jsx`).
 
+## Keyboard Shortcuts
+
+Shot Builder includes global keyboard shortcuts for faster navigation and actions. The shortcuts are implemented using `react-hotkeys-hook` in `src/components/GlobalKeyboardShortcuts.jsx`.
+
+### Available Shortcuts
+
+**General:**
+- `Cmd+K` (Mac) / `Ctrl+K` (Windows): Open command palette
+- `Shift+/` (or `?`): Show keyboard shortcuts help modal
+- `c`: Open command palette (when not typing in a form)
+
+**Navigation:**
+- `Alt+D`: Go to Dashboard (Projects page)
+- `Alt+S`: Go to Shots (requires active project)
+- `Alt+P`: Go to Products
+- `Alt+T`: Go to Talent
+- `Alt+L`: Go to Locations
+- `Alt+U`: Go to Pulls
+
+**Usage Notes:**
+- All shortcuts work globally, even when typing in form fields (except single-key shortcuts like `c`)
+- The help modal (`Shift+/`) displays all available shortcuts with their descriptions
+- Shots navigation (`Alt+S`) checks for an active project and redirects to Projects if none is selected
+- The command palette provides search, quick actions, and recent items
+
+### Implementation Details
+
+The keyboard shortcut system consists of:
+1. `GlobalKeyboardShortcuts.jsx` - Global shortcut handler component
+2. `SearchCommand.jsx` - Command palette with `cmdk` library
+3. `react-hotkeys-hook` - Declarative keyboard shortcut management
+
+**Adding New Shortcuts:**
+```javascript
+// In GlobalKeyboardShortcuts.jsx
+useHotkeys('alt+n', navigateToNewPage, {
+  enableOnFormTags: true,  // Allow in form fields
+  preventDefault: true,     // Prevent default browser behavior
+});
+```
+
+**Note**: For special characters produced by key combinations (like `?` from `Shift+/`), use the `useKey: true` option to listen for the character rather than the key code.
+
+## Shared Hooks
+
+Shot Builder includes reusable hooks to eliminate code duplication across pages.
+
+### useEntityExport
+
+**Location**: `src/hooks/useEntityExport.js`
+
+**Purpose**: Provides CSV and PDF export functionality for any entity type (shots, products, talent, etc.).
+
+**Usage:**
+```javascript
+import { useEntityExport } from '../hooks/useEntityExport';
+
+// Define columns for your entity
+const columns = [
+  { key: 'name', label: 'Name' },
+  { key: 'status', label: 'Status' },
+  { key: 'createdAt', label: 'Created', format: (val) => new Date(val).toLocaleDateString() },
+];
+
+function ShotsPage() {
+  const [shots, setShots] = useState([]);
+
+  const { exportToCSV, exportToPDF, isExporting } = useEntityExport(
+    'shots',  // Entity type (used in filename)
+    shots,    // Array of data to export
+    columns   // Column definitions
+  );
+
+  return (
+    <button onClick={exportToCSV} disabled={isExporting}>
+      Export to CSV
+    </button>
+  );
+}
+```
+
+**Features:**
+- Automatic CSV generation with proper escaping
+- Customizable column definitions with optional formatters
+- Loading state management (`isExporting`)
+- Toast notifications for success/error
+- Works with any array of objects
+
+**Replaces**: ~40-50 lines of duplicate export logic per page
+
+### useBulkSelection
+
+**Location**: `src/hooks/useBulkSelection.js`
+
+**Purpose**: Manages selection state for bulk operations (selecting multiple items in a list/table).
+
+**Usage:**
+```javascript
+import { useBulkSelection } from '../hooks/useBulkSelection';
+
+function ShotsPage() {
+  const [shots, setShots] = useState([]);
+
+  const {
+    selectedIds,      // Set of selected IDs
+    selectedItems,    // Array of selected items
+    selectAll,        // Select all items
+    deselectAll,      // Clear selection
+    toggle,           // Toggle single item
+    toggleMultiple,   // Toggle multiple items
+    isSelected,       // Check if item is selected
+    hasSelection,     // Check if any items selected
+    isAllSelected,    // Check if all items selected
+    isIndeterminate   // Check if some (but not all) selected
+  } = useBulkSelection(shots, 'id');  // 'id' is the key to use for identification
+
+  return (
+    <>
+      <input
+        type="checkbox"
+        checked={isAllSelected}
+        indeterminate={isIndeterminate}
+        onChange={isAllSelected ? deselectAll : selectAll}
+      />
+
+      {shots.map(shot => (
+        <div key={shot.id}>
+          <input
+            type="checkbox"
+            checked={isSelected(shot.id)}
+            onChange={() => toggle(shot.id)}
+          />
+          {shot.name}
+        </div>
+      ))}
+
+      {hasSelection && (
+        <button onClick={() => deleteSelected(selectedIds)}>
+          Delete {selectedIds.size} items
+        </button>
+      )}
+    </>
+  );
+}
+```
+
+**Features:**
+- Complete selection API (select all, toggle, check state)
+- Indeterminate checkbox state support
+- Works with any array of objects
+- Efficient Set-based storage for O(1) lookups
+- Returns both IDs and full item objects
+
+**Replaces**: ~20-30 lines of selection state management per page
+
 ## Common Pitfalls & Gotchas
 
 1. **Custom claims don't update immediately**: Call `user.getIdToken(true)` to force refresh
