@@ -110,10 +110,12 @@ export function useBulkSelection(items = [], idKey = 'id') {
 
   /**
    * Check if a specific item is selected
+   * Note: Not memoized to ensure it always reads the latest selectedIds.
+   * For better performance, consider checking selectedIds.has(id) directly.
    */
-  const isSelected = useCallback((itemId) => {
+  const isSelected = (itemId) => {
     return selectedIds.has(itemId);
-  }, [selectedIds]);
+  };
 
   /**
    * Toggle all items (select all if none/some selected, deselect all if all selected)

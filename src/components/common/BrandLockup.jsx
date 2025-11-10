@@ -48,6 +48,12 @@ export function BrandLockup({ size = 'md', className = '' }) {
         alt="Immediate"
         className={`${immediateHeight} w-auto object-contain`}
         loading="eager"
+        onError={(e) => {
+          // Fallback: Hide image if logo not found
+          // This prevents broken image icons for missing Immediate logos
+          e.target.style.display = 'none';
+          console.warn('Immediate logo not found:', immediateLogo);
+        }}
       />
 
       {/* Separator */}

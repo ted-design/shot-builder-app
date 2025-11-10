@@ -15,7 +15,7 @@
  * - c: Open command palette (when not in form)
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { X, Command, Navigation, Zap } from 'lucide-react';
@@ -44,6 +44,53 @@ const SHORTCUTS = {
  * KeyboardShortcutsHelp Modal Component
  */
 function KeyboardShortcutsHelp({ isOpen, onClose }) {
+  const modalRef = useRef(null);
+  const previousActiveElement = useRef(null);
+
+  // Focus trap: Focus the modal on open and restore focus on close
+  useEffect(() => {
+    if (isOpen) {
+      // Save currently focused element
+      previousActiveElement.current = document.activeElement;
+
+      // Focus the modal
+      modalRef.current?.focus();
+
+      // Trap focus within modal
+      const handleKeyDown = (e) => {
+        if (e.key === 'Tab') {
+          const focusableElements = modalRef.current?.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          );
+          if (!focusableElements || focusableElements.length === 0) return;
+
+          const firstElement = focusableElements[0];
+          const lastElement = focusableElements[focusableElements.length - 1];
+
+          if (e.shiftKey) {
+            if (document.activeElement === firstElement) {
+              e.preventDefault();
+              lastElement.focus();
+            }
+          } else {
+            if (document.activeElement === lastElement) {
+              e.preventDefault();
+              firstElement.focus();
+            }
+          }
+        }
+      };
+
+      modalRef.current?.addEventListener('keydown', handleKeyDown);
+
+      return () => {
+        modalRef.current?.removeEventListener('keydown', handleKeyDown);
+        // Restore focus to previous element
+        previousActiveElement.current?.focus();
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -55,7 +102,9 @@ function KeyboardShortcutsHelp({ isOpen, onClose }) {
       aria-labelledby="shortcuts-title"
     >
       <div
-        className="w-full max-w-2xl rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl animate-slide-in-from-top"
+        ref={modalRef}
+        tabIndex={-1}
+        className="w-full max-w-2xl rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl animate-slide-in-from-top outline-none"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

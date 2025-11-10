@@ -39,7 +39,13 @@ function arrayToCSV(data, columns) {
         return '';
       }
 
-      const stringValue = String(value);
+      let stringValue = String(value);
+
+      // Prevent CSV injection: prefix dangerous characters with single quote
+      // Protects against formula injection in Excel, Google Sheets, etc.
+      if (/^[=+\-@]/.test(stringValue)) {
+        stringValue = "'" + stringValue;
+      }
 
       // Escape quotes and wrap in quotes if contains comma, quote, or newline
       if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
@@ -118,10 +124,10 @@ export function useEntityExport(entityType, data, columns) {
   }, [data, columns, entityType]);
 
   /**
-   * Export data to PDF (basic implementation)
-   * For more advanced PDF features, consider using jsPDF or pdfmake
+   * Export data to tab-separated text file
+   * For PDF export with formatting, consider using @react-pdf/renderer or jsPDF
    */
-  const exportToPDF = useCallback(async (selectedItems = null) => {
+  const exportToText = useCallback(async (selectedItems = null) => {
     setIsExporting(true);
 
     try {
@@ -135,7 +141,7 @@ export function useEntityExport(entityType, data, columns) {
         return;
       }
 
-      // For now, export as formatted text (can be enhanced with jsPDF later)
+      // Export as tab-separated text
       const headers = columns.map(col => col.label || col.key).join('\t');
       const rows = itemsToExport.map(item => {
         return columns.map(col => {
@@ -160,7 +166,7 @@ export function useEntityExport(entityType, data, columns) {
         description: `Exported ${itemsToExport.length} ${entityType} to text file`,
       });
     } catch (error) {
-      console.error('[useEntityExport] PDF export failed:', error);
+      console.error('[useEntityExport] Text export failed:', error);
       toast.error({
         title: 'Export failed',
         description: 'Unable to export data. Please try again.',
@@ -172,7 +178,9 @@ export function useEntityExport(entityType, data, columns) {
 
   return {
     exportToCSV,
-    exportToPDF,
+    exportToText,
+    // Deprecated: Use exportToText instead. Kept for backward compatibility.
+    exportToPDF: exportToText,
     isExporting,
   };
 }
