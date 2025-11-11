@@ -6,6 +6,7 @@ import { Input } from "../ui/input";
 import { useFilePreview } from "../../hooks/useFilePreview";
 import { SelectPortalTargetProvider } from "../../context/SelectPortalTargetContext";
 import Thumb from "../Thumb";
+import SingleImageDropzone from "../common/SingleImageDropzone";
 
 export default function LocationEditModal({
   open,
@@ -65,13 +66,9 @@ export default function LocationEditModal({
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
-  const handleFileChange = (event) => {
-    const nextFile = event.target.files?.[0] || null;
+  const handleFileChange = (nextFile) => {
     setFile(nextFile);
     setRemoveImage(false);
-    if (event.target) {
-      event.target.value = "";
-    }
   };
 
   const handleRemoveImage = () => {
@@ -203,22 +200,25 @@ export default function LocationEditModal({
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="grid gap-4 md:grid-cols-[200px_1fr]">
               <div className="flex flex-col items-center gap-3">
-                <Thumb
-                  path={currentImagePath}
-                  size={640}
-                  alt={displayName}
-                  className="h-40 w-56 overflow-hidden rounded-card bg-slate-100 dark:bg-slate-800"
-                  imageClassName="h-full w-full object-cover"
-                  fallback={<div className="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400">No photo</div>}
+                <SingleImageDropzone
+                  value={file}
+                  onChange={handleFileChange}
+                  disabled={saving || busy || deleting}
+                  existingImageUrl={!removeImage && location?.photoPath ? location.photoPath : null}
+                  onRemoveExisting={handleRemoveImage}
+                  showPreview={false}
+                  className="w-full"
                 />
-                <div className="flex flex-col items-center gap-2 text-sm">
-                  <Input type="file" accept="image/*" onChange={handleFileChange} />
-                  {(location?.photoPath || file) && (
-                    <Button type="button" variant="secondary" size="sm" onClick={handleRemoveImage}>
-                      Remove photo
-                    </Button>
-                  )}
-                </div>
+                {currentImagePath && (
+                  <Thumb
+                    path={currentImagePath}
+                    size={640}
+                    alt={displayName}
+                    className="h-40 w-56 overflow-hidden rounded-card bg-slate-100 dark:bg-slate-800"
+                    imageClassName="h-full w-full object-cover"
+                    fallback={<div className="flex h-full items-center justify-center text-sm text-slate-500 dark:text-slate-400">No photo</div>}
+                  />
+                )}
               </div>
               <div className="space-y-4">
                 <div className="space-y-1.5">

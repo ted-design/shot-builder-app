@@ -14,6 +14,7 @@ import ProjectParamScope from "./routes/ProjectParamScope";
 import { ProjectScopeProvider, useProjectScope } from "./context/ProjectScopeContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { SearchCommandProvider } from "./context/SearchCommandContext";
+import { KeyboardShortcutsProvider } from "./context/KeyboardShortcutsContext";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import SearchCommand from "./components/ui/SearchCommand";
 import GlobalKeyboardShortcuts from "./components/GlobalKeyboardShortcuts";
@@ -129,8 +130,9 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <SearchCommandProvider>
-          <BrowserRouter>
-            <ProjectScopeProvider>
+          <KeyboardShortcutsProvider>
+            <BrowserRouter>
+              <ProjectScopeProvider>
               {/* Global search command palette (Cmd+K) */}
               <SearchCommand />
               {/* Global keyboard shortcuts */}
@@ -293,8 +295,9 @@ export default function App() {
             <Route path="*" element={<Navigate to="/projects" replace />} />
           </Route>
             </Routes>
-          </ProjectScopeProvider>
-        </BrowserRouter>
+              </ProjectScopeProvider>
+            </BrowserRouter>
+          </KeyboardShortcutsProvider>
         </SearchCommandProvider>
       </ThemeProvider>
     </QueryClientProvider>

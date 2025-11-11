@@ -15,12 +15,13 @@
  * - c: Open command palette (when not in form)
  */
 
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { X, Command, Navigation, Zap } from 'lucide-react';
 import { useProjectScope } from '../context/ProjectScopeContext';
 import { useSearchCommand } from '../context/SearchCommandContext';
+import { useKeyboardShortcuts } from '../context/KeyboardShortcutsContext';
 import { toast } from '../lib/toast';
 
 // Keyboard shortcut definitions grouped by category
@@ -204,7 +205,7 @@ export default function GlobalKeyboardShortcuts() {
   const navigate = useNavigate();
   const { currentProjectId } = useProjectScope();
   const { openSearch } = useSearchCommand();
-  const [showHelp, setShowHelp] = useState(false);
+  const { showHelp, toggleHelp, closeHelp } = useKeyboardShortcuts();
 
   // Navigation handlers with context awareness
   const navigateToShots = useCallback(() => {
@@ -238,16 +239,6 @@ export default function GlobalKeyboardShortcuts() {
   const navigateToPulls = useCallback(() => {
     navigate('/pulls');
   }, [navigate]);
-
-  // Toggle help modal
-  const toggleHelp = useCallback(() => {
-    setShowHelp(prev => !prev);
-  }, []);
-
-  // Close help modal
-  const closeHelp = useCallback(() => {
-    setShowHelp(false);
-  }, []);
 
   // Register keyboard shortcuts
 

@@ -13,6 +13,8 @@ import CommentSection from "../comments/CommentSection";
 import ImageCropPositionEditor from "../common/ImageCropPositionEditor";
 import { useAuth } from "../../context/AuthContext";
 import ShotSidebarSummary from "./ShotSidebarSummary";
+import SingleImageDropzone from "../common/SingleImageDropzone";
+import AppImage from "../common/AppImage";
 
 const steps = [
   { id: "basics", label: "Basics", description: "Core identifiers" },
@@ -547,17 +549,13 @@ export default function ShotEditModal({
                       Reference Image
                       <span className="ml-2 text-xs font-normal text-slate-500">(optional)</span>
                     </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          handleFieldChange({ referenceImageFile: file });
-                        }
-                      }}
+                    <SingleImageDropzone
+                      value={draft.referenceImageFile || null}
+                      onChange={(file) => handleFieldChange({ referenceImageFile: file })}
                       disabled={navigationDisabled}
-                      className="w-full text-sm text-slate-700 file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-primary/90 disabled:opacity-50 dark:text-slate-300"
+                      existingImageUrl={draft.referenceImagePath || null}
+                      onRemoveExisting={() => handleFieldChange({ referenceImagePath: "", referenceImageFile: null, referenceImageCrop: null })}
+                      showPreview={false}
                     />
                     {draft.referenceImagePath && (
                       <div className="space-y-3">
@@ -580,14 +578,6 @@ export default function ShotEditModal({
                               }
                             />
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleFieldChange({ referenceImagePath: "", referenceImageFile: null, referenceImageCrop: null })}
-                            className="text-xs text-red-600 transition hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                            disabled={navigationDisabled}
-                          >
-                            Remove
-                          </button>
                         </div>
                         <ImageCropPositionEditor
                           imageSrc={draft.referenceImagePath}

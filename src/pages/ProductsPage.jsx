@@ -26,7 +26,8 @@ import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import AppImage from "../components/common/AppImage";
 import ExportButton from "../components/common/ExportButton";
 import { PageHeader } from "../components/ui/PageHeader";
-import { LayoutGrid, List as ListIcon, MoreVertical, Archive, Trash2, Type, Search, Package, Filter, X } from "lucide-react";
+import ExpandableSearch from "../components/overview/ExpandableSearch";
+import { LayoutGrid, List as ListIcon, MoreVertical, Archive, Trash2, Type, Package, Filter, X } from "lucide-react";
 import {
   productFamiliesPath,
   productFamilyPath,
@@ -1659,16 +1660,12 @@ export default function ProductsPage() {
           </div>
           <PageHeader.Actions>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="relative min-w-[200px] max-w-md flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
-                <Input
-                  placeholder="Search by style, number, colour, or SKU..."
-                  aria-label="Search products"
-                  value={queryText}
-                  onChange={(event) => setQueryText(event.target.value)}
-                  className="pl-10"
-                />
-              </div>
+              <ExpandableSearch
+                value={queryText}
+                onChange={setQueryText}
+                placeholder="Search by style, number, colour, or SKU..."
+                ariaLabel="Search products"
+              />
               <label
                 className="flex flex-none items-center gap-2 text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400"
                 htmlFor="products-sort-order"

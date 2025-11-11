@@ -17,6 +17,15 @@ import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { toast } from "../../lib/toast";
 import { collectImagesForPdf, resolveImageSourceToDataUrl } from "../../lib/pdfImageCollector";
+import {
+  calculateLayout,
+  distributeCardsAcrossPages,
+  getCardPosition,
+  getLayoutSummary,
+  DENSITY_PRESETS,
+} from "../../lib/pdfLayoutCalculator";
+import { processImageForPDF, getOptimalImageDimensions } from "../../lib/pdfImageProcessor";
+import PdfPreview, { PdfPreviewZoomControls } from "./PdfPreview";
 
 const styles = StyleSheet.create({
   page: {
@@ -350,11 +359,14 @@ const cssEscape = (value) => {
   return String(value).replace(/"/g, '\"');
 };
 
-const prepareLanesForPdf = async (lanes, { includeImages }) => {
+const prepareLanesForPdf = async (lanes, { includeImages, density = 'standard' }) => {
   const list = Array.isArray(lanes) ? lanes : [];
   const tasks = [];
   const shotImageMap = new Map();
   const shotsNeedingFallback = [];
+
+  // Get optimal image dimensions for the density
+  const imageDimensions = getOptimalImageDimensions(density);
 
   if (includeImages && typeof document !== "undefined") {
     const shotIds = new Set();
@@ -375,12 +387,37 @@ const prepareLanesForPdf = async (lanes, { includeImages }) => {
     if (shotNodes.length) {
       try {
         const collected = await collectImagesForPdf(shotNodes);
-        collected.forEach((entry) => {
+
+        // Process collected images with cropping
+        const cropPromises = collected.map(async (entry) => {
           const shotId = entry.owner?.shotId;
-          if (shotId && entry.dataUrl) {
-            shotImageMap.set(shotId, entry.dataUrl);
+          if (!shotId || !entry.dataUrl) return;
+
+          // Find the shot to get crop position
+          let shot = null;
+          list.forEach((lane) => {
+            const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+            const found = laneShots.find(s => String(s.id) === String(shotId));
+            if (found) shot = found;
+          });
+
+          if (shot && entry.dataUrl) {
+            try {
+              // Apply cropping if referenceImageCrop exists
+              const croppedDataUrl = await processImageForPDF(entry.dataUrl, {
+                cropPosition: shot.referenceImageCrop || { x: 50, y: 50 },
+                targetWidth: imageDimensions.width,
+                targetHeight: imageDimensions.height,
+              });
+              shotImageMap.set(shotId, croppedDataUrl);
+            } catch (cropError) {
+              console.warn("[Planner] Failed to crop image, using original", cropError);
+              shotImageMap.set(shotId, entry.dataUrl);
+            }
           }
         });
+
+        await Promise.allSettled(cropPromises);
       } catch (error) {
         console.warn("[Planner] Failed to collect planner images", error);
       }
@@ -553,6 +590,7 @@ const BLOCK_TAGS = new Set([
 const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
   const orientation = options.orientation === "landscape" ? "landscape" : "portrait";
   const layout = options.layout === "gallery" ? "gallery" : "list";
+  const densityId = options.density || "standard";
   const parsedColumns = Number.parseInt(options.galleryColumns, 10);
   const galleryColumns =
     layout === "gallery"
@@ -565,7 +603,16 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
   const talentLanes = Array.isArray(talentSummary?.lanes) ? talentSummary.lanes : [];
   const talentRows = Array.isArray(talentSummary?.rows) ? talentSummary.rows : [];
   const exportLanes = Array.isArray(lanes) ? lanes : [];
-  const shotImageStyle = layout === "gallery" ? styles.galleryShotImage : styles.shotImage;
+
+  // Calculate layout using new density-based system
+  const allShots = exportLanes.flatMap(lane => lane.shots || []);
+  const layoutConfig = layout === "gallery" ? calculateLayout(densityId, allShots.length) : null;
+  const densityPreset = layoutConfig?.preset;
+
+  // Image style with density-specific height
+  const shotImageStyle = layout === "gallery"
+    ? [styles.galleryShotImage, densityPreset && { height: densityPreset.imageHeight }].filter(Boolean)
+    : styles.shotImage;
 
   const ensureStringList = (value) => {
     if (!Array.isArray(value)) return [];
@@ -951,17 +998,20 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
     const shotTitle = visibleFields.name && shot?.name ? shot.name : null;
     const shotKey = shot?.id || index;
 
-    if (isGallery) {
-      const columnIndex = index % galleryColumns;
+    if (isGallery && layoutConfig) {
+      const position = getCardPosition(index, layoutConfig);
+      const cardDimensions = layoutConfig.cardWidth;
+      const widthPercent = ((cardDimensions / 540) * 100).toFixed(4) + '%'; // 540 is usable area width
+
       cardStyle.push({
-        width: columnWidth,
-        maxWidth: columnWidth,
-        flexBasis: columnWidth,
+        width: widthPercent,
+        maxWidth: widthPercent,
+        flexBasis: widthPercent,
         flexGrow: 0,
         flexShrink: 0,
-        marginBottom: 14,
-        marginRight: columnIndex === galleryColumns - 1 ? 0 : 8,
-        padding: 9,
+        marginBottom: position.marginBottom,
+        marginRight: position.marginRight,
+        padding: densityPreset?.cardPadding || 10,
       });
     }
 
@@ -1084,13 +1134,14 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
     ].filter(Boolean);
 
     const titleStyle = [styles.shotTitle, styles.galleryShotTitle];
-    if (galleryColumns >= 3) {
+    const effectiveColumns = layoutConfig?.columns || galleryColumns;
+    if (effectiveColumns >= 3) {
       titleStyle.push(styles.galleryShotTitleCompact);
     }
 
-    const galleryLabelStyle = galleryColumns >= 3 ? styles.galleryDetailLabelCompact : null;
-    const galleryValueStyle = galleryColumns >= 3 ? styles.galleryDetailValueCompact : null;
-    const galleryBulletStyle = galleryColumns >= 3 ? styles.galleryDetailBulletCompact : null;
+    const galleryLabelStyle = effectiveColumns >= 3 ? styles.galleryDetailLabelCompact : null;
+    const galleryValueStyle = effectiveColumns >= 3 ? styles.galleryDetailValueCompact : null;
+    const galleryBulletStyle = effectiveColumns >= 3 ? styles.galleryDetailBulletCompact : null;
 
     const galleryItemsWithSizing = galleryItems.map((item) =>
       makeItem(item, {
@@ -1146,7 +1197,7 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
 
   return (
     <Document>
-      <Page size="A4" orientation={orientation} style={styles.page}>
+      <Page size="LETTER" orientation={orientation} style={styles.page}>
         <View style={styles.header} wrap={false}>
           {options.title ? <Text style={styles.title}>{options.title}</Text> : null}
           {options.subtitle ? <Text style={styles.subtitle}>{options.subtitle}</Text> : null}
@@ -1222,6 +1273,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
   const [subtitle, setSubtitle] = useState("");
   const [orientation, setOrientation] = useState("portrait");
   const [layoutMode, setLayoutMode] = useState("list");
+  const [density, setDensity] = useState("standard");
   const [galleryColumns, setGalleryColumns] = useState("3");
   const [fields, setFields] = useState({});
   const [includeLaneSummary, setIncludeLaneSummary] = useState(true);
@@ -1233,6 +1285,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
   const [selectedTalentNames, setSelectedTalentNames] = useState([]);
   const [dateFilterMode, setDateFilterMode] = useState("any");
   const [selectedDate, setSelectedDate] = useState("");
+  const [activeTab, setActiveTab] = useState("settings");
+  const [previewZoom, setPreviewZoom] = useState(0.75);
 
   const laneOptions = useMemo(() => {
     if (!Array.isArray(lanes)) return [];
@@ -1377,6 +1431,18 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     [filteredLanes]
   );
 
+  // Flatten all shots from filtered lanes for preview
+  const filteredShots = useMemo(() => {
+    if (!Array.isArray(filteredLanes)) return [];
+    return filteredLanes.flatMap(lane => {
+      const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+      return laneShots.map(shot => ({
+        ...shot,
+        laneName: lane.name,
+      }));
+    });
+  }, [filteredLanes]);
+
   const derivedLaneSummary = useMemo(() => {
     const summaries = Array.isArray(filteredLanes)
       ? filteredLanes.map((lane) => ({
@@ -1454,6 +1520,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       subtitle,
       orientation,
       layout: layoutMode,
+      density,
       galleryColumns: resolvedGalleryColumns,
       fields,
       includeLaneSummary,
@@ -1464,6 +1531,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       subtitle,
       orientation,
       layoutMode,
+      density,
       resolvedGalleryColumns,
       fields,
       includeLaneSummary,
@@ -1506,7 +1574,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       setIsGenerating(true);
       const includeImages = Boolean(fields.image);
       setGenerationStage("Collecting assets…");
-      const preparedLanes = await prepareLanesForPdf(filteredLanes, { includeImages });
+      const preparedLanes = await prepareLanesForPdf(filteredLanes, { includeImages, density });
       setGenerationStage("Rendering PDF…");
       const blob = await pdf(
         <PlannerPdfDocument
@@ -1543,6 +1611,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     title,
     onClose,
     fields.image,
+    density,
     prepareLanesForPdf,
   ]);
 
@@ -1605,27 +1674,60 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       contentClassName="p-0 overflow-hidden"
     >
       <div className="flex h-full min-h-0 flex-col bg-white dark:bg-slate-900">
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="flex flex-col gap-6 p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 id="planner-export-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                  Export planner
-                </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Configure the layout and select which planner details to include in your export.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-md border border-transparent p-2 text-slate-500 dark:text-slate-400 transition hover:border-slate-200 dark:hover:border-slate-700 hover:text-slate-900 dark:hover:text-slate-100"
-                aria-label="Close export settings"
-                disabled={isGenerating}
-              >
-                ×
-              </button>
+        {/* Tab Navigation */}
+        <div className="border-b border-slate-200 dark:border-slate-700 px-6 pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 id="planner-export-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Export planner
+              </h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Configure the layout and preview before exporting.
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-transparent p-2 text-slate-500 dark:text-slate-400 transition hover:border-slate-200 dark:hover:border-slate-700 hover:text-slate-900 dark:hover:text-slate-100"
+              aria-label="Close export settings"
+              disabled={isGenerating}
+            >
+              ×
+            </button>
+          </div>
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab("settings")}
+              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "settings"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              }`}
+            >
+              Settings
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("preview")}
+              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "preview"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              }`}
+              disabled={!hasShots || layoutMode !== "gallery"}
+            >
+              Preview
+              {layoutMode === "gallery" && hasShots && (
+                <span className="ml-1 text-xs">({filteredShots.length} shots)</span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {activeTab === "settings" ? (
+            <div className="flex flex-col gap-6 p-6">
             <div className="grid gap-4 lg:grid-cols-2">
               <Card>
                 <CardContent className="space-y-4 pt-6">
@@ -1699,22 +1801,34 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                       ))}
                     </div>
                     {layoutMode === "gallery" ? (
-                      <div className="mt-3 space-y-2">
-                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400" htmlFor="planner-export-gallery-columns">
-                          Columns
+                      <div className="mt-3 space-y-3">
+                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                          Density
                         </label>
-                        <input
-                          id="planner-export-gallery-columns"
-                          type="number"
-                          min={1}
-                          max={6}
-                          step={1}
-                          value={galleryColumns}
-                          onChange={(event) => setGalleryColumns(event.target.value)}
-                          className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
-                        />
+                        <div className="space-y-2">
+                          {Object.values(DENSITY_PRESETS).map((preset) => (
+                            <label key={preset.id} className="flex items-start gap-3 cursor-pointer group">
+                              <input
+                                type="radio"
+                                name="density"
+                                value={preset.id}
+                                checked={density === preset.id}
+                                onChange={() => setDensity(preset.id)}
+                                className="mt-0.5 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary"
+                              />
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-slate-900 dark:text-slate-100 group-hover:text-primary">
+                                  {preset.label}
+                                </div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400">
+                                  {preset.description}
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Cards flow left to right using {resolvedGalleryColumns} column{resolvedGalleryColumns === 1 ? "" : "s"} and never split between pages.
+                          Layout automatically adjusts for optimal space usage and consistent spacing.
                         </p>
                       </div>
                     ) : null}
@@ -1930,6 +2044,26 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
               </Card>
             </div>
           </div>
+          ) : (
+            <div className="p-6 space-y-4">
+              {/* Zoom Controls */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100">PDF Preview</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">What you see is what you'll get</p>
+                </div>
+                <PdfPreviewZoomControls zoom={previewZoom} onZoomChange={setPreviewZoom} />
+              </div>
+
+              {/* Preview Component */}
+              <PdfPreview
+                shots={filteredShots}
+                densityId={density}
+                zoom={previewZoom}
+                orientation={orientation}
+              />
+            </div>
+          )}
         </div>
         <div className="border-t border-slate-200 dark:border-slate-700 p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

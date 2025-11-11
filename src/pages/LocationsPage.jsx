@@ -14,6 +14,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { PageHeader } from "../components/ui/PageHeader";
+import ExpandableSearch from "../components/overview/ExpandableSearch";
 import ExportButton from "../components/common/ExportButton";
 import { searchLocations } from "../lib/search";
 import Thumb from "../components/Thumb";
@@ -376,12 +377,11 @@ export default function LocationsPage() {
           </div>
           <PageHeader.Actions>
             <div className="flex flex-wrap items-center gap-3">
-              <Input
-                placeholder="Search locations by name, address, or notes..."
-                aria-label="Search locations"
+              <ExpandableSearch
                 value={queryText}
-                onChange={(event) => setQueryText(event.target.value)}
-                className="min-w-[200px] max-w-md flex-1"
+                onChange={setQueryText}
+                placeholder="Search locations by name, address, or notes..."
+                ariaLabel="Search locations"
               />
               <ExportButton data={filteredLocations} entityType="locations" />
               {canManage && (

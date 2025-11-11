@@ -5,3 +5,7 @@ export { default as SortMenu } from "./SortMenu";
 export { default as FieldVisibilityMenu } from "./FieldVisibilityMenu";
 export { default as SegmentedControl } from "./SegmentedControl";
 export { default as filterSelectStyles } from "./filterSelectStyles";
+export { default as ExpandableSearch } from "./ExpandableSearch";
+export { default as ViewModeMenu } from "./ViewModeMenu";
+export { default as DensityMenu } from "./DensityMenu";
+export { default as ToolbarIconButton } from "./ToolbarIconButton";

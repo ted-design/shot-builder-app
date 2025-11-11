@@ -6,6 +6,7 @@ import { Input } from "../ui/input";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import Thumb from "../Thumb";
 import { useFilePreview } from "../../hooks/useFilePreview";
+import SingleImageDropzone from "../common/SingleImageDropzone";
 
 const emptyForm = {
   firstName: "",
@@ -37,12 +38,8 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
-  const handleFileChange = (event) => {
-    const nextFile = event.target.files?.[0] || null;
+  const handleFileChange = (nextFile) => {
     setFile(nextFile);
-    if (event.target) {
-      event.target.value = "";
-    }
   };
 
   const handleSubmit = async (event) => {
@@ -188,25 +185,22 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-headshot">
                 Headshot
               </label>
-              <Thumb
-                path={preview || null}
-                size={512}
-                alt="Selected headshot preview"
-                className="h-40 w-32 overflow-hidden rounded-card bg-slate-100 dark:bg-slate-800"
-                imageClassName="h-full w-full object-cover"
-                fallback={
-                  <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-slate-400">
-                    Optional 4:5 image
-                  </div>
-                }
-              />
-              <Input
+              <SingleImageDropzone
                 id="talent-create-headshot"
-                type="file"
-                accept="image/*"
+                value={file}
                 onChange={handleFileChange}
                 disabled={busy}
+                showPreview={false}
               />
+              {preview && (
+                <Thumb
+                  path={preview}
+                  size={512}
+                  alt="Selected headshot preview"
+                  className="h-40 w-32 overflow-hidden rounded-card bg-slate-100 dark:bg-slate-800"
+                  imageClassName="h-full w-full object-cover"
+                />
+              )}
             </div>
             {error && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
             <div className="flex flex-wrap items-center justify-end gap-2">
