@@ -148,6 +148,12 @@ vi.mock("../../context/AuthContext", () => ({
   useAuth: () => authState,
 }));
 
+vi.mock("../../context/KeyboardShortcutsContext", () => ({
+  useKeyboardShortcuts: () => ({
+    toggleHelp: vi.fn(),
+  }),
+}));
+
 vi.mock("../../components/shots/ShotProductsEditor", () => ({
   default: () => <div data-testid="shot-products-editor" />,
 }));
