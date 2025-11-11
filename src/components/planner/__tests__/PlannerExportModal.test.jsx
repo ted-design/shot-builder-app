@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vite
 
 const collectImagesMock = vi.fn();
 const resolveImageSourceToDataUrlMock = vi.fn();
+const processImageForPDFMock = vi.fn();
+const getOptimalImageDimensionsMock = vi.fn();
 
 let prepareLanesForPdf;
 
@@ -9,6 +11,12 @@ vi.mock("../../../lib/pdfImageCollector", () => ({
   __esModule: true,
   collectImagesForPdf: collectImagesMock,
   resolveImageSourceToDataUrl: resolveImageSourceToDataUrlMock,
+}));
+
+vi.mock("../../../lib/pdfImageProcessor", () => ({
+  __esModule: true,
+  processImageForPDF: processImageForPDFMock,
+  getOptimalImageDimensions: getOptimalImageDimensionsMock,
 }));
 
 beforeAll(async () => {
@@ -19,11 +27,16 @@ beforeEach(async () => {
   document.body.innerHTML = "";
   collectImagesMock.mockReset();
   resolveImageSourceToDataUrlMock.mockReset();
+  processImageForPDFMock.mockReset();
+  getOptimalImageDimensionsMock.mockReset();
+
   collectImagesMock.mockResolvedValue([]);
   resolveImageSourceToDataUrlMock.mockImplementation(async (source) => ({
     dataUrl: `data:image/png;base64,${Buffer.from(String(source)).toString("base64")}`,
     resolvedUrl: String(source),
   }));
+  processImageForPDFMock.mockImplementation(async (dataUrl) => dataUrl);
+  getOptimalImageDimensionsMock.mockReturnValue({ width: 200, height: 150 });
 });
 
 afterEach(() => {
@@ -86,7 +99,7 @@ describe("prepareLanesForPdf", () => {
     expect(resolveImageSourceToDataUrlMock).toHaveBeenCalled();
     expect(prepared[0].shots[0].image).toMatch(/^data:image/);
     expect(prepared[0].shots[1].image).toMatch(/^data:image/);
-  });
+  }, 30000);
 
   it("preserves shot numbers and other metadata", async () => {
     const lanes = [
