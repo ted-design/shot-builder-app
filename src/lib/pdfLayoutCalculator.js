@@ -1,0 +1,244 @@
+/**
+ * PDF Layout Calculator
+ *
+ * Calculates optimal layout dimensions for PDF export based on density presets.
+ * Handles proper spacing, margins, and page breaks for consistent, professional output.
+ */
+
+// Standard US Letter dimensions in points (1 point = 1/72 inch)
+export const PAGE_DIMENSIONS = {
+  width: 612, // 8.5 inches
+  height: 792, // 11 inches
+};
+
+// Page margins in points
+export const PAGE_MARGINS = {
+  top: 36,    // 0.5 inch
+  right: 36,
+  bottom: 36,
+  left: 36,
+};
+
+// Calculate usable page area
+export const USABLE_AREA = {
+  width: PAGE_DIMENSIONS.width - PAGE_MARGINS.left - PAGE_MARGINS.right,  // 540pt
+  height: PAGE_DIMENSIONS.height - PAGE_MARGINS.top - PAGE_MARGINS.bottom, // 720pt
+};
+
+// Density presets define target cards per page and styling
+export const DENSITY_PRESETS = {
+  compact: {
+    id: 'compact',
+    label: 'Compact',
+    description: '6-8 cards per page',
+    targetCardsPerPage: 7,
+    imageHeight: 100,
+    cardPadding: 8,
+    fontSize: {
+      title: 10,
+      label: 8,
+      value: 9,
+    },
+    showAllFields: false, // Minimal details only
+  },
+  standard: {
+    id: 'standard',
+    label: 'Standard',
+    description: '4-6 cards per page',
+    targetCardsPerPage: 5,
+    imageHeight: 140,
+    cardPadding: 10,
+    fontSize: {
+      title: 12,
+      label: 9,
+      value: 10,
+    },
+    showAllFields: true,
+  },
+  detailed: {
+    id: 'detailed',
+    label: 'Detailed',
+    description: '2-3 cards per page',
+    targetCardsPerPage: 3,
+    imageHeight: 180,
+    cardPadding: 12,
+    fontSize: {
+      title: 14,
+      label: 10,
+      value: 11,
+    },
+    showAllFields: true,
+  },
+};
+
+// Spacing between cards
+export const CARD_GAP = {
+  horizontal: 16, // Space between cards horizontally
+  vertical: 20,   // Space between rows
+};
+
+/**
+ * Calculate optimal grid layout based on density preset
+ *
+ * @param {string} densityId - One of: 'compact', 'standard', 'detailed'
+ * @param {number} totalCards - Total number of cards to layout
+ * @returns {Object} Layout configuration
+ */
+export function calculateLayout(densityId = 'standard', totalCards = 0) {
+  const preset = DENSITY_PRESETS[densityId] || DENSITY_PRESETS.standard;
+
+  // Calculate optimal columns based on target cards per page
+  // We aim for a roughly square grid (e.g., 3x2, 2x2, 2x1)
+  let columns;
+  let rows;
+
+  if (preset.targetCardsPerPage >= 7) {
+    columns = 4;
+    rows = 2;
+  } else if (preset.targetCardsPerPage >= 5) {
+    columns = 3;
+    rows = 2;
+  } else {
+    columns = 2;
+    rows = Math.ceil(preset.targetCardsPerPage / columns);
+  }
+
+  const actualCardsPerPage = columns * rows;
+
+  // Calculate card dimensions
+  const totalHorizontalGap = CARD_GAP.horizontal * (columns - 1);
+  const cardWidth = (USABLE_AREA.width - totalHorizontalGap) / columns;
+
+  // Estimate card height based on content
+  const cardHeight =
+    preset.imageHeight +          // Image
+    preset.cardPadding * 2 +      // Top/bottom padding
+    preset.fontSize.title + 6 +   // Title + margin
+    (preset.showAllFields ? 80 : 40); // Details section
+
+  // Calculate how many cards fit per page
+  const availableVerticalSpace = USABLE_AREA.height;
+  const totalVerticalGap = CARD_GAP.vertical * (rows - 1);
+  const maxRowsPerPage = Math.floor(
+    (availableVerticalSpace + CARD_GAP.vertical) / (cardHeight + CARD_GAP.vertical)
+  );
+  const cardsPerPage = columns * maxRowsPerPage;
+
+  // Calculate total pages needed
+  const totalPages = Math.ceil(totalCards / cardsPerPage);
+
+  return {
+    preset,
+    columns,
+    rows: maxRowsPerPage,
+    cardWidth,
+    cardHeight,
+    cardsPerPage,
+    totalPages,
+    gap: CARD_GAP,
+    margins: PAGE_MARGINS,
+    pageDimensions: PAGE_DIMENSIONS,
+  };
+}
+
+/**
+ * Calculate card dimensions as percentages for CSS/PDF rendering
+ *
+ * @param {Object} layout - Layout configuration from calculateLayout
+ * @returns {Object} Dimension strings for CSS/PDF
+ */
+export function getCardDimensions(layout) {
+  const widthPercent = ((layout.cardWidth / USABLE_AREA.width) * 100).toFixed(4);
+  const gapHorizontalPercent = ((CARD_GAP.horizontal / USABLE_AREA.width) * 100).toFixed(4);
+  const gapVerticalPercent = ((CARD_GAP.vertical / USABLE_AREA.height) * 100).toFixed(4);
+
+  return {
+    width: `${widthPercent}%`,
+    widthPx: layout.cardWidth,
+    height: layout.cardHeight,
+    gapHorizontal: CARD_GAP.horizontal,
+    gapVertical: CARD_GAP.vertical,
+    gapHorizontalPercent: `${gapHorizontalPercent}%`,
+    gapVerticalPercent: `${gapVerticalPercent}%`,
+  };
+}
+
+/**
+ * Distribute cards across pages with smart page breaks
+ *
+ * @param {Array} shots - Array of shot objects to layout
+ * @param {Object} layout - Layout configuration from calculateLayout
+ * @returns {Array} Array of pages, each containing an array of shots
+ */
+export function distributeCardsAcrossPages(shots, layout) {
+  const pages = [];
+  const { cardsPerPage } = layout;
+
+  for (let i = 0; i < shots.length; i += cardsPerPage) {
+    const pageShots = shots.slice(i, i + cardsPerPage);
+    pages.push(pageShots);
+  }
+
+  return pages;
+}
+
+/**
+ * Get card position within a page
+ *
+ * @param {number} cardIndex - Index of card on the page (0-based)
+ * @param {Object} layout - Layout configuration from calculateLayout
+ * @returns {Object} Position object with row, column, and style properties
+ */
+export function getCardPosition(cardIndex, layout) {
+  const row = Math.floor(cardIndex / layout.columns);
+  const column = cardIndex % layout.columns;
+  const isLastInRow = column === layout.columns - 1;
+
+  return {
+    row,
+    column,
+    isLastInRow,
+    marginRight: isLastInRow ? 0 : CARD_GAP.horizontal,
+    marginBottom: CARD_GAP.vertical,
+  };
+}
+
+/**
+ * Calculate estimated file size based on number of images
+ *
+ * @param {number} imageCount - Number of images in the PDF
+ * @returns {string} Estimated file size (e.g., "2.5 MB")
+ */
+export function estimateFileSize(imageCount) {
+  // Rough estimate: ~150KB per image after compression
+  const avgImageSize = 150 * 1024; // 150KB in bytes
+  const overheadSize = 50 * 1024;  // 50KB for PDF structure
+  const totalBytes = (imageCount * avgImageSize) + overheadSize;
+
+  const megabytes = totalBytes / (1024 * 1024);
+
+  if (megabytes < 1) {
+    return `${Math.round(totalBytes / 1024)} KB`;
+  }
+
+  return `${megabytes.toFixed(1)} MB`;
+}
+
+/**
+ * Get layout summary for display to user
+ *
+ * @param {Object} layout - Layout configuration from calculateLayout
+ * @param {number} totalCards - Total number of cards
+ * @returns {Object} Summary information
+ */
+export function getLayoutSummary(layout, totalCards) {
+  return {
+    density: layout.preset.label,
+    description: layout.preset.description,
+    grid: `${layout.columns} × ${layout.rows}`,
+    cardsPerPage: layout.cardsPerPage,
+    totalPages: layout.totalPages,
+    totalCards,
+    estimatedSize: estimateFileSize(totalCards),
+  };
+}

@@ -294,7 +294,7 @@ export default function PullsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader sticky={false}>
+      <PageHeader sticky={true} className="top-14 z-40">
         <PageHeader.Content>
           <div>
             <PageHeader.Title>Pulls</PageHeader.Title>

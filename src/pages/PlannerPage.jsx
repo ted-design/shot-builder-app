@@ -54,6 +54,7 @@ import {
 } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { useProjectScope } from "../context/ProjectScopeContext";
+import { useKeyboardShortcuts } from "../context/KeyboardShortcutsContext";
 import { canManagePlanner, canManageShots, ROLE, resolveEffectiveRole } from "../lib/rbac";
 import {
   Download,
@@ -75,6 +76,7 @@ import {
   CheckSquare,
   Check,
   Square,
+  Keyboard,
 } from "lucide-react";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { Button } from "../components/ui/button";
@@ -114,8 +116,10 @@ import {
   FieldVisibilityMenu,
   OverviewToolbar,
   OverviewToolbarRow,
-  SegmentedControl,
   SortMenu,
+  ToolbarIconButton,
+  ViewModeMenu,
+  DensityMenu,
 } from "../components/overview";
 import { buildActiveFilterPills, defaultOverviewFilters, removeFilterKey } from "../lib/overviewFilters";
 
@@ -1163,10 +1167,19 @@ function PlannerSelectionToolbar({
   lanes,
   onMove,
   isProcessing = false,
+  isSticky = false,
+  topOffset = 112, // Default top-28 (7rem = 112px)
 }) {
   const hasSelection = selectedCount > 0;
+
+  // Dynamic classes and styles for sticky positioning
+  const wrapperClasses = isSticky
+    ? "px-2 sm:px-0 sticky z-40"
+    : "px-2 sm:px-0";
+  const wrapperStyle = isSticky ? { top: `${topOffset}px` } : {};
+
   return (
-    <div className="px-2 sm:px-0">
+    <div className={wrapperClasses} style={wrapperStyle}>
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 rounded-card border border-primary/30 bg-white/95 px-4 py-3 shadow-lg dark:border-slate-700 dark:bg-slate-900/95">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold text-primary dark:text-primary/80">
@@ -3684,6 +3697,8 @@ function PlannerPageContent({ embedded = false }) {
           lanes={lanes}
           onMove={handleBulkMoveSubmit}
           isProcessing={isBulkMoving}
+          isSticky={embedded}
+          topOffset={embedded ? 314 : 112}
         />
       )}
       <OverviewToolbar filterPills={activeFilters} onRemoveFilter={removeFilter}>
@@ -3748,15 +3763,14 @@ function PlannerPageContent({ embedded = false }) {
               </Button>
             )}
             <div className="relative" ref={shortcutsRef}>
-              <button
-                type="button"
-                className="flex h-9 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+              <ToolbarIconButton
+                tooltip="Planner shortcuts"
                 onClick={() => setShortcutsOpen((prev) => !prev)}
-                aria-haspopup="dialog"
-                aria-expanded={shortcutsOpen}
+                ariaLabel="Show planner shortcuts"
+                active={shortcutsOpen}
               >
-                Shortcuts
-              </button>
+                <Keyboard className="h-4 w-4" />
+              </ToolbarIconButton>
               {shortcutsOpen && (
                 <div className="absolute z-20 mt-2 w-72 rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Planner Shortcuts</p>
@@ -3788,55 +3802,20 @@ function PlannerPageContent({ embedded = false }) {
                 ))}
               </select>
             </div>
-            {tagOptions.length > 0 && (
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="planner-tag-filter"
-                  className="text-xs font-medium uppercase tracking-wide text-slate-500"
-                >
-                  Tag
-                </label>
-                <select
-                  id="planner-tag-filter"
-                  className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-                  value={selectedTagIds.length === 1 ? selectedTagIds[0] : ""}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setSelectedTagIds(value ? [value] : []);
-                  }}
-                >
-                  <option value="">All shots</option>
-                  {tagOptions.map((tag) => (
-                    <option key={tag.id} value={tag.id}>
-                      {tag.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:inline">
-              View
-            </span>
-            <SegmentedControl
+            <ViewModeMenu
               options={PLANNER_VIEW_OPTIONS}
               value={viewMode}
               onChange={updateViewMode}
               ariaLabel="Select planner view"
             />
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Density
-              </span>
-              <SegmentedControl
-                options={PLANNER_DENSITY_OPTIONS}
-                value={density}
-                onChange={setDensity}
-                size="sm"
-                ariaLabel="Select card density"
-              />
-            </div>
+            <DensityMenu
+              options={PLANNER_DENSITY_OPTIONS}
+              value={density}
+              onChange={setDensity}
+              ariaLabel="Select card density"
+            />
             <Button
               type="button"
               onClick={() => setExportOpen(true)}

@@ -71,6 +71,12 @@ vi.mock("../../context/ProjectScopeContext", () => ({
   }),
 }));
 
+vi.mock("../../context/KeyboardShortcutsContext", () => ({
+  useKeyboardShortcuts: () => ({
+    toggleHelp: vi.fn(),
+  }),
+}));
+
 // Mock all the complex components
 vi.mock("../../components/shots/ShotEditModal", () => ({
   default: () => null,

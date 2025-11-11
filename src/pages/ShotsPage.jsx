@@ -73,6 +73,7 @@ import {
   CheckSquare,
   Plus,
   Table,
+  Keyboard,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -83,13 +84,16 @@ import { searchShots } from "../lib/search";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ShotsOverviewProvider, useShotsOverview } from "../context/ShotsOverviewContext";
+import { useKeyboardShortcuts } from "../context/KeyboardShortcutsContext";
 import {
   FiltersPopover,
   FieldVisibilityMenu,
   OverviewToolbar,
   OverviewToolbarRow,
-  SegmentedControl,
   SortMenu,
+  ToolbarIconButton,
+  ViewModeMenu,
+  DensityMenu,
 } from "../components/overview";
 
 const PlannerPage = lazy(() => import("./PlannerPage"));
@@ -302,6 +306,7 @@ export function ShotsWorkspace() {
   const setFocusShotId = overview?.setFocusShotId ?? (() => {});
   const navigate = useNavigate();
   const { currentProjectId, ready: scopeReady, setLastVisitedPath } = useProjectScope();
+  const { toggleHelp } = useKeyboardShortcuts();
   const redirectNotifiedRef = useRef(false);
   const projectId = currentProjectId;
   const { clientId, role: globalRole, projectRoles = {}, user, claims } = useAuth();
@@ -2775,27 +2780,18 @@ export function ShotsWorkspace() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:inline">
-              View
-            </span>
-            <SegmentedControl
+            <ViewModeMenu
               options={SHOT_VIEW_OPTIONS}
               value={viewMode}
               onChange={updateViewMode}
               ariaLabel="Select view"
             />
-            <div className="hidden items-center gap-2 sm:flex">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Density
-              </span>
-              <SegmentedControl
-                options={SHOT_DENSITY_OPTIONS}
-                value={viewPrefs.density}
-                onChange={handleDensityChange}
-                size="sm"
-                ariaLabel="Select density"
-              />
-            </div>
+            <DensityMenu
+              options={SHOT_DENSITY_OPTIONS}
+              value={viewPrefs.density}
+              onChange={handleDensityChange}
+              ariaLabel="Select density"
+            />
             {canEditShots && sortedShots.length > 0 && (
               <Button
                 type="button"
@@ -2816,6 +2812,13 @@ export function ShotsWorkspace() {
               </Button>
             )}
             <ExportButton data={filteredShots} entityType="shots" />
+            <ToolbarIconButton
+              tooltip="Keyboard shortcuts (Shift+/)"
+              onClick={toggleHelp}
+              ariaLabel="Open keyboard shortcuts"
+            >
+              <Keyboard className="h-4 w-4" />
+            </ToolbarIconButton>
             {canEditShots && (
               <Button type="button" onClick={openCreateModal} className="flex items-center gap-2">
                 <Plus className="h-4 w-4" aria-hidden="true" />
@@ -2835,7 +2838,8 @@ export function ShotsWorkspace() {
           onExitSelection={exitSelectionMode}
           onSelectAll={toggleSelectAll}
           totalCount={sortedShots.length}
-          isSticky={false}
+          isSticky={true}
+          topOffset={314}
           // Tag operations
           onApplyTags={handleBulkApplyTags}
           onRemoveTags={handleBulkRemoveTags}
@@ -3551,7 +3555,7 @@ export default function ShotsPage({ initialView = null }) {
   return (
     <ShotsOverviewProvider value={overviewValue}>
       <div className="flex min-h-screen flex-col bg-slate-50">
-        <PageHeader sticky={true} className="top-[65px] z-[39]" data-shot-overview-header>
+        <PageHeader sticky={true} className="top-28 z-[39]" data-shot-overview-header>
           <PageHeader.Content>
             <div>
               <PageHeader.Title>Shots</PageHeader.Title>
@@ -3595,7 +3599,7 @@ export default function ShotsPage({ initialView = null }) {
           <div className="pb-3" id="shots-toolbar-anchor" />
         </PageHeader>
       <div
-        className="flex-1 overflow-auto"
+        className="flex-1"
         id={`overview-panel-${activeTab}`}
         role="tabpanel"
         aria-labelledby={`overview-tab-${activeTab}`}

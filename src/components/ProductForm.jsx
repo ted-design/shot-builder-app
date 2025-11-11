@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button } from "./ui/button";
 import { Input, Checkbox } from "./ui/input";
+import SingleImageDropzone from "./common/SingleImageDropzone";
 
 const GENDER_OPTIONS = [
   { value: "men", label: "Men" },
@@ -216,8 +217,7 @@ export default function ProductForm({
     }
   };
 
-  const handleThumbnail = (event) => {
-    const file = event.target.files?.[0] || null;
+  const handleThumbnail = (file) => {
     updateState({ thumbnailFile: file });
   };
 
@@ -373,10 +373,12 @@ export default function ProductForm({
       {allowThumbnail && (
         <div className="space-y-2">
           <label className="block text-sm font-medium text-slate-700">Thumbnail image</label>
-          <Input type="file" accept="image/*" onChange={handleThumbnail} />
-          {state.thumbnailFile && (
-            <div className="text-xs text-slate-500">Selected: {state.thumbnailFile.name}</div>
-          )}
+          <SingleImageDropzone
+            value={state.thumbnailFile}
+            onChange={handleThumbnail}
+            disabled={submitting}
+            showPreview={true}
+          />
         </div>
       )}
 

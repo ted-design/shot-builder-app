@@ -191,11 +191,57 @@ Before deploying rule changes:
 
 Images are uploaded to Firebase Storage with compression. **Always wrap image operations in try-catch blocks:**
 
+#### SingleImageDropzone Component (Recommended)
+
+For single image uploads with drag-and-drop support, use the `SingleImageDropzone` component:
+
+```javascript
+import SingleImageDropzone from '../components/common/SingleImageDropzone';
+
+function MyComponent() {
+  const [imageFile, setImageFile] = useState(null);
+
+  return (
+    <SingleImageDropzone
+      value={imageFile}
+      onChange={setImageFile}
+      disabled={saving}
+      existingImageUrl={existingImage?.path}
+      onRemoveExisting={() => setExistingImage(null)}
+      showPreview={true}  // Optional: show preview below dropzone
+    />
+  );
+}
+```
+
+**Features:**
+- Drag-and-drop zone with visual feedback
+- Click-to-browse fallback
+- File type validation (JPEG, PNG, WebP, GIF)
+- File size validation (50MB max)
+- Optional image preview
+- Keyboard accessible
+- Error handling built-in
+
+**Props:**
+- `value`: Current File object or null
+- `onChange`: Callback receiving File or null
+- `disabled`: Disable the dropzone
+- `existingImageUrl`: URL of existing image to display
+- `onRemoveExisting`: Callback when existing image is removed
+- `showPreview`: Boolean to show/hide preview (default: true)
+- `accept`: File types (default: "image/*")
+- `maxSize`: Max file size in bytes (default: 50MB)
+
+#### Direct Upload Pattern
+
+For direct uploads to Firebase Storage:
+
 ```javascript
 import { uploadImageFile } from '../lib/firebase';
 import { compressImageFile } from '../lib/images';
 
-// For direct uploads to Firebase Storage
+// Upload with compression
 try {
   const { downloadURL, path } = await uploadImageFile(file, {
     folder: 'shots',      // images/shots/{id}/{filename}
@@ -207,7 +253,7 @@ try {
   setError('Unable to upload image. Please try a different file.');
 }
 
-// For client-side compression before upload
+// Manual compression before upload
 try {
   const compressed = await compressImageFile(file, {
     maxDimension: 1600,
@@ -219,6 +265,10 @@ try {
   setError('Unable to process image. Please try a different file.');
 }
 ```
+
+#### Multiple Image Uploads
+
+For batch uploads, use the `BatchImageUploader` component (see `src/components/common/BatchImageUploader.jsx`).
 
 ### Activity Logging
 

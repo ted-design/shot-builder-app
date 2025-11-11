@@ -18,27 +18,32 @@ const SIZES = {
   sm: "text-sm px-3 py-1.5 h-8",   // 32px height
   md: "text-sm px-4 py-2 h-10",     // 40px height (design system standard)
   lg: "text-base px-6 py-3 h-12",   // 48px height
+  icon: "h-9 w-9 p-0",               // 36px square icon button
 };
 
 /**
  * Button component supporting multiple variants and sizes. Disabled state
  * reduces opacity and disables pointer events. Additional props (e.g.
  * onClick, type) are forwarded to the underlying <button> element.
+ *
+ * Uses React.forwardRef to allow refs to be passed through, which is required
+ * for Radix UI components using the asChild prop.
  */
-export function Button({
+export const Button = React.forwardRef(function Button({
   variant = "default",
   size = "md",
   className = "",
   disabled,
   children,
   ...props
-}) {
+}, ref) {
   const variantClasses = VARIANTS[variant] || VARIANTS.default;
   const sizeClasses = SIZES[size] || SIZES.md;
   const disabledClasses = disabled ? "opacity-60 cursor-not-allowed" : "";
 
   return (
     <button
+      ref={ref}
       className={
         `${variantClasses} ${sizeClasses} inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-button shadow-sm transition-all duration-150 ` +
         `focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ` +
@@ -50,4 +55,6 @@ export function Button({
       {children}
     </button>
   );
-}
+});
+
+Button.displayName = "Button";

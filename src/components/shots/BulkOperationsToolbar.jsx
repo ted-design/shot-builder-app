@@ -38,6 +38,7 @@ export default function BulkOperationsToolbar({
   onSelectAll,
   totalCount = 0,
   isSticky = true,
+  topOffset = 112, // Default top-28 (7rem = 112px)
   // Tag operations
   onApplyTags,
   onRemoveTags,
@@ -68,7 +69,10 @@ export default function BulkOperationsToolbar({
   const dropdownRef = useRef(null);
   const operationsDisabled = selectedCount === 0 || isProcessing;
   const allSelected = totalCount > 0 && selectedCount === totalCount;
-  const wrapperClasses = isSticky ? "sticky top-28 z-40 px-3 sm:px-6" : "px-3 sm:px-6";
+  const wrapperClasses = isSticky
+    ? `sticky z-40 px-3 sm:px-6`
+    : "px-3 sm:px-6";
+  const wrapperStyle = isSticky ? { top: `${topOffset}px` } : {};
   const panelClasses =
     "mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 rounded-card border border-primary/30 px-4 py-3 shadow-lg" +
     (isSticky
@@ -229,7 +233,7 @@ export default function BulkOperationsToolbar({
   const otherProjects = availableProjects.filter((p) => p.id !== currentProjectId);
 
   return (
-    <div className={wrapperClasses}>
+    <div className={wrapperClasses} style={wrapperStyle}>
       <div className={panelClasses}>
         <div className="flex flex-1 flex-wrap items-center gap-3">
           <div className="flex flex-wrap items-center gap-2">

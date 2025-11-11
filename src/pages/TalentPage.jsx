@@ -14,6 +14,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { PageHeader } from "../components/ui/PageHeader";
+import ExpandableSearch from "../components/overview/ExpandableSearch";
 import ExportButton from "../components/common/ExportButton";
 import { searchTalent } from "../lib/search";
 import BatchImageUploadModal from "../components/common/BatchImageUploadModal";
@@ -412,12 +413,11 @@ export default function TalentPage() {
           </div>
           <PageHeader.Actions>
             <div className="flex flex-wrap items-center gap-3">
-              <Input
-                placeholder="Search talent by name, agency, or contact..."
-                aria-label="Search talent"
+              <ExpandableSearch
                 value={queryText}
-                onChange={(event) => setQueryText(event.target.value)}
-                className="min-w-[200px] max-w-md flex-1"
+                onChange={setQueryText}
+                placeholder="Search talent by name, agency, or contact..."
+                ariaLabel="Search talent"
               />
               <ExportButton data={filteredTalent} entityType="talent" />
               {canManage && (
