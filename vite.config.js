@@ -8,16 +8,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // Core React libraries - separate for better caching
-          // Check for exact React package to avoid splitting React across chunks
-          if (id.includes('node_modules')) {
-            if (id.includes('/react-router') || id.includes('\\react-router')) {
-              return 'router';
-            }
-            if (id.includes('/react-dom') || id.includes('\\react-dom') ||
-                id.match(/\/react\/|\\react\\/) || id.endsWith('/react') || id.endsWith('\\react')) {
-              return 'react-vendor';
-            }
+          // PDF libraries - only loaded when exporting (defer large dependency)
+          if (id.includes('react-pdf') || id.includes('pdfjs-dist') || id.includes('pdf-lib')) {
+            return 'pdf-lib';
           }
 
           // Firebase - separate chunk (large and rarely updated)
@@ -25,10 +18,8 @@ export default defineConfig({
             return 'firebase';
           }
 
-          // PDF libraries - only loaded when exporting (defer large dependency)
-          if (id.includes('react-pdf') || id.includes('pdfjs-dist') || id.includes('pdf-lib')) {
-            return 'pdf-lib';
-          }
+          // NOTE: React chunking removed - let Vite handle React bundling automatically
+          // to prevent module initialization order issues that cause forwardRef errors
 
           // UI component libraries - shared across pages
           if (id.includes('@radix-ui') || id.includes('lucide-react')) {
