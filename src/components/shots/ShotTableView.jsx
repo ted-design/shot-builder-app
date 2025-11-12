@@ -3,6 +3,8 @@ import { Button } from "../ui/button";
 import { TagList } from "../ui/TagBadge";
 import { toDateInputValue } from "../../lib/shotDraft";
 import { normaliseShotStatus, shotStatusOptions } from "../../lib/shotStatus";
+import { getPrimaryAttachmentWithStyle, hasMultipleAttachments, getAttachmentCount } from "../../lib/imageHelpers";
+import AppImage from "../common/AppImage";
 
 const STATUS_LABEL_MAP = new Map(shotStatusOptions.map(({ value, label }) => [value, label]));
 const CLEAN_TAG_REGEX = /<[^>]+>/g;
@@ -37,6 +39,7 @@ const summariseProduct = (product) => {
 const ShotTableView = memo(function ShotTableView({
   rows = [],
   viewPrefs,
+  density,
   canEditShots = false,
   selectedShotIds,
   onToggleSelect,
@@ -51,6 +54,13 @@ const ShotTableView = memo(function ShotTableView({
     showNotes = true,
   } = viewPrefs || {};
 
+  // Get density-based classes with defaults
+  const densityConfig = density || {
+    tableRow: 'py-3',
+    tablePadding: 'px-4',
+    tableText: 'text-sm',
+  };
+
   const selectionEnabled = typeof onToggleSelect === "function";
   const actionsEnabled = typeof onEditShot === "function" && canEditShots;
 
@@ -60,6 +70,8 @@ const ShotTableView = memo(function ShotTableView({
       result.push({ key: "select", label: "Select", width: "48px", align: "center" });
     }
 
+    // Add image column
+    result.push({ key: "image", label: "Image", width: "80px", align: "center" });
     result.push({ key: "name", label: "Shot", width: "minmax(220px, 1.4fr)" });
     result.push({ key: "type", label: "Type", width: "minmax(120px, 0.7fr)" });
     result.push({ key: "status", label: "Status", width: "minmax(120px, 0.7fr)" });
@@ -100,7 +112,7 @@ const ShotTableView = memo(function ShotTableView({
     >
       <div className="min-w-[960px]" role="rowgroup">
         <div
-          className="grid border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-700/60 dark:text-slate-200"
+          className={`grid border-b border-slate-200 bg-slate-50 font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-700/60 dark:text-slate-200 ${densityConfig.tableText}`}
           style={{ gridTemplateColumns: columnTemplate }}
           role="row"
         >
@@ -108,7 +120,7 @@ const ShotTableView = memo(function ShotTableView({
             <div
               key={column.key}
               role="columnheader"
-              className={`px-3 py-2 ${column.align === "center" ? "text-center" : "text-left"}`}
+              className={`${densityConfig.tablePadding} ${densityConfig.tableRow} ${column.align === "center" ? "text-center" : "text-left"}`}
             >
               {column.label}
             </div>
@@ -139,11 +151,16 @@ const ShotTableView = memo(function ShotTableView({
             : "";
           const notesPlain = toPlainText(notesHtml);
 
+          // Get image data for this shot
+          const { path: imagePath, style: imageStyle } = getPrimaryAttachmentWithStyle(shot);
+          const multiImageCount = getAttachmentCount(shot);
+          const showMultiImageBadge = hasMultipleAttachments(shot);
+
           return (
             <div
               key={shotId}
               role="row"
-              className={`grid cursor-pointer items-start border-b border-slate-200 text-sm transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/40 ${
+              className={`grid cursor-pointer items-start border-b border-slate-200 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/40 ${densityConfig.tableText} ${
                 isSelected ? "bg-primary/5 dark:bg-primary/10" : "bg-transparent"
               } ${isFocused ? "outline outline-2 outline-primary/60 shadow-sm" : ""}`}
               style={{ gridTemplateColumns: columnTemplate }}
@@ -156,7 +173,7 @@ const ShotTableView = memo(function ShotTableView({
 
                 if (columnKey === "select" && selectionEnabled) {
                   return (
-                    <div key={columnKey} role="cell" className="px-3 py-3 text-center">
+                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-center`}>
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
@@ -169,9 +186,45 @@ const ShotTableView = memo(function ShotTableView({
                   );
                 }
 
+                if (columnKey === "image") {
+                  return (
+                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-center`}>
+                      <div className="relative inline-block w-16 h-12 rounded border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800">
+                        {imagePath ? (
+                          <>
+                            <AppImage
+                              src={imagePath}
+                              alt={shot?.name || "Shot"}
+                              preferredSize={96}
+                              loading="lazy"
+                              className="w-full h-full"
+                              imageClassName="w-full h-full object-cover"
+                              style={imageStyle}
+                              fallback={
+                                <div className="flex h-full w-full items-center justify-center text-[9px] text-slate-400">
+                                  No image
+                                </div>
+                              }
+                            />
+                            {showMultiImageBadge && (
+                              <div className="absolute bottom-0 right-0 rounded-tl-sm bg-black/70 px-1 py-0.5 text-[8px] font-medium text-white leading-none">
+                                {multiImageCount}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-[9px] text-slate-400">
+                            No image
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
                 if (columnKey === "name") {
                   return (
-                    <div key={columnKey} role="cell" className="px-3 py-3 text-slate-900 dark:text-slate-100">
+                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-900 dark:text-slate-100`}>
                       <div className="font-semibold leading-5" title={shot?.name || "Unnamed shot"}>
                         {shot?.name || "Unnamed shot"}
                       </div>
@@ -186,7 +239,7 @@ const ShotTableView = memo(function ShotTableView({
 
                 if (columnKey === "type") {
                   return (
-                    <div key={columnKey} role="cell" className="px-3 py-3 text-slate-600 dark:text-slate-300">
+                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
                       {shot?.type || "—"}
                     </div>
                   );
@@ -194,7 +247,7 @@ const ShotTableView = memo(function ShotTableView({
 
                 if (columnKey === "status") {
                   return (
-                    <div key={columnKey} role="cell" className="px-3 py-3">
+                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
                       <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${statusClass}`}>
                         {statusLabel}
                       </span>
@@ -204,7 +257,7 @@ const ShotTableView = memo(function ShotTableView({
 
                 if (columnKey === "date") {
                   return (
-                    <div key={columnKey} role="cell" className="px-3 py-3 text-slate-600 dark:text-slate-300">
+                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
                       {formattedDate || "—"}
                     </div>
                   );
@@ -212,7 +265,7 @@ const ShotTableView = memo(function ShotTableView({
 
                 if (columnKey === "location" && showLocation) {
                   return (
-                    <div key={columnKey} role="cell" className="px-3 py-3 text-slate-600 dark:text-slate-300" title={locationName}>
+                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`} title={locationName}>
                       {locationName || "Unassigned"}
                     </div>
                   );
@@ -220,7 +273,7 @@ const ShotTableView = memo(function ShotTableView({
 
                 if (columnKey === "products" && showProducts) {
                   return (
-                    <div key={columnKey} role="cell" className="px-3 py-3 text-slate-600 dark:text-slate-300">
+                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
                       {productsSummary ? (
                         <p className="line-clamp-2 leading-5">{productsSummary}</p>
                       ) : (
@@ -232,7 +285,7 @@ const ShotTableView = memo(function ShotTableView({
 
                 if (columnKey === "talent" && showTalent) {
                   return (
-                    <div key={columnKey} role="cell" className="px-3 py-3 text-slate-600 dark:text-slate-300">
+                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
                       {talentSummary ? (
                         <p className="line-clamp-2 leading-5">{talentSummary}</p>
                       ) : (
@@ -244,7 +297,7 @@ const ShotTableView = memo(function ShotTableView({
 
                 if (columnKey === "notes" && showNotes) {
                   return (
-                    <div key={columnKey} role="cell" className="px-3 py-3 text-slate-600 dark:text-slate-300">
+                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
                       {notesPlain ? (
                         <p className="line-clamp-2 leading-5" title={notesPlain}>
                           {notesPlain}
@@ -258,7 +311,7 @@ const ShotTableView = memo(function ShotTableView({
 
                 if (columnKey === "actions" && actionsEnabled) {
                   return (
-                    <div key={columnKey} role="cell" className="px-3 py-2 text-center">
+                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-center`}>
                       <Button
                         type="button"
                         size="sm"

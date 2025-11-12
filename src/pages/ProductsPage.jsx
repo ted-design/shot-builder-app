@@ -22,12 +22,17 @@ import VirtualizedList, { VirtualizedGrid } from "../components/ui/VirtualizedLi
 import FilterPresetManager from "../components/ui/FilterPresetManager";
 import NewProductModal from "../components/products/NewProductModal";
 import EditProductModal from "../components/products/EditProductModal";
+import ProductsTableView from "../components/products/ProductsTableView";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import AppImage from "../components/common/AppImage";
 import ExportButton from "../components/common/ExportButton";
 import { PageHeader } from "../components/ui/PageHeader";
 import ExpandableSearch from "../components/overview/ExpandableSearch";
-import { LayoutGrid, List as ListIcon, MoreVertical, Archive, Trash2, Type, Package, Filter, X } from "lucide-react";
+import SortMenu from "../components/overview/SortMenu";
+import ViewModeMenu from "../components/overview/ViewModeMenu";
+import DensityMenu from "../components/overview/DensityMenu";
+import FieldVisibilityMenu from "../components/overview/FieldVisibilityMenu";
+import { LayoutGrid, List as ListIcon, Archive, Trash2, Type, Package, X, CheckSquare, MoreVertical } from "lucide-react";
 import {
   productFamiliesPath,
   productFamilyPath,
@@ -71,6 +76,54 @@ const SORT_OPTIONS = [
   { value: "styleNumberDesc", label: "Style number (high→low)" },
 ];
 
+const VIEW_MODE_OPTIONS = [
+  { value: "gallery", label: "Gallery", icon: LayoutGrid },
+  { value: "list", label: "List", icon: ListIcon },
+];
+
+const DENSITY_OPTIONS = [
+  { value: "compact", label: "Compact" },
+  { value: "comfortable", label: "Comfortable" },
+  { value: "cozy", label: "Cozy" },
+];
+
+// Dramatic density configuration
+const DENSITY_CONFIG = {
+  compact: {
+    itemHeight: 280,
+    gap: 'gap-2',      // 8px
+    cardPadding: 'px-3 pb-3 pt-2',
+    contentSpacing: 'space-y-1',
+    textSize: 'text-sm',
+    // Table-specific
+    tableRow: 'py-1.5',      // 6px vertical padding
+    tablePadding: 'px-2',    // 8px horizontal padding
+    tableText: 'text-xs',
+  },
+  comfortable: {
+    itemHeight: 400,
+    gap: 'gap-4',      // 16px
+    cardPadding: 'px-4 pb-4 pt-3',
+    contentSpacing: 'space-y-2',
+    textSize: 'text-base',
+    // Table-specific
+    tableRow: 'py-3',        // 12px vertical padding
+    tablePadding: 'px-4',    // 16px horizontal padding
+    tableText: 'text-sm',
+  },
+  cozy: {
+    itemHeight: 480,
+    gap: 'gap-6',      // 24px
+    cardPadding: 'px-5 pb-5 pt-4',
+    contentSpacing: 'space-y-3',
+    textSize: 'text-base',
+    // Table-specific
+    tableRow: 'py-4',        // 16px vertical padding
+    tablePadding: 'px-6',    // 24px horizontal padding
+    tableText: 'text-base',
+  },
+};
+
 const twoLineClampStyle = {
   display: "-webkit-box",
   WebkitLineClamp: 2,
@@ -108,7 +161,9 @@ const normaliseText = (value) => (value || "").toString().trim().toLowerCase();
 
 const readStoredViewMode = () => {
   const stored = readStorage(VIEW_STORAGE_KEY);
-  return stored === "list" ? "list" : "gallery";
+  if (stored === "list") return "list";
+  // Table view has been removed - default to gallery
+  return "gallery";
 };
 
 const readStoredColumns = () => {
@@ -337,9 +392,29 @@ export default function ProductsPage() {
   const [renameState, setRenameState] = useState({ id: null, value: "", saving: false, error: null });
   const [viewMode, setViewMode] = useState(() => readStoredViewMode());
   const [listColumns, setListColumns] = useState(() => readStoredColumns());
-  const [listSettingsOpen, setListSettingsOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortOrder, setSortOrder] = useState("styleNameAsc");
+
+  // New state for consolidated toolbar features
+  const [selectionModeActive, setSelectionModeActive] = useState(false);
+  const [density, setDensity] = useState(() => readStorage("products_density") || "comfortable");
+  const [fieldVisibility, setFieldVisibility] = useState(() => {
+    try {
+      const stored = readStorage("products_fieldVisibility");
+      return stored ? JSON.parse(stored) : {
+        styleNumber: true,
+        status: true,
+        sizes: false,
+        colorCount: true,
+      };
+    } catch {
+      return {
+        styleNumber: true,
+        status: true,
+        sizes: false,
+        colorCount: true,
+      };
+    }
+  });
   const [selectedFamilyIds, setSelectedFamilyIds] = useState(() => new Set());
   const [batchStyleModalOpen, setBatchStyleModalOpen] = useState(false);
   const [batchStyleDraft, setBatchStyleDraft] = useState([]);
@@ -347,8 +422,6 @@ export default function ProductsPage() {
   const [confirmBatchDeleteOpen, setConfirmBatchDeleteOpen] = useState(false);
   const [confirmBatchDeleteText, setConfirmBatchDeleteText] = useState("");
   const menuRef = useRef(null);
-  const listSettingsRef = useRef(null);
-  const filtersRef = useRef(null);
   const skuCacheRef = useRef(new Map());
   const batchFirstFieldRef = useRef(null);
   const selectAllRef = useRef(null);
@@ -379,34 +452,26 @@ export default function ProductsPage() {
     writeStorage(COLUMN_STORAGE_KEY, JSON.stringify(listColumns));
   }, [listColumns]);
 
+  // Persist new toolbar state
+  useEffect(() => {
+    writeStorage("products_density", density);
+  }, [density]);
+
+  useEffect(() => {
+    writeStorage("products_fieldVisibility", JSON.stringify(fieldVisibility));
+  }, [fieldVisibility]);
+
+  // Clear selection when exiting selection mode
+  useEffect(() => {
+    if (!selectionModeActive && selectedFamilyIds.size > 0) {
+      setSelectedFamilyIds(new Set());
+    }
+  }, [selectionModeActive, selectedFamilyIds.size]);
+
   // Reset pagination when filters or search change
   useEffect(() => {
     setItemsToShow(50);
   }, [debouncedQueryText, statusFilter, genderFilter, showArchived, sortOrder]);
-
-  useEffect(() => {
-    if (!listSettingsOpen) return undefined;
-    function onSettingsClick(event) {
-      if (!listSettingsRef.current) return;
-      if (!listSettingsRef.current.contains(event.target)) {
-        setListSettingsOpen(false);
-      }
-    }
-    window.addEventListener("mousedown", onSettingsClick);
-    return () => window.removeEventListener("mousedown", onSettingsClick);
-  }, [listSettingsOpen]);
-
-  useEffect(() => {
-    if (!filtersOpen) return undefined;
-    function onFiltersClick(event) {
-      if (!filtersRef.current) return;
-      if (!filtersRef.current.contains(event.target)) {
-        setFiltersOpen(false);
-      }
-    }
-    window.addEventListener("mousedown", onFiltersClick);
-    return () => window.removeEventListener("mousedown", onFiltersClick);
-  }, [filtersOpen]);
 
   const filteredFamilies = useMemo(() => {
     const text = debouncedQueryText.trim();
@@ -1196,9 +1261,9 @@ export default function ProductsPage() {
         className={cardClasses}
         onClick={openFromCard}
       >
-        <CardContent className="flex h-full flex-col gap-4 p-4">
+        <CardContent className={`flex h-full flex-col gap-4 ${DENSITY_CONFIG[density].cardPadding}`}>
           <div className="relative" ref={family.id === menuFamilyId ? menuRef : null}>
-            {canUseBatchActions && (
+            {canUseBatchActions && selectionModeActive && (
               <div className="absolute left-2 top-2 z-20 rounded-md bg-white/90 px-2 py-1 shadow-sm">
                 <Checkbox
                   checked={isSelected}
@@ -1240,7 +1305,7 @@ export default function ProductsPage() {
               onClose={() => setMenuFamilyId(null)}
             />
           </div>
-          <div className="space-y-3">
+          <div className={DENSITY_CONFIG[density].contentSpacing}>
             {inlineEditing ? (
               renderRenameForm({ stopPropagation: true })
             ) : (
@@ -1331,17 +1396,9 @@ export default function ProductsPage() {
     );
   };
 
-  const showStyleNumberColumn = listColumns.styleNumber;
-  const showStatusColumn = listColumns.status;
-  const showSizesColumn = listColumns.sizes;
-
-  const handleViewModeChange = (mode) => {
-    if (mode === viewMode) return;
-    setViewMode(mode);
-    if (mode !== "list") {
-      setListSettingsOpen(false);
-    }
-  };
+  const showStyleNumberColumn = fieldVisibility.styleNumber;
+  const showStatusColumn = fieldVisibility.status;
+  const showSizesColumn = fieldVisibility.sizes;
 
   const renderFamilyRow = (family) => {
     const inlineEditing = renameState.id === family.id;
@@ -1367,7 +1424,7 @@ export default function ProductsPage() {
 
     return (
       <tr key={family.id} className={rowClassName}>
-        {canUseBatchActions && (
+        {canUseBatchActions && selectionModeActive && (
           <td className="px-4 py-3 align-top">
             <Checkbox
               checked={isSelected}
@@ -1538,7 +1595,7 @@ export default function ProductsPage() {
             <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
               <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                 <tr>
-                  {canUseBatchActions && (
+                  {canUseBatchActions && selectionModeActive && (
                     <th scope="col" className="px-4 py-3">
                       <span className="sr-only">Select rows</span>
                       <input
@@ -1594,6 +1651,10 @@ export default function ProductsPage() {
     const hasNoProducts = !loading && families.length === 0 && !showArchived;
     const noMatchingFilters = !loading && !sortedFamilies.length && !hasNoProducts;
 
+    // Get dramatic density configuration
+    const densityConfig = DENSITY_CONFIG[density];
+    const densityGridClass = `grid ${densityConfig.gap} sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5`;
+
     return (
       <div className="mx-6 space-y-6">
         {hasNoProducts ? (
@@ -1614,10 +1675,10 @@ export default function ProductsPage() {
           <>
             <VirtualizedGrid
               items={sortedFamilies}
-              itemHeight={380}
-              gap={16}
+              itemHeight={densityConfig.itemHeight}
+              gap={parseInt(densityConfig.gap.match(/\d+/)[0]) * 4} // Convert gap-2 (8px) to pixels
               threshold={100}
-              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+              className={densityGridClass}
               columnBreakpoints={{ default: 1, sm: 2, md: 2, lg: 3, xl: 4, '2xl': 5 }}
               renderItem={(family, index, isVirtualized) => {
                 const cardContent = renderFamilyCard(family);
@@ -1645,11 +1706,107 @@ export default function ProductsPage() {
     );
   };
 
+  const renderTableView = () => {
+    // Check if we should show EmptyState (truly no products) or filter message
+    const hasNoProducts = !loading && families.length === 0 && !showArchived;
+    const noMatchingFilters = !loading && !sortedFamilies.length && !hasNoProducts;
+
+    if (hasNoProducts) {
+      return (
+        <div className="mx-6">
+          <EmptyState
+            icon={Package}
+            title="No products yet"
+            description="Create your first product family to get started with Shot Builder."
+            action={canEdit ? "Create Product" : null}
+            onAction={canEdit ? () => setNewModalOpen(true) : null}
+          />
+        </div>
+      );
+    }
+
+    if (noMatchingFilters) {
+      return (
+        <Card className="mx-6">
+          <CardContent className="p-6 text-center text-sm text-slate-500 dark:text-slate-400">
+            No products match the current filters.
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // Render action menu for a family
+    const renderActionMenu = (family) => {
+      return (
+        <div className="relative">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+            onClick={() => setMenuFamilyId((current) => (current === family.id ? null : family.id))}
+            aria-label={`Open actions for ${family.styleName}`}
+          >
+            <MoreVertical className="h-4 w-4" aria-hidden="true" />
+          </Button>
+          <ProductActionMenu
+            family={family}
+            onEdit={loadFamilyForEdit}
+            onRename={startRename}
+            onToggleStatus={handleStatusToggle}
+            onArchive={handleArchiveToggle}
+            onRestore={handleRestoreFamily}
+            canEdit={canEdit}
+            canArchive={canArchive}
+            canDelete={canDelete}
+            open={menuFamilyId === family.id}
+            onClose={() => setMenuFamilyId(null)}
+          />
+        </div>
+      );
+    };
+
+    return (
+      <ProductsTableView
+        families={displayedFamilies}
+        density={DENSITY_CONFIG[density]}
+        visibleFields={{
+          styleNumber: listColumns.styleNumber,
+          status: listColumns.status,
+        }}
+        selectionModeActive={selectionModeActive}
+        selectedFamilyIds={selectedFamilyIds}
+        onToggleSelection={toggleFamilySelection}
+        onSelectAll={handleSelectAllChange}
+        allVisibleSelected={allVisibleSelected}
+        canEdit={canEdit}
+        canUseBatchActions={canUseBatchActions}
+        onManageColours={loadFamilyForEdit}
+        user={user}
+        clientId={clientId}
+        selectAllRef={selectAllRef}
+        renderActionMenu={renderActionMenu}
+      />
+    );
+  };
+
   const viewContent = viewMode === "list" ? renderListView() : renderGalleryView();
+
+  // Gender tab options
+  const genderTabs = useMemo(() => {
+    const tabs = [
+      { value: "all", label: "All" },
+      { value: "men", label: "Men" },
+      { value: "women", label: "Women" },
+      { value: "unisex", label: "Unisex" },
+    ];
+    // Filter tabs to only show genders that exist in the data (plus "All")
+    return tabs.filter(tab => tab.value === "all" || genders.includes(tab.value));
+  }, [genders]);
 
   return (
     <div className="space-y-6">
-      {/* PageHeader with search, sort, and actions */}
+      {/* PageHeader with integrated toolbar */}
       <PageHeader sticky={true} className="top-14 z-40">
         <PageHeader.Content>
           <div>
@@ -1659,42 +1816,156 @@ export default function ProductsPage() {
             </PageHeader.Description>
           </div>
           <PageHeader.Actions>
-            <div className="flex flex-wrap items-center gap-3">
-              <ExpandableSearch
-                value={queryText}
-                onChange={setQueryText}
-                placeholder="Search by style, number, colour, or SKU..."
-                ariaLabel="Search products"
-              />
-              <label
-                className="flex flex-none items-center gap-2 text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400"
-                htmlFor="products-sort-order"
-              >
-                <span className="whitespace-nowrap">Sort</span>
-                <select
-                  id="products-sort-order"
-                  className="h-10 rounded-button border border-neutral-300 px-3 text-sm dark:bg-neutral-800 dark:border-neutral-600 dark:text-neutral-100"
-                  value={sortOrder}
-                  onChange={(event) => setSortOrder(event.target.value)}
-                >
-                  {SORT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {canEdit && (
-                <Button onClick={() => setNewModalOpen(true)} className="flex-none whitespace-nowrap">
-                  New product
-                </Button>
-              )}
+            {/* Gender toggle buttons (similar to shots tabs) */}
+            <div
+              className="flex items-center space-x-1 rounded-full border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-700 dark:bg-neutral-800"
+              role="tablist"
+              aria-label="Gender filter tabs"
+              aria-orientation="horizontal"
+            >
+              {genderTabs.map((tab) => {
+                const isActive = tab.value === genderFilter;
+                return (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                      isActive
+                        ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-100"
+                        : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                    }`}
+                    onClick={() => setGenderFilter(tab.value)}
+                    role="tab"
+                    aria-selected={isActive}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
           </PageHeader.Actions>
         </PageHeader.Content>
+
+        {/* Toolbar row - inside PageHeader for sticky behavior */}
+        <div className="mx-6 pb-3">
+          <Card className="border-b-2">
+            <CardContent className="py-4">
+              <div className="flex flex-col gap-4">
+                {/* Main toolbar row */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Selection mode toggle */}
+                  {canUseBatchActions && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectionModeActive(!selectionModeActive)}
+                      className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
+                        selectionModeActive
+                          ? "border-primary/60 bg-primary/5 text-primary dark:bg-primary/10 dark:border-primary/40"
+                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                      }`}
+                      aria-pressed={selectionModeActive}
+                      title="Toggle selection mode"
+                    >
+                      <CheckSquare className="h-4 w-4" aria-hidden="true" />
+                      <span className="hidden sm:inline">Select</span>
+                    </button>
+                  )}
+
+                  {/* Expandable search */}
+                  <ExpandableSearch
+                    value={queryText}
+                    onChange={setQueryText}
+                    placeholder="Search by style, number, colour, or SKU..."
+                    ariaLabel="Search products"
+                  />
+
+                  {/* Sort menu */}
+                  <SortMenu
+                    options={SORT_OPTIONS}
+                    value={sortOrder}
+                    onChange={setSortOrder}
+                  />
+
+                  {/* View mode menu */}
+                  <ViewModeMenu
+                    options={VIEW_MODE_OPTIONS}
+                    value={viewMode}
+                    onChange={setViewMode}
+                  />
+
+                  {/* Density menu */}
+                  <DensityMenu
+                    options={DENSITY_OPTIONS}
+                    value={density}
+                    onChange={setDensity}
+                  />
+
+                  {/* Field visibility menu */}
+                  <FieldVisibilityMenu
+                    fields={[
+                      {
+                        id: "styleNumber",
+                        label: "Style number",
+                        checked: fieldVisibility.styleNumber,
+                      },
+                      {
+                        id: "status",
+                        label: "Status",
+                        checked: fieldVisibility.status,
+                      },
+                      {
+                        id: "sizes",
+                        label: "Sizes",
+                        checked: fieldVisibility.sizes,
+                      },
+                      {
+                        id: "colorCount",
+                        label: "Color count",
+                        checked: fieldVisibility.colorCount,
+                      },
+                    ]}
+                    onChange={(fieldId, checked) => {
+                      setFieldVisibility((prev) => ({ ...prev, [fieldId]: checked }));
+                    }}
+                  />
+
+                  {/* Export button */}
+                  <ExportButton data={filteredFamilies} entityType="products" />
+
+                  {/* New product button */}
+                  {canEdit && (
+                    <Button onClick={() => setNewModalOpen(true)} className="flex-none whitespace-nowrap">
+                      New product
+                    </Button>
+                  )}
+                </div>
+
+                {/* Filter pills row */}
+                {activeFilters.length > 0 && (
+                  <div className="flex w-full flex-wrap gap-2">
+                    {activeFilters.map((pill) => (
+                      <button
+                        key={pill.key}
+                        type="button"
+                        onClick={() => removeFilter(pill.key)}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/20"
+                      >
+                        <span>
+                          {pill.label}
+                          {pill.value ? `: ${pill.value}` : ""}
+                        </span>
+                        <X className="h-3 w-3" aria-hidden="true" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </PageHeader>
 
-      {canUseBatchActions && selectedCount > 0 && (
+      {canUseBatchActions && selectionModeActive && selectedCount > 0 && (
         <div className="mx-6 rounded-card border border-primary/30 bg-primary/5 px-4 py-3 shadow-sm dark:bg-primary/10 dark:border-primary/40">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -1779,235 +2050,15 @@ export default function ProductsPage() {
         </div>
       )}
 
+      {/* Helper text */}
       <div className="space-y-1 px-6">
         <p className="text-sm text-slate-600 dark:text-slate-400">
-          Product families group shared metadata, while SKUs capture individual colour and size combinations.
+          Showing {filteredFamilies.length} of {families.length} product families
         </p>
-        <p className="text-xs text-slate-500 dark:text-slate-400">{recommendedImageText}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Product families group shared metadata, while SKUs capture individual colour and size combinations. {recommendedImageText}
+        </p>
       </div>
-
-      <Card className="mx-6">
-        <CardHeader>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              {/* Filter button and presets */}
-              <div className="flex items-center gap-2">
-                <div className="relative" ref={filtersRef}>
-                  <button
-                    type="button"
-                    onClick={() => setFiltersOpen((prev) => !prev)}
-                    className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
-                      activeFilterCount > 0
-                        ? "border-primary/60 bg-primary/5 text-primary dark:bg-primary/10 dark:border-primary/40"
-                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-                    }`}
-                    aria-haspopup="menu"
-                    aria-expanded={filtersOpen}
-                  >
-                    <Filter className="h-4 w-4" aria-hidden="true" />
-                    <span>Filters</span>
-                    {activeFilterCount > 0 && (
-                      <span className="ml-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
-                        {activeFilterCount}
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Filter panel */}
-                  {filtersOpen && (
-                    <div className="absolute left-0 z-20 mt-2 w-80 rounded-md border border-slate-200 bg-white p-4 shadow-lg animate-slide-in-from-right dark:bg-slate-800 dark:border-slate-700">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Filter products</p>
-                          {activeFilterCount > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                clearAllFilters();
-                                setFiltersOpen(false);
-                              }}
-                              className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
-                            >
-                              <X className="h-3 w-3" />
-                              Clear all
-                            </button>
-                          )}
-                        </div>
-
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
-                          Status
-                        </label>
-                        <select
-                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
-                          value={statusFilter}
-                          onChange={(event) => setStatusFilter(event.target.value)}
-                        >
-                          <option value="active">Active</option>
-                          <option value="discontinued">Discontinued</option>
-                          <option value="all">All statuses</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
-                          Gender
-                        </label>
-                        <select
-                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
-                          value={genderFilter}
-                          onChange={(event) => setGenderFilter(event.target.value)}
-                        >
-                          <option value="all">All genders</option>
-                          {genders.map((gender) => (
-                            <option key={gender} value={gender}>
-                              {genderLabel(gender)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                        <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                          <input
-                            type="checkbox"
-                            checked={showArchived}
-                            onChange={(event) => setShowArchived(event.target.checked)}
-                            className="h-4 w-4 rounded border-slate-300"
-                          />
-                          Show archived
-                        </label>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Filter Preset Manager */}
-                <FilterPresetManager
-                  page="products"
-                  currentFilters={getCurrentFilters()}
-                  onLoadPreset={handleLoadPreset}
-                  onClearFilters={clearAllFilters}
-                />
-              </div>
-
-              {/* Active filter pills */}
-              {activeFilters.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {activeFilters.map((filter) => (
-                    <button
-                      key={filter.key}
-                      onClick={() => removeFilter(filter.key)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 px-3 py-1 text-xs font-medium hover:bg-primary/20 transition"
-                    >
-                      <span>{filter.label}: {filter.value}</span>
-                      <X className="h-3 w-3" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  View
-                </span>
-                <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => handleViewModeChange("gallery")}
-                    className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
-                      viewMode === "gallery"
-                        ? "bg-slate-900 text-white dark:bg-slate-700"
-                        : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-                    }`}
-                    aria-pressed={viewMode === "gallery"}
-                  >
-                    <LayoutGrid className="h-4 w-4" aria-hidden="true" />
-                    Gallery
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleViewModeChange("list")}
-                    className={`flex items-center gap-2 px-3 py-1.5 text-sm transition ${
-                      viewMode === "list"
-                        ? "bg-slate-900 text-white dark:bg-slate-700"
-                        : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-                    }`}
-                    aria-pressed={viewMode === "list"}
-                  >
-                    <ListIcon className="h-4 w-4" aria-hidden="true" />
-                    List
-                  </button>
-                </div>
-                <ExportButton data={filteredFamilies} entityType="products" />
-              </div>
-              {viewMode === "list" && (
-                <div className="relative" ref={listSettingsRef}>
-                  <button
-                    type="button"
-                    onClick={() => setListSettingsOpen((prev) => !prev)}
-                    className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700"
-                    aria-haspopup="menu"
-                    aria-expanded={listSettingsOpen}
-                    aria-label="Toggle list columns"
-                  >
-                    <MoreVertical className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                  {listSettingsOpen && (
-                    <div className="absolute right-0 z-20 mt-2 w-48 rounded-md border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                      <p className="px-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                        List columns
-                      </p>
-                      <label className="mt-2 flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={listColumns.styleNumber}
-                          onChange={(event) =>
-                            setListColumns((prev) => ({
-                              ...prev,
-                              styleNumber: event.target.checked,
-                            }))
-                          }
-                        />
-                        Style number
-                      </label>
-                      <label className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={listColumns.status}
-                          onChange={(event) =>
-                            setListColumns((prev) => ({
-                              ...prev,
-                              status: event.target.checked,
-                            }))
-                          }
-                        />
-                        Status
-                      </label>
-                      <label className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={listColumns.sizes}
-                          onChange={(event) =>
-                            setListColumns((prev) => ({
-                              ...prev,
-                              sizes: event.target.checked,
-                            }))
-                          }
-                        />
-                        Sizes
-                      </label>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="mt-4 text-xs text-slate-500 dark:text-slate-400">
-            Showing {filteredFamilies.length} of {families.length} product families
-          </div>
-        </CardHeader>
-      </Card>
 
       {viewContent}
 

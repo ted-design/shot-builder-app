@@ -74,11 +74,39 @@ export const shotDraftSchema = z.object({
 });
 
 /**
- * Image crop position schema
+ * Image crop position schema (legacy - for backward compatibility)
  */
 export const imageCropPositionSchema = z.object({
   x: z.number().min(0).max(100).default(50), // 0-100 percentage
   y: z.number().min(0).max(100).default(50), // 0-100 percentage
+});
+
+/**
+ * Advanced image crop data schema
+ * Used with react-easy-crop for full crop/zoom/rotate control
+ */
+export const imageCropDataSchema = z.object({
+  x: z.number().min(0).max(100), // crop position x (percentage)
+  y: z.number().min(0).max(100), // crop position y (percentage)
+  width: z.number().min(0).max(100), // crop width (percentage)
+  height: z.number().min(0).max(100), // crop height (percentage)
+  zoom: z.number().min(1).max(3).default(1), // zoom level (1-3)
+  rotation: z.number().min(-180).max(180).default(0), // rotation in degrees
+  aspect: z.number().positive().nullable().optional(), // locked aspect ratio (e.g., 1.778 for 16:9) or null for free-form
+});
+
+/**
+ * Image attachment schema
+ * Represents a single image attached to a shot
+ */
+export const imageAttachmentSchema = z.object({
+  id: z.string().min(1, "Attachment ID is required"),
+  path: storagePathSchema,
+  isPrimary: z.boolean().default(false),
+  cropData: imageCropDataSchema.nullable().optional(),
+  uploadedAt: timestampSchema,
+  uploadedBy: userIdSchema,
+  order: z.number().int().min(0).default(0),
 });
 
 /**
@@ -100,7 +128,11 @@ export const shotSchema = z.object({
   talentIds: stringArraySchema,
   tags: z.array(shotTagSchema).default([]),
   notes: z.string().nullable().optional(),
+  // Legacy single image fields (kept for backward compatibility)
+  referenceImagePath: storagePathSchema,
   referenceImageCrop: imageCropPositionSchema.nullable().optional(),
+  // New multiple image attachments
+  attachments: z.array(imageAttachmentSchema).max(10, "Maximum 10 attachments allowed").default([]),
   ...softDeleteSchema.shape,
   ...auditFieldsSchema.shape,
 });

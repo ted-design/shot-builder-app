@@ -13,7 +13,7 @@ import { toast } from '../../lib/toast';
 
 export default function ExportButton({ data, entityType, buttonVariant = "secondary", buttonSize = "sm" }) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [format, setFormat] = useState('csv'); // 'csv' | 'xlsx'
+  const [format, setFormat] = useState('csv'); // Only CSV supported (Excel temporarily disabled)
   const [exporting, setExporting] = useState(false);
   const [customFilename, setCustomFilename] = useState('');
   const [selectedColumnKeys, setSelectedColumnKeys] = useState(new Set());
@@ -116,37 +116,31 @@ export default function ExportButton({ data, entityType, buttonVariant = "second
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Format Selection */}
+              {/* Format Selection - Excel temporarily disabled due to security vulnerability */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">Export Format</label>
                 <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => setFormat('csv')}
-                    className={`flex-1 rounded-card border-2 p-4 text-center transition-all ${
-                      format === 'csv'
-                        ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
+                    className="flex-1 rounded-card border-2 border-primary bg-primary/5 p-4 text-center text-primary"
                   >
                     <FileText className="mx-auto mb-2 h-8 w-8" />
                     <div className="text-sm font-semibold">CSV</div>
                     <div className="text-xs text-slate-600">Universal spreadsheet format</div>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormat('xlsx')}
-                    className={`flex-1 rounded-card border-2 p-4 text-center transition-all ${
-                      format === 'xlsx'
-                        ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
+                  <div
+                    className="flex-1 rounded-card border-2 border-slate-200 bg-slate-50 p-4 text-center opacity-50"
+                    title="Excel export temporarily disabled due to security vulnerability"
                   >
-                    <FileSpreadsheet className="mx-auto mb-2 h-8 w-8" />
-                    <div className="text-sm font-semibold">Excel</div>
-                    <div className="text-xs text-slate-600">Microsoft Excel format</div>
-                  </button>
+                    <FileSpreadsheet className="mx-auto mb-2 h-8 w-8 text-slate-400" />
+                    <div className="text-sm font-semibold text-slate-400">Excel</div>
+                    <div className="text-xs text-slate-500">Temporarily unavailable</div>
+                  </div>
                 </div>
+                <p className="text-xs text-slate-500">
+                  Note: Excel export temporarily disabled for security reasons. CSV works with Excel, Google Sheets, and all spreadsheet apps.
+                </p>
               </div>
 
               {/* Custom Filename */}

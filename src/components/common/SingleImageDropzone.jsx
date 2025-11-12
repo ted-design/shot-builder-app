@@ -37,6 +37,13 @@ const ALLOWED_IMAGE_TYPES = [
   'image/gif',
 ];
 
+// Error messages (centralized for easier maintenance and future i18n)
+const ERROR_MESSAGES = {
+  INVALID_TYPE: 'Invalid file type. Please select an image file (JPEG, PNG, WebP, or GIF).',
+  FILE_TOO_LARGE: (fileSizeMB, maxSizeMB) =>
+    `File is too large (${fileSizeMB}MB). Maximum size is ${maxSizeMB}MB.`,
+};
+
 export default function SingleImageDropzone({
   onChange,
   value = null,
@@ -56,27 +63,33 @@ export default function SingleImageDropzone({
   const dragCounterRef = useRef(0);
 
   // Generate preview URL when file changes
+  // Note: Memory management is handled by cleanup function which captures the URL in its closure
   useEffect(() => {
     if (value instanceof File) {
       const url = URL.createObjectURL(value);
       setPreviewUrl(url);
-      return () => URL.revokeObjectURL(url);
+      // Cleanup: Revoke the object URL to free memory
+      return () => {
+        URL.revokeObjectURL(url);
+      };
     } else {
       setPreviewUrl(null);
+      // No cleanup needed when value is null
+      return undefined;
     }
   }, [value]);
 
   const validateFile = useCallback((file) => {
     // Check file type
     if (!ALLOWED_IMAGE_TYPES.includes(file.type.toLowerCase())) {
-      return `Invalid file type. Please select an image file (JPEG, PNG, WebP, or GIF).`;
+      return ERROR_MESSAGES.INVALID_TYPE;
     }
 
     // Check file size
     if (file.size > maxSize) {
       const maxSizeMB = (maxSize / 1024 / 1024).toFixed(0);
       const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
-      return `File is too large (${fileSizeMB}MB). Maximum size is ${maxSizeMB}MB.`;
+      return ERROR_MESSAGES.FILE_TOO_LARGE(fileSizeMB, maxSizeMB);
     }
 
     return null;

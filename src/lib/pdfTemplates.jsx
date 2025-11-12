@@ -4,9 +4,20 @@ import { normalizePullItem, getPullItemDisplayName, getTotalQuantity } from "./p
 
 // Basic styles for a simple demo PDF
 const styles = StyleSheet.create({
-  page: { paddingTop: 164, paddingLeft: 24, paddingRight: 24, paddingBottom: 24, fontSize: 11, fontFamily: "Helvetica" },
+  page: { paddingTop: 90, paddingLeft: 24, paddingRight: 24, paddingBottom: 24, fontSize: 11, fontFamily: "Helvetica" },
   header: { fontSize: 18, marginBottom: 8 },
-  subheader: { fontSize: 14, marginTop: 12, marginBottom: 6 },
+  subheader: {
+    fontSize: 13,
+    marginTop: 0,
+    marginBottom: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#4b5563", // Dark grey like HTML preview
+    color: "#ffffff",
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
   row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
   metaRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 6 },
   metaLeft: { flex: 1, paddingRight: 8 },
@@ -18,7 +29,7 @@ const styles = StyleSheet.create({
   pageHeader: { position: "absolute", left: 24, right: 24, top: 24 },
   pageHeaderTitle: { fontSize: 20, marginBottom: 4 },
   pageHeaderRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
-  table: { marginTop: 8, borderWidth: 1, borderColor: "#ddd", borderStyle: "solid" },
+  table: { marginTop: 0 },
   tableRow: { flexDirection: "row" },
   cell: {
     flex: 1,
@@ -29,6 +40,7 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: "#ddd",
     borderStyle: "solid",
+    backgroundColor: "#ffffff",
   },
   cellHeader: {
     flex: 1,
@@ -36,11 +48,15 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     paddingLeft: 6,
     paddingRight: 6,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#e5e7eb", // Light grey like HTML preview
     borderRightWidth: 1,
     borderRightColor: "#ddd",
     borderStyle: "solid",
     fontWeight: 700,
+    fontSize: 10,
+    color: "#374151",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
   },
   text: { lineHeight: 1.25 },
   imageCell: {
@@ -140,7 +156,7 @@ export function PullPDF({ pull }) {
   ].filter(Boolean);
   columns = columns.map((c) => ({ ...c, flex: colFlexOverrides[c.key] || c.flex }));
   // Truncation helpers for single-line cells (approximate ellipsis)
-  const CHAR_BUDGET_PER_FLEX = 12;
+  const CHAR_BUDGET_PER_FLEX = 28;
   const ellipsize = (text, limit) => {
     const s = String(text ?? "");
     if (s.length <= limit) return s;
@@ -165,7 +181,11 @@ export function PullPDF({ pull }) {
     items: (group.items || []).map((item) => normalizePullItem(item)),
   });
 
-  const groups = groupedItems.map(normalizeGroup);
+  // Filter out empty groups to avoid rendering headers with no data
+  const groups = groupedItems
+    .map(normalizeGroup)
+    .filter(group => group.items && group.items.length > 0);
+
   const repeatHeaderEachPage = pull.settings?.repeatHeaderEachPage !== false;
   const groupHeaderEachSection = pull.settings?.groupHeaderEachSection === true;
 
@@ -192,160 +212,253 @@ export function PullPDF({ pull }) {
             )}
           </View>
           <View style={styles.hr} />
-          {/* Column Header repeated on each page */}
-          {repeatHeaderEachPage && (
-            <View
-              style={[
-                styles.tableRow,
-                { borderWidth: 1, borderColor: "#ddd", borderStyle: "solid" },
-              ]}
-            >
-              {columns.map((col, i) => (
-                <View
-                  key={col.key}
-                  style={[
-                    styles.cellHeader,
-                    { flex: col.flex },
-                    i === columns.length - 1 && { borderRightWidth: 0 },
-                  ]}
-                >
-                  <Text style={styles.text} wrap={false}>{col.label}</Text>
-                </View>
-              ))}
-            </View>
-          )}
         </View>
 
         {/* Render groups */}
-        {groups.map((group, groupIndex) => (
-          <View key={groupIndex} style={{ marginBottom: 12 }}>
-            {group.title && (
-              <Text style={[styles.subheader, { marginTop: groupIndex > 0 ? 12 : 0 }]}>
-                {group.title}
-              </Text>
-            )}
+        {groups.map((group, groupIndex) => {
+          // Flatten all rows for this group
+          const allRows = [];
+          group.items.forEach((item) => {
+            const productName = item.familyName || "";
+            const sizes = item.sizes && item.sizes.length ? item.sizes : [{ size: "One Size", quantity: 1, fulfilled: 0 }];
+            sizes.forEach((size, sizeIndex) => {
+              allRows.push({ item, size, sizeIndex, productName });
+            });
+          });
 
-            <View style={styles.table}>
-              {/* Optional header under group title */}
-              {groupHeaderEachSection && (
-                <View
-                  style={[
-                    styles.tableRow,
-                    { borderBottomWidth: 1, borderBottomColor: "#ddd", borderStyle: "solid" },
-                  ]}
-                >
-                  {columns.map((col, i) => (
+          // Split into first 2 rows and remaining rows
+          const minRowsWithHeader = 2;
+          const firstRows = allRows.slice(0, minRowsWithHeader);
+          const remainingRows = allRows.slice(minRowsWithHeader);
+
+          // Helper function to render a row
+          const renderRow = (rowData, key) => {
+            const { item, size, sizeIndex, productName } = rowData;
+            return (
+              <View
+                key={key}
+                wrap={false}
+                style={[
+                  styles.tableRow,
+                  {
+                    borderLeftWidth: 1,
+                    borderRightWidth: 1,
+                    borderBottomWidth: 1,
+                    borderColor: "#ddd",
+                    borderStyle: "solid",
+                  },
+                ]}
+              >
+                {columns.map((col, i) => {
+                  let value = "";
+                  switch (col.key) {
+                    case "image":
+                      value = sizeIndex === 0 ? (item.colourImagePath || "") : "";
+                      break;
+                    case "product":
+                      value = sizeIndex === 0 ? productName : "";
+                      break;
+                    case "styleNumber":
+                      value = sizeIndex === 0 ? (item.styleNumber || "") : "";
+                      break;
+                    case "colour":
+                      value = sizeIndex === 0 ? (item.colourName || "") : "";
+                      break;
+                    case "gender":
+                      value = sizeIndex === 0 ? (item.gender || "") : "";
+                      break;
+                    case "size":
+                      value = size.size;
+                      break;
+                    case "quantity":
+                      value = String(size.quantity ?? "");
+                      break;
+                    case "fulfilled":
+                      value = String(size.fulfilled ?? 0);
+                      break;
+                    case "notes":
+                      value = sizeIndex === 0 ? (item.notes || "") : "";
+                      break;
+                    default:
+                      value = "";
+                  }
+                  if (col.key === "image") {
+                    return (
+                      <View
+                        key={col.key}
+                        wrap={false}
+                        style={[
+                          styles.cell,
+                          styles.imageCell,
+                          { flex: col.flex },
+                          i === columns.length - 1 && { borderRightWidth: 0 },
+                        ]}
+                      >
+                        {value ? <Image src={value} style={styles.imageThumb} /> : null}
+                      </View>
+                    );
+                  }
+                  const maxLines = 1;
+                  return (
                     <View
                       key={col.key}
+                      wrap={false}
                       style={[
-                        styles.cellHeader,
+                        styles.cell,
                         { flex: col.flex },
                         i === columns.length - 1 && { borderRightWidth: 0 },
                       ]}
                     >
-                      <Text style={styles.text} wrap={false}>{col.label}</Text>
+                      <Text style={[styles.text, styles.cellText]} wrap={false} maxLines={maxLines}>
+                        {truncateByFlex(value, col.key, col.flex)}
+                      </Text>
                     </View>
-                  ))}
-                </View>
-              )}
+                  );
+                })}
+              </View>
+            );
+          };
 
-              {/* Items */}
-              {group.items.length === 0 && (
-                <View
-                  style={[
-                    styles.tableRow,
-                    { borderBottomWidth: 1, borderBottomColor: "#ccc", borderStyle: "solid" },
-                  ]}
-                >
-                  <Text style={styles.cell}>No items</Text>
-                  <Text style={styles.cell}>-</Text>
-                  <Text style={styles.cell}>-</Text>
-                  <Text style={styles.cell}>-</Text>
-                </View>
-              )}
+          return (
+            <View key={groupIndex} style={{ marginBottom: 4 }}>
+              {/* Wrap header + first 2 rows together to prevent orphans */}
+              <View wrap={false}>
+                {group.title && (
+                  <View style={{ marginTop: groupIndex > 0 ? 12 : 0 }}>
+                    <Text style={styles.subheader}>{group.title}</Text>
+                  </View>
+                )}
 
-              {group.items.map((item) => {
-                const productName = item.familyName || "";
-                const sizes = item.sizes && item.sizes.length ? item.sizes : [{ size: "One Size", quantity: 1, fulfilled: 0 }];
-                return sizes.map((size, sizeIndex) => (
-                  <View
-                    key={`${item.id}-${sizeIndex}`}
-                    style={[
-                      styles.tableRow,
-                      { borderBottomWidth: 1, borderBottomColor: "#ddd", borderStyle: "solid" },
-                    ]}
-                  >
-                    {columns.map((col, i) => {
-                      let value = "";
-                      switch (col.key) {
-                        case "image":
-                          value = sizeIndex === 0 ? (item.colourImagePath || "") : "";
-                          break;
-                        case "product":
-                          value = sizeIndex === 0 ? productName : "";
-                          break;
-                        case "styleNumber":
-                          value = sizeIndex === 0 ? (item.styleNumber || "") : "";
-                          break;
-                        case "colour":
-                          value = sizeIndex === 0 ? (item.colourName || "") : "";
-                          break;
-                        case "gender":
-                          value = sizeIndex === 0 ? (item.gender || "") : "";
-                          break;
-                        case "size":
-                          value = size.size;
-                          break;
-                        case "quantity":
-                          value = String(size.quantity ?? "");
-                          break;
-                        case "fulfilled":
-                          value = String(size.fulfilled ?? 0);
-                          break;
-                        case "notes":
-                          value = sizeIndex === 0 ? (item.notes || "") : "";
-                          break;
-                        default:
-                          value = "";
-                      }
-                      if (col.key === "image") {
-                        return (
-                          <View
-                            key={col.key}
-                            style={[
-                              styles.cell,
-                              styles.imageCell,
-                              { flex: col.flex },
-                              i === columns.length - 1 && { borderRightWidth: 0 },
-                            ]}
-                          >
-                            {value ? <Image src={value} style={styles.imageThumb} /> : null}
-                          </View>
-                        );
-                      }
-                      const isNotes = col.key === "notes";
-                      const maxLines = 1;
-                      return (
+                <View style={styles.table}>
+                  {/* Column headers */}
+                  {groupHeaderEachSection && (
+                    <View
+                      style={[
+                        styles.tableRow,
+                        {
+                          borderWidth: 1,
+                          borderColor: "#ddd",
+                          borderStyle: "solid",
+                          borderBottomWidth: 1,
+                        },
+                      ]}
+                    >
+                      {columns.map((col, i) => (
                         <View
                           key={col.key}
                           style={[
-                            styles.cell,
+                            styles.cellHeader,
                             { flex: col.flex },
                             i === columns.length - 1 && { borderRightWidth: 0 },
                           ]}
                         >
-                          <Text style={[styles.text, styles.cellText]} wrap={false} maxLines={maxLines}>
-                            {truncateByFlex(value, col.key, col.flex)}
-                          </Text>
+                          <Text style={styles.text} wrap={false}>{col.label}</Text>
                         </View>
-                      );
-                    })}
-                  </View>
-                ));
-              })}
+                      ))}
+                    </View>
+                  )}
+
+                  {/* First 2 rows (kept with header) */}
+                  {firstRows.map((rowData, idx) => renderRow(rowData, `first-${idx}`))}
+                </View>
+              </View>
+
+              {/* Remaining rows (can break freely) */}
+              {remainingRows.length > 0 && (
+                <View style={[styles.table, { borderTopWidth: 1, borderTopColor: "#ddd", borderTopStyle: "solid" }]}>
+                  {remainingRows.map((rowData, idx) => {
+                    return (
+                      <View
+                        key={`remaining-${idx}`}
+                        wrap={false}
+                        style={[
+                          styles.tableRow,
+                          {
+                            borderLeftWidth: 1,
+                            borderRightWidth: 1,
+                            borderBottomWidth: 1,
+                            borderColor: "#ddd",
+                            borderStyle: "solid",
+                          },
+                        ]}
+                      >
+                        {(() => {
+                          const { item, size, sizeIndex, productName } = rowData;
+                          return columns.map((col, i) => {
+                            let value = "";
+                            switch (col.key) {
+                              case "image":
+                                value = sizeIndex === 0 ? (item.colourImagePath || "") : "";
+                                break;
+                              case "product":
+                                value = sizeIndex === 0 ? productName : "";
+                                break;
+                              case "styleNumber":
+                                value = sizeIndex === 0 ? (item.styleNumber || "") : "";
+                                break;
+                              case "colour":
+                                value = sizeIndex === 0 ? (item.colourName || "") : "";
+                                break;
+                              case "gender":
+                                value = sizeIndex === 0 ? (item.gender || "") : "";
+                                break;
+                              case "size":
+                                value = size.size;
+                                break;
+                              case "quantity":
+                                value = String(size.quantity ?? "");
+                                break;
+                              case "fulfilled":
+                                value = String(size.fulfilled ?? 0);
+                                break;
+                              case "notes":
+                                value = sizeIndex === 0 ? (item.notes || "") : "";
+                                break;
+                              default:
+                                value = "";
+                            }
+                            if (col.key === "image") {
+                              return (
+                                <View
+                                  key={col.key}
+                                  wrap={false}
+                                  style={[
+                                    styles.cell,
+                                    styles.imageCell,
+                                    { flex: col.flex },
+                                    i === columns.length - 1 && { borderRightWidth: 0 },
+                                  ]}
+                                >
+                                  {value ? <Image src={value} style={styles.imageThumb} /> : null}
+                                </View>
+                              );
+                            }
+                            const maxLines = 1;
+                            return (
+                              <View
+                                key={col.key}
+                                wrap={false}
+                                style={[
+                                  styles.cell,
+                                  { flex: col.flex },
+                                  i === columns.length - 1 && { borderRightWidth: 0 },
+                                ]}
+                              >
+                                <Text style={[styles.text, styles.cellText]} wrap={false} maxLines={maxLines}>
+                                  {truncateByFlex(value, col.key, col.flex)}
+                                </Text>
+                              </View>
+                            );
+                          });
+                        })()}
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
             </View>
-          </View>
-        ))}
+          );
+        })}
       </Page>
     </Document>
   );

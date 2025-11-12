@@ -15,6 +15,8 @@ import { useAuth } from "../../context/AuthContext";
 import ShotSidebarSummary from "./ShotSidebarSummary";
 import SingleImageDropzone from "../common/SingleImageDropzone";
 import AppImage from "../common/AppImage";
+import MultiImageAttachmentManager from "./MultiImageAttachmentManager";
+import AdvancedImageCropEditor from "./AdvancedImageCropEditor";
 
 const steps = [
   { id: "basics", label: "Basics", description: "Core identifiers" },
@@ -57,12 +59,14 @@ export default function ShotEditModal({
   shotId = null,
   autoSaveStatus = null,
 }) {
-  const { clientId } = useAuth();
+  const { clientId, user } = useAuth();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [showNameError, setShowNameError] = useState(false);
+  const [cropEditorOpen, setCropEditorOpen] = useState(false);
+  const [editingAttachment, setEditingAttachment] = useState(null);
   const tabRefs = useRef([]);
 
   useEffect(() => {
@@ -81,6 +85,27 @@ export default function ShotEditModal({
     if (typeof onChange === "function") {
       onChange(patch);
     }
+  };
+
+  const handleEditAttachment = (attachment) => {
+    setEditingAttachment(attachment);
+    setCropEditorOpen(true);
+  };
+
+  const handleSaveCrop = (cropData) => {
+    if (!editingAttachment) return;
+
+    // Update the attachment with new cropData
+    const updatedAttachments = (draft.attachments || []).map((att) =>
+      att.id === editingAttachment.id ? { ...att, cropData } : att
+    );
+
+    handleFieldChange({ attachments: updatedAttachments });
+  };
+
+  const handleCloseCropEditor = () => {
+    setCropEditorOpen(false);
+    setEditingAttachment(null);
   };
 
   const navigationDisabled = isSaving || deleting;
@@ -541,51 +566,23 @@ export default function ShotEditModal({
                   <div>
                     <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Attachments</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Upload storyboard frames or reference imagery and fine-tune the crop for planner previews.
+                      Upload storyboard frames or reference imagery. Drag to reorder, set a primary image for planner previews.
                     </p>
                   </div>
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                      Reference Image
-                      <span className="ml-2 text-xs font-normal text-slate-500">(optional)</span>
+                      Reference Images
+                      <span className="ml-2 text-xs font-normal text-slate-500">(up to 10)</span>
                     </label>
-                    <SingleImageDropzone
-                      value={draft.referenceImageFile || null}
-                      onChange={(file) => handleFieldChange({ referenceImageFile: file })}
+                    <MultiImageAttachmentManager
+                      attachments={draft.attachments || []}
+                      onChange={(attachments) => handleFieldChange({ attachments })}
                       disabled={navigationDisabled}
-                      existingImageUrl={draft.referenceImagePath || null}
-                      onRemoveExisting={() => handleFieldChange({ referenceImagePath: "", referenceImageFile: null, referenceImageCrop: null })}
-                      showPreview={false}
+                      userId={user?.uid}
+                      clientId={clientId}
+                      shotId={shotId || draft.id || "temp"}
+                      onEditAttachment={handleEditAttachment}
                     />
-                    {draft.referenceImagePath && (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 rounded-md bg-slate-50 p-2 dark:bg-slate-800">
-                          <div className="h-20 w-20 overflow-hidden rounded bg-slate-100">
-                            <AppImage
-                              src={draft.referenceImagePath}
-                              alt="Reference"
-                              className="h-20 w-20"
-                              imageClassName="h-full w-full object-cover"
-                              placeholder={
-                                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
-                                  Loading…
-                                </div>
-                              }
-                              fallback={
-                                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
-                                  No image
-                                </div>
-                              }
-                            />
-                          </div>
-                        </div>
-                        <ImageCropPositionEditor
-                          imageSrc={draft.referenceImagePath}
-                          cropPosition={draft.referenceImageCrop || { x: 50, y: 50 }}
-                          onCropChange={(position) => handleFieldChange({ referenceImageCrop: position })}
-                        />
-                      </div>
-                    )}
                   </div>
                 </section>
               </div>
@@ -620,6 +617,14 @@ export default function ShotEditModal({
           )}
         </CardContent>
       </Card>
+
+      {/* Crop Editor Modal */}
+      <AdvancedImageCropEditor
+        open={cropEditorOpen}
+        onClose={handleCloseCropEditor}
+        attachment={editingAttachment}
+        onSave={handleSaveCrop}
+      />
     </Modal>
   );
 }

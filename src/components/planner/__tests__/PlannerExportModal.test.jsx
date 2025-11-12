@@ -120,4 +120,224 @@ describe("prepareLanesForPdf", () => {
     expect(prepared[0].shots[0].shotNumber).toBe("Scene 5A");
     expect(prepared[0].shots[0].name).toBe("Catalog hero");
   });
+
+  it("handles lanes with no shots", async () => {
+    const lanes = [
+      {
+        id: "lane-empty",
+        name: "Empty Lane",
+        shots: [],
+      },
+    ];
+
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: false });
+
+    expect(prepared[0].shots).toEqual([]);
+    expect(prepared[0].id).toBe("lane-empty");
+  });
+
+  it("handles multiple lanes with mixed content", async () => {
+    const lanes = [
+      {
+        id: "lane-1",
+        shots: [
+          { id: "shot-1", name: "Shot 1" },
+          { id: "shot-2", name: "Shot 2" },
+        ],
+      },
+      {
+        id: "lane-2",
+        shots: [],
+      },
+      {
+        id: "lane-3",
+        shots: [
+          { id: "shot-3", name: "Shot 3" },
+        ],
+      },
+    ];
+
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: false });
+
+    expect(prepared).toHaveLength(3);
+    expect(prepared[0].shots).toHaveLength(2);
+    expect(prepared[1].shots).toHaveLength(0);
+    expect(prepared[2].shots).toHaveLength(1);
+  });
+
+  it("passes density to image dimension calculation", async () => {
+    const lanes = [
+      {
+        id: "lane-a",
+        shots: [{ id: "shot-1", image: "https://example.com/image.jpg" }],
+      },
+    ];
+
+    document.body.innerHTML = '<div data-shot-id="shot-1"></div>';
+
+    collectImagesMock.mockResolvedValue([
+      {
+        owner: { shotId: "shot-1" },
+        dataUrl: "data:image/png;base64,TEST",
+      },
+    ]);
+
+    await prepareLanesForPdf(lanes, { includeImages: true, density: 'detailed' });
+
+    expect(getOptimalImageDimensionsMock).toHaveBeenCalledWith('detailed');
+  });
+
+  it("handles shots with attachments and crop data", async () => {
+    const lanes = [
+      {
+        id: "lane-a",
+        shots: [
+          {
+            id: "shot-1",
+            attachments: [
+              { id: 'att-1', isPrimary: true, cropData: { x: 75, y: 25 } },
+            ],
+            image: "https://example.com/image.jpg",
+          },
+        ],
+      },
+    ];
+
+    document.body.innerHTML = '<div data-shot-id="shot-1"></div>';
+
+    collectImagesMock.mockResolvedValue([
+      {
+        owner: { shotId: "shot-1" },
+        dataUrl: "data:image/png;base64,TEST",
+      },
+    ]);
+
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: true });
+
+    // Should have called processImageForPDF with crop position
+    expect(processImageForPDFMock).toHaveBeenCalled();
+  });
+
+  it("handles fallback for shots without collected images", async () => {
+    const lanes = [
+      {
+        id: "lane-a",
+        shots: [
+          { id: "shot-1", image: "https://example.com/fallback.jpg" },
+        ],
+      },
+    ];
+
+    document.body.innerHTML = '<div data-shot-id="shot-1"></div>';
+
+    // collectImagesForPdf returns empty (image not found in DOM)
+    collectImagesMock.mockResolvedValue([]);
+
+    // But resolveImageSourceToDataUrl should be called as fallback
+    resolveImageSourceToDataUrlMock.mockResolvedValue({
+      dataUrl: "data:image/png;base64,FALLBACK",
+    });
+
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: true });
+
+    expect(resolveImageSourceToDataUrlMock).toHaveBeenCalledWith("https://example.com/fallback.jpg");
+    expect(prepared[0].shots[0].image).toBe("data:image/png;base64,FALLBACK");
+  });
+
+  it("gracefully handles image processing errors", async () => {
+    const lanes = [
+      {
+        id: "lane-a",
+        shots: [
+          { id: "shot-1", image: "https://example.com/bad-image.jpg" },
+        ],
+      },
+    ];
+
+    document.body.innerHTML = '<div data-shot-id="shot-1"></div>';
+
+    collectImagesMock.mockResolvedValue([]);
+    resolveImageSourceToDataUrlMock.mockRejectedValue(new Error("Image load failed"));
+
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: true });
+
+    // Should set image to null on error
+    expect(prepared[0].shots[0].image).toBeNull();
+  });
+
+  it("handles null or undefined lanes array", async () => {
+    const prepared1 = await prepareLanesForPdf(null, { includeImages: false });
+    const prepared2 = await prepareLanesForPdf(undefined, { includeImages: false });
+
+    expect(prepared1).toEqual([]);
+    expect(prepared2).toEqual([]);
+  });
+
+  it("preserves all shot metadata through processing", async () => {
+    const lanes = [
+      {
+        id: "lane-a",
+        name: "Test Lane",
+        shots: [
+          {
+            id: "shot-1",
+            shotNumber: "001",
+            name: "Hero Shot",
+            type: "On-Figure",
+            date: "2025-01-15",
+            location: "Studio A",
+            talent: ["Model 1", "Model 2"],
+            products: ["Product A"],
+            notes: "Special lighting",
+            customField: "custom value",
+          },
+        ],
+      },
+    ];
+
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: false });
+
+    const shot = prepared[0].shots[0];
+    expect(shot.id).toBe("shot-1");
+    expect(shot.shotNumber).toBe("001");
+    expect(shot.name).toBe("Hero Shot");
+    expect(shot.type).toBe("On-Figure");
+    expect(shot.date).toBe("2025-01-15");
+    expect(shot.location).toBe("Studio A");
+    expect(shot.talent).toEqual(["Model 1", "Model 2"]);
+    expect(shot.products).toEqual(["Product A"]);
+    expect(shot.notes).toBe("Special lighting");
+    expect(shot.customField).toBe("custom value");
+  });
+
+  it("processes images with referenceImageCrop fallback", async () => {
+    const lanes = [
+      {
+        id: "lane-a",
+        shots: [
+          {
+            id: "shot-1",
+            referenceImageCrop: { x: 60, y: 40 },
+            image: "https://example.com/image.jpg",
+          },
+        ],
+      },
+    ];
+
+    document.body.innerHTML = '<div data-shot-id="shot-1"></div>';
+
+    collectImagesMock.mockResolvedValue([
+      {
+        owner: { shotId: "shot-1" },
+        dataUrl: "data:image/png;base64,TEST",
+      },
+    ]);
+
+    await prepareLanesForPdf(lanes, { includeImages: true });
+
+    // Should have used referenceImageCrop for cropping
+    expect(processImageForPDFMock).toHaveBeenCalled();
+    const cropArgs = processImageForPDFMock.mock.calls[0][1];
+    expect(cropArgs.cropPosition).toEqual({ x: 60, y: 40 });
+  });
 });
