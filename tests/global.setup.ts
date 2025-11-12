@@ -127,6 +127,18 @@ async function authenticateAndSaveState(
   const context = await browser.newContext();
   const page = await context.newPage();
 
+  // Listen for console errors
+  page.on('console', msg => {
+    if (msg.type() === 'error') {
+      console.error(`Browser console error: ${msg.text()}`);
+    }
+  });
+
+  // Listen for page errors
+  page.on('pageerror', error => {
+    console.error(`Page error: ${error.message}`);
+  });
+
   try {
     // Navigate to app
     await page.goto(baseURL);
@@ -136,15 +148,35 @@ async function authenticateAndSaveState(
 
     // Check if already on authenticated page (shouldn't be, but just in case)
     const currentUrl = page.url();
+    console.log(`Current URL after navigation: ${currentUrl}`);
+
     if (currentUrl.includes('/shots') || currentUrl.includes('/dashboard') || currentUrl.includes('/projects')) {
       console.log(`Already authenticated for ${email}`);
       await context.storageState({ path: outputPath });
       return;
     }
 
-    // Fill in login form
+    // Take screenshot for debugging
+    const screenshotPath = path.join(__dirname, 'playwright', `.auth-debug-${email.split('@')[0]}.png`);
+    await page.screenshot({ path: screenshotPath, fullPage: true });
+    console.log(`Saved debug screenshot to ${screenshotPath}`);
+
+    // Log page title and visible text
+    const title = await page.title();
+    console.log(`Page title: ${title}`);
+
+    // Check if login form elements exist
+    const emailInputExists = await page.locator('input[type="email"], input[placeholder*="email" i]').count();
+    const passwordInputExists = await page.locator('input[type="password"], input[placeholder*="password" i]').count();
+    const submitButtonExists = await page.locator('button[type="submit"], button:has-text("Sign in"), button:has-text("Sign In")').count();
+
+    console.log(`Email input found: ${emailInputExists} element(s)`);
+    console.log(`Password input found: ${passwordInputExists} element(s)`);
+    console.log(`Submit button found: ${submitButtonExists} element(s)`);
+
+    // Fill in login form with increased timeout
     const emailInput = page.locator('input[type="email"], input[placeholder*="email" i]').first();
-    await emailInput.waitFor({ state: 'visible', timeout: 10000 });
+    await emailInput.waitFor({ state: 'visible', timeout: 30000 });
     await emailInput.fill(email);
 
     const passwordInput = page.locator('input[type="password"], input[placeholder*="password" i]').first();
