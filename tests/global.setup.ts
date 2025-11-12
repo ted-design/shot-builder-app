@@ -66,8 +66,9 @@ async function initializeFirebaseAdmin() {
   if (adminApp) return adminApp;
 
   // For emulator, we don't need real credentials
+  // Use 'demo-test' to match the emulator project ID
   adminApp = initializeApp({
-    projectId: 'demo-test-project',
+    projectId: 'demo-test',
   });
 
   // Point to emulator
