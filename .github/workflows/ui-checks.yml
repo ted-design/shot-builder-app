@@ -7,6 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VITE_USE_FIREBASE_EMULATORS: 1
+      PLAYWRIGHT_BASE_URL: http://localhost:4173
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
