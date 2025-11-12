@@ -1,4 +1,5 @@
 import { Page } from '@playwright/test';
+import { TEST_CREDENTIALS } from '../fixtures/auth';
 
 export interface AuthOptions {
   email?: string;
@@ -22,10 +23,11 @@ export async function authenticateTestUser(
   page: Page,
   options: AuthOptions = {}
 ): Promise<{ email: string; password: string; role: string; clientId: string }> {
+  const defaultCredentials = TEST_CREDENTIALS.producer;
   const {
-    email = 'test@example.com',
-    password = 'test-password-123',
-    role = 'producer',
+    email = defaultCredentials.email,
+    password = defaultCredentials.password,
+    role = defaultCredentials.role,
     clientId = 'test-client'
   } = options;
 

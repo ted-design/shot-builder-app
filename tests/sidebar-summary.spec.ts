@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { TEST_CREDENTIALS } from './fixtures/auth';
 import { authenticateTestUser, setupFirebaseEmulators } from './helpers/auth';
 
 /**
@@ -24,10 +25,11 @@ test.describe('Shot Edit Modal - Sidebar Summary', () => {
     await setupFirebaseEmulators(page);
 
     // Authenticate as a test user
+    const producer = TEST_CREDENTIALS.producer;
     await authenticateTestUser(page, {
-      email: 'test@example.com',
-      password: 'test-password-123',
-      role: 'producer',
+      email: producer.email,
+      password: producer.password,
+      role: producer.role,
       clientId: 'test-client'
     });
   });
