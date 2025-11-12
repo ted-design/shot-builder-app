@@ -10,6 +10,33 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import ToastProvider from "./components/ui/ToastProvider";
 import "./index.css";
 
+// Runtime validation: Ensure React is properly initialized
+// This catches module loading issues in production builds where React
+// might not be available when components using forwardRef are evaluated
+if (typeof React === 'undefined' || typeof React.forwardRef === 'undefined') {
+  const errorMsg = 'React not properly initialized. This indicates a build configuration issue. Check Vite config and chunk loading order.';
+  console.error(errorMsg);
+
+  // Log to Sentry if available
+  if (typeof Sentry !== 'undefined') {
+    Sentry.captureMessage(errorMsg, { level: 'fatal' });
+  }
+
+  // Show user-friendly error
+  document.getElementById('root').innerHTML = `
+    <div style="padding: 40px; font-family: system-ui; max-width: 600px; margin: 0 auto;">
+      <h1 style="color: #dc2626;">Application Error</h1>
+      <p>The application failed to initialize properly. Please try refreshing the page.</p>
+      <p style="color: #6b7280; font-size: 14px;">Error: React module not loaded</p>
+      <button onclick="window.location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">
+        Reload Page
+      </button>
+    </div>
+  `;
+
+  throw new Error(errorMsg);
+}
+
 // Initialize Sentry for error tracking
 Sentry.init({
   dsn: "https://a56224a78678d4aca8e608ecb45d7f57@o4510145413447680.ingest.us.sentry.io/4510145414955008",

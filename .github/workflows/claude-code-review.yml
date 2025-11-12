@@ -9,6 +9,12 @@ on:
     #   - "src/**/*.tsx"
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review (optional - defaults to current branch PR)'
+        required: false
+        type: string
 
 jobs:
   claude-review:
