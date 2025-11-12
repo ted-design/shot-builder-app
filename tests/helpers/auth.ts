@@ -24,6 +24,7 @@ export async function authenticateTestUser(
   options: AuthOptions = {}
 ): Promise<{ email: string; password: string; role: string; clientId: string }> {
   const defaultCredentials = TEST_CREDENTIALS.producer;
+  const baseURL = (process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173').replace(/\/$/, '');
   const {
     email = defaultCredentials.email,
     password = defaultCredentials.password,
@@ -32,7 +33,7 @@ export async function authenticateTestUser(
   } = options;
 
   // Navigate to the app
-  await page.goto('http://localhost:5173');
+  await page.goto(`${baseURL}/`);
 
   // Wait for the page to load
   await page.waitForLoadState('networkidle');
