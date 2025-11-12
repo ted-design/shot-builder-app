@@ -9,10 +9,15 @@ export default defineConfig({
       output: {
         manualChunks: (id) => {
           // Core React libraries - separate for better caching
-          if (id.includes('react') && !id.includes('react-pdf')) {
-            if (id.includes('react-router')) return 'router';
-            if (id.includes('react-dom')) return 'react-vendor';
-            if (id.includes('node_modules/react/')) return 'react-vendor';
+          // Check for exact React package to avoid splitting React across chunks
+          if (id.includes('node_modules')) {
+            if (id.includes('/react-router') || id.includes('\\react-router')) {
+              return 'router';
+            }
+            if (id.includes('/react-dom') || id.includes('\\react-dom') ||
+                id.match(/\/react\/|\\react\\/) || id.endsWith('/react') || id.endsWith('\\react')) {
+              return 'react-vendor';
+            }
           }
 
           // Firebase - separate chunk (large and rarely updated)
