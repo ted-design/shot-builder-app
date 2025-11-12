@@ -212,7 +212,10 @@ if (appCheckSiteKey && isProd) {
   );
 }
 
-const useEmulators = isDev && readBoolEnv("VITE_USE_FIREBASE_EMULATORS");
+// Check if emulators should be used
+// Allow emulators in any build mode when explicitly requested
+// This is critical for E2E testing with production builds
+const useEmulators = readBoolEnv("VITE_USE_FIREBASE_EMULATORS");
 
 if (useEmulators) {
   const host = readRawEnv("VITE_FIREBASE_EMULATOR_HOST") ?? "localhost";
