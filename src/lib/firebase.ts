@@ -63,7 +63,6 @@ const viteEnv = {
   VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
   VITE_FIREBASE_MEASUREMENT_ID: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
   VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY: import.meta.env.VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY,
-  VITE_USE_FIREBASE_EMULATORS: import.meta.env.VITE_USE_FIREBASE_EMULATORS,
   DEV: import.meta.env.DEV,
   PROD: import.meta.env.PROD,
 } as const;
@@ -78,7 +77,8 @@ const rawEnv: Record<string, string | undefined> = {
   VITE_FIREBASE_APP_ID: viteEnv.VITE_FIREBASE_APP_ID,
   VITE_FIREBASE_MEASUREMENT_ID: viteEnv.VITE_FIREBASE_MEASUREMENT_ID,
   VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY: viteEnv.VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY,
-  VITE_USE_FIREBASE_EMULATORS: viteEnv.VITE_USE_FIREBASE_EMULATORS,
+  // Directly inline emulator flag to avoid reference chain issues during minification
+  VITE_USE_FIREBASE_EMULATORS: import.meta.env.VITE_USE_FIREBASE_EMULATORS,
 };
 
 // Use MODE instead of DEV/PROD which seem to be unreliable
