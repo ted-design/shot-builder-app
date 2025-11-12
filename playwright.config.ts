@@ -5,6 +5,10 @@ export default defineConfig({
   fullyParallel: true,
   retries: 1,
   reporter: [['list'], ['html', { open: 'never' }]],
+
+  // Global setup for authentication with Firebase emulator
+  globalSetup: './tests/global.setup.ts',
+
   use: {
     // Use dev server (5173) for tests, or preview server (4173) for production-like tests
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173',
