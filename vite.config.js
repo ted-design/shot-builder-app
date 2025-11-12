@@ -7,9 +7,43 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Keep existing code-splitting for large libraries
-          vendor: ['react', 'react-dom', 'react-router-dom'],
+        manualChunks: (id) => {
+          // Core React libraries - separate for better caching
+          if (id.includes('react') && !id.includes('react-pdf')) {
+            if (id.includes('react-router')) return 'router';
+            if (id.includes('react-dom')) return 'react-vendor';
+            if (id.includes('node_modules/react/')) return 'react-vendor';
+          }
+
+          // Firebase - separate chunk (large and rarely updated)
+          if (id.includes('firebase') || id.includes('@firebase')) {
+            return 'firebase';
+          }
+
+          // PDF libraries - only loaded when exporting (defer large dependency)
+          if (id.includes('react-pdf') || id.includes('pdfjs-dist') || id.includes('pdf-lib')) {
+            return 'pdf-lib';
+          }
+
+          // UI component libraries - shared across pages
+          if (id.includes('@radix-ui') || id.includes('lucide-react')) {
+            return 'ui-vendor';
+          }
+
+          // Drag and drop library - only used in planner
+          if (id.includes('@dnd-kit')) {
+            return 'dnd';
+          }
+
+          // TanStack Query - data fetching library
+          if (id.includes('@tanstack/react-query')) {
+            return 'query';
+          }
+
+          // Other node_modules - catch-all vendor chunk
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
         },
       },
     },
