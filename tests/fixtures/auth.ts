@@ -2,10 +2,7 @@
 import { test as base, type Page } from '@playwright/test';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-
-// ES module polyfill for __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { authenticateTestUser } from '../helpers/auth';
 
 /**
  * Playwright fixtures for role-based authentication.
@@ -48,12 +45,20 @@ export const test = base.extend<AuthFixtures>({
    * Full system access, can manage users and settings
    */
   adminPage: async ({ browser }, use) => {
-    const storageState = path.join(__dirname, '../playwright/.auth/admin.json');
-    const context = await browser.newContext({ storageState });
+    const context = await browser.newContext();
     const page = await context.newPage();
 
     // Set viewport for consistency
     await page.setViewportSize({ width: 1280, height: 720 });
+
+    // Authenticate directly instead of using storage state
+    const admin = TEST_CREDENTIALS.admin;
+    await authenticateTestUser(page, {
+      email: admin.email,
+      password: admin.password,
+      role: admin.role,
+      clientId: 'test-client'
+    });
 
     await use(page);
 
@@ -65,11 +70,19 @@ export const test = base.extend<AuthFixtures>({
    * Can create/edit shots, manage projects, export
    */
   producerPage: async ({ browser }, use) => {
-    const storageState = path.join(__dirname, '../playwright/.auth/producer.json');
-    const context = await browser.newContext({ storageState });
+    const context = await browser.newContext();
     const page = await context.newPage();
 
     await page.setViewportSize({ width: 1280, height: 720 });
+
+    // Authenticate directly instead of using storage state
+    const producer = TEST_CREDENTIALS.producer;
+    await authenticateTestUser(page, {
+      email: producer.email,
+      password: producer.password,
+      role: producer.role,
+      clientId: 'test-client'
+    });
 
     await use(page);
 
@@ -81,11 +94,19 @@ export const test = base.extend<AuthFixtures>({
    * Can manage products, view/edit shots
    */
   wardrobePage: async ({ browser }, use) => {
-    const storageState = path.join(__dirname, '../playwright/.auth/wardrobe.json');
-    const context = await browser.newContext({ storageState });
+    const context = await browser.newContext();
     const page = await context.newPage();
 
     await page.setViewportSize({ width: 1280, height: 720 });
+
+    // Authenticate directly instead of using storage state
+    const wardrobe = TEST_CREDENTIALS.wardrobe;
+    await authenticateTestUser(page, {
+      email: wardrobe.email,
+      password: wardrobe.password,
+      role: wardrobe.role,
+      clientId: 'test-client'
+    });
 
     await use(page);
 
@@ -97,11 +118,19 @@ export const test = base.extend<AuthFixtures>({
    * Can view shots, limited edit access
    */
   crewPage: async ({ browser }, use) => {
-    const storageState = path.join(__dirname, '../playwright/.auth/crew.json');
-    const context = await browser.newContext({ storageState });
+    const context = await browser.newContext();
     const page = await context.newPage();
 
     await page.setViewportSize({ width: 1280, height: 720 });
+
+    // Authenticate directly instead of using storage state
+    const crew = TEST_CREDENTIALS.crew;
+    await authenticateTestUser(page, {
+      email: crew.email,
+      password: crew.password,
+      role: crew.role,
+      clientId: 'test-client'
+    });
 
     await use(page);
 
@@ -113,11 +142,19 @@ export const test = base.extend<AuthFixtures>({
    * Read-only access to most content
    */
   viewerPage: async ({ browser }, use) => {
-    const storageState = path.join(__dirname, '../playwright/.auth/viewer.json');
-    const context = await browser.newContext({ storageState });
+    const context = await browser.newContext();
     const page = await context.newPage();
 
     await page.setViewportSize({ width: 1280, height: 720 });
+
+    // Authenticate directly instead of using storage state
+    const viewer = TEST_CREDENTIALS.viewer;
+    await authenticateTestUser(page, {
+      email: viewer.email,
+      password: viewer.password,
+      role: viewer.role,
+      clientId: 'test-client'
+    });
 
     await use(page);
 

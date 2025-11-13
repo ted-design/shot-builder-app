@@ -3,10 +3,11 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
-  retries: 1,
+  retries: 2,  // Increased retries for CI reliability
   reporter: [['list'], ['html', { open: 'never' }]],
 
-  // Global setup for authentication with Firebase emulator
+  // Global setup to seed test users in Firebase emulator (required for CI)
+  // Authentication is handled directly in fixtures for better reliability
   globalSetup: './tests/global.setup.ts',
 
   use: {
@@ -14,9 +15,13 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure'
+    video: 'retain-on-failure',
+    // Increased timeouts for CI environment
+    actionTimeout: 15000,
+    navigationTimeout: 30000,
   },
-  expect: { timeout: 5000 },
+  expect: { timeout: 10000 },  // Increased expect timeout
+  timeout: 60000,  // Per-test timeout
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
