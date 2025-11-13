@@ -72,8 +72,7 @@ test.describe('Authentication Flow', () => {
     const currentUrl = page.url();
     expect(currentUrl).toMatch(/\/(login|signin|auth|$)/);
 
-    // Should see login form
-    const emailInput = page.locator('input[type="email"]').first();
+    // Should see login form (reuse existing locator)
     await expect(emailInput).toBeVisible();
   });
 
