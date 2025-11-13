@@ -25,7 +25,7 @@ test.describe('Sticky Toolbar Diagnostics', () => {
     await page.goto('/shots');
 
     // Wait for page to be fully loaded
-    await page.waitForLoadState('networkidle');
+    await page.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
     await page.waitForTimeout(2000); // Extra wait for any animations and measurements
 
   // Get all the relevant elements

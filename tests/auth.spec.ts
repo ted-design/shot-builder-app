@@ -11,9 +11,7 @@ test.describe('Authentication Flow', () => {
   test('user can sign in with email and password', async ({ page }) => {
     await page.goto('/');
 
-    // Should start on login page
-    await page.waitForLoadState('networkidle');
-
+    // Wait for login form to be visible
     const emailInput = page.locator('input[type="email"], input[placeholder*="email" i]').first();
     await expect(emailInput).toBeVisible({ timeout: 10000 });
 
@@ -66,7 +64,9 @@ test.describe('Authentication Flow', () => {
     // Try to access protected page without auth
     await page.goto('/shots');
 
-    await page.waitForLoadState('networkidle');
+    // Wait for redirect and login form
+    const emailInput = page.locator('input[type="email"]').first();
+    await expect(emailInput).toBeVisible({ timeout: 10000 });
 
     // Should redirect to login
     const currentUrl = page.url();
@@ -87,7 +87,8 @@ test.describe('Authentication Flow', () => {
 
     // Navigate to admin page
     await page.goto('/admin');
-    await page.waitForLoadState('networkidle');
+    // Wait for admin content to be visible
+    await page.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Should be able to access
     expect(page.url()).toContain('/admin');
@@ -107,7 +108,8 @@ test.describe('Authentication Flow', () => {
 
     // Try to access admin page
     await page.goto('/admin');
-    await page.waitForLoadState('networkidle');
+    // Wait for page to settle
+    await page.waitForTimeout(1000);
 
     // Should be redirected away or see permission denied
     const currentUrl = page.url();
@@ -141,7 +143,8 @@ test.describe('Authentication Flow', () => {
 
     // Navigate to products page
     await page.goto('/products');
-    await page.waitForLoadState('networkidle');
+    // Wait for products page content
+    await page.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Look for create/add buttons - they should be disabled or hidden
     const createButtons = page.getByRole('button', { name: /create|new|add/i });
@@ -170,7 +173,8 @@ test.describe('Authentication Flow', () => {
 
     // Navigate to products page
     await page.goto('/products');
-    await page.waitForLoadState('networkidle');
+    // Wait for products page content
+    await page.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Should see create button and it should be enabled
     const createButton = page.getByRole('button', { name: /create|new|add product/i }).first();
@@ -194,7 +198,8 @@ test.describe('Authentication Flow', () => {
 
     // Reload the page
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    // Wait for navigation elements after reload
+    await page.locator('nav, [role="navigation"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Should still be authenticated (not redirected to login)
     const afterReloadUrl = page.url();
@@ -206,7 +211,6 @@ test.describe('Authentication Flow', () => {
 
   test('invalid credentials show error message', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
 
     const emailInput = page.locator('input[type="email"]').first();
     await emailInput.waitFor({ state: 'visible', timeout: 10000 });

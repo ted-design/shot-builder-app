@@ -10,7 +10,8 @@ test.describe('Shot CRUD Operations', () => {
   test('producer can create a new shot', async ({ producerPage }) => {
     // Navigate to shots page
     await producerPage.goto('/shots');
-    await producerPage.waitForLoadState('networkidle');
+    // Wait for shots page content
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Find and click create shot button
     const createButton = producerPage.getByRole('button', { name: /create shot|new shot|new/i }).first();
@@ -43,7 +44,7 @@ test.describe('Shot CRUD Operations', () => {
 
   test('producer can view shot details', async ({ producerPage }) => {
     await producerPage.goto('/shots');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Wait for shots to load
     await producerPage.waitForTimeout(2000);
@@ -76,7 +77,7 @@ test.describe('Shot CRUD Operations', () => {
 
   test('producer can update shot details', async ({ producerPage }) => {
     await producerPage.goto('/shots');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Create a new shot first
     const createButton = producerPage.getByRole('button', { name: /create shot|new shot|new/i }).first();
@@ -127,7 +128,7 @@ test.describe('Shot CRUD Operations', () => {
 
   test('producer can add products to a shot', async ({ producerPage }) => {
     await producerPage.goto('/shots');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Click on first shot
     await producerPage.waitForTimeout(2000);
@@ -163,7 +164,7 @@ test.describe('Shot CRUD Operations', () => {
 
   test('producer can delete a shot', async ({ producerPage }) => {
     await producerPage.goto('/shots');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Create a shot to delete
     const createButton = producerPage.getByRole('button', { name: /create shot|new shot|new/i }).first();
@@ -221,7 +222,7 @@ test.describe('Shot CRUD Operations', () => {
 
   test('producer can filter shots', async ({ producerPage }) => {
     await producerPage.goto('/shots');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Look for filter controls
     await producerPage.waitForTimeout(2000);
@@ -243,7 +244,7 @@ test.describe('Shot CRUD Operations', () => {
 
   test('producer can navigate between shot views', async ({ producerPage }) => {
     await producerPage.goto('/shots');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Look for view toggle buttons (grid/table/list)
     await producerPage.waitForTimeout(2000);
@@ -269,7 +270,7 @@ test.describe('Shot CRUD Operations', () => {
 
   test('producer can export shots', async ({ producerPage }) => {
     await producerPage.goto('/shots');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Look for export button
     await producerPage.waitForTimeout(2000);

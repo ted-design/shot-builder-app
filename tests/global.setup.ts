@@ -145,7 +145,7 @@ async function authenticateAndSaveState(
     await page.goto(baseURL);
 
     // Wait for login page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check if already on authenticated page (shouldn't be, but just in case)
     const currentUrl = page.url();
@@ -190,8 +190,8 @@ async function authenticateAndSaveState(
     // Wait for redirect to authenticated page
     await page.waitForURL(/\/(shots|dashboard|projects|planner)/, { timeout: 15000 });
 
-    // Wait for page to fully load
-    await page.waitForLoadState('networkidle');
+    // Wait for authenticated UI to appear
+    await page.locator('nav, [role="navigation"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Save authentication state
     await context.storageState({ path: outputPath });

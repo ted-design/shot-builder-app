@@ -9,7 +9,8 @@ import AxeBuilder from '@axe-core/playwright';
 test.describe('Accessibility Tests', () => {
   test('dashboard page has no critical a11y violations', async ({ producerPage }) => {
     await producerPage.goto('/');
-    await producerPage.waitForLoadState('networkidle');
+    // Wait for page content to be ready
+    await producerPage.locator('nav, [role="navigation"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     const results = await new AxeBuilder({ page: producerPage })
       .withTags(['wcag2a', 'wcag2aa'])
@@ -30,7 +31,8 @@ test.describe('Accessibility Tests', () => {
 
   test('products page has no critical a11y violations', async ({ producerPage }) => {
     await producerPage.goto('/products');
-    await producerPage.waitForLoadState('networkidle');
+    // Wait for page content to be ready
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     const results = await new AxeBuilder({ page: producerPage })
       .withTags(['wcag2a', 'wcag2aa'])
@@ -49,11 +51,11 @@ test.describe('Accessibility Tests', () => {
   test('shots page has no critical a11y violations', async ({ producerPage }) => {
     // First need to have an active project
     await producerPage.goto('/');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('nav, [role="navigation"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Try to navigate to shots
     await producerPage.goto('/shots');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     const currentUrl = producerPage.url();
 
@@ -76,7 +78,8 @@ test.describe('Accessibility Tests', () => {
 
   test('admin page has no critical a11y violations', async ({ adminPage }) => {
     await adminPage.goto('/admin');
-    await adminPage.waitForLoadState('networkidle');
+    // Wait for admin page content to be ready
+    await adminPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     const results = await new AxeBuilder({ page: adminPage })
       .withTags(['wcag2a', 'wcag2aa'])

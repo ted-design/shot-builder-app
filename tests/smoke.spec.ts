@@ -10,8 +10,8 @@ test.describe('UI Smoke Tests', () => {
     // Navigate to app (should redirect to projects/dashboard)
     await producerPage.goto('/');
 
-    // Wait for page to load
-    await producerPage.waitForLoadState('networkidle');
+    // Wait for navigation to be visible
+    await producerPage.locator('nav, [role="navigation"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Should be on an authenticated page (projects, dashboard, or shots)
     const currentUrl = producerPage.url();
@@ -45,7 +45,8 @@ test.describe('UI Smoke Tests', () => {
     // Try to navigate to admin page
     await adminPage.goto('/admin');
 
-    await adminPage.waitForLoadState('networkidle');
+    // Wait for admin content to be visible
+    await adminPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Should be on admin page (not redirected away)
     expect(adminPage.url()).toContain('/admin');
@@ -58,13 +59,14 @@ test.describe('UI Smoke Tests', () => {
   test('producer can navigate between pages', async ({ producerPage }) => {
     // Start at home
     await producerPage.goto('/');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('nav, [role="navigation"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Navigate to products page
     const productsLink = producerPage.getByRole('link', { name: /products/i }).first();
     if (await productsLink.isVisible()) {
       await productsLink.click();
-      await producerPage.waitForLoadState('networkidle');
+      // Wait for products page content
+      await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
       expect(producerPage.url()).toContain('/products');
     }
 
@@ -72,14 +74,16 @@ test.describe('UI Smoke Tests', () => {
     const talentLink = producerPage.getByRole('link', { name: /talent/i }).first();
     if (await talentLink.isVisible()) {
       await talentLink.click();
-      await producerPage.waitForLoadState('networkidle');
+      // Wait for talent page content
+      await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
       expect(producerPage.url()).toContain('/talent');
     }
   });
 
   test('viewer has read-only access', async ({ viewerPage }) => {
     await viewerPage.goto('/');
-    await viewerPage.waitForLoadState('networkidle');
+    // Wait for navigation to be visible
+    await viewerPage.locator('nav, [role="navigation"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Viewer should be able to view content
     const currentUrl = viewerPage.url();

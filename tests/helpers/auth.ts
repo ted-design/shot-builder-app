@@ -75,8 +75,14 @@ export async function authenticateTestUser(
         timeout: 20000
       });
 
-      // Wait for the page to fully load after auth
-      await page.waitForLoadState('networkidle', { timeout: 15000 });
+      // Wait for DOM to be ready (don't use networkidle with Firebase real-time listeners)
+      await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+
+      // Wait for authenticated UI to appear (ensures Firebase auth state is loaded)
+      await page.locator('nav, header, [role="navigation"]').first().waitFor({
+        state: 'visible',
+        timeout: 10000
+      });
 
       console.log(`Successfully authenticated as ${email}`);
       return { email, password, role, clientId };

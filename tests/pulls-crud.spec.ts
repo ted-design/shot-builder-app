@@ -9,7 +9,8 @@ test.describe('Pull Sheet Operations', () => {
   test('producer can create a new pull', async ({ producerPage }) => {
     // Navigate to pulls page
     await producerPage.goto('/pulls');
-    await producerPage.waitForLoadState('networkidle');
+    // Wait for pulls page content
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Find and click create pull button
     const createButton = producerPage.getByRole('button', { name: /create pull|new pull|new/i }).first();
@@ -47,7 +48,7 @@ test.describe('Pull Sheet Operations', () => {
 
   test('producer can view pull details', async ({ producerPage }) => {
     await producerPage.goto('/pulls');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Wait for pulls to load
     await producerPage.waitForTimeout(2000);
@@ -76,7 +77,7 @@ test.describe('Pull Sheet Operations', () => {
   test('producer can add items to a pull', async ({ producerPage }) => {
     // First create a pull
     await producerPage.goto('/pulls');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     const createButton = producerPage.getByRole('button', { name: /create pull|new pull|new/i }).first();
 
@@ -129,7 +130,7 @@ test.describe('Pull Sheet Operations', () => {
 
   test('producer can update pull item quantities', async ({ producerPage }) => {
     await producerPage.goto('/pulls');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Click on first pull
     await producerPage.waitForTimeout(2000);
@@ -180,7 +181,7 @@ test.describe('Pull Sheet Operations', () => {
 
   test('producer can mark items as fulfilled', async ({ producerPage }) => {
     await producerPage.goto('/pulls');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Click on first pull
     await producerPage.waitForTimeout(2000);
@@ -216,7 +217,7 @@ test.describe('Pull Sheet Operations', () => {
 
   test('producer can export a pull sheet to PDF', async ({ producerPage }) => {
     await producerPage.goto('/pulls');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Click on first pull
     await producerPage.waitForTimeout(2000);
@@ -261,7 +262,7 @@ test.describe('Pull Sheet Operations', () => {
   test('producer can delete a pull', async ({ producerPage }) => {
     // Create a pull to delete
     await producerPage.goto('/pulls');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     const createButton = producerPage.getByRole('button', { name: /create pull|new pull|new/i }).first();
 
@@ -315,7 +316,7 @@ test.describe('Pull Sheet Operations', () => {
 
   test('producer can filter pulls by status', async ({ producerPage }) => {
     await producerPage.goto('/pulls');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Look for status filter controls
     await producerPage.waitForTimeout(2000);
@@ -341,7 +342,7 @@ test.describe('Pull Sheet Operations', () => {
 
   test('producer can share a pull with warehouse', async ({ producerPage }) => {
     await producerPage.goto('/pulls');
-    await producerPage.waitForLoadState('networkidle');
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     // Click on first pull
     await producerPage.waitForTimeout(2000);
