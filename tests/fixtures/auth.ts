@@ -48,6 +48,19 @@ export const test = base.extend<AuthFixtures>({
     const context = await browser.newContext();
     const page = await context.newPage();
 
+    // Filter out expected Firebase Installations errors (defense-in-depth)
+    // These errors can occur when using emulators and don't affect test functionality
+    page.on('pageerror', (error) => {
+      if (!error.message.includes('Installations: Create Installation request failed')) {
+        throw error;
+      }
+    });
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && msg.text().includes('Installations: Create Installation request failed')) {
+        return; // Suppress expected Firebase error
+      }
+    });
+
     // Set viewport for consistency
     await page.setViewportSize({ width: 1280, height: 720 });
 
@@ -73,6 +86,18 @@ export const test = base.extend<AuthFixtures>({
     const context = await browser.newContext();
     const page = await context.newPage();
 
+    // Filter out expected Firebase Installations errors (defense-in-depth)
+    page.on('pageerror', (error) => {
+      if (!error.message.includes('Installations: Create Installation request failed')) {
+        throw error;
+      }
+    });
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && msg.text().includes('Installations: Create Installation request failed')) {
+        return; // Suppress expected Firebase error
+      }
+    });
+
     await page.setViewportSize({ width: 1280, height: 720 });
 
     // Authenticate directly instead of using storage state
@@ -96,6 +121,18 @@ export const test = base.extend<AuthFixtures>({
   wardrobePage: async ({ browser }, use) => {
     const context = await browser.newContext();
     const page = await context.newPage();
+
+    // Filter out expected Firebase Installations errors (defense-in-depth)
+    page.on('pageerror', (error) => {
+      if (!error.message.includes('Installations: Create Installation request failed')) {
+        throw error;
+      }
+    });
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && msg.text().includes('Installations: Create Installation request failed')) {
+        return; // Suppress expected Firebase error
+      }
+    });
 
     await page.setViewportSize({ width: 1280, height: 720 });
 
@@ -121,6 +158,18 @@ export const test = base.extend<AuthFixtures>({
     const context = await browser.newContext();
     const page = await context.newPage();
 
+    // Filter out expected Firebase Installations errors (defense-in-depth)
+    page.on('pageerror', (error) => {
+      if (!error.message.includes('Installations: Create Installation request failed')) {
+        throw error;
+      }
+    });
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && msg.text().includes('Installations: Create Installation request failed')) {
+        return; // Suppress expected Firebase error
+      }
+    });
+
     await page.setViewportSize({ width: 1280, height: 720 });
 
     // Authenticate directly instead of using storage state
@@ -144,6 +193,18 @@ export const test = base.extend<AuthFixtures>({
   viewerPage: async ({ browser }, use) => {
     const context = await browser.newContext();
     const page = await context.newPage();
+
+    // Filter out expected Firebase Installations errors (defense-in-depth)
+    page.on('pageerror', (error) => {
+      if (!error.message.includes('Installations: Create Installation request failed')) {
+        throw error;
+      }
+    });
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && msg.text().includes('Installations: Create Installation request failed')) {
+        return; // Suppress expected Firebase error
+      }
+    });
 
     await page.setViewportSize({ width: 1280, height: 720 });
 

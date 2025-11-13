@@ -12,7 +12,9 @@ jobs:
 
       # Firebase configuration for emulator testing
       # Use 'demo-test' to match the emulator project ID
-      VITE_FIREBASE_API_KEY: demo-api-key
+      # NOTE: Requires GitHub Secret 'FIREBASE_TEST_API_KEY' with valid Firebase API key
+      # Even with emulators, browser-side Firebase SDK needs a valid API key to prevent Installations service errors
+      VITE_FIREBASE_API_KEY: ${{ secrets.FIREBASE_TEST_API_KEY }}
       VITE_FIREBASE_AUTH_DOMAIN: demo-test.firebaseapp.com
       VITE_FIREBASE_PROJECT_ID: demo-test
       VITE_FIREBASE_STORAGE_BUCKET: demo-test.appspot.com
