@@ -1,6 +1,11 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 import { test as base, type Page } from '@playwright/test';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+// ES module polyfill for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Playwright fixtures for role-based authentication.
