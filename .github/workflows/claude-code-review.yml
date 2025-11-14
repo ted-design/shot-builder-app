@@ -9,9 +9,17 @@ on:
     #   - "src/**/*.tsx"
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review (optional - defaults to current branch PR)'
+        required: false
+        type: string
 
 jobs:
   claude-review:
+    # Only run if the token is available; otherwise skip to avoid failing PR checks
+    if: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
     # Optional: Filter by PR author
     # if: |
     #   github.event.pull_request.user.login == 'external-contributor' ||
@@ -54,4 +62,3 @@ jobs:
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://docs.claude.com/en/docs/claude-code/sdk#command-line for available options
           claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
-

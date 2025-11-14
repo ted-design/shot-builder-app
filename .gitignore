@@ -85,3 +85,12 @@ shot_builder_materials.zip
 playwright-report/
 test-results/
 *.zip
+.playwright-mcp/
+
+# Semantic search index
+.ck/
+
+# Debug artifacts (root level only)
+/*.png
+/*.txt
+!README.txt

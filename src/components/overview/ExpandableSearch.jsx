@@ -1,6 +1,6 @@
 // src/components/overview/ExpandableSearch.jsx
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 
@@ -45,13 +45,6 @@ export default function ExpandableSearch({
     return () => cancelAnimationFrame(frame);
   }, [isExpanded]);
 
-  // Auto-collapse when value is cleared
-  useEffect(() => {
-    if (!value && isExpanded) {
-      setIsExpanded(false);
-    }
-  }, [value, isExpanded]);
-
   const handleExpand = useCallback(() => {
     setIsExpanded(true);
   }, []);
@@ -74,6 +67,11 @@ export default function ExpandableSearch({
     },
     [onChange]
   );
+
+  const handleClose = useCallback(() => {
+    onChange("");
+    setIsExpanded(false);
+  }, [onChange]);
 
   return (
     <div className={`flex items-center gap-1.5 ${className}`}>
@@ -99,8 +97,18 @@ export default function ExpandableSearch({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           aria-label={ariaLabel}
-          className="h-9"
+          className="h-9 pr-8"
         />
+        {isExpanded && (
+          <button
+            type="button"
+            onClick={handleClose}
+            className="absolute right-2 flex h-5 w-5 items-center justify-center rounded-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+            aria-label="Clear search"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );

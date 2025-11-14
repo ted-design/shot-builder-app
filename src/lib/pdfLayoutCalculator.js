@@ -77,6 +77,17 @@ export const CARD_GAP = {
   vertical: 20,   // Space between rows
 };
 
+// Grid layout decision matrix
+// Maps target cards per page to optimal grid dimensions (columns x rows)
+const GRID_LAYOUTS = {
+  // Compact: 7+ cards → 4x2 grid (8 cards per page)
+  compact: { threshold: 7, columns: 4, rows: 2 },
+  // Standard: 5-6 cards → 3x2 grid (6 cards per page)
+  standard: { threshold: 5, columns: 3, rows: 2 },
+  // Detailed: 2-4 cards → 2x(calculated) grid
+  detailed: { threshold: 0, columns: 2, rows: null }, // rows calculated dynamically
+};
+
 /**
  * Calculate optimal grid layout based on density preset
  *
@@ -87,19 +98,22 @@ export const CARD_GAP = {
 export function calculateLayout(densityId = 'standard', totalCards = 0) {
   const preset = DENSITY_PRESETS[densityId] || DENSITY_PRESETS.standard;
 
-  // Calculate optimal columns based on target cards per page
-  // We aim for a roughly square grid (e.g., 3x2, 2x2, 2x1)
+  // Determine grid dimensions based on target cards per page
+  // Using a decision matrix for predictable, aesthetic layouts
   let columns;
   let rows;
 
-  if (preset.targetCardsPerPage >= 7) {
-    columns = 4;
-    rows = 2;
-  } else if (preset.targetCardsPerPage >= 5) {
-    columns = 3;
-    rows = 2;
+  if (preset.targetCardsPerPage >= GRID_LAYOUTS.compact.threshold) {
+    // Compact density: 4 columns for high card count
+    columns = GRID_LAYOUTS.compact.columns;
+    rows = GRID_LAYOUTS.compact.rows;
+  } else if (preset.targetCardsPerPage >= GRID_LAYOUTS.standard.threshold) {
+    // Standard density: 3 columns for balanced layout
+    columns = GRID_LAYOUTS.standard.columns;
+    rows = GRID_LAYOUTS.standard.rows;
   } else {
-    columns = 2;
+    // Detailed density: 2 columns with dynamic row count
+    columns = GRID_LAYOUTS.detailed.columns;
     rows = Math.ceil(preset.targetCardsPerPage / columns);
   }
 

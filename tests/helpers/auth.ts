@@ -1,4 +1,5 @@
 import { Page } from '@playwright/test';
+import { TEST_CREDENTIALS } from '../fixtures/auth';
 
 export interface AuthOptions {
   email?: string;
@@ -22,46 +23,91 @@ export async function authenticateTestUser(
   page: Page,
   options: AuthOptions = {}
 ): Promise<{ email: string; password: string; role: string; clientId: string }> {
+  const defaultCredentials = TEST_CREDENTIALS.producer;
+  const baseURL = (process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173').replace(/\/$/, '');
   const {
-    email = 'test@example.com',
-    password = 'test-password-123',
-    role = 'producer',
+    email = defaultCredentials.email,
+    password = defaultCredentials.password,
+    role = defaultCredentials.role,
     clientId = 'test-client'
   } = options;
 
-  // Navigate to the app
-  await page.goto('http://localhost:5173');
+  const maxRetries = 3;
+  let lastError: Error | null = null;
 
-  // Wait for the page to load
-  await page.waitForLoadState('networkidle');
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Navigate to the app with increased timeout for CI
+      await page.goto(`${baseURL}/`, {
+        waitUntil: 'networkidle',
+        timeout: 30000
+      });
 
-  // Check if we're already authenticated (redirected to dashboard/shots)
-  const currentUrl = page.url();
-  if (currentUrl.includes('/shots') || currentUrl.includes('/dashboard') || currentUrl.includes('/projects')) {
-    return { email, password, role, clientId };
+      // Check if we're already authenticated (redirected to dashboard/shots)
+      const currentUrl = page.url();
+      if (currentUrl.includes('/shots') || currentUrl.includes('/dashboard') || currentUrl.includes('/projects')) {
+        console.log(`Already authenticated as ${email}`);
+        return { email, password, role, clientId };
+      }
+
+      // Wait for login form to be visible with increased timeout
+      const emailInput = page.locator('input[type="email"], input[placeholder*="email" i]').first();
+      await emailInput.waitFor({ state: 'visible', timeout: 15000 });
+
+      // Clear and fill email
+      await emailInput.clear();
+      await emailInput.fill(email);
+
+      // Clear and fill password
+      const passwordInput = page.locator('input[type="password"], input[placeholder*="password" i]').first();
+      await passwordInput.clear();
+      await passwordInput.fill(password);
+
+      // Small delay to ensure form is ready
+      await page.waitForTimeout(500);
+
+      // Click sign in button
+      const signInButton = page.locator('button:has-text("Sign in"), button:has-text("Sign In"), button[type="submit"]').first();
+      await signInButton.click();
+
+      // Wait for authentication to complete and redirect with increased timeout
+      await page.waitForURL(/\/(shots|dashboard|projects|planner)/, {
+        timeout: 20000
+      });
+
+      // Wait for DOM to be ready (don't use networkidle with Firebase real-time listeners)
+      await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+
+      // Wait for authenticated UI to appear (ensures Firebase auth state is loaded)
+      await page.locator('nav, header, [role="navigation"]').first().waitFor({
+        state: 'visible',
+        timeout: 10000
+      });
+
+      console.log(`Successfully authenticated as ${email}`);
+      return { email, password, role, clientId };
+
+    } catch (error) {
+      lastError = error as Error;
+      console.log(`Authentication attempt ${attempt}/${maxRetries} failed for ${email}: ${lastError.message}`);
+
+      if (attempt < maxRetries) {
+        console.log(`Retrying authentication in 2 seconds...`);
+        await page.waitForTimeout(2000);
+
+        // Try to reload the page for next attempt
+        try {
+          await page.reload({ waitUntil: 'networkidle', timeout: 10000 });
+        } catch (reloadError) {
+          // If reload fails, continue to next attempt anyway
+          console.log('Page reload failed, continuing with next attempt');
+        }
+      }
+    }
   }
 
-  // Wait for login form to be visible
-  const emailInput = page.locator('input[type="email"], input[placeholder*="email" i]').first();
-  await emailInput.waitFor({ state: 'visible', timeout: 5000 });
-
-  // Fill in email and password
-  await emailInput.fill(email);
-
-  const passwordInput = page.locator('input[type="password"], input[placeholder*="password" i]').first();
-  await passwordInput.fill(password);
-
-  // Click sign in button
-  const signInButton = page.locator('button:has-text("Sign in"), button:has-text("Sign In"), button[type="submit"]').first();
-  await signInButton.click();
-
-  // Wait for authentication to complete and redirect
-  await page.waitForURL(/\/(shots|dashboard|projects|planner)/, { timeout: 10000 });
-
-  // Wait for the page to fully load after auth
-  await page.waitForLoadState('networkidle');
-
-  return { email, password, role, clientId };
+  // If we get here, all attempts failed
+  throw new Error(`Failed to authenticate ${email} after ${maxRetries} attempts. Last error: ${lastError?.message}`);
 }
 
 /**

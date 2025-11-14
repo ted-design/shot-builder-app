@@ -162,7 +162,7 @@ const AVAILABLE_SHOT_TYPES = [
 
 const SHOTS_PREFS_STORAGE_KEY = "shots:viewPrefs";
 
-const DEFAULT_SHOT_DENSITY = "extra";
+const DEFAULT_SHOT_DENSITY = "comfortable";
 const UNTITLED_SHOT_FALLBACK_NAME = "Untitled shot";
 const COPY_NAME_PATTERN = /(.*) \(Copy(?: (\d+))?\)$/i;
 
@@ -212,14 +212,40 @@ const SHOT_VIEW_OPTIONS = [
 ];
 
 const SHOT_DENSITY_OPTIONS = [
+  { value: "compact", label: "Compact" },
   { value: "comfortable", label: "Comfort" },
-  { value: "extra", label: "Compact" },
+  { value: "cozy", label: "Cozy" },
 ];
 
 const normaliseShotDensity = (value) => {
+  if (value === "compact") return "compact";
   if (value === "comfortable") return "comfortable";
-  if (value === "extra" || value === "compact") return "extra";
+  if (value === "cozy") return "cozy";
+  // Legacy support: map old "extra" to "compact"
+  if (value === "extra") return "compact";
   return DEFAULT_SHOT_DENSITY;
+};
+
+// Density configuration for shot views with dramatic differences (25-50% between levels)
+const SHOT_DENSITY_CONFIG = {
+  compact: {
+    // Table-specific
+    tableRow: 'py-1.5',      // 6px vertical padding
+    tablePadding: 'px-2',    // 8px horizontal padding
+    tableText: 'text-xs',
+  },
+  comfortable: {
+    // Table-specific
+    tableRow: 'py-3',        // 12px vertical padding
+    tablePadding: 'px-4',    // 16px horizontal padding
+    tableText: 'text-sm',
+  },
+  cozy: {
+    // Table-specific
+    tableRow: 'py-4',        // 16px vertical padding
+    tablePadding: 'px-6',    // 24px horizontal padding
+    tableText: 'text-base',
+  },
 };
 
 const readStoredShotsView = () => {
@@ -336,7 +362,9 @@ export function ShotsWorkspace() {
     [globalRole, projectRoles, projectId]
   );
   const canEditShots = canManageShots(userRole);
-  const canManageProducts = canEditProducts(userRole);
+  // Use globalRole for product permissions since products are client-scoped, not project-scoped
+  const canManageProducts = canEditProducts(globalRole);
+
   const currentShotsPath = useMemo(() => getShotsPath(clientId), [clientId]);
   const currentProductFamiliesPath = useMemo(() => productFamiliesPath(clientId), [clientId]);
   const currentTalentPath = useMemo(() => talentPath(clientId), [clientId]);
@@ -2692,8 +2720,15 @@ export function ShotsWorkspace() {
   const activityLimit = activityExpanded ? 60 : 12;
   const activityTimelineKey = activityExpanded ? "timeline-expanded" : "timeline-compact";
   const resolvedDensity = normaliseShotDensity(viewPrefs.density);
-  const galleryItemHeight = resolvedDensity === "extra" ? 220 : 360;
-  const listItemHeight = resolvedDensity === "extra" ? 160 : 240;
+  // Dramatic density differences: 25-50% between levels
+  const galleryItemHeight =
+    resolvedDensity === "compact" ? 280 :    // 30% smaller than comfortable
+    resolvedDensity === "comfortable" ? 400 : // Baseline
+    480;                                       // cozy: 20% larger than comfortable
+  const listItemHeight =
+    resolvedDensity === "compact" ? 160 :    // 33% smaller than comfortable
+    resolvedDensity === "comfortable" ? 240 : // Baseline
+    320;                                       // cozy: 33% larger than comfortable
 
   const handleDensityChange = useCallback((nextDensity) => {
     setViewPrefs((prev) => ({ ...prev, density: normaliseShotDensity(nextDensity) }));
@@ -2967,6 +3002,7 @@ export function ShotsWorkspace() {
               <ShotTableView
                 rows={tableRows}
                 viewPrefs={viewPrefs}
+                density={SHOT_DENSITY_CONFIG[resolvedDensity]}
                 canEditShots={canEditShots}
                 selectedShotIds={selectedShotIds}
                 onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}

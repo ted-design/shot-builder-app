@@ -1,8 +1,10 @@
 // src/lib/dataExport.js
 //
-// Generic utility functions for exporting data to CSV and Excel formats
-
-import * as XLSX from 'xlsx';
+// Generic utility functions for exporting data to CSV format
+//
+// NOTE: Excel export temporarily removed due to xlsx security vulnerability (HIGH severity)
+// See docs/SECURITY_AUDIT_2025-01-11.md for details
+// Can be re-added with exceljs library if needed
 
 /**
  * Sanitize cell value to prevent CSV/Excel injection
@@ -159,55 +161,11 @@ export const exportToCSV = (data, entityType, selectedColumns = null) => {
 
 /**
  * Convert data to Excel workbook
- * @param {Array} data - Array of data objects
- * @param {string} entityType - Type of entity
- * @param {Array} selectedColumns - Optional: specific columns to export
- * @returns {XLSX.WorkBook} Excel workbook
+ * @deprecated Excel export removed due to xlsx security vulnerability
+ * @throws {Error} Always throws - Excel export is disabled
  */
-export const exportToExcel = (data, entityType, selectedColumns = null) => {
-  const config = EXPORT_CONFIGS[entityType];
-  if (!config) {
-    throw new Error(`Unknown entity type: ${entityType}`);
-  }
-
-  const columns = selectedColumns || config.columns;
-
-  // Prepare data for Excel
-  const excelData = [
-    columns.map(col => col.label) // Headers
-  ];
-
-  data.forEach((item) => {
-    const row = columns.map((col) => {
-      const value = item[col.key];
-      const formatted = col.format ? col.format(value) : value;
-      const sanitized = sanitizeCellValue(formatted || '');
-      return sanitized;
-    });
-    excelData.push(row);
-  });
-
-  // Create workbook and worksheet
-  const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-
-  // Auto-size columns
-  const columnWidths = columns.map((col, i) => {
-    const maxLength = Math.max(
-      col.label.length,
-      ...data.map(item => {
-        const val = item[col.key];
-        const formatted = col.format ? col.format(val) : val;
-        return String(formatted || '').length;
-      })
-    );
-    return { wch: Math.min(maxLength + 2, 50) }; // Max width 50 chars
-  });
-  worksheet['!cols'] = columnWidths;
-
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, entityType.charAt(0).toUpperCase() + entityType.slice(1));
-
-  return workbook;
+export const exportToExcel = () => {
+  throw new Error('Excel export temporarily disabled due to security vulnerability. Please use CSV export instead.');
 };
 
 /**
@@ -234,25 +192,11 @@ export const downloadCSV = (data, entityType, options = {}) => {
 
 /**
  * Download Excel file
- * @param {Array} data - Array of data objects
- * @param {string} entityType - Type of entity
- * @param {Object} options - Export options
+ * @deprecated Excel export removed due to xlsx security vulnerability
+ * @throws {Error} Always throws - Excel export is disabled
  */
-export const downloadExcel = (data, entityType, options = {}) => {
-  const { selectedColumns, filename } = options;
-  const config = EXPORT_CONFIGS[entityType];
-
-  const workbook = exportToExcel(data, entityType, selectedColumns);
-  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-  const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${filename || config.filename}_${new Date().toISOString().split('T')[0]}.xlsx`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+export const downloadExcel = () => {
+  throw new Error('Excel export temporarily disabled due to security vulnerability. Please use CSV export instead.');
 };
 
 /**

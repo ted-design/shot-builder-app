@@ -1,4 +1,5 @@
 import { test } from '@playwright/test';
+import { TEST_CREDENTIALS } from './fixtures/auth';
 import { authenticateTestUser, setupFirebaseEmulators } from './helpers/auth';
 
 test.describe('Sticky Toolbar Diagnostics', () => {
@@ -10,10 +11,11 @@ test.describe('Sticky Toolbar Diagnostics', () => {
     await setupFirebaseEmulators(page);
 
     // Authenticate as a test user
+    const producer = TEST_CREDENTIALS.producer;
     await authenticateTestUser(page, {
-      email: 'test@example.com',
-      password: 'test-password-123',
-      role: 'producer',
+      email: producer.email,
+      password: producer.password,
+      role: producer.role,
       clientId: 'test-client'
     });
   });
@@ -23,7 +25,7 @@ test.describe('Sticky Toolbar Diagnostics', () => {
     await page.goto('/shots');
 
     // Wait for page to be fully loaded
-    await page.waitForLoadState('networkidle');
+    await page.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
     await page.waitForTimeout(2000); // Extra wait for any animations and measurements
 
   // Get all the relevant elements

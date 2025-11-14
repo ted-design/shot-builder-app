@@ -77,6 +77,8 @@ const rawEnv: Record<string, string | undefined> = {
   VITE_FIREBASE_APP_ID: viteEnv.VITE_FIREBASE_APP_ID,
   VITE_FIREBASE_MEASUREMENT_ID: viteEnv.VITE_FIREBASE_MEASUREMENT_ID,
   VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY: viteEnv.VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY,
+  // Directly inline emulator flag to avoid reference chain issues during minification
+  VITE_USE_FIREBASE_EMULATORS: import.meta.env.VITE_USE_FIREBASE_EMULATORS,
 };
 
 // Use MODE instead of DEV/PROD which seem to be unreliable
@@ -191,10 +193,16 @@ if (typeof window !== 'undefined') {
 // Automatically tracks page load, network requests, and custom traces
 export const performance = isProd ? getPerformance(app) : null;
 
+// Check if emulators should be used
+// Allow emulators in any build mode when explicitly requested
+// This is critical for E2E testing with production builds
+const useEmulators = readBoolEnv("VITE_USE_FIREBASE_EMULATORS");
+
 // Initialize Firebase App Check
 // Protects backend resources from abuse and unauthorized access
+// Skip App Check when using emulators to avoid Installations API errors
 const appCheckSiteKey = readEnv("VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY");
-if (appCheckSiteKey && isProd) {
+if (appCheckSiteKey && isProd && !useEmulators) {
   try {
     initializeAppCheck(app, {
       provider: new ReCaptchaV3Provider(appCheckSiteKey),
@@ -206,13 +214,13 @@ if (appCheckSiteKey && isProd) {
   }
 } else if (isDev) {
   console.info("[Firebase] App Check disabled in development mode");
+} else if (useEmulators) {
+  console.info("[Firebase] App Check disabled in emulator mode");
 } else if (!appCheckSiteKey) {
   console.warn(
     "[Firebase] App Check not initialized: VITE_FIREBASE_APPCHECK_RECAPTCHA_SITE_KEY is missing",
   );
 }
-
-const useEmulators = isDev && readBoolEnv("VITE_USE_FIREBASE_EMULATORS");
 
 if (useEmulators) {
   const host = readRawEnv("VITE_FIREBASE_EMULATOR_HOST") ?? "localhost";

@@ -90,6 +90,7 @@ import ShotEditModal from "../components/shots/ShotEditModal";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import { selectPlannerGroups } from "../lib/plannerSelectors";
+import { getPrimaryAttachmentWithStyle, hasMultipleAttachments, getAttachmentCount } from "../lib/imageHelpers";
 import { sortShotsForView } from "../lib/shotsSelectors";
 import {
   shotDraftSchema,
@@ -425,8 +426,21 @@ const resolveShotImageForExport = (shot, products = []) => {
       candidates.push(...firstProduct.images);
     }
   }
-  const httpCandidate = candidates.find((value) => typeof value === "string" && /^https?:\/\//i.test(value));
-  return httpCandidate || null;
+
+  // Accept both HTTP URLs and Firebase Storage paths
+  // Firebase Storage paths start with "images/" and will be handled by AppImage component
+  const validCandidate = candidates.find((value) => {
+    if (typeof value !== "string") return false;
+    // Accept HTTP/HTTPS URLs
+    if (/^https?:\/\//i.test(value)) return true;
+    // Accept Firebase Storage paths
+    if (value.startsWith('images/')) return true;
+    // Accept gs:// URLs
+    if (value.startsWith('gs://')) return true;
+    return false;
+  });
+
+  return validCandidate || null;
 };
 
 const buildPlannerExportLanes = (shotsByLane, lanes, normaliseShotProductsFn) => {
@@ -842,8 +856,14 @@ function ShotCard({
     onChangeStatus(shot, nextValue);
   };
   const firstProduct = Array.isArray(products) && products.length ? products[0] : null;
+
+  // Use new multi-image system with imageHelpers
+  const { path: shotImagePath, style: shotImageStyle } = getPrimaryAttachmentWithStyle(shot);
+  const multiImageCount = getAttachmentCount(shot);
+  const showMultiImageBadge = hasMultipleAttachments(shot);
+
   const derivedThumbnail =
-    shot.referenceImagePath ||
+    shotImagePath ||
     firstProduct?.colourImagePath ||
     firstProduct?.thumbnailImagePath ||
     (Array.isArray(firstProduct?.images) && firstProduct.images.length
@@ -852,9 +872,6 @@ function ShotCard({
     null;
   const thumbnailSrc = visibleFields.products ? derivedThumbnail : null;
   const showThumbnailFrame = Boolean(visibleFields.products && firstProduct);
-  const imagePosition = shot.referenceImagePath && shot.referenceImageCrop
-    ? `${shot.referenceImageCrop.x}% ${shot.referenceImageCrop.y}%`
-    : undefined;
   const locationLabel = shot.locationName || "–";
   const showDetailsSection = visibleFields.location || visibleFields.talent || visibleFields.products;
 
@@ -955,7 +972,7 @@ function ShotCard({
         </div>
         {/* Large thumbnail only in board view and non-compact density */}
         {viewMode !== 'list' && density !== 'compact' && showThumbnailFrame ? (
-          <div className="aspect-[4/3] w-full overflow-hidden rounded-md border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900">
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-md border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900">
             <AppImage
               src={thumbnailSrc}
               alt={`${shot.name} thumbnail`}
@@ -963,7 +980,7 @@ function ShotCard({
               loading="lazy"
               className="h-full w-full"
               imageClassName="h-full w-full object-cover"
-              position={imagePosition}
+              style={shotImagePath === thumbnailSrc ? shotImageStyle : undefined}
               placeholder={
                 <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                   Loading
@@ -975,6 +992,11 @@ function ShotCard({
                 </div>
               }
             />
+            {showMultiImageBadge && (
+              <div className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white">
+                {multiImageCount} images
+              </div>
+            )}
           </div>
         ) : viewMode !== 'list' && density !== 'compact' ? (
           <div className={`flex ${density === 'compact' ? 'h-20' : 'h-28'} w-full items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500`}>
@@ -989,7 +1011,7 @@ function ShotCard({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-1 min-w-[140px] items-center gap-2">
             {(density === 'compact' || viewMode === 'list') && (
-              <div className="w-12 shrink-0 overflow-hidden rounded-sm border border-slate-200 bg-slate-100 aspect-[4/3] dark:border-slate-700 dark:bg-slate-900">
+              <div className="relative w-12 shrink-0 overflow-hidden rounded-sm border border-slate-200 bg-slate-100 aspect-[4/3] dark:border-slate-700 dark:bg-slate-900">
                 <AppImage
                   src={thumbnailSrc}
                   alt={`${shot.name} thumbnail`}
@@ -997,7 +1019,7 @@ function ShotCard({
                   loading="lazy"
                   className="h-full w-full"
                   imageClassName="h-full w-full object-cover"
-                  position={imagePosition}
+                  style={shotImagePath === thumbnailSrc ? shotImageStyle : undefined}
                   placeholder={
                     <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[9px] uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                       Loading
@@ -1009,6 +1031,11 @@ function ShotCard({
                     </div>
                   }
                 />
+                {showMultiImageBadge && (
+                  <div className="absolute bottom-0 right-0 rounded-tl-sm bg-black/70 px-1 py-0.5 text-[8px] font-medium text-white leading-none">
+                    {multiImageCount}
+                  </div>
+                )}
               </div>
             )}
             <h4 className="flex-1 text-base font-semibold text-slate-900 dark:text-slate-100" title={shotNameLabel}>
@@ -4029,6 +4056,7 @@ function PlannerPageContent({ embedded = false }) {
             talentSummary={talentSummary}
             defaultVisibleFields={visibleFields}
             isLoading={isPlannerLoading}
+            projectName={currentProject?.name}
           />
         </Suspense>
       )}

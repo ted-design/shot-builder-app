@@ -10,15 +10,29 @@
  * Load an image from URL and return an Image element
  *
  * @param {string} url - Image URL or data URL
+ * @param {Object} options - Loading options
+ * @param {string|null} options.crossOrigin - CORS mode: 'anonymous', 'use-credentials', or null to disable
  * @returns {Promise<HTMLImageElement>} Loaded image element
  */
-async function loadImage(url) {
+async function loadImage(url, options = {}) {
+  const { crossOrigin = 'anonymous' } = options;
+
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous'; // Enable CORS for cross-origin images
+
+    // Only set crossOrigin if provided (null disables CORS)
+    if (crossOrigin !== null) {
+      img.crossOrigin = crossOrigin;
+    }
 
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+    img.onerror = (event) => {
+      // Provide helpful error message for CORS issues
+      const errorMsg = crossOrigin
+        ? `Failed to load image with CORS (${crossOrigin}): ${url}. Image may not have proper CORS headers.`
+        : `Failed to load image: ${url}`;
+      reject(new Error(errorMsg));
+    };
 
     img.src = url;
   });
@@ -95,6 +109,7 @@ function cropImageToFocalPoint(img, cropPosition, targetWidth, targetHeight, qua
  * @param {number} options.targetWidth - Target width in pixels
  * @param {number} options.targetHeight - Target height in pixels
  * @param {number} options.quality - JPEG quality (0.0 - 1.0), default 0.85
+ * @param {string|null} options.crossOrigin - CORS mode: 'anonymous', 'use-credentials', or null
  * @returns {Promise<string>} Data URL of the processed image
  */
 export async function processImageForPDF(imageUrl, options = {}) {
@@ -103,11 +118,12 @@ export async function processImageForPDF(imageUrl, options = {}) {
     targetWidth = 600,
     targetHeight = 450,
     quality = 0.85,
+    crossOrigin = 'anonymous',
   } = options;
 
   try {
-    // Load the image
-    const img = await loadImage(imageUrl);
+    // Load the image with CORS configuration
+    const img = await loadImage(imageUrl, { crossOrigin });
 
     // Crop to focal point
     const croppedDataUrl = cropImageToFocalPoint(
@@ -126,6 +142,21 @@ export async function processImageForPDF(imageUrl, options = {}) {
 }
 
 /**
+ * Calculate optimal concurrency for image processing based on device capabilities
+ *
+ * @returns {number} Optimal concurrency limit (1-10)
+ */
+function getOptimalConcurrency() {
+  // Use half of available CPU cores, bounded between 2 and 10
+  const cores = typeof navigator !== 'undefined' && navigator.hardwareConcurrency
+    ? navigator.hardwareConcurrency
+    : 4; // Default to 4 if not available
+
+  const optimal = Math.ceil(cores / 2);
+  return Math.max(2, Math.min(optimal, 10));
+}
+
+/**
  * Process multiple images in parallel for PDF export
  *
  * @param {Array} images - Array of image objects with {url, cropPosition}
@@ -133,16 +164,18 @@ export async function processImageForPDF(imageUrl, options = {}) {
  * @param {number} options.targetWidth - Target width in pixels
  * @param {number} options.targetHeight - Target height in pixels
  * @param {number} options.quality - JPEG quality (0.0 - 1.0)
+ * @param {string|null} options.crossOrigin - CORS mode for all images
+ * @param {number} options.concurrency - Max concurrent image processing (default: auto-detected)
  * @param {Function} options.onProgress - Progress callback (processedCount, totalCount)
  * @returns {Promise<Array>} Array of processed data URLs in same order
  */
 export async function processBatchImages(images, options = {}) {
-  const { onProgress } = options;
+  const { onProgress, concurrency } = options;
   const results = new Array(images.length);
   let processedCount = 0;
 
-  // Process images in parallel with concurrency limit
-  const CONCURRENCY = 5;
+  // Use provided concurrency or calculate optimal value
+  const CONCURRENCY = concurrency ?? getOptimalConcurrency();
   const chunks = [];
 
   for (let i = 0; i < images.length; i += CONCURRENCY) {
@@ -157,6 +190,7 @@ export async function processBatchImages(images, options = {}) {
           targetWidth: options.targetWidth,
           targetHeight: options.targetHeight,
           quality: options.quality,
+          crossOrigin: options.crossOrigin,
         });
 
         const absoluteIndex = images.indexOf(image);
@@ -216,13 +250,15 @@ export function estimateProcessingTime(imageCount) {
  * @param {string} imageUrl - Source image URL
  * @param {Object} cropPosition - Focal point {x: 0-100, y: 0-100}
  * @param {number} size - Thumbnail size (square)
+ * @param {string|null} crossOrigin - CORS mode
  * @returns {Promise<string>} Data URL of the thumbnail
  */
-export async function createThumbnail(imageUrl, cropPosition = { x: 50, y: 50 }, size = 100) {
+export async function createThumbnail(imageUrl, cropPosition = { x: 50, y: 50 }, size = 100, crossOrigin = 'anonymous') {
   return processImageForPDF(imageUrl, {
     cropPosition,
     targetWidth: size,
     targetHeight: size,
     quality: 0.7,
+    crossOrigin,
   });
 }

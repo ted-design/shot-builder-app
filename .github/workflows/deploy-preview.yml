@@ -11,6 +11,8 @@ defaults:
 
 jobs:
   preview:
+    # Skip preview deploys when required Firebase secrets are not available (e.g., PRs from forks)
+    if: ${{ secrets.VITE_FIREBASE_API_KEY != '' }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write

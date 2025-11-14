@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import {
   Document,
   Image,
@@ -12,9 +12,7 @@ import {
   Circle,
   pdf,
 } from "@react-pdf/renderer";
-import { Modal } from "../ui/modal";
 import { Button } from "../ui/button";
-import { Card, CardContent } from "../ui/card";
 import { toast } from "../../lib/toast";
 import { collectImagesForPdf, resolveImageSourceToDataUrl } from "../../lib/pdfImageCollector";
 import {
@@ -25,7 +23,16 @@ import {
   DENSITY_PRESETS,
 } from "../../lib/pdfLayoutCalculator";
 import { processImageForPDF, getOptimalImageDimensions } from "../../lib/pdfImageProcessor";
-import PdfPreview, { PdfPreviewZoomControls } from "./PdfPreview";
+import { getPrimaryAttachment } from "../../lib/imageHelpers";
+import { FileDown, Eye, X, GripVertical } from "lucide-react";
+import PlannerSheetSectionManager from "./PlannerSheetSectionManager";
+import PlannerSheetPreview from "./PlannerSheetPreview";
+import {
+  getDefaultSectionConfig,
+  exportSettingsToSectionConfig,
+  sectionConfigToExportSettings,
+  getVisibleFieldKeys,
+} from "../../lib/plannerSheetSections";
 
 const styles = StyleSheet.create({
   page: {
@@ -403,9 +410,20 @@ const prepareLanesForPdf = async (lanes, { includeImages, density = 'standard' }
 
           if (shot && entry.dataUrl) {
             try {
-              // Apply cropping if referenceImageCrop exists
+              // Get crop data from primary attachment or fallback to legacy
+              let cropPosition = { x: 50, y: 50 };
+              const primaryAttachment = getPrimaryAttachment(shot.attachments);
+              if (primaryAttachment?.cropData) {
+                cropPosition = {
+                  x: primaryAttachment.cropData.x || 50,
+                  y: primaryAttachment.cropData.y || 50,
+                };
+              } else if (shot.referenceImageCrop) {
+                cropPosition = shot.referenceImageCrop;
+              }
+
               const croppedDataUrl = await processImageForPDF(entry.dataUrl, {
-                cropPosition: shot.referenceImageCrop || { x: 50, y: 50 },
+                cropPosition,
                 targetWidth: imageDimensions.width,
                 targetHeight: imageDimensions.height,
               });
@@ -1268,14 +1286,19 @@ const escapeCsv = (value) => {
   return stringValue;
 };
 
-const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoading }) => {
+const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoading, projectName }) => {
   const [title, setTitle] = useState("Planner export");
   const [subtitle, setSubtitle] = useState("");
   const [orientation, setOrientation] = useState("portrait");
   const [layoutMode, setLayoutMode] = useState("list");
   const [density, setDensity] = useState("standard");
   const [galleryColumns, setGalleryColumns] = useState("3");
-  const [fields, setFields] = useState({});
+
+  // Initialize section states first
+  const [sectionStates, setSectionStates] = useState(() => getDefaultSectionConfig());
+
+  // Initialize fields from section states
+  const [fields, setFields] = useState(() => getVisibleFieldKeys(getDefaultSectionConfig()));
   const [includeLaneSummary, setIncludeLaneSummary] = useState(true);
   const [includeTalentSummary, setIncludeTalentSummary] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -1285,8 +1308,12 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
   const [selectedTalentNames, setSelectedTalentNames] = useState([]);
   const [dateFilterMode, setDateFilterMode] = useState("any");
   const [selectedDate, setSelectedDate] = useState("");
-  const [activeTab, setActiveTab] = useState("settings");
-  const [previewZoom, setPreviewZoom] = useState(0.75);
+  const [showPreview, setShowPreview] = useState(true);
+
+  // Resizable divider state
+  const [dividerPosition, setDividerPosition] = useState(40); // percentage
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef(null);
 
   const laneOptions = useMemo(() => {
     if (!Array.isArray(lanes)) return [];
@@ -1345,10 +1372,42 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     return Math.min(6, Math.max(1, parsed));
   }, [galleryColumns]);
 
+  /**
+   * Handle mouse move for resizing divider
+   */
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging || !containerRef.current) return;
+
+      const container = containerRef.current;
+      const rect = container.getBoundingClientRect();
+      const newPosition = ((e.clientX - rect.left) / rect.width) * 100;
+
+      // Constrain between 20% and 80%
+      const clampedPosition = Math.min(Math.max(newPosition, 20), 80);
+      setDividerPosition(clampedPosition);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
   useEffect(() => {
     if (!open) return;
     const now = new Date();
-    setTitle("Planner export");
+    // Auto-populate title with project name, fallback to "Planner export"
+    setTitle(projectName || "Planner export");
     setSubtitle(`Generated ${now.toLocaleString()}`);
     setOrientation("portrait");
     setLayoutMode("list");
@@ -1360,7 +1419,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     setSelectedTalentNames([]);
     setDateFilterMode("any");
     setSelectedDate("");
-    setFields({
+
+    const initialFields = {
       shotNumber: true,
       name: true,
       type: true,
@@ -1370,9 +1430,21 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       products: defaultVisibleFields?.products ?? true,
       notes: defaultVisibleFields?.notes ?? true,
       image: false,
-    });
+    };
+
+    setFields(initialFields);
+
+    // Initialize section states from fields
+    setSectionStates(exportSettingsToSectionConfig(initialFields));
+
     setGenerationStage("");
-  }, [open, defaultVisibleFields, laneOptions]);
+  }, [open, defaultVisibleFields, laneOptions, projectName]);
+
+  // Sync fields with section states
+  useEffect(() => {
+    const visibleFields = getVisibleFieldKeys(sectionStates);
+    setFields(visibleFields);
+  }, [sectionStates]);
 
   const selectedLaneIdSet = useMemo(() => new Set(selectedLaneIds), [selectedLaneIds]);
 
@@ -1389,26 +1461,46 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       .filter((lane) => !limitToSelected || selectedLaneIdSet.has(lane.id))
       .map((lane) => {
         const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
-        const filteredShots = laneShots.filter((shot) => {
-          const shotTalent = Array.isArray(shot.talent) ? shot.talent : [];
-          const trimmedTalent = shotTalent
-            .map((name) => (typeof name === "string" ? name.trim() : ""))
-            .filter(Boolean);
+        const filteredShots = laneShots
+          .filter((shot) => {
+            const shotTalent = Array.isArray(shot.talent) ? shot.talent : [];
+            const trimmedTalent = shotTalent
+              .map((name) => (typeof name === "string" ? name.trim() : ""))
+              .filter(Boolean);
 
-          if (hasTalentFilter) {
-            const matchesExplicit = trimmedTalent.some((name) => talentSet.has(name));
-            const matchesUnassigned = includeUnassigned && trimmedTalent.length === 0;
-            if (!matchesExplicit && !matchesUnassigned) {
+            if (hasTalentFilter) {
+              const matchesExplicit = trimmedTalent.some((name) => talentSet.has(name));
+              const matchesUnassigned = includeUnassigned && trimmedTalent.length === 0;
+              if (!matchesExplicit && !matchesUnassigned) {
+                return false;
+              }
+            }
+
+            if (usingSpecificDate && shot.date !== selectedDate) {
               return false;
             }
-          }
 
-          if (usingSpecificDate && shot.date !== selectedDate) {
-            return false;
-          }
+            return true;
+          })
+          .map((shot) => {
+            // Debug: Log what image field already exists from buildPlannerExportLanes
+            if (shot.image) {
+              console.log('[PlannerExportModal] Shot already has image:', shot.image);
+            } else {
+              const primaryAttachment = getPrimaryAttachment(shot.attachments);
+              console.log('[PlannerExportModal] Shot missing image:', {
+                shotName: shot.name,
+                hasAttachments: !!shot.attachments?.length,
+                hasPrimaryAttachment: !!primaryAttachment,
+                hasReferenceImagePath: !!shot.referenceImagePath,
+                hasImageUrl: !!shot.imageUrl,
+              });
+            }
 
-          return true;
-        });
+            // The image should already be set by buildPlannerExportLanes
+            // Just return the shot as-is
+            return shot;
+          });
 
         return {
           ...lane,
@@ -1664,440 +1756,409 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     onClose?.();
   }, [fields, hasShots, filteredLanes, title, onClose]);
 
+  // Don't render if not open
+  if (!open) return null;
+
   return (
-    <Modal
-      open={open}
-      onClose={() => {
-        if (!isGenerating) onClose?.();
-      }}
-      labelledBy="planner-export-title"
-      contentClassName="p-0 overflow-hidden"
-    >
-      <div className="flex h-full min-h-0 flex-col bg-white dark:bg-slate-900">
-        {/* Tab Navigation */}
-        <div className="border-b border-slate-200 dark:border-slate-700 px-6 pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 id="planner-export-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                Export planner
-              </h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Configure the layout and preview before exporting.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-transparent p-2 text-slate-500 dark:text-slate-400 transition hover:border-slate-200 dark:hover:border-slate-700 hover:text-slate-900 dark:hover:text-slate-100"
-              aria-label="Close export settings"
-              disabled={isGenerating}
-            >
-              ×
-            </button>
-          </div>
-          <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => setActiveTab("settings")}
-              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "settings"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-              }`}
-            >
-              Settings
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("preview")}
-              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "preview"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-              }`}
-              disabled={!hasShots || layoutMode !== "gallery"}
-            >
-              Preview
-              {layoutMode === "gallery" && hasShots && (
-                <span className="ml-1 text-xs">({filteredShots.length} shots)</span>
-              )}
-            </button>
+    <div className="fixed inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col">
+      {/* Top Header Bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            aria-label="Close"
+            disabled={isGenerating}
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Export Planner Sheet
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              {title || "Planner Export"}
+            </p>
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          {activeTab === "settings" ? (
-            <div className="flex flex-col gap-6 p-6">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card>
-                <CardContent className="space-y-4 pt-6">
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="planner-export-title-input">
-                      Page title
+        <div className="flex items-center gap-3">
+          {/* Preview Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowPreview(!showPreview)}
+            className={`
+              flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors
+              ${showPreview
+                ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-600 dark:text-slate-400'
+              }
+            `}
+          >
+            <Eye className="w-4 h-4" />
+            <span className="text-sm font-medium">
+              {showPreview ? 'Hide Preview' : 'Show Preview'}
+            </span>
+          </button>
+
+          <Button onClick={handleDownloadCsv} disabled={!hasShots || isLoading || isGenerating} className="gap-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600">
+            <FileDown className="w-4 h-4" />
+            Export CSV
+          </Button>
+
+          <Button onClick={handleDownloadPdf} disabled={!hasShots || isLoading || isGenerating} className="gap-2">
+            <FileDown className="w-4 h-4" />
+            {isGenerating ? "Exporting..." : "Export PDF"}
+          </Button>
+        </div>
+      </div>
+
+        {/* Main Content Area with Resizable Panels */}
+        <div ref={containerRef} className="flex-1 flex overflow-hidden relative">
+          {/* Left Panel - Configuration */}
+          <div
+            className="flex flex-col overflow-y-auto bg-slate-50 dark:bg-slate-800/50"
+            style={{ width: showPreview ? `${dividerPosition}%` : '100%' }}
+          >
+            <div className="p-6 space-y-6">
+              {/* Document Settings */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Document Settings</h3>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="planner-export-title-input">
+                    Page title
+                  </label>
+                  <input
+                    id="planner-export-title-input"
+                    type="text"
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    className="mt-1 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                    placeholder="Planner overview"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="planner-export-subtitle-input">
+                    Subtitle
+                  </label>
+                  <input
+                    id="planner-export-subtitle-input"
+                    type="text"
+                    value={subtitle}
+                    onChange={(event) => setSubtitle(event.target.value)}
+                    className="mt-1 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                    placeholder="Generated automatically"
+                  />
+                </div>
+
+                <div>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Page orientation</span>
+                  <div className="mt-2 inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
+                    {["portrait", "landscape"].map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setOrientation(option)}
+                        className={`px-3 py-1.5 text-sm capitalize transition ${
+                          orientation === option
+                            ? "bg-slate-900 dark:bg-slate-700 text-white"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Layout Settings */}
+              <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-700">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Layout</h3>
+
+                <div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                    Switch between a detailed list or gallery-style cards for the PDF export.
+                  </p>
+                  <div className="inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
+                    {[
+                      { value: "list", label: "List view" },
+                      { value: "gallery", label: "Gallery view" },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setLayoutMode(option.value)}
+                        className={`px-3 py-1.5 text-sm transition ${
+                          layoutMode === option.value
+                            ? "bg-slate-900 dark:bg-slate-700 text-white"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {layoutMode === "gallery" && (
+                  <div className="space-y-3 pt-2">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Density
                     </label>
-                    <input
-                      id="planner-export-title-input"
-                      type="text"
-                      value={title}
-                      onChange={(event) => setTitle(event.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
-                      placeholder="Planner overview"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="planner-export-subtitle-input">
-                      Subtitle
-                    </label>
-                    <input
-                      id="planner-export-subtitle-input"
-                      type="text"
-                      value={subtitle}
-                      onChange={(event) => setSubtitle(event.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
-                      placeholder="Generated automatically"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Page orientation</span>
-                    <div className="mt-2 inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
-                      {["portrait", "landscape"].map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => setOrientation(option)}
-                          className={`px-3 py-1.5 text-sm capitalize transition ${
-                            orientation === option
-                              ? "bg-slate-900 dark:bg-slate-700 text-white"
-                              : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Layout</span>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Switch between a detailed list or gallery-style cards for the PDF export.
-                    </p>
-                    <div className="mt-2 inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
-                      {[
-                        { value: "list", label: "List view" },
-                        { value: "gallery", label: "Gallery view" },
-                      ].map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => setLayoutMode(option.value)}
-                          className={`px-3 py-1.5 text-sm transition ${
-                            layoutMode === option.value
-                              ? "bg-slate-900 dark:bg-slate-700 text-white"
-                              : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                    {layoutMode === "gallery" ? (
-                      <div className="mt-3 space-y-3">
-                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                          Density
-                        </label>
-                        <div className="space-y-2">
-                          {Object.values(DENSITY_PRESETS).map((preset) => (
-                            <label key={preset.id} className="flex items-start gap-3 cursor-pointer group">
-                              <input
-                                type="radio"
-                                name="density"
-                                value={preset.id}
-                                checked={density === preset.id}
-                                onChange={() => setDensity(preset.id)}
-                                className="mt-0.5 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary"
-                              />
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-slate-900 dark:text-slate-100 group-hover:text-primary">
-                                  {preset.label}
-                                </div>
-                                <div className="text-xs text-slate-500 dark:text-slate-400">
-                                  {preset.description}
-                                </div>
-                              </div>
-                            </label>
-                          ))}
-                        </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Layout automatically adjusts for optimal space usage and consistent spacing.
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Include sections</span>
-                    <div className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-300">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={includeLaneSummary}
-                          onChange={(event) => setIncludeLaneSummary(event.target.checked)}
-                          className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
-                        />
-                        Lane summary
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={includeTalentSummary}
-                          onChange={(event) => setIncludeTalentSummary(event.target.checked)}
-                          className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
-                        />
-                        Talent summary
-                      </label>
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Filter shots</span>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Choose which lanes, talent, and dates to include in your export.
-                    </p>
-                    <div className="mt-3 space-y-4">
-                      <div>
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Lanes</span>
-                        <div className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-300">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="radio"
-                              name="planner-export-lane-filter"
-                              value="all"
-                              checked={laneFilterMode === "all"}
-                              onChange={() => setLaneFilterMode("all")}
-                              className="border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
-                            />
-                            All lanes
-                          </label>
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="radio"
-                              name="planner-export-lane-filter"
-                              value="selected"
-                              checked={laneFilterMode === "selected"}
-                              onChange={() => {
-                                setLaneFilterMode("selected");
-                                if (selectedLaneIds.length === 0) {
-                                  handleSelectAllLanes();
-                                }
-                              }}
-                              className="border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
-                            />
-                            Specific lanes
-                          </label>
-                        </div>
-                        {isLaneSelectionMode ? (
-                          <div className="mt-2 space-y-2">
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                              {laneOptions.map((lane) => (
-                                <label key={lane.id} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedLaneIdSet.has(lane.id)}
-                                    onChange={() => handleToggleLane(lane.id)}
-                                    className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
-                                  />
-                                  {lane.name}
-                                </label>
-                              ))}
+                    <div className="space-y-2">
+                      {Object.values(DENSITY_PRESETS).map((preset) => (
+                        <label key={preset.id} className="flex items-start gap-3 cursor-pointer group">
+                          <input
+                            type="radio"
+                            name="density"
+                            value={preset.id}
+                            checked={density === preset.id}
+                            onChange={() => setDensity(preset.id)}
+                            className="mt-0.5 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary"
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-slate-900 dark:text-slate-100 group-hover:text-primary">
+                              {preset.label}
                             </div>
-                            {laneOptions.length > 0 ? (
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                                <button
-                                  type="button"
-                                  className="text-primary dark:text-blue-400 hover:underline"
-                                  onClick={handleSelectAllLanes}
-                                >
-                                  Select all lanes
-                                </button>
-                                <span aria-hidden="true">•</span>
-                                <span>{selectedLaneIds.length} selected</span>
-                              </div>
-                            ) : (
-                              <p className="text-xs text-slate-500 dark:text-slate-400">No lanes available.</p>
-                            )}
+                            <div className="text-xs text-slate-500 dark:text-slate-400">
+                              {preset.description}
+                            </div>
                           </div>
-                        ) : null}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Include Sections */}
+              <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-700">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Include sections</h3>
+                <div className="space-y-2 text-sm text-slate-700 dark:text-slate-300">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={includeLaneSummary}
+                      onChange={(event) => setIncludeLaneSummary(event.target.checked)}
+                      className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                    />
+                    Lane summary
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={includeTalentSummary}
+                      onChange={(event) => setIncludeTalentSummary(event.target.checked)}
+                      className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                    />
+                    Talent summary
+                  </label>
+                </div>
+              </div>
+
+              {/* Filter Shots */}
+              <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-700">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filter shots</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Choose which lanes, talent, and dates to include in your export.
+                </p>
+
+                {/* Lanes Filter */}
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Lanes</span>
+                  <div className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-300">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="planner-export-lane-filter"
+                        value="all"
+                        checked={laneFilterMode === "all"}
+                        onChange={() => setLaneFilterMode("all")}
+                        className="border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                      />
+                      All lanes
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="planner-export-lane-filter"
+                        value="selected"
+                        checked={laneFilterMode === "selected"}
+                        onChange={() => {
+                          setLaneFilterMode("selected");
+                          if (selectedLaneIds.length === 0) {
+                            handleSelectAllLanes();
+                          }
+                        }}
+                        className="border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                      />
+                      Specific lanes
+                    </label>
+                  </div>
+                  {isLaneSelectionMode && (
+                    <div className="mt-2 space-y-2">
+                      <div className="grid grid-cols-1 gap-2">
+                        {laneOptions.map((lane) => (
+                          <label key={lane.id} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={selectedLaneIdSet.has(lane.id)}
+                              onChange={() => handleToggleLane(lane.id)}
+                              className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                            />
+                            {lane.name}
+                          </label>
+                        ))}
                       </div>
-                      <div>
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Talent</span>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          Leave blank to include every talent. Select one or more names to limit the export.
-                        </p>
-                        {talentOptions.length ? (
-                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            {talentOptions.map((option) => (
-                              <label key={option.value} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedTalentNames.includes(option.value)}
-                                  onChange={() => handleToggleTalent(option.value)}
-                                  className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
-                                />
-                                {option.label}
-                              </label>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">No talent assignments yet.</p>
-                        )}
-                        {selectedTalentNames.length ? (
+                      {laneOptions.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                           <button
                             type="button"
-                            className="mt-2 text-xs text-primary dark:text-blue-400 hover:underline"
-                            onClick={clearTalentFilters}
+                            className="text-primary dark:text-blue-400 hover:underline"
+                            onClick={handleSelectAllLanes}
                           >
-                            Clear talent filters
+                            Select all lanes
                           </button>
-                        ) : null}
-                      </div>
-                      <div>
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dates</span>
-                        <div className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-300">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="radio"
-                              name="planner-export-date-filter"
-                              value="any"
-                              checked={dateFilterMode === "any"}
-                              onChange={() => {
-                                setDateFilterMode("any");
-                                setSelectedDate("");
-                              }}
-                              className="border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
-                            />
-                            Any date
-                          </label>
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="radio"
-                              name="planner-export-date-filter"
-                              value="specific"
-                              checked={dateFilterMode === "specific"}
-                              onChange={() => {
-                                setDateFilterMode("specific");
-                                if (!selectedDate && availableDates.length) {
-                                  setSelectedDate(availableDates[0]);
-                                }
-                              }}
-                              className="border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
-                            />
-                            Specific date
-                          </label>
+                          <span aria-hidden="true">•</span>
+                          <span>{selectedLaneIds.length} selected</span>
                         </div>
-                        {dateFilterMode === "specific" ? (
-                          <div className="mt-2">
-                            <input
-                              type="date"
-                              value={selectedDate}
-                              onChange={(event) => setSelectedDate(event.target.value)}
-                              className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
-                            />
-                            {availableDates.length ? (
-                              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                Available dates: {availableDates.join(", ")}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
+                      )}
+                      {laneOptions.length === 0 && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">No lanes available.</p>
+                      )}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="space-y-4 pt-6">
-                  <div>
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Shot details</span>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Select the information that will appear for each shot.</p>
-                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      {fieldOptions.map((option) => (
-                        <label key={option.key} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  )}
+                </div>
+
+                {/* Talent Filter */}
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Talent</span>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Leave blank to include every talent. Select one or more names to limit the export.
+                  </p>
+                  {talentOptions.length > 0 ? (
+                    <div className="mt-2 grid grid-cols-1 gap-2">
+                      {talentOptions.map((option) => (
+                        <label key={option.value} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                           <input
                             type="checkbox"
-                            checked={Boolean(fields[option.key])}
-                            onChange={(event) =>
-                              setFields((prev) => ({
-                                ...prev,
-                                [option.key]: event.target.checked,
-                              }))
-                            }
+                            checked={selectedTalentNames.includes(option.value)}
+                            onChange={() => handleToggleTalent(option.value)}
                             className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                           />
                           {option.label}
                         </label>
                       ))}
                     </div>
-                  </div>
-                  <div className="rounded-md bg-slate-50 dark:bg-slate-800 p-3 text-xs text-slate-600 dark:text-slate-400">
-                    Shots that are too tall to fit on the current page will automatically move to the next page so that
-                    content never appears cropped.
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-          ) : (
-            <div className="p-6 space-y-4">
-              {/* Zoom Controls */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100">PDF Preview</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">What you see is what you'll get</p>
+                  ) : (
+                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">No talent assignments yet.</p>
+                  )}
+                  {selectedTalentNames.length > 0 && (
+                    <button
+                      type="button"
+                      className="mt-2 text-xs text-primary dark:text-blue-400 hover:underline"
+                      onClick={clearTalentFilters}
+                    >
+                      Clear talent filters
+                    </button>
+                  )}
                 </div>
-                <PdfPreviewZoomControls zoom={previewZoom} onZoomChange={setPreviewZoom} />
+
+                {/* Dates Filter */}
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dates</span>
+                  <div className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-300">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="planner-export-date-filter"
+                        value="any"
+                        checked={dateFilterMode === "any"}
+                        onChange={() => {
+                          setDateFilterMode("any");
+                          setSelectedDate("");
+                        }}
+                        className="border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                      />
+                      Any date
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="planner-export-date-filter"
+                        value="specific"
+                        checked={dateFilterMode === "specific"}
+                        onChange={() => {
+                          setDateFilterMode("specific");
+                          if (!selectedDate && availableDates.length) {
+                            setSelectedDate(availableDates[0]);
+                          }
+                        }}
+                        className="border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                      />
+                      Specific date
+                    </label>
+                  </div>
+                  {dateFilterMode === "specific" && (
+                    <div className="mt-2">
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(event) => setSelectedDate(event.target.value)}
+                        className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                      />
+                      {availableDates.length > 0 && (
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          Available dates: {availableDates.join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Preview Component */}
-              <PdfPreview
-                shots={filteredShots}
-                densityId={density}
-                zoom={previewZoom}
+              {/* Section Manager */}
+              <div className="pt-6 border-t border-slate-200 dark:border-slate-700">
+                <PlannerSheetSectionManager
+                  sectionStates={sectionStates}
+                  onSectionStatesChange={setSectionStates}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Resizable Divider */}
+          {showPreview && (
+            <div
+              className="w-1 bg-slate-200 dark:bg-slate-700 hover:bg-blue-500 dark:hover:bg-blue-600 cursor-col-resize relative flex items-center justify-center transition-colors group"
+              onMouseDown={() => setIsDragging(true)}
+            >
+              <div className="absolute inset-y-0 -left-1 -right-1" />
+              <GripVertical className="w-4 h-4 text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
+            </div>
+          )}
+
+          {/* Right Panel - Preview */}
+          {showPreview && (
+            <div
+              className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-900 p-6"
+              style={{ width: `${100 - dividerPosition}%` }}
+            >
+              <PlannerSheetPreview
+                lanes={filteredLanes}
+                sectionStates={sectionStates}
+                layoutMode={layoutMode}
                 orientation={orientation}
+                title={title}
+                subtitle={subtitle}
               />
             </div>
           )}
         </div>
-        <div className="border-t border-slate-200 dark:border-slate-700 p-6">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {hasShots
-                ? "Exports include shots that match your filters. CSV files can be opened in spreadsheet tools like Excel or Google Sheets."
-                : "Adjust your filters or add shots to the planner to enable exports."}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                onClick={handleDownloadCsv}
-                disabled={!hasShots || isLoading || isGenerating}
-                className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
-              >
-                Download CSV
-              </Button>
-              <Button
-                type="button"
-                onClick={handleDownloadPdf}
-                disabled={!hasShots || isLoading || isGenerating}
-              >
-                {isGenerating ? "Preparing PDF…" : "Download PDF"}
-              </Button>
-            </div>
-          </div>
-          {isGenerating && generationStage ? (
-            <div className="mt-3 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
-              {generationStage}
-            </div>
-          ) : null}
-        </div>
       </div>
-    </Modal>
   );
 };
 
