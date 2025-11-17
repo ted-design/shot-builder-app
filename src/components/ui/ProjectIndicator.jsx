@@ -118,7 +118,7 @@ export default function ProjectIndicator() {
       </button>
 
       {dropdownOpen && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-md border border-slate-200 bg-white shadow-lg animate-fade-in animate-slide-in-from-top origin-top" style={{ animationDuration: '200ms' }}>
+        <div className="absolute right-0 top-full z-[100] mt-2 w-64 rounded-md border border-slate-200 bg-white shadow-lg animate-fade-in animate-slide-in-from-top origin-top" style={{ animationDuration: '200ms' }}>
           <div className="border-b border-slate-100 px-3 py-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Switch Project
