@@ -11,7 +11,6 @@ import ProjectCards from "../components/dashboard/ProjectCards";
 import ProjectCreateModal from "../components/dashboard/ProjectCreateModal";
 import ProjectEditModal from "../components/dashboard/ProjectEditModal";
 import { showError, toast } from "../lib/toast";
-import FilterPresetManager from "../components/ui/FilterPresetManager";
 import { createProjectSchema, updateProjectSchema } from "../schemas/index.js";
 import { SkeletonCard } from "../components/ui/Skeleton";
 import { Filter, X } from "lucide-react";
@@ -70,17 +69,6 @@ export default function ProjectsPage() {
   const clearAllFilters = useCallback(() => {
     setShowArchivedProjects(false);
   }, []);
-
-  // Preset callbacks
-  const handleLoadPreset = useCallback((presetFilters) => {
-    if (presetFilters.showArchivedProjects !== undefined) {
-      setShowArchivedProjects(presetFilters.showArchivedProjects);
-    }
-  }, []);
-
-  const getCurrentFilters = useCallback(() => ({
-    showArchivedProjects,
-  }), [showArchivedProjects]);
 
   // Build active filters array for pills
   const activeFilters = useMemo(() => {
@@ -330,7 +318,7 @@ export default function ProjectsPage() {
   return (
     <div className="mx-auto max-w-screen-lg space-y-6">
       {/* PageHeader component with filters and presets */}
-      <PageHeader sticky={true} className="top-14 z-40">
+      <PageHeader sticky={true} className="top-14 z-30">
         <PageHeader.Content>
           <div>
             <PageHeader.Title>
@@ -396,13 +384,6 @@ export default function ProjectsPage() {
                 </div>
               )}
             </div>
-
-            <FilterPresetManager
-              page="projects"
-              currentFilters={getCurrentFilters()}
-              onLoadPreset={handleLoadPreset}
-              onClearFilters={clearAllFilters}
-            />
           </PageHeader.Actions>
         </PageHeader.Content>
       </PageHeader>

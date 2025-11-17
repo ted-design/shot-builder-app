@@ -86,7 +86,6 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { ShotsOverviewProvider, useShotsOverview } from "../context/ShotsOverviewContext";
 import { useKeyboardShortcuts } from "../context/KeyboardShortcutsContext";
 import {
-  FiltersPopover,
   FieldVisibilityMenu,
   OverviewToolbar,
   OverviewToolbarRow,
@@ -139,6 +138,7 @@ import {
   markSectionsForState,
   buildSectionDiffMap,
 } from "../lib/shotSectionStatus";
+import { convertLegacyImageToAttachment } from "../lib/migrations/migrateShots";
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
@@ -1455,6 +1455,13 @@ export function ShotsWorkspace() {
     }));
   }, []);
 
+  const handleShowArchivedChange = useCallback((checked) => {
+    setFilters((previous) => ({
+      ...previous,
+      showArchived: checked,
+    }));
+  }, []);
+
   // Build active filters array for pills
   const activeFilters = useMemo(
     () =>
@@ -1595,6 +1602,16 @@ export function ShotsWorkspace() {
       try {
         const products = normaliseShotProducts(shot);
         const talentSelection = mapShotTalentToSelection(shot);
+
+        // AUTO-MIGRATION: Convert legacy referenceImagePath to attachments array if needed
+        let attachments = Array.isArray(shot.attachments) ? shot.attachments : [];
+        if (attachments.length === 0 && shot.referenceImagePath) {
+          const migratedAttachment = convertLegacyImageToAttachment(shot, user?.uid);
+          if (migratedAttachment) {
+            attachments = [migratedAttachment];
+          }
+        }
+
         const draft = {
           name: shot.name || "",
           description: shot.description || "",
@@ -1605,6 +1622,7 @@ export function ShotsWorkspace() {
           talent: talentSelection,
           products,
           tags: Array.isArray(shot.tags) ? shot.tags : [],
+          attachments,
           referenceImagePath: shot.referenceImagePath || "",
           referenceImageCrop: shot.referenceImageCrop || null,
           referenceImageFile: null,
@@ -1620,7 +1638,7 @@ export function ShotsWorkspace() {
         toast.error("Unable to open shot editor");
       }
   },
-    [mapShotTalentToSelection, normaliseShotProducts, setEditAutoStatus, setFocusShotId]
+    [mapShotTalentToSelection, normaliseShotProducts, setEditAutoStatus, setFocusShotId, user]
   );
 
   const handleEditShot = useCallback(
@@ -1730,6 +1748,7 @@ export function ShotsWorkspace() {
       }
       patch.referenceImagePath = referenceImagePath;
       patch.referenceImageCrop = referenceImageCrop || null;
+      patch.attachments = draft.attachments || [];
     }
 
     if (!Object.keys(patch).length) {
@@ -1747,6 +1766,7 @@ export function ShotsWorkspace() {
               referenceImagePath: patch.referenceImagePath || null,
               referenceImageCrop: patch.referenceImageCrop || null,
               referenceImageFile: null,
+              attachments: patch.attachments || [],
             }
           : {}),
       };
@@ -1790,6 +1810,7 @@ export function ShotsWorkspace() {
         if (diffMap.attachments) {
           shotUpdate.referenceImagePath = draftUpdate.referenceImagePath || null;
           shotUpdate.referenceImageCrop = draftUpdate.referenceImageCrop || null;
+          shotUpdate.attachments = draftUpdate.attachments || [];
         }
 
         return {
@@ -1857,6 +1878,7 @@ export function ShotsWorkspace() {
         tags: parsed.tags || [],
         referenceImagePath,
         referenceImageCrop: editingShot.draft.referenceImageCrop || null,
+        attachments: editingShot.draft.attachments || [],
       });
       toast.success(`Shot "${parsed.name}" updated.`);
       setEditAutoStatus((current) =>
@@ -2746,24 +2768,15 @@ export function ShotsWorkspace() {
       <OverviewToolbar filterPills={activeFilters} onRemoveFilter={removeFilter}>
         <OverviewToolbarRow>
           <div className="flex flex-wrap items-center gap-2">
-            <FiltersPopover
-              locationOptions={locationFilterOptions}
-              locationValue={locationFilterValue}
-              onLocationChange={handleLocationFilterChange}
-              talentOptions={talentFilterOptions}
-              talentValue={talentFilterValue}
-              onTalentChange={handleTalentFilterChange}
-              talentNoOptionsMessage={talentNoOptionsMessage}
-              productOptions={productFilterOptions}
-              productValue={productFilterValue}
-              onProductChange={handleProductFilterChange}
-              productNoOptionsMessage={productNoOptionsMessage}
-              tagOptions={tagFilterOptions}
-              tagValue={tagFilterValue}
-              onTagChange={handleTagFilterChange}
-              tagNoOptionsMessage={tagNoOptionsMessage}
-              selectPortalTarget={selectPortalTarget}
-            />
+            <label className="flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.showArchived}
+                onChange={(e) => handleShowArchivedChange(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary dark:focus:ring-primary-light"
+              />
+              <span>Show Archived</span>
+            </label>
             <SortMenu
               options={SHOT_SORT_OPTIONS}
               value={viewPrefs.sort}

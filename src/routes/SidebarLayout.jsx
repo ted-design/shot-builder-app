@@ -157,7 +157,7 @@ export default function SidebarLayout({ fallbackUser = null, fallbackRole = null
         </aside>
 
         <div className="flex flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 px-4 backdrop-blur">
+          <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 px-4 backdrop-blur">
             <div className="flex items-center gap-3">
               <button
                 onClick={toggleMobile}
