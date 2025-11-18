@@ -50,8 +50,14 @@ jobs:
             if [ $EXIT_CODE -eq 1 ]; then
               echo "⚠️ Found vulnerabilities, but allowing MODERATE (documented in SECURITY_AUDIT_2025-01-11.md)"
               npm audit --production
-              # Exit 0 if only moderate or lower
-              npm audit --production --audit-level=critical
+              # Exit 0 if only moderate or lower (no critical)
+              if npm audit --production --audit-level=critical; then
+                echo "✅ No critical vulnerabilities found, continuing build"
+                exit 0
+              else
+                echo "❌ Critical vulnerabilities found, failing build"
+                exit 1
+              fi
             else
               exit $EXIT_CODE
             fi
