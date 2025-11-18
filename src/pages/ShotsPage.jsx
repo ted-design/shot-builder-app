@@ -129,7 +129,6 @@ import { buildActiveFilterPills, defaultOverviewFilters, removeFilterKey } from 
 import { normaliseShotStatus, DEFAULT_SHOT_STATUS } from "../lib/shotStatus";
 import { normaliseShot, sortShotsForView, SHOT_SORT_OPTIONS } from "../lib/shotsSelectors";
 import { getStaggerDelay } from "../lib/animations";
-import ActivityTimeline from "../components/activity/ActivityTimeline";
 import ShotsAssetsTab from "../components/shots/ShotsAssetsTab";
 import {
   createInitialSectionStatuses,
@@ -316,7 +315,6 @@ export function ShotsWorkspace() {
   const [localSelectedShotIds, setLocalSelectedShotIds] = useState(() => new Set());
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
-  const [activityExpanded, setActivityExpanded] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [stickyOffset, setStickyOffset] = useState(80);
   const autoSaveTimerRef = useRef(null);
@@ -1304,10 +1302,6 @@ export function ShotsWorkspace() {
     setViewPrefs((prev) => ({ ...prev, sort: sortValue }));
   }, []);
 
-  const toggleActivityExpanded = useCallback(() => {
-    setActivityExpanded((prev) => !prev);
-  }, []);
-
   // Update an existing shot.  We compute before/after arrays for reverse
   // indexing and only update fields that have changed.  Note: If you allow
   // editing the project assignment in the future, updating the `projectId`
@@ -1371,6 +1365,10 @@ export function ShotsWorkspace() {
 
     if (Object.prototype.hasOwnProperty.call(patch, "referenceImagePath")) {
       docPatch.referenceImagePath = patch.referenceImagePath || null;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, "attachments")) {
+      docPatch.attachments = Array.isArray(patch.attachments) ? patch.attachments : [];
     }
 
     const after = {
@@ -2739,8 +2737,6 @@ export function ShotsWorkspace() {
   const talentNoOptionsMessage =
     talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available");
   const showArchived = Boolean(filters.showArchived);
-  const activityLimit = activityExpanded ? 60 : 12;
-  const activityTimelineKey = activityExpanded ? "timeline-expanded" : "timeline-compact";
   const resolvedDensity = normaliseShotDensity(viewPrefs.density);
   // Dramatic density differences: 25-50% between levels
   const galleryItemHeight =
@@ -2916,8 +2912,7 @@ export function ShotsWorkspace() {
         />
       )}
 
-      <div className="mx-6 flex flex-col gap-6 xl:flex-row xl:items-start">
-        <div className="flex-1 min-w-0 space-y-4">
+      <div className="mx-6 space-y-4">
           <p className="text-sm text-slate-600 dark:text-slate-400">
             Build and manage the shot list for the active project. Set the active project from the Dashboard.
           </p>
@@ -2946,7 +2941,7 @@ export function ShotsWorkspace() {
                 items={sortedShots}
                 itemHeight={galleryItemHeight}
                 threshold={80}
-                className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
                 renderItem={(shot, index, isVirtualized) => {
                   const shotProducts = normaliseShotProducts(shot);
                   const shotTalentSelection = mapShotTalentToSelection(shot);
@@ -3025,43 +3020,6 @@ export function ShotsWorkspace() {
               />
             )}
           </div>
-        </div>
-
-        {clientId && projectId && (
-          <aside className="xl:w-64 2xl:w-72 flex-shrink-0">
-            <div className="sticky top-8 z-[38] space-y-3">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between gap-3">
-                  <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Recent Activity</h2>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={toggleActivityExpanded}
-                  aria-expanded={activityExpanded}
-                >
-                  {activityExpanded ? "Collapse" : "Show more"}
-                </Button>
-              </CardHeader>
-                <CardContent
-                  className={`${
-                    activityExpanded
-                      ? "max-h-[calc(100vh-16rem)] overflow-y-auto pr-1"
-                      : "max-h-[360px] overflow-y-auto pr-1"
-                  } space-y-3 text-xs`}
-                >
-                  <ActivityTimeline
-                    key={activityTimelineKey}
-                    clientId={clientId}
-                    projectId={projectId}
-                    limit={activityLimit}
-                    showFilters={activityExpanded}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          </aside>
-        )}
       </div>
 
       {canEditShots && isCreateModalOpen && (
@@ -3140,12 +3098,18 @@ export function ShotsWorkspace() {
 
 
 function selectShotImage(shot, products = []) {
-  // Prioritize reference/storyboard image if available
+  // Priority 1: Primary attachment from new multi-image system
+  if (shot?.attachments && Array.isArray(shot.attachments) && shot.attachments.length > 0) {
+    const primary = shot.attachments.find((att) => att.isPrimary) || shot.attachments[0];
+    if (primary?.path) return primary.path;
+  }
+
+  // Priority 2: Legacy reference/storyboard image
   if (shot?.referenceImagePath) {
     return shot.referenceImagePath;
   }
 
-  // Fall back to product images
+  // Priority 3: Product images (fallback)
   for (const product of products) {
     if (!product) continue;
     if (product.thumbnailImagePath) return product.thumbnailImagePath;

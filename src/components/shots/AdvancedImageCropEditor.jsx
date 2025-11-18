@@ -116,7 +116,7 @@ export default function AdvancedImageCropEditor({ open, onClose, attachment, onS
         {/* Cropper Container */}
         <div className="relative h-[400px] w-full overflow-hidden rounded-lg bg-slate-900">
           <Cropper
-            image={attachment.path}
+            image={attachment.downloadURL || attachment.path}
             crop={crop}
             zoom={zoom}
             rotation={rotation}

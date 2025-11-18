@@ -82,7 +82,7 @@ export default function AttachmentThumbnail({
       {/* Thumbnail Image */}
       <div className="relative aspect-square w-full overflow-hidden rounded bg-slate-100 dark:bg-slate-700">
         <AppImage
-          src={attachment.path}
+          src={attachment.downloadURL || attachment.path}
           alt={`Attachment ${index}`}
           preferredSize={240}
           className="h-full w-full"
