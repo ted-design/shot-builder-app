@@ -123,6 +123,7 @@ export default function MultiImageAttachmentManager({
         const newAttachment = {
           id: nanoid(),
           path,
+          downloadURL,
           isPrimary: attachments.length === 0, // First attachment is primary
           cropData: null,
           uploadedAt: Date.now(),

@@ -8,6 +8,15 @@ This directory contains end-to-end tests for the Shot Builder application using 
 - `smoke.spec.ts` - Basic smoke tests (currently skipped, awaiting auth setup)
 - `a11y.spec.ts` - Accessibility tests
 - `visual.spec.ts` - Visual regression tests
+- `image-crop-editor.spec.js` - **NEW**: Comprehensive tests for Image Crop Editor feature:
+  - Display image in crop editor modal
+  - Zoom control (1x-3x range)
+  - Rotation control (-180° to 180°)
+  - Pan/shift image positioning
+  - Aspect ratio presets (Free, 1:1, 4:3, 16:9)
+  - Save changes functionality
+  - Loading states with disabled controls
+  - Test fixture: `tests/fixtures/test-image.jpg` (800x600 JPEG, 31KB)
 
 ## Prerequisites
 

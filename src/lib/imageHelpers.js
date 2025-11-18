@@ -96,7 +96,7 @@ export function getPrimaryAttachmentWithStyle(shot) {
   }
 
   return {
-    path: attachment.path,
+    path: attachment.path || attachment.downloadURL,
     style: getAttachmentImageStyle(attachment),
   };
 }

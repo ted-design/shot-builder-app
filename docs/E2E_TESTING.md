@@ -107,6 +107,10 @@ npm run test:e2e:report
 - `tests/auth.spec.ts` - Authentication flow tests
 - `tests/smoke.spec.ts` - Core functionality smoke tests
 - `tests/a11y.spec.ts` - Accessibility tests with axe-core
+- `tests/shots-crud.spec.ts` - Shot lifecycle tests (create, edit, delete, filters, export)
+- `tests/pulls-crud.spec.ts` - Pull sheet workflow tests
+- `tests/sidebar-summary.spec.ts` - Shot edit modal sidebar tests with autosave
+- `tests/image-crop-editor.spec.js` - Image Crop Editor feature tests (zoom, rotation, pan, aspect ratios)
 
 ### Test Helpers
 
