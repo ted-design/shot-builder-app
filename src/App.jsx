@@ -14,7 +14,6 @@ import ProjectParamScope from "./routes/ProjectParamScope";
 import { ProjectScopeProvider, useProjectScope } from "./context/ProjectScopeContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { SearchCommandProvider } from "./context/SearchCommandContext";
-import { KeyboardShortcutsProvider } from "./context/KeyboardShortcutsContext";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import SearchCommand from "./components/ui/SearchCommand";
 import GlobalKeyboardShortcuts from "./components/GlobalKeyboardShortcuts";
@@ -47,6 +46,8 @@ const AdminPage = lazy(() => import("./pages/AdminPage"));
 const ImageDiagnosticsPage = lazy(() => import("./pages/dev/ImageDiagnosticsPage"));
 const BrandLockupTest = lazy(() => import("./pages/dev/BrandLockupTest"));
 const PageHeaderTest = lazy(() => import("./pages/dev/PageHeaderTest"));
+// Dev-only quick check page for RichTextEditor bubble menu styling
+const RichTextEditorDemo = lazy(() => import("./pages/dev/RichTextEditorDemo"));
 const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
 const ProjectAssetsPage = lazy(() => import("./pages/ProjectAssetsPage"));
 
@@ -130,9 +131,8 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <SearchCommandProvider>
-          <KeyboardShortcutsProvider>
-            <BrowserRouter>
-              <ProjectScopeProvider>
+          <BrowserRouter>
+            <ProjectScopeProvider>
               {/* Global search command palette (Cmd+K) */}
               <SearchCommand />
               {/* Global keyboard shortcuts */}
@@ -158,6 +158,16 @@ export default function App() {
             }
           />
           <Route path="/" element={<Navigate to="/projects" replace />} />
+          {import.meta.env.DEV ? (
+            <Route
+              path="/dev/richtext"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <RichTextEditorDemo />
+                </Suspense>
+              }
+            />
+          ) : null}
           <Route
             element={
               <AuthReadyGate fallback={null}>
@@ -297,7 +307,6 @@ export default function App() {
             </Routes>
               </ProjectScopeProvider>
             </BrowserRouter>
-          </KeyboardShortcutsProvider>
         </SearchCommandProvider>
       </ThemeProvider>
     </QueryClientProvider>

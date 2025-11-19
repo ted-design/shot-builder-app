@@ -12,17 +12,14 @@ import TagEditor from "./TagEditor";
 import CommentSection from "../comments/CommentSection";
 import ImageCropPositionEditor from "../common/ImageCropPositionEditor";
 import { useAuth } from "../../context/AuthContext";
-import ShotSidebarSummary from "./ShotSidebarSummary";
 import SingleImageDropzone from "../common/SingleImageDropzone";
 import AppImage from "../common/AppImage";
 import MultiImageAttachmentManager from "./MultiImageAttachmentManager";
 import AdvancedImageCropEditor from "./AdvancedImageCropEditor";
 
 const steps = [
-  { id: "basics", label: "Basics", description: "Core identifiers" },
-  { id: "logistics", label: "Logistics", description: "Resources & tags" },
-  { id: "creative", label: "Creative", description: "Notes & direction" },
-  { id: "attachments", label: "Attachments", description: "Reference imagery" },
+  { id: "basics", label: "Basics", description: "Core details & references" },
+  { id: "creative-logistics", label: "Creative and Logistics", description: "Resources, tags & direction" },
 ];
 
 export default function ShotEditModal({
@@ -67,6 +64,7 @@ export default function ShotEditModal({
   const [showNameError, setShowNameError] = useState(false);
   const [cropEditorOpen, setCropEditorOpen] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState(null);
+  const [advancedActionsOpen, setAdvancedActionsOpen] = useState(false);
   const tabRefs = useRef([]);
 
   useEffect(() => {
@@ -189,20 +187,6 @@ export default function ShotEditModal({
               <p className="text-sm text-slate-500 dark:text-slate-400">{description}</p>
             </div>
             <div className="flex items-center gap-2">
-              {onDelete && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    setConfirmingDelete((value) => !value);
-                    setDeleteText("");
-                  }}
-                  disabled={isSaving || deleting}
-                >
-                  Delete
-                </Button>
-              )}
               <button
                 type="button"
                 aria-label="Close"
@@ -215,58 +199,13 @@ export default function ShotEditModal({
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {confirmingDelete && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-              <p className="mb-2 text-sm text-red-700 dark:text-red-400">
-                This will permanently remove this shot and cannot be undone. To confirm, type "DELETE" below and press Permanently delete.
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  value={deleteText}
-                  onChange={(event) => setDeleteText(event.target.value)}
-                  placeholder="Type DELETE to confirm"
-                  disabled={isSaving || deleting}
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    setConfirmingDelete(false);
-                    setDeleteText("");
-                  }}
-                  disabled={isSaving || deleting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={async () => {
-                    if (!onDelete) return;
-                    if (deleteText.trim() !== "DELETE") return;
-                    try {
-                      setDeleting(true);
-                      await onDelete();
-                      onClose?.();
-                    } finally {
-                      setDeleting(false);
-                    }
-                  }}
-                  disabled={deleteText.trim() !== "DELETE" || isSaving || deleting}
-                >
-                  {deleting ? "Deleting…" : "Permanently delete"}
-                </Button>
-              </div>
-            </div>
-          )}
-
           <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
             <nav
               aria-label="Shot sections"
               className="rounded-card border border-slate-200 bg-white/70 p-3 dark:border-slate-700 dark:bg-slate-900/40"
             >
               <ol
-                className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+                className="grid gap-2 sm:grid-cols-2"
                 role="tablist"
                 aria-orientation="horizontal"
               >
@@ -342,8 +281,7 @@ export default function ShotEditModal({
               </ol>
             </nav>
 
-            <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-              <div className="space-y-6">
+            <div className="space-y-6">
                 <section
                   id={`${uniquePrefix}-basics-panel`}
                   role="tabpanel"
@@ -354,7 +292,7 @@ export default function ShotEditModal({
                   <div>
                     <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Basics</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Capture the key identifiers and schedule details so the shot shows up in the right place.
+                      Core shot details, scheduling, and reference imagery.
                     </p>
                   </div>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -374,6 +312,23 @@ export default function ShotEditModal({
                           Add a name before saving.
                         </p>
                       )}
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor={`${uniquePrefix}-status`}>
+                        Status
+                      </label>
+                      <select
+                        id={`${uniquePrefix}-status`}
+                        value={draft.status || "todo"}
+                        onChange={(event) => handleFieldChange({ status: event.target.value })}
+                        disabled={navigationDisabled}
+                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/60 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:ring-offset-slate-900 dark:placeholder:text-slate-400 dark:focus:ring-indigo-500"
+                      >
+                        <option value="todo">Todo</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="complete">Complete</option>
+                        <option value="on_hold">On Hold</option>
+                      </select>
                     </div>
                     <div>
                       <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor={`${uniquePrefix}-type`}>
@@ -398,7 +353,7 @@ export default function ShotEditModal({
                         disabled={navigationDisabled}
                       />
                     </div>
-                    <div>
+                    <div className="sm:col-span-2">
                       <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor={`${uniquePrefix}-location`}>
                         Location
                       </label>
@@ -410,20 +365,45 @@ export default function ShotEditModal({
                       />
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Reference Images
+                      <span className="ml-2 text-xs font-normal text-slate-500">(up to 10)</span>
+                    </label>
+                    <MultiImageAttachmentManager
+                      attachments={draft.attachments || []}
+                      onChange={(attachments) => handleFieldChange({ attachments })}
+                      disabled={navigationDisabled}
+                      userId={user?.uid}
+                      clientId={clientId}
+                      shotId={shotId || draft.id || "temp"}
+                      onEditAttachment={handleEditAttachment}
+                    />
+                  </div>
                 </section>
 
                 <section
-                  id={`${uniquePrefix}-logistics-panel`}
+                  id={`${uniquePrefix}-creative-logistics-panel`}
                   role="tabpanel"
-                  aria-labelledby={`${uniquePrefix}-logistics-tab`}
+                  aria-labelledby={`${uniquePrefix}-creative-logistics-tab`}
                   hidden={activeStep !== 1}
                   className="space-y-5"
                 >
                   <div>
-                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Logistics</h3>
+                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Creative and Logistics</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Link the products, people, and tags so departments know what they own.
+                      Define creative direction, link products and talent, and organize with tags.
                     </p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
+                    <RichTextEditor
+                      value={draft.description}
+                      onChange={(next) => handleFieldChange({ description: next })}
+                      disabled={navigationDisabled}
+                      placeholder="Add detailed notes with rich formatting, @mentions, links, and more…"
+                      characterLimit={50000}
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Products</label>
@@ -461,143 +441,184 @@ export default function ShotEditModal({
                       projectId={currentProjectId}
                     />
                   </div>
-                  {onMoveToProject && projects.length > 0 && (
-                    <div className="rounded-card border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-                      <div className="space-y-3">
-                        <div>
-                          <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400">Move to another project</h4>
-                          <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
-                            Transfer this shot to a different project. The shot will be removed from this project's planner.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <select
-                            className="flex-1 rounded-md border border-slate-200 bg-white p-2 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-indigo-500"
-                            disabled={navigationDisabled || movingProject || copyingProject}
-                            onChange={(event) => {
-                              const targetProjectId = event.target.value;
-                              if (targetProjectId && targetProjectId !== currentProjectId) {
-                                onMoveToProject(targetProjectId);
-                              }
-                            }}
-                            defaultValue=""
-                          >
-                            <option value="">Select a project...</option>
-                            {projects
-                              .filter((project) => project.id !== currentProjectId && project.status !== "archived")
-                              .map((project) => (
-                                <option key={project.id} value={project.id}>
-                                  {project.name}
-                                </option>
-                              ))}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {onCopyToProject && projects.length > 0 && (
-                    <div className="rounded-card border border-green-200 bg-green-50/70 p-4 dark:border-green-800 dark:bg-green-900/20">
-                      <div className="space-y-3">
-                        <div>
-                          <h4 className="text-sm font-semibold text-green-700 dark:text-green-400">Copy to another project</h4>
-                          <p className="mt-1 text-sm text-green-600 dark:text-green-400">
-                            Create a duplicate of this shot in a different project. The original shot will remain in this project.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <select
-                            className="flex-1 rounded-md border border-slate-200 bg-white p-2 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-indigo-500"
-                            disabled={navigationDisabled || movingProject || copyingProject}
-                            onChange={(event) => {
-                              const targetProjectId = event.target.value;
-                              if (targetProjectId && targetProjectId !== currentProjectId) {
-                                onCopyToProject(targetProjectId);
-                              }
-                            }}
-                            defaultValue=""
-                          >
-                            <option value="">Select a project...</option>
-                            {projects
-                              .filter((project) => project.id !== currentProjectId && project.status !== "archived")
-                              .map((project) => (
-                                <option key={project.id} value={project.id}>
-                                  {project.name}
-                                </option>
-                              ))}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </section>
-
-                <section
-                  id={`${uniquePrefix}-creative-panel`}
-                  role="tabpanel"
-                  aria-labelledby={`${uniquePrefix}-creative-tab`}
-                  hidden={activeStep !== 2}
-                  className="space-y-4"
-                >
-                  <div>
-                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Creative Direction</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Outline the intent, framing, and creative notes so everyone aligns before set.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
-                    <RichTextEditor
-                      value={draft.description}
-                      onChange={(next) => handleFieldChange({ description: next })}
-                      disabled={navigationDisabled}
-                      placeholder="Add detailed notes with rich formatting, @mentions, links, and more…"
-                      characterLimit={50000}
-                    />
-                  </div>
-                </section>
-
-                <section
-                  id={`${uniquePrefix}-attachments-panel`}
-                  role="tabpanel"
-                  aria-labelledby={`${uniquePrefix}-attachments-tab`}
-                  hidden={activeStep !== 3}
-                  className="space-y-4"
-                >
-                  <div>
-                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Attachments</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Upload storyboard frames or reference imagery. Drag to reorder, set a primary image for planner previews.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                      Reference Images
-                      <span className="ml-2 text-xs font-normal text-slate-500">(up to 10)</span>
-                    </label>
-                    <MultiImageAttachmentManager
-                      attachments={draft.attachments || []}
-                      onChange={(attachments) => handleFieldChange({ attachments })}
-                      disabled={navigationDisabled}
-                      userId={user?.uid}
-                      clientId={clientId}
-                      shotId={shotId || draft.id || "temp"}
-                      onEditAttachment={handleEditAttachment}
-                    />
-                  </div>
-                </section>
-              </div>
-
-              <ShotSidebarSummary
-                status={draft.status}
-                onStatusChange={handleStatusChange}
-                statusDisabled={navigationDisabled}
-                dateValue={draft.date}
-                locationLabel={locationLabel}
-                tags={draft.tags || []}
-                basicsStatus={autoSaveStatus?.basics || null}
-                logisticsStatus={autoSaveStatus?.logistics || null}
-              />
             </div>
+
+            {/* Advanced Actions Section (Edit mode only) */}
+            {shotId && (onMoveToProject || onCopyToProject || onDelete) && (
+              <div className="rounded-card border border-slate-200 bg-slate-50/50 dark:border-slate-700 dark:bg-slate-800/30">
+                <button
+                  type="button"
+                  onClick={() => setAdvancedActionsOpen(!advancedActionsOpen)}
+                  disabled={navigationDisabled}
+                  className="flex w-full items-center justify-between p-4 text-left transition hover:bg-slate-100/50 dark:hover:bg-slate-700/30"
+                >
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Advanced Actions</h4>
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                      Move, copy, or delete this shot
+                    </p>
+                  </div>
+                  <svg
+                    className={`h-5 w-5 text-slate-500 transition-transform dark:text-slate-400 ${advancedActionsOpen ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {advancedActionsOpen && (
+                  <div className="space-y-4 border-t border-slate-200 p-4 dark:border-slate-700">
+                    {/* Move to another project */}
+                    {onMoveToProject && projects.length > 0 && (
+                      <div className="rounded-card border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                        <div className="space-y-3">
+                          <div>
+                            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400">Move to another project</h4>
+                            <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
+                              Transfer this shot to a different project. The shot will be removed from this project's planner.
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <select
+                              className="flex-1 rounded-md border border-slate-200 bg-white p-2 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-indigo-500"
+                              disabled={navigationDisabled || movingProject || copyingProject}
+                              onChange={(event) => {
+                                const targetProjectId = event.target.value;
+                                if (targetProjectId && targetProjectId !== currentProjectId) {
+                                  onMoveToProject(targetProjectId);
+                                }
+                              }}
+                              defaultValue=""
+                            >
+                              <option value="">Select a project...</option>
+                              {projects
+                                .filter((project) => project.id !== currentProjectId && project.status !== "archived")
+                                .map((project) => (
+                                  <option key={project.id} value={project.id}>
+                                    {project.name}
+                                  </option>
+                                ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Copy to another project */}
+                    {onCopyToProject && projects.length > 0 && (
+                      <div className="rounded-card border border-green-200 bg-green-50/70 p-4 dark:border-green-800 dark:bg-green-900/20">
+                        <div className="space-y-3">
+                          <div>
+                            <h4 className="text-sm font-semibold text-green-700 dark:text-green-400">Copy to another project</h4>
+                            <p className="mt-1 text-sm text-green-600 dark:text-green-400">
+                              Create a duplicate of this shot in a different project. The original shot will remain in this project.
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <select
+                              className="flex-1 rounded-md border border-slate-200 bg-white p-2 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-indigo-500"
+                              disabled={navigationDisabled || movingProject || copyingProject}
+                              onChange={(event) => {
+                                const targetProjectId = event.target.value;
+                                if (targetProjectId && targetProjectId !== currentProjectId) {
+                                  onCopyToProject(targetProjectId);
+                                }
+                              }}
+                              defaultValue=""
+                            >
+                              <option value="">Select a project...</option>
+                              {projects
+                                .filter((project) => project.id !== currentProjectId && project.status !== "archived")
+                                .map((project) => (
+                                  <option key={project.id} value={project.id}>
+                                    {project.name}
+                                  </option>
+                                ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Delete shot */}
+                    {onDelete && (
+                      <div className="rounded-card border border-red-200 bg-red-50/70 p-4 dark:border-red-800 dark:bg-red-900/20">
+                        <div className="space-y-3">
+                          <div>
+                            <h4 className="text-sm font-semibold text-red-700 dark:text-red-400">Delete shot</h4>
+                            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                              Permanently remove this shot. This action cannot be undone.
+                            </p>
+                          </div>
+                          {!confirmingDelete ? (
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                setConfirmingDelete(true);
+                                setDeleteText("");
+                              }}
+                              disabled={navigationDisabled}
+                            >
+                              Delete shot
+                            </Button>
+                          ) : (
+                            <div className="space-y-2">
+                              <p className="text-sm text-red-700 dark:text-red-400">
+                                To confirm deletion, type "DELETE" below:
+                              </p>
+                              <Input
+                                value={deleteText}
+                                onChange={(event) => setDeleteText(event.target.value)}
+                                placeholder="Type DELETE to confirm"
+                                disabled={navigationDisabled || deleting}
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => {
+                                    setConfirmingDelete(false);
+                                    setDeleteText("");
+                                  }}
+                                  disabled={navigationDisabled || deleting}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={async () => {
+                                    if (!onDelete) return;
+                                    if (deleteText.trim() !== "DELETE") return;
+                                    try {
+                                      setDeleting(true);
+                                      await onDelete();
+                                      onClose?.();
+                                    } finally {
+                                      setDeleting(false);
+                                    }
+                                  }}
+                                  disabled={deleteText.trim() !== "DELETE" || navigationDisabled || deleting}
+                                >
+                                  {deleting ? "Deleting…" : "Permanently delete"}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
               <Button type="button" variant="ghost" onClick={onClose} disabled={navigationDisabled}>
