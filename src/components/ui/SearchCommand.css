@@ -400,6 +400,112 @@
   }
 }
 
+/* Keyboard Shortcuts Section */
+.keyboard-shortcuts-group {
+  scroll-margin-top: 1rem;
+}
+
+.keyboard-shortcuts-subsection {
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.keyboard-shortcuts-subsection:last-child {
+  margin-bottom: 0;
+}
+
+.keyboard-shortcuts-subsection-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(99, 102, 241);
+  border-bottom: 1px solid rgb(226, 232, 240);
+}
+
+@media (prefers-color-scheme: dark) {
+  .keyboard-shortcuts-subsection-header {
+    color: rgb(165, 180, 252);
+    border-bottom-color: rgb(51, 65, 85);
+  }
+}
+
+.keyboard-shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  color: rgb(51, 65, 85);
+}
+
+@media (prefers-color-scheme: dark) {
+  .keyboard-shortcut-item {
+    color: rgb(226, 232, 240);
+  }
+}
+
+.keyboard-shortcut-item > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.keyboard-shortcut-keys {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.keyboard-shortcut-keys kbd,
+.command-item-shortcut {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  font-family: ui-monospace, monospace;
+  color: rgb(100, 116, 139);
+  background-color: rgb(248, 250, 252);
+  border: 1px solid rgb(226, 232, 240);
+  border-radius: 0.25rem;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .keyboard-shortcut-keys kbd,
+  .command-item-shortcut {
+    color: rgb(148, 163, 184);
+    background-color: rgb(51, 65, 85);
+    border-color: rgb(71, 85, 105);
+  }
+}
+
+.command-item-shortcut {
+  margin-left: auto;
+  opacity: 0.6;
+}
+
+[cmdk-item][aria-selected='true'] .command-item-shortcut {
+  opacity: 1;
+  color: rgb(99, 102, 241);
+  background-color: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  [cmdk-item][aria-selected='true'] .command-item-shortcut {
+    color: rgb(165, 180, 252);
+    background-color: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.4);
+  }
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {

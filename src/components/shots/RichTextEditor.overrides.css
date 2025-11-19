@@ -54,3 +54,92 @@
 .react-colorful * {
   pointer-events: auto !important;
 }
+
+/* Fix z-index: Bubble menu should be above content but below modal overlay */
+/* Set to 9998 to be below modal backdrops (typically 10000) but above dropdowns */
+.rich-text-editor-wrapper .ProseMirror-bubble-menu,
+.rich-text-editor-wrapper [class*="bubble"],
+.rich-text-editor-wrapper [data-tippy-root] {
+  z-index: 9998 !important;
+}
+
+/* Ensure toolbar stays accessible and above the bubble menu if needed */
+.rich-text-editor-wrapper .richtext-toolbar,
+.rich-text-editor-wrapper [class*="toolbar"] {
+  z-index: 9999 !important;
+  position: relative;
+}
+
+/*
+ * Fix bubble menu icon/text visibility
+ * Bubble menu uses a dark surface in both themes, so foreground must be light.
+ *
+ * Important: lucide-react icons are stroke-based. Forcing `fill: currentColor`
+ * and `stroke: none` makes icons disappear in light mode and fills letter holes
+ * (e.g. "B") in dark mode. Use stroke-only rendering and avoid fill.
+ */
+
+/* Stroke-based icons (lucide) — ensure stroke shows and fill stays transparent */
+.rich-text-editor-wrapper .ProseMirror-bubble-menu button svg,
+.rich-text-editor-wrapper [class*="bubble"] button svg {
+  /* Inherit color from theme defaults; only correct rendering mode */
+  stroke: currentColor !important;
+  fill: none !important;
+  stroke-width: 2 !important;
+}
+
+/*
+ * Tippy portal awareness
+ * Bubble content is rendered into a body-level portal ([data-tippy-root]).
+ * Add minimal, safe selectors so colors apply when the portal is outside
+ * the editor wrapper. These target only buttons inside tooltip boxes.
+ */
+[data-tippy-root] .tippy-box button svg {
+  /* Respect theme color from library; just force stroke-based icons */
+  stroke: currentColor !important;
+  fill: none !important;
+  stroke-width: 2 !important;
+}
+
+/* Light theme: ensure adequate foreground contrast for richtext bubble portals */
+html:not(.dark) [data-tippy-root] .tippy-box {
+  background-color: rgb(255 255 255) !important; /* white background in light mode */
+}
+
+html:not(.dark) [data-tippy-root] .tippy-box [class*="richtext"] {
+  color: rgb(17 24 39) !important; /* slate-900 */
+}
+
+html:not(.dark) [data-tippy-root] .tippy-box [class*="richtext"] button {
+  color: rgb(17 24 39) !important; /* slate-900 for good contrast */
+}
+
+html:not(.dark) [data-tippy-root] .tippy-box [class*="richtext"] svg {
+  stroke: currentColor !important;
+  fill: none !important;
+}
+
+/* Fallback when bubble is not portaled */
+html:not(.dark) .rich-text-editor-wrapper .ProseMirror-bubble-menu,
+html:not(.dark) .rich-text-editor-wrapper [class*="bubble"] {
+  color: rgb(17 24 39) !important;
+}
+
+html:not(.dark) .rich-text-editor-wrapper .ProseMirror-bubble-menu button,
+html:not(.dark) .rich-text-editor-wrapper [class*="bubble"] button {
+  color: rgb(17 24 39) !important;
+}
+
+/* Dark theme: ensure light foreground on dark background */
+html.dark [data-tippy-root] .tippy-box {
+  background-color: rgb(31 41 55) !important; /* slate-800 background in dark mode */
+}
+
+html.dark [data-tippy-root] .tippy-box [class*="richtext"] button {
+  color: rgb(243 244 246) !important; /* slate-100 for good contrast in dark */
+}
+
+html.dark .rich-text-editor-wrapper .ProseMirror-bubble-menu button,
+html.dark .rich-text-editor-wrapper [class*="bubble"] button {
+  color: rgb(243 244 246) !important;
+}

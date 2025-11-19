@@ -6,23 +6,33 @@ import { createContext, useContext, useState, useCallback } from 'react';
 
 const SearchCommandContext = createContext({
   isOpen: false,
+  showShortcuts: false,
   openSearch: () => {},
+  openSearchForShortcuts: () => {},
   closeSearch: () => {},
 });
 
 export function SearchCommandProvider({ children }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   const openSearch = useCallback(() => {
     setIsOpen(true);
+    setShowShortcuts(false);
+  }, []);
+
+  const openSearchForShortcuts = useCallback(() => {
+    setIsOpen(true);
+    setShowShortcuts(true);
   }, []);
 
   const closeSearch = useCallback(() => {
     setIsOpen(false);
+    setShowShortcuts(false);
   }, []);
 
   return (
-    <SearchCommandContext.Provider value={{ isOpen, openSearch, closeSearch }}>
+    <SearchCommandContext.Provider value={{ isOpen, showShortcuts, openSearch, openSearchForShortcuts, closeSearch }}>
       {children}
     </SearchCommandContext.Provider>
   );

@@ -26,6 +26,7 @@ import {
   Tag,
   Users,
   Settings,
+  Keyboard,
 } from 'lucide-react';
 import { globalSearch } from '../../lib/search';
 import { useQueryClient } from '@tanstack/react-query';
@@ -36,6 +37,7 @@ import { useProjectScope } from '../../context/ProjectScopeContext';
 import { toast } from '../../lib/toast';
 import { readStorage, writeStorage } from '../../lib/safeStorage';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { usePageShortcuts } from '../../hooks/usePageShortcuts';
 import './SearchCommand.css';
 
 const RECENT_SEARCHES_KEY = 'searchCommand:recentSearches';
@@ -138,10 +140,11 @@ function saveRecentSearch(query) {
  * SearchCommand component
  */
 export default function SearchCommand() {
-  const { isOpen, openSearch, closeSearch } = useSearchCommand();
+  const { isOpen, showShortcuts, openSearch, closeSearch } = useSearchCommand();
   const { currentProjectId } = useProjectScope();
   const [search, setSearch] = useState('');
   const [recentSearches, setRecentSearches] = useState(loadRecentSearches);
+  const pageShortcuts = usePageShortcuts();
 
   const navigate = useNavigate();
   const { clientId } = useAuth();
@@ -217,6 +220,19 @@ export default function SearchCommand() {
       setSearch('');
     }
   }, [isOpen]);
+
+  // Scroll to shortcuts section when opened via Shift+/
+  useEffect(() => {
+    if (isOpen && showShortcuts) {
+      // Small delay to ensure the element is rendered
+      setTimeout(() => {
+        const shortcutsGroup = document.querySelector('.keyboard-shortcuts-group');
+        if (shortcutsGroup) {
+          shortcutsGroup.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
+    }
+  }, [isOpen, showShortcuts]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -414,6 +430,7 @@ export default function SearchCommand() {
               >
                 <Home size={16} />
                 <span>Go to Dashboard</span>
+                <kbd className="command-item-shortcut">Alt+D</kbd>
               </Command.Item>
               <Command.Item
                 onSelect={() => handleAction('nav-shots')}
@@ -421,6 +438,7 @@ export default function SearchCommand() {
               >
                 <Camera size={16} />
                 <span>Go to Shots</span>
+                <kbd className="command-item-shortcut">Alt+S</kbd>
               </Command.Item>
               <Command.Item
                 onSelect={() => handleAction('nav-products')}
@@ -428,6 +446,7 @@ export default function SearchCommand() {
               >
                 <Package size={16} />
                 <span>Go to Products</span>
+                <kbd className="command-item-shortcut">Alt+P</kbd>
               </Command.Item>
               <Command.Item
                 onSelect={() => handleAction('nav-talent')}
@@ -435,6 +454,7 @@ export default function SearchCommand() {
               >
                 <User size={16} />
                 <span>Go to Talent</span>
+                <kbd className="command-item-shortcut">Alt+T</kbd>
               </Command.Item>
               <Command.Item
                 onSelect={() => handleAction('nav-locations')}
@@ -442,6 +462,7 @@ export default function SearchCommand() {
               >
                 <MapPin size={16} />
                 <span>Go to Locations</span>
+                <kbd className="command-item-shortcut">Alt+L</kbd>
               </Command.Item>
               <Command.Item
                 onSelect={() => handleAction('nav-pulls')}
@@ -449,6 +470,7 @@ export default function SearchCommand() {
               >
                 <Download size={16} />
                 <span>Go to Pulls</span>
+                <kbd className="command-item-shortcut">Alt+U</kbd>
               </Command.Item>
               <Command.Item
                 onSelect={() => handleAction('nav-tags')}
@@ -464,6 +486,59 @@ export default function SearchCommand() {
                 <Settings size={16} />
                 <span>Go to Admin</span>
               </Command.Item>
+            </Command.Group>
+
+            <Command.Separator />
+
+            {/* Keyboard Shortcuts Section */}
+            <Command.Group heading="Keyboard Shortcuts" className="keyboard-shortcuts-group">
+              {/* Global Shortcuts */}
+              <div className="keyboard-shortcuts-subsection">
+                <div className="keyboard-shortcuts-subsection-header">
+                  <Keyboard size={14} />
+                  <span>Global</span>
+                </div>
+                <div className="keyboard-shortcut-item">
+                  <span>Open command palette</span>
+                  <div className="keyboard-shortcut-keys">
+                    <kbd>Cmd/Ctrl</kbd>
+                    <kbd>K</kbd>
+                  </div>
+                </div>
+                <div className="keyboard-shortcut-item">
+                  <span>Show keyboard shortcuts</span>
+                  <div className="keyboard-shortcut-keys">
+                    <kbd>Shift</kbd>
+                    <kbd>/</kbd>
+                  </div>
+                </div>
+                <div className="keyboard-shortcut-item">
+                  <span>Quick command palette</span>
+                  <div className="keyboard-shortcut-keys">
+                    <kbd>C</kbd>
+                  </div>
+                </div>
+              </div>
+
+              {/* Page-Specific Shortcuts */}
+              {pageShortcuts && (
+                <div className="keyboard-shortcuts-subsection">
+                  <div className="keyboard-shortcuts-subsection-header">
+                    <Keyboard size={14} />
+                    <span>{pageShortcuts.title}</span>
+                  </div>
+                  {pageShortcuts.shortcuts.map((shortcut, index) => (
+                    <div key={index} className="keyboard-shortcut-item">
+                      <span>{shortcut.description}</span>
+                      <div className="keyboard-shortcut-keys">
+                        {shortcut.keys.map((key, keyIndex) => (
+                          <kbd key={keyIndex}>{key}</kbd>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </Command.Group>
           </>
         )}

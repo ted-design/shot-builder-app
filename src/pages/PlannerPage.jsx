@@ -37,6 +37,7 @@ import {
   arrayUnion,
   arrayRemove,
   writeBatch,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { FLAGS } from "../lib/flags";
@@ -54,7 +55,6 @@ import {
 } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { useProjectScope } from "../context/ProjectScopeContext";
-import { useKeyboardShortcuts } from "../context/KeyboardShortcutsContext";
 import { canManagePlanner, canManageShots, ROLE, resolveEffectiveRole } from "../lib/rbac";
 import {
   Download,
@@ -76,7 +76,6 @@ import {
   CheckSquare,
   Check,
   Square,
-  Keyboard,
 } from "lucide-react";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { Button } from "../components/ui/button";
@@ -109,7 +108,7 @@ import {
   shotStatusOptions,
 } from "../lib/shotStatus";
 import { getStaggerDelay } from "../lib/animations";
-import { useLanes, useShots, useProducts, useTalent, useLocations } from "../hooks/useFirestoreQuery";
+import { useLanes, useShots, useProducts, useTalent, useLocations, useProjects } from "../hooks/useFirestoreQuery";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useShotsOverview } from "../context/ShotsOverviewContext";
 import {
@@ -1301,10 +1300,10 @@ function PlannerPageContent({ embedded = false }) {
   const [renumberingLaneIds, setRenumberingLaneIds] = useState(() => new Set());
   const [openLaneMenuId, setOpenLaneMenuId] = useState(null);
   const laneMenuRef = useRef(null);
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const shortcutsRef = useRef(null);
   const [editingShot, setEditingShot] = useState(null);
   const [isSavingShot, setIsSavingShot] = useState(false);
+  const [movingProject, setMovingProject] = useState(false);
+  const [copyingProject, setCopyingProject] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState(null);
   const [currentProject, setCurrentProject] = useState(null);
   const [activeDragShot, setActiveDragShot] = useState(null);
@@ -1440,6 +1439,7 @@ function PlannerPageContent({ embedded = false }) {
   const locationScope = FLAGS?.projectScopedAssets ? { projectId, scope: "project" } : {};
   const { data: talent = [], error: talentError } = useTalent(clientId, talentScope);
   const { data: locations = [] } = useLocations(clientId, locationScope);
+  const { data: projects = [] } = useProjects(clientId);
 
   // Derive talent load error from query error
   const talentLoadError = talentError
@@ -1735,18 +1735,6 @@ function PlannerPageContent({ embedded = false }) {
     familyDetailCacheRef.current.clear();
   }, [clientId]);
 
-  // Close shortcuts popover on outside click
-  useEffect(() => {
-    if (!shortcutsOpen) return undefined;
-    const handler = (e) => {
-      if (!shortcutsRef.current) return;
-      if (!shortcutsRef.current.contains(e.target)) {
-        setShortcutsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [shortcutsOpen]);
 
   const handleSubscriptionError = useCallback(
     (scope) => (error) => {
@@ -3625,6 +3613,130 @@ function PlannerPageContent({ embedded = false }) {
     }
   }, [editingShot, canEditShots, updateShot]);
 
+  const handleMoveToProject = useCallback(
+    async (targetProjectId) => {
+      if (!editingShot) return;
+      if (!canEditShots) {
+        toast.error("You do not have permission to move shots.");
+        return;
+      }
+      if (!targetProjectId) return;
+
+      const targetProject = projects.find((p) => p.id === targetProjectId);
+      if (!targetProject) {
+        toast.error({ title: "Project not found" });
+        return;
+      }
+
+      setMovingProject(true);
+      try {
+        await writeDoc("move shot to project", () =>
+          updateDoc(doc(db, ...currentShotsPath, editingShot.shot.id), {
+            projectId: targetProjectId,
+            laneId: null, // Remove from planner lanes when moving
+            updatedAt: serverTimestamp(),
+          })
+        );
+        toast.success({
+          title: "Shot moved",
+          description: `"${editingShot.shot.name}" has been moved to ${targetProject.name}.`,
+        });
+        setEditingShot(null);
+      } catch (error) {
+        const { code, message } = describeFirebaseError(error, "Unable to move shot.");
+        toast.error({ title: "Failed to move shot", description: `${code}: ${message}` });
+        console.error("[Planner] Failed to move shot", error);
+      } finally {
+        setMovingProject(false);
+      }
+    },
+    [editingShot, canEditShots, projects, currentShotsPath, db]
+  );
+
+  const handleCopyToProject = useCallback(
+    async (targetProjectId) => {
+      if (!editingShot) return;
+      if (!canEditShots) {
+        toast.error("You do not have permission to copy shots.");
+        return;
+      }
+      if (!targetProjectId) return;
+
+      const targetProject = projects.find((p) => p.id === targetProjectId);
+      if (!targetProject) {
+        toast.error({ title: "Project not found" });
+        return;
+      }
+
+      setCopyingProject(true);
+      try {
+        const shotData = editingShot.shot;
+        // Create a copy without the id and with updated metadata
+        const shotCopy = {
+          name: shotData.name,
+          description: shotData.description || "",
+          type: shotData.type || "",
+          date: shotData.date || "",
+          locationId: shotData.locationId || null,
+          projectId: targetProjectId,
+          laneId: null, // Don't assign to any lane initially
+          status: shotData.status || "todo",
+          products: shotData.products || [],
+          talent: shotData.talent || [],
+          referenceImagePath: shotData.referenceImagePath || null,
+          referenceImageCrop: shotData.referenceImageCrop || null,
+          attachments: shotData.attachments || [],
+          tags: shotData.tags || [],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+        await addDoc(collection(db, ...currentShotsPath), shotCopy);
+        toast.success({
+          title: "Shot copied",
+          description: `"${shotData.name}" has been copied to ${targetProject.name}.`,
+        });
+        setEditingShot(null);
+      } catch (error) {
+        const { code, message } = describeFirebaseError(error, "Unable to copy shot.");
+        toast.error({ title: "Failed to copy shot", description: `${code}: ${message}` });
+        console.error("[Planner] Failed to copy shot", error);
+      } finally {
+        setCopyingProject(false);
+      }
+    },
+    [editingShot, canEditShots, projects, currentShotsPath, db]
+  );
+
+  const handleDeleteShot = useCallback(
+    async (shot) => {
+      if (!canEditShots) {
+        toast.error("You do not have permission to delete shots.");
+        return;
+      }
+
+      const confirmed = await showConfirm(
+        `Delete shot "${shot.name}"? This cannot be undone.`
+      );
+      if (!confirmed) return;
+
+      try {
+        await writeDoc("delete shot", () =>
+          deleteDoc(doc(db, ...currentShotsPath, shot.id))
+        );
+        toast.success({
+          title: "Shot deleted",
+          description: `"${shot.name}" has been deleted.`,
+        });
+        setEditingShot(null);
+      } catch (error) {
+        const { code, message } = describeFirebaseError(error, "Unable to delete shot.");
+        toast.error({ title: "Failed to delete shot", description: `${code}: ${message}` });
+        console.error("[Planner] Failed to delete shot", error);
+      }
+    },
+    [canEditShots, currentShotsPath, db]
+  );
+
   // Prompt to rename a lane.  Empty input aborts the rename.
   const renameLane = async (lane) => {
     if (!canEditPlanner) return;
@@ -3789,26 +3901,6 @@ function PlannerPageContent({ embedded = false }) {
                 </span>
               </Button>
             )}
-            <div className="relative" ref={shortcutsRef}>
-              <ToolbarIconButton
-                tooltip="Planner shortcuts"
-                onClick={() => setShortcutsOpen((prev) => !prev)}
-                ariaLabel="Show planner shortcuts"
-                active={shortcutsOpen}
-              >
-                <Keyboard className="h-4 w-4" />
-              </ToolbarIconButton>
-              {shortcutsOpen && (
-                <div className="absolute z-20 mt-2 w-72 rounded-md border border-slate-200 bg-white p-3 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Planner Shortcuts</p>
-                  <ul className="space-y-1 text-slate-600 dark:text-slate-300">
-                    <li><span className="font-medium">↑/↓</span> Move within lane</li>
-                    <li><span className="font-medium">Alt + ←/→</span> Move to previous/next lane</li>
-                    <li><span className="font-medium">Cmd/Ctrl + Z</span> Undo last move</li>
-                  </ul>
-                </div>
-              )}
-            </div>
             <div className="flex items-center gap-2">
               <label
                 htmlFor="planner-group-select"
@@ -4030,6 +4122,7 @@ function PlannerPageContent({ embedded = false }) {
           onClose={closeShotEditor}
           onSubmit={handleSaveShot}
           isSaving={isSavingShot}
+          onDelete={() => handleDeleteShot(editingShot.shot)}
           families={families}
           loadFamilyDetails={loadFamilyDetails}
           createProduct={buildShotProduct}
@@ -4039,6 +4132,12 @@ function PlannerPageContent({ embedded = false }) {
           talentPlaceholder="Select talent"
           talentNoOptionsMessage={talentNoOptionsMessage}
           talentLoadError={talentLoadError}
+          projects={projects}
+          currentProjectId={projectId}
+          onMoveToProject={handleMoveToProject}
+          movingProject={movingProject}
+          onCopyToProject={handleCopyToProject}
+          copyingProject={copyingProject}
         />
       )}
       {!canEditPlanner && (

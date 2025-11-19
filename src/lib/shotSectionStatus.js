@@ -1,7 +1,7 @@
 import { DEFAULT_SHOT_STATUS, normaliseShotStatus } from "./shotStatus";
 import { toDateInputValue } from "./shotDraft";
 
-export const EDITOR_SECTION_IDS = ["basics", "logistics", "creative", "attachments"];
+export const EDITOR_SECTION_IDS = ["basics", "creative-logistics"];
 
 export const createInitialSectionStatuses = () =>
   EDITOR_SECTION_IDS.reduce((accumulator, section) => {
@@ -87,10 +87,28 @@ const hasBasicsChanges = (draft = {}, baseline = {}) => {
   if (normaliseStringValue(draft.type) !== normaliseStringValue(baseline.type)) return true;
   if (normaliseDateValue(draft.date) !== normaliseDateValue(baseline.date)) return true;
   if (normaliseStringValue(draft.locationId) !== normaliseStringValue(baseline.locationId)) return true;
+
+  // Include attachments in basics section
+  if (Boolean(draft.referenceImageFile) !== Boolean(baseline.referenceImageFile)) return true;
+  if (normaliseStringValue(draft.referenceImagePath) !== normaliseStringValue(baseline.referenceImagePath)) return true;
+  if (normaliseCropForCompare(draft.referenceImageCrop) !== normaliseCropForCompare(baseline.referenceImageCrop)) return true;
+
+  // Check attachments array
+  const draftAttachments = Array.isArray(draft.attachments) ? draft.attachments : [];
+  const baselineAttachments = Array.isArray(baseline.attachments) ? baseline.attachments : [];
+  if (draftAttachments.length !== baselineAttachments.length) return true;
+  if (JSON.stringify(draftAttachments) !== JSON.stringify(baselineAttachments)) return true;
+
   return false;
 };
 
-const hasLogisticsChanges = (draft = {}, baseline = {}) => {
+const hasCreativeLogisticsChanges = (draft = {}, baseline = {}) => {
+  // Check creative changes (notes/description)
+  if (normaliseStringValue(draft.description) !== normaliseStringValue(baseline.description)) {
+    return true;
+  }
+
+  // Check logistics changes (products, talent, tags)
   if (!listsAreEqual(normaliseProductsForCompare(draft.products), normaliseProductsForCompare(baseline.products))) {
     return true;
   }
@@ -100,30 +118,13 @@ const hasLogisticsChanges = (draft = {}, baseline = {}) => {
   if (!listsAreEqual(normaliseTagsForCompare(draft.tags), normaliseTagsForCompare(baseline.tags))) {
     return true;
   }
-  return false;
-};
 
-const hasCreativeChanges = (draft = {}, baseline = {}) =>
-  normaliseStringValue(draft.description) !== normaliseStringValue(baseline.description);
-
-const hasAttachmentChanges = (draft = {}, baseline = {}) => {
-  if (Boolean(draft.referenceImageFile) !== Boolean(baseline.referenceImageFile)) {
-    return true;
-  }
-  if (normaliseStringValue(draft.referenceImagePath) !== normaliseStringValue(baseline.referenceImagePath)) {
-    return true;
-  }
-  if (normaliseCropForCompare(draft.referenceImageCrop) !== normaliseCropForCompare(baseline.referenceImageCrop)) {
-    return true;
-  }
   return false;
 };
 
 export const buildSectionDiffMap = (draft = {}, baseline = {}) => ({
   basics: hasBasicsChanges(draft, baseline),
-  logistics: hasLogisticsChanges(draft, baseline),
-  creative: hasCreativeChanges(draft, baseline),
-  attachments: hasAttachmentChanges(draft, baseline),
+  "creative-logistics": hasCreativeLogisticsChanges(draft, baseline),
 });
 
 export const deriveSectionStatuses = (draft, baseline, previousStatuses = null) => {

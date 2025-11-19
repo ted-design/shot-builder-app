@@ -336,11 +336,13 @@ const result = await measurePerformance('load_products', async () => {
 
 Shot Builder includes global keyboard shortcuts for faster navigation and actions. The shortcuts are implemented using `react-hotkeys-hook` in `src/components/GlobalKeyboardShortcuts.jsx`.
 
+Keyboard shortcuts are displayed inline within the Command K menu (`Cmd+K` or `Shift+/`), making them easily discoverable and contextual to the current page.
+
 ### Available Shortcuts
 
 **General:**
 - `Cmd+K` (Mac) / `Ctrl+K` (Windows): Open command palette
-- `Shift+/` (or `?`): Show keyboard shortcuts help modal
+- `Shift+/` (or `?`): Open command palette showing keyboard shortcuts
 - `c`: Open command palette (when not typing in a form)
 
 **Navigation:**
@@ -351,26 +353,53 @@ Shot Builder includes global keyboard shortcuts for faster navigation and action
 - `Alt+L`: Go to Locations
 - `Alt+U`: Go to Pulls
 
+**Page-Specific Shortcuts:**
+
+*Planner Page:*
+- `↑`/`↓`: Move shot within lane (keyboard reordering)
+- `Alt + ←/→`: Move shot to previous/next lane
+- `Cmd/Ctrl + Z`: Undo last move
+
 **Usage Notes:**
 - All shortcuts work globally, even when typing in form fields (except single-key shortcuts like `c`)
-- The help modal (`Shift+/`) displays all available shortcuts with their descriptions
+- Press `Shift+/` to open the Command K menu directly to the keyboard shortcuts section
+- Navigation shortcuts (`Alt+D/S/P/T/L/U`) are shown inline next to navigation items in the Command K menu
+- Page-specific shortcuts (like Planner) are automatically displayed in the Command K menu when on that page
 - Shots navigation (`Alt+S`) checks for an active project and redirects to Projects if none is selected
-- The command palette provides search, quick actions, and recent items
+- The command palette provides search, quick actions, recent items, and keyboard shortcuts in one unified interface
 
 ### Implementation Details
 
 The keyboard shortcut system consists of:
-1. `GlobalKeyboardShortcuts.jsx` - Global shortcut handler component
-2. `SearchCommand.jsx` - Command palette with `cmdk` library
-3. `react-hotkeys-hook` - Declarative keyboard shortcut management
+1. `GlobalKeyboardShortcuts.jsx` - Global shortcut handler component (registers all keyboard shortcuts)
+2. `SearchCommand.jsx` - Command palette with `cmdk` library (displays shortcuts inline)
+3. `usePageShortcuts.js` - Hook that returns page-specific shortcuts based on current route
+4. `SearchCommandContext.jsx` - Context that manages command palette state, including `openSearchForShortcuts()`
+5. `react-hotkeys-hook` - Declarative keyboard shortcut management
 
-**Adding New Shortcuts:**
+**Adding New Global Shortcuts:**
 ```javascript
 // In GlobalKeyboardShortcuts.jsx
 useHotkeys('alt+n', navigateToNewPage, {
   enableOnFormTags: true,  // Allow in form fields
   preventDefault: true,     // Prevent default browser behavior
 });
+```
+
+**Adding Page-Specific Shortcuts:**
+```javascript
+// In usePageShortcuts.js
+if (pathname.includes('/my-page')) {
+  return {
+    title: 'My Page Shortcuts',
+    shortcuts: [
+      {
+        keys: ['Cmd/Ctrl', 'S'],
+        description: 'Save changes',
+      },
+    ],
+  };
+}
 ```
 
 **Note**: For special characters produced by key combinations (like `?` from `Shift+/`), use the `useKey: true` option to listen for the character rather than the key code.

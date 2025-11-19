@@ -73,7 +73,6 @@ import {
   CheckSquare,
   Plus,
   Table,
-  Keyboard,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -84,7 +83,6 @@ import { searchShots } from "../lib/search";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ShotsOverviewProvider, useShotsOverview } from "../context/ShotsOverviewContext";
-import { useKeyboardShortcuts } from "../context/KeyboardShortcutsContext";
 import {
   FieldVisibilityMenu,
   OverviewToolbar,
@@ -330,7 +328,6 @@ export function ShotsWorkspace() {
   const setFocusShotId = overview?.setFocusShotId ?? (() => {});
   const navigate = useNavigate();
   const { currentProjectId, ready: scopeReady, setLastVisitedPath } = useProjectScope();
-  const { toggleHelp } = useKeyboardShortcuts();
   const redirectNotifiedRef = useRef(false);
   const projectId = currentProjectId;
   const { clientId, role: globalRole, projectRoles = {}, user, claims } = useAuth();
@@ -2856,13 +2853,6 @@ export function ShotsWorkspace() {
               </Button>
             )}
             <ExportButton data={filteredShots} entityType="shots" />
-            <ToolbarIconButton
-              tooltip="Keyboard shortcuts (Shift+/)"
-              onClick={toggleHelp}
-              ariaLabel="Open keyboard shortcuts"
-            >
-              <Keyboard className="h-4 w-4" />
-            </ToolbarIconButton>
             {canEditShots && (
               <Button type="button" onClick={openCreateModal} className="flex items-center gap-2">
                 <Plus className="h-4 w-4" aria-hidden="true" />
