@@ -46,7 +46,7 @@ describe("shotSectionStatus helpers", () => {
     });
   });
 
-  it("marks basics and logistics pending when their fields change", () => {
+  it("marks basics and creative-logistics pending when their fields change", () => {
     const draft = cloneShotDraft({
       ...baseline,
       name: "Updated",
@@ -65,21 +65,17 @@ describe("shotSectionStatus helpers", () => {
 
     const next = deriveSectionStatuses(draft, baseline, createInitialSectionStatuses());
     expect(next.basics.state).toBe("pending");
-    expect(next.logistics.state).toBe("pending");
-    expect(next.creative.state).toBe("saved");
-    expect(next.attachments.state).toBe("saved");
+    expect(next["creative-logistics"].state).toBe("pending");
   });
 
   it("preserves saving state until resolution", () => {
     const previous = {
       basics: { state: "saving" },
-      logistics: { state: "pending" },
-      creative: { state: "saved" },
-      attachments: { state: "saved" },
+      "creative-logistics": { state: "pending" },
     };
     const next = deriveSectionStatuses(baseline, baseline, previous);
     expect(next.basics.state).toBe("saving");
-    expect(next.logistics.state).toBe("saved");
+    expect(next["creative-logistics"].state).toBe("saved");
   });
 
   it("marks only changed sections when forcing a new state", () => {
@@ -90,7 +86,8 @@ describe("shotSectionStatus helpers", () => {
 
     const current = createInitialSectionStatuses();
     const marked = markSectionsForState(current, draft, baseline, "saving", { timestamp: 123 });
-    expect(marked.attachments).toEqual({ state: "saving", timestamp: 123 });
-    expect(marked.basics.state).toBe("saved");
+    // referenceImageFile is now part of basics section
+    expect(marked.basics).toEqual({ state: "saving", timestamp: 123 });
+    expect(marked["creative-logistics"].state).toBe("saved");
   });
 });
