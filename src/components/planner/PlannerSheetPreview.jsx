@@ -13,7 +13,7 @@ import AppImage from '../common/AppImage';
 import { getPrimaryAttachmentWithStyle } from '../../lib/imageHelpers';
 
 /**
- * Preview of a single shot card in list mode
+ * Preview of a single shot card in table mode
  */
 function PreviewShotCardList({ shot, visibleSections, sectionStates }) {
   const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
@@ -244,7 +244,7 @@ function PreviewShotCardGallery({ shot, visibleSections, sectionStates }) {
 }
 
 /**
- * Preview table header row (for list mode)
+ * Preview table header row (for table mode)
  */
 function PreviewHeaderRow({ visibleSections, sectionStates }) {
   const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
@@ -344,7 +344,7 @@ function PreviewLaneGroup({ lane, visibleSections, sectionStates, layoutMode }) 
 export default function PlannerSheetPreview({
   lanes,
   sectionStates,
-  layoutMode = 'list',
+  layoutMode = 'table',
   orientation = 'portrait',
   title = '',
   subtitle = '',
@@ -405,8 +405,8 @@ export default function PlannerSheetPreview({
         </div>
       )}
 
-      {/* Main Header Row (list mode only) */}
-      {layoutMode === 'list' && (
+      {/* Main Header Row (table mode only) */}
+      {layoutMode === 'table' && (
         <PreviewHeaderRow
           visibleSections={visibleSections}
           sectionStates={sectionStates}

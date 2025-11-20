@@ -607,7 +607,7 @@ const BLOCK_TAGS = new Set([
 
 const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
   const orientation = options.orientation === "landscape" ? "landscape" : "portrait";
-  const layout = options.layout === "gallery" ? "gallery" : "list";
+  const layout = options.layout === "gallery" ? "gallery" : "table"; // treat non-gallery as table
   const densityId = options.density || "standard";
   const parsedColumns = Number.parseInt(options.galleryColumns, 10);
   const galleryColumns =
@@ -1290,7 +1290,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
   const [title, setTitle] = useState("Planner export");
   const [subtitle, setSubtitle] = useState("");
   const [orientation, setOrientation] = useState("portrait");
-  const [layoutMode, setLayoutMode] = useState("list");
+  const [layoutMode, setLayoutMode] = useState("table");
   const [density, setDensity] = useState("standard");
   const [galleryColumns, setGalleryColumns] = useState("3");
 
@@ -1410,7 +1410,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     setTitle(projectName || "Planner export");
     setSubtitle(`Generated ${now.toLocaleString()}`);
     setOrientation("portrait");
-    setLayoutMode("list");
+    setLayoutMode("table");
     setGalleryColumns("3");
     setIncludeLaneSummary(true);
     setIncludeTalentSummary(true);
@@ -1880,12 +1880,12 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
 
                 <div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-                    Switch between a detailed list or gallery-style cards for the PDF export.
+                    Switch between a table or gallery-style cards for the PDF export.
                   </p>
                   <div className="inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
                     {[
-                      { value: "list", label: "List view" },
-                      { value: "gallery", label: "Gallery view" },
+                      { value: "gallery", label: "Gallery" },
+                      { value: "table", label: "Table" },
                     ].map((option) => (
                       <button
                         key={option.value}

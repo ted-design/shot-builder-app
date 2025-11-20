@@ -63,7 +63,6 @@ import {
 } from "../lib/paths";
 import {
   LayoutGrid,
-  List,
   Search,
   ChevronDown,
   Camera,
@@ -73,6 +72,11 @@ import {
   CheckSquare,
   Plus,
   Table,
+  Shapes,
+  MapPin,
+  CircleDot,
+  Package,
+  FileText,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -94,7 +98,7 @@ import {
 } from "../components/overview";
 
 const PlannerPage = lazy(() => import("./PlannerPage"));
-import VirtualizedList, { VirtualizedGrid } from "../components/ui/VirtualizedList";
+import { VirtualizedGrid } from "../components/ui/VirtualizedList";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
@@ -182,10 +186,17 @@ const buildDuplicateName = (rawName, usedNames) => {
 };
 
 const defaultViewPrefs = {
+  // Visibility toggles
   showProducts: true,
   showTalent: true,
   showLocation: true,
   showNotes: true,
+  showStatus: true,
+  showImage: true,
+  showName: true,
+  showType: true,
+  showDate: true,
+  // Sorting + density
   sort: "alpha",
   density: DEFAULT_SHOT_DENSITY,
 };
@@ -196,6 +207,11 @@ const normaliseShotRecord = (id, data, fallbackProjectId) =>
 const AUTOSAVE_DELAY_MS = 1200;
 
 const DETAIL_TOGGLE_OPTIONS = [
+  { key: "showStatus", label: "Status" },
+  { key: "showImage", label: "Image" },
+  { key: "showName", label: "Shot Name" },
+  { key: "showType", label: "Type" },
+  { key: "showDate", label: "Date" },
   { key: "showNotes", label: "Notes" },
   { key: "showProducts", label: "Products" },
   { key: "showTalent", label: "Talent" },
@@ -204,21 +220,19 @@ const DETAIL_TOGGLE_OPTIONS = [
 
 const SHOT_VIEW_OPTIONS = [
   { value: "gallery", label: "Gallery", icon: LayoutGrid, hideLabelOnSmallScreen: true },
-  { value: "list", label: "List", icon: List, hideLabelOnSmallScreen: true },
   { value: "table", label: "Table", icon: Table, hideLabelOnSmallScreen: true },
 ];
 
 const SHOT_DENSITY_OPTIONS = [
   { value: "compact", label: "Compact" },
-  { value: "comfortable", label: "Comfort" },
-  { value: "cozy", label: "Cozy" },
+  { value: "comfortable", label: "Comfy" },
 ];
 
 const normaliseShotDensity = (value) => {
   if (value === "compact") return "compact";
   if (value === "comfortable") return "comfortable";
-  if (value === "cozy") return "cozy";
-  // Legacy support: map old "extra" to "compact"
+  // Legacy mappings
+  if (value === "cozy") return "comfortable";
   if (value === "extra") return "compact";
   return DEFAULT_SHOT_DENSITY;
 };
@@ -237,17 +251,12 @@ const SHOT_DENSITY_CONFIG = {
     tablePadding: 'px-4',    // 16px horizontal padding
     tableText: 'text-sm',
   },
-  cozy: {
-    // Table-specific
-    tableRow: 'py-4',        // 16px vertical padding
-    tablePadding: 'px-6',    // 24px horizontal padding
-    tableText: 'text-base',
-  },
 };
 
 const readStoredShotsView = () => {
   const stored = readStorage(SHOTS_VIEW_STORAGE_KEY);
-  if (stored === "list" || stored === "table") return stored;
+  if (stored === "list") return "gallery"; // migrate away from list
+  if (stored === "table") return "table";
   return "gallery";
 };
 
@@ -285,6 +294,11 @@ const readStoredViewPrefs = () => {
       showTalent: parsed.showTalent !== false,
       showLocation: parsed.showLocation !== false,
       showNotes: parsed.showNotes !== false,
+      showStatus: parsed.showStatus !== false,
+      showImage: parsed.showImage !== false,
+      showName: parsed.showName !== false,
+      showType: parsed.showType !== false,
+      showDate: parsed.showDate !== false,
       sort: typeof parsed.sort === "string" ? parsed.sort : defaultViewPrefs.sort,
       density: normaliseShotDensity(parsed.density),
     };
@@ -573,7 +587,7 @@ export function ShotsWorkspace() {
   );
 
   useEffect(() => {
-    if (viewMode === "gallery" || viewMode === "list" || viewMode === "table") {
+    if (viewMode === "gallery" || viewMode === "table") {
       writeStorage(SHOTS_VIEW_STORAGE_KEY, viewMode);
     }
   }, [viewMode]);
@@ -684,6 +698,11 @@ export function ShotsWorkspace() {
         showTalent: viewPrefs.showTalent,
         showLocation: viewPrefs.showLocation,
         showNotes: viewPrefs.showNotes,
+        showStatus: viewPrefs.showStatus,
+        showImage: viewPrefs.showImage,
+        showName: viewPrefs.showName,
+        showType: viewPrefs.showType,
+        showDate: viewPrefs.showDate,
         sort: viewPrefs.sort,
         density: normaliseShotDensity(viewPrefs.density),
       })
@@ -2729,7 +2748,6 @@ export function ShotsWorkspace() {
   const selectPortalTarget =
     typeof window === "undefined" ? undefined : window.document.body;
   const isGalleryView = viewMode === "gallery";
-  const isListView = viewMode === "list";
   const isTableView = viewMode === "table";
   const talentNoOptionsMessage =
     talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available");
@@ -2737,13 +2755,8 @@ export function ShotsWorkspace() {
   const resolvedDensity = normaliseShotDensity(viewPrefs.density);
   // Dramatic density differences: 25-50% between levels
   const galleryItemHeight =
-    resolvedDensity === "compact" ? 280 :    // 30% smaller than comfortable
-    resolvedDensity === "comfortable" ? 400 : // Baseline
-    480;                                       // cozy: 20% larger than comfortable
-  const listItemHeight =
-    resolvedDensity === "compact" ? 160 :    // 33% smaller than comfortable
-    resolvedDensity === "comfortable" ? 240 : // Baseline
-    320;                                       // cozy: 33% larger than comfortable
+    resolvedDensity === "compact" ? 200 :    // compact cards are tighter
+    400;                                      // comfy baseline
 
   const handleDensityChange = useCallback((nextDensity) => {
     setViewPrefs((prev) => ({ ...prev, density: normaliseShotDensity(nextDensity) }));
@@ -2961,41 +2974,6 @@ export function ShotsWorkspace() {
                   );
                 }}
               />
-            ) : isListView ? (
-              <VirtualizedList
-                items={sortedShots}
-                itemHeight={listItemHeight}
-                threshold={80}
-                className="space-y-3"
-                renderItem={(shot, index, isVirtualized) => {
-                  const shotProducts = normaliseShotProducts(shot);
-                  const shotTalentSelection = mapShotTalentToSelection(shot);
-                  const notesHtml = formatNotesForDisplay(shot.description);
-                  const locationName =
-                    shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
-                  return (
-                    <div
-                      className={isVirtualized ? "" : "animate-fade-in opacity-0"}
-                      style={isVirtualized ? {} : getStaggerDelay(index)}
-                    >
-                      <ShotListCard
-                        shot={shot}
-                        locationName={locationName}
-                        products={shotProducts}
-                        talent={shotTalentSelection}
-                        notesHtml={notesHtml}
-                        canEditShots={canEditShots}
-                        onEdit={() => handleEditShot(shot)}
-                        viewPrefs={viewPrefs}
-                        isSelected={selectedShotIds.has(shot.id)}
-                        onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}
-                        isFocused={focusShotId === shot.id}
-                        onFocus={() => handleFocusShot(shot)}
-                      />
-                    </div>
-                  );
-                }}
-              />
             ) : (
               <ShotTableView
                 rows={tableRows}
@@ -3166,104 +3144,6 @@ const ShotTalentList = memo(function ShotTalentList({ talent }) {
   );
 });
 
-const ShotListCard = memo(function ShotListCard({
-  shot,
-  locationName,
-  products,
-  talent,
-  notesHtml,
-  canEditShots,
-  onEdit,
-  viewPrefs = defaultViewPrefs,
-  isSelected = false,
-  onToggleSelect = null,
-  isFocused = false,
-  onFocus = null,
-}) {
-  const formattedDate = toDateInputValue(shot.date);
-  const {
-    showProducts = true,
-    showTalent = true,
-    showLocation = true,
-    showNotes = true,
-  } = viewPrefs || defaultViewPrefs;
-  const tags = Array.isArray(shot.tags) ? shot.tags : [];
-  const focusClasses = isFocused
-    ? "ring-2 ring-primary shadow-md"
-    : isSelected
-    ? "ring-2 ring-primary/60"
-    : "";
-
-  return (
-    <Card className={`border shadow-sm transition ${focusClasses}`} onClick={() => onFocus?.(shot)}>
-      <CardHeader className="px-4 py-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          {onToggleSelect && (
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => onToggleSelect(shot.id)}
-                className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 md:text-base line-clamp-2" title={shot.name}>
-              {shot.name}
-            </h3>
-            <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-slate-500">
-              {formattedDate && <span>Date: {formattedDate}</span>}
-              {shot.type && <span>Type: {shot.type}</span>}
-              {showLocation && locationName && <span title={locationName}>Location: {locationName}</span>}
-            </div>
-            {tags.length > 0 && (
-              <div className="mt-2">
-                <TagList tags={tags} emptyMessage={null} />
-              </div>
-            )}
-          </div>
-          {canEditShots && (
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" size="sm" variant="secondary" onClick={onEdit}>
-                Edit
-              </Button>
-            </div>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-1.5 px-4 pb-3 pt-2 text-[13px]">
-        {showNotes && (
-          notesHtml ? (
-            <div
-              className="rounded-md bg-slate-50 dark:bg-slate-900 px-3 py-2 prose prose-sm dark:prose-invert max-w-none text-xs line-clamp-3"
-              dangerouslySetInnerHTML={{ __html: notesHtml }}
-            />
-          ) : (
-            <p className="text-xs text-slate-500">No notes added yet.</p>
-          )
-        )}
-        {showProducts && (
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Products
-            </span>
-            <ShotProductChips products={products} />
-          </div>
-        )}
-        {showTalent && (
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Talent
-            </span>
-            <ShotTalentList talent={talent} />
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-});
 
 const ShotGalleryCard = memo(function ShotGalleryCard({
   shot,
@@ -3293,6 +3173,11 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     showTalent = true,
     showLocation = true,
     showNotes = true,
+    showStatus = true,
+    showImage = true,
+    showName = true,
+    showType = true,
+    showDate = true,
   } = viewPrefs || defaultViewPrefs;
   const tags = Array.isArray(shot.tags) ? shot.tags : [];
   const focusClasses = isFocused
@@ -3302,60 +3187,210 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     : "";
 
   const density = normaliseShotDensity(viewPrefs?.density);
-  const imageHeightClass = density === 'extra' ? 'h-28 sm:h-32' : 'h-44 sm:h-48';
-  return (
-    <Card
-      className={`overflow-hidden border shadow-sm transition ${focusClasses}`}
-      onClick={() => onFocus?.(shot)}
-    >
-      <div className={`relative ${imageHeightClass} bg-slate-100`}>
-        <AppImage
-          src={imagePath}
-          alt={`${shot.name} preview`}
-          preferredSize={640}
-          className="h-full w-full"
-          imageClassName="h-full w-full object-cover"
-          position={imagePosition}
-          fallback={
-            <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
-              No preview available
+  const imageHeightClass = 'h-44 sm:h-48';
+
+  // Status label + color
+  const statusValue = normaliseShotStatus(shot?.status);
+  const statusLabel =
+    statusValue === 'in_progress' ? 'In progress' :
+    statusValue === 'on_hold' ? 'On hold' :
+    statusValue === 'complete' ? 'Complete' : 'To do';
+  const statusColor =
+    statusValue === 'in_progress' ? 'text-blue-600' :
+    statusValue === 'on_hold' ? 'text-amber-600' :
+    statusValue === 'complete' ? 'text-emerald-600' : 'text-slate-500';
+
+  // Helpers to render compact bullets
+  const productBullets = Array.isArray(products)
+    ? products
+        .filter(Boolean)
+        .map((p) => [p.familyName, p.colourName].filter(Boolean).join(' – '))
+        .filter(Boolean)
+    : [];
+  const talentBullets = Array.isArray(talent)
+    ? talent.filter(Boolean).map((t) => t.name).filter(Boolean)
+    : [];
+
+  const CompactCard = () => (
+    <div className="px-3 py-2">
+      <div className="flex items-start gap-3">
+        {showImage && (
+          <div className="relative flex-shrink-0">
+            <div className="h-16 w-16 sm:h-20 sm:w-20 overflow-hidden rounded border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900">
+              {imagePath ? (
+                <AppImage
+                  src={imagePath}
+                  alt={`${shot.name || 'Shot'} preview`}
+                  preferredSize={160}
+                  className="h-full w-full"
+                  imageClassName="h-full w-full object-cover"
+                  position={imagePosition}
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">No image</div>
+              )}
             </div>
-          }
-          placeholder={
-            <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
-              Loading preview…
-            </div>
-          }
-        />
-        {onToggleSelect && (
-          <div className="absolute left-3 top-3">
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => onToggleSelect(shot.id)}
-              className="h-5 w-5 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary shadow-sm"
-              onClick={(e) => e.stopPropagation()}
-            />
+            {onToggleSelect && (
+              <div className="absolute -left-2 -top-2">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect(shot.id)}
+                  className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={`Select ${shot?.name || 'shot'}`}
+                />
+              </div>
+            )}
           </div>
         )}
-        {canEditShots && (
-          <div className="absolute right-3 top-3 flex gap-2">
-            <Button type="button" size="sm" variant="secondary" onClick={onEdit}>
-              Edit
-            </Button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            {showName && (
+              <h3 className="text-[13px] font-semibold text-slate-900 dark:text-slate-100 leading-5 line-clamp-2" title={shot.name}>
+                {shot.name}
+              </h3>
+            )}
+            {canEditShots && (
+              <div className="flex items-center gap-1">
+                {showStatus && (
+                  <span className={`inline-flex items-center gap-1 text-[11px] ${statusColor}`} title={`Status: ${statusLabel}`}>
+                    <CircleDot className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span className="sr-only">{statusLabel}</span>
+                  </span>
+                )}
+                <Button type="button" size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onEdit?.(); }}>
+                  Edit
+                </Button>
+              </div>
+            )}
           </div>
-        )}
+          <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+            {showDate && formattedDate && (
+              <span className="inline-flex items-center gap-1" title={formattedDate}>
+                <Calendar className="h-3.5 w-3.5" />
+                {formattedDate}
+              </span>
+            )}
+            {showType && shot.type && (
+              <span className="inline-flex items-center gap-1" title={shot.type}>
+                <Shapes className="h-3.5 w-3.5" />
+                {shot.type}
+              </span>
+            )}
+          </div>
+          {tags.length > 0 && (
+            <div className="mt-1">
+              <TagList tags={tags} emptyMessage={null} />
+            </div>
+          )}
+          <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-slate-600">
+            {showTalent && (
+              <div className="min-w-0 flex items-start gap-1" title={talentBullets.join(', ')}>
+                <Users className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                {talentBullets.length > 0 ? (
+                  <p className="min-w-0 truncate">{talentBullets.slice(0, 3).join(' • ')}{talentBullets.length > 3 ? ' +' + (talentBullets.length - 3) : ''}</p>
+                ) : (
+                  <span className="text-slate-400">No talent</span>
+                )}
+              </div>
+            )}
+            {showLocation && (
+              <div className="min-w-0 flex items-start gap-1" title={locationName}>
+                <MapPin className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                <p className="min-w-0 truncate">{locationName || 'Unassigned'}</p>
+              </div>
+            )}
+          </div>
+          {showProducts && (
+            <div className="mt-1 text-[11px] text-slate-600">
+              <div className="flex items-start gap-1" title={productBullets.join(', ')}>
+                <Package className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+                {productBullets.length > 0 ? (
+                  <p className="min-w-0 truncate">{productBullets.slice(0, 3).join(' • ')}{productBullets.length > 3 ? ' +' + (productBullets.length - 3) : ''}</p>
+                ) : (
+                  <span className="text-slate-400">No products</span>
+                )}
+              </div>
+            </div>
+          )}
+          {showNotes && (
+            notesHtml ? (
+              <div
+                className="mt-1 text-[11px] text-slate-600 prose prose-xs dark:prose-invert max-w-none line-clamp-2"
+                dangerouslySetInnerHTML={{ __html: notesHtml }}
+              />
+            ) : (
+              <p className="mt-1 text-[11px] text-slate-400 inline-flex items-center gap-1"><FileText className="h-3.5 w-3.5" /> No notes</p>
+            )
+          )}
+        </div>
       </div>
+    </div>
+  );
+
+  const ComfyCard = () => (
+    <>
+      {showImage && (
+        <div className={`relative ${imageHeightClass} bg-slate-100`}>
+          <AppImage
+            src={imagePath}
+            alt={`${shot.name} preview`}
+            preferredSize={640}
+            className="h-full w-full"
+            imageClassName="h-full w-full object-cover"
+            position={imagePosition}
+            fallback={
+              <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
+                No preview available
+              </div>
+            }
+            placeholder={
+              <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
+                Loading preview…
+              </div>
+            }
+          />
+          {onToggleSelect && (
+            <div className="absolute left-3 top-3">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => onToggleSelect(shot.id)}
+                className="h-5 w-5 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary shadow-sm"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )}
+          {canEditShots && (
+            <div className="absolute right-3 top-3 flex gap-2">
+              <Button type="button" size="sm" variant="secondary" onClick={onEdit}>
+                Edit
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
       <CardContent className="space-y-1.5 px-4 pb-4 pt-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 md:text-base line-clamp-2" title={shot.name}>
-            {shot.name}
-          </h3>
-          {shot.type && <span className="text-[10px] uppercase tracking-wide text-primary">{shot.type}</span>}
+          {showName && (
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 md:text-base line-clamp-2" title={shot.name}>
+              {shot.name}
+            </h3>
+          )}
+          {showType && shot.type && (
+            <span className="text-[10px] uppercase tracking-wide text-primary">{shot.type}</span>
+          )}
         </div>
         <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
-          {formattedDate && <span>{formattedDate}</span>}
+          {showDate && formattedDate && <span>{formattedDate}</span>}
           {showLocation && locationName && <span title={locationName}>{locationName}</span>}
+          {showStatus && (
+            <span className={`inline-flex items-center gap-1 ${statusColor}`} title={`Status: ${statusLabel}`}>
+              <CircleDot className="h-3.5 w-3.5" />
+              <span className="sr-only">{statusLabel}</span>
+            </span>
+          )}
         </div>
         {tags.length > 0 && (
           <div>
@@ -3389,6 +3424,12 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
           </div>
         )}
       </CardContent>
+    </>
+  );
+
+  return (
+    <Card className={`overflow-hidden border shadow-sm transition ${focusClasses}`} onClick={() => onFocus?.(shot)}>
+      {density === 'compact' ? <CompactCard /> : <ComfyCard />}
     </Card>
   );
 });

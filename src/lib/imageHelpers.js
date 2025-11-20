@@ -102,6 +102,41 @@ export function getPrimaryAttachmentWithStyle(shot) {
 }
 
 /**
+ * Get best-available image for a shot with product fallback.
+ * Order of precedence:
+ *  1) Primary attachment (with crop style)
+ *  2) Legacy referenceImagePath
+ *  3) First available product image (thumbnailImagePath, images[0], or colourImagePath)
+ *
+ * @param {Object} shot
+ * @param {Array} products - Normalised product entries for the shot
+ * @returns {{ path: string|null, style: Object }}
+ */
+export function getImageWithFallback(shot, products = []) {
+  // Prefer primary attachment or legacy reference image
+  const primary = getPrimaryAttachmentWithStyle(shot);
+  if (primary?.path) return primary;
+
+  // Fallback to product imagery
+  const defaultStyle = { objectFit: "cover", width: "100%", height: "100%" };
+  const list = Array.isArray(products) ? products : [];
+  for (const product of list) {
+    if (!product) continue;
+    if (product.thumbnailImagePath) {
+      return { path: product.thumbnailImagePath, style: defaultStyle };
+    }
+    if (Array.isArray(product.images) && product.images.length) {
+      const candidate = product.images.find(Boolean);
+      if (candidate) return { path: candidate, style: defaultStyle };
+    }
+    if (product.colourImagePath) {
+      return { path: product.colourImagePath, style: defaultStyle };
+    }
+  }
+  return { path: null, style: {} };
+}
+
+/**
  * Get attachment count for a shot
  * @param {Object} shot - Shot object
  * @returns {number} - Number of attachments

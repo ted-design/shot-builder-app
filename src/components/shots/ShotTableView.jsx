@@ -1,9 +1,10 @@
 import { memo, useMemo } from "react";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "../ui/button";
 import { TagList } from "../ui/TagBadge";
 import { toDateInputValue } from "../../lib/shotDraft";
 import { normaliseShotStatus, shotStatusOptions } from "../../lib/shotStatus";
-import { getPrimaryAttachmentWithStyle, hasMultipleAttachments, getAttachmentCount } from "../../lib/imageHelpers";
+import { getImageWithFallback, hasMultipleAttachments, getAttachmentCount } from "../../lib/imageHelpers";
 import AppImage from "../common/AppImage";
 
 const STATUS_LABEL_MAP = new Map(shotStatusOptions.map(({ value, label }) => [value, label]));
@@ -44,6 +45,8 @@ const ShotTableView = memo(function ShotTableView({
   selectedShotIds,
   onToggleSelect,
   onEditShot,
+  onMoveShotUp,
+  onMoveShotDown,
   focusedShotId = null,
   onFocusShot = null,
 }) {
@@ -52,6 +55,11 @@ const ShotTableView = memo(function ShotTableView({
     showTalent = true,
     showLocation = true,
     showNotes = true,
+    showImage = true,
+    showName = true,
+    showType = true,
+    showStatus = true,
+    showDate = true,
   } = viewPrefs || {};
 
   // Get density-based classes with defaults
@@ -62,7 +70,9 @@ const ShotTableView = memo(function ShotTableView({
   };
 
   const selectionEnabled = typeof onToggleSelect === "function";
-  const actionsEnabled = typeof onEditShot === "function" && canEditShots;
+  const editEnabled = typeof onEditShot === "function" && canEditShots;
+  const moveEnabled = typeof onMoveShotUp === "function" || typeof onMoveShotDown === "function";
+  const actionsEnabled = editEnabled || moveEnabled;
 
   const columns = useMemo(() => {
     const result = [];
@@ -70,12 +80,12 @@ const ShotTableView = memo(function ShotTableView({
       result.push({ key: "select", label: "Select", width: "48px", align: "center" });
     }
 
-    // Add image column
-    result.push({ key: "image", label: "Image", width: "80px", align: "center" });
-    result.push({ key: "name", label: "Shot", width: "minmax(220px, 1.4fr)" });
-    result.push({ key: "type", label: "Type", width: "minmax(120px, 0.7fr)" });
-    result.push({ key: "status", label: "Status", width: "minmax(120px, 0.7fr)" });
-    result.push({ key: "date", label: "Date", width: "minmax(120px, 0.6fr)" });
+    // Core info columns
+    if (showImage) result.push({ key: "image", label: "Image", width: "80px", align: "center" });
+    if (showName) result.push({ key: "name", label: "Shot", width: "minmax(220px, 1.4fr)" });
+    if (showType) result.push({ key: "type", label: "Type", width: "minmax(120px, 0.7fr)" });
+    if (showStatus) result.push({ key: "status", label: "Status", width: "minmax(120px, 0.7fr)" });
+    if (showDate) result.push({ key: "date", label: "Date", width: "minmax(120px, 0.6fr)" });
 
     if (showLocation) {
       result.push({ key: "location", label: "Location", width: "minmax(160px, 1fr)" });
@@ -91,11 +101,25 @@ const ShotTableView = memo(function ShotTableView({
     }
 
     if (actionsEnabled) {
-      result.push({ key: "actions", label: "Actions", width: "72px", align: "center" });
+      result.push({ key: "actions", label: "Actions", width: "120px", align: "center" });
     }
 
     return result;
-  }, [selectionEnabled, showLocation, showProducts, showTalent, showNotes, actionsEnabled]);
+  }, [
+    selectionEnabled,
+    actionsEnabled,
+    // core visibility toggles
+    showImage,
+    showName,
+    showType,
+    showStatus,
+    showDate,
+    // extended visibility toggles
+    showLocation,
+    showProducts,
+    showTalent,
+    showNotes,
+  ]);
 
   const columnTemplate = useMemo(
     () => columns.map((column) => column.width || "1fr").join(" "),
@@ -128,7 +152,7 @@ const ShotTableView = memo(function ShotTableView({
         </div>
       </div>
       <div role="rowgroup">
-        {rows.map((row) => {
+        {rows.map((row, rowIndex) => {
           const { shot, products, talent, notesHtml, locationName } = row;
           const shotId = shot?.id || row.id;
           const isSelected = selectedIds ? selectedIds.has(shotId) : false;
@@ -151,8 +175,8 @@ const ShotTableView = memo(function ShotTableView({
             : "";
           const notesPlain = toPlainText(notesHtml);
 
-          // Get image data for this shot
-          const { path: imagePath, style: imageStyle } = getPrimaryAttachmentWithStyle(shot);
+          // Get image data with product fallback (attachments → reference → product images)
+          const { path: imagePath, style: imageStyle } = getImageWithFallback(shot, products);
           const multiImageCount = getAttachmentCount(shot);
           const showMultiImageBadge = hasMultipleAttachments(shot);
 
@@ -186,7 +210,7 @@ const ShotTableView = memo(function ShotTableView({
                   );
                 }
 
-                if (columnKey === "image") {
+                if (columnKey === "image" && showImage) {
                   return (
                     <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-center`}>
                       <div className="relative inline-block w-16 h-12 rounded border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800">
@@ -222,7 +246,7 @@ const ShotTableView = memo(function ShotTableView({
                   );
                 }
 
-                if (columnKey === "name") {
+                if (columnKey === "name" && showName) {
                   return (
                     <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-900 dark:text-slate-100`}>
                       <div className="font-semibold leading-5" title={shot?.name || "Unnamed shot"}>
@@ -237,7 +261,7 @@ const ShotTableView = memo(function ShotTableView({
                   );
                 }
 
-                if (columnKey === "type") {
+                if (columnKey === "type" && showType) {
                   return (
                     <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
                       {shot?.type || "—"}
@@ -245,7 +269,7 @@ const ShotTableView = memo(function ShotTableView({
                   );
                 }
 
-                if (columnKey === "status") {
+                if (columnKey === "status" && showStatus) {
                   return (
                     <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
                       <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${statusClass}`}>
@@ -255,7 +279,7 @@ const ShotTableView = memo(function ShotTableView({
                   );
                 }
 
-                if (columnKey === "date") {
+                if (columnKey === "date" && showDate) {
                   return (
                     <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
                       {formattedDate || "—"}
@@ -310,19 +334,56 @@ const ShotTableView = memo(function ShotTableView({
                 }
 
                 if (columnKey === "actions" && actionsEnabled) {
+                  const isFirst = rowIndex === 0;
+                  const isLast = rowIndex === rows.length - 1;
                   return (
                     <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-center`}>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onEditShot?.(shot);
-                        }}
-                      >
-                        Edit
-                      </Button>
+                      {moveEnabled && (
+                        <span className="inline-flex items-center gap-1">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            disabled={isFirst}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onMoveShotUp?.(shot, rowIndex);
+                            }}
+                            aria-label={`Move ${shot?.name || 'shot'} up`}
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            disabled={isLast}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onMoveShotDown?.(shot, rowIndex);
+                            }}
+                            aria-label={`Move ${shot?.name || 'shot'} down`}
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
+                        </span>
+                      )}
+                      {editEnabled && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="ml-1"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onEditShot?.(shot);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      )}
                     </div>
                   );
                 }

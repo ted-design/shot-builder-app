@@ -3,7 +3,7 @@
  * Displays user photo or colored initials
  */
 
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
 /**
  * Get initials from name or email
