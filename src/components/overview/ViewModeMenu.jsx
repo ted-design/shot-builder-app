@@ -25,7 +25,6 @@ import {
  * @example
  * const VIEW_OPTIONS = [
  *   { value: "gallery", label: "Gallery", icon: LayoutGrid },
- *   { value: "list", label: "List", icon: List },
  *   { value: "table", label: "Table", icon: Table },
  * ];
  *

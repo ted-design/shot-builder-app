@@ -47,19 +47,24 @@ describe("Planner view preferences", () => {
     window.localStorage.clear();
   });
 
-  it("defaults to board view when nothing is stored", () => {
-    expect(readStoredPlannerView()).toBe("board");
+  it("defaults to gallery view when nothing is stored", () => {
+    expect(readStoredPlannerView()).toBe("gallery");
   });
 
-  it("restores the stored list view selection", () => {
+  it("restores the stored table view selection (migrated from list)", () => {
     window.localStorage.setItem("planner:viewMode", "list");
-    expect(readStoredPlannerView()).toBe("list");
+    expect(readStoredPlannerView()).toBe("table");
   });
 
   it("falls back to defaults when stored fields are invalid", () => {
     window.localStorage.setItem("planner:visibleFields", "not-json");
     const fields = readStoredVisibleFields();
     expect(fields).toEqual({
+      status: true,
+      image: true,
+      name: true,
+      type: true,
+      date: true,
       notes: true,
       location: true,
       talent: true,
@@ -116,6 +121,11 @@ describe("ShotCard thumbnails", () => {
   };
 
   const visibleFields = {
+    status: true,
+    image: true,
+    name: true,
+    type: true,
+    date: true,
     notes: true,
     location: true,
     talent: true,
@@ -139,7 +149,7 @@ describe("ShotCard thumbnails", () => {
             colourImagePath: "images/blue.jpg",
           },
         ]}
-        viewMode="board"
+        viewMode="gallery"
         visibleFields={visibleFields}
         onEdit={() => {}}
         canEdit
@@ -164,7 +174,7 @@ describe("ShotCard thumbnails", () => {
             colourImagePath: "images/red.jpg",
           },
         ]}
-        viewMode="list"
+        viewMode="table"
         visibleFields={visibleFields}
         onEdit={() => {}}
         canEdit
@@ -182,7 +192,7 @@ describe("ShotCard thumbnails", () => {
       <ShotCard
         shot={{ ...baseShot, status: "in_progress" }}
         products={[]}
-        viewMode="board"
+        viewMode="gallery"
         visibleFields={visibleFields}
         onEdit={() => {}}
         canEdit={false}
@@ -201,7 +211,7 @@ describe("ShotCard thumbnails", () => {
       <ShotCard
         shot={baseShot}
         products={[]}
-        viewMode="board"
+        viewMode="gallery"
         visibleFields={visibleFields}
         onEdit={() => {}}
         canEdit
@@ -222,7 +232,7 @@ describe("ShotCard thumbnails", () => {
       <ShotCard
         shot={{ ...baseShot, shotNumber: "2025-10-23 | Shot #2" }}
         products={[]}
-        viewMode="board"
+        viewMode="gallery"
         visibleFields={visibleFields}
         onEdit={() => {}}
         canEdit

@@ -59,7 +59,7 @@ import { canManagePlanner, canManageShots, ROLE, resolveEffectiveRole } from "..
 import {
   Download,
   LayoutGrid,
-  List,
+  Table,
   PencilLine,
   User,
   MapPin,
@@ -86,6 +86,7 @@ import AppImage from "../components/common/AppImage";
 import PlannerSummary from "../components/planner/PlannerSummary";
 const PlannerExportModal = lazy(() => import("../components/planner/PlannerExportModal"));
 import ShotEditModal from "../components/shots/ShotEditModal";
+import ShotTableView from "../components/shots/ShotTableView";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import { selectPlannerGroups } from "../lib/plannerSelectors";
@@ -130,6 +131,13 @@ const UNASSIGNED_LANE_ID = "__unassigned__";
 const LANE_END_DROPPABLE_ID = "__end__";
 
 const defaultVisibleFields = {
+  // Unified with Builder toggles
+  status: true,
+  image: true,
+  name: true,
+  type: true,
+  date: true,
+  // Existing Planner toggles
   notes: true,
   location: true,
   talent: true,
@@ -336,20 +344,21 @@ const stripHtml = (value) => {
     .trim();
 };
 
-// Planner density
+// Planner density (match builder: Compact, Comfy)
 const PLANNER_DENSITY_OPTIONS = [
-  { value: "comfortable", label: "Comfort" },
-  { value: "compact", label: "Compact" }, // previous "Extra"
+  { value: "compact", label: "Compact" },
+  { value: "comfortable", label: "Comfy" },
 ];
 
+// Planner view modes (match builder: Gallery, Table)
 const PLANNER_VIEW_OPTIONS = [
-  { value: "board", label: "Board", icon: LayoutGrid, hideLabelOnSmallScreen: true },
-  { value: "list", label: "List", icon: List, hideLabelOnSmallScreen: true },
+  { value: "gallery", label: "Gallery", icon: LayoutGrid, hideLabelOnSmallScreen: true },
+  { value: "table", label: "Table", icon: Table, hideLabelOnSmallScreen: true },
 ];
 
 const readStoredPlannerDensity = () => {
   const raw = readStorage(PLANNER_DENSITY_STORAGE_KEY);
-  if (raw === "comfortable") return "comfortable";
+  if (raw === "comfortable") return "comfortable"; // comfy
   // Map legacy values (extra, micro, old compact) to new compact
   if (raw === "extra" || raw === "micro" || raw === "compact") return "compact";
   return "compact"; // default to compact (small)
@@ -552,7 +561,8 @@ const calculateTalentSummaries = (lanesForExport) => {
 
 const readStoredPlannerView = () => {
   const stored = readStorage(PLANNER_VIEW_STORAGE_KEY);
-  return stored === "list" ? "list" : "board";
+  if (stored === "table" || stored === "list") return "table"; // migrate old "list"
+  return "gallery"; // default/migrate old "board"
 };
 
 const readStoredVisibleFields = () => {
@@ -561,6 +571,11 @@ const readStoredVisibleFields = () => {
     if (!raw) return { ...defaultVisibleFields };
     const parsed = JSON.parse(raw);
     return {
+      status: typeof parsed.status === "boolean" ? parsed.status : defaultVisibleFields.status,
+      image: typeof parsed.image === "boolean" ? parsed.image : defaultVisibleFields.image,
+      name: typeof parsed.name === "boolean" ? parsed.name : defaultVisibleFields.name,
+      type: typeof parsed.type === "boolean" ? parsed.type : defaultVisibleFields.type,
+      date: typeof parsed.date === "boolean" ? parsed.date : defaultVisibleFields.date,
       notes:
         typeof parsed.notes === "boolean" ? parsed.notes : defaultVisibleFields.notes,
       location:
@@ -869,8 +884,8 @@ function ShotCard({
       ? firstProduct.images[0]
       : null) ||
     null;
-  const thumbnailSrc = visibleFields.products ? derivedThumbnail : null;
-  const showThumbnailFrame = Boolean(visibleFields.products && firstProduct);
+  const showImage = visibleFields.image !== false;
+  const thumbnailSrc = showImage ? derivedThumbnail : null;
   const locationLabel = shot.locationName || "–";
   const showDetailsSection = visibleFields.location || visibleFields.talent || visibleFields.products;
 
@@ -879,7 +894,7 @@ function ShotCard({
   const cardPadBoard = compact ? 'p-2' : 'p-3';
   const cardPadList = compact ? 'p-2' : 'p-4';
   const cardBaseClass =
-    viewMode === "list"
+    viewMode === "table"
       ? `flex flex-col ${cardGap} rounded-card border border-slate-200 bg-white ${cardPadList} shadow-sm dark:border-slate-700 dark:bg-slate-800`
       : `flex flex-col ${cardGap} rounded-card border border-slate-200 bg-white ${cardPadBoard} shadow-sm dark:border-slate-700 dark:bg-slate-800`;
   const selectionHighlight = selectionMode && isSelected ? "ring-1 ring-primary/50" : "";
@@ -969,8 +984,8 @@ function ShotCard({
             </button>
           </div>
         </div>
-        {/* Large thumbnail only in board view and non-compact density */}
-        {viewMode !== 'list' && density !== 'compact' && showThumbnailFrame ? (
+        {/* Large thumbnail only in gallery view and non-compact density */}
+        {showImage && viewMode !== 'table' && density !== 'compact' && (
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-md border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900">
             <AppImage
               src={thumbnailSrc}
@@ -997,11 +1012,7 @@ function ShotCard({
               </div>
             )}
           </div>
-        ) : viewMode !== 'list' && density !== 'compact' ? (
-          <div className={`flex ${density === 'compact' ? 'h-20' : 'h-28'} w-full items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500`}>
-            No image
-          </div>
-        ) : null}
+        )}
         {shotNumberLabel && (
           <p className="text-[11px] font-semibold uppercase tracking-wide text-primary/80 dark:text-primary/70">
             {shotNumberLabel}
@@ -1009,7 +1020,7 @@ function ShotCard({
         )}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-1 min-w-[140px] items-center gap-2">
-            {(density === 'compact' || viewMode === 'list') && (
+            {showImage && (density === 'compact' || viewMode === 'table') && (
               <div className="relative w-12 shrink-0 overflow-hidden rounded-sm border border-slate-200 bg-slate-100 aspect-[4/3] dark:border-slate-700 dark:bg-slate-900">
                 <AppImage
                   src={thumbnailSrc}
@@ -1037,11 +1048,14 @@ function ShotCard({
                 )}
               </div>
             )}
-            <h4 className="flex-1 text-base font-semibold text-slate-900 dark:text-slate-100" title={shotNameLabel}>
-              {shotNameLabel}
-            </h4>
+            {visibleFields.name && (
+              <h4 className="flex-1 text-base font-semibold text-slate-900 dark:text-slate-100" title={shotNameLabel}>
+                {shotNameLabel}
+              </h4>
+            )}
           </div>
           <div className="flex flex-shrink-0 items-center gap-1">
+            {visibleFields.status && (
             <select
               aria-label={`${shotNameLabel} status`}
               className={`h-8 rounded-md border px-2 text-xs font-medium transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 ${
@@ -1061,6 +1075,7 @@ function ShotCard({
                 </option>
               ))}
             </select>
+            )}
             {canEdit && (
               <button
                 type="button"
@@ -1081,16 +1096,18 @@ function ShotCard({
         </div>
         {
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            {shot.type && (
+            {visibleFields.type && shot.type && (
               <StatusBadge variant="default" className="text-xs">
                 {typeLabel}
               </StatusBadge>
             )}
+            {visibleFields.date && (
             <div className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
               <span>{dateLabel}</span>
             </div>
-            {productLabels.length > 0 && (
+            )}
+            {visibleFields.products && productLabels.length > 0 && (
               <div className="flex items-center gap-1">
                 <Package className="h-3.5 w-3.5" />
                 <span>{productLabels.length} {productLabels.length === 1 ? "product" : "products"}</span>
@@ -2387,7 +2404,7 @@ function PlannerPageContent({ embedded = false }) {
       } else if (clientY > window.innerHeight - threshold) {
         window.scrollBy({ top: step, behavior: "smooth" });
       }
-      if (viewMode === "board" && boardScrollRef.current) {
+      if (viewMode === "gallery" && boardScrollRef.current) {
         const bounds = boardScrollRef.current.getBoundingClientRect();
         if (clientX < bounds.left + threshold) {
           boardScrollRef.current.scrollBy({ left: -step, behavior: "smooth" });
@@ -3055,10 +3072,10 @@ function PlannerPageContent({ embedded = false }) {
   const laneSummary = useMemo(() => calculateLaneSummaries(lanesForExport), [lanesForExport]);
   const talentSummary = useMemo(() => calculateTalentSummaries(lanesForExport), [lanesForExport]);
 
-  const isPlannerLoading = isAuthLoading || lanesLoading || primaryShotsLoading || familiesLoading;
+  const isPlannerLoading = isAuthLoading || lanesLoading || primaryShotsLoading;
   const totalShots = laneSummary.totalShots;
 
-  const isListView = viewMode === "list";
+  const isListView = viewMode === "table";
   // Density controls
   const [density, setDensity] = useState(() => readStoredPlannerDensity());
   useEffect(() => {
@@ -3077,6 +3094,73 @@ function PlannerPageContent({ embedded = false }) {
     () => (groupBy === "none" ? [] : selectPlannerGroups(filteredPlannerShots, { groupBy, sortBy })),
     [filteredPlannerShots, groupBy, sortBy]
   );
+
+  // Map of locationId -> name for table rows
+  const locationById = useMemo(() => {
+    const map = new Map();
+    locations.forEach((loc) => {
+      if (loc?.id) map.set(loc.id, loc.name || "");
+    });
+    return map;
+  }, [locations]);
+
+  // Density config for ShotTableView
+  const TABLE_DENSITY_CONFIG = useMemo(() => ({
+    compact: { tableRow: 'py-1.5', tablePadding: 'px-2', tableText: 'text-xs' },
+    comfortable: { tableRow: 'py-3', tablePadding: 'px-4', tableText: 'text-sm' },
+  }), []);
+
+  const plannerViewPrefs = useMemo(() => ({
+    showProducts: visibleFields.products,
+    showTalent: visibleFields.talent,
+    showLocation: visibleFields.location,
+    showNotes: visibleFields.notes,
+    showImage: visibleFields.image,
+    showName: visibleFields.name,
+    showType: visibleFields.type,
+    showStatus: visibleFields.status,
+    showDate: visibleFields.date,
+  }), [visibleFields]);
+
+  // Build rows for ShotTableView from lane shots
+  const buildTableRows = useCallback((laneShots) => {
+    const list = Array.isArray(laneShots) ? laneShots : [];
+    return list.map((shot) => {
+      const products = normaliseShotProducts(shot);
+      const talentSelection = mapShotTalentToSelection(shot);
+      const notesHtml = formatNotesForDisplay(shot.notes || shot.description || "");
+      const locationName = shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
+      return { shot, products, talent: talentSelection, notesHtml, locationName };
+    });
+  }, [locationById, normaliseShotProducts, mapShotTalentToSelection]);
+
+  // Selection handler adapter for ShotTableView
+  const handleTableToggleSelect = useCallback((shotId) => {
+    if (!selectionMode || !shotId) return;
+    const isSelected = sharedSelectedShotIds instanceof Set ? sharedSelectedShotIds.has(shotId) : false;
+    const shot = plannerShotsById.get(shotId);
+    if (!shot) return;
+    handleToggleSelectShot(shot, !isSelected);
+  }, [selectionMode, sharedSelectedShotIds, plannerShotsById, handleToggleSelectShot]);
+
+  // Move shot within current lane in table view
+  const handleTableMoveShot = useCallback(async (laneKey, laneShots, shot, index, delta) => {
+    if (!canEditPlanner || groupBy !== 'none') return;
+    if (!shot || !shot.id) return;
+    const list = Array.isArray(laneShots) ? laneShots : [];
+    if (!list.length) return;
+    const currentIndex = typeof index === 'number' ? index : list.findIndex((s) => s?.id === shot.id);
+    if (currentIndex < 0) return;
+    const targetIndex = Math.max(0, Math.min(list.length - 1, currentIndex + delta));
+    if (targetIndex === currentIndex) return;
+    try {
+      await performShotMove({ shot, targetLaneKey: laneKey, insertIndex: targetIndex });
+      setFocusShotId(shot.id);
+    } catch (error) {
+      console.error('[Planner] Failed to move shot in table', error);
+      toast.error('Could not reorder shot');
+    }
+  }, [canEditPlanner, groupBy, performShotMove, setFocusShotId, toast]);
 
   const renderLaneBlock = (laneId, title, laneShots, laneMeta = null, options = {}) => {
     const droppable = options.droppable !== false;
@@ -3869,10 +3953,15 @@ function PlannerPageContent({ embedded = false }) {
             />
             <FieldVisibilityMenu
               options={[
+                { key: "status", label: "Status", checked: visibleFields.status },
+                { key: "image", label: "Image", checked: visibleFields.image },
+                { key: "name", label: "Shot Name", checked: visibleFields.name },
+                { key: "type", label: "Type", checked: visibleFields.type },
+                { key: "date", label: "Date", checked: visibleFields.date },
                 { key: "notes", label: "Notes", checked: visibleFields.notes },
-                { key: "location", label: "Location", checked: visibleFields.location },
-                { key: "talent", label: "Talent", checked: visibleFields.talent },
                 { key: "products", label: "Products", checked: visibleFields.products },
+                { key: "talent", label: "Talent", checked: visibleFields.talent },
+                { key: "location", label: "Location", checked: visibleFields.location },
               ]}
               onToggle={(key) =>
                 setVisibleFields((prev) => ({
@@ -3993,16 +4082,54 @@ function PlannerPageContent({ embedded = false }) {
         >
           {isListView ? (
             <div className="flex flex-col gap-4 pb-6">
-              {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots, null, {
-                sortBy,
-                animationIndex: 0,
+              {/* Unassigned lane table */}
+              <div className={laneWrapperClass}>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Unassigned ({unassignedShots.length})</h3>
+                </div>
+                <div className="mt-3">
+                  <ShotTableView
+                    rows={buildTableRows(unassignedShots)}
+                    viewPrefs={plannerViewPrefs}
+                    density={TABLE_DENSITY_CONFIG[density]}
+                    canEditShots={canEditShots}
+                    selectedShotIds={sharedSelectedShotIds}
+                    onToggleSelect={selectionMode ? handleTableToggleSelect : null}
+                    onEditShot={canEditShots ? handleOpenShotEdit : null}
+                    onMoveShotUp={canEditPlanner && groupBy === 'none' ? (shot, rowIndex) => handleTableMoveShot(UNASSIGNED_LANE_ID, unassignedShots, shot, rowIndex, -1) : null}
+                    onMoveShotDown={canEditPlanner && groupBy === 'none' ? (shot, rowIndex) => handleTableMoveShot(UNASSIGNED_LANE_ID, unassignedShots, shot, rowIndex, +1) : null}
+                    focusedShotId={focusShotId}
+                    onFocusShot={handleFocusShot}
+                  />
+                </div>
+              </div>
+
+              {/* Each lane as a table */}
+              {lanes.map((lane, index) => {
+                const laneShots = resolvedShotsByLane[lane.id] || [];
+                return (
+                  <div key={lane.id} className={laneWrapperClass}>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{lane.name} ({laneShots.length})</h3>
+                    </div>
+                    <div className="mt-3">
+                      <ShotTableView
+                        rows={buildTableRows(laneShots)}
+                        viewPrefs={plannerViewPrefs}
+                        density={TABLE_DENSITY_CONFIG[density]}
+                        canEditShots={canEditShots}
+                        selectedShotIds={sharedSelectedShotIds}
+                        onToggleSelect={selectionMode ? handleTableToggleSelect : null}
+                        onEditShot={canEditShots ? handleOpenShotEdit : null}
+                        onMoveShotUp={canEditPlanner && groupBy === 'none' ? (shot, rowIndex) => handleTableMoveShot(lane.id, laneShots, shot, rowIndex, -1) : null}
+                        onMoveShotDown={canEditPlanner && groupBy === 'none' ? (shot, rowIndex) => handleTableMoveShot(lane.id, laneShots, shot, rowIndex, +1) : null}
+                        focusedShotId={focusShotId}
+                        onFocusShot={handleFocusShot}
+                      />
+                    </div>
+                  </div>
+                );
               })}
-              {lanes.map((lane, index) =>
-                renderLaneBlock(lane.id, lane.name, resolvedShotsByLane[lane.id] || [], lane, {
-                  sortBy,
-                  animationIndex: index + 1,
-                })
-              )}
             </div>
           ) : (
             <div className="pb-6">
