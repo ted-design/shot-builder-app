@@ -88,7 +88,7 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ShotsOverviewProvider, useShotsOverview } from "../context/ShotsOverviewContext";
 import {
-  FieldVisibilityMenu,
+  FieldSettingsMenu,
   OverviewToolbar,
   OverviewToolbarRow,
   SortMenu,
@@ -162,6 +162,7 @@ const AVAILABLE_SHOT_TYPES = [
 ];
 
 const SHOTS_PREFS_STORAGE_KEY = "shots:viewPrefs";
+const SHOTS_MANUAL_ORDER_PREFIX = "shots:manualOrder:"; // per-project
 
 const DEFAULT_SHOT_DENSITY = "comfortable";
 const UNTITLED_SHOT_FALLBACK_NAME = "Untitled shot";
@@ -191,6 +192,7 @@ const defaultViewPrefs = {
   showTalent: true,
   showLocation: true,
   showNotes: true,
+  showTags: true,
   showStatus: true,
   showImage: true,
   showName: true,
@@ -199,6 +201,9 @@ const defaultViewPrefs = {
   // Sorting + density
   sort: "alpha",
   density: DEFAULT_SHOT_DENSITY,
+  // Field settings
+  fieldOrder: [],
+  lockedFields: [],
 };
 
 const normaliseShotRecord = (id, data, fallbackProjectId) =>
@@ -210,13 +215,28 @@ const DETAIL_TOGGLE_OPTIONS = [
   { key: "showStatus", label: "Status" },
   { key: "showImage", label: "Image" },
   { key: "showName", label: "Shot Name" },
-  { key: "showType", label: "Type" },
+  { key: "showType", label: "Description" },
   { key: "showDate", label: "Date" },
   { key: "showNotes", label: "Notes" },
+  { key: "showTags", label: "Tags" },
   { key: "showProducts", label: "Products" },
   { key: "showTalent", label: "Talent" },
   { key: "showLocation", label: "Location" },
 ];
+
+// Mapping from viewPref boolean keys -> column keys used by the table
+const PREF_TO_COLUMN_KEY = new Map([
+  ["showImage", "image"],
+  ["showName", "name"],
+  ["showType", "type"],
+  ["showStatus", "status"],
+  ["showDate", "date"],
+  ["showLocation", "location"],
+  ["showProducts", "products"],
+  ["showTalent", "talent"],
+  ["showNotes", "notes"],
+  ["showTags", "tags"],
+]);
 
 const SHOT_VIEW_OPTIONS = [
   { value: "gallery", label: "Gallery", icon: LayoutGrid, hideLabelOnSmallScreen: true },
@@ -289,11 +309,22 @@ const readStoredViewPrefs = () => {
     const raw = readStorage(SHOTS_PREFS_STORAGE_KEY);
     if (!raw) return { ...defaultViewPrefs };
     const parsed = JSON.parse(raw);
+    // Normalise field order (columns)
+    const defaultOrder = Array.from(PREF_TO_COLUMN_KEY.values());
+    const rawOrder = Array.isArray(parsed.fieldOrder) ? parsed.fieldOrder : [];
+    const baseOrder = rawOrder.filter((k) => defaultOrder.includes(k));
+    const fieldOrder = [...baseOrder, ...defaultOrder.filter((k) => !baseOrder.includes(k))];
+    // Normalise locked fields
+    const lockedFields = Array.isArray(parsed.lockedFields)
+      ? parsed.lockedFields.filter((k) => defaultOrder.includes(k))
+      : [];
+
     return {
       showProducts: parsed.showProducts !== false,
       showTalent: parsed.showTalent !== false,
       showLocation: parsed.showLocation !== false,
       showNotes: parsed.showNotes !== false,
+      showTags: parsed.showTags !== false,
       showStatus: parsed.showStatus !== false,
       showImage: parsed.showImage !== false,
       showName: parsed.showName !== false,
@@ -301,6 +332,8 @@ const readStoredViewPrefs = () => {
       showDate: parsed.showDate !== false,
       sort: typeof parsed.sort === "string" ? parsed.sort : defaultViewPrefs.sort,
       density: normaliseShotDensity(parsed.density),
+      fieldOrder,
+      lockedFields,
     };
   } catch (error) {
     console.warn("[Shots] Failed to read view prefs", error);
@@ -586,6 +619,56 @@ export function ShotsWorkspace() {
     [filteredShots, viewPrefs.sort]
   );
 
+  // Manual table order per project (persisted locally)
+  const manualOrderKey = useMemo(
+    () => `${SHOTS_MANUAL_ORDER_PREFIX}${projectId || 'unknown'}`,
+    [projectId]
+  );
+  const [manualOrder, setManualOrder] = useState(() => {
+    try {
+      const raw = readStorage(manualOrderKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed)
+        ? parsed.filter((id) => typeof id === 'string' && id)
+        : [];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    try {
+      writeStorage(manualOrderKey, JSON.stringify(manualOrder));
+    } catch {}
+  }, [manualOrderKey, manualOrder]);
+  const lastManualRef = useRef(null);
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const isUndo = (e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z');
+      if (!isUndo) return;
+      const prev = lastManualRef.current;
+      if (!prev) return;
+      e.preventDefault();
+      setManualOrder(prev);
+      lastManualRef.current = null;
+      toast.success('Reorder undone');
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  // Overlay manual order in table view
+  const tableOrderedShots = useMemo(() => {
+    if (!Array.isArray(sortedShots) || sortedShots.length === 0) return [];
+    if (!Array.isArray(manualOrder) || manualOrder.length === 0) return sortedShots;
+    const indexMap = new Map(manualOrder.map((id, i) => [id, i]));
+    return [...sortedShots].sort((a, b) => {
+      const ai = indexMap.has(a.id) ? indexMap.get(a.id) : Number.POSITIVE_INFINITY;
+      const bi = indexMap.has(b.id) ? indexMap.get(b.id) : Number.POSITIVE_INFINITY;
+      if (ai !== bi) return ai - bi;
+      return 0;
+    });
+  }, [sortedShots, manualOrder]);
+
   useEffect(() => {
     if (viewMode === "gallery" || viewMode === "table") {
       writeStorage(SHOTS_VIEW_STORAGE_KEY, viewMode);
@@ -703,8 +786,13 @@ export function ShotsWorkspace() {
         showName: viewPrefs.showName,
         showType: viewPrefs.showType,
         showDate: viewPrefs.showDate,
+        showTags: viewPrefs.showTags,
         sort: viewPrefs.sort,
         density: normaliseShotDensity(viewPrefs.density),
+        fieldOrder: Array.isArray(viewPrefs.fieldOrder)
+          ? viewPrefs.fieldOrder
+          : Array.from(PREF_TO_COLUMN_KEY.values()),
+        lockedFields: Array.isArray(viewPrefs.lockedFields) ? viewPrefs.lockedFields : [],
       })
     );
   }, [viewPrefs]);
@@ -1312,6 +1400,23 @@ export function ShotsWorkspace() {
 
   const toggleViewPref = useCallback((key) => {
     setViewPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  const toggleFieldLock = useCallback((columnKey) => {
+    setViewPrefs((prev) => {
+      const locked = new Set(Array.isArray(prev.lockedFields) ? prev.lockedFields : []);
+      if (locked.has(columnKey)) locked.delete(columnKey);
+      else locked.add(columnKey);
+      // If locking a field, ensure it's visible by turning on its pref key
+      const prefKey = [...PREF_TO_COLUMN_KEY.entries()].find(([, v]) => v === columnKey)?.[0];
+      const next = { ...prev, lockedFields: Array.from(locked) };
+      if (prefKey && locked.has(columnKey)) next[prefKey] = true;
+      return next;
+    });
+  }, []);
+
+  const reorderFields = useCallback((nextOrder) => {
+    setViewPrefs((prev) => ({ ...prev, fieldOrder: Array.isArray(nextOrder) ? nextOrder : prev.fieldOrder }));
   }, []);
 
   const selectSort = useCallback((sortValue) => {
@@ -2789,13 +2894,29 @@ export function ShotsWorkspace() {
               onChange={selectSort}
               title="Sort shots"
             />
-            <FieldVisibilityMenu
-              options={DETAIL_TOGGLE_OPTIONS.map((option) => ({
-                key: option.key,
-                label: option.label,
-                checked: Boolean(viewPrefs[option.key]),
+            <FieldSettingsMenu
+              fields={DETAIL_TOGGLE_OPTIONS.map(({ key, label }) => ({
+                key: PREF_TO_COLUMN_KEY.get(key) || key,
+                label,
               }))}
-              onToggle={toggleViewPref}
+              visibleMap={Object.fromEntries(
+                Array.from(PREF_TO_COLUMN_KEY.entries()).map(([prefKey, colKey]) => [
+                  colKey,
+                  Boolean(viewPrefs[prefKey]),
+                ])
+              )}
+              lockedKeys={viewPrefs.lockedFields || []}
+              order={Array.isArray(viewPrefs.fieldOrder) && viewPrefs.fieldOrder.length
+                ? viewPrefs.fieldOrder
+                : Array.from(PREF_TO_COLUMN_KEY.values())}
+              onToggleVisible={(columnKey) => {
+                const prefEntry = [...PREF_TO_COLUMN_KEY.entries()].find(([, v]) => v === columnKey);
+                if (!prefEntry) return;
+                const [prefKey] = prefEntry;
+                toggleViewPref(prefKey);
+              }}
+              onToggleLock={toggleFieldLock}
+              onReorder={reorderFields}
             />
             <div className="flex items-center gap-1.5">
               <Button
@@ -2976,13 +3097,37 @@ export function ShotsWorkspace() {
               />
             ) : (
               <ShotTableView
-                rows={tableRows}
+                rows={
+                  // Rebuild rows from table-ordered shots to reflect manual order
+                  tableOrderedShots.map((shot) => {
+                    const products = normaliseShotProducts(shot);
+                    const talentSelection = mapShotTalentToSelection(shot);
+                    const notesHtml = formatNotesForDisplay(shot.description);
+                    const locationName = shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
+                    return { shot, products, talent: talentSelection, notesHtml, locationName };
+                  })
+                }
                 viewPrefs={viewPrefs}
                 density={SHOT_DENSITY_CONFIG[resolvedDensity]}
                 canEditShots={canEditShots}
                 selectedShotIds={selectedShotIds}
                 onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}
                 onEditShot={canEditShots ? handleEditShot : null}
+                persistKey={`shots:table:colWidths:${projectId || 'unknown'}`}
+                onRowReorder={canEditShots ? (from, to) => {
+                  // Move within currently visible table order
+                  const visibleIds = tableOrderedShots.map((s) => s.id);
+                  const clampedTo = Math.max(0, Math.min(visibleIds.length, to));
+                  const nextVisible = visibleIds.slice();
+                  const [moved] = nextVisible.splice(from, 1);
+                  nextVisible.splice(clampedTo > from ? clampedTo - 1 : clampedTo, 0, moved);
+                  const prevManual = manualOrder.slice();
+                  lastManualRef.current = prevManual;
+                  // Persist only the visible ordering; unknown ids keep their relative order
+                  setManualOrder(nextVisible);
+                  toast.info('Press Cmd/Ctrl+Z to undo');
+                } : null}
+                onChangeStatus={canEditShots ? (shot, value) => updateShot(shot, { status: value }) : null}
                 focusedShotId={focusShotId}
                 onFocusShot={handleFocusShot}
               />
@@ -3173,6 +3318,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     showTalent = true,
     showLocation = true,
     showNotes = true,
+    showTags = true,
     showStatus = true,
     showImage = true,
     showName = true,
@@ -3253,7 +3399,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
             )}
             {canEditShots && (
               <div className="flex items-center gap-1">
-                {showStatus && (
+                {viewPrefs.fieldOrder?.includes('status') && showStatus && (
                   <span className={`inline-flex items-center gap-1 text-[11px] ${statusColor}`} title={`Status: ${statusLabel}`}>
                     <CircleDot className="h-3.5 w-3.5" aria-hidden="true" />
                     <span className="sr-only">{statusLabel}</span>
@@ -3265,24 +3411,28 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
               </div>
             )}
           </div>
+          {showType && shot.type && (
+            <p
+              className="mt-0.5 block w-full min-w-0 truncate text-[10px] leading-4 text-slate-600 dark:text-slate-300"
+              title={shot.type}
+            >
+              {shot.type}
+            </p>
+          )}
           <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
-            {showDate && formattedDate && (
+            {formattedDate && showDate && (
               <span className="inline-flex items-center gap-1" title={formattedDate}>
                 <Calendar className="h-3.5 w-3.5" />
                 {formattedDate}
               </span>
             )}
-            {showType && shot.type && (
-              <span className="inline-flex items-center gap-1" title={shot.type}>
-                <Shapes className="h-3.5 w-3.5" />
-                {shot.type}
-              </span>
-            )}
           </div>
           {tags.length > 0 && (
-            <div className="mt-1">
-              <TagList tags={tags} emptyMessage={null} />
-            </div>
+            showTags ? (
+              <div className="mt-1">
+                <TagList tags={tags} emptyMessage={null} />
+              </div>
+            ) : null
           )}
           <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-slate-600">
             {showTalent && (
@@ -3378,51 +3528,74 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
               {shot.name}
             </h3>
           )}
-          {showType && shot.type && (
-            <span className="text-[10px] uppercase tracking-wide text-primary">{shot.type}</span>
-          )}
+          {(Array.isArray(viewPrefs.fieldOrder) ? viewPrefs.fieldOrder : Array.from(PREF_TO_COLUMN_KEY.values()))
+            .filter((k) => k === 'status')
+            .map((key) => {
+              if (key === 'status' && showStatus) {
+                return (
+                  <span key="status" className={`inline-flex items-center gap-1 ${statusColor}`} title={`Status: ${statusLabel}`}>
+                    <CircleDot className="h-3.5 w-3.5" />
+                    <span className="sr-only">{statusLabel}</span>
+                  </span>
+                );
+              }
+              return null;
+            })}
         </div>
+        {showType && shot.type && (
+          <p
+            className="-mt-0.5 block w-full min-w-0 truncate text-[11px] md:text-[12px] leading-5 text-slate-600 dark:text-slate-300"
+            title={shot.type}
+          >
+            {shot.type}
+          </p>
+        )}
         <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
-          {showDate && formattedDate && <span>{formattedDate}</span>}
-          {showLocation && locationName && <span title={locationName}>{locationName}</span>}
-          {showStatus && (
-            <span className={`inline-flex items-center gap-1 ${statusColor}`} title={`Status: ${statusLabel}`}>
-              <CircleDot className="h-3.5 w-3.5" />
-              <span className="sr-only">{statusLabel}</span>
-            </span>
-          )}
+          {(Array.isArray(viewPrefs.fieldOrder) ? viewPrefs.fieldOrder : Array.from(PREF_TO_COLUMN_KEY.values()))
+            .filter((k) => k === 'date' || k === 'location')
+            .map((key) => {
+              if (key === 'date' && showDate && formattedDate) return <span key="date">{formattedDate}</span>;
+              if (key === 'location' && showLocation && locationName) return (
+                <span key="location" title={locationName}>{locationName}</span>
+              );
+              return null;
+            })}
         </div>
         {tags.length > 0 && (
-          <div>
-            <TagList tags={tags} emptyMessage={null} />
-          </div>
+          showTags ? (
+            <div>
+              <TagList tags={tags} emptyMessage={null} />
+            </div>
+          ) : null
         )}
-        {showNotes && (
-          notesHtml ? (
-            <div
-              className="prose prose-sm dark:prose-invert max-w-none line-clamp-3"
-              dangerouslySetInnerHTML={{ __html: notesHtml }}
-            />
-          ) : (
-            <p className="text-sm text-slate-500">No notes added yet.</p>
-          )
-        )}
-        {showProducts && (
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Products
-            </span>
-            <ShotProductChips products={products} />
-          </div>
-        )}
-        {showTalent && (
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Talent
-            </span>
-            <ShotTalentList talent={talent} />
-          </div>
-        )}
+        {(Array.isArray(viewPrefs.fieldOrder) ? viewPrefs.fieldOrder : Array.from(PREF_TO_COLUMN_KEY.values()))
+          .filter((k) => k === 'notes' || k === 'products' || k === 'talent')
+          .map((key) => {
+            if (key === 'notes' && showNotes) {
+              return notesHtml ? (
+                <div key="notes" className="prose prose-sm dark:prose-invert max-w-none line-clamp-3" dangerouslySetInnerHTML={{ __html: notesHtml }} />
+              ) : (
+                <p key="notes-empty" className="text-sm text-slate-500">No notes added yet.</p>
+              );
+            }
+            if (key === 'products' && showProducts) {
+              return (
+                <div key="products">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Products</span>
+                  <ShotProductChips products={products} />
+                </div>
+              );
+            }
+            if (key === 'talent' && showTalent) {
+              return (
+                <div key="talent">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Talent</span>
+                  <ShotTalentList talent={talent} />
+                </div>
+              );
+            }
+            return null;
+          })}
       </CardContent>
     </>
   );
@@ -3433,6 +3606,9 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     </Card>
   );
 });
+
+// Test-only export for readStoredViewPrefs
+export const __test__readStoredViewPrefs = readStoredViewPrefs;
 
 const OVERVIEW_TAB_STORAGE_KEY = "shots:overviewTab";
 

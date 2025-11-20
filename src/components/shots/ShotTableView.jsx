@@ -1,11 +1,11 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useRef, useState, useEffect } from "react";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "../ui/button";
-import { TagList } from "../ui/TagBadge";
 import { toDateInputValue } from "../../lib/shotDraft";
 import { normaliseShotStatus, shotStatusOptions } from "../../lib/shotStatus";
 import { getImageWithFallback, hasMultipleAttachments, getAttachmentCount } from "../../lib/imageHelpers";
 import AppImage from "../common/AppImage";
+import { readStorage, writeStorage } from "../../lib/safeStorage";
 
 const STATUS_LABEL_MAP = new Map(shotStatusOptions.map(({ value, label }) => [value, label]));
 const CLEAN_TAG_REGEX = /<[^>]+>/g;
@@ -49,12 +49,17 @@ const ShotTableView = memo(function ShotTableView({
   onMoveShotDown,
   focusedShotId = null,
   onFocusShot = null,
+  onRowReorder = null,
+  onChangeStatus = null,
+  multilineLists = false,
+  persistKey = null,
 }) {
   const {
     showProducts = true,
     showTalent = true,
     showLocation = true,
     showNotes = true,
+    showTags = true,
     showImage = true,
     showName = true,
     showType = true,
@@ -75,65 +80,205 @@ const ShotTableView = memo(function ShotTableView({
   const actionsEnabled = editEnabled || moveEnabled;
 
   const columns = useMemo(() => {
+    const addIf = (condition, item, list) => {
+      if (condition) list.push(item);
+    };
+    const prefOrderDefault = [
+      "image",
+      "name",
+      "type",
+      "status",
+      "date",
+      "location",
+      "products",
+      "talent",
+      "tags",
+      "notes",
+    ];
+    const rawOrder = Array.isArray(viewPrefs?.fieldOrder) ? viewPrefs.fieldOrder : prefOrderDefault;
+    const baseOrder = rawOrder.filter((k) => prefOrderDefault.includes(k));
+    const order = [...baseOrder, ...prefOrderDefault.filter((k) => !baseOrder.includes(k))];
+
+    const defs = {
+      image: { key: "image", label: "Image", width: "80px", align: "center" },
+      name: { key: "name", label: "Shot", width: "minmax(220px, 1.4fr)" },
+      type: { key: "type", label: "Description", width: "minmax(120px, 0.7fr)" },
+      status: { key: "status", label: "Status", width: "minmax(120px, 0.7fr)" },
+      date: { key: "date", label: "Date", width: "minmax(120px, 0.6fr)" },
+      location: { key: "location", label: "Location", width: "minmax(160px, 1fr)" },
+      products: { key: "products", label: "Products", width: "minmax(200px, 1.2fr)" },
+      talent: { key: "talent", label: "Talent", width: "minmax(180px, 1fr)" },
+      tags: { key: "tags", label: "Tags", width: "minmax(160px, 0.9fr)" },
+      notes: { key: "notes", label: "Notes", width: "minmax(220px, 1.3fr)" },
+    };
+
+    const visibility = {
+      image: showImage,
+      name: showName,
+      type: showType,
+      status: showStatus,
+      date: showDate,
+      location: showLocation,
+      products: showProducts,
+      talent: showTalent,
+      tags: showTags,
+      notes: showNotes,
+    };
+
     const result = [];
-    if (selectionEnabled) {
-      result.push({ key: "select", label: "Select", width: "48px", align: "center" });
+    if (selectionEnabled || typeof onRowReorder === 'function') {
+      result.push({ key: "util", label: "", width: selectionEnabled ? "56px" : "32px", align: "center" });
     }
-
-    // Core info columns
-    if (showImage) result.push({ key: "image", label: "Image", width: "80px", align: "center" });
-    if (showName) result.push({ key: "name", label: "Shot", width: "minmax(220px, 1.4fr)" });
-    if (showType) result.push({ key: "type", label: "Type", width: "minmax(120px, 0.7fr)" });
-    if (showStatus) result.push({ key: "status", label: "Status", width: "minmax(120px, 0.7fr)" });
-    if (showDate) result.push({ key: "date", label: "Date", width: "minmax(120px, 0.6fr)" });
-
-    if (showLocation) {
-      result.push({ key: "location", label: "Location", width: "minmax(160px, 1fr)" });
-    }
-    if (showProducts) {
-      result.push({ key: "products", label: "Products", width: "minmax(200px, 1.2fr)" });
-    }
-    if (showTalent) {
-      result.push({ key: "talent", label: "Talent", width: "minmax(180px, 1fr)" });
-    }
-    if (showNotes) {
-      result.push({ key: "notes", label: "Notes", width: "minmax(220px, 1.3fr)" });
-    }
-
-    if (actionsEnabled) {
-      result.push({ key: "actions", label: "Actions", width: "120px", align: "center" });
-    }
-
+    order.forEach((key) => addIf(Boolean(visibility[key]), defs[key], result));
+    if (actionsEnabled) result.push({ key: "actions", label: "Actions", width: "120px", align: "center" });
     return result;
   }, [
     selectionEnabled,
     actionsEnabled,
-    // core visibility toggles
+    viewPrefs?.fieldOrder,
     showImage,
     showName,
     showType,
     showStatus,
     showDate,
-    // extended visibility toggles
     showLocation,
     showProducts,
     showTalent,
     showNotes,
+    onRowReorder,
   ]);
 
-  const columnTemplate = useMemo(
-    () => columns.map((column) => column.width || "1fr").join(" "),
-    [columns]
-  );
+  // Column resizing (persisted per-project/tab when persistKey is provided)
+  const [columnWidths, setColumnWidths] = useState(() => {
+    if (!persistKey) return {};
+    try {
+      const raw = readStorage(persistKey);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }); // key -> px number
+  const resizeState = useRef(null); // { key, startX, startWidth }
+  const stopResize = () => {
+    window.removeEventListener('mousemove', onResizeMove);
+    window.removeEventListener('mouseup', stopResize);
+    resizeState.current = null;
+    document.body.style.cursor = '';
+    document.body.classList.remove('select-none');
+    document.body.style.userSelect = '';
+  };
+  const onResizeMove = (e) => {
+    const ctx = resizeState.current;
+    if (!ctx) return;
+    const delta = e.clientX - ctx.startX;
+    const next = Math.max(96, Math.min(640, ctx.startWidth + delta));
+    setColumnWidths((w) => (w[ctx.key] === next ? w : { ...w, [ctx.key]: next }));
+  };
+  const startResize = (key, startX, startWidth) => {
+    resizeState.current = { key, startX, startWidth };
+    document.body.style.cursor = 'col-resize';
+    document.body.classList.add('select-none');
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onResizeMove);
+    window.addEventListener('mouseup', stopResize);
+  };
+
+  // Persist widths when changed
+  useEffect(() => {
+    if (!persistKey) return;
+    try {
+      writeStorage(persistKey, JSON.stringify(columnWidths));
+    } catch {}
+  }, [persistKey, columnWidths]);
+
+  const columnTemplate = useMemo(() => {
+    return columns
+      .map((column) => {
+        const key = column.key;
+        if (Object.prototype.hasOwnProperty.call(columnWidths, key)) {
+          const px = columnWidths[key];
+          return `${px}px`;
+        }
+        return column.width || "1fr";
+      })
+      .join(" ");
+  }, [columns, columnWidths]);
 
   const selectedIds = selectedShotIds instanceof Set ? selectedShotIds : null;
+  const rootRef = useRef(null);
+  const [liveMsg, setLiveMsg] = useState("");
+
+  // HTML5 DnD helpers
+  const [dragOver, setDragOver] = useState(null); // { index, before }
+  const dragGhostRef = useRef(null);
+  const [isGrabbing, setIsGrabbing] = useState(false);
+  const dragCtxRef = useRef({ name: '', from: -1 });
+  const handleDragStart = (event, index, shot) => {
+    try {
+      event.dataTransfer.setData("text/plain", String(index));
+      event.dataTransfer.effectAllowed = "move";
+      setIsGrabbing(true);
+      dragCtxRef.current = { name: shot?.name || 'Shot', from: index };
+      setLiveMsg(`Reordering ${dragCtxRef.current.name}`);
+      // Visible drag ghost
+      const rowEl = event.currentTarget.closest('[role="row"]');
+      const width = Math.min(800, rowEl?.offsetWidth || 480);
+      const height = rowEl?.offsetHeight || 40;
+      const ghost = document.createElement('div');
+      ghost.style.position = 'fixed';
+      ghost.style.left = '-9999px';
+      ghost.style.top = '-9999px';
+      ghost.style.zIndex = '99999';
+      ghost.style.width = `${width}px`;
+      ghost.style.height = `${height}px`;
+      ghost.style.boxSizing = 'border-box';
+      ghost.style.padding = '6px 12px';
+      ghost.style.borderRadius = '8px';
+      ghost.style.background = 'rgba(99, 102, 241, 0.15)'; /* primary/indigo-ish */
+      ghost.style.border = '1px solid rgba(99, 102, 241, 0.5)';
+      ghost.style.boxShadow = '0 6px 16px rgba(0,0,0,0.25)';
+      ghost.style.color = '#0f172a';
+      ghost.style.fontSize = '12px';
+      ghost.style.fontWeight = '600';
+      ghost.style.display = 'flex';
+      ghost.style.alignItems = 'center';
+      ghost.style.gap = '8px';
+      const text = document.createElement('div');
+      text.textContent = (shot?.name || 'Shot');
+      ghost.appendChild(text);
+      document.body.appendChild(ghost);
+      dragGhostRef.current = ghost;
+      event.dataTransfer.setDragImage(ghost, 12, Math.floor(height / 2));
+    } catch (_) {}
+  };
+  const handleDragOver = (event) => {
+    if (!onRowReorder) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  };
+  const handleDrop = (event, toIndex) => {
+    if (!onRowReorder) return;
+    event.preventDefault();
+    const fromRaw = event.dataTransfer.getData("text/plain");
+    const fromIndex = Number(fromRaw);
+    if (Number.isFinite(fromIndex) && Number.isFinite(toIndex) && fromIndex !== toIndex) {
+      onRowReorder(fromIndex, toIndex);
+      const name = dragCtxRef.current?.name || 'Row';
+      setLiveMsg(`${name} moved to position ${toIndex + 1}`);
+    }
+    setIsGrabbing(false);
+    if (dragGhostRef.current) { try { document.body.removeChild(dragGhostRef.current); } catch {} dragGhostRef.current = null; }
+  };
 
   return (
     <div
+      ref={rootRef}
       className="overflow-x-auto rounded-card border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800"
       role="table"
       aria-label="Shots table view"
     >
+      <div className="sr-only" aria-live="polite">{liveMsg}</div>
       <div className="min-w-[960px]" role="rowgroup">
         <div
           className={`grid border-b border-slate-200 bg-slate-50 font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-700/60 dark:text-slate-200 ${densityConfig.tableText}`}
@@ -144,9 +289,39 @@ const ShotTableView = memo(function ShotTableView({
             <div
               key={column.key}
               role="columnheader"
-              className={`${densityConfig.tablePadding} ${densityConfig.tableRow} ${column.align === "center" ? "text-center" : "text-left"}`}
+              className={`${densityConfig.tablePadding} ${densityConfig.tableRow} relative ${column.align === "center" ? "text-center" : "text-left"}`}
             >
               {column.label}
+              {/* Resize handle for non-utility columns */}
+              {!['util','actions','image'].includes(column.key) && (
+                <span
+                  role="separator"
+                  aria-orientation="vertical"
+                  onMouseDown={(e) => {
+                    if (e.button !== 0) return; // left click only
+                    e.preventDefault();
+                    const startWidth = e.currentTarget.parentElement?.offsetWidth || 120;
+                    startResize(column.key, e.clientX, startWidth);
+                  }}
+                  onDoubleClick={() => {
+                    // Auto-fit: measure content cells for this column within this table
+                    try {
+                      const cells = rootRef.current?.querySelectorAll(`[role="row"] [data-col="${column.key}"]`);
+                      let max = 0;
+                      cells?.forEach((cell) => {
+                        const el = cell;
+                        const w = el.scrollWidth || el.offsetWidth || 0;
+                        if (w > max) max = w;
+                      });
+                      const padded = Math.min(640, Math.max(96, max + 24));
+                      setColumnWidths((w) => ({ ...w, [column.key]: padded }));
+                      setLiveMsg(`${column.label || 'Column'} auto-fitted`);
+                    } catch {}
+                  }}
+                  className="absolute right-0 top-0 h-full w-1 cursor-col-resize select-none bg-transparent hover:bg-slate-300/20"
+                  title="Drag to resize column"
+                />
+              )}
             </div>
           ))}
         </div>
@@ -174,6 +349,10 @@ const ShotTableView = memo(function ShotTableView({
                 .join(", ")
             : "";
           const notesPlain = toPlainText(notesHtml);
+          const tagLabels = Array.isArray(shot?.tags)
+            ? shot.tags.map((t) => t?.label).filter(Boolean)
+            : [];
+          const tagsSummary = tagLabels.join(", ");
 
           // Get image data with product fallback (attachments → reference → product images)
           const { path: imagePath, style: imageStyle } = getImageWithFallback(shot, products);
@@ -184,35 +363,97 @@ const ShotTableView = memo(function ShotTableView({
             <div
               key={shotId}
               role="row"
-              className={`grid cursor-pointer items-start border-b border-slate-200 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/40 ${densityConfig.tableText} ${
+              className={`group relative grid cursor-pointer items-start border-b border-slate-200 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/40 ${densityConfig.tableText} ${
                 isSelected ? "bg-primary/5 dark:bg-primary/10" : "bg-transparent"
               } ${isFocused ? "outline outline-2 outline-primary/60 shadow-sm" : ""}`}
               style={{ gridTemplateColumns: columnTemplate }}
               aria-selected={isSelected}
               data-focused={isFocused ? "true" : undefined}
               onClick={() => onFocusShot?.(shot, { mirrorSelection: false })}
+              onDragOver={(e) => {
+                if (!onRowReorder) return;
+                // Visual insert cue based on mouse position
+                const rect = e.currentTarget.getBoundingClientRect();
+                const mid = rect.top + rect.height / 2;
+                const before = e.clientY < mid;
+                e.preventDefault();
+                setDragOver({ index: rowIndex, before });
+              }}
+              onDrop={(e) => {
+                if (!onRowReorder) return;
+                const fromRaw = e.dataTransfer.getData('text/plain');
+                const fromIndex = Number(fromRaw);
+                const before = dragOver?.index === rowIndex ? dragOver.before : true;
+                const toIndex = before ? rowIndex : rowIndex + 1;
+                handleDrop(e, toIndex);
+                setDragOver(null);
+              }}
+              onDragLeave={() => setDragOver(null)}
             >
+              {/* Insert indicator */}
+              {dragOver && dragOver.index === rowIndex && (
+                <div
+                  aria-hidden
+                  className={`pointer-events-none absolute left-0 right-0 ${dragOver.before ? 'top-0' : 'bottom-0'} h-0.5 bg-primary`}
+                />)
+              }
               {columns.map((column) => {
                 const columnKey = column.key;
 
-                if (columnKey === "select" && selectionEnabled) {
+                if (columnKey === 'util') {
                   return (
-                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-center`}>
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
-                        checked={isSelected}
-                        onChange={() => onToggleSelect?.(shotId)}
-                        onClick={(event) => event.stopPropagation()}
-                        aria-label={`Select ${shot?.name || "shot"}`}
-                      />
+                    <div key="util" role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} flex items-center justify-center gap-1`} onDragEnd={() => { setDragOver(null); setIsGrabbing(false); if (dragGhostRef.current) { try { document.body.removeChild(dragGhostRef.current); } catch {} dragGhostRef.current = null; } }}>
+                      {typeof onRowReorder === 'function' && (
+                        <button
+                          type="button"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, rowIndex, shot)}
+                          onDragEnd={() => { if (dragGhostRef.current) { try { document.body.removeChild(dragGhostRef.current); } catch {} dragGhostRef.current = null; } }}
+                          onKeyDown={(e) => {
+                            if (!onRowReorder) return;
+                            const isUp = e.key === 'ArrowUp';
+                            const isDown = e.key === 'ArrowDown';
+                            if ((e.altKey || e.metaKey || e.ctrlKey) && (isUp || isDown)) {
+                              e.preventDefault();
+                              const from = rowIndex;
+                              const to = Math.max(0, from + (isUp ? -1 : 1));
+                              if (to !== from) onRowReorder(from, to);
+                            }
+                          }}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                          aria-label={`Drag ${shot?.name || 'shot'} to reorder`}
+                          aria-grabbed={isGrabbing ? 'true' : 'false'}
+                          title="Drag to reorder (Alt+↑/↓ to move)"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {/* Dot grip to mirror screenshot */}
+                          <span className="pointer-events-none inline-grid grid-cols-2 grid-rows-3 gap-x-0.5 gap-y-0.5 opacity-70 group-hover:opacity-100">
+                            <span className="h-0.5 w-0.5 rounded-full bg-slate-400" />
+                            <span className="h-0.5 w-0.5 rounded-full bg-slate-400" />
+                            <span className="h-0.5 w-0.5 rounded-full bg-slate-400" />
+                            <span className="h-0.5 w-0.5 rounded-full bg-slate-400" />
+                            <span className="h-0.5 w-0.5 rounded-full bg-slate-400" />
+                            <span className="h-0.5 w-0.5 rounded-full bg-slate-400" />
+                          </span>
+                        </button>
+                      )}
+                      {selectionEnabled && (
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
+                          checked={isSelected}
+                          onChange={() => onToggleSelect?.(shotId)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`Select ${shot?.name || 'shot'}`}
+                        />
+                      )}
                     </div>
                   );
                 }
 
                 if (columnKey === "image" && showImage) {
                   return (
-                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-center`}>
+                    <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-center`}>
                       <div className="relative inline-block w-16 h-12 rounded border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800">
                         {imagePath ? (
                           <>
@@ -246,24 +487,41 @@ const ShotTableView = memo(function ShotTableView({
                   );
                 }
 
-                if (columnKey === "name" && showName) {
+                if (columnKey === "tags" && showTags) {
                   return (
-                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-900 dark:text-slate-100`}>
-                      <div className="font-semibold leading-5" title={shot?.name || "Unnamed shot"}>
-                        {shot?.name || "Unnamed shot"}
-                      </div>
-                      {Array.isArray(shot?.tags) && shot.tags.length > 0 && (
-                        <div className="mt-2">
-                          <TagList tags={shot.tags} emptyMessage={null} />
+                    <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
+                      {multilineLists ? (
+                        tagLabels.length ? (
+                          <div className="space-y-1 leading-5">
+                            {tagLabels.map((line, i) => (
+                              <div key={i} className="truncate" title={line}>{line}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-500">—</span>
+                        )
+                      ) : (
+                        <div className="truncate" title={tagsSummary || "—"}>
+                          {tagsSummary || "—"}
                         </div>
                       )}
                     </div>
                   );
                 }
 
+                if (columnKey === "name" && showName) {
+                  return (
+                    <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-900 dark:text-slate-100`}>
+                      <div className="font-semibold leading-5" title={shot?.name || "Unnamed shot"}>
+                        {shot?.name || "Unnamed shot"}
+                      </div>
+                    </div>
+                  );
+                }
+
                 if (columnKey === "type" && showType) {
                   return (
-                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
+                    <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
                       {shot?.type || "—"}
                     </div>
                   );
@@ -271,17 +529,31 @@ const ShotTableView = memo(function ShotTableView({
 
                 if (columnKey === "status" && showStatus) {
                   return (
-                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${statusClass}`}>
-                        {statusLabel}
-                      </span>
+                    <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
+                      {typeof onChangeStatus === 'function' ? (
+                        <select
+                          className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                          value={statusValue}
+                          onChange={(e) => onChangeStatus(shot, e.target.value)}
+                          aria-label={`Change status for ${shot?.name || 'shot'}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {shotStatusOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${statusClass}`}>
+                          {statusLabel}
+                        </span>
+                      )}
                     </div>
                   );
                 }
 
                 if (columnKey === "date" && showDate) {
                   return (
-                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
+                    <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
                       {formattedDate || "—"}
                     </div>
                   );
@@ -289,16 +561,29 @@ const ShotTableView = memo(function ShotTableView({
 
                 if (columnKey === "location" && showLocation) {
                   return (
-                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`} title={locationName}>
+                    <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`} title={locationName}>
                       {locationName || "Unassigned"}
                     </div>
                   );
                 }
 
                 if (columnKey === "products" && showProducts) {
+                  const productLines = Array.isArray(products)
+                    ? products.map(summariseProduct).filter(Boolean)
+                    : [];
                   return (
-                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
-                      {productsSummary ? (
+                    <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
+                      {multilineLists ? (
+                        productLines.length ? (
+                          <div className="space-y-1 leading-5">
+                            {productLines.map((line, i) => (
+                              <div key={i} className="truncate" title={line}>{line}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-500">No products linked</span>
+                        )
+                      ) : productsSummary ? (
                         <p className="line-clamp-2 leading-5">{productsSummary}</p>
                       ) : (
                         <span className="text-xs text-slate-500">No products linked</span>
@@ -308,9 +593,22 @@ const ShotTableView = memo(function ShotTableView({
                 }
 
                 if (columnKey === "talent" && showTalent) {
+                  const talentLines = Array.isArray(talent)
+                    ? talent.map((t) => t?.name).filter(Boolean)
+                    : [];
                   return (
-                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
-                      {talentSummary ? (
+                    <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
+                      {multilineLists ? (
+                        talentLines.length ? (
+                          <div className="space-y-1 leading-5">
+                            {talentLines.map((line, i) => (
+                              <div key={i} className="truncate" title={line}>{line}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-500">No talent assigned</span>
+                        )
+                      ) : talentSummary ? (
                         <p className="line-clamp-2 leading-5">{talentSummary}</p>
                       ) : (
                         <span className="text-xs text-slate-500">No talent assigned</span>
@@ -321,7 +619,7 @@ const ShotTableView = memo(function ShotTableView({
 
                 if (columnKey === "notes" && showNotes) {
                   return (
-                    <div key={columnKey} role="cell" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
+                    <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
                       {notesPlain ? (
                         <p className="line-clamp-2 leading-5" title={notesPlain}>
                           {notesPlain}

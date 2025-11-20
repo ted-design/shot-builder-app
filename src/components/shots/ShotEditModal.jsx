@@ -331,11 +331,11 @@ export default function ShotEditModal({
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor={`${uniquePrefix}-type`}>
-                        Type
+                      <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor={`${uniquePrefix}-description-field`}>
+                        Description
                       </label>
                       <Input
-                        id={`${uniquePrefix}-type`}
+                        id={`${uniquePrefix}-description-field`}
                         value={draft.type}
                         onChange={(event) => handleFieldChange({ type: event.target.value })}
                         disabled={navigationDisabled}
