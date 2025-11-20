@@ -553,7 +553,7 @@ export default function BulkOperationsToolbar({
                 )}
               </div>
 
-              {/* Type Button */}
+              {/* Description Button */}
               <div className="relative">
                 <Button
                   type="button"
@@ -562,26 +562,29 @@ export default function BulkOperationsToolbar({
                   onClick={handleTypeClick}
                   disabled={operationsDisabled}
                   className="flex items-center gap-1.5"
-                  title="Set type"
+                  title="Set description (saves to 'type' field)"
                 >
                   <Film className="h-4 w-4" />
                 </Button>
 
-                {/* Type Dropdown */}
+                {/* Description Dropdown */}
                 {mode === "type" && (
-                  <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-md border border-slate-200 bg-white p-3 shadow-lg">
+                  <div className="absolute left-0 top-full z-50 mt-2 w-72 rounded-md border border-slate-200 bg-white p-3 shadow-lg">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Set type for {selectedCount} shot{selectedCount === 1 ? "" : "s"}
+                      Set description for {selectedCount} shot{selectedCount === 1 ? "" : "s"}
+                    </p>
+                    <p className="mb-2 text-[11px] text-slate-500">
+                      Note: this updates the underlying <span className="font-mono">type</span> field.
                     </p>
 
                     <div className="max-h-48 space-y-1 overflow-y-auto">
-                      {/* Clear type option */}
+                      {/* Clear description option */}
                       <button
                         type="button"
                         onClick={() => handleSelectType("")}
                         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-100"
                       >
-                        <span className="text-slate-400 italic">Clear type</span>
+                        <span className="text-slate-400 italic">Clear description</span>
                       </button>
 
                       {availableTypes.length > 0 ? (
@@ -597,7 +600,7 @@ export default function BulkOperationsToolbar({
                           </button>
                         ))
                       ) : (
-                        <p className="px-2 py-1 text-sm text-slate-500">No types configured</p>
+                        <p className="px-2 py-1 text-sm text-slate-500">No descriptions configured</p>
                       )}
                     </div>
                   </div>

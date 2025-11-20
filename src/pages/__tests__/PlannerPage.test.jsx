@@ -69,6 +69,7 @@ describe("Planner view preferences", () => {
       location: true,
       talent: true,
       products: true,
+      tags: true,
     });
   });
 

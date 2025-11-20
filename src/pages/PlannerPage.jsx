@@ -114,7 +114,7 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useShotsOverview } from "../context/ShotsOverviewContext";
 import {
   FiltersPopover,
-  FieldVisibilityMenu,
+  FieldSettingsMenu,
   OverviewToolbar,
   OverviewToolbarRow,
   SortMenu,
@@ -127,6 +127,8 @@ import { buildActiveFilterPills, defaultOverviewFilters, removeFilterKey } from 
 const PLANNER_VIEW_STORAGE_KEY = "planner:viewMode";
 const PLANNER_FIELDS_STORAGE_KEY = "planner:visibleFields";
 const PLANNER_DENSITY_STORAGE_KEY = "planner:density";
+// Consolidate order + locks to the Shots prefs key
+const SHOTS_PREFS_STORAGE_KEY = "shots:viewPrefs";
 const UNASSIGNED_LANE_ID = "__unassigned__";
 const LANE_END_DROPPABLE_ID = "__end__";
 
@@ -142,6 +144,7 @@ const defaultVisibleFields = {
   location: true,
   talent: true,
   products: true,
+  tags: true,
 };
 
 const PLANNER_PREFS_STORAGE_KEY = "planner:prefs";
@@ -686,6 +689,7 @@ function DraggableShot({
   disabled,
   viewMode,
   visibleFields,
+  fieldOrder,
   onEdit,
   onCardClick,
   onNudge = null,
@@ -722,6 +726,7 @@ function DraggableShot({
         shot={shot}
         viewMode={viewMode}
         visibleFields={visibleFields}
+        fieldOrder={fieldOrder}
         onEdit={onEdit}
         onCardClick={onCardClick}
         onNudge={onNudge}
@@ -802,6 +807,7 @@ function ShotCard({
   shot,
   viewMode,
   visibleFields,
+  fieldOrder,
   onEdit,
   onCardClick,
   onNudge = null,
@@ -1120,47 +1126,71 @@ function ShotCard({
             )}
           </div>
         }
-        {showDetailsSection && (
-          <div className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
-            {visibleFields.location && (
-              <div className="flex items-center gap-1.5">
-                <MapPin className="h-4 w-4 flex-shrink-0 text-slate-500" />
-                <span>{locationLabel}</span>
-              </div>
-            )}
-            {visibleFields.talent && (
-              <div className="flex items-center gap-1.5">
-                <User className="h-4 w-4 flex-shrink-0 text-slate-500" />
-                <span>{talentList.length ? talentList.join(", ") : "–"}</span>
-              </div>
-            )}
-            {visibleFields.products && (
-              <div className="flex items-start gap-1.5">
-                <Package className="h-4 w-4 flex-shrink-0 text-slate-500" />
-                {productEntries.length ? (
-                  <ul className="list-disc space-y-1 pl-4">
-                    {productEntries.map(({ key, label }) => (
-                      <li key={key} className="text-xs text-slate-600 dark:text-slate-300">
-                        {label}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <span className="text-xs text-slate-500 dark:text-slate-400">–</span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-        {Array.isArray(shot.tags) && shot.tags.length > 0 && (
-          <TagList tags={shot.tags} emptyMessage={null} className="text-xs" />
-        )}
-        {visibleFields.notes && notesHtml && (
-          <div
-            className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300"
-            dangerouslySetInnerHTML={{ __html: notesHtml }}
-          />
-        )}
+        {(() => {
+          const defaultOrder = [
+            'image','name','type','status','date','location','products','talent','tags','notes'
+          ];
+          const order = Array.isArray(fieldOrder) && fieldOrder.length
+            ? fieldOrder
+            : defaultOrder;
+          const orderedKeys = order.filter((k) => ['location','talent','products','tags','notes'].includes(k));
+          const hasAny = orderedKeys.some((k) => visibleFields[k]);
+          if (!hasAny) return null;
+          return (
+            <div className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
+              {orderedKeys.map((key) => {
+                if (!visibleFields[key]) return null;
+                if (key === 'location') {
+                  return (
+                    <div key="loc" className="flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                      <span>{locationLabel}</span>
+                    </div>
+                  );
+                }
+                if (key === 'talent') {
+                  return (
+                    <div key="talent" className="flex items-center gap-1.5">
+                      <User className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                      <span>{talentList.length ? talentList.join(', ') : '–'}</span>
+                    </div>
+                  );
+                }
+                if (key === 'products') {
+                  return (
+                    <div key="products" className="flex items-start gap-1.5">
+                      <Package className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                      {productEntries.length ? (
+                        <ul className="list-disc space-y-1 pl-4">
+                          {productEntries.map(({ key: pkey, label }) => (
+                            <li key={pkey} className="text-xs text-slate-600 dark:text-slate-300">{label}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-xs text-slate-500 dark:text-slate-400">–</span>
+                      )}
+                    </div>
+                  );
+                }
+                if (key === 'tags') {
+                  return Array.isArray(shot.tags) && shot.tags.length > 0 ? (
+                    <TagList key="tags" tags={shot.tags} emptyMessage={null} className="text-xs" />
+                  ) : null;
+                }
+                if (key === 'notes') {
+                  return notesHtml ? (
+                    <div
+                      key="notes"
+                      className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300"
+                      dangerouslySetInnerHTML={{ __html: notesHtml }}
+                    />
+                  ) : null;
+                }
+                return null;
+              })}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
@@ -1306,6 +1336,39 @@ function PlannerPageContent({ embedded = false }) {
   const [shotsLoading, setShotsLoading] = useState(true);
   const [viewMode, setViewMode] = useState(() => readStoredPlannerView());
   const [visibleFields, setVisibleFields] = useState(() => readStoredVisibleFields());
+  const defaultOrder = [
+    "image",
+    "name",
+    "type",
+    "status",
+    "date",
+    "location",
+    "products",
+    "talent",
+    "tags",
+    "notes",
+  ];
+  const [fieldOrder, setFieldOrder] = useState(() => {
+    try {
+      const raw = readStorage(SHOTS_PREFS_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const rawOrder = Array.isArray(parsed.fieldOrder) ? parsed.fieldOrder : [];
+      const base = rawOrder.filter((k) => defaultOrder.includes(k));
+      return [...base, ...defaultOrder.filter((k) => !base.includes(k))];
+    } catch {
+      return defaultOrder;
+    }
+  });
+  const [lockedFields, setLockedFields] = useState(() => {
+    try {
+      const raw = readStorage(SHOTS_PREFS_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const rawLocks = Array.isArray(parsed.lockedFields) ? parsed.lockedFields : [];
+      return rawLocks.filter((k) => defaultOrder.includes(k));
+    } catch {
+      return [];
+    }
+  });
   const [plannerPrefs, setPlannerPrefs] = useState(() => readStoredPlannerPrefs());
   const summaryCollapsed =
     typeof plannerPrefs.summaryCollapsed === "boolean"
@@ -1932,6 +1995,25 @@ function PlannerPageContent({ embedded = false }) {
   useEffect(() => {
     writeStorage(PLANNER_FIELDS_STORAGE_KEY, JSON.stringify(visibleFields));
   }, [visibleFields]);
+
+  // Persist order + locks back to the unified Shots prefs object
+  useEffect(() => {
+    try {
+      const raw = readStorage(SHOTS_PREFS_STORAGE_KEY);
+      const base = raw ? JSON.parse(raw) : {};
+      const next = { ...base, fieldOrder };
+      writeStorage(SHOTS_PREFS_STORAGE_KEY, JSON.stringify(next));
+    } catch {}
+  }, [fieldOrder]);
+
+  useEffect(() => {
+    try {
+      const raw = readStorage(SHOTS_PREFS_STORAGE_KEY);
+      const base = raw ? JSON.parse(raw) : {};
+      const next = { ...base, lockedFields };
+      writeStorage(SHOTS_PREFS_STORAGE_KEY, JSON.stringify(next));
+    } catch {}
+  }, [lockedFields]);
 
   useEffect(() => {
     writeStorage(
@@ -3115,12 +3197,14 @@ function PlannerPageContent({ embedded = false }) {
     showTalent: visibleFields.talent,
     showLocation: visibleFields.location,
     showNotes: visibleFields.notes,
+    showTags: visibleFields.tags,
     showImage: visibleFields.image,
     showName: visibleFields.name,
     showType: visibleFields.type,
     showStatus: visibleFields.status,
     showDate: visibleFields.date,
-  }), [visibleFields]);
+    fieldOrder,
+  }), [visibleFields, fieldOrder]);
 
   // Build rows for ShotTableView from lane shots
   const buildTableRows = useCallback((laneShots) => {
@@ -3356,6 +3440,7 @@ function PlannerPageContent({ embedded = false }) {
                 disabled={!droppable || !canEditPlanner}
                 viewMode={viewMode}
                 visibleFields={visibleFields}
+                fieldOrder={fieldOrder}
                 onEdit={handleOpenShotEdit}
                 onCardClick={handleShotCardClick}
                 onNudge={handleNudgeShot}
@@ -3951,24 +4036,41 @@ function PlannerPageContent({ embedded = false }) {
               onChange={updatePlannerSort}
               title="Sort cards"
             />
-            <FieldVisibilityMenu
-              options={[
-                { key: "status", label: "Status", checked: visibleFields.status },
-                { key: "image", label: "Image", checked: visibleFields.image },
-                { key: "name", label: "Shot Name", checked: visibleFields.name },
-                { key: "type", label: "Type", checked: visibleFields.type },
-                { key: "date", label: "Date", checked: visibleFields.date },
-                { key: "notes", label: "Notes", checked: visibleFields.notes },
-                { key: "products", label: "Products", checked: visibleFields.products },
-                { key: "talent", label: "Talent", checked: visibleFields.talent },
-                { key: "location", label: "Location", checked: visibleFields.location },
+            <FieldSettingsMenu
+              fields={[
+                { key: "status", label: "Status" },
+                { key: "image", label: "Image" },
+                { key: "name", label: "Shot Name" },
+                { key: "type", label: "Description" },
+                { key: "date", label: "Date" },
+                { key: "notes", label: "Notes" },
+                { key: "products", label: "Products" },
+                { key: "talent", label: "Talent" },
+                { key: "location", label: "Location" },
+                { key: "tags", label: "Tags" },
               ]}
-              onToggle={(key) =>
+              visibleMap={visibleFields}
+              lockedKeys={lockedFields}
+              order={fieldOrder}
+              onToggleVisible={(key) =>
                 setVisibleFields((prev) => ({
                   ...prev,
                   [key]: !prev[key],
                 }))
               }
+              onToggleLock={(key) => {
+                setLockedFields((prev) => {
+                  const set = new Set(prev);
+                  if (set.has(key)) set.delete(key);
+                  else set.add(key);
+                  // If locking, ensure visible
+                  if (set.has(key)) {
+                    setVisibleFields((prev) => ({ ...prev, [key]: true }));
+                  }
+                  return Array.from(set);
+                });
+              }}
+              onReorder={(next) => setFieldOrder(next)}
             />
             {canEditPlanner && (
               <Button
@@ -4096,6 +4198,18 @@ function PlannerPageContent({ embedded = false }) {
                     selectedShotIds={sharedSelectedShotIds}
                     onToggleSelect={selectionMode ? handleTableToggleSelect : null}
                     onEditShot={canEditShots ? handleOpenShotEdit : null}
+                    persistKey={`planner:table:colWidths:${projectId || 'unknown'}`}
+                    onRowReorder={canEditPlanner && groupBy === 'none' ? (from, to) => {
+                      const shot = unassignedShots[from];
+                      if (!shot) return;
+                      lastMoveRef.current = { laneId: UNASSIGNED_LANE_ID, shotId: shot.id, fromIndex: from, toIndex: to };
+                      toast.info('Press Cmd/Ctrl+Z to undo');
+                      // Adjust delta when moving down (to is pre-removal insert index)
+                      const delta = to > from ? to - from - 1 : to - from;
+                      return handleTableMoveShot(UNASSIGNED_LANE_ID, unassignedShots, shot, from, delta);
+                    } : null}
+                    onChangeStatus={handleUpdateShotStatus}
+                    multilineLists
                     onMoveShotUp={canEditPlanner && groupBy === 'none' ? (shot, rowIndex) => handleTableMoveShot(UNASSIGNED_LANE_ID, unassignedShots, shot, rowIndex, -1) : null}
                     onMoveShotDown={canEditPlanner && groupBy === 'none' ? (shot, rowIndex) => handleTableMoveShot(UNASSIGNED_LANE_ID, unassignedShots, shot, rowIndex, +1) : null}
                     focusedShotId={focusShotId}
@@ -4121,6 +4235,18 @@ function PlannerPageContent({ embedded = false }) {
                         selectedShotIds={sharedSelectedShotIds}
                         onToggleSelect={selectionMode ? handleTableToggleSelect : null}
                         onEditShot={canEditShots ? handleOpenShotEdit : null}
+                        persistKey={`planner:table:colWidths:${projectId || 'unknown'}`}
+                        onRowReorder={canEditPlanner && groupBy === 'none' ? (from, to) => {
+                          const shot = laneShots[from];
+                          if (!shot) return;
+                          lastMoveRef.current = { laneId: lane.id, shotId: shot.id, fromIndex: from, toIndex: to };
+                          toast.info('Press Cmd/Ctrl+Z to undo');
+                          // Adjust delta when moving down (to is pre-removal insert index)
+                          const delta = to > from ? to - from - 1 : to - from;
+                          return handleTableMoveShot(lane.id, laneShots, shot, from, delta);
+                        } : null}
+                        onChangeStatus={handleUpdateShotStatus}
+                        multilineLists
                         onMoveShotUp={canEditPlanner && groupBy === 'none' ? (shot, rowIndex) => handleTableMoveShot(lane.id, laneShots, shot, rowIndex, -1) : null}
                         onMoveShotDown={canEditPlanner && groupBy === 'none' ? (shot, rowIndex) => handleTableMoveShot(lane.id, laneShots, shot, rowIndex, +1) : null}
                         focusedShotId={focusShotId}
