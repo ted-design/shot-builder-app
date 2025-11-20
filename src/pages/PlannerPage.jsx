@@ -4204,7 +4204,9 @@ function PlannerPageContent({ embedded = false }) {
                       if (!shot) return;
                       lastMoveRef.current = { laneId: UNASSIGNED_LANE_ID, shotId: shot.id, fromIndex: from, toIndex: to };
                       toast.info('Press Cmd/Ctrl+Z to undo');
-                      return handleTableMoveShot(UNASSIGNED_LANE_ID, unassignedShots, shot, from, to - from);
+                      // Adjust delta when moving down (to is pre-removal insert index)
+                      const delta = to > from ? to - from - 1 : to - from;
+                      return handleTableMoveShot(UNASSIGNED_LANE_ID, unassignedShots, shot, from, delta);
                     } : null}
                     onChangeStatus={handleUpdateShotStatus}
                     multilineLists
@@ -4239,7 +4241,9 @@ function PlannerPageContent({ embedded = false }) {
                           if (!shot) return;
                           lastMoveRef.current = { laneId: lane.id, shotId: shot.id, fromIndex: from, toIndex: to };
                           toast.info('Press Cmd/Ctrl+Z to undo');
-                          return handleTableMoveShot(lane.id, laneShots, shot, from, to - from);
+                          // Adjust delta when moving down (to is pre-removal insert index)
+                          const delta = to > from ? to - from - 1 : to - from;
+                          return handleTableMoveShot(lane.id, laneShots, shot, from, delta);
                         } : null}
                         onChangeStatus={handleUpdateShotStatus}
                         multilineLists

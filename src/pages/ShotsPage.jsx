@@ -635,6 +635,19 @@ export function ShotsWorkspace() {
       return [];
     }
   });
+  // Reload manual order when project changes
+  useEffect(() => {
+    try {
+      const raw = readStorage(manualOrderKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const reloaded = Array.isArray(parsed)
+        ? parsed.filter((id) => typeof id === 'string' && id)
+        : [];
+      setManualOrder(reloaded);
+    } catch {
+      setManualOrder([]);
+    }
+  }, [manualOrderKey]);
   useEffect(() => {
     try {
       writeStorage(manualOrderKey, JSON.stringify(manualOrder));
