@@ -689,6 +689,7 @@ function DraggableShot({
   disabled,
   viewMode,
   visibleFields,
+  fieldOrder,
   onEdit,
   onCardClick,
   onNudge = null,
@@ -725,6 +726,7 @@ function DraggableShot({
         shot={shot}
         viewMode={viewMode}
         visibleFields={visibleFields}
+        fieldOrder={fieldOrder}
         onEdit={onEdit}
         onCardClick={onCardClick}
         onNudge={onNudge}
@@ -805,6 +807,7 @@ function ShotCard({
   shot,
   viewMode,
   visibleFields,
+  fieldOrder,
   onEdit,
   onCardClick,
   onNudge = null,
@@ -3437,6 +3440,7 @@ function PlannerPageContent({ embedded = false }) {
                 disabled={!droppable || !canEditPlanner}
                 viewMode={viewMode}
                 visibleFields={visibleFields}
+                fieldOrder={fieldOrder}
                 onEdit={handleOpenShotEdit}
                 onCardClick={handleShotCardClick}
                 onNudge={handleNudgeShot}
