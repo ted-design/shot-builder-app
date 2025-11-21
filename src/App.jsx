@@ -38,6 +38,9 @@ const ProductsPage = lazy(() => import("./pages/ProductsPage"));
 const ImportProducts = lazy(() => import("./pages/ImportProducts"));
 const TalentPage = lazy(() => import("./pages/TalentPage"));
 const LocationsPage = lazy(() => import("./pages/LocationsPage"));
+const LibraryPage = lazy(() => import("./pages/LibraryPage"));
+const LibraryTalentPage = lazy(() => import("./pages/LibraryTalentPage"));
+const LibraryLocationsPage = lazy(() => import("./pages/LibraryLocationsPage"));
 const PullsPage = lazy(() => import("./pages/PullsPage"));
 const PullPublicViewPage = lazy(() => import("./pages/PullPublicViewPage"));
 const PullEditorPage = lazy(() => import("./pages/PullEditorPage"));
@@ -140,173 +143,187 @@ export default function App() {
               {/* Guarded + lazy-loaded PDF demo: requires flag AND ?pdfDemo=1 */}
               <PDFDemoMount />
               <MaybeRedirectLogin user={userForGuard} />
-            <Routes>
-          <Route
-            path="/login"
-            element={
-              <Suspense fallback={<PageLoadingFallback />}>
-                <LoginPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="/pulls/shared/:shareToken"
-            element={
-              <Suspense fallback={<PageLoadingFallback />}>
-                <PullPublicViewPage />
-              </Suspense>
-            }
-          />
-          <Route path="/" element={<Navigate to="/projects" replace />} />
-          {import.meta.env.DEV ? (
-            <Route
-              path="/dev/richtext"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <RichTextEditorDemo />
-                </Suspense>
-              }
-            />
-          ) : null}
-          <Route
-            element={
-              <AuthReadyGate fallback={null}>
-                <AuthenticatedLayout guardUser={userForGuard} navUser={navUser} fallbackRole={navRole} />
-              </AuthReadyGate>
-            }
-          >
-            <Route index element={<Navigate to="/projects" replace />} />
-            <Route
-              path="/projects"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <ProjectsPage />
-                </Suspense>
-              }
-            />
-            {/* Legacy unscoped routes */}
-            <Route path="/shots" element={<LegacyShotsRedirect />} />
-            <Route path="/planner" element={<LegacyPlannerRedirect />} />
+              <Routes>
+                <Route
+                  path="/login"
+                  element={
+                    <Suspense fallback={<PageLoadingFallback />}>
+                      <LoginPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/pulls/shared/:shareToken"
+                  element={
+                    <Suspense fallback={<PageLoadingFallback />}>
+                      <PullPublicViewPage />
+                    </Suspense>
+                  }
+                />
+                <Route path="/" element={<Navigate to="/projects" replace />} />
+                {import.meta.env.DEV ? (
+                  <Route
+                    path="/dev/richtext"
+                    element={
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <RichTextEditorDemo />
+                      </Suspense>
+                    }
+                  />
+                ) : null}
+                <Route
+                  element={
+                    <AuthReadyGate fallback={null}>
+                      <AuthenticatedLayout guardUser={userForGuard} navUser={navUser} fallbackRole={navRole} />
+                    </AuthReadyGate>
+                  }
+                >
+                  <Route index element={<Navigate to="/projects" replace />} />
+                  <Route
+                    path="/projects"
+                    element={
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <ProjectsPage />
+                      </Suspense>
+                    }
+                  />
+                  {/* Legacy unscoped routes */}
+                  <Route path="/shots" element={<LegacyShotsRedirect />} />
+                  <Route path="/planner" element={<LegacyPlannerRedirect />} />
 
-            {/* Project-scoped routes */}
-            <Route path="/projects/:projectId" element={<ProjectParamScope />}>
-              <Route
-                path="shots"
-                element={
-                  <Suspense fallback={<PageLoadingFallback />}>
-                    <ShotsPage />
-                  </Suspense>
-                }
-              />
-              <Route path="planner" element={<Navigate to="../shots?view=planner" replace />} />
-              <Route
-                path="assets"
-                element={
-                  <Suspense fallback={<PageLoadingFallback />}>
-                    <ProjectAssetsPage />
-                  </Suspense>
-                }
-              />
-            </Route>
-            <Route
-              path="/products"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <ProductsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/import-products"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <ImportProducts />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/talent"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <TalentPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/locations"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <LocationsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/pulls"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <PullsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/pulls/:pullId/edit"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <PullEditorPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/tags"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <TagManagementPage />
-                </Suspense>
-              }
-            />
-            {import.meta.env.DEV ? (
-              <>
-                <Route
-                  path="/dev/image-diagnostics"
-                  element={
-                    <Suspense fallback={<PageLoadingFallback />}>
-                      <ImageDiagnosticsPage />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/dev/brand-lockup-test"
-                  element={
-                    <Suspense fallback={<PageLoadingFallback />}>
-                      <BrandLockupTest />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/dev/page-header-test"
-                  element={
-                    <Suspense fallback={<PageLoadingFallback />}>
-                      <PageHeaderTest />
-                    </Suspense>
-                  }
-                />
-              </>
-            ) : null}
-            <Route
-              path="/admin"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <RequireRole roles={["admin"]}>
-                    <AdminPage />
-                  </RequireRole>
-                </Suspense>
-              }
-            />
-            <Route path="*" element={<Navigate to="/projects" replace />} />
-          </Route>
-            </Routes>
-              </ProjectScopeProvider>
-            </BrowserRouter>
+                  {/* Project-scoped routes */}
+                  <Route path="/projects/:projectId" element={<ProjectParamScope />}>
+                    <Route
+                      path="shots"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <ShotsPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route path="planner" element={<Navigate to="../shots?view=planner" replace />} />
+                    <Route
+                      path="assets"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <ProjectAssetsPage />
+                        </Suspense>
+                      }
+                    />
+                  </Route>
+                  <Route
+                    path="/products"
+                    element={
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <ProductsPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/import-products"
+                    element={
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <ImportProducts />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/library"
+                    element={
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <LibraryPage />
+                      </Suspense>
+                    }
+                  >
+                    <Route index element={<Navigate to="/library/talent" replace />} />
+                    <Route
+                      path="talent"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <LibraryTalentPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="locations"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <LibraryLocationsPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="tags"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <TagManagementPage />
+                        </Suspense>
+                      }
+                    />
+                  </Route>
+                  {/* Redirect legacy org routes to Library */}
+                  <Route path="/talent" element={<Navigate to="/library/talent" replace />} />
+                  <Route path="/locations" element={<Navigate to="/library/locations" replace />} />
+                  <Route
+                    path="/pulls"
+                    element={
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <PullsPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/pulls/:pullId/edit"
+                    element={
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <PullEditorPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route path="/tags" element={<Navigate to="/library/tags" replace />} />
+                  {import.meta.env.DEV ? (
+                    <>
+                      <Route
+                        path="/dev/image-diagnostics"
+                        element={
+                          <Suspense fallback={<PageLoadingFallback />}>
+                            <ImageDiagnosticsPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/dev/brand-lockup-test"
+                        element={
+                          <Suspense fallback={<PageLoadingFallback />}>
+                            <BrandLockupTest />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/dev/page-header-test"
+                        element={
+                          <Suspense fallback={<PageLoadingFallback />}>
+                            <PageHeaderTest />
+                          </Suspense>
+                        }
+                      />
+                    </>
+                  ) : null}
+                  <Route
+                    path="/admin"
+                    element={
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <RequireRole roles={["admin"]}>
+                          <AdminPage />
+                        </RequireRole>
+                      </Suspense>
+                    }
+                  />
+                  <Route path="*" element={<Navigate to="/projects" replace />} />
+                </Route>
+              </Routes>
+            </ProjectScopeProvider>
+          </BrowserRouter>
         </SearchCommandProvider>
       </ThemeProvider>
     </QueryClientProvider>

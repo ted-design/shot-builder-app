@@ -23,13 +23,9 @@ import { BrandLockup } from "../components/common/BrandLockup";
 
 const navItems = [
   { to: "/projects", label: "Dashboard" },
-  { to: "/shots", label: "Shots", requiresProject: true },
   { to: "/products", label: "Products" },
-  { to: "/talent", label: "Talent" },
-  { to: "/locations", label: "Locations" },
-  { to: "/pulls", label: "Pulls" },
-  { to: "/tags", label: "Tags" },
-  { to: "/admin", label: "Admin", roles: ["admin"] },
+  { to: "/library/talent", label: "Library" },
+  { to: "/admin", label: "Settings", roles: ["admin"] },
 ];
 
 const linkBase =
@@ -55,7 +51,7 @@ function DesktopNavLinks({ role, currentProjectId }) {
             <span
               key={item.to}
               aria-disabled="true"
-              title="Select a project to access Shots"
+              title="Select a project to use Shot Builder"
               className={`${linkBase} cursor-not-allowed text-slate-400 dark:text-slate-500`}
             >
               {item.label}
@@ -289,7 +285,7 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
 
       {/* Top Navigation Bar - Two Row Layout */}
       <header
-        className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 supports-[backdrop-filter]:dark:bg-slate-800/80"
+        className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 supports-[backdrop-filter]:dark:bg-slate-800/80"
         data-app-top-nav
       >
         {/* Row 1: Centered Brand Lockup */}
