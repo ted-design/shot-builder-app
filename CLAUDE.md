@@ -564,3 +564,72 @@ The application recently integrated an activity feed system that logs user actio
 - Firestore rules prevent activity updates (immutability)
 
 Activity types: `shot.created`, `shot.updated`, `shot.deleted`, `pull.created`, etc.
+## 2025-11-20 – Navigation & Scope Refactor Plan
+
+Summary
+- Clarify the distinction between organization-level (global) navigation and project-level (workspace) views.
+- Make project context the primary organizing principle for the Shot Builder workspace.
+- Avoid duplicate UIs for Talent/Locations by converging on scope-aware, shared components.
+
+Target Top-Level Navigation
+- Dashboard (`/projects`) — project selector / landing page.
+- Shot Builder — visible only with an active project; defaults to `Builder` at `/projects/:projectId/shots`.
+- Products (`/products`) — org-level product library.
+- Library (`/library/...`) — org-level assets with tabs for Talent, Locations, Tags.
+- Settings (`/admin`) — org-level settings (replaces “Admin” label, route unchanged).
+
+Behavior Notes
+- Attempting to access Shot Builder without an active project disables the nav entry; direct `/shots` hits redirect to Dashboard (`/projects`) with a gentle nudge.
+- Library pages are explicitly org-level and should avoid project-specific phrasing in headers and empty states.
+- Project-scoped Assets live inside the Shot Builder workspace (tabbed) and use the same scope-aware components where possible.
+
+Scope Model
+```ts
+type Scope =
+  | { type: "org" }
+  | { type: "project"; projectId: string };
+```
+- Org scope shows the complete talent/location sets for the organization.
+- Project scope shows the subset linked to a project (via `projectIds` array on org records).
+- A small hook will expose scope from route/context when needed.
+
+Shared Components Strategy
+- Create scope-aware list/detail components used by both:
+  - Library (org scope): `TalentList({ type: 'org' })`, `LocationList({ type: 'org' })`.
+  - Project Assets (project scope): `TalentList({ type: 'project', projectId })`, `LocationList({ type: 'project', projectId })`.
+- Primary actions vary by scope:
+  - Org: Create/Edit/Archive master records; secondary action “Assign to project…”.
+  - Project: “Add from Library” (search across org), “Create new” (create org-level then link), “Remove from project” (detach without deleting).
+- Permissions: enforce via existing RBAC; users might be read-only in Library but allowed to add/remove within their project.
+
+Routing Plan
+- New parent: `/library` with tabs/routes:
+  - `/library/talent` → org Talent
+  - `/library/locations` → org Locations
+  - `/library/tags` → Tags management
+- Keep legacy routes (`/talent`, `/locations`, `/tags`) as redirects to their `/library/*` equivalents.
+- Shot Builder remains project-scoped under `/projects/:projectId/shots` with internal tabs: Builder, Planner, Assets.
+
+Implementation Notes (this session)
+- Add Scope type + helper hook.
+- Introduce Library parent layout + routes and move org pages under it (with redirects from legacy routes).
+- Consolidate top nav to: Dashboard, Shot Builder (project-only), Products, Library, Settings.
+- Keep existing “Pulls” routes accessible but remove from top nav (not a primary IA pillar).
+
+TODO Checklist
+- [x] Document plan and IA in Claude.md
+- [x] Introduce Scope type and helper
+- [ ] Refactor Talent list/detail to be Scope-aware
+- [ ] Refactor Location list/detail to be Scope-aware
+- [ ] Wire Library routes to org scope (pages under `/library/*`)
+- [x] Wire project Assets tab to project scope (shared lists)
+- [ ] Update empty states and CTAs for both scopes
+- [ ] Implement consolidated top-level nav
+- [ ] Ensure redirects for missing/invalid project IDs are friendly
+- [ ] Run tests and lint, fix issues
+- [ ] Update docs/screenshots if needed
+
+Notes & Edge Cases
+- Users with no projects should only see Dashboard + org-level areas.
+- Deep links to `/shots` without a current project redirect to Dashboard; consider a toast (“Select a project to use Shot Builder”).
+- Admin remains routed at `/admin` but labeled “Settings” in nav to avoid breaking links.

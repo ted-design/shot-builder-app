@@ -408,7 +408,7 @@ export default function TalentPage() {
           <div>
             <PageHeader.Title>Talent</PageHeader.Title>
             <PageHeader.Description>
-              Track models, their agencies, and wardrobe notes for the active project.
+              Track models, their agencies, and wardrobe notes.
             </PageHeader.Description>
           </div>
           <PageHeader.Actions>
