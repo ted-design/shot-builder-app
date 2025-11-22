@@ -5,7 +5,7 @@ import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useProjectScope } from "../../context/ProjectScopeContext";
 import { useFirestoreCollection } from "../../hooks/useFirestoreCollection";
-import { ChevronDown, FolderOpen, Layout, Settings, Camera } from "lucide-react";
+import { ChevronDown, Clapperboard, FolderOpen, Layout, Settings } from "lucide-react";
 
 export default function ProjectIndicator() {
   const { clientId } = useAuth();
@@ -167,18 +167,18 @@ export default function ProjectIndicator() {
           </div>
           <div className="border-t border-slate-100 p-2">
             <button
-              onClick={handleOpenShotBuilder}
-              className="mb-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-50 hover:translate-x-0.5"
-            >
-              <Camera className="h-4 w-4" />
-              <span>Open Shot Builder</span>
-            </button>
-            <button
               onClick={handleGoToDashboard}
               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-50 hover:translate-x-0.5"
             >
               <Layout className="h-4 w-4" />
               <span>Manage Projects</span>
+            </button>
+            <button
+              onClick={handleOpenShotBuilder}
+              className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-50 hover:translate-x-0.5"
+            >
+              <Clapperboard className="h-4 w-4" />
+              <span>Open Shot Builder</span>
             </button>
             <button
               onClick={handleManageAssets}

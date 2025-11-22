@@ -1,7 +1,7 @@
 import React from "react";
 import { useProjectScope } from "../../context/ProjectScopeContext";
-import ScopedTalentList from "../assets/ScopedTalentList";
-import ScopedLocationList from "../assets/ScopedLocationList";
+import ScopedTalentList from "./ScopedTalentList";
+import ScopedLocationList from "./ScopedLocationList";
 
 export default function ShotsAssetsTab() {
   const { currentProjectId } = useProjectScope();

@@ -57,7 +57,7 @@ function DesktopNavLinks({ role, currentProjectId }) {
             <span
               key={item.to}
               aria-disabled="true"
-              title="Select a project to access Shots"
+              title="Select a project to use Shot Builder"
               className={`${linkBase} cursor-not-allowed text-slate-400 dark:text-slate-500`}
             >
               {item.label}
