@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { MemoryRouter } from "react-router-dom";
 import { ProjectScopeProvider } from "../../context/ProjectScopeContext.jsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "../../context/ThemeContext.jsx";
 import React from "react";
 
 globalThis.React = React;
@@ -275,9 +276,11 @@ const renderWithRouter = (ui, { route = "/" } = {}) => {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[route]}>
-        <ProjectScopeProvider>{ui}</ProjectScopeProvider>
-      </MemoryRouter>
+      <ThemeProvider>
+        <MemoryRouter initialEntries={[route]}>
+          <ProjectScopeProvider>{ui}</ProjectScopeProvider>
+        </MemoryRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 };
