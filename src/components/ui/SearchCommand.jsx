@@ -340,6 +340,16 @@ export default function SearchCommand() {
     setSearch(searchQuery);
   }, []);
 
+  const handleDialogClick = useCallback(
+    (event) => {
+      // Close when the user clicks on the dimmed backdrop instead of forcing ESC only
+      if (event.target === event.currentTarget) {
+        closeSearch();
+      }
+    },
+    [closeSearch]
+  );
+
   if (!isOpen) return null;
 
   const showRecentSearches = !search.trim() && recentSearches.length > 0;
@@ -352,6 +362,7 @@ export default function SearchCommand() {
       onOpenChange={closeSearch}
       label="Global Command Menu"
       className="command-dialog"
+      onClick={handleDialogClick}
     >
       <div className="command-input-wrapper">
         <Search className="command-search-icon" size={20} />

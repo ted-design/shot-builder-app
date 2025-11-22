@@ -117,6 +117,7 @@ export default function MultiImageAttachmentManager({
           folder: "shots",
           id: shotId || "temp",
           filename: `${Date.now()}-${file.name}`,
+          optimize: false, // already optimized above
         });
 
         // Create attachment object

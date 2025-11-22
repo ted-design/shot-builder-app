@@ -66,6 +66,7 @@ vi.mock("reactjs-tiptap-editor/history", () => ({ History: { type: "History" } }
 import { useAuth } from "../../../context/AuthContext";
 import { useUsers } from "../../../hooks/useComments";
 import { useAvailableTags } from "../../../hooks/useAvailableTags";
+import { ThemeProvider } from "../../../context/ThemeContext";
 
 const baseDraft = {
   name: "Shot A",
@@ -88,18 +89,20 @@ const createDraft = (overrides = {}) => ({
 const renderShotEditModal = (props = {}) => {
   const draft = props.draft ?? createDraft();
   return render(
-    <ShotEditModal
-      open
-      draft={draft}
-      shotName="Shot A"
-      onChange={noop}
-      onClose={noop}
-      onSubmit={noop}
-      families={[]}
-      locations={[]}
-      talentOptions={[]}
-      {...props}
-    />
+    <ThemeProvider>
+      <ShotEditModal
+        open
+        draft={draft}
+        shotName="Shot A"
+        onChange={noop}
+        onClose={noop}
+        onSubmit={noop}
+        families={[]}
+        locations={[]}
+        talentOptions={[]}
+        {...props}
+      />
+    </ThemeProvider>
   );
 };
 

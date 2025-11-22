@@ -6,7 +6,7 @@ export default function RichTextEditorDemo() {
   const [value, setValue] = useState(
     "<p>Select some of this text to open the inline bubble. Try bold/italic/link.</p><ul><li>Bullet item one</li><li>Bullet item two</li></ul>"
   );
-  const { theme, toggleTheme } = useTheme();
+  const { theme, resolvedTheme, toggleTheme, setTheme } = useTheme();
 
   return (
     <div className="mx-auto max-w-3xl p-6">
@@ -17,7 +17,7 @@ export default function RichTextEditorDemo() {
           onClick={toggleTheme}
           className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
         >
-          Toggle theme (current: {theme})
+          Toggle theme (prefers: {theme}, resolved: {resolvedTheme})
         </button>
       </div>
 
@@ -30,7 +30,16 @@ export default function RichTextEditorDemo() {
         themes, icons and text in the bubble should be clearly visible (white on dark background) and outlines should
         not appear filled.
       </p>
+
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setTheme('system')}
+          className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        >
+          Mirror system
+        </button>
+      </div>
     </div>
   );
 }
-

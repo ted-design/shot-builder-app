@@ -31,8 +31,8 @@ import ExpandableSearch from "../components/overview/ExpandableSearch";
 import SortMenu from "../components/overview/SortMenu";
 import ViewModeMenu from "../components/overview/ViewModeMenu";
 import DensityMenu from "../components/overview/DensityMenu";
-import FieldVisibilityMenu from "../components/overview/FieldVisibilityMenu";
-import { LayoutGrid, List as ListIcon, Archive, Trash2, Type, Package, X, CheckSquare, MoreVertical } from "lucide-react";
+import FieldSettingsMenu from "../components/overview/FieldSettingsMenu";
+import { LayoutGrid, Table, Archive, Trash2, Type, Package, X, CheckSquare, MoreVertical } from "lucide-react";
 import {
   productFamiliesPath,
   productFamilyPath,
@@ -61,13 +61,8 @@ const statusBadgeClasses = (status) => {
 const recommendedImageText = "Use 1600x2000px JPGs under 2.5MB for best results.";
 
 const VIEW_STORAGE_KEY = "products:viewMode";
-const COLUMN_STORAGE_KEY = "products:listColumns";
-
-const defaultListColumns = {
-  styleNumber: true,
-  status: true,
-  sizes: false,
-};
+const FIELD_PREFS_STORAGE_KEY = "products:fieldPrefs";
+const COLUMN_STORAGE_KEY = "products:listColumns"; // legacy fallback
 
 const SORT_OPTIONS = [
   { value: "styleNameAsc", label: "Style name (A→Z)" },
@@ -78,19 +73,19 @@ const SORT_OPTIONS = [
 
 const VIEW_MODE_OPTIONS = [
   { value: "gallery", label: "Gallery", icon: LayoutGrid },
-  { value: "list", label: "List", icon: ListIcon },
+  { value: "table", label: "Table", icon: Table },
 ];
 
+const DEFAULT_DENSITY = "comfortable";
 const DENSITY_OPTIONS = [
   { value: "compact", label: "Compact" },
-  { value: "comfortable", label: "Comfortable" },
-  { value: "cozy", label: "Cozy" },
+  { value: "comfortable", label: "Comfy" },
 ];
 
 // Dramatic density configuration
 const DENSITY_CONFIG = {
   compact: {
-    itemHeight: 280,
+    itemHeight: 220,
     gap: 'gap-2',      // 8px
     cardPadding: 'px-3 pb-3 pt-2',
     contentSpacing: 'space-y-1',
@@ -111,17 +106,38 @@ const DENSITY_CONFIG = {
     tablePadding: 'px-4',    // 16px horizontal padding
     tableText: 'text-sm',
   },
-  cozy: {
-    itemHeight: 480,
-    gap: 'gap-6',      // 24px
-    cardPadding: 'px-5 pb-5 pt-4',
-    contentSpacing: 'space-y-3',
-    textSize: 'text-base',
-    // Table-specific
-    tableRow: 'py-4',        // 16px vertical padding
-    tablePadding: 'px-6',    // 24px horizontal padding
-    tableText: 'text-base',
-  },
+};
+
+const PRODUCT_FIELD_OPTIONS = [
+  { key: "preview", label: "Preview" },
+  { key: "styleName", label: "Style name" },
+  { key: "styleNumber", label: "Style #" },
+  { key: "gender", label: "Gender" },
+  { key: "status", label: "Status" },
+  { key: "colors", label: "Colors" },
+  { key: "sizes", label: "Sizes" },
+  { key: "skus", label: "SKUs" },
+  { key: "lastUpdated", label: "Last updated" },
+];
+
+const PRODUCT_FIELD_KEYS = PRODUCT_FIELD_OPTIONS.map(({ key }) => key);
+const DEFAULT_FIELD_ORDER = PRODUCT_FIELD_KEYS;
+const DEFAULT_FIELD_VISIBILITY = {
+  preview: true,
+  styleName: true,
+  styleNumber: true,
+  gender: true,
+  status: true,
+  colors: true,
+  sizes: true,
+  skus: true,
+  lastUpdated: true,
+};
+
+const LEGACY_LIST_COLUMN_DEFAULTS = {
+  styleNumber: DEFAULT_FIELD_VISIBILITY.styleNumber,
+  status: DEFAULT_FIELD_VISIBILITY.status,
+  sizes: false,
 };
 
 const twoLineClampStyle = {
@@ -159,32 +175,108 @@ const chunkArray = (items, size) => {
 
 const normaliseText = (value) => (value || "").toString().trim().toLowerCase();
 
-const readStoredViewMode = () => {
-  const stored = readStorage(VIEW_STORAGE_KEY);
-  if (stored === "list") return "list";
-  // Table view has been removed - default to gallery
+const normaliseViewMode = (value) => {
+  if (value === "table" || value === "list") return "table";
   return "gallery";
+};
+
+const normaliseDensity = (value) => {
+  if (value === "compact") return "compact";
+  if (value === "comfortable" || value === "comfy" || value === "cozy") return "comfortable";
+  return DEFAULT_DENSITY;
+};
+
+const normaliseFieldOrder = (order) => {
+  if (!Array.isArray(order)) return [...DEFAULT_FIELD_ORDER];
+  const base = order.filter((key) => PRODUCT_FIELD_KEYS.includes(key));
+  return [...base, ...PRODUCT_FIELD_KEYS.filter((key) => !base.includes(key))];
 };
 
 const readStoredColumns = () => {
   try {
     const raw = readStorage(COLUMN_STORAGE_KEY);
-    if (!raw) return { ...defaultListColumns };
+    if (!raw) return null;
     const parsed = JSON.parse(raw);
     return {
       styleNumber:
         typeof parsed.styleNumber === "boolean"
           ? parsed.styleNumber
-          : defaultListColumns.styleNumber,
+          : LEGACY_LIST_COLUMN_DEFAULTS.styleNumber,
       status:
-        typeof parsed.status === "boolean" ? parsed.status : defaultListColumns.status,
+        typeof parsed.status === "boolean" ? parsed.status : LEGACY_LIST_COLUMN_DEFAULTS.status,
       sizes:
-        typeof parsed.sizes === "boolean" ? parsed.sizes : defaultListColumns.sizes,
+        typeof parsed.sizes === "boolean" ? parsed.sizes : LEGACY_LIST_COLUMN_DEFAULTS.sizes,
     };
   } catch (error) {
     console.warn("[Products] Failed to parse list column preferences", error);
-    return { ...defaultListColumns };
+    return null;
   }
+};
+
+const readStoredFieldPrefs = () => {
+  const visibility = { ...DEFAULT_FIELD_VISIBILITY };
+  let order = [...DEFAULT_FIELD_ORDER];
+  let locked = [];
+
+  // Legacy checkbox preferences
+  try {
+    const legacyColumns = readStoredColumns();
+    if (legacyColumns) {
+      visibility.styleNumber = legacyColumns.styleNumber;
+      visibility.status = legacyColumns.status;
+      visibility.sizes = legacyColumns.sizes;
+    }
+  } catch {}
+
+  // Legacy visibility map
+  try {
+    const legacyRaw = readStorage("products_fieldVisibility");
+    if (legacyRaw) {
+      const parsedLegacy = JSON.parse(legacyRaw);
+      PRODUCT_FIELD_KEYS.forEach((key) => {
+        if (parsedLegacy && Object.prototype.hasOwnProperty.call(parsedLegacy, key)) {
+          visibility[key] = Boolean(parsedLegacy[key]);
+        }
+      });
+    }
+  } catch (error) {
+    console.warn("[Products] Failed to parse legacy field visibility", error);
+  }
+
+  // Current prefs
+  try {
+    const raw = readStorage(FIELD_PREFS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        const nextVisibility = parsed.visibility || parsed.visibleFields;
+        if (nextVisibility && typeof nextVisibility === "object") {
+          PRODUCT_FIELD_KEYS.forEach((key) => {
+            if (Object.prototype.hasOwnProperty.call(nextVisibility, key)) {
+              visibility[key] = Boolean(nextVisibility[key]);
+            }
+          });
+        }
+        order = normaliseFieldOrder(parsed.order || parsed.fieldOrder || order);
+        const lockedInput = parsed.locked || parsed.lockedFields;
+        if (Array.isArray(lockedInput)) {
+          locked = lockedInput.filter((key) => PRODUCT_FIELD_KEYS.includes(key));
+        }
+      }
+    }
+  } catch (error) {
+    console.warn("[Products] Failed to parse field preferences", error);
+  }
+
+  return {
+    visibility,
+    order: normaliseFieldOrder(order),
+    locked,
+  };
+};
+
+const readStoredViewMode = () => {
+  return normaliseViewMode(readStorage(VIEW_STORAGE_KEY));
 };
 
 const formatUpdatedAt = (value) => {
@@ -391,30 +483,15 @@ export default function ProductsPage() {
   const [menuFamilyId, setMenuFamilyId] = useState(null);
   const [renameState, setRenameState] = useState({ id: null, value: "", saving: false, error: null });
   const [viewMode, setViewMode] = useState(() => readStoredViewMode());
-  const [listColumns, setListColumns] = useState(() => readStoredColumns());
   const [sortOrder, setSortOrder] = useState("styleNameAsc");
+  const initialFieldPrefs = useMemo(() => readStoredFieldPrefs(), []);
 
   // New state for consolidated toolbar features
   const [selectionModeActive, setSelectionModeActive] = useState(false);
-  const [density, setDensity] = useState(() => readStorage("products_density") || "comfortable");
-  const [fieldVisibility, setFieldVisibility] = useState(() => {
-    try {
-      const stored = readStorage("products_fieldVisibility");
-      return stored ? JSON.parse(stored) : {
-        styleNumber: true,
-        status: true,
-        sizes: false,
-        colorCount: true,
-      };
-    } catch {
-      return {
-        styleNumber: true,
-        status: true,
-        sizes: false,
-        colorCount: true,
-      };
-    }
-  });
+  const [density, setDensity] = useState(() => normaliseDensity(readStorage("products_density") || DEFAULT_DENSITY));
+  const [fieldVisibility, setFieldVisibility] = useState(initialFieldPrefs.visibility);
+  const [fieldOrder, setFieldOrder] = useState(initialFieldPrefs.order);
+  const [lockedFields, setLockedFields] = useState(initialFieldPrefs.locked);
   const [selectedFamilyIds, setSelectedFamilyIds] = useState(() => new Set());
   const [batchStyleModalOpen, setBatchStyleModalOpen] = useState(false);
   const [batchStyleDraft, setBatchStyleDraft] = useState([]);
@@ -445,21 +522,30 @@ export default function ProductsPage() {
   }, [menuFamilyId]);
 
   useEffect(() => {
-    writeStorage(VIEW_STORAGE_KEY, viewMode);
+    writeStorage(VIEW_STORAGE_KEY, normaliseViewMode(viewMode));
   }, [viewMode]);
-
-  useEffect(() => {
-    writeStorage(COLUMN_STORAGE_KEY, JSON.stringify(listColumns));
-  }, [listColumns]);
 
   // Persist new toolbar state
   useEffect(() => {
-    writeStorage("products_density", density);
+    writeStorage("products_density", normaliseDensity(density));
   }, [density]);
 
   useEffect(() => {
-    writeStorage("products_fieldVisibility", JSON.stringify(fieldVisibility));
-  }, [fieldVisibility]);
+    try {
+      writeStorage(
+        FIELD_PREFS_STORAGE_KEY,
+        JSON.stringify({
+          visibility: fieldVisibility,
+          order: fieldOrder,
+          locked: lockedFields,
+        })
+      );
+      // Keep legacy key in sync for compatibility
+      writeStorage("products_fieldVisibility", JSON.stringify(fieldVisibility));
+    } catch (error) {
+      console.warn("[Products] Failed to persist field preferences", error);
+    }
+  }, [fieldVisibility, fieldOrder, lockedFields]);
 
   // Clear selection when exiting selection mode
   useEffect(() => {
@@ -620,6 +706,39 @@ export default function ProductsPage() {
       default:
         break;
     }
+  }, []);
+
+  const resolvedFieldVisibility = useMemo(
+    () => ({ ...DEFAULT_FIELD_VISIBILITY, ...(fieldVisibility || {}) }),
+    [fieldVisibility]
+  );
+  const resolvedFieldOrder = useMemo(
+    () => normaliseFieldOrder(fieldOrder),
+    [fieldOrder]
+  );
+  const resolvedDensityKey = DENSITY_CONFIG[density] ? density : DEFAULT_DENSITY;
+
+  const toggleFieldVisibility = useCallback((key) => {
+    if (lockedFields.includes(key)) return;
+    setFieldVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, [lockedFields]);
+
+  const toggleFieldLock = useCallback((key) => {
+    setLockedFields((prev) =>
+      prev.includes(key) ? prev.filter((value) => value !== key) : [...prev, key]
+    );
+  }, []);
+
+  const handleFieldOrderChange = useCallback((nextOrder) => {
+    setFieldOrder(normaliseFieldOrder(nextOrder));
+  }, []);
+
+  const handleDensityChange = useCallback((nextDensity) => {
+    setDensity(normaliseDensity(nextDensity));
+  }, []);
+
+  const handleViewModeChange = useCallback((nextMode) => {
+    setViewMode(normaliseViewMode(nextMode));
   }, []);
 
   const familyMap = useMemo(() => {
@@ -839,6 +958,7 @@ export default function ProductsPage() {
         const { path } = await uploadImageFile(payload.family.thumbnailImageFile, {
           folder: "productFamilies",
           id: `${familyId}/thumbnail`,
+          optimize: false, // already optimized in form layer
         });
         await updateDoc(familyRef, {
           thumbnailImagePath: path,
@@ -855,6 +975,7 @@ export default function ProductsPage() {
         const { path } = await uploadImageFile(payload.family.headerImageFile, {
           folder: "productFamilies",
           id: familyId,
+          optimize: false, // already optimized in form layer
         });
         await updateDoc(familyRef, {
           headerImagePath: path,
@@ -900,6 +1021,7 @@ export default function ProductsPage() {
               folder: `productFamilies/${familyId}/skus`,
               id: sku.id,
               filename,
+              optimize: false, // already optimized in form layer
             });
             update.imagePath = result.path;
             if (sku.imagePath && sku.imagePath !== result.path) {
@@ -927,6 +1049,7 @@ export default function ProductsPage() {
               folder: `productFamilies/${familyId}/skus`,
               id: skuRef.id,
               filename,
+              optimize: false, // already optimized in form layer
             });
             imagePath = result.path;
           }
@@ -1251,18 +1374,231 @@ export default function ProductsPage() {
     const { displayImagePath, colourList, coloursLabel, sizeList, sizesLabel } = buildFamilyMeta(
       family
     );
+    const showPreview = resolvedFieldVisibility.preview !== false;
+    const showStyleName = resolvedFieldVisibility.styleName !== false;
+    const showStyleNumber = resolvedFieldVisibility.styleNumber !== false;
+    const showGender = resolvedFieldVisibility.gender !== false;
+    const showStatus = resolvedFieldVisibility.status !== false;
+    const showColors = resolvedFieldVisibility.colors !== false;
+    const showSizes = resolvedFieldVisibility.sizes !== false;
+    const showSkus = resolvedFieldVisibility.skus !== false;
+    const showLastUpdated = resolvedFieldVisibility.lastUpdated !== false;
+    const densityConfig =
+      DENSITY_CONFIG[resolvedDensityKey] || DENSITY_CONFIG[DEFAULT_DENSITY];
+    const summaryOrder = resolvedFieldOrder.filter(
+      (key) => key === "gender" || key === "colors" || key === "sizes" || key === "skus" || key === "lastUpdated"
+    );
+    const summaryItems = [];
+    summaryOrder.forEach((key) => {
+      if (key === "gender" && showGender) {
+        summaryItems.push({
+          key: "gender",
+          node: <span className="font-medium">{genderLabel(family.gender)}</span>,
+        });
+      } else if (key === "colors" && showColors) {
+        const count = colourList.length;
+        summaryItems.push({
+          key: "colors",
+          node: (
+            <span className="flex items-center gap-1">
+              {count} {count === 1 ? "color" : "colors"}
+            </span>
+          ),
+        });
+      } else if (key === "sizes" && showSizes && sizeList.length) {
+        summaryItems.push({
+          key: "sizes",
+          node: (
+            <span title={sizesLabel || undefined}>
+              {sizeList[0]}-{sizeList[sizeList.length - 1]}
+            </span>
+          ),
+        });
+      } else if (key === "skus" && showSkus) {
+        const totalCount =
+          typeof family.skuCount === "number" ? family.skuCount : family.skus?.length || 0;
+        const activeCount =
+          typeof family.activeSkuCount === "number" ? family.activeSkuCount : totalCount;
+        summaryItems.push({
+          key: "skus",
+          node: (
+            <span className="flex items-center gap-1">
+              {activeCount}
+              {totalCount ? ` / ${totalCount}` : ""} SKUs
+            </span>
+          ),
+        });
+      } else if (key === "lastUpdated" && showLastUpdated && family.updatedAt) {
+        summaryItems.push({
+          key: "lastUpdated",
+          node: (
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+              Updated {formatUpdatedAt(family.updatedAt)}
+            </span>
+          ),
+        });
+      }
+    });
     const isSelected = selectedFamilyIds.has(family.id);
+    const isCompactCard = resolvedDensityKey === "compact";
     const cardClasses = `relative flex h-full flex-col overflow-visible ${
       canEdit ? "cursor-pointer" : ""
     } ${isSelected ? "ring-2 ring-primary/60" : ""}`.trim();
 
-    return (
+    const renderCompactCard = () => (
+      <Card className={cardClasses} onClick={openFromCard}>
+        <CardContent
+          className={`grid grid-cols-[96px,1fr] gap-3 ${densityConfig.cardPadding}`}
+          ref={family.id === menuFamilyId ? menuRef : null}
+        >
+          {showPreview && (
+            <div className="relative row-span-2">
+              <div className="h-20 w-20 overflow-hidden rounded border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900">
+                {displayImagePath ? (
+                  <AppImage
+                    src={displayImagePath}
+                    alt={family.styleName}
+                    preferredSize={160}
+                    className="h-full w-full"
+                    imageClassName="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[11px] text-slate-500">
+                    No image
+                  </div>
+                )}
+              </div>
+              {canUseBatchActions && selectionModeActive && (
+                <div className="absolute -left-2 -top-2">
+                  <Checkbox
+                    checked={isSelected}
+                    onChange={(event) => {
+                      event.stopPropagation();
+                      toggleFamilySelection(family.id, event.target.checked);
+                    }}
+                    aria-label={`Select ${family.styleName || "product"}`}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex min-w-0 items-start justify-between gap-2">
+            <div className="min-w-0 space-y-1">
+              {showStyleName && (
+                <h3
+                  className="text-sm font-semibold leading-5 text-slate-900 line-clamp-2 dark:text-slate-100"
+                  title={family.styleName}
+                >
+                  {family.styleName}
+                </h3>
+              )}
+              {showStyleNumber && family.styleNumber && (
+                <p
+                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                  title={`Style #${family.styleNumber}`}
+                >
+                  Style #{family.styleNumber}
+                </p>
+              )}
+            </div>
+            {(canEdit || canArchive || canDelete) && (
+              <div className="relative flex-shrink-0">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setMenuFamilyId((current) => (current === family.id ? null : family.id));
+                  }}
+                  aria-label={`Open actions for ${family.styleName || "product"}`}
+                >
+                  ···
+                </Button>
+                <ProductActionMenu
+                  family={family}
+                  onEdit={loadFamilyForEdit}
+                  onRename={startRename}
+                  onToggleStatus={handleStatusToggle}
+                  onArchive={handleArchiveToggle}
+                  onRestore={handleRestoreFamily}
+                  canEdit={canEdit}
+                  canArchive={canArchive}
+                  canDelete={canDelete}
+                  open={menuFamilyId === family.id}
+                  onClose={() => setMenuFamilyId(null)}
+                />
+              </div>
+            )}
+          </div>
+
+          {!inlineEditing && (
+            <>
+              {showStatus && (
+                <div className="col-span-2 flex flex-wrap items-center gap-2">
+                  <StatusBadge status={family.status} className="px-2 py-0.5 text-[11px]">
+                    {statusLabel(family.status)}
+                  </StatusBadge>
+                  {family.archived && (
+                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                      Archived
+                    </span>
+                  )}
+                </div>
+              )}
+              {summaryItems.length > 0 && (
+                <div className="col-span-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[12px] text-slate-600 sm:grid-cols-2 dark:text-slate-400">
+                  {summaryItems.map((item) => (
+                    <span key={item.key} className="inline-flex items-center gap-1">
+                      {item.node}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {(showColors || showSizes) && (!!colourList.length || !!sizeList.length) && (
+                <div className="col-span-2 grid grid-cols-2 gap-2 text-[11px] text-slate-600 sm:grid-cols-2 dark:text-slate-400">
+                  {showColors && !!colourList.length && (
+                    <span title={`Colours: ${coloursLabel}`}>
+                      Colours: {colourList.slice(0, 3).join(", ")}
+                      {colourList.length > 3 && "…"}
+                    </span>
+                  )}
+                  {showSizes && !!sizeList.length && (
+                    <span title={`Sizes: ${sizesLabel}`}>
+                      Sizes: {sizeList.slice(0, 4).join(", ")}
+                      {sizeList.length > 4 && "…"}
+                    </span>
+                  )}
+                </div>
+              )}
+              {showSkus && (
+                <div className="col-span-2 text-[11px] text-slate-500 dark:text-slate-400">
+                  {family.activeSkuCount || 0} active / {family.skuCount || family.activeSkuCount || 0} SKUs
+                </div>
+              )}
+            </>
+          )}
+          {inlineEditing && (
+            <div className="col-span-2">
+              {renderRenameForm({ stopPropagation: true, wrapperClassName: "space-y-2" })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+
+    const renderComfyCard = () => (
       <Card
         className={cardClasses}
         onClick={openFromCard}
       >
-        <CardContent className={`flex h-full flex-col gap-4 ${DENSITY_CONFIG[density].cardPadding}`}>
-          <div className="relative" ref={family.id === menuFamilyId ? menuRef : null}>
+        <CardContent className={`flex h-full flex-col gap-4 ${densityConfig.cardPadding}`}>
+          <div
+            className={`relative ${showPreview ? "" : "min-h-[2.5rem]"}`}
+            ref={family.id === menuFamilyId ? menuRef : null}
+          >
             {canUseBatchActions && selectionModeActive && (
               <div className="absolute left-2 top-2 z-20 rounded-md bg-white/90 px-2 py-1 shadow-sm">
                 <Checkbox
@@ -1275,7 +1611,7 @@ export default function ProductsPage() {
                 />
               </div>
             )}
-            <FamilyHeaderImage path={displayImagePath} alt={family.styleName} />
+            {showPreview && <FamilyHeaderImage path={displayImagePath} alt={family.styleName} />}
             {(canEdit || canArchive || canDelete) && (
               <Button
                 type="button"
@@ -1305,21 +1641,26 @@ export default function ProductsPage() {
               onClose={() => setMenuFamilyId(null)}
             />
           </div>
-          <div className={DENSITY_CONFIG[density].contentSpacing}>
+          <div className={densityConfig.contentSpacing}>
             {inlineEditing ? (
               renderRenameForm({ stopPropagation: true })
             ) : (
               <>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 space-y-1">
-                    <h3
-                      className="text-lg font-semibold text-slate-900 dark:text-slate-100"
-                      title={family.styleName}
-                      style={twoLineClampStyle}
-                    >
-                      {family.styleName}
-                    </h3>
-                    {family.styleNumber && (
+                    {showStyleName && (
+                      <h3
+                        className="text-lg font-semibold text-slate-900 dark:text-slate-100"
+                        title={family.styleName}
+                        style={twoLineClampStyle}
+                      >
+                        {family.styleName}
+                      </h3>
+                    )}
+                    {!showStyleName && (
+                      <span className="sr-only">{family.styleName}</span>
+                    )}
+                    {showStyleNumber && family.styleNumber && (
                       <p
                         className="hidden text-base font-semibold text-slate-800 sm:block dark:text-slate-200"
                         title={`Style #${family.styleNumber}`}
@@ -1328,38 +1669,31 @@ export default function ProductsPage() {
                       </p>
                     )}
                   </div>
-                  <div className="hidden shrink-0 flex-wrap gap-1 sm:flex">
-                    <StatusBadge status={family.status}>
-                      {statusLabel(family.status)}
-                    </StatusBadge>
-                    {family.archived && (
-                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                        Archived
+                  {showStatus && (
+                    <div className="hidden shrink-0 flex-wrap gap-1 sm:flex">
+                      <StatusBadge status={family.status}>
+                        {statusLabel(family.status)}
+                      </StatusBadge>
+                      {family.archived && (
+                        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                          Archived
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {showStatus && <span className="sr-only">{statusLabel(family.status)}</span>}
+                </div>
+                {summaryItems.length > 0 && (
+                  <div className="hidden flex-wrap items-center gap-2 text-sm text-slate-600 sm:flex dark:text-slate-400">
+                    {summaryItems.map((item, index) => (
+                      <span key={item.key} className="flex items-center gap-1">
+                        {index > 0 && <span aria-hidden="true">•</span>}
+                        {item.node}
                       </span>
-                    )}
+                    ))}
                   </div>
-                  <span className="sr-only">{statusLabel(family.status)}</span>
-                </div>
-                <div className="hidden flex-wrap gap-2 text-sm text-slate-600 sm:flex dark:text-slate-400">
-                  <span className="font-medium">{genderLabel(family.gender)}</span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    {colourList.length} {colourList.length === 1 ? 'color' : 'colors'}
-                  </span>
-                  {sizeList.length > 0 && (
-                    <>
-                      <span>•</span>
-                      <span>{sizeList[0]}-{sizeList[sizeList.length - 1]}</span>
-                    </>
-                  )}
-                  {family.updatedAt && (
-                    <>
-                      <span>•</span>
-                      <span className="text-xs text-slate-400 dark:text-slate-500">Updated {formatUpdatedAt(family.updatedAt)}</span>
-                    </>
-                  )}
-                </div>
-                {!!colourList.length && (
+                )}
+                {showColors && !!colourList.length && (
                   <div
                     className="hidden truncate text-xs text-slate-600 md:block dark:text-slate-400"
                     title={`Colours: ${coloursLabel}`}
@@ -1368,7 +1702,7 @@ export default function ProductsPage() {
                     {colourList.length > 4 && "…"}
                   </div>
                 )}
-                {!!sizeList.length && (
+                {showSizes && !!sizeList.length && (
                   <div
                     className="hidden truncate text-xs text-slate-600 lg:block dark:text-slate-400"
                     title={`Sizes: ${sizesLabel}`}
@@ -1379,26 +1713,16 @@ export default function ProductsPage() {
               </>
             )}
           </div>
-          {canEdit && (
-            <Button
-              variant="secondary"
-              className="hidden sm:inline-flex"
-              onClick={(event) => {
-                event.stopPropagation();
-                loadFamilyForEdit(family);
-              }}
-            >
-              Manage colours
-            </Button>
-          )}
         </CardContent>
       </Card>
     );
+
+    return isCompactCard ? renderCompactCard() : renderComfyCard();
   };
 
-  const showStyleNumberColumn = fieldVisibility.styleNumber;
-  const showStatusColumn = fieldVisibility.status;
-  const showSizesColumn = fieldVisibility.sizes;
+  const showStyleNumberColumn = resolvedFieldVisibility.styleNumber;
+  const showStatusColumn = resolvedFieldVisibility.status;
+  const showSizesColumn = resolvedFieldVisibility.sizes;
 
   const renderFamilyRow = (family) => {
     const inlineEditing = renameState.id === family.id;
@@ -1652,7 +1976,8 @@ export default function ProductsPage() {
     const noMatchingFilters = !loading && !sortedFamilies.length && !hasNoProducts;
 
     // Get dramatic density configuration
-    const densityConfig = DENSITY_CONFIG[density];
+    const densityConfig =
+      DENSITY_CONFIG[resolvedDensityKey] || DENSITY_CONFIG[DEFAULT_DENSITY];
     const densityGridClass = `grid ${densityConfig.gap} sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5`;
 
     return (
@@ -1766,14 +2091,15 @@ export default function ProductsPage() {
       );
     };
 
+    const tableDensity =
+      DENSITY_CONFIG[resolvedDensityKey] || DENSITY_CONFIG[DEFAULT_DENSITY];
+
     return (
       <ProductsTableView
         families={displayedFamilies}
-        density={DENSITY_CONFIG[density]}
-        visibleFields={{
-          styleNumber: listColumns.styleNumber,
-          status: listColumns.status,
-        }}
+        density={tableDensity}
+        visibleFields={resolvedFieldVisibility}
+        fieldOrder={resolvedFieldOrder}
         selectionModeActive={selectionModeActive}
         selectedFamilyIds={selectedFamilyIds}
         onToggleSelection={toggleFamilySelection}
@@ -1790,7 +2116,8 @@ export default function ProductsPage() {
     );
   };
 
-  const viewContent = viewMode === "list" ? renderListView() : renderGalleryView();
+  const currentViewMode = normaliseViewMode(viewMode);
+  const viewContent = currentViewMode === "table" ? renderTableView() : renderGalleryView();
 
   // Gender tab options
   const genderTabs = useMemo(() => {
@@ -1889,44 +2216,25 @@ export default function ProductsPage() {
                   {/* View mode menu */}
                   <ViewModeMenu
                     options={VIEW_MODE_OPTIONS}
-                    value={viewMode}
-                    onChange={setViewMode}
+                    value={currentViewMode}
+                    onChange={handleViewModeChange}
                   />
 
                   {/* Density menu */}
                   <DensityMenu
                     options={DENSITY_OPTIONS}
-                    value={density}
-                    onChange={setDensity}
+                    value={resolvedDensityKey}
+                    onChange={handleDensityChange}
                   />
 
-                  {/* Field visibility menu */}
-                  <FieldVisibilityMenu
-                    fields={[
-                      {
-                        id: "styleNumber",
-                        label: "Style number",
-                        checked: fieldVisibility.styleNumber,
-                      },
-                      {
-                        id: "status",
-                        label: "Status",
-                        checked: fieldVisibility.status,
-                      },
-                      {
-                        id: "sizes",
-                        label: "Sizes",
-                        checked: fieldVisibility.sizes,
-                      },
-                      {
-                        id: "colorCount",
-                        label: "Color count",
-                        checked: fieldVisibility.colorCount,
-                      },
-                    ]}
-                    onChange={(fieldId, checked) => {
-                      setFieldVisibility((prev) => ({ ...prev, [fieldId]: checked }));
-                    }}
+                  <FieldSettingsMenu
+                    fields={PRODUCT_FIELD_OPTIONS}
+                    visibleMap={resolvedFieldVisibility}
+                    lockedKeys={lockedFields}
+                    order={resolvedFieldOrder}
+                    onToggleVisible={toggleFieldVisibility}
+                    onToggleLock={toggleFieldLock}
+                    onReorder={handleFieldOrderChange}
                   />
 
                   {/* Export button */}

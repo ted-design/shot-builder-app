@@ -53,6 +53,7 @@ const PageHeaderTest = lazy(() => import("./pages/dev/PageHeaderTest"));
 const RichTextEditorDemo = lazy(() => import("./pages/dev/RichTextEditorDemo"));
 const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
 const ProjectAssetsPage = lazy(() => import("./pages/ProjectAssetsPage"));
+const AccountSettingsPage = lazy(() => import("./pages/AccountSettingsPage"));
 
 function MaybeRedirectLogin({ user }) {
   const location = useLocation();
@@ -277,6 +278,14 @@ export default function App() {
                     element={
                       <Suspense fallback={<PageLoadingFallback />}>
                         <PullEditorPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/account"
+                    element={
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <AccountSettingsPage />
                       </Suspense>
                     }
                   />

@@ -6,9 +6,8 @@ import { productFamilyPath } from '../../lib/paths';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input, Checkbox } from '../ui/input';
-import { StatusBadge } from '../ui/StatusBadge';
 import AppImage from '../common/AppImage';
-import { Package, MoreVertical } from 'lucide-react';
+import { Package } from 'lucide-react';
 import { genderLabel } from '../../lib/productMutations';
 import { toast } from '../../lib/toast';
 
@@ -23,6 +22,7 @@ import { toast } from '../../lib/toast';
  * @param {Array} props.families - Array of product family objects
  * @param {Object} props.density - Density configuration object with tableRow props
  * @param {Object} props.visibleFields - Field visibility configuration
+ * @param {Array<string>} props.fieldOrder - Preferred column order
  * @param {boolean} props.selectionModeActive - Whether selection mode is active
  * @param {Set} props.selectedFamilyIds - Set of selected family IDs
  * @param {Function} props.onToggleSelection - Callback for toggling selection
@@ -40,6 +40,7 @@ export default function ProductsTableView({
   families,
   density,
   visibleFields,
+  fieldOrder = [],
   selectionModeActive,
   selectedFamilyIds,
   onToggleSelection,
@@ -199,8 +200,149 @@ export default function ProductsTableView({
     );
   };
 
-  const showStyleNumberColumn = visibleFields?.styleNumber !== false;
-  const showStatusColumn = visibleFields?.status !== false;
+  const visibility = {
+    preview: true,
+    styleName: true,
+    styleNumber: true,
+    gender: true,
+    status: true,
+    colors: true,
+    sizes: true,
+    skus: true,
+    ...(visibleFields || {}),
+  };
+
+  const defaultOrder = ["preview", "styleName", "styleNumber", "gender", "status", "colors", "sizes", "skus", "lastUpdated"];
+  const normaliseOrder = (order) => {
+    if (!Array.isArray(order)) return defaultOrder;
+    const base = order.filter((key) => defaultOrder.includes(key));
+    return [...base, ...defaultOrder.filter((key) => !base.includes(key))];
+  };
+
+  const columnOrder = normaliseOrder(fieldOrder);
+  const selectionEnabled = canUseBatchActions && selectionModeActive;
+  const baseHeaderClass = `${densityConfig.tablePadding} ${densityConfig.tableRow}`;
+  const baseCellClass = `${densityConfig.tablePadding} ${densityConfig.tableRow} align-top`;
+  const textClass = densityConfig.tableText || "";
+
+  const columnMap = {
+    preview: {
+      key: "preview",
+      label: "Preview",
+      cellClassName: baseCellClass,
+      render: (family, meta) =>
+        meta.previewSource ? (
+          <AppImage
+            src={meta.previewSource}
+            alt={family.styleName}
+            preferredSize={320}
+            className="h-16 w-12 overflow-hidden rounded"
+            imageClassName="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-16 w-12 items-center justify-center rounded bg-slate-100 text-slate-400 dark:bg-slate-800">
+            <Package className="h-6 w-6" aria-hidden="true" />
+            <span className="sr-only">No preview</span>
+          </div>
+        ),
+    },
+    styleName: {
+      key: "styleName",
+      label: "Style name",
+      headerClassName: "min-w-[200px]",
+      cellClassName: `${baseCellClass} min-w-[200px]`,
+      render: (family) => (
+        <div className={`font-semibold text-slate-900 dark:text-slate-100 ${textClass}`}>
+          {renderEditableCell(family, 'styleName', family.styleName)}
+        </div>
+      ),
+    },
+    styleNumber: {
+      key: "styleNumber",
+      label: "Style #",
+      headerClassName: "min-w-[120px]",
+      cellClassName: `${baseCellClass} min-w-[140px]`,
+      render: (family) => (
+        <div className={`text-slate-700 dark:text-slate-300 ${textClass}`}>
+          {renderEditableCell(family, 'styleNumber', family.styleNumber)}
+        </div>
+      ),
+    },
+    gender: {
+      key: "gender",
+      label: "Gender",
+      cellClassName: baseCellClass,
+      render: (family) => (
+        <span className={`text-slate-600 dark:text-slate-400 ${textClass}`}>
+          {genderLabel(family.gender)}
+        </span>
+      ),
+    },
+    status: {
+      key: "status",
+      label: "Status",
+      cellClassName: baseCellClass,
+      render: (family) => renderStatusCell(family),
+    },
+    colors: {
+      key: "colors",
+      label: "Colors",
+      cellClassName: baseCellClass,
+      render: (_family, meta) => (
+        <span className={`text-slate-600 dark:text-slate-400 ${textClass}`}>
+          {meta.colourCount}
+        </span>
+      ),
+    },
+    sizes: {
+      key: "sizes",
+      label: "Sizes",
+      cellClassName: baseCellClass,
+      render: (_family, meta) => (
+        <span className={`text-slate-600 dark:text-slate-400 ${textClass}`}>
+          {meta.sizeSummary || "–"}
+        </span>
+      ),
+    },
+    skus: {
+      key: "skus",
+      label: "SKUs",
+      cellClassName: baseCellClass,
+      render: (_family, meta) => (
+        <span className={`text-slate-600 dark:text-slate-400 ${textClass}`}>
+          {meta.skuCounts.active} / {meta.skuCounts.total}
+        </span>
+      ),
+    },
+    lastUpdated: {
+      key: "lastUpdated",
+      label: "Updated",
+      cellClassName: baseCellClass,
+      render: (_family, meta) => (
+        <span className={`text-slate-600 dark:text-slate-400 ${textClass}`}>
+          {meta.updatedAtLabel || "–"}
+        </span>
+      ),
+    },
+  };
+
+  const activeColumns = columnOrder
+    .map((key) => columnMap[key])
+    .filter((column) => column && visibility[column.key] !== false);
+
+  const formatUpdatedAt = (value) => {
+    if (!value) return "";
+    const date =
+      value instanceof Date
+        ? value
+        : new Date(typeof value.toMillis === "function" ? value.toMillis() : value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
 
   return (
     <Card className="mx-6">
@@ -209,8 +351,8 @@ export default function ProductsTableView({
           <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
               <tr>
-                {canUseBatchActions && selectionModeActive && (
-                  <th scope="col" className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
+                {selectionEnabled && (
+                  <th scope="col" className={baseHeaderClass}>
                     <input
                       ref={selectAllRef}
                       type="checkbox"
@@ -221,32 +363,16 @@ export default function ProductsTableView({
                     />
                   </th>
                 )}
-                <th scope="col" className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
-                  Preview
-                </th>
-                <th scope="col" className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
-                  Style name
-                </th>
-                {showStyleNumberColumn && (
-                  <th scope="col" className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
-                    Style #
+                {activeColumns.map((column) => (
+                  <th
+                    key={column.key}
+                    scope="col"
+                    className={`${baseHeaderClass} ${column.headerClassName || ""}`}
+                  >
+                    {column.label}
                   </th>
-                )}
-                <th scope="col" className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
-                  Gender
-                </th>
-                {showStatusColumn && (
-                  <th scope="col" className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
-                    Status
-                  </th>
-                )}
-                <th scope="col" className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
-                  Colors
-                </th>
-                <th scope="col" className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
-                  SKUs
-                </th>
-                <th scope="col" className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-right`}>
+                ))}
+                <th scope="col" className={`${baseHeaderClass} text-right`}>
                   Actions
                 </th>
               </tr>
@@ -254,7 +380,34 @@ export default function ProductsTableView({
             <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900">
               {families.map((family) => {
                 const isSelected = selectedFamilyIds.has(family.id);
-                const displayImagePath = family.images?.[0]?.path || null;
+                const previewSource =
+                  family?.thumbnailImagePath ||
+                  family?.headerImagePath ||
+                  family?.images?.[0]?.path ||
+                  family?.skus?.[0]?.imagePath ||
+                  null;
+                const colourList = Array.isArray(family?.colorNames)
+                  ? family.colorNames.filter(Boolean)
+                  : Array.isArray(family?.colours)
+                    ? family.colours.filter(Boolean)
+                    : [];
+                const sizeList = Array.isArray(family?.sizeOptions)
+                  ? family.sizeOptions.filter(Boolean)
+                  : [];
+                const updatedAtLabel = family.updatedAt ? formatUpdatedAt(family.updatedAt) : "";
+
+                const meta = {
+                  previewSource,
+                  colourList,
+                  colourCount: colourList.length || family.colourCount || family.colorsCount || family.skus?.length || 0,
+                  sizeList,
+                  sizeSummary: sizeList.length ? `${sizeList[0]}-${sizeList[sizeList.length - 1]}` : "",
+                  skuCounts: {
+                    active: typeof family.activeSkuCount === "number" ? family.activeSkuCount : family.skuCount || 0,
+                    total: typeof family.skuCount === "number" ? family.skuCount : family.skus?.length || 0,
+                  },
+                  updatedAtLabel,
+                };
 
                 return (
                   <tr
@@ -263,8 +416,8 @@ export default function ProductsTableView({
                       isSelected ? 'bg-primary/5 dark:bg-primary/10' : ''
                     }`}
                   >
-                    {canUseBatchActions && selectionModeActive && (
-                      <td className={`${densityConfig.tablePadding} ${densityConfig.tableRow} align-top`}>
+                    {selectionEnabled && (
+                      <td className={baseCellClass}>
                         <Checkbox
                           checked={isSelected}
                           onChange={(e) => onToggleSelection(family.id, e.target.checked)}
@@ -273,67 +426,13 @@ export default function ProductsTableView({
                       </td>
                     )}
 
-                    {/* Preview Image */}
-                    <td className={`${densityConfig.tablePadding} ${densityConfig.tableRow} align-top`}>
-                      {displayImagePath ? (
-                        <AppImage
-                          path={displayImagePath}
-                          alt={family.styleName}
-                          className="h-16 w-12 object-cover rounded"
-                        />
-                      ) : (
-                        <div className="h-16 w-12 bg-slate-100 dark:bg-slate-800 rounded flex items-center justify-center">
-                          <Package className="h-6 w-6 text-slate-400" />
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Style Name (editable) */}
-                    <td className={`${densityConfig.tablePadding} ${densityConfig.tableRow} align-top min-w-[200px]`}>
-                      <div className={`font-semibold text-slate-900 dark:text-slate-100 ${densityConfig.tableText}`}>
-                        {renderEditableCell(family, 'styleName', family.styleName)}
-                      </div>
-                    </td>
-
-                    {/* Style Number (editable) */}
-                    {showStyleNumberColumn && (
-                      <td className={`${densityConfig.tablePadding} ${densityConfig.tableRow} align-top min-w-[150px]`}>
-                        <div className={`text-slate-700 dark:text-slate-300 ${densityConfig.tableText}`}>
-                          {renderEditableCell(family, 'styleNumber', family.styleNumber)}
-                        </div>
+                    {activeColumns.map((column) => (
+                      <td key={column.key} className={column.cellClassName || baseCellClass}>
+                        {column.render(family, meta)}
                       </td>
-                    )}
+                    ))}
 
-                    {/* Gender */}
-                    <td className={`${densityConfig.tablePadding} ${densityConfig.tableRow} align-top`}>
-                      <span className={`text-slate-600 dark:text-slate-400 ${densityConfig.tableText}`}>
-                        {genderLabel(family.gender)}
-                      </span>
-                    </td>
-
-                    {/* Status (editable dropdown) */}
-                    {showStatusColumn && (
-                      <td className={`${densityConfig.tablePadding} ${densityConfig.tableRow} align-top`}>
-                        {renderStatusCell(family)}
-                      </td>
-                    )}
-
-                    {/* Color Count */}
-                    <td className={`${densityConfig.tablePadding} ${densityConfig.tableRow} align-top`}>
-                      <span className={`text-slate-600 dark:text-slate-400 ${densityConfig.tableText}`}>
-                        {family.skus?.length || 0}
-                      </span>
-                    </td>
-
-                    {/* SKU Count */}
-                    <td className={`${densityConfig.tablePadding} ${densityConfig.tableRow} align-top`}>
-                      <span className={`text-slate-600 dark:text-slate-400 ${densityConfig.tableText}`}>
-                        {family.activeSkuCount || 0} / {family.skuCount || 0}
-                      </span>
-                    </td>
-
-                    {/* Actions */}
-                    <td className={`${densityConfig.tablePadding} ${densityConfig.tableRow} align-top text-right`}>
+                    <td className={`${baseCellClass} text-right`}>
                       <div className="flex items-center justify-end gap-2">
                         {canEdit && (
                           <Button
