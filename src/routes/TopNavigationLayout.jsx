@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
@@ -10,26 +10,28 @@ import { roleLabel } from "../lib/rbac";
 import { projectPath } from "../lib/paths";
 import { SkipLink } from "../components/ui/SkipLink";
 import ProjectIndicator from "../components/ui/ProjectIndicator";
-import ThemeToggle from "../components/ui/ThemeToggle";
 import QuickActionsMenu from "../components/ui/QuickActionsMenu";
 import Avatar from "../components/ui/Avatar";
 import Breadcrumb from "../components/ui/Breadcrumb";
 import NotificationBell from "../components/ui/NotificationBell";
 import { useSearchCommand } from "../context/SearchCommandContext";
+import { useTheme } from "../context/ThemeContext";
 import { generateBreadcrumbs, shouldShowBreadcrumbs } from "../lib/breadcrumbs";
-import { Menu, ChevronDown, LogOut, Search } from "lucide-react";
+import { Menu, ChevronDown, LogOut, Search, Sun, Moon, Monitor, User } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "../components/ui/sheet";
 import { BrandLockup } from "../components/common/BrandLockup";
 
 const navItems = [
   { to: "/projects", label: "Dashboard" },
-  { to: "/shots", label: "Shots", requiresProject: true },
   { to: "/products", label: "Products" },
-  { to: "/talent", label: "Talent" },
-  { to: "/locations", label: "Locations" },
-  { to: "/pulls", label: "Pulls" },
-  { to: "/tags", label: "Tags" },
-  { to: "/admin", label: "Admin", roles: ["admin"] },
+  { to: "/library/talent", label: "Library" },
+  { to: "/admin", label: "Settings", roles: ["admin"] },
+];
+
+const themeOptions = [
+  { value: "system", label: "System", icon: Monitor },
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
 ];
 
 const linkBase =
@@ -132,9 +134,53 @@ function MobileNavLinks({ onNavigate, role, currentProjectId }) {
   );
 }
 
+function ThemeSelector({ onSelect }) {
+  const { theme, resolvedTheme, setTheme } = useTheme();
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-2">
+          <Moon className="h-4 w-4" />
+          <span>Theme</span>
+        </div>
+        <span className="capitalize text-[11px] text-slate-500 dark:text-slate-400">
+          {resolvedTheme} mode
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {themeOptions.map(({ value, label, icon: Icon }) => {
+          const isActive = theme === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => {
+                setTheme(value);
+                if (onSelect) onSelect(value);
+              }}
+              className={`flex items-center justify-center gap-2 rounded-md border px-2 py-2 text-xs font-medium transition ${
+                isActive
+                  ? "border-primary bg-primary/10 text-primary dark:border-indigo-400/60 dark:bg-indigo-400/10 dark:text-indigo-200"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600"
+              }`}
+              aria-pressed={isActive}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function UserMenu({ userLabel, navRoleLabel, userEmail, userPhotoUrl, onSignOut }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
+  const navigate = useNavigate();
+  const { theme, resolvedTheme, setTheme } = useTheme();
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -158,6 +204,8 @@ function UserMenu({ userLabel, navRoleLabel, userEmail, userPhotoUrl, onSignOut 
       };
     }
   }, [isOpen]);
+
+  const themeOptionLabel = themeOptions.find((option) => option.value === theme)?.label || "Theme";
 
   return (
     <div className="relative" ref={menuRef}>
@@ -206,17 +254,63 @@ function UserMenu({ userLabel, navRoleLabel, userEmail, userPhotoUrl, onSignOut 
               </div>
             </div>
           </div>
-          <div className="p-2">
+          <div className="p-3 space-y-3">
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/70 p-3 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300">
+                <div className="flex items-center gap-2">
+                  <Moon className="h-4 w-4" />
+                  <span>Theme</span>
+                </div>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {themeOptionLabel} · {resolvedTheme}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {themeOptions.map(({ value, label, icon: Icon }) => {
+                  const isActive = theme === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setTheme(value)}
+                      className={`flex items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-xs font-medium transition ${
+                        isActive
+                          ? "border-primary bg-primary/10 text-primary dark:border-indigo-400/60 dark:bg-indigo-400/10 dark:text-indigo-200"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600"
+                      }`}
+                      aria-pressed={isActive}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <button
               onClick={() => {
                 setIsOpen(false);
-                onSignOut();
+                navigate("/account");
               }}
-              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-700 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light"
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-700 dark:text-slate-200 transition hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light"
             >
-              <LogOut className="h-4 w-4" />
-              Sign out
+              <User className="h-4 w-4" />
+              Account settings
             </button>
+
+            <div className="pt-1 border-t border-slate-200 dark:border-slate-700">
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  onSignOut();
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-700 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -226,6 +320,7 @@ function UserMenu({ userLabel, navRoleLabel, userEmail, userPhotoUrl, onSignOut 
 
 export default function TopNavigationLayout({ fallbackUser = null, fallbackRole = null }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
   const { user: authUser, role: ctxRole, clientId } = useAuth();
@@ -289,7 +384,7 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
 
       {/* Top Navigation Bar - Two Row Layout */}
       <header
-        className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 supports-[backdrop-filter]:dark:bg-slate-800/80"
+        className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 supports-[backdrop-filter]:dark:bg-slate-800/80"
         data-app-top-nav
       >
         {/* Row 1: Centered Brand Lockup */}
@@ -323,7 +418,6 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
               <span className="text-xs text-slate-500 dark:text-slate-500">Cmd+K</span>
             </button>
 
-            <ThemeToggle />
             <UserMenu
               userLabel={userLabel}
               userEmail={userEmail}
@@ -373,6 +467,20 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
                         )}
                       </div>
                     </div>
+
+                    <ThemeSelector onSelect={closeMobile} />
+
+                    <button
+                      onClick={() => {
+                        closeMobile();
+                        navigate("/account");
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 transition hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light"
+                    >
+                      <User className="h-4 w-4" />
+                      Account settings
+                    </button>
+
                     <button
                       onClick={signOutUser}
                       className="flex w-full items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light"

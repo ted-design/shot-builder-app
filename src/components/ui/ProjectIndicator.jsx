@@ -5,7 +5,7 @@ import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useProjectScope } from "../../context/ProjectScopeContext";
 import { useFirestoreCollection } from "../../hooks/useFirestoreCollection";
-import { ChevronDown, FolderOpen, Layout, Settings } from "lucide-react";
+import { ChevronDown, FolderOpen, Layout, Settings, Camera } from "lucide-react";
 
 export default function ProjectIndicator() {
   const { clientId } = useAuth();
@@ -83,6 +83,15 @@ export default function ProjectIndicator() {
     }
   };
 
+  const handleOpenShotBuilder = () => {
+    setDropdownOpen(false);
+    if (currentProjectId) {
+      navigate(`/projects/${currentProjectId}/shots`);
+    } else {
+      navigate("/projects");
+    }
+  };
+
   if (!clientId || loading) {
     return (
       <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -118,7 +127,7 @@ export default function ProjectIndicator() {
       </button>
 
       {dropdownOpen && (
-        <div className="absolute right-0 top-full z-[100] mt-2 w-64 rounded-md border border-slate-200 bg-white shadow-lg animate-fade-in animate-slide-in-from-top origin-top" style={{ animationDuration: '200ms' }}>
+        <div className="absolute right-0 top-full z-[200] mt-2 w-64 rounded-md border border-slate-200 bg-white shadow-lg animate-fade-in animate-slide-in-from-top origin-top" style={{ animationDuration: '200ms' }}>
           <div className="border-b border-slate-100 px-3 py-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Switch Project
@@ -157,6 +166,13 @@ export default function ProjectIndicator() {
             )}
           </div>
           <div className="border-t border-slate-100 p-2">
+            <button
+              onClick={handleOpenShotBuilder}
+              className="mb-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-50 hover:translate-x-0.5"
+            >
+              <Camera className="h-4 w-4" />
+              <span>Open Shot Builder</span>
+            </button>
             <button
               onClick={handleGoToDashboard}
               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-50 hover:translate-x-0.5"

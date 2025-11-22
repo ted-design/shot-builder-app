@@ -25,6 +25,7 @@ import {
   initializeAppCheck,
   ReCaptchaV3Provider,
 } from "firebase/app-check";
+import { compressImageFile } from "./imageCompression";
 
 type FirebaseEnvKey =
   | "VITE_FIREBASE_API_KEY"
@@ -260,15 +261,25 @@ if (useEmulators) {
 
 export async function uploadImageFile(
   file: File,
-  { folder, id, filename }: { folder: string; id: string; filename?: string },
+  {
+    folder,
+    id,
+    filename,
+    optimize = true,
+  }: { folder: string; id: string; filename?: string; optimize?: boolean },
 ): Promise<{ downloadURL: string; path: string }> {
   if (!file) throw new Error("No file provided");
   if (!folder || !id) throw new Error("uploadImageFile requires folder and id");
 
-  const safeName = filename ?? `${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+  // Standardize all image uploads through the same optimization pipeline (WebP conversion)
+  const shouldOptimize = optimize !== false && typeof file.type === "string" && file.type.startsWith("image/");
+  const optimized = shouldOptimize ? await compressImageFile(file, { convertToWebP: true }) : file;
+
+  const baseName = optimized.name || file.name || "upload";
+  const safeName = filename ?? `${Date.now()}-${baseName.replace(/\s+/g, "_")}`;
   const path = `images/${folder}/${id}/${safeName}`;
   const ref = storageRef(storage, path);
-  await uploadBytes(ref, file, { contentType: file.type });
+  await uploadBytes(ref, optimized, { contentType: optimized.type || file.type });
   const downloadURL = await getDownloadURL(ref);
   return { downloadURL, path };
 }

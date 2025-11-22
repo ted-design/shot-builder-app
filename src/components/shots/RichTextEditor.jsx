@@ -55,7 +55,7 @@ export default function RichTextEditor({
   className = "",
 }) {
   const { clientId } = useAuth();
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
 
   // Fetch users for mentions
   const { data: users = [], isLoading: usersLoading } = useUsers(clientId);
@@ -185,7 +185,7 @@ export default function RichTextEditor({
         hideToolbar={hideToolbar}
         hideBubble={hideBubble}
         contentClass="prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[200px]"
-        dark={theme === 'dark'}
+        dark={resolvedTheme === 'dark'}
         minHeight={minHeight}
         maxHeight={maxHeight}
       />

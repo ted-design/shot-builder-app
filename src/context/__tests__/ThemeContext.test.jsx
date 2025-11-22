@@ -5,12 +5,22 @@ import { ThemeProvider, useTheme } from '../ThemeContext';
 
 // Test component that uses the theme context
 function TestComponent() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, resolvedTheme, toggleTheme, setTheme } = useTheme();
   return (
     <div>
       <div data-testid="current-theme">{theme}</div>
+      <div data-testid="resolved-theme">{resolvedTheme}</div>
       <button data-testid="toggle-button" onClick={toggleTheme}>
         Toggle
+      </button>
+      <button data-testid="system-button" onClick={() => setTheme('system')}>
+        System
+      </button>
+      <button data-testid="dark-button" onClick={() => setTheme('dark')}>
+        Dark
+      </button>
+      <button data-testid="light-button" onClick={() => setTheme('light')}>
+        Light
       </button>
     </div>
   );
@@ -38,14 +48,16 @@ describe('ThemeContext', () => {
     });
   });
 
-  it('initializes with light theme by default', () => {
+  it('initializes with system theme and resolves to light when system is light', () => {
     render(
       <ThemeProvider>
         <TestComponent />
       </ThemeProvider>
     );
-    expect(screen.getByTestId('current-theme')).toHaveTextContent('light');
+    expect(screen.getByTestId('current-theme')).toHaveTextContent('system');
+    expect(screen.getByTestId('resolved-theme')).toHaveTextContent('light');
     expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(localStorage.getItem('theme')).toBe('system');
   });
 
   it('reads theme from localStorage if available', () => {
@@ -56,10 +68,11 @@ describe('ThemeContext', () => {
       </ThemeProvider>
     );
     expect(screen.getByTestId('current-theme')).toHaveTextContent('dark');
+    expect(screen.getByTestId('resolved-theme')).toHaveTextContent('dark');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 
-  it('respects system dark mode preference when no localStorage value', () => {
+  it('respects system dark mode preference when set to system', () => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation(query => ({
@@ -79,84 +92,60 @@ describe('ThemeContext', () => {
         <TestComponent />
       </ThemeProvider>
     );
-    expect(screen.getByTestId('current-theme')).toHaveTextContent('dark');
+    expect(screen.getByTestId('current-theme')).toHaveTextContent('system');
+    expect(screen.getByTestId('resolved-theme')).toHaveTextContent('dark');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 
-  it('toggles theme from light to dark', () => {
+  it('toggles theme from system(light) to dark and back to light', () => {
     render(
       <ThemeProvider>
         <TestComponent />
       </ThemeProvider>
     );
 
-    expect(screen.getByTestId('current-theme')).toHaveTextContent('light');
+    expect(screen.getByTestId('current-theme')).toHaveTextContent('system');
 
     act(() => {
       screen.getByTestId('toggle-button').click();
     });
 
     expect(screen.getByTestId('current-theme')).toHaveTextContent('dark');
+    expect(screen.getByTestId('resolved-theme')).toHaveTextContent('dark');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
-    expect(localStorage.getItem('theme')).toBe('dark');
-  });
-
-  it('toggles theme from dark to light', () => {
-    localStorage.setItem('theme', 'dark');
-    render(
-      <ThemeProvider>
-        <TestComponent />
-      </ThemeProvider>
-    );
-
-    expect(screen.getByTestId('current-theme')).toHaveTextContent('dark');
-
-    act(() => {
-      screen.getByTestId('toggle-button').click();
-    });
-
-    expect(screen.getByTestId('current-theme')).toHaveTextContent('light');
-    expect(document.documentElement.classList.contains('dark')).toBe(false);
-    expect(localStorage.getItem('theme')).toBe('light');
-  });
-
-  it('persists theme changes to localStorage', () => {
-    render(
-      <ThemeProvider>
-        <TestComponent />
-      </ThemeProvider>
-    );
-
-    act(() => {
-      screen.getByTestId('toggle-button').click();
-    });
-
     expect(localStorage.getItem('theme')).toBe('dark');
 
     act(() => {
       screen.getByTestId('toggle-button').click();
     });
 
+    expect(screen.getByTestId('current-theme')).toHaveTextContent('light');
+    expect(screen.getByTestId('resolved-theme')).toHaveTextContent('light');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
     expect(localStorage.getItem('theme')).toBe('light');
   });
 
-  it('applies dark class to document element when dark theme is active', () => {
+  it('persists explicit theme changes to localStorage', () => {
     render(
       <ThemeProvider>
         <TestComponent />
       </ThemeProvider>
     );
 
-    expect(document.documentElement.classList.contains('dark')).toBe(false);
-
     act(() => {
-      screen.getByTestId('toggle-button').click();
+      screen.getByTestId('dark-button').click();
     });
 
-    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(localStorage.getItem('theme')).toBe('dark');
+
+    act(() => {
+      screen.getByTestId('light-button').click();
+    });
+
+    expect(localStorage.getItem('theme')).toBe('light');
   });
 
-  it('removes dark class from document element when light theme is active', () => {
+  it('applies dark class to document element when dark is resolved', () => {
     localStorage.setItem('theme', 'dark');
     render(
       <ThemeProvider>
@@ -165,10 +154,15 @@ describe('ThemeContext', () => {
     );
 
     expect(document.documentElement.classList.contains('dark')).toBe(true);
+  });
 
-    act(() => {
-      screen.getByTestId('toggle-button').click();
-    });
+  it('removes dark class from document element when light is resolved', () => {
+    localStorage.setItem('theme', 'light');
+    render(
+      <ThemeProvider>
+        <TestComponent />
+      </ThemeProvider>
+    );
 
     expect(document.documentElement.classList.contains('dark')).toBe(false);
   });

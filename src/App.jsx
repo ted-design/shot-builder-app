@@ -38,6 +38,9 @@ const ProductsPage = lazy(() => import("./pages/ProductsPage"));
 const ImportProducts = lazy(() => import("./pages/ImportProducts"));
 const TalentPage = lazy(() => import("./pages/TalentPage"));
 const LocationsPage = lazy(() => import("./pages/LocationsPage"));
+const LibraryPage = lazy(() => import("./pages/LibraryPage"));
+const LibraryTalentPage = lazy(() => import("./pages/LibraryTalentPage"));
+const LibraryLocationsPage = lazy(() => import("./pages/LibraryLocationsPage"));
 const PullsPage = lazy(() => import("./pages/PullsPage"));
 const PullPublicViewPage = lazy(() => import("./pages/PullPublicViewPage"));
 const PullEditorPage = lazy(() => import("./pages/PullEditorPage"));
@@ -50,6 +53,7 @@ const PageHeaderTest = lazy(() => import("./pages/dev/PageHeaderTest"));
 const RichTextEditorDemo = lazy(() => import("./pages/dev/RichTextEditorDemo"));
 const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
 const ProjectAssetsPage = lazy(() => import("./pages/ProjectAssetsPage"));
+const AccountSettingsPage = lazy(() => import("./pages/AccountSettingsPage"));
 
 function MaybeRedirectLogin({ user }) {
   const location = useLocation();
@@ -188,8 +192,8 @@ export default function App() {
             <Route path="/shots" element={<LegacyShotsRedirect />} />
             <Route path="/planner" element={<LegacyPlannerRedirect />} />
 
-            {/* Project-scoped routes */}
-            <Route path="/projects/:projectId" element={<ProjectParamScope />}>
+  {/* Project-scoped routes */}
+  <Route path="/projects/:projectId" element={<ProjectParamScope />}>
               <Route
                 path="shots"
                 element={
@@ -204,6 +208,41 @@ export default function App() {
                 element={
                   <Suspense fallback={<PageLoadingFallback />}>
                     <ProjectAssetsPage />
+                  </Suspense>
+                }
+              />
+            </Route>
+            {/* Library parent (org-level) */}
+            <Route
+              path="/library"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <LibraryPage />
+                </Suspense>
+              }
+            >
+              <Route index element={<Navigate to="/library/talent" replace />} />
+              <Route
+                path="talent"
+                element={
+                  <Suspense fallback={<PageLoadingFallback />}>
+                    <LibraryTalentPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="locations"
+                element={
+                  <Suspense fallback={<PageLoadingFallback />}>
+                    <LibraryLocationsPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="tags"
+                element={
+                  <Suspense fallback={<PageLoadingFallback />}>
+                    <TagManagementPage />
                   </Suspense>
                 }
               />
@@ -224,22 +263,9 @@ export default function App() {
                 </Suspense>
               }
             />
-            <Route
-              path="/talent"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <TalentPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/locations"
-              element={
-                <Suspense fallback={<PageLoadingFallback />}>
-                  <LocationsPage />
-                </Suspense>
-              }
-            />
+            {/* Legacy redirects to Library */}
+            <Route path="/talent" element={<Navigate to="/library/talent" replace />} />
+            <Route path="/locations" element={<Navigate to="/library/locations" replace />} />
             <Route
               path="/pulls"
               element={
@@ -257,13 +283,14 @@ export default function App() {
               }
             />
             <Route
-              path="/tags"
+              path="/account"
               element={
                 <Suspense fallback={<PageLoadingFallback />}>
-                  <TagManagementPage />
+                  <AccountSettingsPage />
                 </Suspense>
               }
             />
+            <Route path="/tags" element={<Navigate to="/library/tags" replace />} />
             {import.meta.env.DEV ? (
               <>
                 <Route

@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/button';
  * Temporary page for Phase 1 testing. Can be removed after integration.
  */
 export function BrandLockupTest() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, resolvedTheme, toggleTheme, setTheme } = useTheme();
 
   return (
     <div className="min-h-screen bg-white dark:bg-neutral-900 p-8">
@@ -22,10 +22,17 @@ export function BrandLockupTest() {
 
           {/* Theme Toggle */}
           <div className="flex items-center justify-center gap-4">
-            <span className="body-text">Current theme: <strong>{theme}</strong></span>
-            <Button onClick={toggleTheme} variant="outline">
-              Toggle Theme
-            </Button>
+            <span className="body-text">
+              Current theme: <strong>{theme}</strong> (resolved: <strong>{resolvedTheme}</strong>)
+            </span>
+            <div className="flex items-center gap-2">
+              <Button onClick={toggleTheme} variant="outline">
+                Toggle Theme
+              </Button>
+              <Button onClick={() => setTheme('system')} variant="ghost">
+                System
+              </Button>
+            </div>
           </div>
         </div>
 

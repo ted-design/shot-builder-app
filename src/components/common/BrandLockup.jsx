@@ -17,7 +17,7 @@ import { useTheme } from '../../context/ThemeContext';
  * @see src/styles/design-system.md - Brand Guidelines section
  */
 export function BrandLockup({ size = 'md', className = '' }) {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
 
   // Different heights for visual balance
   // Immediate logo is very wide (8.6:1 ratio), Unbound is more square (1.87:1 ratio)
@@ -28,11 +28,11 @@ export function BrandLockup({ size = 'md', className = '' }) {
   const separatorHeight = 'h-12'; // 48px - closer to Unbound height for more even visual spacing
 
   // Select appropriate logo variants based on theme
-  const immediateLogo = theme === 'dark'
+  const immediateLogo = resolvedTheme === 'dark'
     ? '/images/brands/immediate-logo-white.png'
     : '/images/brands/immediate-logo-black.png';
 
-  const unboundLogo = theme === 'dark'
+  const unboundLogo = resolvedTheme === 'dark'
     ? '/images/brands/unbound-logo-white.png'
     : '/images/brands/unbound-logo-black.png';
 

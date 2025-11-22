@@ -140,6 +140,7 @@ export const createProductFamily = async ({ db, clientId, payload, userId }) => 
     const { path } = await uploadImageFile(payload.family.thumbnailImageFile, {
       folder: "productFamilies",
       id: `${familyId}/thumbnail`,
+      optimize: false, // already optimized in form layer
     });
     thumbnailPath = path;
     await updateDoc(familyRef, {
@@ -153,6 +154,7 @@ export const createProductFamily = async ({ db, clientId, payload, userId }) => 
     const { path } = await uploadImageFile(payload.family.headerImageFile, {
       folder: "productFamilies",
       id: familyId,
+      optimize: false, // already optimized in form layer
     });
     await updateDoc(familyRef, {
       headerImagePath: path,
@@ -180,6 +182,7 @@ export const createProductFamily = async ({ db, clientId, payload, userId }) => 
         folder: `productFamilies/${familyId}/skus`,
         id: skuRef.id,
         filename,
+        optimize: false, // already optimized in form layer
       });
       imagePath = result.path;
     }
@@ -268,6 +271,7 @@ export const createProductColourway = async ({
       folder: `productFamilies/${familyId}/skus`,
       id: skuRef.id,
       filename,
+      optimize: false, // already optimized in form layer
     });
     imagePath = result.path;
   }

@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import RichTextEditor from "../RichTextEditor";
 import { useAuth } from "../../../context/AuthContext";
 import { useUsers } from "../../../hooks/useComments";
+import { ThemeProvider } from "../../../context/ThemeContext";
 
 // Mock dependencies
 vi.mock("../../../context/AuthContext");
@@ -62,6 +63,10 @@ describe("RichTextEditor", () => {
     { uid: "user2", displayName: "Jane Smith", email: "jane@example.com" },
   ];
 
+  const renderWithTheme = (ui) => {
+    return render(<ThemeProvider>{ui}</ThemeProvider>);
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     useAuth.mockReturnValue({ clientId: "test-client" });
@@ -70,14 +75,14 @@ describe("RichTextEditor", () => {
 
   describe("Basic Rendering", () => {
     it("renders the editor component", () => {
-      render(<RichTextEditor value="" onChange={mockOnChange} />);
+      renderWithTheme(<RichTextEditor value="" onChange={mockOnChange} />);
 
       expect(screen.getByTestId("tiptap-editor")).toBeInTheDocument();
     });
 
     it("displays initial content", () => {
       const content = "<p>Test content</p>";
-      render(<RichTextEditor value={content} onChange={mockOnChange} />);
+      renderWithTheme(<RichTextEditor value={content} onChange={mockOnChange} />);
 
       expect(screen.getByTestId("editor-content")).toHaveTextContent("Test content");
     });
@@ -87,7 +92,7 @@ describe("RichTextEditor", () => {
 
       // Test that the component renders without errors with custom placeholder
       expect(() => {
-        render(
+        renderWithTheme(
           <RichTextEditor
             value=""
             onChange={mockOnChange}
@@ -101,7 +106,7 @@ describe("RichTextEditor", () => {
     });
 
     it("applies custom className", () => {
-      const { container } = render(
+      const { container } = renderWithTheme(
         <RichTextEditor
           value=""
           onChange={mockOnChange}
@@ -115,7 +120,7 @@ describe("RichTextEditor", () => {
 
   describe("Content Changes", () => {
     it("provides onChange callback to editor", () => {
-      render(<RichTextEditor value="" onChange={mockOnChange} />);
+      renderWithTheme(<RichTextEditor value="" onChange={mockOnChange} />);
 
       // Verify the editor is rendered and onChange prop is provided
       expect(screen.getByTestId("tiptap-editor")).toBeInTheDocument();
@@ -127,7 +132,7 @@ describe("RichTextEditor", () => {
     });
 
     it("does not call onChange when disabled", () => {
-      render(
+      renderWithTheme(
         <RichTextEditor value="" onChange={mockOnChange} disabled={true} />
       );
 
@@ -139,7 +144,7 @@ describe("RichTextEditor", () => {
 
     it("handles undefined onChange gracefully", () => {
       expect(() => {
-        render(<RichTextEditor value="" />);
+        renderWithTheme(<RichTextEditor value="" />);
       }).not.toThrow();
     });
   });
@@ -147,7 +152,7 @@ describe("RichTextEditor", () => {
   describe("Character Limit", () => {
     it("displays character count by default", () => {
       const content = "Test content";
-      render(
+      renderWithTheme(
         <RichTextEditor
           value={content}
           onChange={mockOnChange}
@@ -159,7 +164,7 @@ describe("RichTextEditor", () => {
     });
 
     it("respects custom character limit", () => {
-      render(
+      renderWithTheme(
         <RichTextEditor
           value=""
           onChange={mockOnChange}
@@ -171,7 +176,7 @@ describe("RichTextEditor", () => {
     });
 
     it("does not show character count when disabled", () => {
-      render(
+      renderWithTheme(
         <RichTextEditor
           value=""
           onChange={mockOnChange}
@@ -184,7 +189,7 @@ describe("RichTextEditor", () => {
     });
 
     it("handles zero character limit", () => {
-      render(
+      renderWithTheme(
         <RichTextEditor
           value=""
           onChange={mockOnChange}
@@ -199,7 +204,7 @@ describe("RichTextEditor", () => {
 
   describe("Disabled State", () => {
     it("disables editor when disabled prop is true", () => {
-      render(
+      renderWithTheme(
         <RichTextEditor value="" onChange={mockOnChange} disabled={true} />
       );
 
@@ -208,7 +213,7 @@ describe("RichTextEditor", () => {
     });
 
     it("enables editor by default", () => {
-      render(<RichTextEditor value="" onChange={mockOnChange} />);
+      renderWithTheme(<RichTextEditor value="" onChange={mockOnChange} />);
 
       const input = screen.getByTestId("editor-input");
       expect(input).not.toBeDisabled();
@@ -217,7 +222,7 @@ describe("RichTextEditor", () => {
 
   describe("User Mentions Integration", () => {
     it("fetches users for mentions", () => {
-      render(<RichTextEditor value="" onChange={mockOnChange} />);
+      renderWithTheme(<RichTextEditor value="" onChange={mockOnChange} />);
 
       expect(useUsers).toHaveBeenCalledWith("test-client");
     });
@@ -226,7 +231,7 @@ describe("RichTextEditor", () => {
       useUsers.mockReturnValue({ data: [], isLoading: false });
 
       expect(() => {
-        render(<RichTextEditor value="" onChange={mockOnChange} />);
+        renderWithTheme(<RichTextEditor value="" onChange={mockOnChange} />);
       }).not.toThrow();
     });
 
@@ -234,7 +239,7 @@ describe("RichTextEditor", () => {
       useUsers.mockReturnValue({ data: [], isLoading: true });
 
       expect(() => {
-        render(<RichTextEditor value="" onChange={mockOnChange} />);
+        renderWithTheme(<RichTextEditor value="" onChange={mockOnChange} />);
       }).not.toThrow();
     });
 
@@ -242,7 +247,7 @@ describe("RichTextEditor", () => {
       useAuth.mockReturnValue({ clientId: null });
 
       expect(() => {
-        render(<RichTextEditor value="" onChange={mockOnChange} />);
+        renderWithTheme(<RichTextEditor value="" onChange={mockOnChange} />);
       }).not.toThrow();
     });
   });
@@ -264,27 +269,27 @@ describe("RichTextEditor", () => {
       };
 
       expect(() => {
-        render(<RichTextEditor {...props} />);
+        renderWithTheme(<RichTextEditor {...props} />);
       }).not.toThrow();
     });
 
     it("works with minimal props", () => {
       expect(() => {
-        render(<RichTextEditor />);
+        renderWithTheme(<RichTextEditor />);
       }).not.toThrow();
     });
   });
 
   describe("Toolbar Configuration", () => {
     it("shows toolbar by default", () => {
-      render(<RichTextEditor value="" onChange={mockOnChange} />);
+      renderWithTheme(<RichTextEditor value="" onChange={mockOnChange} />);
 
       // The toolbar should be rendered (not hidden)
       expect(screen.getByTestId("tiptap-editor")).toBeInTheDocument();
     });
 
     it("can hide toolbar via prop", () => {
-      render(
+      renderWithTheme(
         <RichTextEditor
           value=""
           onChange={mockOnChange}
@@ -296,7 +301,7 @@ describe("RichTextEditor", () => {
     });
 
     it("can hide bubble menu via prop", () => {
-      render(
+      renderWithTheme(
         <RichTextEditor
           value=""
           onChange={mockOnChange}
@@ -311,34 +316,34 @@ describe("RichTextEditor", () => {
   describe("Edge Cases", () => {
     it("handles null value", () => {
       expect(() => {
-        render(<RichTextEditor value={null} onChange={mockOnChange} />);
+        renderWithTheme(<RichTextEditor value={null} onChange={mockOnChange} />);
       }).not.toThrow();
     });
 
     it("handles undefined value", () => {
       expect(() => {
-        render(<RichTextEditor value={undefined} onChange={mockOnChange} />);
+        renderWithTheme(<RichTextEditor value={undefined} onChange={mockOnChange} />);
       }).not.toThrow();
     });
 
     it("handles very long content", () => {
       const longContent = "x".repeat(100000);
       expect(() => {
-        render(<RichTextEditor value={longContent} onChange={mockOnChange} />);
+        renderWithTheme(<RichTextEditor value={longContent} onChange={mockOnChange} />);
       }).not.toThrow();
     });
 
     it("handles HTML entities in content", () => {
       const content = "<p>&lt;div&gt;Test&lt;/div&gt;</p>";
       expect(() => {
-        render(<RichTextEditor value={content} onChange={mockOnChange} />);
+        renderWithTheme(<RichTextEditor value={content} onChange={mockOnChange} />);
       }).not.toThrow();
     });
 
     it("handles malformed HTML gracefully", () => {
       const content = "<p><strong>Unclosed tag";
       expect(() => {
-        render(<RichTextEditor value={content} onChange={mockOnChange} />);
+        renderWithTheme(<RichTextEditor value={content} onChange={mockOnChange} />);
       }).not.toThrow();
     });
   });

@@ -19,7 +19,7 @@ import { useTheme } from '../../context/ThemeContext';
  * - Light/dark theme compatibility
  */
 export default function PageHeaderTest() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, resolvedTheme, toggleTheme, setTheme } = useTheme();
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
@@ -36,7 +36,7 @@ export default function PageHeaderTest() {
           <PageHeader.Title>Page Header Component</PageHeader.Title>
           <PageHeader.Actions>
             <Button variant="outline" size="sm" onClick={toggleTheme}>
-              Toggle Theme
+              Toggle Theme ({resolvedTheme})
             </Button>
             <Button size="sm">Create New</Button>
           </PageHeader.Actions>
@@ -212,7 +212,7 @@ export default function PageHeaderTest() {
               <li>⏳ Description uses .body-text-muted token</li>
               <li>⏳ Actions align right on desktop</li>
               <li>⏳ Layout stacks on mobile</li>
-              <li>⏳ Theme toggle works (light/dark)</li>
+              <li>⏳ Theme toggle works (light/dark/system)</li>
               <li>⏳ Border uses neutral-200/700</li>
             </ul>
 
@@ -236,6 +236,12 @@ export default function PageHeaderTest() {
               <li>⏳ Check focus indicators</li>
               <li>⏳ Verify color contrast (WCAG AA)</li>
             </ul>
+
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setTheme('system')}>
+                Use System Theme (currently: {theme})
+              </Button>
+            </div>
           </div>
         </section>
       </div>
