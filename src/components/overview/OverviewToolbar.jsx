@@ -9,8 +9,8 @@ export default function OverviewToolbar({
   onRemoveFilter,
 }) {
   const content = (
-    <Card className="border-b-2">
-      <CardContent className="py-4">
+    <Card className="border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:transform-none bg-white/95 dark:bg-slate-900/80 backdrop-blur">
+      <CardContent className="py-3 sm:py-4">
         <div className="flex flex-col gap-4">
           {children}
           {filterPills.length > 0 && (

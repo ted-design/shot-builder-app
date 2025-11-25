@@ -20,7 +20,9 @@ function PreviewShotCardList({ shot, visibleSections, sectionStates }) {
   const showShotNumber = visibleSections.some(s => s.id === SECTION_TYPES.SHOT_NUMBER);
 
   // Get primary image with crop styling
-  const { path: imagePath, style: imageStyle } = getPrimaryAttachmentWithStyle(shot);
+  const { path: primaryImagePath, style: primaryImageStyle } = getPrimaryAttachmentWithStyle(shot);
+  const imagePath = primaryImagePath || shot.image || null;
+  const imageStyle = primaryImageStyle;
 
   // Build flex string for CSS grid (only for columns that are visible)
   const gridTemplate = useMemo(() => {
@@ -104,7 +106,10 @@ function PreviewShotCardList({ shot, visibleSections, sectionStates }) {
   };
 
   return (
-    <div className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+    <div
+      className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+      data-shot-id={shot.id || undefined}
+    >
       <div className="flex gap-4 p-3">
         {/* Image column */}
         {showImage && (
@@ -113,11 +118,12 @@ function PreviewShotCardList({ shot, visibleSections, sectionStates }) {
               <AppImage
                 src={imagePath}
                 alt={shot.name || 'Shot'}
-                className="w-20 h-16 object-cover rounded border border-slate-200 dark:border-slate-700"
+                className="w-24 h-24 flex items-center justify-center rounded border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800"
+                imageClassName="max-h-full max-w-full object-contain"
                 style={imageStyle}
               />
             ) : (
-              <div className="w-20 h-16 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+              <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-center">
                 <span className="text-xs text-slate-400">No image</span>
               </div>
             )}
@@ -150,18 +156,24 @@ function PreviewShotCardGallery({ shot, visibleSections, sectionStates }) {
   const showShotNumber = visibleSections.some(s => s.id === SECTION_TYPES.SHOT_NUMBER);
 
   // Get primary image with crop styling
-  const { path: imagePath, style: imageStyle } = getPrimaryAttachmentWithStyle(shot);
+  const { path: primaryImagePath, style: primaryImageStyle } = getPrimaryAttachmentWithStyle(shot);
+  const imagePath = primaryImagePath || shot.image || null;
+  const imageStyle = primaryImageStyle;
 
   return (
-    <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800 hover:shadow-md transition-shadow flex flex-col">
+    <div
+      className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800 hover:shadow-md transition-shadow flex flex-col"
+      data-shot-id={shot.id || undefined}
+    >
       {/* Image Section */}
       {showImage && (
-        <div className="relative w-full aspect-[4/3] bg-slate-100 dark:bg-slate-800 flex-shrink-0">
+        <div className="relative w-full aspect-[4/3] bg-slate-100 dark:bg-slate-800 flex-shrink-0 flex items-center justify-center">
           {imagePath ? (
             <AppImage
               src={imagePath}
               alt={shot.name || 'Shot'}
-              className="w-full h-full object-cover"
+              className="w-full h-full"
+              imageClassName="w-full h-full object-contain"
               style={imageStyle}
             />
           ) : (

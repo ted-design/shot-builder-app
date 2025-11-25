@@ -93,7 +93,7 @@ describe("prepareLanesForPdf", () => {
       },
     ];
 
-    const prepared = await prepareLanesForPdf(lanes, { includeImages: true });
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true, useDomCapture: true });
 
     expect(collectImagesMock).toHaveBeenCalled();
     expect(resolveImageSourceToDataUrlMock).toHaveBeenCalled();
@@ -212,7 +212,7 @@ describe("prepareLanesForPdf", () => {
       },
     ]);
 
-    const prepared = await prepareLanesForPdf(lanes, { includeImages: true });
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true, useDomCapture: true });
 
     // Should have called processImageForPDF with crop position
     expect(processImageForPDFMock).toHaveBeenCalled();
@@ -238,7 +238,7 @@ describe("prepareLanesForPdf", () => {
       dataUrl: "data:image/png;base64,FALLBACK",
     });
 
-    const prepared = await prepareLanesForPdf(lanes, { includeImages: true });
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true, useDomCapture: true });
 
     expect(resolveImageSourceToDataUrlMock).toHaveBeenCalledWith("https://example.com/fallback.jpg");
     expect(prepared[0].shots[0].image).toBe("data:image/png;base64,FALLBACK");
@@ -259,7 +259,7 @@ describe("prepareLanesForPdf", () => {
     collectImagesMock.mockResolvedValue([]);
     resolveImageSourceToDataUrlMock.mockRejectedValue(new Error("Image load failed"));
 
-    const prepared = await prepareLanesForPdf(lanes, { includeImages: true });
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true, useDomCapture: true });
 
     // Should set image to null on error
     expect(prepared[0].shots[0].image).toBeNull();
@@ -333,7 +333,7 @@ describe("prepareLanesForPdf", () => {
       },
     ]);
 
-    await prepareLanesForPdf(lanes, { includeImages: true });
+    await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true, useDomCapture: true });
 
     // Should have used referenceImageCrop for cropping
     expect(processImageForPDFMock).toHaveBeenCalled();

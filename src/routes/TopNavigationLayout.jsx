@@ -382,42 +382,31 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <SkipLink />
 
-      {/* Top Navigation Bar - Two Row Layout */}
+      {/* Top Navigation Bar - Single Row Layout */}
       <header
-        className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 supports-[backdrop-filter]:dark:bg-slate-800/80"
+        className="sticky top-0 z-50 w-full border-b border-slate-200/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-800/95 backdrop-blur supports-[backdrop-filter]:bg-white/85 supports-[backdrop-filter]:dark:bg-slate-900/85"
         data-app-top-nav
       >
-        {/* Row 1: Centered Brand Lockup */}
-        <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-center border-b border-slate-200/50 dark:border-slate-700/50 px-4 md:px-6">
-          <BrandLockup size="sm" />
-        </div>
+        <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-3 px-4 md:px-6">
+          <div className="flex flex-1 items-center gap-3 min-w-0">
+            <BrandLockup size="sm" />
+            <DesktopNavLinks role={rawRole} currentProjectId={currentProjectId} />
+          </div>
 
-        {/* Row 2: Navigation + Actions */}
-        <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between px-4 md:px-6">
-          {/* Left: Desktop Nav */}
-          <DesktopNavLinks role={rawRole} currentProjectId={currentProjectId} />
-
-          {/* Right: Actions */}
-          <div className="flex items-center gap-3">
+          {/* Actions */}
+          <div className="flex items-center gap-2 md:gap-3">
             <ProjectIndicator />
-
-            {/* Quick Actions Menu */}
             <QuickActionsMenu />
-
-            {/* Notifications */}
             <NotificationBell />
-
-            {/* Search Trigger Button */}
             <button
               onClick={openSearch}
-              className="hidden items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 transition hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light md:flex"
+              className="hidden items-center gap-2 rounded-full border border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-slate-800/90 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 transition hover:-translate-y-0.5 hover:shadow-sm hover:bg-white dark:hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light md:inline-flex"
               aria-label="Open search"
               title="Search (Cmd+K)"
             >
               <Search className="h-4 w-4" />
-              <span className="text-xs text-slate-500 dark:text-slate-500">Cmd+K</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">Cmd+K</span>
             </button>
-
             <UserMenu
               userLabel={userLabel}
               userEmail={userEmail}
@@ -425,12 +414,10 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
               navRoleLabel={navRoleLabel}
               onSignOut={signOutUser}
             />
-
-            {/* Mobile Menu Button - Sheet Trigger */}
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
                 <button
-                  className="inline-flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 p-2 text-slate-600 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 md:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light"
+                  className="inline-flex items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 p-2 text-slate-600 dark:text-slate-400 transition hover:-translate-y-0.5 hover:shadow-sm hover:bg-slate-100 dark:hover:bg-slate-700 md:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light"
                   aria-label="Open menu"
                 >
                   <Menu className="h-5 w-5" />
