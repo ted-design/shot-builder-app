@@ -1300,7 +1300,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
   const [density, setDensity] = useState("standard");
   const [galleryColumns, setGalleryColumns] = useState("3");
   const [fallbackToProductImages, setFallbackToProductImages] = useState(true);
-  const [inlineImages, setInlineImages] = useState(false);
+  const [inlineImages, setInlineImages] = useState(true);
 
   // Initialize section states first
   const [sectionStates, setSectionStates] = useState(() => getDefaultSectionConfig());
@@ -1696,7 +1696,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       const preparedLanes = await prepareLanesForPdf(lanesWithImageFallback, {
         includeImages,
         density,
-        useDomCapture: false,
+        useDomCapture: true,
         inlineImages,
       });
       setGenerationStage("Rendering PDF…");
