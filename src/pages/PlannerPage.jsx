@@ -90,7 +90,7 @@ import ShotTableView from "../components/shots/ShotTableView";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import { selectPlannerGroups } from "../lib/plannerSelectors";
-import { getPrimaryAttachmentWithStyle, hasMultipleAttachments, getAttachmentCount } from "../lib/imageHelpers";
+import { getPrimaryAttachment, getPrimaryAttachmentWithStyle, hasMultipleAttachments, getAttachmentCount } from "../lib/imageHelpers";
 import { sortShotsForView } from "../lib/shotsSelectors";
 import {
   shotDraftSchema,
@@ -421,22 +421,30 @@ const normaliseShotTalent = (shot) => {
 
 const resolveShotImageForExport = (shot, products = []) => {
   const candidates = [];
+  const primaryAttachment = getPrimaryAttachment(shot?.attachments);
   if (shot) {
     // Prioritize reference/storyboard image if available
     candidates.push(shot.referenceImagePath);
+    if (primaryAttachment?.path) {
+      candidates.push(primaryAttachment.path);
+    }
     candidates.push(shot.previewImageUrl);
     candidates.push(shot.thumbnailUrl);
     candidates.push(shot.thumbnailImagePath);
     candidates.push(shot.imageUrl);
   }
-  const firstProduct = Array.isArray(products) && products.length ? products[0] : null;
-  if (firstProduct) {
-    candidates.push(firstProduct.colourImagePath);
-    candidates.push(firstProduct.thumbnailImagePath);
-    if (Array.isArray(firstProduct.images)) {
-      candidates.push(...firstProduct.images);
-    }
-  }
+  const productImageCandidates = Array.isArray(products)
+    ? products
+        .map((product) => {
+          if (!product) return null;
+          if (product.thumbnailImagePath) return product.thumbnailImagePath;
+          if (product.colourImagePath) return product.colourImagePath;
+          if (Array.isArray(product.images) && product.images.length) return product.images.find(Boolean);
+          return null;
+        })
+        .filter(Boolean)
+    : [];
+  candidates.push(...productImageCandidates);
 
   // Accept both HTTP URLs and Firebase Storage paths
   // Firebase Storage paths start with "images/" and will be handled by AppImage component
@@ -472,6 +480,17 @@ const buildPlannerExportLanes = (shotsByLane, lanes, normaliseShotProductsFn) =>
       const productLabels = Array.isArray(normalisedProducts)
         ? normalisedProducts.map(formatPlannerProductLabel).filter(Boolean)
         : [];
+      const productImages = Array.isArray(normalisedProducts)
+        ? normalisedProducts
+            .map((product) => {
+              if (!product) return null;
+              if (product.thumbnailImagePath) return product.thumbnailImagePath;
+              if (product.colourImagePath) return product.colourImagePath;
+              if (Array.isArray(product.images) && product.images.length) return product.images.find(Boolean);
+              return null;
+            })
+            .filter(Boolean)
+        : [];
       const talentNames = normaliseShotTalent(shot).map((entry) => entry.name).filter(Boolean);
       const rawShotNumber = shot?.shotNumber;
       const shotNumber =
@@ -493,6 +512,11 @@ const buildPlannerExportLanes = (shotsByLane, lanes, normaliseShotProductsFn) =>
         products: productLabels,
         notes: stripHtml(shot.description || ""),
         image: resolveShotImageForExport(shot, normalisedProducts),
+        attachments: Array.isArray(shot.attachments) ? shot.attachments : [],
+        referenceImageCrop: shot.referenceImageCrop || null,
+        referenceImagePath: shot.referenceImagePath || null,
+        imageUrl: shot.imageUrl || null,
+        productImages,
       };
     });
     return { ...lane, shots: exportShots };

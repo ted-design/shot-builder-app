@@ -12,7 +12,6 @@ import {
   Suspense,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -360,8 +359,7 @@ export function ShotsWorkspace() {
   const [localSelectedShotIds, setLocalSelectedShotIds] = useState(() => new Set());
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const [stickyOffset, setStickyOffset] = useState(80);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const autoSaveTimerRef = useRef(null);
   const autoSaveInflightRef = useRef(false);
   const editingShotRef = useRef(editingShot);
@@ -703,89 +701,6 @@ export function ShotsWorkspace() {
     );
   }, [filters]);
 
-  useLayoutEffect(() => {
-    if (typeof window === "undefined") return;
-
-    let frameId = null;
-    let timeoutId = null;
-
-    const measure = () => {
-      // Get the sticky elements that contribute to the sticky offset
-      const navElement = document.querySelector("[data-app-top-nav]");
-      const shotOverviewHeader = document.querySelector("[data-shot-overview-header]");
-
-      if (!navElement) return;
-
-      // Calculate total height of sticky elements above the sticky toolbar
-      // IMPORTANT: Only include elements with position:sticky that remain visible when scrolling
-      let totalOffset = 0;
-
-      // Navigation bar height (sticky, always visible)
-      const navHeight = navElement.offsetHeight || 64; // Default to 64px if not found
-      totalOffset += navHeight;
-
-      // Shot Overview header height (sticky, always visible)
-      const headerHeight = shotOverviewHeader?.offsetHeight || 73; // Default to 73px if not found
-      totalOffset += headerHeight;
-
-      // Note: We do NOT include breadcrumb height because it has position:static
-      // and scrolls away with the page content.
-
-      // Update the sticky offset if it changed
-      setStickyOffset((current) => {
-        const newOffset = totalOffset;
-
-        // Log measurements for debugging (only when offset changes)
-        if (current !== newOffset) {
-          console.log('📏 Sticky Toolbar Offset Calculation:', {
-            navHeight,
-            headerHeight,
-            calculatedOffset: totalOffset,
-            finalOffset: newOffset,
-            previousOffset: current
-          });
-        }
-
-        return newOffset;
-      });
-    };
-
-    const scheduleMeasure = () => {
-      if (frameId != null) return;
-      frameId = window.requestAnimationFrame(() => {
-        frameId = null;
-        measure();
-      });
-    };
-
-    // Initial measurement with a small delay to ensure DOM is ready
-    timeoutId = setTimeout(() => {
-      measure();
-    }, 100);
-
-    // Re-measure on scroll and resize
-    window.addEventListener("resize", scheduleMeasure);
-    const scrollListenerOptions = { passive: true };
-    window.addEventListener("scroll", scheduleMeasure, scrollListenerOptions);
-
-    // Use ResizeObserver for dynamic content changes
-    let resizeObserver = null;
-    if (typeof ResizeObserver !== "undefined") {
-      resizeObserver = new ResizeObserver(scheduleMeasure);
-
-      const navElement = document.querySelector("[data-app-top-nav]");
-      if (navElement) resizeObserver.observe(navElement);
-    }
-
-    return () => {
-      window.removeEventListener("resize", scheduleMeasure);
-      window.removeEventListener("scroll", scheduleMeasure, scrollListenerOptions);
-      resizeObserver?.disconnect();
-      if (frameId != null) window.cancelAnimationFrame(frameId);
-      if (timeoutId != null) clearTimeout(timeoutId);
-    };
-  }, []);
-
   useEffect(() => {
     writeStorage(
       SHOTS_PREFS_STORAGE_KEY,
@@ -810,16 +725,9 @@ export function ShotsWorkspace() {
     );
   }, [viewPrefs]);
 
-  useEffect(() => {
-    if (!isSearchExpanded) return undefined;
-    const frame = requestAnimationFrame(() => {
-      searchInputRef.current?.focus();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [isSearchExpanded]);
-
   const familyDetailCacheRef = useRef(new Map());
   const searchInputRef = useRef(null);
+  const searchContainerRef = useRef(null);
 
   useEffect(() => {
     familyDetailCacheRef.current.clear();
@@ -1714,18 +1622,44 @@ export function ShotsWorkspace() {
 
   const handleSearchClear = useCallback(() => {
     setQueryText("");
-    setIsSearchExpanded(false);
+    searchInputRef.current?.focus();
   }, []);
 
   const handleSearchKeyDown = useCallback(
     (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setIsSearchExpanded(false);
+        if (queryText) {
+          setQueryText("");
+        }
+        setIsSearchOpen(false);
       }
     },
-    []
+    [queryText]
   );
+
+  useEffect(() => {
+    if (!isSearchOpen) return undefined;
+
+    const handleClickOutside = (event) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setIsSearchOpen(false);
+      }
+    };
+
+    const frame = requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isSearchOpen]);
 
   const openShotEditor = useCallback(
     (shot) => {
@@ -2873,8 +2807,8 @@ export function ShotsWorkspace() {
   const resolvedDensity = normaliseShotDensity(viewPrefs.density);
   // Dramatic density differences: 25-50% between levels
   const galleryItemHeight =
-    resolvedDensity === "compact" ? 200 :    // compact cards are tighter
-    400;                                      // comfy baseline
+    resolvedDensity === "compact" ? 260 :    // compact cards are tighter
+    340;                                      // comfy baseline with flexible media
 
   const handleDensityChange = useCallback((nextDensity) => {
     setViewPrefs((prev) => ({ ...prev, density: normaliseShotDensity(nextDensity) }));
@@ -2891,60 +2825,38 @@ export function ShotsWorkspace() {
     <div>
       <OverviewToolbar filterPills={activeFilters} onRemoveFilter={removeFilter}>
         <OverviewToolbarRow>
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer">
-              <input
-                type="checkbox"
-                checked={filters.showArchived}
-                onChange={(e) => handleShowArchivedChange(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary dark:focus:ring-primary-light"
-              />
-              <span>Show Archived</span>
-            </label>
-            <SortMenu
-              options={SHOT_SORT_OPTIONS}
-              value={viewPrefs.sort}
-              onChange={selectSort}
-              title="Sort shots"
-            />
-            <FieldSettingsMenu
-              fields={DETAIL_TOGGLE_OPTIONS.map(({ key, label }) => ({
-                key: PREF_TO_COLUMN_KEY.get(key) || key,
-                label,
-              }))}
-              visibleMap={Object.fromEntries(
-                Array.from(PREF_TO_COLUMN_KEY.entries()).map(([prefKey, colKey]) => [
-                  colKey,
-                  Boolean(viewPrefs[prefKey]),
-                ])
-              )}
-              lockedKeys={viewPrefs.lockedFields || []}
-              order={Array.isArray(viewPrefs.fieldOrder) && viewPrefs.fieldOrder.length
-                ? viewPrefs.fieldOrder
-                : Array.from(PREF_TO_COLUMN_KEY.values())}
-              onToggleVisible={(columnKey) => {
-                const prefEntry = [...PREF_TO_COLUMN_KEY.entries()].find(([, v]) => v === columnKey);
-                if (!prefEntry) return;
-                const [prefKey] = prefEntry;
-                toggleViewPref(prefKey);
-              }}
-              onToggleLock={toggleFieldLock}
-              onReorder={reorderFields}
-            />
-            <div className="flex items-center gap-1.5">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:gap-3 lg:flex-nowrap">
+            {canEditShots && (
               <Button
                 type="button"
-                variant={isSearchExpanded ? "secondary" : "ghost"}
+                size="sm"
+                onClick={openCreateModal}
+                className="flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold shadow-sm"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                <span>Create</span>
+              </Button>
+            )}
+
+            <div
+              ref={searchContainerRef}
+              className={`flex items-center gap-2 rounded-full border border-slate-200/80 bg-white px-2.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition dark:border-slate-700/80 dark:bg-slate-900 ${
+                isSearchOpen ? "ring-2 ring-primary/40 dark:ring-primary/50" : ""
+              }`}
+            >
+              <Button
+                type="button"
+                variant="ghost"
                 size="icon"
-                onClick={() => setIsSearchExpanded(true)}
+                onClick={() => setIsSearchOpen(true)}
                 aria-label="Search shots"
-                aria-expanded={isSearchExpanded}
+                className="h-8 w-8 shrink-0 rounded-full"
               >
                 <Search className="h-4 w-4" />
               </Button>
               <div
-                className={`relative flex items-center overflow-hidden transition-all duration-200 ${
-                  isSearchExpanded ? "w-48 opacity-100 sm:w-56" : "pointer-events-none w-0 opacity-0"
+                className={`flex items-center transition-all duration-200 ${
+                  isSearchOpen ? "w-44 sm:w-56 opacity-100" : "w-0 opacity-0 pointer-events-none"
                 }`}
               >
                 <Input
@@ -2952,61 +2864,102 @@ export function ShotsWorkspace() {
                   value={queryText}
                   onChange={(event) => setQueryText(event.target.value)}
                   onKeyDown={handleSearchKeyDown}
-                  placeholder="Type to search..."
+                  placeholder="Search shots..."
                   aria-label="Search shots"
-                  className="h-9 w-full border-slate-200 bg-white pr-8 text-sm dark:border-slate-700 dark:bg-slate-900"
+                  className="h-8 flex-1 border-none bg-transparent p-0 text-sm shadow-none focus-visible:ring-0 focus:outline-none"
                 />
-                <button
-                  type="button"
-                  onClick={handleSearchClear}
-                  className="absolute right-2 text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-                  aria-label="Clear search"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+                {queryText ? (
+                  <button
+                    type="button"
+                    onClick={handleSearchClear}
+                    className="text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
               </div>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <ViewModeMenu
-              options={SHOT_VIEW_OPTIONS}
-              value={viewMode}
-              onChange={updateViewMode}
-              ariaLabel="Select view"
-            />
-            <DensityMenu
-              options={SHOT_DENSITY_OPTIONS}
-              value={viewPrefs.density}
-              onChange={handleDensityChange}
-              ariaLabel="Select density"
-            />
-            {canEditShots && sortedShots.length > 0 && (
-              <Button
-                type="button"
-                variant={selectionMode ? "default" : "outline"}
-                size="sm"
-                onClick={handleSelectionModeToggle}
-                aria-pressed={selectionMode}
-                className="flex items-center gap-1.5"
-              >
-                {selectionMode ? <X className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
-                <span>
-                  {selectionMode
-                    ? selectedShotIds.size > 0
-                      ? `Done (${selectedShotIds.size})`
-                      : "Exit selection"
-                    : "Select"}
-                </span>
-              </Button>
-            )}
-            <ExportButton data={filteredShots} entityType="shots" />
-            {canEditShots && (
-              <Button type="button" onClick={openCreateModal} className="flex items-center gap-2">
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Create shot</span>
-                <span className="sm:hidden">New</span>
-              </Button>
-            )}
+
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <label className="flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.showArchived}
+                  onChange={(e) => handleShowArchivedChange(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary dark:focus:ring-primary-light"
+                />
+                <span>Archived</span>
+              </label>
+
+              <FieldSettingsMenu
+                fields={DETAIL_TOGGLE_OPTIONS.map(({ key, label }) => ({
+                  key: PREF_TO_COLUMN_KEY.get(key) || key,
+                  label,
+                }))}
+                visibleMap={Object.fromEntries(
+                  Array.from(PREF_TO_COLUMN_KEY.entries()).map(([prefKey, colKey]) => [
+                    colKey,
+                    Boolean(viewPrefs[prefKey]),
+                  ])
+                )}
+                lockedKeys={viewPrefs.lockedFields || []}
+                order={Array.isArray(viewPrefs.fieldOrder) && viewPrefs.fieldOrder.length
+                  ? viewPrefs.fieldOrder
+                  : Array.from(PREF_TO_COLUMN_KEY.values())}
+                onToggleVisible={(columnKey) => {
+                  const prefEntry = [...PREF_TO_COLUMN_KEY.entries()].find(([, v]) => v === columnKey);
+                  if (!prefEntry) return;
+                  const [prefKey] = prefEntry;
+                  toggleViewPref(prefKey);
+                }}
+                onToggleLock={toggleFieldLock}
+                onReorder={reorderFields}
+              />
+
+              <SortMenu
+                options={SHOT_SORT_OPTIONS}
+                value={viewPrefs.sort}
+                onChange={selectSort}
+                title="Sort shots"
+              />
+
+              <ViewModeMenu
+                options={SHOT_VIEW_OPTIONS}
+                value={viewMode}
+                onChange={updateViewMode}
+                ariaLabel="Select view"
+              />
+
+              <DensityMenu
+                options={SHOT_DENSITY_OPTIONS}
+                value={viewPrefs.density}
+                onChange={handleDensityChange}
+                ariaLabel="Select density"
+              />
+
+              {canEditShots && sortedShots.length > 0 && (
+                <Button
+                  type="button"
+                  variant={selectionMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={handleSelectionModeToggle}
+                  aria-pressed={selectionMode}
+                  className="flex items-center gap-1.5"
+                >
+                  {selectionMode ? <X className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
+                  <span className="hidden sm:inline">
+                    {selectionMode
+                      ? selectedShotIds.size > 0
+                        ? `Done (${selectedShotIds.size})`
+                        : "Exit selection"
+                      : "Select"}
+                  </span>
+                </Button>
+              )}
+
+              <ExportButton data={filteredShots} entityType="shots" />
+            </div>
           </div>
         </OverviewToolbarRow>
       </OverviewToolbar>
@@ -3020,7 +2973,7 @@ export function ShotsWorkspace() {
           onSelectAll={toggleSelectAll}
           totalCount={sortedShots.length}
           isSticky={true}
-          topOffset={314}
+          topOffset={240}
           // Tag operations
           onApplyTags={handleBulkApplyTags}
           onRemoveTags={handleBulkRemoveTags}
@@ -3078,7 +3031,7 @@ export function ShotsWorkspace() {
                 items={sortedShots}
                 itemHeight={galleryItemHeight}
                 threshold={80}
-                className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+                className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
                 renderItem={(shot, index, isVirtualized) => {
                   const shotProducts = normaliseShotProducts(shot);
                   const shotTalentSelection = mapShotTalentToSelection(shot);
@@ -3346,276 +3299,186 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     : "";
 
   const density = normaliseShotDensity(viewPrefs?.density);
-  const imageHeightClass = 'h-44 sm:h-48';
 
   // Status label + color
   const statusValue = normaliseShotStatus(shot?.status);
   const statusLabel =
-    statusValue === 'in_progress' ? 'In progress' :
-    statusValue === 'on_hold' ? 'On hold' :
-    statusValue === 'complete' ? 'Complete' : 'To do';
-  const statusColor =
-    statusValue === 'in_progress' ? 'text-blue-600' :
-    statusValue === 'on_hold' ? 'text-amber-600' :
-    statusValue === 'complete' ? 'text-emerald-600' : 'text-slate-500';
+    statusValue === "in_progress" ? "In progress" : statusValue === "on_hold" ? "On hold" : statusValue === "complete" ? "Complete" : "To do";
+  const statusTone = {
+    in_progress: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-blue-100 dark:border-blue-700/60",
+    on_hold: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-100 dark:border-amber-700/50",
+    complete: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-100 dark:border-emerald-700/50",
+    default: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/60 dark:text-slate-200 dark:border-slate-700",
+  };
+  const orderedFields =
+    Array.isArray(viewPrefs?.fieldOrder) && viewPrefs.fieldOrder.length
+      ? viewPrefs.fieldOrder
+      : Array.from(PREF_TO_COLUMN_KEY.values());
+  const isCompact = density === "compact";
+  const mediaWidth = isCompact ? "w-24" : "w-32 md:w-36";
+  const mediaRadius = isCompact ? "rounded-md" : "rounded-lg";
+  const cardPadding = isCompact ? "p-3" : "p-4 md:p-5";
+  const contentGap = isCompact ? "gap-2" : "gap-3";
+  const titleClass = isCompact ? "text-[13px]" : "text-sm md:text-base";
 
-  // Helpers to render compact bullets
-  const productBullets = Array.isArray(products)
-    ? products
-        .filter(Boolean)
-        .map((p) => [p.familyName, p.colourName].filter(Boolean).join(' – '))
-        .filter(Boolean)
-    : [];
-  const talentBullets = Array.isArray(talent)
-    ? talent.filter(Boolean).map((t) => t.name).filter(Boolean)
-    : [];
+  const metaEntries = orderedFields
+    .map((key) => {
+      if (key === "date" && showDate && formattedDate) {
+        return (
+          <span key="date" className="inline-flex items-center gap-1" title={formattedDate}>
+            <Calendar className="h-3.5 w-3.5" />
+            {formattedDate}
+          </span>
+        );
+      }
+      if (key === "location" && showLocation && locationName) {
+        return (
+          <span
+            key="location"
+            className="inline-flex items-center gap-1 min-w-0 max-w-[220px]"
+            title={locationName}
+          >
+            <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="truncate">{locationName || "Unassigned"}</span>
+          </span>
+        );
+      }
+      return null;
+    })
+    .filter(Boolean);
 
-  const CompactCard = () => (
-    <div className="px-3 py-2">
-      <div className="flex items-start gap-3">
-        {showImage && (
-          <div className="relative flex-shrink-0">
-            <div className="h-16 w-16 sm:h-20 sm:w-20 overflow-hidden rounded border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900">
-              {imagePath ? (
-                <AppImage
-                  src={imagePath}
-                  alt={`${shot.name || 'Shot'} preview`}
-                  preferredSize={160}
-                  className="h-full w-full"
-                  imageClassName="h-full w-full object-cover"
-                  position={imagePosition}
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">No image</div>
-              )}
-            </div>
-            {onToggleSelect && (
-              <div className="absolute -left-2 -top-2">
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => onToggleSelect(shot.id)}
-                  className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label={`Select ${shot?.name || 'shot'}`}
-                />
-              </div>
-            )}
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            {showName && (
-              <h3 className="text-[13px] font-semibold text-slate-900 dark:text-slate-100 leading-5 line-clamp-2" title={shot.name}>
-                {shot.name}
-              </h3>
-            )}
-            {canEditShots && (
-              <div className="flex items-center gap-1">
-                {viewPrefs.fieldOrder?.includes('status') && showStatus && (
-                  <span className={`inline-flex items-center gap-1 text-[11px] ${statusColor}`} title={`Status: ${statusLabel}`}>
-                    <CircleDot className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span className="sr-only">{statusLabel}</span>
-                  </span>
-                )}
-                <Button type="button" size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onEdit?.(); }}>
-                  Edit
-                </Button>
-              </div>
-            )}
-          </div>
-          {showType && shot.type && (
-            <p
-              className="mt-0.5 block w-full min-w-0 truncate text-[10px] leading-4 text-slate-600 dark:text-slate-300"
-              title={shot.type}
-            >
-              {shot.type}
-            </p>
-          )}
-          <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
-            {formattedDate && showDate && (
-              <span className="inline-flex items-center gap-1" title={formattedDate}>
-                <Calendar className="h-3.5 w-3.5" />
-                {formattedDate}
-              </span>
-            )}
-          </div>
-          {tags.length > 0 && (
-            showTags ? (
-              <div className="mt-1">
-                <TagList tags={tags} emptyMessage={null} />
-              </div>
-            ) : null
-          )}
-          <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-slate-600">
-            {showTalent && (
-              <div className="min-w-0 flex items-start gap-1" title={talentBullets.join(', ')}>
-                <Users className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
-                {talentBullets.length > 0 ? (
-                  <p className="min-w-0 truncate">{talentBullets.slice(0, 3).join(' • ')}{talentBullets.length > 3 ? ' +' + (talentBullets.length - 3) : ''}</p>
-                ) : (
-                  <span className="text-slate-400">No talent</span>
-                )}
-              </div>
-            )}
-            {showLocation && (
-              <div className="min-w-0 flex items-start gap-1" title={locationName}>
-                <MapPin className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
-                <p className="min-w-0 truncate">{locationName || 'Unassigned'}</p>
-              </div>
-            )}
-          </div>
-          {showProducts && (
-            <div className="mt-1 text-[11px] text-slate-600">
-              <div className="flex items-start gap-1" title={productBullets.join(', ')}>
-                <Package className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
-                {productBullets.length > 0 ? (
-                  <p className="min-w-0 truncate">{productBullets.slice(0, 3).join(' • ')}{productBullets.length > 3 ? ' +' + (productBullets.length - 3) : ''}</p>
-                ) : (
-                  <span className="text-slate-400">No products</span>
-                )}
-              </div>
-            </div>
-          )}
-          {showNotes && (
-            notesHtml ? (
-              <div
-                className="mt-1 text-[11px] text-slate-600 prose prose-xs dark:prose-invert max-w-none line-clamp-2"
-                dangerouslySetInnerHTML={{ __html: notesHtml }}
-              />
-            ) : (
-              <p className="mt-1 text-[11px] text-slate-400 inline-flex items-center gap-1"><FileText className="h-3.5 w-3.5" /> No notes</p>
-            )
-          )}
-        </div>
-      </div>
-    </div>
-  );
-
-  const ComfyCard = () => (
-    <>
-      {showImage && (
-        <div className={`relative ${imageHeightClass} bg-slate-100`}>
-          <AppImage
-            src={imagePath}
-            alt={`${shot.name} preview`}
-            preferredSize={640}
-            className="h-full w-full"
-            imageClassName="h-full w-full object-cover"
-            position={imagePosition}
-            fallback={
-              <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
-                No preview available
-              </div>
-            }
-            placeholder={
-              <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
-                Loading preview…
-              </div>
-            }
+  const detailSections = orderedFields
+    .map((key) => {
+      if (key === "notes" && showNotes) {
+        return notesHtml ? (
+          <div
+            key="notes"
+            className="prose prose-xs dark:prose-invert max-w-none text-[11px] text-slate-600 dark:text-slate-300 line-clamp-3"
+            dangerouslySetInnerHTML={{ __html: notesHtml }}
           />
+        ) : (
+          <p key="notes-empty" className="text-[11px] text-slate-500 dark:text-slate-400 inline-flex items-center gap-1">
+            <FileText className="h-3.5 w-3.5" />
+            No notes
+          </p>
+        );
+      }
+      if (key === "products" && showProducts) {
+        return (
+          <div key="products" className="space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Products</span>
+            <ShotProductChips products={products} />
+          </div>
+        );
+      }
+      if (key === "talent" && showTalent) {
+        return (
+          <div key="talent" className="space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Talent</span>
+            <ShotTalentList talent={talent} />
+          </div>
+        );
+      }
+      if (key === "tags" && showTags && tags.length > 0) {
+        return (
+          <div key="tags" className="text-[11px]">
+            <TagList tags={tags} emptyMessage={null} />
+          </div>
+        );
+      }
+      return null;
+    })
+    .filter(Boolean);
+
+  const statusPill =
+    showStatus && orderedFields.includes("status") ? (
+      <span
+        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusTone[statusValue] || statusTone.default}`}
+        title={`Status: ${statusLabel}`}
+      >
+        <CircleDot className="h-3.5 w-3.5" />
+        <span>{statusLabel}</span>
+      </span>
+    ) : null;
+
+  return (
+    <Card className={`overflow-hidden border shadow-sm transition ${focusClasses}`} onClick={() => onFocus?.(shot)}>
+      <div className={`flex items-start gap-3 sm:gap-4 ${cardPadding}`}>
+        {showImage && (
+          <div
+            className={`relative ${mediaWidth} overflow-hidden ${mediaRadius} border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900 flex items-center justify-center self-start max-h-80`}
+          >
+            {imagePath ? (
+              <AppImage
+                src={imagePath}
+                alt={`${shot.name || "Shot"} preview`}
+              preferredSize={640}
+              className="max-h-full max-w-full"
+              imageClassName="max-h-full max-w-full object-contain"
+              position={imagePosition}
+              fallback={
+                <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
+              }
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
+          )}
           {onToggleSelect && (
-            <div className="absolute left-3 top-3">
+            <div className="absolute left-2 top-2">
               <input
                 type="checkbox"
                 checked={isSelected}
                 onChange={() => onToggleSelect(shot.id)}
                 className="h-5 w-5 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary shadow-sm"
                 onClick={(e) => e.stopPropagation()}
+                aria-label={`Select ${shot?.name || "shot"}`}
               />
             </div>
           )}
+        </div>
+        )}
+
+        <div className={`flex min-w-0 flex-1 flex-col ${contentGap}`}>
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1 space-y-1">
+              {showName && (
+                <h3 className={`${titleClass} font-semibold leading-5 text-slate-900 dark:text-slate-50 line-clamp-2`} title={shot.name}>
+                  {shot.name}
+                </h3>
+              )}
+              {showType && shot.type && (
+                <p className="min-w-0 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={shot.type}>
+                  {shot.type}
+                </p>
+              )}
+              {metaEntries.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                  {metaEntries}
+                </div>
+              )}
+            </div>
+            {statusPill}
+          </div>
+
+          {detailSections.length > 0 && <div className="flex flex-col gap-2">{detailSections}</div>}
+
           {canEditShots && (
-            <div className="absolute right-3 top-3 flex gap-2">
-              <Button type="button" size="sm" variant="secondary" onClick={onEdit}>
+            <div className="mt-auto flex justify-end">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit?.();
+                }}
+              >
                 Edit
               </Button>
             </div>
           )}
         </div>
-      )}
-      <CardContent className="space-y-1.5 px-4 pb-4 pt-3">
-        <div className="flex items-start justify-between gap-2">
-          {showName && (
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 md:text-base line-clamp-2" title={shot.name}>
-              {shot.name}
-            </h3>
-          )}
-          {(Array.isArray(viewPrefs.fieldOrder) ? viewPrefs.fieldOrder : Array.from(PREF_TO_COLUMN_KEY.values()))
-            .filter((k) => k === 'status')
-            .map((key) => {
-              if (key === 'status' && showStatus) {
-                return (
-                  <span key="status" className={`inline-flex items-center gap-1 ${statusColor}`} title={`Status: ${statusLabel}`}>
-                    <CircleDot className="h-3.5 w-3.5" />
-                    <span className="sr-only">{statusLabel}</span>
-                  </span>
-                );
-              }
-              return null;
-            })}
-        </div>
-        {showType && shot.type && (
-          <p
-            className="-mt-0.5 block w-full min-w-0 truncate text-[11px] md:text-[12px] leading-5 text-slate-600 dark:text-slate-300"
-            title={shot.type}
-          >
-            {shot.type}
-          </p>
-        )}
-        <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
-          {(Array.isArray(viewPrefs.fieldOrder) ? viewPrefs.fieldOrder : Array.from(PREF_TO_COLUMN_KEY.values()))
-            .filter((k) => k === 'date' || k === 'location')
-            .map((key) => {
-              if (key === 'date' && showDate && formattedDate) return <span key="date">{formattedDate}</span>;
-              if (key === 'location' && showLocation && locationName) return (
-                <span key="location" title={locationName}>{locationName}</span>
-              );
-              return null;
-            })}
-        </div>
-        {tags.length > 0 && (
-          showTags ? (
-            <div>
-              <TagList tags={tags} emptyMessage={null} />
-            </div>
-          ) : null
-        )}
-        {(Array.isArray(viewPrefs.fieldOrder) ? viewPrefs.fieldOrder : Array.from(PREF_TO_COLUMN_KEY.values()))
-          .filter((k) => k === 'notes' || k === 'products' || k === 'talent')
-          .map((key) => {
-            if (key === 'notes' && showNotes) {
-              return notesHtml ? (
-                <div key="notes" className="prose prose-sm dark:prose-invert max-w-none line-clamp-3" dangerouslySetInnerHTML={{ __html: notesHtml }} />
-              ) : (
-                <p key="notes-empty" className="text-sm text-slate-500">No notes added yet.</p>
-              );
-            }
-            if (key === 'products' && showProducts) {
-              return (
-                <div key="products">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Products</span>
-                  <ShotProductChips products={products} />
-                </div>
-              );
-            }
-            if (key === 'talent' && showTalent) {
-              return (
-                <div key="talent">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Talent</span>
-                  <ShotTalentList talent={talent} />
-                </div>
-              );
-            }
-            return null;
-          })}
-      </CardContent>
-    </>
-  );
-
-  return (
-    <Card className={`overflow-hidden border shadow-sm transition ${focusClasses}`} onClick={() => onFocus?.(shot)}>
-      {density === 'compact' ? <CompactCard /> : <ComfyCard />}
+      </div>
     </Card>
   );
 });
@@ -3788,7 +3651,7 @@ export default function ShotsPage({ initialView = null }) {
   return (
     <ShotsOverviewProvider value={overviewValue}>
       <div className="flex min-h-screen flex-col bg-slate-50">
-        <PageHeader sticky={true} className="top-28 z-[39]" data-shot-overview-header>
+        <PageHeader sticky={true} className="top-20 z-[39]" data-shot-overview-header>
           <PageHeader.Content>
             <div>
               <PageHeader.Title>Shots</PageHeader.Title>

@@ -96,15 +96,17 @@ const styles = StyleSheet.create({
   },
   shotImage: {
     width: 100,
-    height: 78,
-    objectFit: "cover",
+    height: 100,
+    objectFit: "contain",
+    backgroundColor: "#f1f5f9",
     borderRadius: 4,
     marginBottom: 6,
   },
   galleryShotImage: {
     width: "100%",
-    height: 140,
-    objectFit: "cover",
+    height: 160,
+    objectFit: "contain",
+    backgroundColor: "#f1f5f9",
     borderRadius: 4,
     marginBottom: 8,
   },
@@ -366,7 +368,7 @@ const cssEscape = (value) => {
   return String(value).replace(/"/g, '\"');
 };
 
-const prepareLanesForPdf = async (lanes, { includeImages, density = 'standard' }) => {
+const prepareLanesForPdf = async (lanes, { includeImages, density = 'standard', useDomCapture = false, inlineImages = false }) => {
   const list = Array.isArray(lanes) ? lanes : [];
   const tasks = [];
   const shotImageMap = new Map();
@@ -375,7 +377,7 @@ const prepareLanesForPdf = async (lanes, { includeImages, density = 'standard' }
   // Get optimal image dimensions for the density
   const imageDimensions = getOptimalImageDimensions(density);
 
-  if (includeImages && typeof document !== "undefined") {
+  if (includeImages && inlineImages && useDomCapture && typeof document !== "undefined") {
     const shotIds = new Set();
     list.forEach((lane) => {
       const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
@@ -469,6 +471,10 @@ const prepareLanesForPdf = async (lanes, { includeImages, density = 'standard' }
       const preparedShot = { ...shot };
       if (!includeImages) {
         preparedShot.image = null;
+        return preparedShot;
+      }
+      // Fast path: do not inline images, just pass URLs/paths through to PDF renderer
+      if (!inlineImages) {
         return preparedShot;
       }
       const shotId = shot?.id ? String(shot.id) : null;
@@ -1293,6 +1299,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
   const [layoutMode, setLayoutMode] = useState("table");
   const [density, setDensity] = useState("standard");
   const [galleryColumns, setGalleryColumns] = useState("3");
+  const [fallbackToProductImages, setFallbackToProductImages] = useState(true);
+  const [inlineImages, setInlineImages] = useState(false);
 
   // Initialize section states first
   const [sectionStates, setSectionStates] = useState(() => getDefaultSectionConfig());
@@ -1523,21 +1531,40 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     [filteredLanes]
   );
 
+  const includeImages = Boolean(fields.image);
+  const lanesWithImageFallback = useMemo(() => {
+    if (!includeImages) return filteredLanes;
+    return filteredLanes.map((lane) => {
+      const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+      const shots = laneShots.map((shot) => {
+        if (shot?.image) return shot;
+        if (!fallbackToProductImages) return shot;
+        const fallback =
+          Array.isArray(shot.productImages) && shot.productImages.length
+            ? shot.productImages.find(Boolean)
+            : null;
+        if (!fallback) return shot;
+        return { ...shot, image: fallback };
+      });
+      return { ...lane, shots };
+    });
+  }, [filteredLanes, includeImages, fallbackToProductImages]);
+
   // Flatten all shots from filtered lanes for preview
   const filteredShots = useMemo(() => {
-    if (!Array.isArray(filteredLanes)) return [];
-    return filteredLanes.flatMap(lane => {
+    if (!Array.isArray(lanesWithImageFallback)) return [];
+    return lanesWithImageFallback.flatMap(lane => {
       const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
       return laneShots.map(shot => ({
         ...shot,
         laneName: lane.name,
       }));
     });
-  }, [filteredLanes]);
+  }, [lanesWithImageFallback]);
 
   const derivedLaneSummary = useMemo(() => {
-    const summaries = Array.isArray(filteredLanes)
-      ? filteredLanes.map((lane) => ({
+    const summaries = Array.isArray(lanesWithImageFallback)
+      ? lanesWithImageFallback.map((lane) => ({
           id: lane.id,
           name: lane.name || "Untitled lane",
           shotCount: Array.isArray(lane.shots) ? lane.shots.length : 0,
@@ -1545,10 +1572,10 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       : [];
     const totalShots = summaries.reduce((acc, lane) => acc + lane.shotCount, 0);
     return { totalShots, lanes: summaries };
-  }, [filteredLanes]);
+  }, [lanesWithImageFallback]);
 
   const derivedTalentSummary = useMemo(() => {
-    const laneOrder = Array.isArray(filteredLanes) ? filteredLanes : [];
+    const laneOrder = Array.isArray(lanesWithImageFallback) ? lanesWithImageFallback : [];
     const baseByLane = laneOrder.reduce((acc, lane) => ({ ...acc, [lane.id]: 0 }), {});
     const tally = new Map();
 
@@ -1604,7 +1631,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       lanes: laneOrder.map((lane) => ({ id: lane.id, name: lane.name || "Untitled lane" })),
       rows,
     };
-  }, [filteredLanes]);
+  }, [lanesWithImageFallback]);
 
   const selectedOptions = useMemo(
     () => ({
@@ -1666,7 +1693,12 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       setIsGenerating(true);
       const includeImages = Boolean(fields.image);
       setGenerationStage("Collecting assets…");
-      const preparedLanes = await prepareLanesForPdf(filteredLanes, { includeImages, density });
+      const preparedLanes = await prepareLanesForPdf(lanesWithImageFallback, {
+        includeImages,
+        density,
+        useDomCapture: false,
+        inlineImages,
+      });
       setGenerationStage("Rendering PDF…");
       const blob = await pdf(
         <PlannerPdfDocument
@@ -1696,7 +1728,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     }
   }, [
     hasShots,
-    filteredLanes,
+    lanesWithImageFallback,
     derivedLaneSummary,
     derivedTalentSummary,
     selectedOptions,
@@ -1705,6 +1737,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     fields.image,
     density,
     prepareLanesForPdf,
+    inlineImages,
   ]);
 
   const handleDownloadCsv = useCallback(() => {
@@ -1724,7 +1757,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     if (fields.image) headers.push("Image");
 
     const rows = [];
-    filteredLanes.forEach((lane) => {
+    lanesWithImageFallback.forEach((lane) => {
       const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
       laneShots.forEach((shot) => {
         const row = [lane.name];
@@ -1754,7 +1787,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     URL.revokeObjectURL(url);
     toast.success("CSV export saved");
     onClose?.();
-  }, [fields, hasShots, filteredLanes, title, onClose]);
+  }, [fields, hasShots, lanesWithImageFallback, title, onClose]);
 
   // Don't render if not open
   if (!open) return null;
@@ -1932,6 +1965,31 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Image handling */}
+              <div className="space-y-2 pt-4 border-t border-slate-200 dark:border-slate-700">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Image handling
+                </label>
+                <label className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={fallbackToProductImages}
+                    onChange={(event) => setFallbackToProductImages(event.target.checked)}
+                    className="mt-1 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary"
+                  />
+                  <span>Use product images when shot image is missing</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={inlineImages}
+                    onChange={(event) => setInlineImages(event.target.checked)}
+                    className="mt-1 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary"
+                  />
+                  <span>Inline images for PDF (slower, avoid external fetch issues)</span>
+                </label>
               </div>
 
               {/* Include Sections */}
@@ -2148,7 +2206,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
               style={{ width: `${100 - dividerPosition}%` }}
             >
               <PlannerSheetPreview
-                lanes={filteredLanes}
+                lanes={lanesWithImageFallback}
                 sectionStates={sectionStates}
                 layoutMode={layoutMode}
                 orientation={orientation}
