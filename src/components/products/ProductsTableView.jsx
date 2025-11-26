@@ -9,6 +9,7 @@ import { Input, Checkbox } from '../ui/input';
 import AppImage from '../common/AppImage';
 import { Package } from 'lucide-react';
 import { genderLabel } from '../../lib/productMutations';
+import { getCategoryLabel } from '../../lib/productCategories';
 import { toast } from '../../lib/toast';
 
 /**
@@ -205,6 +206,7 @@ export default function ProductsTableView({
     styleName: true,
     styleNumber: true,
     gender: true,
+    category: true,
     status: true,
     colors: true,
     sizes: true,
@@ -212,7 +214,7 @@ export default function ProductsTableView({
     ...(visibleFields || {}),
   };
 
-  const defaultOrder = ["preview", "styleName", "styleNumber", "gender", "status", "colors", "sizes", "skus", "lastUpdated"];
+  const defaultOrder = ["preview", "styleName", "styleNumber", "gender", "category", "status", "colors", "sizes", "skus", "lastUpdated"];
   const normaliseOrder = (order) => {
     if (!Array.isArray(order)) return defaultOrder;
     const base = order.filter((key) => defaultOrder.includes(key));
@@ -277,6 +279,20 @@ export default function ProductsTableView({
           {genderLabel(family.gender)}
         </span>
       ),
+    },
+    category: {
+      key: "category",
+      label: "Category",
+      headerClassName: "min-w-[180px]",
+      cellClassName: `${baseCellClass} min-w-[180px]`,
+      render: (family) => {
+        const categoryPath = getCategoryLabel(family.gender, family.productType, family.productSubcategory);
+        return (
+          <span className={`text-slate-600 dark:text-slate-400 ${textClass}`}>
+            {categoryPath || "–"}
+          </span>
+        );
+      },
     },
     status: {
       key: "status",
