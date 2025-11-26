@@ -975,6 +975,8 @@ export default function ProductsPage() {
         styleNumber: payload.family.styleNumber,
         previousStyleNumber: payload.family.previousStyleNumber,
         gender: payload.family.gender,
+        productType: payload.family.productType || null,
+        productSubcategory: payload.family.productSubcategory || null,
         status: payload.family.status,
         archived: payload.family.archived,
         notes: payload.family.notes,
