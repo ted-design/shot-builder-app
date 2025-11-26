@@ -76,11 +76,20 @@ import {
   CircleDot,
   Package,
   FileText,
+  Check,
+  MoreVertical,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/ui/EmptyState";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
+import { shotStatusOptions } from "../lib/shotStatus";
 import ExportButton from "../components/common/ExportButton";
 import { searchShots } from "../lib/search";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
@@ -3051,6 +3060,7 @@ export function ShotsWorkspace() {
                         notesHtml={notesHtml}
                         canEditShots={canEditShots}
                         onEdit={() => handleEditShot(shot)}
+                        onChangeStatus={canEditShots ? (shot, value) => updateShot(shot, { status: value }) : null}
                         viewPrefs={viewPrefs}
                         isSelected={selectedShotIds.has(shot.id)}
                         onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}
@@ -3264,6 +3274,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   notesHtml,
   canEditShots,
   onEdit,
+  onChangeStatus = null,
   viewPrefs = defaultViewPrefs,
   isSelected = false,
   onToggleSelect = null,
@@ -3331,67 +3342,80 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
           </span>
         );
       }
-      if (key === "location" && showLocation && locationName) {
-        return (
-          <span
-            key="location"
-            className="inline-flex items-center gap-1 min-w-0 max-w-[220px]"
-            title={locationName}
+      // Location removed from inline meta - now shown in dedicated section below
+      return null;
+    })
+    .filter(Boolean);
+
+  // Build structured content sections for better vertical space usage
+  const productsSection = showProducts && (
+    <div key="products" className="space-y-1">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Products</span>
+      <ShotProductChips products={products} />
+    </div>
+  );
+
+  const talentSection = showTalent && (
+    <div key="talent" className="space-y-1">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Talent</span>
+      <ShotTalentList talent={talent} />
+    </div>
+  );
+
+  const locationSection = showLocation && locationName && (
+    <div key="location" className="space-y-1">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Location</span>
+      <p className="text-[11px] text-slate-700 dark:text-slate-200">{locationName}</p>
+    </div>
+  );
+
+  const notesSection = showNotes && (
+    notesHtml ? (
+      <div
+        key="notes"
+        className="prose prose-xs dark:prose-invert max-w-none text-[11px] text-slate-600 dark:text-slate-300 line-clamp-3"
+        dangerouslySetInnerHTML={{ __html: notesHtml }}
+      />
+    ) : null
+  );
+
+  const tagsSection = showTags && tags.length > 0 && (
+    <div key="tags" className="text-[11px]">
+      <TagList tags={tags} emptyMessage={null} />
+    </div>
+  );
+
+  // Status display - interactive dropdown if editable, static pill otherwise
+  const statusElement = showStatus && orderedFields.includes("status") ? (
+    canEditShots && onChangeStatus ? (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 ${statusTone[statusValue] || statusTone.default}`}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Change status: ${statusLabel}`}
           >
-            <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="truncate">{locationName || "Unassigned"}</span>
-          </span>
-        );
-      }
-      return null;
-    })
-    .filter(Boolean);
-
-  const detailSections = orderedFields
-    .map((key) => {
-      if (key === "notes" && showNotes) {
-        return notesHtml ? (
-          <div
-            key="notes"
-            className="prose prose-xs dark:prose-invert max-w-none text-[11px] text-slate-600 dark:text-slate-300 line-clamp-3"
-            dangerouslySetInnerHTML={{ __html: notesHtml }}
-          />
-        ) : (
-          <p key="notes-empty" className="text-[11px] text-slate-500 dark:text-slate-400 inline-flex items-center gap-1">
-            <FileText className="h-3.5 w-3.5" />
-            No notes
-          </p>
-        );
-      }
-      if (key === "products" && showProducts) {
-        return (
-          <div key="products" className="space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Products</span>
-            <ShotProductChips products={products} />
-          </div>
-        );
-      }
-      if (key === "talent" && showTalent) {
-        return (
-          <div key="talent" className="space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Talent</span>
-            <ShotTalentList talent={talent} />
-          </div>
-        );
-      }
-      if (key === "tags" && showTags && tags.length > 0) {
-        return (
-          <div key="tags" className="text-[11px]">
-            <TagList tags={tags} emptyMessage={null} />
-          </div>
-        );
-      }
-      return null;
-    })
-    .filter(Boolean);
-
-  const statusPill =
-    showStatus && orderedFields.includes("status") ? (
+            <CircleDot className="h-3.5 w-3.5" />
+            <span>{statusLabel}</span>
+            <ChevronDown className="h-3 w-3 opacity-60" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+          {shotStatusOptions.map((option) => (
+            <DropdownMenuItem
+              key={option.value}
+              onClick={() => onChangeStatus(shot, option.value)}
+              className="flex items-center gap-2"
+            >
+              <span className="flex-1">{option.label}</span>
+              {option.value === statusValue && (
+                <Check className="h-4 w-4 text-primary" />
+              )}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) : (
       <span
         className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusTone[statusValue] || statusTone.default}`}
         title={`Status: ${statusLabel}`}
@@ -3399,11 +3423,62 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
         <CircleDot className="h-3.5 w-3.5" />
         <span>{statusLabel}</span>
       </span>
-    ) : null;
+    )
+  ) : null;
 
   return (
-    <Card className={`overflow-hidden border shadow-sm transition ${focusClasses}`} onClick={() => onFocus?.(shot)}>
+    <Card className={`overflow-hidden border shadow-sm transition ${focusClasses} relative`} onClick={() => onFocus?.(shot)}>
+      {/* Card Actions Menu (Top Right Corner) */}
+      {canEditShots && (
+        <div className="absolute right-2 top-2 z-10">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Shot actions"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit?.();
+                }}
+              >
+                Edit
+              </DropdownMenuItem>
+              {/* Placeholder for future actions */}
+              {/* <DropdownMenuItem onClick={() => {}}>Duplicate</DropdownMenuItem> */}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+
+      {/* Comfy Density: Name and Description Above Image */}
+      {!isCompact && (showName || (showType && shot.type)) && (
+        <div className={`border-b border-slate-200 dark:border-slate-700 ${cardPadding} space-y-1`}>
+          {/* Shot Name */}
+          {showName && (
+            <h3 className={`${titleClass} font-semibold leading-5 text-slate-900 dark:text-slate-50 line-clamp-2`} title={shot.name}>
+              {shot.name}
+            </h3>
+          )}
+
+          {/* Description/Type */}
+          {showType && shot.type && (
+            <p className="min-w-0 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={shot.type}>
+              {shot.type}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Top Section: Horizontal Layout (Image + Header Info) */}
       <div className={`flex items-start gap-3 sm:gap-4 ${cardPadding}`}>
+        {/* Image (Left ~40%) */}
         {showImage && (
           <div
             className={`relative ${mediaWidth} overflow-hidden ${mediaRadius} border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900 flex items-center justify-center self-start max-h-80`}
@@ -3412,73 +3487,88 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
               <AppImage
                 src={imagePath}
                 alt={`${shot.name || "Shot"} preview`}
-              preferredSize={640}
-              className="max-h-full max-w-full"
-              imageClassName="max-h-full max-w-full object-contain"
-              position={imagePosition}
-              fallback={
-                <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
-              }
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
-          )}
-          {onToggleSelect && (
-            <div className="absolute left-2 top-2">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => onToggleSelect(shot.id)}
-                className="h-5 w-5 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary shadow-sm"
-                onClick={(e) => e.stopPropagation()}
-                aria-label={`Select ${shot?.name || "shot"}`}
+                preferredSize={640}
+                className="max-h-full max-w-full"
+                imageClassName="max-h-full max-w-full object-contain"
+                position={imagePosition}
+                fallback={
+                  <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
+                }
               />
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
+            )}
+            {onToggleSelect && (
+              <div className="absolute left-2 top-2">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect(shot.id)}
+                  className="h-5 w-5 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary shadow-sm"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={`Select ${shot?.name || "shot"}`}
+                />
+              </div>
+            )}
+          </div>
         )}
 
-        <div className={`flex min-w-0 flex-1 flex-col ${contentGap}`}>
-          <div className="flex items-start gap-3">
-            <div className="min-w-0 flex-1 space-y-1">
+        {/* Header Info (Right ~60%) */}
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          {/* Compact Density: Name and Description in horizontal section */}
+          {isCompact && (
+            <>
+              {/* Shot Name */}
               {showName && (
                 <h3 className={`${titleClass} font-semibold leading-5 text-slate-900 dark:text-slate-50 line-clamp-2`} title={shot.name}>
                   {shot.name}
                 </h3>
               )}
+
+              {/* Description/Type */}
               {showType && shot.type && (
                 <p className="min-w-0 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={shot.type}>
                   {shot.type}
                 </p>
               )}
-              {metaEntries.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-                  {metaEntries}
-                </div>
-              )}
-            </div>
-            {statusPill}
-          </div>
+            </>
+          )}
 
-          {detailSections.length > 0 && <div className="flex flex-col gap-2">{detailSections}</div>}
-
-          {canEditShots && (
-            <div className="mt-auto flex justify-end">
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit?.();
-                }}
-              >
-                Edit
-              </Button>
+          {/* Date */}
+          {metaEntries.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+              {metaEntries}
             </div>
           )}
+
+          {/* Status Dropdown */}
+          {statusElement}
+
+          {/* Tags */}
+          {tagsSection}
         </div>
       </div>
+
+      {/* Bottom Section: Full-Width Content (Starts at card left edge) */}
+      {(productsSection || talentSection || locationSection || notesSection) && (
+        <div className={`border-t border-slate-200 dark:border-slate-700 ${cardPadding}`}>
+          <div className="flex flex-col gap-3">
+            {/* Products - full width */}
+            {productsSection}
+
+            {/* Talent and Location - two columns */}
+            {(talentSection || locationSection) && (
+              <div className="grid grid-cols-2 gap-3">
+                {talentSection}
+                {locationSection}
+              </div>
+            )}
+
+            {/* Notes - full width */}
+            {notesSection}
+          </div>
+        </div>
+      )}
     </Card>
   );
 });
