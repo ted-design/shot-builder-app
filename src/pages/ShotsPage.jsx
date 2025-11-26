@@ -72,10 +72,8 @@ import {
   Plus,
   Table,
   Shapes,
-  MapPin,
   CircleDot,
   Package,
-  FileText,
   Check,
   MoreVertical,
 } from "lucide-react";
