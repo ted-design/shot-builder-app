@@ -8,6 +8,11 @@ import AppImage from "../common/AppImage";
 import SizeListInput from "./SizeListInput";
 import ColorListEditor from "./ColorListEditor";
 import { compressImageFile, formatFileSize } from "../../lib/images";
+import {
+  getTypesForGender,
+  getSubcategoriesForType,
+  hasCategories,
+} from "../../lib/productCategories";
 
 const GENDER_OPTIONS = [
   { value: "men", label: "Men's" },
@@ -66,6 +71,8 @@ const buildInitialState = (initialValue) => {
       styleNumber: "",
       previousStyleNumber: "",
       gender: "unisex",
+      productType: null,
+      productSubcategory: null,
       status: "active",
       archived: false,
       notes: [],
@@ -77,6 +84,8 @@ const buildInitialState = (initialValue) => {
     styleNumber: initialValue.styleNumber || "",
     previousStyleNumber: initialValue.previousStyleNumber || "",
     gender: initialValue.gender || "unisex",
+    productType: initialValue.productType || null,
+    productSubcategory: initialValue.productSubcategory || null,
     status: initialValue.status === "discontinued" ? "discontinued" : "active",
     archived: !!initialValue.archived,
     notes: Array.isArray(initialValue.notes)
@@ -484,6 +493,8 @@ export default function ProductFamilyForm({
         styleNumber,
         previousStyleNumber: familyState.previousStyleNumber.trim() || null,
         gender: familyState.gender,
+        productType: familyState.productType || null,
+        productSubcategory: familyState.productSubcategory || null,
         status: familyState.status,
         archived: familyState.archived,
         notes: familyState.notes.map((note) => ({
@@ -559,12 +570,62 @@ export default function ProductFamilyForm({
           <label className="block text-sm font-medium text-slate-700">Gender</label>
           <select
             value={familyState.gender}
-            onChange={(event) => updateFamily({ gender: event.target.value })}
+            onChange={(event) => {
+              const newGender = event.target.value;
+              // Reset type and subcategory when gender changes
+              updateFamily({
+                gender: newGender,
+                productType: null,
+                productSubcategory: null,
+              });
+            }}
             className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
           >
             {GENDER_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-slate-700">Type</label>
+          <select
+            value={familyState.productType || ""}
+            onChange={(event) => {
+              const newType = event.target.value || null;
+              // Reset subcategory when type changes
+              updateFamily({
+                productType: newType,
+                productSubcategory: null,
+              });
+            }}
+            disabled={!hasCategories(familyState.gender)}
+            className="w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            <option value="">Select type...</option>
+            {getTypesForGender(familyState.gender).map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+          {!hasCategories(familyState.gender) && (
+            <p className="text-xs text-slate-500">Categories not available for this gender</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-slate-700">Subcategory</label>
+          <select
+            value={familyState.productSubcategory || ""}
+            onChange={(event) => updateFamily({ productSubcategory: event.target.value || null })}
+            disabled={!familyState.productType}
+            className="w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            <option value="">Select subcategory...</option>
+            {getSubcategoriesForType(familyState.gender, familyState.productType).map((sub) => (
+              <option key={sub.value} value={sub.value}>
+                {sub.label}
               </option>
             ))}
           </select>

@@ -56,6 +56,8 @@ export const productFamilySchema = z.object({
   styleNumber: z.string().max(100).nullable().optional(),
   previousStyleNumber: z.string().max(100).nullable().optional(),
   gender: genderSchema,
+  productType: z.string().max(50).nullable().optional(), // "tops", "bottoms", "accessories"
+  productSubcategory: z.string().max(50).nullable().optional(), // "tshirts", "pants", "hats", etc.
   status: productStatusSchema.default("active"),
   archived: z.boolean().default(false),
   notes: notesSchema,
@@ -84,6 +86,8 @@ export const createProductFamilySchema = z.object({
     styleNumber: z.string().max(100).default(""),
     previousStyleNumber: z.string().max(100).nullable().optional().default(""),
     gender: genderSchema.default("unisex"),
+    productType: z.string().max(50).nullable().optional().default(null),
+    productSubcategory: z.string().max(50).nullable().optional().default(null),
     status: productStatusSchema.default("active"),
     archived: z.boolean().default(false),
     notes: notesArraySchema,
@@ -110,6 +114,8 @@ export const updateProductFamilySchema = z.object({
   styleNumber: z.string().max(100).optional(),
   previousStyleNumber: z.string().max(100).optional(),
   gender: genderSchema,
+  productType: z.string().max(50).nullable().optional(),
+  productSubcategory: z.string().max(50).nullable().optional(),
   status: productStatusSchema.optional(),
   archived: z.boolean().optional(),
   notes: z.string().optional(),

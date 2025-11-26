@@ -70,6 +70,8 @@ const PRODUCTS_SEARCH_CONFIG = {
     { name: 'colorNames', weight: 1.5 },
     { name: 'sizeOptions', weight: 1 },
     { name: 'gender', weight: 1 },
+    { name: 'productType', weight: 1.5 },
+    { name: 'productSubcategory', weight: 1.5 },
   ],
   ...DEFAULT_FUSE_OPTIONS,
 };

@@ -47,6 +47,13 @@ import { buildSkuAggregates, createProductFamily, genderLabel, formatProductImag
 import { readStorage, writeStorage } from "../lib/safeStorage";
 import { getStaggerDelay } from "../lib/animations";
 import { searchProducts } from "../lib/search";
+import {
+  getTypesForGender,
+  getSubcategoriesForType,
+  getTypeLabel,
+  getSubcategoryLabel,
+  hasCategories,
+} from "../lib/productCategories";
 
 const statusLabel = (status) => {
   if (status === "discontinued") return "Discontinued";
@@ -113,6 +120,7 @@ const PRODUCT_FIELD_OPTIONS = [
   { key: "styleName", label: "Style name" },
   { key: "styleNumber", label: "Style #" },
   { key: "gender", label: "Gender" },
+  { key: "category", label: "Category" },
   { key: "status", label: "Status" },
   { key: "colors", label: "Colors" },
   { key: "sizes", label: "Sizes" },
@@ -127,6 +135,7 @@ const DEFAULT_FIELD_VISIBILITY = {
   styleName: true,
   styleNumber: true,
   gender: true,
+  category: true,
   status: true,
   colors: true,
   sizes: true,
@@ -472,6 +481,8 @@ export default function ProductsPage() {
   const debouncedQueryText = useDebouncedValue(queryText, 300);
   const [statusFilter, setStatusFilter] = useState("active");
   const [genderFilter, setGenderFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [subcategoryFilter, setSubcategoryFilter] = useState("all");
   const [showArchived, setShowArchived] = useState(false);
 
   // Pagination state - only used in list view (gallery view uses VirtualizedGrid)
@@ -495,6 +506,8 @@ export default function ProductsPage() {
   const [selectedFamilyIds, setSelectedFamilyIds] = useState(() => new Set());
   const [batchStyleModalOpen, setBatchStyleModalOpen] = useState(false);
   const [batchStyleDraft, setBatchStyleDraft] = useState([]);
+  const [batchCategoryModalOpen, setBatchCategoryModalOpen] = useState(false);
+  const [batchCategoryDraft, setBatchCategoryDraft] = useState({ productType: null, productSubcategory: null });
   const [batchWorking, setBatchWorking] = useState(false);
   const [confirmBatchDeleteOpen, setConfirmBatchDeleteOpen] = useState(false);
   const [confirmBatchDeleteText, setConfirmBatchDeleteText] = useState("");
@@ -557,12 +570,12 @@ export default function ProductsPage() {
   // Reset pagination when filters or search change
   useEffect(() => {
     setItemsToShow(50);
-  }, [debouncedQueryText, statusFilter, genderFilter, showArchived, sortOrder]);
+  }, [debouncedQueryText, statusFilter, genderFilter, typeFilter, subcategoryFilter, showArchived, sortOrder]);
 
   const filteredFamilies = useMemo(() => {
     const text = debouncedQueryText.trim();
 
-    // First apply filter criteria (status, gender, archived)
+    // First apply filter criteria (status, gender, type, subcategory, archived)
     const preFiltered = families.filter((family) => {
       if (family.deleted) return false;
       if (!showArchived && family.archived) return false;
@@ -571,6 +584,8 @@ export default function ProductsPage() {
         if (statusFilter === "discontinued" && family.status !== "discontinued") return false;
       }
       if (genderFilter !== "all" && (family.gender || "").toLowerCase() !== genderFilter) return false;
+      if (typeFilter !== "all" && (family.productType || "") !== typeFilter) return false;
+      if (subcategoryFilter !== "all" && (family.productSubcategory || "") !== subcategoryFilter) return false;
       return true;
     });
 
@@ -582,7 +597,7 @@ export default function ProductsPage() {
 
     // Extract items from search results
     return searchResults.map(result => result.item);
-  }, [families, debouncedQueryText, statusFilter, genderFilter, showArchived]);
+  }, [families, debouncedQueryText, statusFilter, genderFilter, typeFilter, subcategoryFilter, showArchived]);
 
   const sortedFamilies = useMemo(() => {
     const list = [...filteredFamilies];
@@ -639,14 +654,18 @@ export default function ProductsPage() {
     let count = 0;
     if (statusFilter !== "active") count++;
     if (genderFilter !== "all") count++;
+    if (typeFilter !== "all") count++;
+    if (subcategoryFilter !== "all") count++;
     if (showArchived) count++;
     return count;
-  }, [statusFilter, genderFilter, showArchived]);
+  }, [statusFilter, genderFilter, typeFilter, subcategoryFilter, showArchived]);
 
   // Clear all filters
   const clearAllFilters = useCallback(() => {
     setStatusFilter("active");
     setGenderFilter("all");
+    setTypeFilter("all");
+    setSubcategoryFilter("all");
     setShowArchived(false);
   }, []);
 
@@ -654,6 +673,8 @@ export default function ProductsPage() {
   const handleLoadPreset = useCallback((filters) => {
     if (filters.statusFilter !== undefined) setStatusFilter(filters.statusFilter);
     if (filters.genderFilter !== undefined) setGenderFilter(filters.genderFilter);
+    if (filters.typeFilter !== undefined) setTypeFilter(filters.typeFilter);
+    if (filters.subcategoryFilter !== undefined) setSubcategoryFilter(filters.subcategoryFilter);
     if (filters.showArchived !== undefined) setShowArchived(filters.showArchived);
   }, []);
 
@@ -661,8 +682,10 @@ export default function ProductsPage() {
   const getCurrentFilters = useCallback(() => ({
     statusFilter,
     genderFilter,
+    typeFilter,
+    subcategoryFilter,
     showArchived,
-  }), [statusFilter, genderFilter, showArchived]);
+  }), [statusFilter, genderFilter, typeFilter, subcategoryFilter, showArchived]);
 
   // Build active filters array for pills
   const activeFilters = useMemo(() => {
@@ -681,6 +704,20 @@ export default function ProductsPage() {
         value: genderLabel(genderFilter),
       });
     }
+    if (typeFilter !== "all") {
+      filters.push({
+        key: "type",
+        label: "Type",
+        value: getTypeLabel(genderFilter, typeFilter) || typeFilter,
+      });
+    }
+    if (subcategoryFilter !== "all") {
+      filters.push({
+        key: "subcategory",
+        label: "Subcategory",
+        value: getSubcategoryLabel(genderFilter, typeFilter, subcategoryFilter) || subcategoryFilter,
+      });
+    }
     if (showArchived) {
       filters.push({
         key: "archived",
@@ -689,7 +726,7 @@ export default function ProductsPage() {
       });
     }
     return filters;
-  }, [statusFilter, genderFilter, showArchived]);
+  }, [statusFilter, genderFilter, typeFilter, subcategoryFilter, showArchived]);
 
   // Remove individual filter
   const removeFilter = useCallback((filterKey) => {
@@ -699,6 +736,15 @@ export default function ProductsPage() {
         break;
       case "gender":
         setGenderFilter("all");
+        setTypeFilter("all");
+        setSubcategoryFilter("all");
+        break;
+      case "type":
+        setTypeFilter("all");
+        setSubcategoryFilter("all");
+        break;
+      case "subcategory":
+        setSubcategoryFilter("all");
         break;
       case "archived":
         setShowArchived(false);
@@ -788,6 +834,13 @@ export default function ProductsPage() {
       setBatchStyleModalOpen(false);
     }
   }, [batchStyleModalOpen, selectedCount]);
+
+  useEffect(() => {
+    if (!batchCategoryModalOpen) return;
+    if (!selectedCount) {
+      setBatchCategoryModalOpen(false);
+    }
+  }, [batchCategoryModalOpen, selectedCount]);
 
   const closeModals = () => {
     setNewModalOpen(false);
@@ -922,6 +975,8 @@ export default function ProductsPage() {
         styleNumber: payload.family.styleNumber,
         previousStyleNumber: payload.family.previousStyleNumber,
         gender: payload.family.gender,
+        productType: payload.family.productType || null,
+        productSubcategory: payload.family.productSubcategory || null,
         status: payload.family.status,
         archived: payload.family.archived,
         notes: payload.family.notes,
@@ -1292,6 +1347,68 @@ export default function ProductsPage() {
       toast.error({
         title: "Update failed",
         description: error?.message || "Unable to update style numbers.",
+      });
+    } finally {
+      setBatchWorking(false);
+    }
+  };
+
+  // Batch category assignment
+  const openBatchCategoryModal = () => {
+    if (!canEdit || !selectedFamilies.length) return;
+    // Initialize with null to require explicit selection
+    setBatchCategoryDraft({ productType: null, productSubcategory: null });
+    setBatchCategoryModalOpen(true);
+  };
+
+  const closeBatchCategoryModal = () => {
+    if (batchWorking) return;
+    setBatchCategoryModalOpen(false);
+  };
+
+  const handleBatchCategoryDraftChange = (field, value) => {
+    setBatchCategoryDraft((prev) => {
+      const next = { ...prev, [field]: value || null };
+      // Reset subcategory when type changes
+      if (field === "productType") {
+        next.productSubcategory = null;
+      }
+      return next;
+    });
+  };
+
+  const handleBatchCategorySubmit = async (event) => {
+    event.preventDefault();
+    if (!canEdit || !selectedFamilies.length) return;
+    // At least one field must be set
+    if (batchCategoryDraft.productType === null && batchCategoryDraft.productSubcategory === null) {
+      toast.info("Select a type or subcategory to assign.");
+      return;
+    }
+
+    setBatchWorking(true);
+    try {
+      const now = Date.now();
+      const operations = selectedFamilies.map((family) => ({
+        type: "update",
+        ref: doc(db, ...productFamilyPathForClient(family.id)),
+        data: {
+          productType: batchCategoryDraft.productType,
+          productSubcategory: batchCategoryDraft.productSubcategory,
+          updatedAt: now,
+          updatedBy: user?.uid || null,
+        },
+      }));
+      await runBatchedWrites(operations);
+      const count = selectedFamilies.length;
+      toast.success(`Updated category for ${count} product ${count === 1 ? "family" : "families"}.`);
+      setBatchCategoryModalOpen(false);
+      clearSelection();
+    } catch (error) {
+      console.error("[Products] Batch category update failed", error);
+      toast.error({
+        title: "Update failed",
+        description: error?.message || "Unable to update categories.",
       });
     } finally {
       setBatchWorking(false);
@@ -2143,32 +2260,57 @@ export default function ProductsPage() {
             </PageHeader.Description>
           </div>
           <PageHeader.Actions>
-            {/* Gender toggle buttons (similar to shots tabs) */}
-            <div
-              className="flex items-center space-x-1 rounded-full border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-700 dark:bg-neutral-800"
-              role="tablist"
-              aria-label="Gender filter tabs"
-              aria-orientation="horizontal"
-            >
-              {genderTabs.map((tab) => {
-                const isActive = tab.value === genderFilter;
-                return (
-                  <button
-                    key={tab.value}
-                    type="button"
-                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                      isActive
-                        ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-100"
-                        : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-                    }`}
-                    onClick={() => setGenderFilter(tab.value)}
-                    role="tab"
-                    aria-selected={isActive}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
+            {/* Category cascade filters */}
+            <div className="flex items-center gap-2">
+              {/* Gender dropdown */}
+              <select
+                value={genderFilter}
+                onChange={(e) => {
+                  const newGender = e.target.value;
+                  setGenderFilter(newGender);
+                  setTypeFilter("all");
+                  setSubcategoryFilter("all");
+                }}
+                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
+                aria-label="Filter by gender"
+              >
+                <option value="all">All genders</option>
+                {genderTabs.filter(tab => tab.value !== "all").map((tab) => (
+                  <option key={tab.value} value={tab.value}>{tab.label}</option>
+                ))}
+              </select>
+
+              {/* Type dropdown */}
+              <select
+                value={typeFilter}
+                onChange={(e) => {
+                  const newType = e.target.value;
+                  setTypeFilter(newType);
+                  setSubcategoryFilter("all");
+                }}
+                disabled={genderFilter === "all" || !hasCategories(genderFilter)}
+                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
+                aria-label="Filter by product type"
+              >
+                <option value="all">All types</option>
+                {genderFilter !== "all" && getTypesForGender(genderFilter).map((type) => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
+                ))}
+              </select>
+
+              {/* Subcategory dropdown */}
+              <select
+                value={subcategoryFilter}
+                onChange={(e) => setSubcategoryFilter(e.target.value)}
+                disabled={typeFilter === "all" || genderFilter === "all"}
+                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
+                aria-label="Filter by subcategory"
+              >
+                <option value="all">All subcategories</option>
+                {typeFilter !== "all" && genderFilter !== "all" && getSubcategoriesForType(genderFilter, typeFilter).map((sub) => (
+                  <option key={sub.value} value={sub.value}>{sub.label}</option>
+                ))}
+              </select>
             </div>
           </PageHeader.Actions>
         </PageHeader.Content>
@@ -2319,6 +2461,18 @@ export default function ProductsPage() {
                   Edit style numbers
                 </Button>
               )}
+              {canEdit && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="flex items-center gap-2"
+                  onClick={openBatchCategoryModal}
+                  disabled={batchWorking}
+                >
+                  <Package className="h-4 w-4" aria-hidden="true" />
+                  Assign category
+                </Button>
+              )}
               {canDelete && (
                 <Button
                   size="sm"
@@ -2423,6 +2577,106 @@ export default function ProductsPage() {
               </Button>
               <Button type="submit" disabled={batchWorking || !batchStyleDraft.length}>
                 {batchWorking ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      {/* Batch Category Assignment Modal */}
+      <Modal
+        open={batchCategoryModalOpen}
+        onClose={closeBatchCategoryModal}
+        labelledBy="batch-category-title"
+        describedBy="batch-category-description"
+        closeOnOverlay={!batchWorking}
+      >
+        <div className="flex h-full flex-col">
+          <div className="border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100" id="batch-category-title">
+              Assign category
+            </h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400" id="batch-category-description">
+              Set the product type and subcategory for {selectedCount} selected product {selectedCount === 1 ? "family" : "families"}.
+              This will update products that share the same gender.
+            </p>
+          </div>
+          <form onSubmit={handleBatchCategorySubmit} className="flex flex-1 flex-col">
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <div className="space-y-4">
+                {/* Type dropdown */}
+                <div className="space-y-1.5">
+                  <label htmlFor="batch-type" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Product Type
+                  </label>
+                  <select
+                    id="batch-type"
+                    value={batchCategoryDraft.productType || ""}
+                    onChange={(e) => handleBatchCategoryDraftChange("productType", e.target.value)}
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                  >
+                    <option value="">Select type...</option>
+                    <option value="tops">Tops</option>
+                    <option value="bottoms">Bottoms</option>
+                    <option value="accessories">Accessories</option>
+                  </select>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Categories are linked to the product's gender. Valid subcategories depend on the type selected.
+                  </p>
+                </div>
+
+                {/* Subcategory dropdown */}
+                <div className="space-y-1.5">
+                  <label htmlFor="batch-subcategory" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Subcategory
+                  </label>
+                  <select
+                    id="batch-subcategory"
+                    value={batchCategoryDraft.productSubcategory || ""}
+                    onChange={(e) => handleBatchCategoryDraftChange("productSubcategory", e.target.value)}
+                    disabled={!batchCategoryDraft.productType}
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                  >
+                    <option value="">Select subcategory...</option>
+                    {batchCategoryDraft.productType === "tops" && (
+                      <>
+                        <option value="tshirts">T-Shirts</option>
+                        <option value="long-sleeves">Long Sleeves</option>
+                        <option value="hoodies-sweaters">Hoodies & Sweaters</option>
+                        <option value="knitwear">Knitwear</option>
+                        <option value="shirts">Shirts</option>
+                        <option value="polos">Polos</option>
+                        <option value="tank-tops">Tank Tops</option>
+                        <option value="sweaters-sweatshirts">Sweaters & Sweatshirts</option>
+                        <option value="dresses-rompers">Dresses & Rompers</option>
+                        <option value="jackets">Jackets</option>
+                      </>
+                    )}
+                    {batchCategoryDraft.productType === "bottoms" && (
+                      <>
+                        <option value="pants">Pants</option>
+                        <option value="shorts">Shorts</option>
+                        <option value="underwear">Underwear</option>
+                        <option value="socks">Socks</option>
+                        <option value="underwear-bras">Underwear & Bras</option>
+                      </>
+                    )}
+                    {batchCategoryDraft.productType === "accessories" && (
+                      <>
+                        <option value="hats">Hats</option>
+                        <option value="backpack">Backpack</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-700">
+              <Button type="button" variant="ghost" onClick={closeBatchCategoryModal} disabled={batchWorking}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={batchWorking || (!batchCategoryDraft.productType && !batchCategoryDraft.productSubcategory)}>
+                {batchWorking ? "Saving…" : "Apply to selected"}
               </Button>
             </div>
           </form>
