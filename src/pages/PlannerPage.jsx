@@ -3203,6 +3203,10 @@ function PlannerPageContent({ embedded = false }) {
         const parts = overRawId.split('-');
         targetLaneKey = parts[1];
         insertIndex = Number(parts[2]);
+      } else if (overRawId.startsWith("lane-grid-")) {
+        // Handle drops on lane grid (from PlannerLaneGrid component)
+        targetLaneKey = overRawId.slice(10); // Remove "lane-grid-" prefix
+        insertIndex = (resolvedShotsByLane[targetLaneKey] || []).length;
       } else if (overRawId.startsWith("lane-")) {
         targetLaneKey = overRawId.slice(5);
         insertIndex = (resolvedShotsByLane[targetLaneKey] || []).length;
