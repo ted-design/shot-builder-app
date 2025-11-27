@@ -53,7 +53,10 @@ import {
   getTypeLabel,
   getSubcategoryLabel,
   hasCategories,
+  getTypeLabelUnion,
+  getSubcategoryLabelUnion,
 } from "../lib/productCategories";
+import ProductFilterDrawer from "../components/products/ProductFilterDrawer";
 
 const statusLabel = (status) => {
   if (status === "discontinued") return "Discontinued";
@@ -708,14 +711,20 @@ export default function ProductsPage() {
       filters.push({
         key: "type",
         label: "Type",
-        value: getTypeLabel(genderFilter, typeFilter) || typeFilter,
+        value:
+          genderFilter === "all"
+            ? getTypeLabelUnion(typeFilter) || typeFilter
+            : getTypeLabel(genderFilter, typeFilter) || typeFilter,
       });
     }
     if (subcategoryFilter !== "all") {
       filters.push({
         key: "subcategory",
         label: "Subcategory",
-        value: getSubcategoryLabel(genderFilter, typeFilter, subcategoryFilter) || subcategoryFilter,
+        value:
+          genderFilter === "all"
+            ? getSubcategoryLabelUnion(typeFilter, subcategoryFilter) || subcategoryFilter
+            : getSubcategoryLabel(genderFilter, typeFilter, subcategoryFilter) || subcategoryFilter,
       });
     }
     if (showArchived) {
@@ -2236,18 +2245,6 @@ export default function ProductsPage() {
   const currentViewMode = normaliseViewMode(viewMode);
   const viewContent = currentViewMode === "table" ? renderTableView() : renderGalleryView();
 
-  // Gender tab options
-  const genderTabs = useMemo(() => {
-    const tabs = [
-      { value: "all", label: "All" },
-      { value: "men", label: "Men" },
-      { value: "women", label: "Women" },
-      { value: "unisex", label: "Unisex" },
-    ];
-    // Filter tabs to only show genders that exist in the data (plus "All")
-    return tabs.filter(tab => tab.value === "all" || genders.includes(tab.value));
-  }, [genders]);
-
   return (
     <div className="space-y-6">
       {/* PageHeader with integrated toolbar */}
@@ -2260,58 +2257,7 @@ export default function ProductsPage() {
             </PageHeader.Description>
           </div>
           <PageHeader.Actions>
-            {/* Category cascade filters */}
-            <div className="flex items-center gap-2">
-              {/* Gender dropdown */}
-              <select
-                value={genderFilter}
-                onChange={(e) => {
-                  const newGender = e.target.value;
-                  setGenderFilter(newGender);
-                  setTypeFilter("all");
-                  setSubcategoryFilter("all");
-                }}
-                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
-                aria-label="Filter by gender"
-              >
-                <option value="all">All genders</option>
-                {genderTabs.filter(tab => tab.value !== "all").map((tab) => (
-                  <option key={tab.value} value={tab.value}>{tab.label}</option>
-                ))}
-              </select>
-
-              {/* Type dropdown */}
-              <select
-                value={typeFilter}
-                onChange={(e) => {
-                  const newType = e.target.value;
-                  setTypeFilter(newType);
-                  setSubcategoryFilter("all");
-                }}
-                disabled={genderFilter === "all" || !hasCategories(genderFilter)}
-                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
-                aria-label="Filter by product type"
-              >
-                <option value="all">All types</option>
-                {genderFilter !== "all" && getTypesForGender(genderFilter).map((type) => (
-                  <option key={type.value} value={type.value}>{type.label}</option>
-                ))}
-              </select>
-
-              {/* Subcategory dropdown */}
-              <select
-                value={subcategoryFilter}
-                onChange={(e) => setSubcategoryFilter(e.target.value)}
-                disabled={typeFilter === "all" || genderFilter === "all"}
-                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
-                aria-label="Filter by subcategory"
-              >
-                <option value="all">All subcategories</option>
-                {typeFilter !== "all" && genderFilter !== "all" && getSubcategoriesForType(genderFilter, typeFilter).map((sub) => (
-                  <option key={sub.value} value={sub.value}>{sub.label}</option>
-                ))}
-              </select>
-            </div>
+            {/* Empty - filters moved below */}
           </PageHeader.Actions>
         </PageHeader.Content>
 
@@ -2322,6 +2268,28 @@ export default function ProductsPage() {
               <div className="flex flex-col gap-4">
                 {/* Main toolbar row */}
                 <div className="flex flex-wrap items-center gap-2">
+                  {/* Filter drawer */}
+                  <ProductFilterDrawer
+                    gender={genderFilter}
+                    type={typeFilter}
+                    subcategory={subcategoryFilter}
+                    onGenderChange={(g) => {
+                      setGenderFilter(g);
+                      setTypeFilter("all");
+                      setSubcategoryFilter("all");
+                    }}
+                    onTypeChange={(t) => {
+                      setTypeFilter(t);
+                      setSubcategoryFilter("all");
+                    }}
+                    onSubcategoryChange={setSubcategoryFilter}
+                    onClearAll={() => {
+                      setGenderFilter("all");
+                      setTypeFilter("all");
+                      setSubcategoryFilter("all");
+                    }}
+                  />
+
                   {/* Selection mode toggle */}
                   {canUseBatchActions && (
                     <button

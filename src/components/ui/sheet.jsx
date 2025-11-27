@@ -11,7 +11,7 @@ const SheetPortal = DialogPrimitive.Portal;
 const SheetOverlay = React.forwardRef(({ className = "", ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 ${className}`}
+    className={`fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 ${className}`}
     {...props}
   />
 ));
@@ -37,7 +37,8 @@ const SheetContent = React.forwardRef(
         <SheetOverlay />
         <DialogPrimitive.Content
           ref={ref}
-          className={`fixed z-50 gap-4 bg-white dark:bg-slate-800 p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500 ${sideClasses} ${className}`}
+          className={`fixed z-50 gap-4 bg-white dark:bg-slate-800 p-6 shadow-lg transition-transform data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-200 data-[state=open]:duration-300 ${sideClasses} ${className}`}
+          style={{ transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)' }}
           {...props}
         >
           {children}
