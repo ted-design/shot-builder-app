@@ -40,6 +40,7 @@ const createEmptyColour = () => ({
   colorName: "",
   skuCode: "",
   status: "active",
+  hexColor: null,
   imagePath: null,
   imageFile: null,
   imagePreview: null,
@@ -111,6 +112,7 @@ const buildInitialColours = (initialValue) => {
     colorName: sku.colorName || sku.colour || sku.name || "",
     skuCode: sku.skuCode || sku.sku || sku.code || "",
     status: sku.status || (sku.archived ? "archived" : "active"),
+    hexColor: sku.hexColor || null,
     imagePath: sku.imagePath || null,
     imageFile: null,
     imagePreview: sku.imageUrl || null,
@@ -522,6 +524,7 @@ export default function ProductFamilyForm({
         skuCode: colour.skuCode,
         status: colour.status,
         archived: colour.status === "archived",
+        hexColor: colour.hexColor || null,
         // All colour entries share the normalised family size list to avoid divergent data.
         sizes: trimmedSizes,
         imageFile: colour.removeImage ? null : colour.imageFile,

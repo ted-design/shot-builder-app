@@ -23,6 +23,7 @@ import FilterPresetManager from "../components/ui/FilterPresetManager";
 import NewProductModal from "../components/products/NewProductModal";
 import EditProductModal from "../components/products/EditProductModal";
 import ProductsTableView from "../components/products/ProductsTableView";
+import SKUColorSelector from "../components/products/SKUColorSelector";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
 import AppImage from "../components/common/AppImage";
 import ExportButton from "../components/common/ExportButton";
@@ -88,8 +89,9 @@ const VIEW_MODE_OPTIONS = [
 
 const DEFAULT_DENSITY = "comfortable";
 const DENSITY_OPTIONS = [
-  { value: "compact", label: "Compact" },
-  { value: "comfortable", label: "Comfy" },
+  { value: "compact", label: "Compact", description: "Minimal spacing, more items" },
+  { value: "comfortable", label: "Comfortable", description: "Balanced spacing" },
+  { value: "wide", label: "Wide", description: "Horizontal layout with color swatches" },
 ];
 
 // Dramatic density configuration
@@ -114,6 +116,19 @@ const DENSITY_CONFIG = {
     // Table-specific
     tableRow: 'py-3',        // 12px vertical padding
     tablePadding: 'px-4',    // 16px horizontal padding
+    tableText: 'text-sm',
+  },
+  wide: {
+    itemHeight: 200,
+    gap: 'gap-5',      // 20px - tighter to allow more text space
+    cardPadding: 'px-4 py-4',
+    contentSpacing: 'space-y-2',
+    textSize: 'text-base',
+    // Cap at 3 columns max, even on 2xl screens
+    gridClass: 'grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
+    // Table-specific (inherit from comfortable)
+    tableRow: 'py-3',
+    tablePadding: 'px-4',
     tableText: 'text-sm',
   },
 };
@@ -195,6 +210,7 @@ const normaliseViewMode = (value) => {
 const normaliseDensity = (value) => {
   if (value === "compact") return "compact";
   if (value === "comfortable" || value === "comfy" || value === "cozy") return "comfortable";
+  if (value === "wide") return "wide";
   return DEFAULT_DENSITY;
 };
 
@@ -386,7 +402,7 @@ const ProductActionMenu = memo(function ProductActionMenu({
     <div
       role="menu"
       aria-label={`Actions for ${family.styleName || 'product'}`}
-      className="absolute right-0 top-10 z-20 w-48 rounded-md border border-slate-200 bg-white/95 backdrop-blur-md shadow-lg dark:border-slate-700 dark:bg-slate-800/95"
+      className="absolute right-0 top-10 z-50 w-48 rounded-md border border-slate-200 bg-white/95 backdrop-blur-md shadow-lg dark:border-slate-700 dark:bg-slate-800/95"
       onClick={(event) => event.stopPropagation()}
     >
       <button
@@ -514,8 +530,14 @@ export default function ProductsPage() {
   const [batchWorking, setBatchWorking] = useState(false);
   const [confirmBatchDeleteOpen, setConfirmBatchDeleteOpen] = useState(false);
   const [confirmBatchDeleteText, setConfirmBatchDeleteText] = useState("");
+
+  // Wide density mode - SKU selection and preloading
+  const [selectedSkus, setSelectedSkus] = useState({}); // { familyId: skuId }
+  const [familySkus, setFamilySkus] = useState({}); // { familyId: SKU[] }
+
   const menuRef = useRef(null);
   const skuCacheRef = useRef(new Map());
+  const pendingSkuLoadsRef = useRef(new Set());
   const batchFirstFieldRef = useRef(null);
   const selectAllRef = useRef(null);
 
@@ -602,6 +624,7 @@ export default function ProductsPage() {
     return searchResults.map(result => result.item);
   }, [families, debouncedQueryText, statusFilter, genderFilter, typeFilter, subcategoryFilter, showArchived]);
 
+  // Sort filtered families based on current sort order
   const sortedFamilies = useMemo(() => {
     const list = [...filteredFamilies];
     const compareStyleName = (a, b) => {
@@ -638,6 +661,54 @@ export default function ProductsPage() {
     }
     return list;
   }, [filteredFamilies, sortOrder]);
+
+  // Preload SKUs for visible families when in wide density mode
+  useEffect(() => {
+    if (density !== 'wide' || !db || !clientId) return;
+
+    const visibleFamilies = sortedFamilies.slice(0, itemsToShow);
+    const familiesToLoad = visibleFamilies.filter(
+      (family) => !familySkus[family.id] && !pendingSkuLoadsRef.current.has(family.id)
+    );
+
+    if (familiesToLoad.length === 0) return;
+
+    const loadSkusForFamilies = async () => {
+      const skuPromises = familiesToLoad.map(async (family) => {
+        pendingSkuLoadsRef.current.add(family.id);
+        try {
+          const skusRef = collection(db, ...productFamilySkusPath(family.id, clientId));
+          const snapshot = await getDocs(skusRef);
+          const skus = snapshot.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }))
+            .filter((sku) => sku.deleted !== true);
+          return { familyId: family.id, skus };
+        } catch (error) {
+          console.error(`Failed to load SKUs for family ${family.id}:`, error);
+          return { familyId: family.id, skus: [] };
+        } finally {
+          pendingSkuLoadsRef.current.delete(family.id);
+        }
+      });
+
+      const results = await Promise.all(skuPromises);
+      const newFamilySkus = {};
+      const newSelectedSkus = {};
+
+      results.forEach(({ familyId, skus }) => {
+        newFamilySkus[familyId] = skus;
+        // Auto-select first SKU if none selected
+        if (skus.length > 0 && !selectedSkus[familyId]) {
+          newSelectedSkus[familyId] = skus[0].id;
+        }
+      });
+
+      setFamilySkus((prev) => ({ ...prev, ...newFamilySkus }));
+      setSelectedSkus((prev) => ({ ...prev, ...newSelectedSkus }));
+    };
+
+    loadSkusForFamilies();
+  }, [density, sortedFamilies, itemsToShow, familySkus, selectedSkus, db, clientId]);
 
   const displayedFamilies = useMemo(() => {
     return sortedFamilies.slice(0, itemsToShow);
@@ -772,6 +843,33 @@ export default function ProductsPage() {
     [fieldOrder]
   );
   const resolvedDensityKey = DENSITY_CONFIG[density] ? density : DEFAULT_DENSITY;
+
+  const ensureFamilySkusLoaded = useCallback((familyId) => {
+    if (resolvedDensityKey !== "wide") return;
+    if (!db || !clientId) return;
+    if (familySkus[familyId]) return;
+    if (pendingSkuLoadsRef.current.has(familyId)) return;
+
+    pendingSkuLoadsRef.current.add(familyId);
+    getDocs(collection(db, ...productFamilySkusPathForClient(familyId)))
+      .then((snapshot) => {
+        const skus = snapshot.docs
+          .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+          .filter((sku) => sku.deleted !== true);
+
+        setFamilySkus((prev) => ({ ...prev, [familyId]: skus }));
+        setSelectedSkus((prev) => {
+          if (prev[familyId] || !skus.length) return prev;
+          return { ...prev, [familyId]: skus[0].id };
+        });
+      })
+      .catch((error) => {
+        console.error(`[Products] Failed to load SKUs for family ${familyId}:`, error);
+      })
+      .finally(() => {
+        pendingSkuLoadsRef.current.delete(familyId);
+      });
+  }, [clientId, db, familySkus, resolvedDensityKey, productFamilySkusPathForClient]);
 
   const toggleFieldVisibility = useCallback((key) => {
     if (lockedFields.includes(key)) return;
@@ -1062,6 +1160,7 @@ export default function ProductsPage() {
             sizes: sku.sizes,
             status: sku.status,
             archived: sku.archived,
+            hexColor: sku.hexColor || null,
             updatedAt: now,
             updatedBy: user?.uid || null,
           };
@@ -1123,6 +1222,7 @@ export default function ProductsPage() {
             sizes: sku.sizes,
             status: sku.status,
             archived: sku.archived,
+            hexColor: sku.hexColor || null,
             imagePath,
             deleted: false,
             deletedAt: null,
@@ -1153,6 +1253,13 @@ export default function ProductsPage() {
           updatedBy: user?.uid || null,
         });
       }
+
+      // Clear cached SKUs for this family so they get re-fetched with updated hexColor values
+      setFamilySkus((prev) => {
+        const next = { ...prev };
+        delete next[familyId];
+        return next;
+      });
     },
     [canEdit, user]
   );
@@ -1493,6 +1600,9 @@ export default function ProductsPage() {
 
   const renderFamilyCard = (family) => {
     const inlineEditing = renameState.id === family.id;
+    if (resolvedDensityKey === "wide") {
+      ensureFamilySkusLoaded(family.id);
+    }
     const openFromCard = () => {
       if (!canEdit || inlineEditing) return;
       loadFamilyForEdit(family);
@@ -1509,6 +1619,7 @@ export default function ProductsPage() {
     const showSizes = resolvedFieldVisibility.sizes !== false;
     const showSkus = resolvedFieldVisibility.skus !== false;
     const showLastUpdated = resolvedFieldVisibility.lastUpdated !== false;
+    const showCategory = resolvedFieldVisibility.category !== false;
     const densityConfig =
       DENSITY_CONFIG[resolvedDensityKey] || DENSITY_CONFIG[DEFAULT_DENSITY];
     const summaryOrder = resolvedFieldOrder.filter(
@@ -1567,12 +1678,10 @@ export default function ProductsPage() {
     });
     const isSelected = selectedFamilyIds.has(family.id);
     const isCompactCard = resolvedDensityKey === "compact";
-    const cardClasses = `relative flex h-full flex-col overflow-visible ${
-      canEdit ? "cursor-pointer" : ""
-    } ${isSelected ? "ring-2 ring-primary/60" : ""}`.trim();
+    const cardClasses = `relative flex h-full flex-col overflow-visible ${isSelected ? "ring-2 ring-primary/60" : ""}`.trim();
 
     const renderCompactCard = () => (
-      <Card className={cardClasses} onClick={openFromCard}>
+      <Card className={cardClasses}>
         <CardContent
           className={`grid grid-cols-[96px,1fr] gap-3 ${densityConfig.cardPadding}`}
           ref={family.id === menuFamilyId ? menuRef : null}
@@ -1718,7 +1827,6 @@ export default function ProductsPage() {
     const renderComfyCard = () => (
       <Card
         className={cardClasses}
-        onClick={openFromCard}
       >
         <CardContent className={`flex h-full flex-col gap-4 ${densityConfig.cardPadding}`}>
           <div
@@ -1843,6 +1951,196 @@ export default function ProductsPage() {
       </Card>
     );
 
+    const renderWideCard = () => {
+      const skus = familySkus[family.id] || [];
+      const selectedSkuId = selectedSkus[family.id];
+      const selectedSku = skus.find((sku) => sku.id === selectedSkuId) || skus[0];
+
+      // Determine display image - use selected SKU's image or fallback
+      const displayImage = selectedSku?.imagePath || displayImagePath;
+      const displayColorName = showColors
+        ? selectedSku?.colorName || (colourList.length > 0 ? colourList[0] : null)
+        : null;
+
+      // Build category breadcrumb
+      const categoryParts = [];
+      if (showCategory && family.productType) {
+        categoryParts.push(getTypeLabel(family.gender, family.productType));
+      }
+      if (showCategory && family.productSubcategory) {
+        categoryParts.push(getSubcategoryLabel(family.gender, family.productType, family.productSubcategory));
+      }
+      const categoryBreadcrumb = categoryParts.length ? categoryParts.join(" › ") : "";
+
+      const handleColorSelect = (skuId) => {
+        setSelectedSkus((prev) => ({ ...prev, [family.id]: skuId }));
+      };
+
+      return (
+        <Card className={cardClasses}>
+          <CardContent className={`flex h-full flex-col ${densityConfig.cardPadding}`}>
+            {/* Top Row: Image + Details side by side */}
+            <div className="flex flex-1 gap-3">
+              {/* Left: Product Image (reduced size for more text room) */}
+              <div className="relative flex-shrink-0">
+                <div className="h-[96px] w-[96px] overflow-hidden rounded border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900">
+                  {displayImage ? (
+                    <AppImage
+                      src={displayImage}
+                      alt={family.styleName}
+                      preferredSize={200}
+                      className="h-full w-full"
+                      imageClassName="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
+                      No image
+                    </div>
+                  )}
+                </div>
+                {canUseBatchActions && selectionModeActive && (
+                  <div className="absolute -left-2 -top-2">
+                    <Checkbox
+                      checked={isSelected}
+                      onChange={(event) => {
+                        event.stopPropagation();
+                        toggleFamilySelection(family.id, event.target.checked);
+                      }}
+                      aria-label={`Select ${family.styleName || "product"}`}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Right: Product Details */}
+              <div className="flex min-w-0 flex-1 flex-col pr-1">
+                {/* Header with actions */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    {inlineEditing ? (
+                      renderRenameForm({ stopPropagation: true })
+                    ) : (
+                      <>
+                        {showStyleName && (
+                          <h3
+                            className="text-base font-semibold leading-tight text-slate-900 dark:text-slate-100"
+                            title={family.styleName}
+                          >
+                            {family.styleName}
+                          </h3>
+                        )}
+                        {showStyleNumber && family.styleNumber && (
+                          <p
+                            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                            title={`Style #${family.styleNumber}`}
+                          >
+                            Style #{family.styleNumber}
+                          </p>
+                        )}
+                        {showGender && family.gender && (
+                          <p className="text-sm text-slate-600 dark:text-slate-400">
+                            Gender: {genderLabel(family.gender)}
+                          </p>
+                        )}
+                        {categoryBreadcrumb && (
+                          <p className="text-sm text-slate-600 dark:text-slate-400">
+                            {categoryBreadcrumb}
+                          </p>
+                        )}
+                        {showSizes && sizeList.length > 0 && (
+                          <p className="text-sm text-slate-600 dark:text-slate-400" title={sizesLabel}>
+                            Sizes: {sizeList.join(", ")}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Status Dot Indicator + Actions Menu */}
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    {showStatus && family.archived && (
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                        Archived
+                      </span>
+                    )}
+                    {(canEdit || canArchive || canDelete) && (
+                      <div className="relative pl-3" ref={family.id === menuFamilyId ? menuRef : null}>
+                        {showStatus && (
+                          <div
+                            className={`absolute left-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ${
+                              family.status === "discontinued"
+                                ? "bg-red-500 dark:bg-red-400"
+                                : "bg-green-500 dark:bg-green-400"
+                            }`}
+                            title={statusLabel(family.status)}
+                            aria-label={statusLabel(family.status)}
+                          />
+                        )}
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setMenuFamilyId((current) => (current === family.id ? null : family.id));
+                          }}
+                          aria-label={`Open actions for ${family.styleName || "product"}`}
+                        >
+                          ···
+                        </Button>
+                        <ProductActionMenu
+                          family={family}
+                          onEdit={loadFamilyForEdit}
+                          onRename={startRename}
+                          onToggleStatus={handleStatusToggle}
+                          onArchive={handleArchiveToggle}
+                          onRestore={handleRestoreFamily}
+                          canEdit={canEdit}
+                          canArchive={canArchive}
+                          canDelete={canDelete}
+                          open={menuFamilyId === family.id}
+                          onClose={() => setMenuFamilyId(null)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Section: Color Selector (full width) */}
+            {!inlineEditing && skus.length > 0 && showColors && (
+              <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                <div className="flex flex-col gap-2">
+                  <SKUColorSelector
+                    skus={skus}
+                    currentSkuId={selectedSkuId}
+                    onColorSelect={handleColorSelect}
+                    size={21}
+                    gap={9}
+                  />
+                  {(displayColorName || (showLastUpdated && family.updatedAt)) && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        {displayColorName ? `Colour: ${displayColorName}` : ""}
+                      </span>
+                      {showLastUpdated && family.updatedAt && (
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          Updated {formatUpdatedAt(family.updatedAt)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      );
+    };
+
+    if (resolvedDensityKey === 'wide') return renderWideCard();
     return isCompactCard ? renderCompactCard() : renderComfyCard();
   };
 
@@ -2104,7 +2402,7 @@ export default function ProductsPage() {
     // Get dramatic density configuration
     const densityConfig =
       DENSITY_CONFIG[resolvedDensityKey] || DENSITY_CONFIG[DEFAULT_DENSITY];
-    const densityGridClass = `grid ${densityConfig.gap} sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5`;
+    const densityGridClass = densityConfig.gridClass || `grid ${densityConfig.gap} sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5`;
 
     return (
       <div className="mx-6 space-y-6">
