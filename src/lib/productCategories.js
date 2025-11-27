@@ -223,3 +223,102 @@ export function hasCategories(gender) {
   const normalizedGender = normalizeGender(gender);
   return normalizedGender !== null && PRODUCT_CATEGORIES[normalizedGender] !== undefined;
 }
+
+// ============================================================================
+// Union Helper Functions (for gender-agnostic filtering)
+// ============================================================================
+
+/**
+ * Get all unique types across all genders.
+ * Returns array of { value, label } objects sorted alphabetically.
+ * Used when gender is "All" to show combined type options.
+ */
+export function getAllTypes() {
+  const typeMap = new Map();
+
+  Object.values(PRODUCT_CATEGORIES).forEach((genderData) => {
+    Object.entries(genderData.types).forEach(([value, data]) => {
+      if (!typeMap.has(value)) {
+        typeMap.set(value, { value, label: data.label });
+      }
+    });
+  });
+
+  // Sort alphabetically for consistent order
+  return Array.from(typeMap.values()).sort((a, b) =>
+    a.label.localeCompare(b.label)
+  );
+}
+
+/**
+ * Get union of subcategories for a given type across all genders.
+ * Returns array of { value, label, genders: string[] } objects.
+ * The `genders` array indicates which genders have this subcategory.
+ * Used when gender is "All" and a type is selected.
+ */
+export function getSubcategoriesForTypeUnion(type) {
+  if (!type) return [];
+
+  const subcatMap = new Map();
+
+  Object.entries(PRODUCT_CATEGORIES).forEach(([genderKey, genderData]) => {
+    const typeData = genderData.types[type];
+    if (typeData) {
+      typeData.subcategories.forEach((sub) => {
+        if (subcatMap.has(sub.value)) {
+          // Add this gender to existing entry
+          subcatMap.get(sub.value).genders.push(genderKey);
+        } else {
+          subcatMap.set(sub.value, {
+            ...sub,
+            genders: [genderKey],
+          });
+        }
+      });
+    }
+  });
+
+  // Sort alphabetically by label
+  return Array.from(subcatMap.values()).sort((a, b) =>
+    a.label.localeCompare(b.label)
+  );
+}
+
+/**
+ * Get genders that have a specific type.
+ * Returns array of gender keys (e.g., ["men", "women"]).
+ */
+export function getGendersForType(type) {
+  if (!type) return [];
+
+  return Object.entries(PRODUCT_CATEGORIES)
+    .filter(([, genderData]) => type in genderData.types)
+    .map(([gender]) => gender);
+}
+
+/**
+ * Get the label for a type when gender is "all".
+ * Returns the type label from any gender that has it.
+ */
+export function getTypeLabelUnion(type) {
+  if (!type) return null;
+
+  for (const genderData of Object.values(PRODUCT_CATEGORIES)) {
+    if (genderData.types[type]) {
+      return genderData.types[type].label;
+    }
+  }
+  return null;
+}
+
+/**
+ * Get the label for a subcategory when gender is "all".
+ * Returns the subcategory label from any gender/type that has it.
+ */
+export function getSubcategoryLabelUnion(type, subcategory) {
+  if (!type || !subcategory) return null;
+
+  const subcats = getSubcategoriesForTypeUnion(type);
+  const match = subcats.find((s) => s.value === subcategory);
+  return match?.label || null;
+}
