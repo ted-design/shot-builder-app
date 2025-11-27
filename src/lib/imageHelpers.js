@@ -54,6 +54,24 @@ export function getCropTransformStyle(cropData) {
 }
 
 /**
+ * Convert crop data to CSS objectPosition value for focal point positioning.
+ * This is the preferred method for positioning images within containers
+ * as it works correctly with objectFit: "cover".
+ *
+ * @param {Object} cropData - Crop data object with x, y coordinates (0-100 range)
+ * @returns {string|undefined} - CSS objectPosition value (e.g., "30% 20%") or undefined if no crop data
+ */
+export function getCropObjectPosition(cropData) {
+  if (!cropData) return undefined;
+
+  // x, y represent the focal point as percentages (0-100)
+  // Default to center (50%, 50%) if not specified
+  const { x = 50, y = 50 } = cropData;
+
+  return `${x}% ${y}%`;
+}
+
+/**
  * Get image style for display with crop data applied
  * @param {Object} attachment - Attachment object with optional cropData
  * @returns {Object} - Complete style object for image display
@@ -78,26 +96,28 @@ export function getAttachmentImageStyle(attachment) {
 /**
  * Get primary attachment with its display-ready style
  * @param {Object} shot - Shot object
- * @returns {Object} - Object with path and style properties
+ * @returns {Object} - Object with path, style, and objectPosition properties
  */
 export function getPrimaryAttachmentWithStyle(shot) {
-  if (!shot) return { path: null, style: {} };
+  if (!shot) return { path: null, style: {}, objectPosition: undefined };
 
   const attachment = shot.attachments && shot.attachments.length > 0
     ? getPrimaryAttachment(shot.attachments)
     : null;
 
   if (!attachment) {
-    // Legacy format
+    // Legacy format - no crop data available
     return {
       path: shot.referenceImagePath || null,
       style: { objectFit: "cover", width: "100%", height: "100%" },
+      objectPosition: undefined,
     };
   }
 
   return {
     path: attachment.path || attachment.downloadURL,
     style: getAttachmentImageStyle(attachment),
+    objectPosition: getCropObjectPosition(attachment.cropData),
   };
 }
 

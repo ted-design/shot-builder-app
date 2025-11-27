@@ -65,19 +65,6 @@ describe("prepareLanesForPdf", () => {
   });
 
   it("preloads unique images and converts them to data URLs", async () => {
-    document.body.innerHTML = `
-      <div data-shot-id="shot-1"></div>
-      <div data-shot-id="shot-2"></div>
-    `;
-
-    collectImagesMock.mockResolvedValue([
-      {
-        owner: { shotId: "shot-1" },
-        dataUrl: "data:image/png;base64,AAA",
-        resolvedUrl: "https://cdn.test/shared.png",
-      },
-    ]);
-
     resolveImageSourceToDataUrlMock.mockImplementation(async (source) => ({
       dataUrl: `data:image/png;base64,${Buffer.from(String(source)).toString("base64")}`,
       resolvedUrl: String(source),
@@ -93,9 +80,9 @@ describe("prepareLanesForPdf", () => {
       },
     ];
 
-    const prepared = await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true, useDomCapture: true });
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true });
 
-    expect(collectImagesMock).toHaveBeenCalled();
+    // Should fetch images directly via resolveImageSourceToDataUrl (not DOM capture)
     expect(resolveImageSourceToDataUrlMock).toHaveBeenCalled();
     expect(prepared[0].shots[0].image).toMatch(/^data:image/);
     expect(prepared[0].shots[1].image).toMatch(/^data:image/);
@@ -173,16 +160,11 @@ describe("prepareLanesForPdf", () => {
       },
     ];
 
-    document.body.innerHTML = '<div data-shot-id="shot-1"></div>';
+    resolveImageSourceToDataUrlMock.mockResolvedValue({
+      dataUrl: "data:image/png;base64,TEST",
+    });
 
-    collectImagesMock.mockResolvedValue([
-      {
-        owner: { shotId: "shot-1" },
-        dataUrl: "data:image/png;base64,TEST",
-      },
-    ]);
-
-    await prepareLanesForPdf(lanes, { includeImages: true, density: 'detailed' });
+    await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true, density: 'detailed' });
 
     expect(getOptimalImageDimensionsMock).toHaveBeenCalledWith('detailed');
   });
@@ -203,22 +185,17 @@ describe("prepareLanesForPdf", () => {
       },
     ];
 
-    document.body.innerHTML = '<div data-shot-id="shot-1"></div>';
+    resolveImageSourceToDataUrlMock.mockResolvedValue({
+      dataUrl: "data:image/png;base64,TEST",
+    });
 
-    collectImagesMock.mockResolvedValue([
-      {
-        owner: { shotId: "shot-1" },
-        dataUrl: "data:image/png;base64,TEST",
-      },
-    ]);
-
-    const prepared = await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true, useDomCapture: true });
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true });
 
     // Should have called processImageForPDF with crop position
     expect(processImageForPDFMock).toHaveBeenCalled();
   });
 
-  it("handles fallback for shots without collected images", async () => {
+  it("fetches images directly from URLs", async () => {
     const lanes = [
       {
         id: "lane-a",
@@ -228,17 +205,12 @@ describe("prepareLanesForPdf", () => {
       },
     ];
 
-    document.body.innerHTML = '<div data-shot-id="shot-1"></div>';
-
-    // collectImagesForPdf returns empty (image not found in DOM)
-    collectImagesMock.mockResolvedValue([]);
-
-    // But resolveImageSourceToDataUrl should be called as fallback
+    // resolveImageSourceToDataUrl fetches images directly
     resolveImageSourceToDataUrlMock.mockResolvedValue({
       dataUrl: "data:image/png;base64,FALLBACK",
     });
 
-    const prepared = await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true, useDomCapture: true });
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true });
 
     expect(resolveImageSourceToDataUrlMock).toHaveBeenCalledWith("https://example.com/fallback.jpg");
     expect(prepared[0].shots[0].image).toBe("data:image/png;base64,FALLBACK");
@@ -254,12 +226,9 @@ describe("prepareLanesForPdf", () => {
       },
     ];
 
-    document.body.innerHTML = '<div data-shot-id="shot-1"></div>';
-
-    collectImagesMock.mockResolvedValue([]);
     resolveImageSourceToDataUrlMock.mockRejectedValue(new Error("Image load failed"));
 
-    const prepared = await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true, useDomCapture: true });
+    const prepared = await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true });
 
     // Should set image to null on error
     expect(prepared[0].shots[0].image).toBeNull();
@@ -324,16 +293,11 @@ describe("prepareLanesForPdf", () => {
       },
     ];
 
-    document.body.innerHTML = '<div data-shot-id="shot-1"></div>';
+    resolveImageSourceToDataUrlMock.mockResolvedValue({
+      dataUrl: "data:image/png;base64,TEST",
+    });
 
-    collectImagesMock.mockResolvedValue([
-      {
-        owner: { shotId: "shot-1" },
-        dataUrl: "data:image/png;base64,TEST",
-      },
-    ]);
-
-    await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true, useDomCapture: true });
+    await prepareLanesForPdf(lanes, { includeImages: true, inlineImages: true });
 
     // Should have used referenceImageCrop for cropping
     expect(processImageForPDFMock).toHaveBeenCalled();

@@ -1,8 +1,9 @@
 import React, { useId } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, User } from "lucide-react";
 import { Card, CardContent, CardHeader } from "../ui/card";
+import Thumb from "../Thumb";
 
-function PlannerSummary({ isLoading, laneSummary, talentSummary, collapsed, onToggle }) {
+function PlannerSummary({ isLoading, laneSummary, talentSummary, collapsed, onToggle, onTalentClick, activeTalentIds = [] }) {
   const contentId = useId();
   const lanes = Array.isArray(laneSummary?.lanes) ? laneSummary.lanes : [];
   const totalShots = typeof laneSummary?.totalShots === "number" ? laneSummary.totalShots : 0;
@@ -111,25 +112,73 @@ function PlannerSummary({ isLoading, laneSummary, talentSummary, collapsed, onTo
                         </tr>
                       </thead>
                       <tbody>
-                        {talentRows.map((row) => (
-                          <tr key={row.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-700/60">
-                            <td
-                              className={`py-2 pr-3 ${
-                                row.id === "__talent_unassigned__"
-                                  ? "text-slate-500 dark:text-slate-400"
-                                  : "text-slate-700 dark:text-slate-300"
-                              }`}
+                        {talentRows.map((row) => {
+                          const isUnassigned = row.id === "__talent_unassigned__";
+                          const isActive = !isUnassigned && activeTalentIds.includes(row.talentId || row.name);
+                          const isClickable = !isUnassigned && typeof onTalentClick === "function";
+
+                          return (
+                            <tr
+                              key={row.id}
+                              className={`border-b border-slate-100 last:border-b-0 dark:border-slate-700/60 ${
+                                isClickable ? "cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50" : ""
+                              } ${isActive ? "bg-primary/5 dark:bg-primary/10" : ""}`}
+                              onClick={() => isClickable && onTalentClick(row)}
+                              role={isClickable ? "button" : undefined}
+                              tabIndex={isClickable ? 0 : undefined}
+                              onKeyDown={(e) => {
+                                if (isClickable && (e.key === "Enter" || e.key === " ")) {
+                                  e.preventDefault();
+                                  onTalentClick(row);
+                                }
+                              }}
                             >
-                              {row.name}
-                            </td>
-                            <td className="py-2 pr-3 text-right font-medium text-slate-900 dark:text-slate-100">{row.total}</td>
-                            {talentLanes.map((lane) => (
-                              <td key={lane.id} className="py-2 pr-3 text-right text-slate-700 dark:text-slate-300">
-                                {row.byLane?.[lane.id] ?? 0}
+                              <td className="py-2 pr-3">
+                                <div className="flex items-center gap-2">
+                                  {/* Avatar thumbnail */}
+                                  {!isUnassigned ? (
+                                    row.headshotPath ? (
+                                      <Thumb
+                                        path={row.headshotPath}
+                                        preferredSize={64}
+                                        className="h-8 w-8 shrink-0 rounded-full border border-slate-200 dark:border-slate-600 overflow-hidden"
+                                        imageClassName="h-full w-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-100 dark:border-slate-600 dark:bg-slate-700">
+                                        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                                          {row.name?.charAt(0)?.toUpperCase() || "?"}
+                                        </span>
+                                      </div>
+                                    )
+                                  ) : (
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-800">
+                                      <User className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                                    </div>
+                                  )}
+                                  {/* Name */}
+                                  <span
+                                    className={`${
+                                      isUnassigned
+                                        ? "text-slate-500 dark:text-slate-400"
+                                        : "text-slate-700 dark:text-slate-300"
+                                    } ${isActive ? "font-medium text-primary dark:text-primary" : ""}`}
+                                  >
+                                    {row.name}
+                                  </span>
+                                </div>
                               </td>
-                            ))}
-                          </tr>
-                        ))}
+                              <td className={`py-2 pr-3 text-right font-medium ${isActive ? "text-primary dark:text-primary" : "text-slate-900 dark:text-slate-100"}`}>
+                                {row.total}
+                              </td>
+                              {talentLanes.map((lane) => (
+                                <td key={lane.id} className="py-2 pr-3 text-right text-slate-700 dark:text-slate-300">
+                                  {row.byLane?.[lane.id] ?? 0}
+                                </td>
+                              ))}
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   ) : (
