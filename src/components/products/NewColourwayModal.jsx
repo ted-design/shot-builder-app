@@ -4,8 +4,10 @@ import { Modal } from "../ui/modal";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+import { Badge } from "../ui/badge";
 import AppImage from "../common/AppImage";
 import { compressImageFile, formatFileSize } from "../../lib/images";
+import { extractColorFromFile, isValidHexColor } from "../../lib/colorExtraction";
 
 const SKU_STATUS = [
   { value: "active", label: "Active" },
@@ -20,6 +22,9 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
   const [error, setError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [imageState, setImageState] = useState({ file: null, preview: null, size: 0, name: "" });
+  const [hexColor, setHexColor] = useState("");
+  const [autoExtracted, setAutoExtracted] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
   const inputRef = useRef(null);
   const objectUrlRef = useRef(null);
 
@@ -30,6 +35,9 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
       setStatus("active");
       setError(null);
       setIsSaving(false);
+      setHexColor("");
+      setAutoExtracted(false);
+      setIsExtracting(false);
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
         objectUrlRef.current = null;
@@ -72,9 +80,25 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
         size: compressed.size,
         name: file.name,
       });
+
+      // Auto-extract color from image
+      setIsExtracting(true);
+      try {
+        const extractedColor = await extractColorFromFile(compressed);
+        if (extractedColor && !hexColor) {
+          setHexColor(extractedColor);
+          setAutoExtracted(true);
+        }
+      } catch (colorErr) {
+        console.error("Color extraction failed:", colorErr);
+        // Don't set error - color extraction failure shouldn't block image upload
+      } finally {
+        setIsExtracting(false);
+      }
     } catch (err) {
       console.error("Failed to prepare colourway image", err);
       setError("Unable to load image. Try a different file.");
+      setIsExtracting(false);
     }
   };
 
@@ -94,6 +118,14 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
       setError("Colour name is required.");
       return;
     }
+
+    // Validate hex color if provided
+    const trimmedHexColor = hexColor.trim();
+    if (trimmedHexColor && !isValidHexColor(trimmedHexColor)) {
+      setError("Invalid hex color format. Use #RRGGBB format (e.g., #FF0000).");
+      return;
+    }
+
     setIsSaving(true);
     try {
       await onSubmit?.({
@@ -101,6 +133,7 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
         skuCode: skuCode.trim(),
         status,
         imageFile: imageState.file,
+        hexColor: trimmedHexColor || null,
       });
       onClose?.();
     } catch (err) {
@@ -226,6 +259,54 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Images are optional but help identify the colour quickly in the planner.
               </p>
+            </div>
+
+            {/* Color Picker Section */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Colour hex code (optional)
+              </label>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Auto-extracted from image, or manually select a color
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={hexColor || '#CCCCCC'}
+                  onChange={(e) => {
+                    setHexColor(e.target.value);
+                    setAutoExtracted(false);
+                  }}
+                  className="h-10 w-20 cursor-pointer rounded border border-slate-300 dark:border-slate-600"
+                  disabled={isExtracting}
+                />
+                <Input
+                  type="text"
+                  value={hexColor}
+                  onChange={(e) => {
+                    setHexColor(e.target.value);
+                    setAutoExtracted(false);
+                  }}
+                  placeholder="#000000"
+                  className="flex-1"
+                  disabled={isExtracting}
+                />
+                {isExtracting && <LoadingSpinner size="sm" />}
+                {autoExtracted && !isExtracting && hexColor && (
+                  <Badge variant="secondary" className="shrink-0">
+                    Auto-extracted
+                  </Badge>
+                )}
+              </div>
+              {hexColor && isValidHexColor(hexColor) && (
+                <div className="flex items-center gap-2">
+                  <div
+                    className="h-6 w-20 rounded border border-slate-300 dark:border-slate-600"
+                    style={{ backgroundColor: hexColor }}
+                  />
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Color preview</span>
+                </div>
+              )}
             </div>
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
             <div className="flex justify-end gap-2">

@@ -345,6 +345,7 @@ describe("ShotProductAddModal - Button State Logic", () => {
                 skuCode: "GREEN001",
                 status: "active",
                 imageFile: null,
+                hexColor: null,
             });
         });
 

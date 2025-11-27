@@ -1,7 +1,9 @@
+import { useState, useCallback } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import AppImage from "../common/AppImage";
 import { formatFileSize } from "../../lib/images";
+import { extractColorFromFile, isValidHexColor } from "../../lib/colorExtraction";
 
 export default function ColorListEditor({
   colors = [],
@@ -15,6 +17,24 @@ export default function ColorListEditor({
   recommendedMessage,
   skuHelper,
 }) {
+  const [extracting, setExtracting] = useState({});
+
+  // Auto-extract color from the uploaded image file
+  const handleAutoExtract = useCallback(async (localId, imageFile) => {
+    if (!imageFile) return;
+
+    setExtracting((prev) => ({ ...prev, [localId]: true }));
+    try {
+      const color = await extractColorFromFile(imageFile);
+      if (color && isValidHexColor(color)) {
+        onFieldChange(localId, { hexColor: color });
+      }
+    } catch (error) {
+      console.error("Failed to extract color:", error);
+    } finally {
+      setExtracting((prev) => ({ ...prev, [localId]: false }));
+    }
+  }, [onFieldChange]);
   return (
     <div className="relative space-y-3">
       <h3 className="text-sm font-semibold text-slate-700">Colours</h3>
@@ -53,6 +73,72 @@ export default function ColorListEditor({
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+            {/* Hex Color Picker */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Swatch colour</label>
+              <p className="text-xs text-slate-500">
+                Set the colour swatch displayed in product listings. Use the picker or enter a hex code.
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Native color picker */}
+                <input
+                  type="color"
+                  value={color.hexColor || "#CCCCCC"}
+                  onChange={(event) => onFieldChange(color.localId, { hexColor: event.target.value.toUpperCase() })}
+                  className="h-10 w-10 cursor-pointer rounded border border-slate-300 p-0.5"
+                  title="Pick a colour"
+                />
+                {/* Hex input */}
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-slate-500">#</span>
+                  <Input
+                    value={(color.hexColor || "").replace(/^#/, "")}
+                    onChange={(event) => {
+                      const value = event.target.value.toUpperCase().replace(/[^0-9A-F]/g, "").slice(0, 6);
+                      if (value.length === 6) {
+                        onFieldChange(color.localId, { hexColor: `#${value}` });
+                      } else {
+                        onFieldChange(color.localId, { hexColor: value ? `#${value}` : null });
+                      }
+                    }}
+                    placeholder="CCCCCC"
+                    className="w-24 font-mono text-sm"
+                    maxLength={6}
+                  />
+                </div>
+                {/* Preview swatch */}
+                {color.hexColor && isValidHexColor(color.hexColor) && (
+                  <div
+                    className="h-8 w-8 rounded-full border-2 border-slate-300"
+                    style={{ backgroundColor: color.hexColor }}
+                    title={color.hexColor}
+                  />
+                )}
+                {/* Auto-extract button */}
+                {color.imageFile && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAutoExtract(color.localId, color.imageFile)}
+                    disabled={extracting[color.localId]}
+                  >
+                    {extracting[color.localId] ? "Extracting…" : "Auto-extract from image"}
+                  </Button>
+                )}
+                {/* Clear button */}
+                {color.hexColor && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onFieldChange(color.localId, { hexColor: null })}
+                  >
+                    Clear
+                  </Button>
+                )}
               </div>
             </div>
             <div className="space-y-2">
