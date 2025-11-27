@@ -3,9 +3,11 @@
  *
  * Calculates optimal layout dimensions for PDF export based on density presets.
  * Handles proper spacing, margins, and page breaks for consistent, professional output.
+ * Supports both portrait and landscape orientations.
  */
 
 // Standard US Letter dimensions in points (1 point = 1/72 inch)
+// These are portrait defaults - use getPageDimensions() for orientation-aware values
 export const PAGE_DIMENSIONS = {
   width: 612, // 8.5 inches
   height: 792, // 11 inches
@@ -19,11 +21,45 @@ export const PAGE_MARGINS = {
   left: 36,
 };
 
-// Calculate usable page area
+// Calculate usable page area (portrait default)
+// Use getUsableArea(orientation) for orientation-aware values
 export const USABLE_AREA = {
   width: PAGE_DIMENSIONS.width - PAGE_MARGINS.left - PAGE_MARGINS.right,  // 540pt
   height: PAGE_DIMENSIONS.height - PAGE_MARGINS.top - PAGE_MARGINS.bottom, // 720pt
 };
+
+/**
+ * Get page dimensions based on orientation
+ *
+ * @param {string} orientation - 'portrait' or 'landscape'
+ * @returns {Object} { width, height } in points
+ */
+export function getPageDimensions(orientation = 'portrait') {
+  if (orientation === 'landscape') {
+    return {
+      width: 792,  // 11 inches (swapped)
+      height: 612, // 8.5 inches (swapped)
+    };
+  }
+  return {
+    width: 612,  // 8.5 inches
+    height: 792, // 11 inches
+  };
+}
+
+/**
+ * Get usable page area based on orientation (after margins)
+ *
+ * @param {string} orientation - 'portrait' or 'landscape'
+ * @returns {Object} { width, height } in points
+ */
+export function getUsableArea(orientation = 'portrait') {
+  const page = getPageDimensions(orientation);
+  return {
+    width: page.width - PAGE_MARGINS.left - PAGE_MARGINS.right,
+    height: page.height - PAGE_MARGINS.top - PAGE_MARGINS.bottom,
+  };
+}
 
 // Density presets define target cards per page and styling
 export const DENSITY_PRESETS = {
@@ -89,14 +125,19 @@ const GRID_LAYOUTS = {
 };
 
 /**
- * Calculate optimal grid layout based on density preset
+ * Calculate optimal grid layout based on density preset and orientation
  *
  * @param {string} densityId - One of: 'compact', 'standard', 'detailed'
  * @param {number} totalCards - Total number of cards to layout
+ * @param {string} orientation - 'portrait' or 'landscape'
  * @returns {Object} Layout configuration
  */
-export function calculateLayout(densityId = 'standard', totalCards = 0) {
+export function calculateLayout(densityId = 'standard', totalCards = 0, orientation = 'portrait') {
   const preset = DENSITY_PRESETS[densityId] || DENSITY_PRESETS.standard;
+
+  // Get orientation-aware dimensions
+  const usableArea = getUsableArea(orientation);
+  const pageDimensions = getPageDimensions(orientation);
 
   // Determine grid dimensions based on target cards per page
   // Using a decision matrix for predictable, aesthetic layouts
@@ -117,11 +158,16 @@ export function calculateLayout(densityId = 'standard', totalCards = 0) {
     rows = Math.ceil(preset.targetCardsPerPage / columns);
   }
 
+  // For landscape orientation with more horizontal space, consider adding a column
+  if (orientation === 'landscape' && densityId !== 'detailed') {
+    columns = Math.min(columns + 1, 5); // Cap at 5 columns max
+  }
+
   const actualCardsPerPage = columns * rows;
 
-  // Calculate card dimensions
+  // Calculate card dimensions using orientation-aware usable area
   const totalHorizontalGap = CARD_GAP.horizontal * (columns - 1);
-  const cardWidth = (USABLE_AREA.width - totalHorizontalGap) / columns;
+  const cardWidth = (usableArea.width - totalHorizontalGap) / columns;
 
   // Estimate card height based on content
   const cardHeight =
@@ -130,8 +176,8 @@ export function calculateLayout(densityId = 'standard', totalCards = 0) {
     preset.fontSize.title + 6 +   // Title + margin
     (preset.showAllFields ? 80 : 40); // Details section
 
-  // Calculate how many cards fit per page
-  const availableVerticalSpace = USABLE_AREA.height;
+  // Calculate how many cards fit per page using orientation-aware height
+  const availableVerticalSpace = usableArea.height;
   const totalVerticalGap = CARD_GAP.vertical * (rows - 1);
   const maxRowsPerPage = Math.floor(
     (availableVerticalSpace + CARD_GAP.vertical) / (cardHeight + CARD_GAP.vertical)
@@ -151,7 +197,9 @@ export function calculateLayout(densityId = 'standard', totalCards = 0) {
     totalPages,
     gap: CARD_GAP,
     margins: PAGE_MARGINS,
-    pageDimensions: PAGE_DIMENSIONS,
+    pageDimensions,
+    usableArea,
+    orientation,
   };
 }
 
@@ -162,9 +210,12 @@ export function calculateLayout(densityId = 'standard', totalCards = 0) {
  * @returns {Object} Dimension strings for CSS/PDF
  */
 export function getCardDimensions(layout) {
-  const widthPercent = ((layout.cardWidth / USABLE_AREA.width) * 100).toFixed(4);
-  const gapHorizontalPercent = ((CARD_GAP.horizontal / USABLE_AREA.width) * 100).toFixed(4);
-  const gapVerticalPercent = ((CARD_GAP.vertical / USABLE_AREA.height) * 100).toFixed(4);
+  // Use orientation-aware usable area from layout, fallback to constants for backwards compatibility
+  const usableArea = layout.usableArea || USABLE_AREA;
+
+  const widthPercent = ((layout.cardWidth / usableArea.width) * 100).toFixed(4);
+  const gapHorizontalPercent = ((CARD_GAP.horizontal / usableArea.width) * 100).toFixed(4);
+  const gapVerticalPercent = ((CARD_GAP.vertical / usableArea.height) * 100).toFixed(4);
 
   return {
     width: `${widthPercent}%`,
@@ -254,5 +305,7 @@ export function getLayoutSummary(layout, totalCards) {
     totalPages: layout.totalPages,
     totalCards,
     estimatedSize: estimateFileSize(totalCards),
+    orientation: layout.orientation || 'portrait',
+    pageDimensions: layout.pageDimensions,
   };
 }

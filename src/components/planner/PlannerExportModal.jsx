@@ -14,7 +14,7 @@ import {
 } from "@react-pdf/renderer";
 import { Button } from "../ui/button";
 import { toast } from "../../lib/toast";
-import { collectImagesForPdf, resolveImageSourceToDataUrl } from "../../lib/pdfImageCollector";
+import { resolveImageSourceToDataUrl } from "../../lib/pdfImageCollector";
 import {
   calculateLayout,
   distributeCardsAcrossPages,
@@ -32,6 +32,8 @@ import {
   exportSettingsToSectionConfig,
   sectionConfigToExportSettings,
   getVisibleFieldKeys,
+  SECTION_TYPES,
+  getVisibleSections,
 } from "../../lib/plannerSheetSections";
 
 const styles = StyleSheet.create({
@@ -78,6 +80,48 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#1f2937",
   },
+  tableHeaderRow: {
+    flexDirection: "row",
+    backgroundColor: "#f1f5f9",
+    borderBottomWidth: 2,
+    borderBottomColor: "#cbd5e1",
+    borderBottomStyle: "solid",
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  tableHeaderCell: {
+    fontSize: 9,
+    fontWeight: 600,
+    color: "#475569",
+    textTransform: "uppercase",
+    paddingHorizontal: 4,
+  },
+  tableDataRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+    borderBottomStyle: "solid",
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    alignItems: "center",
+  },
+  tableDataCell: {
+    fontSize: 9,
+    color: "#1f2937",
+    paddingHorizontal: 4,
+  },
+  tableImageCell: {
+    width: 50,
+    height: 50,
+    marginRight: 8,
+    flexShrink: 0,
+  },
+  tableImage: {
+    width: 50,
+    height: 50,
+    objectFit: "cover",
+    borderRadius: 2,
+  },
   laneSection: {
     marginBottom: 18,
   },
@@ -97,16 +141,14 @@ const styles = StyleSheet.create({
   shotImage: {
     width: 100,
     height: 100,
-    objectFit: "contain",
-    backgroundColor: "#f1f5f9",
+    objectFit: "cover",
     borderRadius: 4,
     marginBottom: 6,
   },
   galleryShotImage: {
     width: "100%",
     height: 160,
-    objectFit: "contain",
-    backgroundColor: "#f1f5f9",
+    objectFit: "cover",
     borderRadius: 4,
     marginBottom: 8,
   },
@@ -368,144 +410,123 @@ const cssEscape = (value) => {
   return String(value).replace(/"/g, '\"');
 };
 
-const prepareLanesForPdf = async (lanes, { includeImages, density = 'standard', useDomCapture = false, inlineImages = false }) => {
+/**
+ * Prepare lanes data for PDF export by fetching and processing images
+ *
+ * This function fetches images directly from shot data URLs rather than relying
+ * on DOM elements, which solves lazy-loading race conditions.
+ *
+ * @param {Array} lanes - Array of lane objects with shots
+ * @param {Object} options - Processing options
+ * @param {boolean} options.includeImages - Whether to include images in export
+ * @param {string} options.density - Image quality preset ('compact', 'standard', 'detailed')
+ * @param {boolean} options.inlineImages - Whether to inline images as data URLs
+ * @param {Function} options.onProgress - Progress callback (loaded, total)
+ */
+const prepareLanesForPdf = async (lanes, { includeImages, density = 'standard', inlineImages = false, onProgress }) => {
   const list = Array.isArray(lanes) ? lanes : [];
-  const tasks = [];
   const shotImageMap = new Map();
-  const shotsNeedingFallback = [];
 
   // Get optimal image dimensions for the density
   const imageDimensions = getOptimalImageDimensions(density);
 
-  if (includeImages && inlineImages && useDomCapture && typeof document !== "undefined") {
-    const shotIds = new Set();
+  if (includeImages && inlineImages) {
+    // Collect all shots that need images
+    const imagesToFetch = [];
     list.forEach((lane) => {
       const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
       laneShots.forEach((shot) => {
-        if (shot?.id) shotIds.add(String(shot.id));
-        if (shot?.image) {
-          shotsNeedingFallback.push({ id: shot.id, source: shot.image });
+        if (!shot?.id || !shot?.image) return;
+
+        // Get crop data from primary attachment or fallback to legacy
+        let cropPosition = { x: 50, y: 50 };
+        const primaryAttachment = getPrimaryAttachment(shot.attachments);
+        if (primaryAttachment?.cropData) {
+          cropPosition = {
+            x: primaryAttachment.cropData.x || 50,
+            y: primaryAttachment.cropData.y || 50,
+          };
+        } else if (shot.referenceImageCrop) {
+          cropPosition = shot.referenceImageCrop;
         }
+
+        imagesToFetch.push({
+          shotId: String(shot.id),
+          source: shot.image,
+          cropPosition,
+        });
       });
     });
 
-    const shotNodes = Array.from(shotIds)
-      .map((id) => document.querySelector(`[data-shot-id="${cssEscape(id)}"]`))
-      .filter((node) => node instanceof HTMLElement);
+    // Fetch and process all images in parallel directly from URLs (not DOM)
+    let loaded = 0;
+    const total = imagesToFetch.length;
 
-    if (shotNodes.length) {
+    const fetchPromises = imagesToFetch.map(async (item) => {
       try {
-        const collected = await collectImagesForPdf(shotNodes);
+        // Resolve image source to data URL
+        const { dataUrl } = await resolveImageSourceToDataUrl(item.source);
 
-        // Process collected images with cropping
-        const cropPromises = collected.map(async (entry) => {
-          const shotId = entry.owner?.shotId;
-          if (!shotId || !entry.dataUrl) return;
-
-          // Find the shot to get crop position
-          let shot = null;
-          list.forEach((lane) => {
-            const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
-            const found = laneShots.find(s => String(s.id) === String(shotId));
-            if (found) shot = found;
-          });
-
-          if (shot && entry.dataUrl) {
-            try {
-              // Get crop data from primary attachment or fallback to legacy
-              let cropPosition = { x: 50, y: 50 };
-              const primaryAttachment = getPrimaryAttachment(shot.attachments);
-              if (primaryAttachment?.cropData) {
-                cropPosition = {
-                  x: primaryAttachment.cropData.x || 50,
-                  y: primaryAttachment.cropData.y || 50,
-                };
-              } else if (shot.referenceImageCrop) {
-                cropPosition = shot.referenceImageCrop;
-              }
-
-              const croppedDataUrl = await processImageForPDF(entry.dataUrl, {
-                cropPosition,
-                targetWidth: imageDimensions.width,
-                targetHeight: imageDimensions.height,
-              });
-              shotImageMap.set(shotId, croppedDataUrl);
-            } catch (cropError) {
-              console.warn("[Planner] Failed to crop image, using original", cropError);
-              shotImageMap.set(shotId, entry.dataUrl);
-            }
+        if (dataUrl) {
+          try {
+            // Process with cropping
+            const croppedDataUrl = await processImageForPDF(dataUrl, {
+              cropPosition: item.cropPosition,
+              targetWidth: imageDimensions.width,
+              targetHeight: imageDimensions.height,
+            });
+            shotImageMap.set(item.shotId, croppedDataUrl);
+          } catch (cropError) {
+            console.warn("[Planner] Failed to crop image, using original", cropError);
+            shotImageMap.set(item.shotId, dataUrl);
           }
-        });
-
-        await Promise.allSettled(cropPromises);
-      } catch (error) {
-        console.warn("[Planner] Failed to collect planner images", error);
-      }
-    }
-
-    const fallbackPromises = shotsNeedingFallback
-      .filter((item) => item.id && !shotImageMap.has(String(item.id)))
-      .map(async (item) => {
-        try {
-          const { dataUrl } = await resolveImageSourceToDataUrl(item.source);
-          if (dataUrl) {
-            shotImageMap.set(String(item.id), dataUrl);
-          }
-        } catch (error) {
-          console.warn("[Planner] Unable to resolve fallback image", {
-            shotId: item.id,
-            source: item.source,
-            error,
-          });
         }
-      });
+      } catch (error) {
+        console.warn("[Planner] Failed to fetch image for PDF", {
+          shotId: item.shotId,
+          source: item.source,
+          error,
+        });
+      } finally {
+        loaded++;
+        if (onProgress) {
+          onProgress(loaded, total);
+        }
+      }
+    });
 
-    if (fallbackPromises.length) {
-      tasks.push(Promise.allSettled(fallbackPromises));
-    }
+    await Promise.allSettled(fetchPromises);
   }
 
+  // Build prepared lanes with resolved image data
   const prepared = list.map((lane) => {
     const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
     const shots = laneShots.map((shot) => {
       const preparedShot = { ...shot };
+
       if (!includeImages) {
         preparedShot.image = null;
         return preparedShot;
       }
+
       // Fast path: do not inline images, just pass URLs/paths through to PDF renderer
       if (!inlineImages) {
         return preparedShot;
       }
+
       const shotId = shot?.id ? String(shot.id) : null;
       if (shotId && shotImageMap.has(shotId)) {
         preparedShot.image = shotImageMap.get(shotId);
-        return preparedShot;
-      }
-      if (shot?.image) {
-        const loadTask = resolveImageSourceToDataUrl(shot.image)
-          .then(({ dataUrl }) => {
-            preparedShot.image = dataUrl;
-          })
-          .catch((error) => {
-            console.warn("[Planner] Failed to resolve shot image for export", {
-              shotId: shot?.id,
-              source: shot?.image,
-              error,
-            });
-            preparedShot.image = null;
-          });
-        tasks.push(loadTask);
       } else {
+        // Image was not successfully loaded
         preparedShot.image = null;
       }
+
       return preparedShot;
     });
     return { ...lane, shots };
   });
-  if (tasks.length) {
-    await Promise.all(tasks);
-  }
+
   return prepared;
 };
 
@@ -622,15 +643,20 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
       : 1;
   const columnWidth = `${(100 / galleryColumns).toFixed(4)}%`;
   const visibleFields = options.fields || {};
+  const customLabels = options.customLabels || {};
+
+  // Convert fields to sectionStates for table rendering
+  const sectionStates = exportSettingsToSectionConfig(visibleFields);
+
   const showLaneSummary = options.includeLaneSummary && laneSummary?.lanes?.length;
   const showTalentSummary = options.includeTalentSummary && talentSummary?.rows?.length;
   const talentLanes = Array.isArray(talentSummary?.lanes) ? talentSummary.lanes : [];
   const talentRows = Array.isArray(talentSummary?.rows) ? talentSummary.rows : [];
   const exportLanes = Array.isArray(lanes) ? lanes : [];
 
-  // Calculate layout using new density-based system
+  // Calculate layout using new density-based system with orientation support
   const allShots = exportLanes.flatMap(lane => lane.shots || []);
-  const layoutConfig = layout === "gallery" ? calculateLayout(densityId, allShots.length) : null;
+  const layoutConfig = layout === "gallery" ? calculateLayout(densityId, allShots.length, orientation) : null;
   const densityPreset = layoutConfig?.preset;
 
   // Image style with density-specific height
@@ -1011,6 +1037,113 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
     );
   };
 
+  // Render table header row with column labels
+  const renderTableHeaderRow = (sectionStates, customLabels = {}) => {
+    const visibleSections = getVisibleSections(sectionStates);
+    const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
+
+    // Calculate column widths (simplified approach for PDF)
+    const columnSections = visibleSections.filter(s => s.category === 'columns' && s.id !== SECTION_TYPES.IMAGE);
+    const totalFlex = columnSections.reduce((sum, s) => sum + (sectionStates[s.id]?.flex ?? s.flex ?? 1), 0);
+
+    return (
+      <View style={styles.tableHeaderRow} wrap={false}>
+        {showImage && (
+          <View style={[styles.tableImageCell, { marginRight: 8 }]}>
+            <Text style={styles.tableHeaderCell}>{customLabels[SECTION_TYPES.IMAGE] || 'IMAGE'}</Text>
+          </View>
+        )}
+        {columnSections.map(section => {
+          const flex = sectionStates[section.id]?.flex ?? section.flex ?? 1;
+          const width = `${((flex / totalFlex) * 100).toFixed(2)}%`;
+          const label = customLabels[section.id] || section.label;
+
+          return (
+            <View key={section.id} style={{ width, flexShrink: 0 }}>
+              <Text style={styles.tableHeaderCell}>{label.toUpperCase()}</Text>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  // Render a shot as a table row
+  const renderTableRow = (shot, _lane, index, sectionStates) => {
+    const visibleSections = getVisibleSections(sectionStates);
+    const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
+    const shotKey = shot?.id || index;
+
+    // Calculate column widths (same as header)
+    const columnSections = visibleSections.filter(s => s.category === 'columns' && s.id !== SECTION_TYPES.IMAGE);
+    const totalFlex = columnSections.reduce((sum, s) => sum + (sectionStates[s.id]?.flex ?? s.flex ?? 1), 0);
+
+    // Render cell content based on section type
+    const renderCellContent = (section) => {
+      switch (section.id) {
+        case SECTION_TYPES.SHOT_NUMBER:
+          return shot.shotNumber || '-';
+
+        case SECTION_TYPES.SHOT_NAME:
+          return shot.name || 'Untitled Shot';
+
+        case SECTION_TYPES.SHOT_TYPE:
+          return shot.type || '-';
+
+        case SECTION_TYPES.DATE:
+          return shot.date || '-';
+
+        case SECTION_TYPES.LOCATION:
+          return shot.location || '-';
+
+        case SECTION_TYPES.TALENT: {
+          const talentList = ensureStringList(shot?.talent);
+          return talentList.length > 0 ? talentList.join(', ') : '-';
+        }
+
+        case SECTION_TYPES.PRODUCTS: {
+          const productList = ensureStringList(shot?.products);
+          return productList.length > 0 ? productList.join(', ') : '-';
+        }
+
+        case SECTION_TYPES.NOTES: {
+          // Simple text rendering for table (strip HTML)
+          const notesText = shot.notes
+            ? shot.notes.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+            : '';
+          return notesText || '-';
+        }
+
+        default:
+          return '-';
+      }
+    };
+
+    return (
+      <View key={shotKey} style={styles.tableDataRow} wrap={false}>
+        {showImage && (
+          <View style={styles.tableImageCell}>
+            {shot?.image ? (
+              <Image src={shot.image} style={styles.tableImage} />
+            ) : (
+              <View style={{ width: 50, height: 50, backgroundColor: '#f1f5f9', borderRadius: 2 }} />
+            )}
+          </View>
+        )}
+        {columnSections.map(section => {
+          const flex = sectionStates[section.id]?.flex ?? section.flex ?? 1;
+          const width = `${((flex / totalFlex) * 100).toFixed(2)}%`;
+
+          return (
+            <View key={section.id} style={{ width, flexShrink: 0 }}>
+              <Text style={styles.tableDataCell}>{renderCellContent(section)}</Text>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
   const renderShotCard = (shot, _lane, index) => {
     const shotNumber = normaliseShotNumber(shot?.shotNumber);
     const talentList = ensureStringList(shot?.talent);
@@ -1260,9 +1393,13 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
               }))
             )
           : null}
-        {exportLanes.map((lane) => {
+        {layout === "table" && exportLanes.some(lane => Array.isArray(lane.shots) && lane.shots.length > 0) && (
+          renderTableHeaderRow(sectionStates, customLabels)
+        )}
+        {exportLanes.map((lane, laneIndex) => {
           const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
           const shotCards = laneShots.map((shot, index) => renderShotCard(shot, lane, index));
+          const tableRows = laneShots.map((shot, index) => renderTableRow(shot, lane, index, sectionStates));
           return (
             <View key={lane.id} style={styles.laneSection}>
               <Text style={styles.laneHeading}>
@@ -1273,7 +1410,7 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
               ) : layout === "gallery" ? (
                 <View style={styles.galleryContainer}>{shotCards}</View>
               ) : (
-                shotCards
+                <View>{tableRows}</View>
               )}
             </View>
           );
@@ -1305,12 +1442,16 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
   // Initialize section states first
   const [sectionStates, setSectionStates] = useState(() => getDefaultSectionConfig());
 
+  // Custom labels for table headers (allows user to shorten labels for better fit)
+  const [customLabels, setCustomLabels] = useState({});
+
   // Initialize fields from section states
   const [fields, setFields] = useState(() => getVisibleFieldKeys(getDefaultSectionConfig()));
   const [includeLaneSummary, setIncludeLaneSummary] = useState(true);
   const [includeTalentSummary, setIncludeTalentSummary] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStage, setGenerationStage] = useState("");
+  const [imageLoadProgress, setImageLoadProgress] = useState({ loaded: 0, total: 0 });
   const [laneFilterMode, setLaneFilterMode] = useState("all");
   const [selectedLaneIds, setSelectedLaneIds] = useState([]);
   const [selectedTalentNames, setSelectedTalentNames] = useState([]);
@@ -1642,6 +1783,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       density,
       galleryColumns: resolvedGalleryColumns,
       fields,
+      customLabels,
       includeLaneSummary,
       includeTalentSummary,
     }),
@@ -1653,6 +1795,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       density,
       resolvedGalleryColumns,
       fields,
+      customLabels,
       includeLaneSummary,
       includeTalentSummary,
     ]
@@ -1692,13 +1835,19 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     try {
       setIsGenerating(true);
       const includeImages = Boolean(fields.image);
-      setGenerationStage("Collecting assets…");
+      setImageLoadProgress({ loaded: 0, total: 0 });
+      setGenerationStage("Loading images…");
+
       const preparedLanes = await prepareLanesForPdf(lanesWithImageFallback, {
         includeImages,
         density,
-        useDomCapture: true,
         inlineImages,
+        onProgress: (loaded, total) => {
+          setImageLoadProgress({ loaded, total });
+          setGenerationStage(`Loading images… ${loaded}/${total}`);
+        },
       });
+
       setGenerationStage("Rendering PDF…");
       const blob = await pdf(
         <PlannerPdfDocument
@@ -1736,7 +1885,6 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     onClose,
     fields.image,
     density,
-    prepareLanesForPdf,
     inlineImages,
   ]);
 
@@ -2185,6 +2333,49 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                   onSectionStatesChange={setSectionStates}
                 />
               </div>
+
+              {/* Custom Header Labels (Table Mode Only) */}
+              {layoutMode === 'table' && (
+                <div className="pt-6 border-t border-slate-200 dark:border-slate-700">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">
+                    Custom Header Labels
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mb-4">
+                    Customize column header text to make labels fit better in the PDF table.
+                  </p>
+                  <div className="space-y-2">
+                    {getVisibleSections(sectionStates).map(section => (
+                      <div key={section.id} className="flex items-center gap-2">
+                        <label className="text-xs text-slate-600 dark:text-slate-400 w-24 flex-shrink-0">
+                          {section.label}:
+                        </label>
+                        <input
+                          type="text"
+                          placeholder={section.label}
+                          value={customLabels[section.id] || ''}
+                          onChange={(e) => setCustomLabels(prev => ({
+                            ...prev,
+                            [section.id]: e.target.value
+                          }))}
+                          className="flex-1 px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                        />
+                        {customLabels[section.id] && (
+                          <button
+                            onClick={() => setCustomLabels(prev => {
+                              const updated = { ...prev };
+                              delete updated[section.id];
+                              return updated;
+                            })}
+                            className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                          >
+                            Reset
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -2210,8 +2401,11 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                 sectionStates={sectionStates}
                 layoutMode={layoutMode}
                 orientation={orientation}
+                density={density}
+                galleryColumns={resolvedGalleryColumns}
                 title={title}
                 subtitle={subtitle}
+                customLabels={customLabels}
               />
             </div>
           )}

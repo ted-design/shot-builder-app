@@ -76,6 +76,7 @@ import {
   CheckSquare,
   Check,
   Square,
+  Layers,
 } from "lucide-react";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { Button } from "../components/ui/button";
@@ -84,6 +85,9 @@ import { TagList } from "../components/ui/TagBadge";
 import { toast, showConfirm } from "../lib/toast";
 import AppImage from "../components/common/AppImage";
 import PlannerSummary from "../components/planner/PlannerSummary";
+import PlannerLaneTabs from "../components/planner/PlannerLaneTabs";
+import PlannerLaneGrid from "../components/planner/PlannerLaneGrid";
+import UnassignedShotsTray from "../components/planner/UnassignedShotsTray";
 const PlannerExportModal = lazy(() => import("../components/planner/PlannerExportModal"));
 import ShotEditModal from "../components/shots/ShotEditModal";
 import ShotTableView from "../components/shots/ShotTableView";
@@ -127,6 +131,8 @@ import { buildActiveFilterPills, defaultOverviewFilters, removeFilterKey } from 
 const PLANNER_VIEW_STORAGE_KEY = "planner:viewMode";
 const PLANNER_FIELDS_STORAGE_KEY = "planner:visibleFields";
 const PLANNER_DENSITY_STORAGE_KEY = "planner:density";
+const PLANNER_LAYOUT_MODE_STORAGE_KEY = "planner:layoutMode";
+const PLANNER_UNASSIGNED_EXPANDED_KEY = "planner:unassignedExpanded";
 // Consolidate order + locks to the Shots prefs key
 const SHOTS_PREFS_STORAGE_KEY = "shots:viewPrefs";
 const UNASSIGNED_LANE_ID = "__unassigned__";
@@ -534,16 +540,20 @@ const calculateLaneSummaries = (lanesForExport) => {
   return { totalShots, lanes: summaries };
 };
 
-const calculateTalentSummaries = (lanesForExport) => {
+const calculateTalentSummaries = (lanesForExport, talentLookup = {}) => {
   const laneOrder = Array.isArray(lanesForExport) ? lanesForExport : [];
   const baseByLane = laneOrder.reduce((acc, lane) => ({ ...acc, [lane.id]: 0 }), {});
   const tally = new Map();
 
   const ensureTalent = (id, name) => {
     if (!tally.has(id)) {
+      // Look up the talent record by name to get headshotPath and talentId
+      const talentRecord = talentLookup[name] || null;
       tally.set(id, {
         id,
         name,
+        talentId: talentRecord?.id || null, // Firestore document ID for filtering
+        headshotPath: talentRecord?.headshotPath || null,
         total: 0,
         byLane: { ...baseByLane },
       });
@@ -590,6 +600,17 @@ const readStoredPlannerView = () => {
   const stored = readStorage(PLANNER_VIEW_STORAGE_KEY);
   if (stored === "table" || stored === "list") return "table"; // migrate old "list"
   return "gallery"; // default/migrate old "board"
+};
+
+const readStoredLayoutMode = () => {
+  const stored = readStorage(PLANNER_LAYOUT_MODE_STORAGE_KEY);
+  if (stored === "tabs") return "tabs";
+  return "stacked"; // default
+};
+
+const readStoredUnassignedExpanded = () => {
+  const stored = readStorage(PLANNER_UNASSIGNED_EXPANDED_KEY);
+  return stored === "true";
 };
 
 const readStoredVisibleFields = () => {
@@ -902,7 +923,7 @@ function ShotCard({
   const firstProduct = Array.isArray(products) && products.length ? products[0] : null;
 
   // Use new multi-image system with imageHelpers
-  const { path: shotImagePath, style: shotImageStyle } = getPrimaryAttachmentWithStyle(shot);
+  const { path: shotImagePath, objectPosition: shotImagePosition } = getPrimaryAttachmentWithStyle(shot);
   const multiImageCount = getAttachmentCount(shot);
   const showMultiImageBadge = hasMultipleAttachments(shot);
 
@@ -1023,8 +1044,9 @@ function ShotCard({
               preferredSize={240}
               loading="lazy"
               className="h-full w-full"
-              imageClassName="h-full w-full object-cover"
-              style={shotImagePath === thumbnailSrc ? shotImageStyle : undefined}
+              imageClassName="h-full w-full"
+              fit="cover"
+              position={shotImagePath === thumbnailSrc ? shotImagePosition : undefined}
               placeholder={
                 <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                   Loading
@@ -1058,8 +1080,9 @@ function ShotCard({
                   preferredSize={96}
                   loading="lazy"
                   className="h-full w-full"
-                  imageClassName="h-full w-full object-cover"
-                  style={shotImagePath === thumbnailSrc ? shotImageStyle : undefined}
+                  imageClassName="h-full w-full"
+                  fit="cover"
+                  position={shotImagePath === thumbnailSrc ? shotImagePosition : undefined}
                   placeholder={
                     <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[9px] uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                       Loading
@@ -1359,6 +1382,9 @@ function PlannerPageContent({ embedded = false }) {
   const [plannerShots, setPlannerShots] = useState([]);
   const [shotsLoading, setShotsLoading] = useState(true);
   const [viewMode, setViewMode] = useState(() => readStoredPlannerView());
+  const [layoutMode, setLayoutMode] = useState(() => readStoredLayoutMode());
+  const [unassignedTrayExpanded, setUnassignedTrayExpanded] = useState(() => readStoredUnassignedExpanded());
+  const [selectedLaneIdForTabs, setSelectedLaneIdForTabs] = useState(null);
   const [visibleFields, setVisibleFields] = useState(() => readStoredVisibleFields());
   const defaultOrder = [
     "image",
@@ -2101,6 +2127,30 @@ function PlannerPageContent({ embedded = false }) {
     }
   };
 
+  // Create a new lane using a prompt dialog (for tabbed layout "Add Lane" button)
+  const createLaneWithPrompt = useCallback(async () => {
+    if (!canEditPlanner) {
+      toast.error("You do not have permission to modify the planner.");
+      return;
+    }
+    const laneName = window.prompt("Enter lane name (e.g., 2025-09-12 or Day 1):");
+    if (!laneName || !laneName.trim()) return;
+    try {
+      const newLaneRef = await addDoc(collection(db, ...currentLanesPath), {
+        name: laneName.trim(),
+        order: lanes.length,
+      });
+      // Auto-select the newly created lane in tabs mode
+      if (layoutMode === "tabs") {
+        setSelectedLaneIdForTabs(newLaneRef.id);
+      }
+      toast.success(`Lane "${laneName.trim()}" created`);
+    } catch (error) {
+      console.error("[Planner] Failed to add lane", error);
+      toast.error("Could not create lane");
+    }
+  }, [canEditPlanner, currentLanesPath, lanes.length, layoutMode]);
+
   const generateProductId = useCallback(() => Math.random().toString(36).slice(2, 10), []);
 
   const withDerivedProductFields = useCallback(
@@ -2401,6 +2451,29 @@ function PlannerPageContent({ embedded = false }) {
       setViewMode((previousMode) => (previousMode === nextMode ? previousMode : nextMode)),
     []
   );
+
+  const toggleLayoutMode = useCallback(() => {
+    setLayoutMode((prev) => {
+      const next = prev === "tabs" ? "stacked" : "tabs";
+      writeStorage(PLANNER_LAYOUT_MODE_STORAGE_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const handleToggleUnassignedTray = useCallback(() => {
+    setUnassignedTrayExpanded((prev) => {
+      const next = !prev;
+      writeStorage(PLANNER_UNASSIGNED_EXPANDED_KEY, String(next));
+      return next;
+    });
+  }, []);
+
+  // Auto-select first lane when switching to tabs mode or when lanes change
+  useEffect(() => {
+    if (layoutMode === "tabs" && lanes.length > 0 && !selectedLaneIdForTabs) {
+      setSelectedLaneIdForTabs(lanes[0].id);
+    }
+  }, [layoutMode, lanes, selectedLaneIdForTabs]);
 
   const updateGroupBy = useCallback((nextGroup) => {
     const normalised = normalisePlannerGroup(nextGroup);
@@ -3176,7 +3249,26 @@ function PlannerPageContent({ embedded = false }) {
     [resolvedShotsByLane, lanes, normaliseShotProducts]
   );
   const laneSummary = useMemo(() => calculateLaneSummaries(lanesForExport), [lanesForExport]);
-  const talentSummary = useMemo(() => calculateTalentSummaries(lanesForExport), [lanesForExport]);
+
+  // Create a lookup map of talent name -> talent record for headshot paths
+  const talentLookupByName = useMemo(() => {
+    const lookup = {};
+    talent.forEach((t) => {
+      if (t?.name) {
+        lookup[t.name] = t;
+      }
+      // Also check fullName or displayName as alternatives
+      if (t?.fullName && !lookup[t.fullName]) {
+        lookup[t.fullName] = t;
+      }
+    });
+    return lookup;
+  }, [talent]);
+
+  const talentSummary = useMemo(
+    () => calculateTalentSummaries(lanesForExport, talentLookupByName),
+    [lanesForExport, talentLookupByName]
+  );
 
   const isPlannerLoading = isAuthLoading || lanesLoading || primaryShotsLoading;
   const totalShots = laneSummary.totalShots;
@@ -3417,9 +3509,6 @@ function PlannerPageContent({ embedded = false }) {
         {!isCollapsed && (
           <div
             className={shotListClass}
-            onPlannerShotKeyMove={async (e) => {
-              // synthetic handler won't fire; use native event listener below
-            }}
             ref={(node) => {
               if (!node) return;
               // Attach a native listener once per lane container
@@ -4150,6 +4239,23 @@ function PlannerPageContent({ embedded = false }) {
               onChange={setDensity}
               ariaLabel="Select card density"
             />
+            {/* Layout mode toggle (tabs vs stacked) - only show in gallery mode with no grouping */}
+            {viewMode === "gallery" && groupBy === "none" && (
+              <button
+                type="button"
+                onClick={toggleLayoutMode}
+                className={`inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors ${
+                  layoutMode === "tabs"
+                    ? "border-primary bg-primary/10 text-primary dark:bg-primary/20"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                }`}
+                aria-pressed={layoutMode === "tabs"}
+                title={layoutMode === "tabs" ? "Switch to stacked layout" : "Switch to tabbed layout"}
+              >
+                <Layers className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">{layoutMode === "tabs" ? "Tabs" : "Stacked"}</span>
+              </button>
+            )}
             <Button
               type="button"
               onClick={() => setExportOpen(true)}
@@ -4168,6 +4274,16 @@ function PlannerPageContent({ embedded = false }) {
         talentSummary={talentSummary}
         collapsed={summaryCollapsed}
         onToggle={toggleSummaryCollapsed}
+        onTalentClick={(row) => {
+          // Filter by talent - use talentId if available, otherwise use name
+          const filterValue = row.talentId || row.name;
+          if (!filterValue || row.id === TALENT_UNASSIGNED_ID) return;
+          setFilters((prev) => ({
+            ...prev,
+            talentIds: [filterValue],
+          }));
+        }}
+        activeTalentIds={filters.talentIds || []}
       />
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <input
@@ -4281,7 +4397,80 @@ function PlannerPageContent({ embedded = false }) {
                 );
               })}
             </div>
+          ) : layoutMode === "tabs" && lanes.length > 0 ? (
+            /* Tabbed layout with lane tabs, grid, and unassigned tray */
+            <div className="flex flex-col gap-4 pb-6">
+              {/* Lane tabs at the top */}
+              <PlannerLaneTabs
+                lanes={lanes}
+                shotsByLane={resolvedShotsByLane}
+                selectedLaneId={selectedLaneIdForTabs}
+                onSelectLane={setSelectedLaneIdForTabs}
+                onAddLane={canEditPlanner && !lanesLockedByGrouping ? createLaneWithPrompt : null}
+              />
+
+              {/* Selected lane content */}
+              {selectedLaneIdForTabs && (
+                <PlannerLaneGrid
+                  laneId={selectedLaneIdForTabs}
+                  shots={resolvedShotsByLane[selectedLaneIdForTabs] || []}
+                  density={density}
+                  emptyMessage="No shots in this lane yet. Drag shots here or create new ones."
+                  renderShot={(shot, index) => (
+                    <DraggableShot
+                      shot={shot}
+                      disabled={!canEditPlanner || lanesLockedByGrouping}
+                      viewMode={viewMode}
+                      visibleFields={visibleFields}
+                      onEdit={canEditShots ? () => openShotEditor(shot) : null}
+                      canEditShots={canEditShots}
+                      normaliseProducts={normaliseShotProducts}
+                      statusOptions={shotStatusOptions}
+                      onChangeStatus={handleUpdateShotStatus}
+                      density={density}
+                      isSelected={sharedSelectedShotIds instanceof Set && sharedSelectedShotIds.has(shot.id)}
+                      onToggleSelect={selectionMode ? (checked) => handleToggleSelectShot(shot, checked) : null}
+                      selectionMode={selectionMode}
+                    />
+                  )}
+                />
+              )}
+
+              {/* Unassigned shots tray at bottom */}
+              <UnassignedShotsTray
+                laneId={UNASSIGNED_LANE_ID}
+                shots={unassignedShots}
+                expanded={unassignedTrayExpanded}
+                onToggleExpanded={handleToggleUnassignedTray}
+                density={density}
+                renderShots={(shots) => (
+                  <PlannerLaneGrid
+                    laneId={UNASSIGNED_LANE_ID}
+                    shots={shots}
+                    density={density}
+                    renderShot={(shot, index) => (
+                      <DraggableShot
+                        shot={shot}
+                        disabled={!canEditPlanner || lanesLockedByGrouping}
+                        viewMode={viewMode}
+                        visibleFields={visibleFields}
+                        onEdit={canEditShots ? () => openShotEditor(shot) : null}
+                        canEditShots={canEditShots}
+                        normaliseProducts={normaliseShotProducts}
+                        statusOptions={shotStatusOptions}
+                        onChangeStatus={handleUpdateShotStatus}
+                        density={density}
+                        isSelected={sharedSelectedShotIds instanceof Set && sharedSelectedShotIds.has(shot.id)}
+                        onToggleSelect={selectionMode ? (checked) => handleToggleSelectShot(shot, checked) : null}
+                        selectionMode={selectionMode}
+                      />
+                    )}
+                  />
+                )}
+              />
+            </div>
           ) : (
+            /* Stacked layout (original grid with all lanes visible) */
             <div className="pb-6">
               <div
                 ref={boardScrollRef}

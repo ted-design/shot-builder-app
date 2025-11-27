@@ -2,6 +2,7 @@
 //
 // HTML preview component that matches PDF output for planner sheets
 // Provides WYSIWYG preview of planner sheet configuration
+// Uses the same layout calculations as the PDF renderer for accurate previews
 
 import React, { useMemo } from 'react';
 import {
@@ -11,97 +12,125 @@ import {
 } from '../../lib/plannerSheetSections';
 import AppImage from '../common/AppImage';
 import { getPrimaryAttachmentWithStyle } from '../../lib/imageHelpers';
+import { calculateLayout, getPageDimensions, DENSITY_PRESETS } from '../../lib/pdfLayoutCalculator';
+
+// Minimum column widths in pixels for table layout
+const TABLE_COLUMN_MIN_WIDTHS = {
+  [SECTION_TYPES.SHOT_NUMBER]: 80,   // Short numbers/IDs
+  [SECTION_TYPES.SHOT_NAME]: 120,    // Names need more space
+  [SECTION_TYPES.SHOT_TYPE]: 80,     // Type badges
+  [SECTION_TYPES.DATE]: 85,          // Date format
+  [SECTION_TYPES.LOCATION]: 100,     // Location names
+  [SECTION_TYPES.TALENT]: 100,       // Talent names
+  [SECTION_TYPES.PRODUCTS]: 120,     // Product lists
+  [SECTION_TYPES.NOTES]: 100,        // Notes can wrap
+};
+
+/**
+ * Build CSS grid template with minimum widths for table layout
+ * Uses minmax() to ensure columns have minimum readable widths while still being flexible
+ */
+function buildTableGridTemplate(visibleSections, sectionStates) {
+  return visibleSections
+    .filter(s => s.category === 'columns' && s.id !== SECTION_TYPES.IMAGE)
+    .map(section => {
+      const flex = sectionStates[section.id]?.flex ?? section.flex ?? 1;
+      const minWidth = TABLE_COLUMN_MIN_WIDTHS[section.id] || 80;
+      // Use minmax to set minimum width while allowing flexible growth
+      return `minmax(${minWidth}px, ${flex}fr)`;
+    })
+    .join(' ');
+}
 
 /**
  * Preview of a single shot card in table mode
  */
 function PreviewShotCardList({ shot, visibleSections, sectionStates }) {
   const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
-  const showShotNumber = visibleSections.some(s => s.id === SECTION_TYPES.SHOT_NUMBER);
 
-  // Get primary image with crop styling
-  const { path: primaryImagePath, style: primaryImageStyle } = getPrimaryAttachmentWithStyle(shot);
+  // Get primary image with crop positioning
+  const { path: primaryImagePath, objectPosition: primaryImagePosition } = getPrimaryAttachmentWithStyle(shot);
   const imagePath = primaryImagePath || shot.image || null;
-  const imageStyle = primaryImageStyle;
+  const imagePosition = primaryImagePosition;
 
-  // Build flex string for CSS grid (only for columns that are visible)
+  // Build grid template with minimum widths for readable columns
   const gridTemplate = useMemo(() => {
-    return visibleSections
-      .filter(s => s.category === 'columns' && s.id !== SECTION_TYPES.IMAGE)
-      .map(section => {
-        const flex = sectionStates[section.id]?.flex ?? section.flex ?? 1;
-        return `${flex}fr`;
-      })
-      .join(' ');
+    return buildTableGridTemplate(visibleSections, sectionStates);
   }, [visibleSections, sectionStates]);
 
   // Render cell content based on section type
+  // All cells use truncation or line-clamp to prevent excessive wrapping
   const renderCell = (section) => {
     switch (section.id) {
       case SECTION_TYPES.SHOT_NUMBER:
         return (
-          <div className="px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <div className="px-2 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 truncate" title={shot.shotNumber || '-'}>
             {shot.shotNumber || '-'}
           </div>
         );
 
       case SECTION_TYPES.SHOT_NAME:
         return (
-          <div className="px-3 py-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+          <div className="px-2 py-2 text-sm font-medium text-slate-900 dark:text-slate-100 truncate" title={shot.name || 'Untitled Shot'}>
             {shot.name || 'Untitled Shot'}
           </div>
         );
 
       case SECTION_TYPES.SHOT_TYPE:
         return (
-          <div className="px-3 py-2 text-sm text-slate-700 dark:text-slate-300">
+          <div className="px-2 py-2 text-xs text-slate-700 dark:text-slate-300 truncate" title={shot.type || '-'}>
             {shot.type || '-'}
           </div>
         );
 
       case SECTION_TYPES.DATE:
         return (
-          <div className="px-3 py-2 text-sm text-slate-700 dark:text-slate-300">
+          <div className="px-2 py-2 text-xs text-slate-700 dark:text-slate-300 truncate" title={shot.date || '-'}>
             {shot.date || '-'}
           </div>
         );
 
       case SECTION_TYPES.LOCATION:
         return (
-          <div className="px-3 py-2 text-sm text-slate-700 dark:text-slate-300">
+          <div className="px-2 py-2 text-xs text-slate-700 dark:text-slate-300 truncate" title={shot.location || '-'}>
             {shot.location || '-'}
           </div>
         );
 
-      case SECTION_TYPES.TALENT:
+      case SECTION_TYPES.TALENT: {
         const talentList = Array.isArray(shot.talent) ? shot.talent : [];
+        const talentText = talentList.length > 0 ? talentList.join(', ') : '-';
         return (
-          <div className="px-3 py-2 text-sm text-slate-700 dark:text-slate-300">
-            {talentList.length > 0 ? talentList.join(', ') : '-'}
+          <div className="px-2 py-2 text-xs text-slate-700 dark:text-slate-300 truncate" title={talentText}>
+            {talentText}
           </div>
         );
+      }
 
-      case SECTION_TYPES.PRODUCTS:
+      case SECTION_TYPES.PRODUCTS: {
         const productList = Array.isArray(shot.products) ? shot.products : [];
+        const productText = productList.length > 0 ? productList.join(', ') : '-';
         return (
-          <div className="px-3 py-2 text-sm text-slate-700 dark:text-slate-300">
-            {productList.length > 0 ? productList.join(', ') : '-'}
+          <div className="px-2 py-2 text-xs text-slate-700 dark:text-slate-300 line-clamp-2" title={productText}>
+            {productText}
           </div>
         );
+      }
 
-      case SECTION_TYPES.NOTES:
+      case SECTION_TYPES.NOTES: {
         // Simple text rendering for preview (PDF has more complex rendering)
         const notesText = shot.notes
           ? shot.notes.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
           : '';
         return (
-          <div className="px-3 py-2 text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
+          <div className="px-2 py-2 text-xs text-slate-600 dark:text-slate-400 line-clamp-2" title={notesText || '-'}>
             {notesText || '-'}
           </div>
         );
+      }
 
       default:
-        return <div className="px-3 py-2 text-sm">-</div>;
+        return <div className="px-2 py-2 text-xs">-</div>;
     }
   };
 
@@ -110,29 +139,30 @@ function PreviewShotCardList({ shot, visibleSections, sectionStates }) {
       className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
       data-shot-id={shot.id || undefined}
     >
-      <div className="flex gap-4 p-3">
-        {/* Image column */}
+      <div className="flex gap-3 p-2">
+        {/* Image column - smaller for table mode */}
         {showImage && (
           <div className="flex-shrink-0">
             {imagePath ? (
               <AppImage
                 src={imagePath}
                 alt={shot.name || 'Shot'}
-                className="w-24 h-24 flex items-center justify-center rounded border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800"
-                imageClassName="max-h-full max-w-full object-contain"
-                style={imageStyle}
+                className="w-16 h-16 flex items-center justify-center rounded border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 overflow-hidden"
+                imageClassName="w-full h-full"
+                fit="cover"
+                position={imagePosition}
               />
             ) : (
-              <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-center">
-                <span className="text-xs text-slate-400">No image</span>
+              <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+                <span className="text-[10px] text-slate-400">No image</span>
               </div>
             )}
           </div>
         )}
 
-        {/* Data columns */}
+        {/* Data columns - aligned with header grid */}
         <div
-          className="flex-1 grid gap-2 items-center min-w-0"
+          className="flex-1 grid gap-1 items-center min-w-0"
           style={{ gridTemplateColumns: gridTemplate }}
         >
           {visibleSections
@@ -155,10 +185,10 @@ function PreviewShotCardGallery({ shot, visibleSections, sectionStates }) {
   const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
   const showShotNumber = visibleSections.some(s => s.id === SECTION_TYPES.SHOT_NUMBER);
 
-  // Get primary image with crop styling
-  const { path: primaryImagePath, style: primaryImageStyle } = getPrimaryAttachmentWithStyle(shot);
+  // Get primary image with crop positioning
+  const { path: primaryImagePath, objectPosition: primaryImagePosition } = getPrimaryAttachmentWithStyle(shot);
   const imagePath = primaryImagePath || shot.image || null;
-  const imageStyle = primaryImageStyle;
+  const imagePosition = primaryImagePosition;
 
   return (
     <div
@@ -167,14 +197,15 @@ function PreviewShotCardGallery({ shot, visibleSections, sectionStates }) {
     >
       {/* Image Section */}
       {showImage && (
-        <div className="relative w-full aspect-[4/3] bg-slate-100 dark:bg-slate-800 flex-shrink-0 flex items-center justify-center">
+        <div className="relative w-full aspect-[4/3] bg-slate-100 dark:bg-slate-800 flex-shrink-0 overflow-hidden">
           {imagePath ? (
             <AppImage
               src={imagePath}
               alt={shot.name || 'Shot'}
               className="w-full h-full"
-              imageClassName="w-full h-full object-contain"
-              style={imageStyle}
+              imageClassName="w-full h-full"
+              fit="contain"
+              position={imagePosition}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -258,45 +289,43 @@ function PreviewShotCardGallery({ shot, visibleSections, sectionStates }) {
 /**
  * Preview table header row (for table mode)
  */
-function PreviewHeaderRow({ visibleSections, sectionStates }) {
+function PreviewHeaderRow({ visibleSections, sectionStates, customLabels = {} }) {
   const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
 
+  // Use the same grid template function as rows for consistency
   const gridTemplate = useMemo(() => {
-    return visibleSections
-      .filter(s => s.category === 'columns' && s.id !== SECTION_TYPES.IMAGE)
-      .map(section => {
-        const flex = sectionStates[section.id]?.flex ?? section.flex ?? 1;
-        return `${flex}fr`;
-      })
-      .join(' ');
+    return buildTableGridTemplate(visibleSections, sectionStates);
   }, [visibleSections, sectionStates]);
 
   return (
     <div className="bg-slate-100 dark:bg-slate-800 border-b-2 border-slate-300 dark:border-slate-600 sticky top-0 z-10">
-      <div className="flex gap-4 p-3">
+      <div className="flex gap-3 p-2">
         {/* Image column header */}
         {showImage && (
-          <div className="flex-shrink-0 w-20">
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-              Image
+          <div className="flex-shrink-0 w-16">
+            <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+              {customLabels[SECTION_TYPES.IMAGE] || 'Image'}
             </span>
           </div>
         )}
 
         {/* Data column headers */}
         <div
-          className="flex-1 grid gap-2"
+          className="flex-1 grid gap-1 min-w-0"
           style={{ gridTemplateColumns: gridTemplate }}
         >
           {visibleSections
             .filter(s => s.category === 'columns' && s.id !== SECTION_TYPES.IMAGE)
-            .map(section => (
-              <div key={section.id} className="px-3 py-2">
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide truncate">
-                  {section.label}
-                </span>
-              </div>
-            ))}
+            .map(section => {
+              const label = customLabels[section.id] || section.label;
+              return (
+                <div key={section.id} className="px-2 py-1 min-w-0 overflow-hidden">
+                  <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide truncate block">
+                    {label}
+                  </span>
+                </div>
+              );
+            })}
         </div>
       </div>
     </div>
@@ -306,8 +335,17 @@ function PreviewHeaderRow({ visibleSections, sectionStates }) {
 /**
  * Preview of a lane group
  */
-function PreviewLaneGroup({ lane, visibleSections, sectionStates, layoutMode }) {
+function PreviewLaneGroup({ lane, visibleSections, sectionStates, layoutMode, density = 'standard', orientation = 'portrait', galleryColumns }) {
   const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+
+  // Calculate layout using the same function as PDF renderer
+  const layoutConfig = useMemo(() => {
+    if (layoutMode !== 'gallery') return null;
+    return calculateLayout(density, laneShots.length, orientation);
+  }, [density, laneShots.length, orientation, layoutMode]);
+
+  // Use explicit galleryColumns if provided, otherwise use calculated columns from layout
+  const columns = galleryColumns || layoutConfig?.columns || 3;
 
   return (
     <div className="mb-8">
@@ -324,7 +362,10 @@ function PreviewLaneGroup({ lane, visibleSections, sectionStates, layoutMode }) 
           No shots in this lane
         </div>
       ) : layoutMode === 'gallery' ? (
-        <div className="grid grid-cols-3 gap-4 p-4">
+        <div
+          className="grid gap-4 p-4"
+          style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+        >
           {laneShots.map((shot, idx) => (
             <PreviewShotCardGallery
               key={shot.id || idx}
@@ -335,15 +376,18 @@ function PreviewLaneGroup({ lane, visibleSections, sectionStates, layoutMode }) 
           ))}
         </div>
       ) : (
-        <div className="border-l border-r border-slate-200 dark:border-slate-700">
-          {laneShots.map((shot, idx) => (
-            <PreviewShotCardList
-              key={shot.id || idx}
-              shot={shot}
-              visibleSections={visibleSections}
-              sectionStates={sectionStates}
-            />
-          ))}
+        /* Table mode: overflow-x-auto for horizontal scroll if columns don't fit */
+        <div className="border-l border-r border-slate-200 dark:border-slate-700 overflow-x-auto">
+          <div className="min-w-fit">
+            {laneShots.map((shot, idx) => (
+              <PreviewShotCardList
+                key={shot.id || idx}
+                shot={shot}
+                visibleSections={visibleSections}
+                sectionStates={sectionStates}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -352,14 +396,28 @@ function PreviewLaneGroup({ lane, visibleSections, sectionStates, layoutMode }) 
 
 /**
  * Main preview component
+ *
+ * @param {Object} props - Component props
+ * @param {Array} props.lanes - Array of lane objects with shots
+ * @param {Object} props.sectionStates - Section visibility states
+ * @param {string} props.layoutMode - 'table' or 'gallery'
+ * @param {string} props.orientation - 'portrait' or 'landscape'
+ * @param {string} props.density - 'compact', 'standard', or 'detailed'
+ * @param {number} props.galleryColumns - Optional explicit column count for gallery mode
+ * @param {string} props.title - Document title
+ * @param {string} props.subtitle - Document subtitle
+ * @param {Object} props.customLabels - Custom header labels mapping
  */
 export default function PlannerSheetPreview({
   lanes,
   sectionStates,
   layoutMode = 'table',
   orientation = 'portrait',
+  density = 'standard',
+  galleryColumns,
   title = '',
   subtitle = '',
+  customLabels = {},
 }) {
   // Get visible sections
   const visibleSections = useMemo(() => {
@@ -374,6 +432,10 @@ export default function PlannerSheetPreview({
   const hasShots = exportLanes.some(lane =>
     Array.isArray(lane.shots) && lane.shots.length > 0
   );
+
+  // Calculate page dimensions based on orientation for accurate aspect ratio
+  const pageDimensions = getPageDimensions(orientation);
+  const isLandscape = orientation === 'landscape';
 
   if (!hasShots) {
     return (
@@ -392,11 +454,14 @@ export default function PlannerSheetPreview({
 
   return (
     <div
-      className={`
-        bg-white dark:bg-slate-900 shadow-lg
-        ${orientation === 'landscape' ? 'max-w-[11in]' : 'max-w-[8.5in]'}
-        mx-auto min-h-[11in]
-      `}
+      className="bg-white dark:bg-slate-900 shadow-lg mx-auto"
+      style={{
+        // Correct dimensions: portrait = 8.5"x11", landscape = 11"x8.5"
+        maxWidth: isLandscape ? '11in' : '8.5in',
+        minHeight: isLandscape ? '8.5in' : '11in',
+        // Maintain correct aspect ratio for the preview
+        aspectRatio: `${pageDimensions.width} / ${pageDimensions.height}`,
+      }}
     >
       {/* Document Header */}
       {showHeader && (title || subtitle) && (
@@ -422,6 +487,7 @@ export default function PlannerSheetPreview({
         <PreviewHeaderRow
           visibleSections={visibleSections}
           sectionStates={sectionStates}
+          customLabels={customLabels}
         />
       )}
 
@@ -434,6 +500,9 @@ export default function PlannerSheetPreview({
             visibleSections={visibleSections}
             sectionStates={sectionStates}
             layoutMode={layoutMode}
+            density={density}
+            orientation={orientation}
+            galleryColumns={galleryColumns}
           />
         ))}
       </div>
