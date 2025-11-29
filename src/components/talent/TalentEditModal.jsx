@@ -6,12 +6,25 @@ import { Input } from "../ui/input";
 import { useFilePreview } from "../../hooks/useFilePreview";
 import Thumb from "../Thumb";
 import SingleImageDropzone from "../common/SingleImageDropzone";
+import RichTextEditor from "../shots/RichTextEditor";
+import MeasurementFields from "./MeasurementFields";
+import TalentImageManager from "./TalentImageManager";
 
 function buildDisplayName(firstName, lastName) {
   const first = (firstName || "").trim();
   const last = (lastName || "").trim();
   return `${first} ${last}`.trim();
 }
+
+const genderOptions = ["Men", "Women", "Other"];
+
+const normalizeGalleryImages = (images) => {
+  if (!Array.isArray(images)) return [];
+  return images.map((image, index) => ({
+    ...image,
+    order: image.order ?? index,
+  }));
+};
 
 export default function TalentEditModal({
   open,
@@ -27,7 +40,7 @@ export default function TalentEditModal({
     agency: "",
     phone: "",
     email: "",
-    sizing: "",
+    notes: "",
     url: "",
     gender: "",
   });
@@ -38,6 +51,8 @@ export default function TalentEditModal({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [measurements, setMeasurements] = useState({});
+  const [galleryImages, setGalleryImages] = useState([]);
 
   const previewUrl = useFilePreview(file);
   const displayName = buildDisplayName(form.firstName, form.lastName) || talent?.name || "Edit talent";
@@ -50,7 +65,7 @@ export default function TalentEditModal({
       agency: talent?.agency || "",
       phone: talent?.phone || "",
       email: talent?.email || "",
-      sizing: talent?.sizing || "",
+      notes: talent?.notes || talent?.sizing || "",
       url: talent?.url || "",
       gender: talent?.gender || "",
     });
@@ -58,7 +73,18 @@ export default function TalentEditModal({
     setRemoveImage(false);
     setError("");
     setSaving(false);
+    setMeasurements(talent?.measurements || {});
+    setGalleryImages(normalizeGalleryImages(talent?.galleryImages));
   }, [open, talent]);
+
+  useEffect(() => {
+    if (open) return;
+    if (!galleryImages.length) return;
+    galleryImages.forEach((image) => {
+      if (image.previewUrl) URL.revokeObjectURL(image.previewUrl);
+    });
+    setGalleryImages([]);
+  }, [open, galleryImages]);
 
   const currentImage = useMemo(() => {
     if (previewUrl) return previewUrl;
@@ -97,6 +123,8 @@ export default function TalentEditModal({
           firstName: first,
           lastName: last,
           name: buildDisplayName(first, last),
+          measurements,
+          galleryImages,
         },
         newImageFile: file,
         removeImage: removeImage && !file,
@@ -261,13 +289,20 @@ export default function TalentEditModal({
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-gender">
                       Gender
                     </label>
-                    <Input
+                    <select
                       id="talent-gender"
                       value={form.gender}
                       onChange={handleFieldChange("gender")}
-                      placeholder="Gender"
                       disabled={saving || busy || deleting}
-                    />
+                      className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/60 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:ring-offset-slate-900 dark:placeholder:text-slate-400 dark:focus:ring-indigo-500"
+                    >
+                      <option value="">Select</option>
+                      {genderOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -298,17 +333,24 @@ export default function TalentEditModal({
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-sizing">
-                    Sizing notes
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-notes">
+                    Notes
                   </label>
-                  <Input
-                    id="talent-sizing"
-                    value={form.sizing}
-                    onChange={handleFieldChange("sizing")}
-                    placeholder="Sizing details"
+                  <RichTextEditor
+                    id="talent-notes"
+                    value={form.notes}
+                    onChange={(value) => setForm((prev) => ({ ...prev, notes: value }))}
                     disabled={saving || busy || deleting}
+                    placeholder="Add notes about sizing, fit, or styling…"
+                    minHeight="140px"
                   />
                 </div>
+                <MeasurementFields
+                  gender={form.gender}
+                  measurements={measurements}
+                  onChange={setMeasurements}
+                  disabled={saving || busy || deleting}
+                />
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-url">
                     Reference URL
@@ -323,6 +365,11 @@ export default function TalentEditModal({
                   />
                 </div>
               </div>
+              <TalentImageManager
+                attachments={galleryImages}
+                onChange={setGalleryImages}
+                disabled={saving || busy || deleting}
+              />
             </div>
             {error && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
             <div className="flex flex-wrap items-center justify-end gap-2">

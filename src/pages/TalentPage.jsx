@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addDoc,
   collection,
@@ -12,17 +12,16 @@ import {
 } from "firebase/firestore";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
 import { PageHeader } from "../components/ui/PageHeader";
 import ExpandableSearch from "../components/overview/ExpandableSearch";
 import ExportButton from "../components/common/ExportButton";
 import ViewModeMenu from "../components/overview/ViewModeMenu";
-import DensityMenu from "../components/overview/DensityMenu";
 import FieldSettingsMenu from "../components/overview/FieldSettingsMenu";
 import { searchTalent } from "../lib/search";
 import BatchImageUploadModal from "../components/common/BatchImageUploadModal";
 import TalentCreateModal from "../components/talent/TalentCreateModal";
 import TalentEditModal from "../components/talent/TalentEditModal";
+import TalentDetailModal from "../components/talent/TalentDetailModal";
 import Thumb from "../components/Thumb";
 import { useAuth } from "../context/AuthContext";
 import { db, deleteImageByPath, uploadImageFile } from "../lib/firebase";
@@ -33,6 +32,7 @@ import { talentPath } from "../lib/paths";
 import { ROLE, canManageTalent } from "../lib/rbac";
 import { LayoutGrid, Table, User, Upload } from "lucide-react";
 import { readStorage, writeStorage } from "../lib/safeStorage";
+import { nanoid } from "nanoid";
 
 function buildDisplayName(firstName, lastName) {
   const first = (firstName || "").trim();
@@ -45,18 +45,93 @@ function formatContact(info = {}) {
   return [info.phone, info.email].filter(Boolean).join(" • ");
 }
 
+const stripHtml = (value) => {
+  if (!value || typeof value !== "string") return "";
+  const withNewlines = value
+    .replace(/<br\s*\/?\s*>/gi, "\n")
+    .replace(/<\/p>/gi, "\n");
+  const withoutTags = withNewlines.replace(/<[^>]+>/g, " ");
+  return withoutTags.replace(/\s+/g, " ").trim();
+};
+
+const getNotesPreview = (talentRecord, maxLength = 140) => {
+  const raw = talentRecord?.notes || talentRecord?.sizing || "";
+  const plain = stripHtml(raw);
+  if (!plain) return "";
+  if (plain.length <= maxLength) return plain;
+  return `${plain.slice(0, maxLength).trim()}…`;
+};
+
+const normalizeMeasurements = (input) => {
+  if (!input || typeof input !== "object") return {};
+  const result = {};
+  Object.entries(input).forEach(([key, value]) => {
+    const trimmed = typeof value === "string" ? value.trim() : value;
+    if (trimmed === undefined || trimmed === null) return;
+    const stringValue = String(trimmed).trim();
+    if (stringValue) {
+      result[key] = stringValue;
+    }
+  });
+  return result;
+};
+
+const normaliseGalleryOrder = (items = []) =>
+  (Array.isArray(items) ? items : [])
+    .slice()
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((item, index) => ({ ...item, order: index }));
+
+const buildGalleryUpdate = async (talentId, nextAttachments = [], previousAttachments = []) => {
+  const sortedNext = normaliseGalleryOrder(nextAttachments);
+  const previousMap = new Map((previousAttachments || []).map((item) => [item.id, item]));
+  const finalGallery = [];
+
+  for (let index = 0; index < sortedNext.length; index += 1) {
+    const attachment = sortedNext[index];
+    const description = (attachment.description || "").trim();
+    const cropData = attachment.cropData || null;
+    const id = attachment.id || nanoid();
+
+    if (attachment.file) {
+      const baseName = attachment.file.name || `image-${id}.jpg`;
+      const safeName = baseName.replace(/\s+/g, "_");
+      const { path, downloadURL } = await uploadImageFile(attachment.file, {
+        folder: "talent",
+        id: talentId,
+        filename: `${id}-${safeName}`,
+      });
+      finalGallery.push({ id, path, downloadURL, description, cropData, order: index });
+      continue;
+    }
+
+    const previous = previousMap.get(attachment.id) || {};
+    const path = attachment.path || previous.path || null;
+    const downloadURL = attachment.downloadURL || previous.downloadURL || path || null;
+    if (!path && !downloadURL) continue;
+
+    finalGallery.push({
+      id,
+      path,
+      downloadURL,
+      description,
+      cropData: cropData ?? previous.cropData ?? null,
+      order: index,
+    });
+  }
+
+  const removed = (previousAttachments || []).filter((item) => !finalGallery.some((next) => next.id === item.id));
+
+  return { finalGallery, removed };
+};
+
 const VIEW_STORAGE_KEY = "talent:viewMode";
 const FIELD_PREFS_STORAGE_KEY = "talent:fieldPrefs";
 const DENSITY_STORAGE_KEY = "talent:density";
 
-const VIEW_OPTIONS = [
-  { value: "gallery", label: "Gallery", icon: LayoutGrid },
-  { value: "table", label: "Table", icon: Table },
-];
-
-const DENSITY_OPTIONS = [
-  { value: "compact", label: "Compact" },
-  { value: "comfortable", label: "Comfy" },
+const VIEW_PRESETS = [
+  { value: "galleryComfortable", label: "Gallery · Comfy", icon: LayoutGrid, view: "gallery", density: "comfortable" },
+  { value: "tableCompact", label: "Table · Compact", icon: Table, view: "table", density: "compact" },
 ];
 
 const DENSITY_CONFIG = {
@@ -84,7 +159,7 @@ const TALENT_FIELD_OPTIONS = [
   { key: "agency", label: "Agency" },
   { key: "contact", label: "Contact" },
   { key: "gender", label: "Gender" },
-  { key: "sizing", label: "Sizing" },
+  { key: "sizing", label: "Notes" },
   { key: "url", label: "Portfolio URL" },
 ];
 
@@ -129,16 +204,16 @@ const readFieldPrefs = () => {
   return { visibility, order, locked };
 };
 
-function TalentCard({ talent, canManage, onEdit, editDisabled, visibility, densityKey }) {
+function TalentCard({ talent, canManage, onEdit, onView, editDisabled, visibility, densityKey }) {
   const displayName = talent.name || buildDisplayName(talent.firstName, talent.lastName);
   const contactLine = formatContact(talent);
-  const sizingLine = talent.sizing ? `Sizing: ${talent.sizing}` : "";
+  const notesPreview = getNotesPreview(talent);
   const showPreview = visibility?.preview !== false;
   const showName = visibility?.name !== false;
   const showAgency = visibility?.agency !== false;
   const showContact = visibility?.contact !== false;
   const showGender = visibility?.gender !== false;
-  const showSizing = visibility?.sizing !== false;
+  const showNotes = visibility?.sizing !== false;
   const showUrl = visibility?.url !== false;
   const densityConfig = DENSITY_CONFIG[densityKey] || DENSITY_CONFIG.comfortable;
 
@@ -179,9 +254,9 @@ function TalentCard({ talent, canManage, onEdit, editDisabled, visibility, densi
               <span>{talent.gender}</span>
             </div>
           )}
-          {showSizing && sizingLine && (
-            <div className="text-xs text-slate-500 dark:text-slate-400" title={sizingLine}>
-              <span className="block truncate">{sizingLine}</span>
+          {showNotes && notesPreview && (
+            <div className="text-xs text-slate-500 dark:text-slate-400" title={notesPreview}>
+              <span className="block truncate">{notesPreview}</span>
             </div>
           )}
           {showUrl && talent.url && (
@@ -197,6 +272,9 @@ function TalentCard({ talent, canManage, onEdit, editDisabled, visibility, densi
           )}
         </div>
         <div className="mt-auto flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => onView?.(talent)} disabled={editDisabled}>
+            View
+          </Button>
           {canManage ? (
             <Button size="sm" variant="secondary" onClick={() => onEdit(talent)} disabled={editDisabled}>
               Edit
@@ -230,6 +308,44 @@ function CreateTalentCard({ onClick, disabled }) {
   );
 }
 
+function TalentRowMenu({ talent, open, onClose, onEdit, onView }) {
+  if (!open) return null;
+
+  return (
+    <div
+      role="menu"
+      aria-label={`Actions for ${talent.name || buildDisplayName(talent.firstName, talent.lastName)}`}
+      className="absolute left-0 top-8 z-10 w-40 rounded-md border border-slate-200 bg-white/95 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-800/95"
+      onClick={(event) => event.stopPropagation()}
+    >
+      {typeof onView === "function" && (
+        <button
+          type="button"
+          role="menuitem"
+          className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
+          onClick={() => {
+            onView(talent);
+            onClose();
+          }}
+        >
+          View details
+        </button>
+      )}
+      <button
+        type="button"
+        role="menuitem"
+        className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
+        onClick={() => {
+          onEdit?.(talent);
+          onClose();
+        }}
+      >
+        Edit
+      </button>
+    </div>
+  );
+}
+
 export default function TalentPage() {
   const [talent, setTalent] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -239,7 +355,9 @@ export default function TalentPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [batchUploadModalOpen, setBatchUploadModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
+  const [detailTarget, setDetailTarget] = useState(null);
   const [editBusy, setEditBusy] = useState(false);
+  const [rowMenuId, setRowMenuId] = useState(null);
   const [, setPendingDeleteId] = useState(null);
   const [viewMode, setViewMode] = useState(() => normaliseView(readStorage(VIEW_STORAGE_KEY)));
   const [density, setDensity] = useState(() => normaliseDensity(readStorage(DENSITY_STORAGE_KEY)));
@@ -247,6 +365,7 @@ export default function TalentPage() {
   const [fieldVisibility, setFieldVisibility] = useState(initialFieldPrefs.visibility);
   const [fieldOrder, setFieldOrder] = useState(initialFieldPrefs.order);
   const [lockedFields, setLockedFields] = useState(initialFieldPrefs.locked);
+  const rowMenuRef = useRef(null);
 
   const { clientId, role: globalRole, user, claims } = useAuth();
   const role = globalRole || ROLE.VIEWER;
@@ -299,6 +418,18 @@ export default function TalentPage() {
   }, [talent, editTarget]);
 
   useEffect(() => {
+    if (!detailTarget) return;
+    const latest = talent.find((entry) => entry.id === detailTarget.id);
+    if (!latest) {
+      setDetailTarget(null);
+      return;
+    }
+    if (latest !== detailTarget) {
+      setDetailTarget(latest);
+    }
+  }, [talent, detailTarget]);
+
+  useEffect(() => {
     writeStorage(VIEW_STORAGE_KEY, viewMode);
   }, [viewMode]);
 
@@ -315,6 +446,17 @@ export default function TalentPage() {
     } catch {}
   }, [fieldVisibility, fieldOrder, lockedFields]);
 
+  useEffect(() => {
+    if (!rowMenuId) return undefined;
+    const handleWindowClick = (event) => {
+      if (rowMenuRef.current && !rowMenuRef.current.contains(event.target)) {
+        setRowMenuId(null);
+      }
+    };
+    window.addEventListener("mousedown", handleWindowClick);
+    return () => window.removeEventListener("mousedown", handleWindowClick);
+  }, [rowMenuId]);
+
   const resolvedVisibility = useMemo(
     () => ({ ...DEFAULT_FIELD_VISIBILITY, ...(fieldVisibility || {}) }),
     [fieldVisibility]
@@ -322,6 +464,12 @@ export default function TalentPage() {
   const resolvedOrder = useMemo(() => normaliseOrder(fieldOrder), [fieldOrder]);
   const resolvedDensity = DENSITY_CONFIG[density] ? density : "comfortable";
   const densityConfig = DENSITY_CONFIG[resolvedDensity] || DENSITY_CONFIG.comfortable;
+  const currentViewPreset = useMemo(() => {
+    const match = VIEW_PRESETS.find(
+      (preset) => normaliseView(preset.view) === viewMode && normaliseDensity(preset.density) === resolvedDensity
+    );
+    return match ? match.value : VIEW_PRESETS[0].value;
+  }, [viewMode, resolvedDensity]);
 
   const toggleFieldVisibility = useCallback(
     (key) => {
@@ -339,6 +487,21 @@ export default function TalentPage() {
     setFieldOrder(normaliseOrder(next));
   }, []);
 
+  const handleViewPresetChange = useCallback((presetValue) => {
+    const preset = VIEW_PRESETS.find((item) => item.value === presetValue) || VIEW_PRESETS[0];
+    setViewMode(normaliseView(preset.view));
+    setDensity(normaliseDensity(preset.density));
+  }, []);
+
+  useEffect(() => {
+    const mode = normaliseView(viewMode);
+    if (mode === "table" && resolvedDensity !== "compact") {
+      setDensity("compact");
+    } else if (mode === "gallery" && resolvedDensity === "compact") {
+      setDensity("comfortable");
+    }
+  }, [viewMode, resolvedDensity]);
+
   const notifySuccess = (message) => {
     toast.success(message);
   };
@@ -349,7 +512,10 @@ export default function TalentPage() {
     agency,
     phone,
     email,
+    notes,
+    measurements,
     sizing,
+    galleryImages,
     url,
     gender,
     headshotFile,
@@ -391,6 +557,9 @@ export default function TalentPage() {
     });
 
     try {
+      const notesHtml = notes || sizing || "";
+      const notesPlain = stripHtml(notesHtml || "");
+      const measurementData = normalizeMeasurements(measurements);
       const docRef = await writeDoc("create talent", () =>
         addDoc(collection(db, ...currentTalentPath), {
           firstName: first,
@@ -398,12 +567,15 @@ export default function TalentPage() {
           agency: agency || "",
           phone: phone || "",
           email: email || "",
-          sizing: sizing || "",
+          notes: notesHtml || "",
+          sizing: notesPlain,
           url: url || "",
           gender: gender || "",
           name,
           shotIds: [],
           headshotPath: null,
+          galleryImages: [],
+          measurements: measurementData,
           createdAt: serverTimestamp(),
           createdBy: user?.uid || null,
         })
@@ -415,32 +587,51 @@ export default function TalentPage() {
         ...authInfo,
       });
 
-      let uploadError = null;
+      let headshotError = null;
       if (headshotFile) {
         try {
           const { path } = await uploadImageFile(headshotFile, { folder: "talent", id: docRef.id });
           await updateDoc(docRef, { headshotPath: path });
         } catch (error) {
-          uploadError = error;
+          headshotError = error;
         }
       }
 
-      if (uploadError) {
-        const { code, message } = describeFirebaseError(
-          uploadError,
-          "Headshot upload failed."
-        );
-        console.error("[Talent] Headshot upload failed", {
-          path: targetPath,
-          docId: docRef.id,
-          ...authInfo,
-          code,
-          message,
-          error: uploadError,
-        });
-        const text = `${name} was added, but the headshot upload failed (${code}: ${message}). Try again from the edit dialog.`;
+      let galleryError = null;
+      if (Array.isArray(galleryImages) && galleryImages.length) {
+        try {
+          const { finalGallery } = await buildGalleryUpdate(docRef.id, galleryImages, []);
+          await updateDoc(docRef, { galleryImages: finalGallery });
+        } catch (error) {
+          galleryError = error;
+          console.error("[Talent] Gallery upload failed", {
+            path: targetPath,
+            docId: docRef.id,
+            ...authInfo,
+            error,
+          });
+        }
+      }
+
+      if (headshotError || galleryError) {
+        const headshotMessage = headshotError
+          ? describeFirebaseError(headshotError, "Headshot upload failed.")
+          : null;
+        const galleryMessage = galleryError
+          ? describeFirebaseError(galleryError, "Gallery upload failed.")
+          : null;
+        const parts = [];
+        if (headshotMessage) parts.push(`headshot upload (${headshotMessage.code}: ${headshotMessage.message})`);
+        if (galleryMessage) parts.push(`gallery upload (${galleryMessage.code}: ${galleryMessage.message})`);
+        const combined = parts.join(" and ");
+        const text = `${name} was added, but the ${combined}. Try again from the edit dialog.`;
         setFeedback({ type: "error", text });
-        toast.error({ title: "Headshot upload failed", description: `${code}: ${message}` });
+        if (headshotMessage) {
+          toast.error({ title: "Headshot upload failed", description: `${headshotMessage.code}: ${headshotMessage.message}` });
+        }
+        if (galleryMessage) {
+          toast.error({ title: "Gallery upload failed", description: `${galleryMessage.code}: ${galleryMessage.message}` });
+        }
       } else {
         setFeedback({ type: "success", text: `${name} was added to talent.` });
         notifySuccess(`${name} was added to talent.`);
@@ -494,6 +685,22 @@ export default function TalentPage() {
           return;
         }
       }
+      const galleryImages = Array.isArray(talentRecord.galleryImages) ? talentRecord.galleryImages : [];
+      if (galleryImages.length) {
+        try {
+          await Promise.all(
+            galleryImages.map((image) => (image.path ? deleteImageByPath(image.path) : Promise.resolve()))
+          );
+        } catch (error) {
+          setFeedback({
+            type: "error",
+            text: `${displayName} was removed, but gallery cleanup failed: ${error?.message || error}`,
+          });
+          setPendingDeleteId(null);
+          if (editTarget?.id === talentRecord.id) setEditTarget(null);
+          return;
+        }
+      }
       setFeedback({ type: "success", text: `${displayName} was deleted.` });
       if (editTarget?.id === talentRecord.id) setEditTarget(null);
     } catch (error) {
@@ -515,7 +722,25 @@ export default function TalentPage() {
     const docRef = doc(db, ...currentTalentPath, targetId);
     setEditBusy(true);
     try {
-      await updateDoc(docRef, updates);
+      const patch = { ...updates };
+      const previousGallery = Array.isArray(editTarget.galleryImages) ? editTarget.galleryImages : [];
+      let removedGallery = [];
+      if (Object.prototype.hasOwnProperty.call(updates, "notes")) {
+        const notesHtml = updates.notes || "";
+        patch.notes = notesHtml;
+        patch.sizing = stripHtml(notesHtml);
+      }
+      if (Object.prototype.hasOwnProperty.call(updates, "measurements")) {
+        patch.measurements = normalizeMeasurements(updates.measurements);
+      }
+      if (Object.prototype.hasOwnProperty.call(updates, "galleryImages")) {
+        const nextGallery = Array.isArray(updates.galleryImages) ? updates.galleryImages : [];
+        const { finalGallery, removed } = await buildGalleryUpdate(targetId, nextGallery, previousGallery);
+        patch.galleryImages = finalGallery;
+        removedGallery = removed;
+      }
+
+      await updateDoc(docRef, patch);
 
       if (newImageFile) {
         const { path } = await uploadImageFile(newImageFile, { folder: "talent", id: targetId });
@@ -534,6 +759,12 @@ export default function TalentPage() {
         } catch {
           // Ignore cleanup failure; stale file can be removed later.
         }
+      }
+
+      if (removedGallery.length) {
+        await Promise.all(
+          removedGallery.map((item) => (item.path ? deleteImageByPath(item.path) : Promise.resolve()))
+        );
       }
 
       const name = updates.name || buildDisplayName(updates.firstName, updates.lastName);
@@ -559,6 +790,7 @@ export default function TalentPage() {
       );
     }
 
+    const showRowMenu = canManage;
     const columns = resolvedOrder
       .map((key) => {
         switch (key) {
@@ -573,7 +805,7 @@ export default function TalentPage() {
           case "gender":
             return { key, label: "Gender" };
           case "sizing":
-            return { key, label: "Sizing" };
+            return { key, label: "Notes" };
           case "url":
             return { key, label: "Portfolio" };
           default:
@@ -590,24 +822,57 @@ export default function TalentPage() {
             <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
               <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                 <tr>
+                  {showRowMenu && <th className={`${densityConfig.tablePadding} ${densityConfig.tableRow} w-10`} aria-label="Row actions" />}
                   {columns.map((col) => (
                     <th key={col.key} className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
                       {col.label}
                     </th>
                   ))}
-                  <th className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-right`}>Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900">
                 {filteredTalent.map((entry) => {
                   const contactLine = formatContact(entry);
                   const displayName = entry.name || buildDisplayName(entry.firstName, entry.lastName);
-                  const sizingLine = entry.sizing ? `Sizing: ${entry.sizing}` : "";
+                  const notesPreview = getNotesPreview(entry);
                   return (
                     <tr
                       key={entry.id}
-                      className="odd:bg-white even:bg-slate-50/40 hover:bg-slate-100 dark:odd:bg-slate-900 dark:even:bg-slate-800/40 dark:hover:bg-slate-800"
+                      onClick={() => {
+                        setRowMenuId(null);
+                        setDetailTarget(entry);
+                      }}
+                      className="odd:bg-white even:bg-slate-50/40 hover:bg-slate-100 dark:odd:bg-slate-900 dark:even:bg-slate-800/40 dark:hover:bg-slate-800 cursor-pointer"
                     >
+                      {showRowMenu && (
+                        <td
+                          className={`${densityConfig.tablePadding} ${densityConfig.tableRow} w-10 align-top`}
+                          ref={rowMenuId === entry.id ? rowMenuRef : null}
+                        >
+                          <div className="relative">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setRowMenuId((current) => (current === entry.id ? null : entry.id));
+                              }}
+                              aria-label={`Open actions for ${displayName}`}
+                            >
+                              ···
+                            </Button>
+                            <TalentRowMenu
+                              talent={entry}
+                              open={rowMenuId === entry.id}
+                              onClose={() => setRowMenuId(null)}
+                              onEdit={setEditTarget}
+                              onView={setDetailTarget}
+                            />
+                          </div>
+                        </td>
+                      )}
                       {columns.map((col) => {
                         if (col.key === "preview") {
                           return (
@@ -660,7 +925,7 @@ export default function TalentPage() {
                         if (col.key === "sizing") {
                           return (
                             <td key="sizing" className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
-                              <div className={`${densityConfig.tableText} text-slate-600 dark:text-slate-400`}>{sizingLine || "—"}</div>
+                              <div className={`${densityConfig.tableText} text-slate-600 dark:text-slate-400`}>{notesPreview || "—"}</div>
                             </td>
                           );
                         }
@@ -679,15 +944,6 @@ export default function TalentPage() {
                         }
                         return null;
                       })}
-                      <td className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-right`}>
-                        {canManage ? (
-                          <Button size="sm" variant="secondary" onClick={() => setEditTarget(entry)} disabled={editBusy && editTarget?.id === entry.id}>
-                            Edit
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-slate-500 dark:text-slate-400">Read only</span>
-                        )}
-                      </td>
                     </tr>
                   );
                 })}
@@ -718,14 +974,10 @@ export default function TalentPage() {
                 ariaLabel="Search talent"
               />
               <ViewModeMenu
-                options={VIEW_OPTIONS}
-                value={viewMode}
-                onChange={(value) => setViewMode(normaliseView(value))}
-              />
-              <DensityMenu
-                options={DENSITY_OPTIONS}
-                value={resolvedDensity}
-                onChange={(value) => setDensity(normaliseDensity(value))}
+                options={VIEW_PRESETS}
+                value={currentViewPreset}
+                onChange={handleViewPresetChange}
+                ariaLabel="Select view preset"
               />
               <FieldSettingsMenu
                 fields={TALENT_FIELD_OPTIONS}
@@ -800,6 +1052,7 @@ export default function TalentPage() {
               talent={entry}
               canManage={canManage}
               onEdit={setEditTarget}
+              onView={setDetailTarget}
               editDisabled={editBusy && editTarget?.id === entry.id}
               visibility={resolvedVisibility}
               densityKey={resolvedDensity}
@@ -821,6 +1074,20 @@ export default function TalentPage() {
           busy={creating}
           onClose={() => setCreateModalOpen(false)}
           onCreate={handleCreateTalent}
+        />
+      )}
+
+      {detailTarget && (
+        <TalentDetailModal
+          open={!!detailTarget}
+          talent={detailTarget}
+          onClose={() => setDetailTarget(null)}
+          onEdit={(talentRecord) => {
+            setEditTarget(talentRecord);
+            setDetailTarget(null);
+          }}
+          canEdit={canManage}
+          clientId={clientId}
         />
       )}
 

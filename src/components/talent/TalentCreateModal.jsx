@@ -7,6 +7,9 @@ import { LoadingSpinner } from "../ui/LoadingSpinner";
 import Thumb from "../Thumb";
 import { useFilePreview } from "../../hooks/useFilePreview";
 import SingleImageDropzone from "../common/SingleImageDropzone";
+import RichTextEditor from "../shots/RichTextEditor";
+import MeasurementFields from "./MeasurementFields";
+import TalentImageManager from "./TalentImageManager";
 
 const emptyForm = {
   firstName: "",
@@ -14,14 +17,18 @@ const emptyForm = {
   agency: "",
   phone: "",
   email: "",
-  sizing: "",
+  notes: "",
   url: "",
   gender: "",
 };
 
+const genderOptions = ["Men", "Women", "Other"];
+
 export default function TalentCreateModal({ open, busy = false, onClose, onCreate }) {
   const [form, setForm] = useState(emptyForm);
   const [file, setFile] = useState(null);
+  const [measurements, setMeasurements] = useState({});
+  const [galleryImages, setGalleryImages] = useState([]);
   const [error, setError] = useState("");
   const firstFieldRef = useRef(null);
 
@@ -31,8 +38,19 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
     if (!open) return;
     setForm(emptyForm);
     setFile(null);
+    setMeasurements({});
+    setGalleryImages([]);
     setError("");
   }, [open]);
+
+  useEffect(() => {
+    if (open) return;
+    if (!galleryImages.length) return;
+    galleryImages.forEach((image) => {
+      if (image.previewUrl) URL.revokeObjectURL(image.previewUrl);
+    });
+    setGalleryImages([]);
+  }, [open, galleryImages]);
 
   const updateField = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
@@ -47,7 +65,7 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
     if (!onCreate) return;
     try {
       setError("");
-      await onCreate({ ...form, headshotFile: file });
+      await onCreate({ ...form, headshotFile: file, measurements, galleryImages });
       onClose?.();
     } catch (err) {
       const message = err?.message || "Unable to create talent. Please try again.";
@@ -120,13 +138,20 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-gender">
                   Gender
                 </label>
-                <Input
+                <select
                   id="talent-create-gender"
                   value={form.gender}
                   onChange={updateField("gender")}
-                  placeholder="Gender (optional)"
                   disabled={busy}
-                />
+                  className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/60 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:ring-offset-slate-900 dark:placeholder:text-slate-400 dark:focus:ring-indigo-500"
+                >
+                  <option value="">Select</option>
+                  {genderOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -157,17 +182,24 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-sizing">
-                Sizing notes
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-notes">
+                Notes
               </label>
-              <Input
-                id="talent-create-sizing"
-                value={form.sizing}
-                onChange={updateField("sizing")}
-                placeholder="Sizing info (optional)"
+              <RichTextEditor
+                id="talent-create-notes"
+                value={form.notes}
+                onChange={(value) => setForm((prev) => ({ ...prev, notes: value }))}
                 disabled={busy}
+                placeholder="Add notes about sizing, fit, or styling…"
+                minHeight="140px"
               />
             </div>
+            <MeasurementFields
+              gender={form.gender}
+              measurements={measurements}
+              onChange={setMeasurements}
+              disabled={busy}
+            />
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="talent-create-url">
                 Reference URL
@@ -202,6 +234,7 @@ export default function TalentCreateModal({ open, busy = false, onClose, onCreat
                 />
               )}
             </div>
+            <TalentImageManager attachments={galleryImages} onChange={setGalleryImages} disabled={busy} />
             {error && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Button type="button" variant="ghost" onClick={onClose} disabled={busy}>
