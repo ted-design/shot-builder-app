@@ -76,9 +76,11 @@ function ProductFilterDrawer({
   gender = "all",
   type = "all",
   subcategory = "all",
+  showArchived = false,
   onGenderChange,
   onTypeChange,
   onSubcategoryChange,
+  onShowArchivedChange,
   onClearAll,
   className = "",
 }) {
@@ -140,8 +142,9 @@ function ProductFilterDrawer({
     if (gender !== "all") count++;
     if (type !== "all") count++;
     if (subcategory !== "all") count++;
+    if (showArchived) count++;
     return count;
-  }, [gender, type, subcategory]);
+  }, [gender, type, subcategory, showArchived]);
 
   // Check if any filters are active
   const hasActiveFilters = activeFilterCount > 0;
@@ -199,6 +202,25 @@ function ProductFilterDrawer({
               onChange={onSubcategoryChange}
             />
           )}
+
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Archived
+            </h3>
+            <button
+              type="button"
+              onClick={() => onShowArchivedChange(!showArchived)}
+              className={`
+                flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1
+                ${showArchived ? "bg-primary/10 text-primary font-medium dark:bg-primary/20" : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50"}
+              `}
+              aria-pressed={showArchived}
+            >
+              <span>Show archived</span>
+              {showArchived && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+            </button>
+          </div>
         </div>
 
         {/* Footer with clear button */}
