@@ -31,7 +31,6 @@ import { PageHeader } from "../components/ui/PageHeader";
 import ExpandableSearch from "../components/overview/ExpandableSearch";
 import SortMenu from "../components/overview/SortMenu";
 import ViewModeMenu from "../components/overview/ViewModeMenu";
-import DensityMenu from "../components/overview/DensityMenu";
 import FieldSettingsMenu from "../components/overview/FieldSettingsMenu";
 import { LayoutGrid, Table, Archive, Trash2, Type, Package, X, CheckSquare, MoreVertical } from "lucide-react";
 import {
@@ -82,16 +81,11 @@ const SORT_OPTIONS = [
   { value: "styleNumberDesc", label: "Style number (high→low)" },
 ];
 
-const VIEW_MODE_OPTIONS = [
-  { value: "gallery", label: "Gallery", icon: LayoutGrid },
-  { value: "table", label: "Table", icon: Table },
-];
-
 const DEFAULT_DENSITY = "comfortable";
-const DENSITY_OPTIONS = [
-  { value: "compact", label: "Compact", description: "Minimal spacing, more items" },
-  { value: "comfortable", label: "Comfortable", description: "Balanced spacing" },
-  { value: "wide", label: "Wide", description: "Horizontal layout with color swatches" },
+const VIEW_PRESETS = [
+  { value: "galleryComfortable", label: "Gallery · Comfortable", icon: LayoutGrid, view: "gallery", density: "comfortable" },
+  { value: "galleryWide", label: "Gallery · Wide", icon: LayoutGrid, view: "gallery", density: "wide" },
+  { value: "tableCompact", label: "Table · Compact", icon: Table, view: "table", density: "compact" },
 ];
 
 // Dramatic density configuration
@@ -142,7 +136,6 @@ const PRODUCT_FIELD_OPTIONS = [
   { key: "status", label: "Status" },
   { key: "colors", label: "Colors" },
   { key: "sizes", label: "Sizes" },
-  { key: "skus", label: "SKUs" },
   { key: "lastUpdated", label: "Last updated" },
 ];
 
@@ -157,7 +150,6 @@ const DEFAULT_FIELD_VISIBILITY = {
   status: true,
   colors: true,
   sizes: true,
-  skus: true,
   lastUpdated: true,
 };
 
@@ -538,6 +530,7 @@ export default function ProductsPage() {
   const menuRef = useRef(null);
   const skuCacheRef = useRef(new Map());
   const pendingSkuLoadsRef = useRef(new Set());
+  const pendingSkuPromisesRef = useRef(new Map());
   const batchFirstFieldRef = useRef(null);
   const selectAllRef = useRef(null);
 
@@ -714,6 +707,16 @@ export default function ProductsPage() {
     return sortedFamilies.slice(0, itemsToShow);
   }, [sortedFamilies, itemsToShow]);
 
+  // Auto-expand table pagination for small remainders so counts align
+  useEffect(() => {
+    const mode = normaliseViewMode(viewMode);
+    const total = sortedFamilies.length;
+    if (mode !== "table") return;
+    if (total > itemsToShow && total - itemsToShow <= 20) {
+      setItemsToShow(total);
+    }
+  }, [viewMode, sortedFamilies, itemsToShow]);
+
   const hasMoreItems = sortedFamilies.length > itemsToShow;
   const totalCount = sortedFamilies.length;
 
@@ -845,13 +848,14 @@ export default function ProductsPage() {
   const resolvedDensityKey = DENSITY_CONFIG[density] ? density : DEFAULT_DENSITY;
 
   const ensureFamilySkusLoaded = useCallback((familyId) => {
-    if (resolvedDensityKey !== "wide") return;
-    if (!db || !clientId) return;
-    if (familySkus[familyId]) return;
-    if (pendingSkuLoadsRef.current.has(familyId)) return;
+    if (!db || !clientId) return Promise.resolve([]);
+    if (familySkus[familyId]) return Promise.resolve(familySkus[familyId]);
+    if (pendingSkuPromisesRef.current.has(familyId)) {
+      return pendingSkuPromisesRef.current.get(familyId);
+    }
 
     pendingSkuLoadsRef.current.add(familyId);
-    getDocs(collection(db, ...productFamilySkusPathForClient(familyId)))
+    const loadPromise = getDocs(collection(db, ...productFamilySkusPathForClient(familyId)))
       .then((snapshot) => {
         const skus = snapshot.docs
           .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
@@ -862,14 +866,32 @@ export default function ProductsPage() {
           if (prev[familyId] || !skus.length) return prev;
           return { ...prev, [familyId]: skus[0].id };
         });
+        return skus;
       })
       .catch((error) => {
         console.error(`[Products] Failed to load SKUs for family ${familyId}:`, error);
+        return [];
       })
       .finally(() => {
         pendingSkuLoadsRef.current.delete(familyId);
+        pendingSkuPromisesRef.current.delete(familyId);
       });
-  }, [clientId, db, familySkus, resolvedDensityKey, productFamilySkusPathForClient]);
+
+    pendingSkuPromisesRef.current.set(familyId, loadPromise);
+    return loadPromise;
+  }, [clientId, db, familySkus, productFamilySkusPathForClient]);
+
+  // Preload SKUs for visible families when showing colors in table view (for swatches)
+  useEffect(() => {
+    const mode = normaliseViewMode(viewMode);
+    if (mode !== "table") return;
+    if (!resolvedFieldVisibility.colors) return;
+    displayedFamilies.forEach((family) => {
+      if (!familySkus[family.id] && !pendingSkuPromisesRef.current.has(family.id)) {
+        ensureFamilySkusLoaded(family.id);
+      }
+    });
+  }, [viewMode, resolvedFieldVisibility.colors, displayedFamilies, familySkus, ensureFamilySkusLoaded]);
 
   const toggleFieldVisibility = useCallback((key) => {
     if (lockedFields.includes(key)) return;
@@ -886,13 +908,27 @@ export default function ProductsPage() {
     setFieldOrder(normaliseFieldOrder(nextOrder));
   }, []);
 
-  const handleDensityChange = useCallback((nextDensity) => {
-    setDensity(normaliseDensity(nextDensity));
+  const currentViewPreset = useMemo(() => {
+    const match = VIEW_PRESETS.find(
+      (preset) => normaliseViewMode(preset.view) === normaliseViewMode(viewMode) && normaliseDensity(preset.density) === resolvedDensityKey
+    );
+    return match ? match.value : VIEW_PRESETS[0].value;
+  }, [viewMode, resolvedDensityKey]);
+
+  const handleViewPresetChange = useCallback((presetValue) => {
+    const preset = VIEW_PRESETS.find((item) => item.value === presetValue) || VIEW_PRESETS[0];
+    setViewMode(normaliseViewMode(preset.view));
+    setDensity(normaliseDensity(preset.density));
   }, []);
 
-  const handleViewModeChange = useCallback((nextMode) => {
-    setViewMode(normaliseViewMode(nextMode));
-  }, []);
+  useEffect(() => {
+    const mode = normaliseViewMode(viewMode);
+    if (mode === "table" && resolvedDensityKey !== "compact") {
+      setDensity("compact");
+    } else if (mode === "gallery" && resolvedDensityKey === "compact") {
+      setDensity("comfortable");
+    }
+  }, [viewMode, resolvedDensityKey]);
 
   const familyMap = useMemo(() => {
     const map = new Map();
@@ -1617,13 +1653,12 @@ export default function ProductsPage() {
     const showStatus = resolvedFieldVisibility.status !== false;
     const showColors = resolvedFieldVisibility.colors !== false;
     const showSizes = resolvedFieldVisibility.sizes !== false;
-    const showSkus = resolvedFieldVisibility.skus !== false;
     const showLastUpdated = resolvedFieldVisibility.lastUpdated !== false;
     const showCategory = resolvedFieldVisibility.category !== false;
     const densityConfig =
       DENSITY_CONFIG[resolvedDensityKey] || DENSITY_CONFIG[DEFAULT_DENSITY];
     const summaryOrder = resolvedFieldOrder.filter(
-      (key) => key === "gender" || key === "colors" || key === "sizes" || key === "skus" || key === "lastUpdated"
+      (key) => key === "gender" || key === "colors" || key === "sizes" || key === "lastUpdated"
     );
     const summaryItems = [];
     summaryOrder.forEach((key) => {
@@ -1648,20 +1683,6 @@ export default function ProductsPage() {
           node: (
             <span title={sizesLabel || undefined}>
               {sizeList[0]}-{sizeList[sizeList.length - 1]}
-            </span>
-          ),
-        });
-      } else if (key === "skus" && showSkus) {
-        const totalCount =
-          typeof family.skuCount === "number" ? family.skuCount : family.skus?.length || 0;
-        const activeCount =
-          typeof family.activeSkuCount === "number" ? family.activeSkuCount : totalCount;
-        summaryItems.push({
-          key: "skus",
-          node: (
-            <span className="flex items-center gap-1">
-              {activeCount}
-              {totalCount ? ` / ${totalCount}` : ""} SKUs
             </span>
           ),
         });
@@ -1806,11 +1827,6 @@ export default function ProductsPage() {
                       {sizeList.length > 4 && "…"}
                     </span>
                   )}
-                </div>
-              )}
-              {showSkus && (
-                <div className="col-span-2 text-[11px] text-slate-500 dark:text-slate-400">
-                  {family.activeSkuCount || 0} active / {family.skuCount || family.activeSkuCount || 0} SKUs
                 </div>
               )}
             </>
@@ -2531,11 +2547,12 @@ export default function ProductsPage() {
         allVisibleSelected={allVisibleSelected}
         canEdit={canEdit}
         canUseBatchActions={canUseBatchActions}
-        onManageColours={loadFamilyForEdit}
         user={user}
         clientId={clientId}
         selectAllRef={selectAllRef}
         renderActionMenu={renderActionMenu}
+        familySkus={familySkus}
+        ensureFamilySkus={ensureFamilySkusLoaded}
       />
     );
   };
@@ -2571,6 +2588,7 @@ export default function ProductsPage() {
                     gender={genderFilter}
                     type={typeFilter}
                     subcategory={subcategoryFilter}
+                    showArchived={showArchived}
                     onGenderChange={(g) => {
                       setGenderFilter(g);
                       setTypeFilter("all");
@@ -2581,10 +2599,12 @@ export default function ProductsPage() {
                       setSubcategoryFilter("all");
                     }}
                     onSubcategoryChange={setSubcategoryFilter}
+                    onShowArchivedChange={setShowArchived}
                     onClearAll={() => {
                       setGenderFilter("all");
                       setTypeFilter("all");
                       setSubcategoryFilter("all");
+                      setShowArchived(false);
                     }}
                   />
 
@@ -2621,18 +2641,12 @@ export default function ProductsPage() {
                     onChange={setSortOrder}
                   />
 
-                  {/* View mode menu */}
+                  {/* View/Density presets */}
                   <ViewModeMenu
-                    options={VIEW_MODE_OPTIONS}
-                    value={currentViewMode}
-                    onChange={handleViewModeChange}
-                  />
-
-                  {/* Density menu */}
-                  <DensityMenu
-                    options={DENSITY_OPTIONS}
-                    value={resolvedDensityKey}
-                    onChange={handleDensityChange}
+                    options={VIEW_PRESETS}
+                    value={currentViewPreset}
+                    onChange={handleViewPresetChange}
+                    ariaLabel="Select view preset"
                   />
 
                   <FieldSettingsMenu

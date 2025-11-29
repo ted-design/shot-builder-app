@@ -1,16 +1,20 @@
 // src/components/products/ProductsTableView.jsx
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, Fragment } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { productFamilyPath } from '../../lib/paths';
 import { Card, CardContent } from '../ui/card';
-import { Button } from '../ui/button';
 import { Input, Checkbox } from '../ui/input';
 import AppImage from '../common/AppImage';
 import { Package } from 'lucide-react';
 import { genderLabel } from '../../lib/productMutations';
 import { getCategoryLabel } from '../../lib/productCategories';
 import { toast } from '../../lib/toast';
+
+const statusLabel = (status) => {
+  if (status === "discontinued") return "Discontinued";
+  return "Active";
+};
 
 /**
  * ProductsTableView - Compact table layout with inline editing
@@ -31,7 +35,6 @@ import { toast } from '../../lib/toast';
  * @param {boolean} props.allVisibleSelected - Whether all visible items are selected
  * @param {boolean} props.canEdit - Whether user can edit products
  * @param {boolean} props.canUseBatchActions - Whether user can use batch actions
- * @param {Function} props.onManageColours - Callback to open edit modal
  * @param {Object} props.user - Current user object
  * @param {string} props.clientId - Client ID for Firestore path
  * @param {React.Ref} props.selectAllRef - Ref for select all checkbox
@@ -49,16 +52,19 @@ export default function ProductsTableView({
   allVisibleSelected,
   canEdit,
   canUseBatchActions,
-  onManageColours,
   user,
   clientId,
   selectAllRef,
   renderActionMenu,
+  familySkus = {},
+  ensureFamilySkus,
 }) {
   // Inline editing state
   const [editingCell, setEditingCell] = useState(null); // { familyId, field }
   const [editValue, setEditValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [expandedFamilies, setExpandedFamilies] = useState(new Set());
+  const [loadingFamilies, setLoadingFamilies] = useState(new Set());
   const inputRef = useRef(null);
 
   // Get density-based classes
@@ -122,27 +128,6 @@ export default function ProductsTableView({
     }
   }, [editingCell, editValue, saving, user, clientId, cancelEdit]);
 
-  // Save status change (dropdown)
-  const saveStatus = useCallback(async (familyId, newStatus) => {
-    if (!canEdit) return;
-
-    setSaving(true);
-    try {
-      await updateDoc(doc(db, productFamilyPath(clientId, familyId)), {
-        status: newStatus,
-        updatedAt: Date.now(),
-        updatedBy: user?.uid || null,
-      });
-
-      toast.success('Status updated');
-    } catch (error) {
-      console.error('[ProductsTableView] Status update failed:', error);
-      toast.error('Failed to update status');
-    } finally {
-      setSaving(false);
-    }
-  }, [canEdit, user, clientId]);
-
   // Handle keyboard shortcuts in edit mode
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter') {
@@ -189,32 +174,57 @@ export default function ProductsTableView({
   // Render status dropdown (inline editing)
   const renderStatusCell = (family) => {
     return (
-      <select
-        value={family.status || 'active'}
-        onChange={(e) => saveStatus(family.id, e.target.value)}
-        disabled={!canEdit || saving}
-        className="h-8 rounded border border-slate-300 px-2 text-sm dark:bg-slate-800 dark:border-slate-600 disabled:opacity-50"
-      >
-        <option value="active">Active</option>
-        <option value="discontinued">Discontinued</option>
-      </select>
+      <span className={`text-slate-600 dark:text-slate-400 ${textClass}`}>
+        {statusLabel(family.status)}
+      </span>
     );
   };
+
+  const toggleColourRows = useCallback(async (familyId) => {
+    if (expandedFamilies.has(familyId)) {
+      setExpandedFamilies((prev) => {
+        const next = new Set(prev);
+        next.delete(familyId);
+        return next;
+      });
+      return;
+    }
+
+    setLoadingFamilies((prev) => {
+      const next = new Set(prev);
+      next.add(familyId);
+      return next;
+    });
+
+    if (ensureFamilySkus) {
+      await ensureFamilySkus(familyId);
+    }
+
+    setExpandedFamilies((prev) => {
+      const next = new Set(prev);
+      next.add(familyId);
+      return next;
+    });
+
+    setLoadingFamilies((prev) => {
+      const next = new Set(prev);
+      next.delete(familyId);
+      return next;
+    });
+  }, [ensureFamilySkus, expandedFamilies]);
 
   const visibility = {
     preview: true,
     styleName: true,
     styleNumber: true,
-    gender: true,
     category: true,
     status: true,
     colors: true,
     sizes: true,
-    skus: true,
     ...(visibleFields || {}),
   };
 
-  const defaultOrder = ["preview", "styleName", "styleNumber", "gender", "category", "status", "colors", "sizes", "skus", "lastUpdated"];
+  const defaultOrder = ["preview", "styleName", "styleNumber", "category", "status", "colors", "sizes", "lastUpdated"];
   const normaliseOrder = (order) => {
     if (!Array.isArray(order)) return defaultOrder;
     const base = order.filter((key) => defaultOrder.includes(key));
@@ -254,43 +264,38 @@ export default function ProductsTableView({
       headerClassName: "min-w-[200px]",
       cellClassName: `${baseCellClass} min-w-[200px]`,
       render: (family) => (
-        <div className={`font-semibold text-slate-900 dark:text-slate-100 ${textClass}`}>
-          {renderEditableCell(family, 'styleName', family.styleName)}
+        <div className="space-y-1">
+          <div className={`font-semibold text-slate-900 dark:text-slate-100 ${textClass}`}>
+            {renderEditableCell(family, 'styleName', family.styleName)}
+          </div>
+          {visibility.styleNumber !== false && (
+            <button
+              type="button"
+              onClick={() => startEdit(family.id, 'styleNumber', family.styleNumber)}
+              className="text-xs text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+              disabled={!canEdit}
+            >
+              {family.styleNumber ? `Style #${family.styleNumber}` : "Add style #"}
+            </button>
+          )}
         </div>
-      ),
-    },
-    styleNumber: {
-      key: "styleNumber",
-      label: "Style #",
-      headerClassName: "min-w-[120px]",
-      cellClassName: `${baseCellClass} min-w-[140px]`,
-      render: (family) => (
-        <div className={`text-slate-700 dark:text-slate-300 ${textClass}`}>
-          {renderEditableCell(family, 'styleNumber', family.styleNumber)}
-        </div>
-      ),
-    },
-    gender: {
-      key: "gender",
-      label: "Gender",
-      cellClassName: baseCellClass,
-      render: (family) => (
-        <span className={`text-slate-600 dark:text-slate-400 ${textClass}`}>
-          {genderLabel(family.gender)}
-        </span>
       ),
     },
     category: {
       key: "category",
       label: "Category",
-      headerClassName: "min-w-[180px]",
-      cellClassName: `${baseCellClass} min-w-[180px]`,
+      headerClassName: "min-w-[200px]",
+      cellClassName: `${baseCellClass} min-w-[200px]`,
       render: (family) => {
         const categoryPath = getCategoryLabel(family.gender, family.productType, family.productSubcategory);
+        const showGender = visibility.gender !== false && family.gender;
+        const showCategory = visibility.category !== false && categoryPath;
         return (
-          <span className={`text-slate-600 dark:text-slate-400 ${textClass}`}>
-            {categoryPath || "–"}
-          </span>
+          <div className={`space-y-0.5 text-slate-600 dark:text-slate-400 ${textClass}`}>
+            {showGender && <div>{genderLabel(family.gender)}</div>}
+            {showCategory && <div className="text-xs text-slate-500 dark:text-slate-500">{categoryPath}</div>}
+            {!showGender && !showCategory && <span>–</span>}
+          </div>
         );
       },
     },
@@ -304,11 +309,56 @@ export default function ProductsTableView({
       key: "colors",
       label: "Colors",
       cellClassName: baseCellClass,
-      render: (_family, meta) => (
-        <span className={`text-slate-600 dark:text-slate-400 ${textClass}`}>
-          {meta.colourCount}
-        </span>
-      ),
+      render: (family, meta) => {
+        const isExpanded = expandedFamilies.has(family.id);
+        const isLoading = loadingFamilies.has(family.id);
+        const swatchList = (familySkus[family.id] || []).map((sku) => ({
+          id: sku.id,
+          label: sku.colorName || "Colour",
+          color: sku.hexColor || "#CBD5E1",
+        }));
+        const fallbackList = meta.colourList.map((name, index) => ({
+          id: `${family.id}-${index}`,
+          label: name,
+          color: "#CBD5E1",
+        }));
+        const circles = swatchList.length ? swatchList : fallbackList;
+        const visibleCircles = circles.slice(0, 6);
+        const overflow = circles.length - visibleCircles.length;
+
+        return (
+          <button
+            type="button"
+            onClick={() => toggleColourRows(family.id)}
+            className="flex items-center gap-2 text-left"
+          >
+            <div className="flex flex-wrap items-center gap-1.5">
+              {isLoading ? (
+                <span className={`text-slate-600 dark:text-slate-400 ${textClass}`}>Loading…</span>
+              ) : (
+                <>
+                  {visibleCircles.map((circle) => (
+                    <span
+                      key={circle.id}
+                      className="inline-block h-3.5 w-3.5 rounded-full border border-slate-300 dark:border-slate-600"
+                      style={{ backgroundColor: circle.color }}
+                      title={circle.label}
+                    />
+                  ))}
+                  {overflow > 0 && (
+                    <span className={`text-xs text-slate-600 dark:text-slate-400 ${textClass}`}>
+                      +{overflow}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+            <span className={`text-xs text-slate-500 underline-offset-2 hover:underline dark:text-slate-400 ${textClass}`}>
+              {isExpanded ? "Collapse" : "Expand"}
+            </span>
+          </button>
+        );
+      },
     },
     sizes: {
       key: "sizes",
@@ -345,6 +395,7 @@ export default function ProductsTableView({
   const activeColumns = columnOrder
     .map((key) => columnMap[key])
     .filter((column) => column && visibility[column.key] !== false);
+  const totalColumns = activeColumns.length + 1 + (selectionEnabled ? 1 : 0); // action + optional selection
 
   const formatUpdatedAt = (value) => {
     if (!value) return "";
@@ -367,6 +418,9 @@ export default function ProductsTableView({
           <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
               <tr>
+                <th scope="col" className={`${baseHeaderClass} w-10`}>
+                  <span className="sr-only">Actions</span>
+                </th>
                 {selectionEnabled && (
                   <th scope="col" className={baseHeaderClass}>
                     <input
@@ -388,9 +442,6 @@ export default function ProductsTableView({
                     {column.label}
                   </th>
                 ))}
-                <th scope="col" className={`${baseHeaderClass} text-right`}>
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900">
@@ -415,7 +466,13 @@ export default function ProductsTableView({
                 const meta = {
                   previewSource,
                   colourList,
-                  colourCount: colourList.length || family.colourCount || family.colorsCount || family.skus?.length || 0,
+                  colourCount:
+                    colourList.length ||
+                    (familySkus[family.id]?.length ?? 0) ||
+                    family.colourCount ||
+                    family.colorsCount ||
+                    family.skus?.length ||
+                    0,
                   sizeList,
                   sizeSummary: sizeList.length ? `${sizeList[0]}-${sizeList[sizeList.length - 1]}` : "",
                   skuCounts: {
@@ -425,44 +482,81 @@ export default function ProductsTableView({
                   updatedAtLabel,
                 };
 
+                const isExpanded = expandedFamilies.has(family.id);
+                const loadingColours = loadingFamilies.has(family.id);
+
                 return (
-                  <tr
-                    key={family.id}
-                    className={`odd:bg-white even:bg-slate-50/40 hover:bg-slate-100 dark:odd:bg-slate-900 dark:even:bg-slate-800/40 dark:hover:bg-slate-800 ${
-                      isSelected ? 'bg-primary/5 dark:bg-primary/10' : ''
-                    }`}
-                  >
-                    {selectionEnabled && (
-                      <td className={baseCellClass}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={(e) => onToggleSelection(family.id, e.target.checked)}
-                          aria-label={`Select ${family.styleName || 'product'}`}
-                        />
-                      </td>
-                    )}
-
-                    {activeColumns.map((column) => (
-                      <td key={column.key} className={column.cellClassName || baseCellClass}>
-                        {column.render(family, meta)}
-                      </td>
-                    ))}
-
-                    <td className={`${baseCellClass} text-right`}>
-                      <div className="flex items-center justify-end gap-2">
-                        {canEdit && (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => onManageColours(family)}
-                          >
-                            Manage
-                          </Button>
-                        )}
+                  <Fragment key={family.id}>
+                    <tr
+                      className={`odd:bg-white even:bg-slate-50/40 hover:bg-slate-100 dark:odd:bg-slate-900 dark:even:bg-slate-800/40 dark:hover:bg-slate-800 ${
+                        isSelected ? 'bg-primary/5 dark:bg-primary/10' : ''
+                      }`}
+                    >
+                      <td className={`${baseCellClass} w-10`}>
                         {renderActionMenu && renderActionMenu(family)}
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+
+                      {selectionEnabled && (
+                        <td className={baseCellClass}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={(e) => onToggleSelection(family.id, e.target.checked)}
+                            aria-label={`Select ${family.styleName || 'product'}`}
+                          />
+                        </td>
+                      )}
+
+                      {activeColumns.map((column) => (
+                        <td key={column.key} className={column.cellClassName || baseCellClass}>
+                          {column.render(family, meta)}
+                        </td>
+                      ))}
+                    </tr>
+                    {isExpanded && (
+                      <tr className="bg-slate-50/60 dark:bg-slate-800/40">
+                        <td colSpan={totalColumns} className={`${baseCellClass} pt-3`}>
+                          {loadingColours ? (
+                            <div className="text-sm text-slate-500 dark:text-slate-400">Loading colours…</div>
+                          ) : (
+                            <div className="flex flex-col gap-3">
+                              {(familySkus[family.id] || []).map((sku) => (
+                                <div key={sku.id} className="flex items-center gap-3">
+                                  <div className="h-14 w-14 overflow-hidden rounded border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900">
+                                    {sku.imagePath ? (
+                                      <AppImage
+                                        src={sku.imagePath}
+                                        alt={sku.colorName}
+                                        preferredSize={200}
+                                        className="h-full w-full"
+                                        imageClassName="h-full w-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
+                                        No image
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex-1 text-slate-700 dark:text-slate-200">
+                                    <div className="font-medium">{sku.colorName || "Unnamed colour"}</div>
+                                    {Array.isArray(sku.sizes) && sku.sizes.length > 0 && (
+                                      <div className="text-sm text-slate-500 dark:text-slate-400">
+                                        Sizes: {sku.sizes.join(", ")}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                              {(!familySkus[family.id] || familySkus[family.id].length === 0) && (
+                                <div className="text-sm text-slate-500 dark:text-slate-400">
+                                  No colour data available.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
