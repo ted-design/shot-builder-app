@@ -87,6 +87,7 @@ const TALENT_SEARCH_CONFIG = {
     { name: 'agency', weight: 2 },
     { name: 'email', weight: 1.5 },
     { name: 'phone', weight: 1.5 },
+    { name: 'notes', weight: 1.5 },
     { name: 'sizing', weight: 1 },
     { name: 'gender', weight: 1 },
   ],
