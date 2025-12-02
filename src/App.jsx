@@ -50,6 +50,7 @@ const AdminPage = lazy(() => import("./pages/AdminPage"));
 const ImageDiagnosticsPage = lazy(() => import("./pages/dev/ImageDiagnosticsPage"));
 const BrandLockupTest = lazy(() => import("./pages/dev/BrandLockupTest"));
 const PageHeaderTest = lazy(() => import("./pages/dev/PageHeaderTest"));
+const DemoPage = lazy(() => import("./pages/DemoPage"));
 // Dev-only quick check page for RichTextEditor bubble menu styling
 const RichTextEditorDemo = lazy(() => import("./pages/dev/RichTextEditorDemo"));
 const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
@@ -159,6 +160,14 @@ export default function App() {
                   element={
                     <Suspense fallback={<PageLoadingFallback />}>
                       <PullPublicViewPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/demo"
+                  element={
+                    <Suspense fallback={<PageLoadingFallback />}>
+                      <DemoPage />
                     </Suspense>
                   }
                 />
