@@ -135,7 +135,7 @@ describe('SearchCommand', () => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
-    const input = screen.getByPlaceholderText(/search shots, products, talent/i);
+    const input = screen.getByPlaceholderText(/search or type a command/i);
 
     // Simulate rapid typing (3 keystrokes in quick succession)
     fireEvent.change(input, { target: { value: 'a' } });

@@ -13,6 +13,9 @@ export default function EditProductModal({
   onSubmit,
   onDelete,
   canDelete = false,
+  paletteSwatches = [],
+  paletteIndex,
+  onUpsertSwatch,
 }) {
   const titleId = "edit-product-title";
   const [confirmingDelete, setConfirmingDelete] = React.useState(false);
@@ -121,6 +124,9 @@ export default function EditProductModal({
               onCancel={onClose}
               submitLabel={deleting ? "Deleting…" : "Save changes"}
               canDelete={canDelete}
+              paletteSwatches={paletteSwatches}
+              paletteIndex={paletteIndex}
+              onUpsertSwatch={onUpsertSwatch}
             />
           )}
         </CardContent>

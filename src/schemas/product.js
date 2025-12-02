@@ -27,6 +27,7 @@ export const productSkuSchema = z.object({
   status: productStatusSchema.default("active"),
   archived: z.boolean().default(false),
   imagePath: storagePathSchema,
+  colorKey: z.string().max(120).nullable().optional(),
   hexColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid hex color format").nullable().optional(),
   ...softDeleteSchema.shape,
   ...auditFieldsSchema.shape,
@@ -46,6 +47,7 @@ export const createProductSkuSchema = z.object({
   imageFile: z.any().nullable().optional(), // File object
   imagePath: storagePathSchema,
   removeImage: z.boolean().optional().default(false),
+  colorKey: z.string().max(120).nullable().optional(),
   hexColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid hex color format").nullable().optional(),
 });
 

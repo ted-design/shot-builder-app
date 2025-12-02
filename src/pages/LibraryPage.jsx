@@ -30,6 +30,7 @@ export default function LibraryPage() {
                 { to: "/library/talent", label: "Talent" },
                 { to: "/library/locations", label: "Locations" },
                 { to: "/library/tags", label: "Tags" },
+                { to: "/library/palette", label: "Palette" },
               ].map((tab) => {
                 const active = isActive(tab.to);
                 return (
@@ -57,4 +58,3 @@ export default function LibraryPage() {
     </div>
   );
 }
-

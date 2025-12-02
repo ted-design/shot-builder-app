@@ -105,3 +105,14 @@ export const lanesPath = (projectId, clientId) => [...projectPath(projectId, cli
 // Pulls continue to live under a project as well.  In the future you might
 // centralise pulls like shots, but for now we leave the existing structure.
 export const pullsPath = (projectId, clientId) => [...projectPath(projectId, clientId), "pulls"];
+
+// Centralised color swatches (per-client)
+export const colorSwatchesPath = (clientId) => [
+  "clients",
+  resolveClientId(clientId),
+  "colorSwatches",
+];
+export const colorSwatchPath = (colorKey, clientId) => [
+  ...colorSwatchesPath(clientId),
+  colorKey,
+];

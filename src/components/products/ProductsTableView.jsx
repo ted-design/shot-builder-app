@@ -10,6 +10,7 @@ import { Package } from 'lucide-react';
 import { genderLabel } from '../../lib/productMutations';
 import { getCategoryLabel } from '../../lib/productCategories';
 import { toast } from '../../lib/toast';
+import { findPaletteMatch } from '../../lib/colorPalette';
 
 const statusLabel = (status) => {
   if (status === "discontinued") return "Discontinued";
@@ -58,6 +59,7 @@ export default function ProductsTableView({
   renderActionMenu,
   familySkus = {},
   ensureFamilySkus,
+  paletteIndex = null,
 }) {
   // Inline editing state
   const [editingCell, setEditingCell] = useState(null); // { familyId, field }
@@ -312,15 +314,20 @@ export default function ProductsTableView({
       render: (family, meta) => {
         const isExpanded = expandedFamilies.has(family.id);
         const isLoading = loadingFamilies.has(family.id);
-        const swatchList = (familySkus[family.id] || []).map((sku) => ({
-          id: sku.id,
-          label: sku.colorName || "Colour",
-          color: sku.hexColor || "#CBD5E1",
-        }));
+        const swatchList = (familySkus[family.id] || []).map((sku) => {
+          const paletteMatch = findPaletteMatch(sku, paletteIndex);
+          return {
+            id: sku.id,
+            label: sku.colorName || "Colour",
+            color: paletteMatch?.hexColor || sku.hexColor || "#CBD5E1",
+            imagePath: paletteMatch?.swatchImagePath || null,
+          };
+        });
         const fallbackList = meta.colourList.map((name, index) => ({
           id: `${family.id}-${index}`,
           label: name,
           color: "#CBD5E1",
+          imagePath: null,
         }));
         const circles = swatchList.length ? swatchList : fallbackList;
         const visibleCircles = circles.slice(0, 6);
@@ -340,10 +347,21 @@ export default function ProductsTableView({
                   {visibleCircles.map((circle) => (
                     <span
                       key={circle.id}
-                      className="inline-block h-3.5 w-3.5 rounded-full border border-slate-300 dark:border-slate-600"
+                      className="relative inline-block h-3.5 w-3.5 rounded-full border border-slate-300 dark:border-slate-600"
                       style={{ backgroundColor: circle.color }}
                       title={circle.label}
-                    />
+                    >
+                      {circle.imagePath && (
+                        <AppImage
+                          src={circle.imagePath}
+                          alt=""
+                          className="pointer-events-none absolute inset-0 overflow-hidden rounded-full"
+                          imageClassName="h-full w-full rounded-full object-cover"
+                          placeholder={null}
+                          fallback={null}
+                        />
+                      )}
+                    </span>
                   ))}
                   {overflow > 0 && (
                     <span className={`text-xs text-slate-600 dark:text-slate-400 ${textClass}`}>

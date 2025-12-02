@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Modal } from "../ui/modal";
 import { Input } from "../ui/input";
@@ -8,6 +8,7 @@ import { Badge } from "../ui/badge";
 import AppImage from "../common/AppImage";
 import { compressImageFile, formatFileSize } from "../../lib/images";
 import { extractColorFromFile, isValidHexColor } from "../../lib/colorExtraction";
+import { findPaletteMatch } from "../../lib/colorPalette";
 
 const SKU_STATUS = [
   { value: "active", label: "Active" },
@@ -15,7 +16,15 @@ const SKU_STATUS = [
   { value: "archived", label: "Archived" },
 ];
 
-export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
+export default function NewColourwayModal({
+  open,
+  onClose,
+  onSubmit,
+  family,
+  paletteSwatches = [],
+  paletteIndex = { byKey: new Map(), byName: new Map() },
+  onUpsertSwatch,
+}) {
   const [colorName, setColorName] = useState("");
   const [skuCode, setSkuCode] = useState("");
   const [status, setStatus] = useState("active");
@@ -25,8 +34,18 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
   const [hexColor, setHexColor] = useState("");
   const [autoExtracted, setAutoExtracted] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [colorKey, setColorKey] = useState(null);
   const inputRef = useRef(null);
   const objectUrlRef = useRef(null);
+  const paletteNames = useMemo(
+    () => (paletteSwatches || []).map((swatch) => swatch.name).filter(Boolean),
+    [paletteSwatches]
+  );
+  const paletteListId = "palette-colourway-names";
+  const resolvedPaletteIndex = useMemo(
+    () => paletteIndex || { byKey: new Map(), byName: new Map() },
+    [paletteIndex]
+  );
 
   useEffect(() => {
     if (!open) {
@@ -36,6 +55,7 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
       setError(null);
       setIsSaving(false);
       setHexColor("");
+      setColorKey(null);
       setAutoExtracted(false);
       setIsExtracting(false);
       if (objectUrlRef.current) {
@@ -59,6 +79,19 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
     },
     []
   );
+
+  useEffect(() => {
+    const match = findPaletteMatch({ colorName, colorKey }, resolvedPaletteIndex);
+    if (match) {
+      setColorKey(match.colorKey);
+      if (match.hexColor && hexColor !== match.hexColor) {
+        setHexColor(match.hexColor);
+        setAutoExtracted(false);
+      }
+    } else if (colorKey) {
+      setColorKey(null);
+    }
+  }, [colorName, colorKey, resolvedPaletteIndex, hexColor]);
 
   const handleImageChange = async (file) => {
     if (!file) return;
@@ -110,6 +143,32 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
     setImageState({ file: null, preview: null, size: 0, name: "" });
   };
 
+  const handleSaveSwatchToPalette = async () => {
+    if (!onUpsertSwatch) return;
+    const name = colorName.trim();
+    if (!name) {
+      setError("Add a colour name before saving to the palette.");
+      return;
+    }
+    if (!hexColor || !isValidHexColor(hexColor)) {
+      setError("Add a valid hex colour before saving to the palette.");
+      return;
+    }
+    try {
+      const result = await onUpsertSwatch({
+        name,
+        hexColor,
+        swatchImageFile: imageState.file || null,
+      });
+      if (result?.colorKey) {
+        setColorKey(result.colorKey);
+      }
+    } catch (err) {
+      console.error("Failed to save palette swatch", err);
+      setError(err?.message || "Unable to save swatch to the palette.");
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError(null);
@@ -128,13 +187,17 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
 
     setIsSaving(true);
     try {
-      await onSubmit?.({
+      const payload = {
         colorName: trimmedName,
         skuCode: skuCode.trim(),
         status,
         imageFile: imageState.file,
         hexColor: trimmedHexColor || null,
-      });
+      };
+      if (colorKey) {
+        payload.colorKey = colorKey;
+      }
+      await onSubmit?.(payload);
       onClose?.();
     } catch (err) {
       console.error("Failed to create colourway", err);
@@ -184,9 +247,45 @@ export default function NewColourwayModal({ open, onClose, onSubmit, family }) {
                 id="colourway-name"
                 value={colorName}
                 onChange={(event) => setColorName(event.target.value)}
+                 list={paletteNames.length ? paletteListId : undefined}
                 placeholder="e.g. Black"
                 ref={inputRef}
               />
+              {paletteNames.length > 0 && (
+                <datalist id={paletteListId}>
+                  {paletteNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              )}
+              {(() => {
+                const paletteMatch = findPaletteMatch({ colorName, colorKey }, resolvedPaletteIndex);
+                if (paletteMatch) {
+                  return (
+                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span>Linked to palette</span>
+                      {paletteMatch.hexColor && (
+                        <span className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                          {paletteMatch.hexColor}
+                        </span>
+                      )}
+                    </div>
+                  );
+                }
+                if (colorName.trim() && onUpsertSwatch) {
+                  const canSave = hexColor && isValidHexColor(hexColor);
+                  return (
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span>Not in palette</span>
+                      <Button type="button" variant="outline" size="sm" disabled={!canSave} onClick={handleSaveSwatchToPalette}>
+                        Save swatch
+                      </Button>
+                      {!canSave && <span className="text-[11px] text-slate-500">Add a valid hex first</span>}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="colourway-sku">

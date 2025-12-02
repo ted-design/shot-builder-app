@@ -13,6 +13,9 @@ import {
   getSubcategoriesForType,
   hasCategories,
 } from "../../lib/productCategories";
+import { findPaletteMatch } from "../../lib/colorPalette";
+import { isValidHexColor } from "../../lib/colorExtraction";
+import { toast } from "../../lib/toast";
 
 const GENDER_OPTIONS = [
   { value: "men", label: "Men's" },
@@ -40,6 +43,7 @@ const createEmptyColour = () => ({
   colorName: "",
   skuCode: "",
   status: "active",
+  colorKey: null,
   hexColor: null,
   imagePath: null,
   imageFile: null,
@@ -112,6 +116,7 @@ const buildInitialColours = (initialValue) => {
     colorName: sku.colorName || sku.colour || sku.name || "",
     skuCode: sku.skuCode || sku.sku || sku.code || "",
     status: sku.status || (sku.archived ? "archived" : "active"),
+    colorKey: sku.colorKey || null,
     hexColor: sku.hexColor || null,
     imagePath: sku.imagePath || null,
     imageFile: null,
@@ -127,6 +132,9 @@ export default function ProductFamilyForm({
   onCancel,
   submitLabel = "Save",
   canDelete,
+  paletteSwatches = [],
+  paletteIndex = null,
+  onUpsertSwatch,
 }) {
   const [familyState, setFamilyState] = useState(() => buildInitialState(initialValue));
   const [colours, setColours] = useState(() => buildInitialColours(initialValue));
@@ -157,6 +165,10 @@ export default function ProductFamilyForm({
     path: initialValue?.headerImagePath || null,
     remove: false,
   });
+  const resolvedPaletteIndex = useMemo(
+    () => paletteIndex || { byKey: new Map(), byName: new Map() },
+    [paletteIndex]
+  );
 
   const thumbnailObjectUrl = useRef(null);
   const headerObjectUrl = useRef(null);
@@ -269,6 +281,18 @@ export default function ProductFamilyForm({
     };
   }, [colours]);
 
+  useEffect(() => {
+    setColours((prev) =>
+      prev.map((colour) => {
+        const match = findPaletteMatch(colour, resolvedPaletteIndex);
+        if (match && match.hexColor && colour.hexColor !== match.hexColor) {
+          return { ...colour, colorKey: match.colorKey, hexColor: match.hexColor };
+        }
+        return colour;
+      })
+    );
+  }, [resolvedPaletteIndex]);
+
   useEffect(
     () => () => {
       if (thumbnailObjectUrl.current) {
@@ -302,9 +326,26 @@ export default function ProductFamilyForm({
 
   const setColourAt = (localId, updates) => {
     setColours((prev) =>
-      prev.map((colour) =>
-        colour.localId === localId ? { ...colour, ...updates } : colour
-      )
+      prev.map((colour) => {
+        if (colour.localId !== localId) return colour;
+        const next = { ...colour, ...updates };
+        const nextName = ((updates.colorName ?? colour.colorName) || "").trim();
+        const nextKey = updates.colorKey ?? colour.colorKey;
+        const paletteMatch = findPaletteMatch(
+          { colorName: nextName, colorKey: nextKey },
+          resolvedPaletteIndex
+        );
+
+        if (paletteMatch) {
+          next.colorKey = paletteMatch.colorKey;
+          if (!next.hexColor || updates.colorName || updates.colorKey) {
+            next.hexColor = paletteMatch.hexColor || next.hexColor;
+          }
+        } else if (updates.colorName) {
+          next.colorKey = null;
+        }
+        return next;
+      })
     );
   };
 
@@ -443,6 +484,34 @@ export default function ProductFamilyForm({
     });
   };
 
+  const handleSaveSwatchToPalette = async (localId) => {
+    if (!onUpsertSwatch) return;
+    const colour = colours.find((item) => item.localId === localId);
+    const name = colour?.colorName?.trim();
+    if (!name) {
+      toast.error("Add a colour name before saving to the palette.");
+      return;
+    }
+    if (!colour?.hexColor || !isValidHexColor(colour.hexColor)) {
+      toast.error("Add a valid hex colour before saving to the palette.");
+      return;
+    }
+    try {
+      const result = await onUpsertSwatch({
+        name,
+        hexColor: colour.hexColor,
+        swatchImageFile: colour.imageFile || null,
+      });
+      if (result?.colorKey) {
+        setColourAt(localId, { colorKey: result.colorKey, hexColor: result.hexColor });
+      }
+      toast.success(`Saved ${name} to the palette`);
+    } catch (err) {
+      console.error("Failed to save swatch to palette", err);
+      toast.error(err?.message || "Unable to save swatch");
+    }
+  };
+
   const trimmedSizes = useMemo(
     () => familyState.sizes.map((size) => size.trim()).filter(Boolean),
     [familyState.sizes]
@@ -456,6 +525,7 @@ export default function ProductFamilyForm({
           ...colour,
           colorName: colour.colorName.trim(),
           skuCode: colour.skuCode.trim(),
+          colorKey: colour.colorKey || null,
         })),
     [colours]
   );
@@ -524,6 +594,7 @@ export default function ProductFamilyForm({
         skuCode: colour.skuCode,
         status: colour.status,
         archived: colour.status === "archived",
+        colorKey: colour.colorKey || null,
         hexColor: colour.hexColor || null,
         // All colour entries share the normalised family size list to avoid divergent data.
         sizes: trimmedSizes,
@@ -701,6 +772,9 @@ export default function ProductFamilyForm({
         onFieldChange={(localId, updates) => setColourAt(localId, updates)}
         onImageSelect={handleColourImage}
         onClearImage={clearColourImage}
+        paletteSwatches={paletteSwatches}
+        paletteIndex={resolvedPaletteIndex}
+        onSaveToPalette={handleSaveSwatchToPalette}
         statusOptions={SKU_STATUS}
         sizeNote={
           trimmedSizes.length
