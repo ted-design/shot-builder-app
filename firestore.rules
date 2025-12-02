@@ -164,6 +164,13 @@ service cloud.firestore {
       }
     }
 
+    // Color swatches - org-level palette for standardizing product colors
+    match /clients/{clientId}/colorSwatches/{swatchId} {
+      allow read: if clientMatches(clientId);
+      allow create, update: if clientMatches(clientId) && (isAdmin() || isProducer());
+      allow delete: if clientMatches(clientId) && isAdmin();
+    }
+
     match /clients/{clientId}/projects/{projectId} {
       allow read: if clientMatches(clientId) &&
         (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));

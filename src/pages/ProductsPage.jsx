@@ -57,6 +57,8 @@ import {
   getSubcategoryLabelUnion,
 } from "../lib/productCategories";
 import ProductFilterDrawer from "../components/products/ProductFilterDrawer";
+import { useColorSwatches } from "../hooks/useColorSwatches";
+import { upsertColorSwatch } from "../lib/colorPalette";
 
 const statusLabel = (status) => {
   if (status === "discontinued") return "Discontinued";
@@ -474,7 +476,7 @@ export default function ProductsPage() {
   const currentProductFamiliesPath = useMemo(() => productFamiliesPath(clientId), [clientId]);
   const productFamilyPathForClient = useCallback(
     (familyId) => productFamilyPath(familyId, clientId),
-    [clientId]
+    [clientId, db]
   );
   const productFamilySkusPathForClient = useCallback(
     (familyId) => productFamilySkusPath(familyId, clientId),
@@ -487,6 +489,10 @@ export default function ProductsPage() {
 
   // TanStack Query hook - cached data with realtime updates
   const { data: families = [], isLoading: loading } = useProducts(clientId);
+  const {
+    swatches: colorSwatches = [],
+    paletteIndex,
+  } = useColorSwatches(clientId);
 
   const [queryText, setQueryText] = useState("");
   const debouncedQueryText = useDebouncedValue(queryText, 300);
@@ -1059,6 +1065,19 @@ export default function ProductsPage() {
     }
   }, []);
 
+  const handleUpsertSwatch = useCallback(
+    async ({ name, hexColor, swatchImageFile }) => {
+      return upsertColorSwatch({
+        db,
+        clientId,
+        name,
+        hexColor,
+        swatchImageFile,
+      });
+    },
+    [clientId]
+  );
+
   const handleCreateFamily = useCallback(
     async (payload) => {
       if (!canEdit) throw new Error("You do not have permission to create products.");
@@ -1196,6 +1215,7 @@ export default function ProductsPage() {
             sizes: sku.sizes,
             status: sku.status,
             archived: sku.archived,
+            colorKey: sku.colorKey || null,
             hexColor: sku.hexColor || null,
             updatedAt: now,
             updatedBy: user?.uid || null,
@@ -1258,6 +1278,7 @@ export default function ProductsPage() {
             sizes: sku.sizes,
             status: sku.status,
             archived: sku.archived,
+            colorKey: sku.colorKey || null,
             hexColor: sku.hexColor || null,
             imagePath,
             deleted: false,
@@ -2135,6 +2156,7 @@ export default function ProductsPage() {
                     onColorSelect={handleColorSelect}
                     size={21}
                     gap={9}
+                    paletteIndex={paletteIndex}
                   />
                   {(displayColorName || (showLastUpdated && family.updatedAt)) && (
                     <div className="flex items-center justify-between">
@@ -2553,6 +2575,7 @@ export default function ProductsPage() {
         renderActionMenu={renderActionMenu}
         familySkus={familySkus}
         ensureFamilySkus={ensureFamilySkusLoaded}
+        paletteIndex={paletteIndex}
       />
     );
   };
@@ -3018,6 +3041,9 @@ export default function ProductsPage() {
           open={newModalOpen}
           onClose={() => setNewModalOpen(false)}
           onSubmit={handleCreateFamily}
+          paletteSwatches={colorSwatches}
+          paletteIndex={paletteIndex}
+          onUpsertSwatch={handleUpsertSwatch}
         />
       )}
 
@@ -3030,6 +3056,9 @@ export default function ProductsPage() {
           onSubmit={(payload) => handleUpdateFamily(editFamily.id, payload)}
           onDelete={(fam, opts) => handleDeleteFamily(fam ?? editFamily, opts)}
           canDelete={canDelete}
+          paletteSwatches={colorSwatches}
+          paletteIndex={paletteIndex}
+          onUpsertSwatch={handleUpsertSwatch}
         />
       )}
     </div>

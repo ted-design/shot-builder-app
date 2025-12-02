@@ -2,7 +2,14 @@ import { Card, CardContent, CardHeader } from "../ui/card";
 import { Modal } from "../ui/modal";
 import ProductFamilyForm from "./ProductFamilyForm";
 
-export default function NewProductModal({ open, onClose, onSubmit }) {
+export default function NewProductModal({
+  open,
+  onClose,
+  onSubmit,
+  paletteSwatches = [],
+  paletteIndex,
+  onUpsertSwatch,
+}) {
   return (
     <Modal
       open={open}
@@ -45,6 +52,9 @@ export default function NewProductModal({ open, onClose, onSubmit }) {
             }}
             onCancel={onClose}
             submitLabel="Create product"
+            paletteSwatches={paletteSwatches}
+            paletteIndex={paletteIndex}
+            onUpsertSwatch={onUpsertSwatch}
           />
         </CardContent>
       </Card>

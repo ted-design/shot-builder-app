@@ -10,6 +10,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { getSkuColor } from '../../lib/colorExtraction';
+import AppImage from "../common/AppImage";
+import { resolveSwatchForSku } from "../../lib/colorPalette";
 
 export default function SKUColorSelector({
   skus = [],
@@ -17,15 +19,16 @@ export default function SKUColorSelector({
   onColorSelect,
   size = 24,
   gap = 8,
+  paletteIndex = null,
 }) {
-  const [colors, setColors] = useState({});
+  const [swatches, setSwatches] = useState({});
   const [loadingColors, setLoadingColors] = useState(new Set());
   const [errors, setErrors] = useState(new Set());
 
   // Extract colors for SKUs that don't have hexColor
   const extractColors = useCallback(async () => {
     const skusNeedingExtraction = skus.filter(
-      (sku) => !colors[sku.id] && !loadingColors.has(sku.id) && !errors.has(sku.id)
+      (sku) => !swatches[sku.id] && !loadingColors.has(sku.id) && !errors.has(sku.id)
     );
 
     if (skusNeedingExtraction.length === 0) return;
@@ -40,11 +43,13 @@ export default function SKUColorSelector({
     // Extract colors in parallel
     const extractions = skusNeedingExtraction.map(async (sku) => {
       try {
-        const color = await getSkuColor(sku);
-        return { skuId: sku.id, color, error: false };
+        const swatch = await resolveSwatchForSku(sku, paletteIndex, {
+          extractFallback: getSkuColor,
+        });
+        return { skuId: sku.id, swatch, error: false };
       } catch (err) {
         console.error(`Failed to extract color for SKU ${sku.id}:`, err);
-        return { skuId: sku.id, color: null, error: true };
+        return { skuId: sku.id, swatch: null, error: true };
       }
     });
 
@@ -54,15 +59,15 @@ export default function SKUColorSelector({
     const newColors = {};
     const newErrors = new Set();
 
-    results.forEach(({ skuId, color, error }) => {
+    results.forEach(({ skuId, swatch, error }) => {
       if (error) {
         newErrors.add(skuId);
-      } else if (color) {
-        newColors[skuId] = color;
+      } else if (swatch?.hexColor) {
+        newColors[skuId] = swatch;
       }
     });
 
-    setColors((prev) => ({ ...prev, ...newColors }));
+    setSwatches((prev) => ({ ...prev, ...newColors }));
     setErrors((prev) => new Set([...prev, ...newErrors]));
 
     // Clear loading state
@@ -71,17 +76,24 @@ export default function SKUColorSelector({
       skusNeedingExtraction.forEach((sku) => next.delete(sku.id));
       return next;
     });
-  }, [skus, colors, loadingColors, errors]);
+  }, [skus, swatches, loadingColors, errors, paletteIndex]);
 
   // Extract colors on mount and when skus change
   useEffect(() => {
     extractColors();
   }, [extractColors]);
 
+  // Reset when palette index changes significantly (e.g., swatch updates)
+  useEffect(() => {
+    setSwatches({});
+    setErrors(new Set());
+    setLoadingColors(new Set());
+  }, [paletteIndex]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      setColors({});
+      setSwatches({});
       setLoadingColors(new Set());
       setErrors(new Set());
     };
@@ -107,7 +119,9 @@ export default function SKUColorSelector({
   return (
     <div className="flex items-center flex-wrap" style={{ gap: `${gap}px` }}>
       {skus.map((sku) => {
-        const color = colors[sku.id] || sku.hexColor || '#CCCCCC';
+        const swatch = swatches[sku.id];
+        const color = swatch?.hexColor || sku.hexColor || '#CCCCCC';
+        const swatchImagePath = swatch?.swatchImagePath;
         const isActive = sku.id === currentSkuId;
         const isLoading = loadingColors.has(sku.id);
         const hasError = errors.has(sku.id);
@@ -116,6 +130,7 @@ export default function SKUColorSelector({
           <div
             key={sku.id}
             className="relative group"
+            style={{ width: `${size}px`, height: `${size}px` }}
             title={sku.colorName}
             aria-label={`${sku.colorName} color option`}
           >
@@ -130,28 +145,40 @@ export default function SKUColorSelector({
                 <LoadingSpinner size="sm" />
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => handleClick(sku)}
-                onKeyDown={(e) => handleKeyDown(e, sku)}
-                className={`
-                  rounded-full border-2 transition-all duration-200
-                  ${
-                    isActive
-                      ? 'border-slate-900 dark:border-slate-100 ring-2 ring-offset-2 ring-slate-400 dark:ring-slate-500'
-                      : 'border-slate-300 dark:border-slate-600 hover:border-slate-500 dark:hover:border-slate-400'
-                  }
-                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-                  ${hasError ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                `}
-                style={{
-                  width: `${size}px`,
-                  height: `${size}px`,
-                  backgroundColor: color,
-                }}
-                disabled={hasError}
-                aria-pressed={isActive}
-              />
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleClick(sku)}
+                  onKeyDown={(e) => handleKeyDown(e, sku)}
+                  className={`
+                    relative rounded-full border-2 transition-all duration-200
+                    ${
+                      isActive
+                        ? 'border-slate-900 dark:border-slate-100 ring-2 ring-offset-2 ring-slate-400 dark:ring-slate-500'
+                        : 'border-slate-300 dark:border-slate-600 hover:border-slate-500 dark:hover:border-slate-400'
+                    }
+                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                    ${hasError ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                  `}
+                  style={{
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    backgroundColor: color,
+                  }}
+                  disabled={hasError}
+                  aria-pressed={isActive}
+                />
+                {swatchImagePath && (
+                  <AppImage
+                    src={swatchImagePath}
+                    alt=""
+                    className="pointer-events-none absolute inset-0 overflow-hidden rounded-full"
+                    imageClassName="h-full w-full rounded-full object-cover"
+                    placeholder={null}
+                    fallback={null}
+                  />
+                )}
+              </>
             )}
 
             {/* Tooltip on hover */}

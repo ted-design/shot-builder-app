@@ -1,9 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import AppImage from "../common/AppImage";
 import { formatFileSize } from "../../lib/images";
 import { extractColorFromFile, isValidHexColor } from "../../lib/colorExtraction";
+import { findPaletteMatch } from "../../lib/colorPalette";
 
 export default function ColorListEditor({
   colors = [],
@@ -16,8 +17,16 @@ export default function ColorListEditor({
   sizeNote,
   recommendedMessage,
   skuHelper,
+  paletteSwatches = [],
+  paletteIndex = { byKey: new Map(), byName: new Map() },
+  onSaveToPalette,
 }) {
   const [extracting, setExtracting] = useState({});
+  const paletteNames = useMemo(
+    () => (paletteSwatches || []).map((swatch) => swatch.name).filter(Boolean),
+    [paletteSwatches]
+  );
+  const paletteListId = "palette-swatch-names";
 
   // Auto-extract color from the uploaded image file
   const handleAutoExtract = useCallback(async (localId, imageFile) => {
@@ -38,6 +47,9 @@ export default function ColorListEditor({
   return (
     <div className="relative space-y-3">
       <h3 className="text-sm font-semibold text-slate-700">Colours</h3>
+      {paletteNames.length > 0 && (
+        <ColorListEditor.PaletteDatalist id={paletteListId} names={paletteNames} />
+      )}
       {sizeNote && <p className="text-sm text-slate-500">{sizeNote}</p>}
       {skuHelper && <p className="text-xs text-slate-500">{skuHelper}</p>}
       <div className="space-y-4">
@@ -49,8 +61,53 @@ export default function ColorListEditor({
                 <Input
                   value={color.colorName}
                   onChange={(event) => onFieldChange(color.localId, { colorName: event.target.value })}
+                  list={paletteNames.length ? paletteListId : undefined}
                   placeholder="e.g. Black"
                 />
+                {(() => {
+                  const paletteMatch = findPaletteMatch(color, paletteIndex);
+                  if (paletteMatch) {
+                    return (
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span>Palette swatch</span>
+                        {paletteMatch.hexColor && (
+                          <span className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] text-slate-700">
+                            {paletteMatch.hexColor}
+                          </span>
+                        )}
+                        {paletteMatch.swatchImagePath && (
+                          <AppImage
+                            src={paletteMatch.swatchImagePath}
+                            alt=""
+                            className="h-6 w-6 overflow-hidden rounded-full border border-slate-200"
+                            imageClassName="h-full w-full object-cover"
+                            placeholder={null}
+                            fallback={null}
+                          />
+                        )}
+                      </div>
+                    );
+                  }
+                  if (color.colorName?.trim() && onSaveToPalette) {
+                    const canSave = color.hexColor && isValidHexColor(color.hexColor);
+                    return (
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <span>Not linked to palette</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={!canSave}
+                          onClick={() => onSaveToPalette(color.localId)}
+                        >
+                          Save swatch
+                        </Button>
+                        {!canSave && <span className="text-[11px] text-slate-500">Add a valid hex first</span>}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">SKU (optional)</label>
@@ -203,3 +260,15 @@ export default function ColorListEditor({
     </div>
   );
 }
+
+// Datalist helper for palette suggestions
+ColorListEditor.PaletteDatalist = function PaletteDatalist({ id, names = [] }) {
+  if (!names.length) return null;
+  return (
+    <datalist id={id}>
+      {names.map((name) => (
+        <option key={name} value={name} />
+      ))}
+    </datalist>
+  );
+};

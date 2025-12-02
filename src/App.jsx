@@ -41,6 +41,7 @@ const LocationsPage = lazy(() => import("./pages/LocationsPage"));
 const LibraryPage = lazy(() => import("./pages/LibraryPage"));
 const LibraryTalentPage = lazy(() => import("./pages/LibraryTalentPage"));
 const LibraryLocationsPage = lazy(() => import("./pages/LibraryLocationsPage"));
+const PalettePage = lazy(() => import("./pages/PalettePage"));
 const PullsPage = lazy(() => import("./pages/PullsPage"));
 const PullPublicViewPage = lazy(() => import("./pages/PullPublicViewPage"));
 const PullEditorPage = lazy(() => import("./pages/PullEditorPage"));
@@ -261,10 +262,19 @@ export default function App() {
                         </Suspense>
                       }
                     />
+                    <Route
+                      path="palette"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <PalettePage />
+                        </Suspense>
+                      }
+                    />
                   </Route>
                   {/* Redirect legacy org routes to Library */}
                   <Route path="/talent" element={<Navigate to="/library/talent" replace />} />
                   <Route path="/locations" element={<Navigate to="/library/locations" replace />} />
+                  <Route path="/palette" element={<Navigate to="/library/palette" replace />} />
                   <Route
                     path="/pulls"
                     element={
