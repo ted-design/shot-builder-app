@@ -35,23 +35,26 @@ export function DemoDataProvider({ children }) {
   const [shotsByProject, setShotsByProject] = useState(demoShotsByProject);
   const [activities, setActivities] = useState(demoActivities);
   const [pulls, setPulls] = useState(demoPulls);
+  const [products, setProducts] = useState(demoProducts);
+  const [talent, setTalent] = useState(demoTalent);
+  const [locations, setLocations] = useState(demoLocations);
   const [currentProjectId, setCurrentProjectId] = useState(demoProjects[0]?.id ?? null);
 
   const productsById = useMemo(() => {
     const map = new Map();
-    demoProducts.forEach((product) => map.set(product.id, product));
+    products.forEach((product) => map.set(product.id, product));
     return map;
-  }, []);
+  }, [products]);
   const talentById = useMemo(() => {
     const map = new Map();
-    demoTalent.forEach((person) => map.set(person.id, person));
+    talent.forEach((person) => map.set(person.id, person));
     return map;
-  }, []);
+  }, [talent]);
   const locationsById = useMemo(() => {
     const map = new Map();
-    demoLocations.forEach((loc) => map.set(loc.id, loc));
+    locations.forEach((loc) => map.set(loc.id, loc));
     return map;
-  }, []);
+  }, [locations]);
 
   const projectMap = useMemo(() => {
     const map = new Map();
@@ -181,13 +184,16 @@ export function DemoDataProvider({ children }) {
   }, []);
 
   const addProject = useCallback(
-    (name) => {
+    (name, details = {}) => {
       const newProject = {
         id: randomId(),
         name: name || "Untitled demo project",
         status: "active",
-        notes: "Demo-only project. Safe to click around.",
-        shootDates: [formatDate(new Date())],
+        notes: details.notes || "Demo-only project. Safe to click around.",
+        briefUrl: details.briefUrl || "",
+        shootDates: Array.isArray(details.shootDates) && details.shootDates.length
+          ? details.shootDates
+          : [formatDate(new Date())],
         stats: { shots: 0, shotsPlanned: 0 },
         updatedAt: new Date().toISOString(),
       };
@@ -202,6 +208,89 @@ export function DemoDataProvider({ children }) {
     },
     [addActivity]
   );
+
+  const updateProject = useCallback((projectId, updates) => {
+    setProjects((prev) =>
+      prev.map((project) => (project.id === projectId ? { ...project, ...updates } : project))
+    );
+    if (updates.name) {
+      addActivity({
+        projectId,
+        summary: `Renamed project to “${updates.name}”`,
+        detail: "Demo-only change; no backend writes.",
+      });
+    }
+  }, [addActivity]);
+
+  const archiveProject = useCallback((projectId, archived) => {
+    setProjects((prev) =>
+      prev.map((project) =>
+        project.id === projectId
+          ? { ...project, status: archived ? "archived" : "active" }
+          : project
+      )
+    );
+    addActivity({
+      projectId,
+      summary: archived ? "Archived project" : "Restored project",
+      detail: "Demo-only change; no backend writes.",
+    });
+  }, [addActivity]);
+
+  const deleteProject = useCallback((projectId) => {
+    setProjects((prev) => prev.filter((project) => project.id !== projectId));
+    setShotsByProject((prev) => {
+      const next = { ...prev };
+      delete next[projectId];
+      return next;
+    });
+    addActivity({
+      projectId,
+      summary: "Deleted project (demo only)",
+      detail: "Removed from in-memory data.",
+    });
+    if (currentProjectId === projectId) {
+      setCurrentProjectId(projects[0]?.id || null);
+    }
+  }, [addActivity, currentProjectId, projects]);
+
+  const upsertProduct = useCallback((payload) => {
+    setProducts((prev) => {
+      const existingIdx = prev.findIndex((p) => p.id === payload.id);
+      if (existingIdx >= 0) {
+        const next = [...prev];
+        next[existingIdx] = { ...next[existingIdx], ...payload, updatedAt: new Date().toISOString() };
+        return next;
+      }
+      return [
+        ...prev,
+        {
+          id: payload.id || randomId(),
+          createdAt: new Date().toISOString(),
+          ...payload,
+        },
+      ];
+    });
+  }, []);
+
+  const updateTalent = useCallback((talentId, updates) => {
+    setTalent((prev) => prev.map((t) => (t.id === talentId ? { ...t, ...updates } : t)));
+  }, []);
+
+  const updateLocation = useCallback((locationId, updates) => {
+    setLocations((prev) => prev.map((loc) => (loc.id === locationId ? { ...loc, ...updates } : loc)));
+  }, []);
+
+  const resetAll = useCallback(() => {
+    setProjects(demoProjects);
+    setShotsByProject(demoShotsByProject);
+    setActivities(demoActivities);
+    setPulls(demoPulls);
+    setProducts(demoProducts);
+    setTalent(demoTalent);
+    setLocations(demoLocations);
+    setCurrentProjectId(demoProjects[0]?.id ?? null);
+  }, []);
 
   const togglePullSharing = useCallback((pullId) => {
     setPulls((prev) =>
@@ -220,11 +309,11 @@ export function DemoDataProvider({ children }) {
       setCurrentProjectId,
       shotsByProject,
       currentShots,
-      products: demoProducts,
+      products,
       productsById,
-      talent: demoTalent,
+      talent,
       talentById,
-      locations: demoLocations,
+      locations,
       locationsById,
       pulls,
       activities,
@@ -232,8 +321,15 @@ export function DemoDataProvider({ children }) {
       updateShot,
       reorderShots,
       addProject,
+      updateProject,
+      archiveProject,
+      deleteProject,
       addActivity,
       togglePullSharing,
+      upsertProduct,
+      updateTalent,
+      updateLocation,
+      resetAll,
     }),
     [
       activities,
@@ -242,6 +338,7 @@ export function DemoDataProvider({ children }) {
       currentProjectId,
       currentShots,
       locationsById,
+      locations,
       pulls,
       projectMap,
       projectsWithStats,
@@ -251,6 +348,13 @@ export function DemoDataProvider({ children }) {
       talentById,
       togglePullSharing,
       updateShot,
+      updateProject,
+      archiveProject,
+      deleteProject,
+      upsertProduct,
+      updateTalent,
+      updateLocation,
+      resetAll,
     ]
   );
 

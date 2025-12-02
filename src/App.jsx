@@ -164,7 +164,7 @@ export default function App() {
                   }
                 />
                 <Route
-                  path="/demo"
+                  path="/demo/*"
                   element={
                     <Suspense fallback={<PageLoadingFallback />}>
                       <DemoPage />
