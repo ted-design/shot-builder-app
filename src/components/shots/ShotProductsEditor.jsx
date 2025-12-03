@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "../ui/button";
 import ShotProductCard from "./ShotProductCard";
 import ShotProductAddModal from "./ShotProductAddModal";
+import ShotProductSelectorModal from "./ShotProductSelectorModal";
 
 export default function ShotProductsEditor({
   value,
@@ -14,7 +15,8 @@ export default function ShotProductsEditor({
   onCreateColourway,
   emptyHint,
 }) {
-  const [modalOpen, setModalOpen] = useState(false);
+  const [selectorModalOpen, setSelectorModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
 
   // Cache for family details (colours, sizes)
@@ -86,13 +88,12 @@ export default function ShotProductsEditor({
   }, [value, loadFamilyDetails, familyDetailsCache, loadingFamilies]);
 
   const handleAdd = () => {
-    setEditingIndex(null);
-    setModalOpen(true);
+    setSelectorModalOpen(true);
   };
 
   const handleEdit = (index) => {
     setEditingIndex(index);
-    setModalOpen(true);
+    setEditModalOpen(true);
   };
 
   const handleRemove = (index) => {
@@ -110,14 +111,20 @@ export default function ShotProductsEditor({
     [value, onChange]
   );
 
-  const handleSubmit = (selection) => {
+  // Handle single product edit submission
+  const handleEditSubmit = (selection) => {
     const previous = editingIndex != null ? value[editingIndex] : null;
     const nextProduct = createProduct(selection, previous);
-    const nextList =
-      editingIndex != null
-        ? value.map((item, idx) => (idx === editingIndex ? nextProduct : item))
-        : [...value, nextProduct];
+    const nextList = value.map((item, idx) =>
+      idx === editingIndex ? nextProduct : item
+    );
     onChange(nextList);
+  };
+
+  // Handle batch product additions from selector modal
+  const handleBatchAdd = (selections) => {
+    const newProducts = selections.map((selection) => createProduct(selection, null));
+    onChange([...value, ...newProducts]);
   };
 
   return (
@@ -155,23 +162,40 @@ export default function ShotProductsEditor({
         Add product
       </Button>
 
-      {/* Product Add/Edit Modal */}
-      {modalOpen && (
+      {/* New Product Selector Modal (for adding multiple products) */}
+      {selectorModalOpen && (
+        <ShotProductSelectorModal
+          open={selectorModalOpen}
+          onClose={() => setSelectorModalOpen(false)}
+          families={families}
+          loadFamilyDetails={loadFamilyDetails}
+          canCreateProduct={canCreateProduct}
+          onCreateProduct={onCreateProduct}
+          onCreateColourway={onCreateColourway}
+          onSubmit={(selections) => {
+            handleBatchAdd(selections);
+            setSelectorModalOpen(false);
+          }}
+        />
+      )}
+
+      {/* Single Product Edit Modal (for editing existing products) */}
+      {editModalOpen && editingIndex != null && (
         <ShotProductAddModal
-          open={modalOpen}
+          open={editModalOpen}
           onClose={() => {
-            setModalOpen(false);
+            setEditModalOpen(false);
             setEditingIndex(null);
           }}
           families={families}
           loadFamilyDetails={loadFamilyDetails}
-          initialProduct={editingIndex != null ? value[editingIndex] : null}
+          initialProduct={value[editingIndex]}
           canCreateProduct={canCreateProduct}
           onCreateProduct={onCreateProduct}
           onCreateColourway={onCreateColourway}
           onSubmit={(selection) => {
-            handleSubmit(selection);
-            setModalOpen(false);
+            handleEditSubmit(selection);
+            setEditModalOpen(false);
             setEditingIndex(null);
           }}
         />
