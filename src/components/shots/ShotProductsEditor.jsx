@@ -171,7 +171,6 @@ export default function ShotProductsEditor({
           loadFamilyDetails={loadFamilyDetails}
           canCreateProduct={canCreateProduct}
           onCreateProduct={onCreateProduct}
-          onCreateColourway={onCreateColourway}
           onSubmit={(selections) => {
             handleBatchAdd(selections);
             setSelectorModalOpen(false);

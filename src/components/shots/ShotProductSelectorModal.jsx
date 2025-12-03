@@ -16,7 +16,6 @@ import { Input } from "../ui/input";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import AppImage from "../common/AppImage";
 import NewProductModal from "../products/NewProductModal";
-import NewColourwayModal from "../products/NewColourwayModal";
 import {
   getAllTypes,
   getSubcategoriesForTypeUnion,
@@ -29,6 +28,9 @@ import {
   Plus,
   Check,
   Maximize2,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 const ALL_SIZES_VALUE = "__ALL_SIZES__";
@@ -319,7 +321,6 @@ export default function ShotProductSelectorModal({
   onClose,
   canCreateProduct = false,
   onCreateProduct,
-  onCreateColourway,
 }) {
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -336,11 +337,10 @@ export default function ShotProductSelectorModal({
 
   // Cart state
   const [cart, setCart] = useState([]);
+  const [cartExpanded, setCartExpanded] = useState(false);
 
-  // Create product modals
+  // Create product modal
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createColourwayOpen, setCreateColourwayOpen] = useState(false);
-  const [selectedFamilyForColourway, setSelectedFamilyForColourway] = useState(null);
 
   const scrollRef = useRef(null);
 
@@ -468,8 +468,8 @@ export default function ShotProductSelectorModal({
       setSubcategoryFilter("all");
       setProductColorIndexes({});
       setCart([]);
+      setCartExpanded(false);
       setCreateModalOpen(false);
-      setCreateColourwayOpen(false);
     }
   }, [open]);
 
@@ -583,25 +583,6 @@ export default function ShotProductSelectorModal({
     }
   };
 
-  // Handle colorway creation
-  const handleColourwayCreated = async (payload) => {
-    if (!onCreateColourway || !selectedFamilyForColourway) return;
-    try {
-      const newColour = await onCreateColourway(selectedFamilyForColourway.id, payload);
-      setCreateColourwayOpen(false);
-      setSelectedFamilyForColourway(null);
-      if (newColour) {
-        const details = await loadFamilyDetails(selectedFamilyForColourway.id);
-        setFamilyDetailsCache((prev) => ({
-          ...prev,
-          [selectedFamilyForColourway.id]: details,
-        }));
-      }
-      return newColour;
-    } catch (error) {
-      throw error;
-    }
-  };
 
   // Gender options
   const genderOptions = [
@@ -752,24 +733,93 @@ export default function ShotProductSelectorModal({
             )}
           </div>
 
-          {/* Footer */}
-          <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-slate-600 dark:text-slate-400">
-                  {cart.length === 0
-                    ? "No products selected"
-                    : `${cart.length} product${cart.length === 1 ? "" : "s"} selected`}
-                </span>
-                {cart.length > 0 && (
+          {/* Cart Preview Section */}
+          {cart.length > 0 && (
+            <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 shrink-0">
+              {/* Cart Header - Clickable to expand/collapse */}
+              <button
+                type="button"
+                onClick={() => setCartExpanded(!cartExpanded)}
+                className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 bg-blue-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                    {cart.length}
+                  </div>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                    {cart.length === 1 ? "1 product selected" : `${cart.length} products selected`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={handleClearCart}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleClearCart();
+                    }}
                     className="text-xs text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 transition underline"
                   >
                     Clear all
                   </button>
-                )}
+                  {cartExpanded ? (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <ChevronUp className="w-4 h-4 text-slate-400" />
+                  )}
+                </div>
+              </button>
+
+              {/* Cart Items List */}
+              {cartExpanded && (
+                <div className="max-h-40 overflow-y-auto px-4 pb-3 space-y-2">
+                  {cart.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 py-2 px-3 bg-white dark:bg-slate-700 rounded-lg shadow-sm"
+                    >
+                      {/* Color Swatch */}
+                      <div
+                        className="w-5 h-5 rounded-full border border-slate-200 dark:border-slate-600 shrink-0"
+                        style={{ backgroundColor: item.colorHex || "#ccc" }}
+                        title={item.colorName}
+                      />
+
+                      {/* Product Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                          {item.productName}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          {item.colorName}
+                          {item.sizeScope === "all"
+                            ? " · All sizes"
+                            : item.size
+                            ? ` · ${item.size}`
+                            : " · Size pending"}
+                        </div>
+                      </div>
+
+                      {/* Remove Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFromCart(index)}
+                        className="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                        title="Remove from selection"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-slate-500 dark:text-slate-400">
+                {cart.length === 0 && "No products selected"}
               </div>
               <div className="flex items-center gap-3">
                 <Button type="button" variant="ghost" onClick={onClose}>
@@ -798,18 +848,6 @@ export default function ShotProductSelectorModal({
         />
       )}
 
-      {/* Create Colorway Modal */}
-      {createColourwayOpen && canCreateProduct && onCreateColourway && selectedFamilyForColourway && (
-        <NewColourwayModal
-          open={createColourwayOpen}
-          onClose={() => {
-            setCreateColourwayOpen(false);
-            setSelectedFamilyForColourway(null);
-          }}
-          onSubmit={handleColourwayCreated}
-          family={selectedFamilyForColourway}
-        />
-      )}
     </>
   );
 }
