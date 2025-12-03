@@ -51,11 +51,6 @@ describe("Planner view preferences", () => {
     expect(readStoredPlannerView()).toBe("gallery");
   });
 
-  it("restores the stored table view selection (migrated from list)", () => {
-    window.localStorage.setItem("planner:viewMode", "list");
-    expect(readStoredPlannerView()).toBe("table");
-  });
-
   it("falls back to defaults when stored fields are invalid", () => {
     window.localStorage.setItem("planner:visibleFields", "not-json");
     const fields = readStoredVisibleFields();
@@ -73,39 +68,9 @@ describe("Planner view preferences", () => {
     });
   });
 
-  it("defaults to lane grouping when no planner prefs are stored", () => {
+  it("defaults to no grouping when no planner prefs are stored", () => {
     const prefs = readStoredPlannerPrefs();
-    expect(prefs).toMatchObject({ groupBy: "none", sort: "alpha" });
-  });
-
-  it("migrates legacy planner prefs without version to the lane board", () => {
-    window.localStorage.setItem(
-      "planner:prefs",
-      JSON.stringify({ groupBy: "date", sort: "alpha_desc" })
-    );
-    const prefs = readStoredPlannerPrefs();
-    expect(prefs.groupBy).toBe("none");
-    expect(prefs.sort).toBe("alpha_desc");
-  });
-
-  it("preserves legacy custom grouping when stored without a version", () => {
-    window.localStorage.setItem(
-      "planner:prefs",
-      JSON.stringify({ groupBy: "talent", sort: "alpha" })
-    );
-    const prefs = readStoredPlannerPrefs();
-    expect(prefs.groupBy).toBe("talent");
-    expect(prefs.sort).toBe("alpha");
-  });
-
-  it("respects stored grouping when a version is present", () => {
-    window.localStorage.setItem(
-      "planner:prefs",
-      JSON.stringify({ version: 2, groupBy: "talent", sort: "date_desc" })
-    );
-    const prefs = readStoredPlannerPrefs();
-    expect(prefs.groupBy).toBe("talent");
-    expect(prefs.sort).toBe("date_desc");
+    expect(prefs).toMatchObject({ groupBy: "none", sort: "order" });
   });
 });
 

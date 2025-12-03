@@ -10,3 +10,4 @@ export { default as ViewModeMenu } from "./ViewModeMenu";
 export { default as DensityMenu } from "./DensityMenu";
 export { default as ToolbarIconButton } from "./ToolbarIconButton";
 export { default as FieldSettingsMenu } from "./FieldSettingsMenu";
+export { default as GroupByMenu } from "./GroupByMenu";

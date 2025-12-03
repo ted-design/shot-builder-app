@@ -15,10 +15,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
-  closestCenter,
   closestCorners,
-  useDroppable,
-  useDraggable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -55,28 +52,18 @@ import {
 } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { useProjectScope } from "../context/ProjectScopeContext";
-import { canManagePlanner, canManageShots, ROLE, resolveEffectiveRole } from "../lib/rbac";
+import { canManagePlanner, canManageShots, resolveEffectiveRole } from "../lib/rbac";
 import {
-  Download,
-  LayoutGrid,
-  Table,
   PencilLine,
   User,
   MapPin,
   Package,
-  Camera,
   Calendar,
-  Info,
   GripVertical,
-  ListRestart,
-  MoreVertical,
-  ChevronDown,
-  ArrowUp,
-  ArrowDown,
   CheckSquare,
   Check,
-  Square,
-  Layers,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { Button } from "../components/ui/button";
@@ -84,18 +71,22 @@ import { StatusBadge } from "../components/ui/StatusBadge";
 import { TagList } from "../components/ui/TagBadge";
 import { toast, showConfirm } from "../lib/toast";
 import AppImage from "../components/common/AppImage";
-import PlannerSummary from "../components/planner/PlannerSummary";
 import PlannerLaneTabs from "../components/planner/PlannerLaneTabs";
 import PlannerLaneGrid from "../components/planner/PlannerLaneGrid";
 import UnassignedShotsTray from "../components/planner/UnassignedShotsTray";
+import PlannerToolbar from "../components/planner/PlannerToolbar";
+import PlannerCompactCard from "../components/planner/PlannerCompactCard";
 const PlannerExportModal = lazy(() => import("../components/planner/PlannerExportModal"));
 import ShotEditModal from "../components/shots/ShotEditModal";
-import ShotTableView from "../components/shots/ShotTableView";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
-import { selectPlannerGroups } from "../lib/plannerSelectors";
-import { getPrimaryAttachment, getPrimaryAttachmentWithStyle, hasMultipleAttachments, getAttachmentCount } from "../lib/imageHelpers";
-import { sortShotsForView } from "../lib/shotsSelectors";
+import {
+  getPrimaryAttachment,
+  getPrimaryAttachmentWithStyle,
+  hasMultipleAttachments,
+  getAttachmentCount,
+  getImageWithFallback,
+} from "../lib/imageHelpers";
 import {
   shotDraftSchema,
   toDateInputValue,
@@ -116,83 +107,48 @@ import { getStaggerDelay } from "../lib/animations";
 import { useLanes, useShots, useProducts, useTalent, useLocations, useProjects } from "../hooks/useFirestoreQuery";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useShotsOverview } from "../context/ShotsOverviewContext";
-import {
-  FiltersPopover,
-  FieldSettingsMenu,
-  OverviewToolbar,
-  OverviewToolbarRow,
-  SortMenu,
-  ToolbarIconButton,
-  ViewModeMenu,
-  DensityMenu,
-} from "../components/overview";
-import { buildActiveFilterPills, defaultOverviewFilters, removeFilterKey } from "../lib/overviewFilters";
+import { defaultOverviewFilters } from "../lib/overviewFilters";
 
-const PLANNER_VIEW_STORAGE_KEY = "planner:viewMode";
-const PLANNER_FIELDS_STORAGE_KEY = "planner:visibleFields";
-const PLANNER_DENSITY_STORAGE_KEY = "planner:density";
+const PLANNER_VIEW_STORAGE_KEY = "planner:view";
+const PLANNER_FIELDS_STORAGE_KEY = "planner:fields";
 const PLANNER_LAYOUT_MODE_STORAGE_KEY = "planner:layoutMode";
+const PLANNER_PREFS_STORAGE_KEY = "planner:prefs";
+const PLANNER_PREFS_VERSION = 2;
+const PLANNER_DENSITY_STORAGE_KEY = "planner:density";
 const PLANNER_UNASSIGNED_EXPANDED_KEY = "planner:unassignedExpanded";
-// Consolidate order + locks to the Shots prefs key
-const SHOTS_PREFS_STORAGE_KEY = "shots:viewPrefs";
 const UNASSIGNED_LANE_ID = "__unassigned__";
 const LANE_END_DROPPABLE_ID = "__end__";
 
-const defaultVisibleFields = {
-  // Unified with Builder toggles
-  status: true,
-  image: true,
-  name: true,
-  type: true,
-  date: true,
-  // Existing Planner toggles
-  notes: true,
-  location: true,
-  talent: true,
-  products: true,
-  tags: true,
-};
-
-const PLANNER_PREFS_STORAGE_KEY = "planner:prefs";
-const PLANNER_PREFS_VERSION = 3;
 const PLANNER_COLLAPSED_LANES_STORAGE_KEY = "planner:collapsedLanes";
-
-const defaultPlannerPrefs = {
-  version: PLANNER_PREFS_VERSION,
-  groupBy: "none",
-  sort: "alpha",
-  summaryCollapsed: true,
-};
 
 const TALENT_UNASSIGNED_ID = "__talent_unassigned__";
 
-const PLANNER_GROUP_OPTIONS = [
-  { value: "date", label: "Date" },
-  { value: "talent", label: "Talent" },
-  { value: "none", label: "None" },
-];
+// Default visible fields configuration
+const defaultVisibleFields = {
+  name: true,
+  image: true,
+  status: true,
+  products: true,
+  talent: true,
+  location: true,
+  notes: true,
+  tags: true,
+  type: true,
+  date: true,
+};
 
-const PLANNER_SORT_OPTIONS = [
-  { value: "alpha", label: "Title A→Z" },
-  { value: "alpha_desc", label: "Title Z→A" },
-  { value: "date_asc", label: "Date Asc" },
-  { value: "date_desc", label: "Date Desc" },
-];
+// Default planner preferences
+const defaultPlannerPrefs = {
+  groupBy: "none",
+  sort: "order",
+  summaryCollapsed: false,
+  version: PLANNER_PREFS_VERSION,
+};
 
-const PLANNER_GROUP_VALUES = new Set(PLANNER_GROUP_OPTIONS.map((option) => option.value));
-const PLANNER_SORT_VALUES = new Set(PLANNER_SORT_OPTIONS.map((option) => option.value));
-
-const normalisePlannerGroup = (value) =>
-  typeof value === "string" && PLANNER_GROUP_VALUES.has(value)
-    ? value
-    : defaultPlannerPrefs.groupBy;
-
+// Normalise planner sort value
 const normalisePlannerSort = (value) => {
-  if (typeof value !== "string" || !value) return defaultPlannerPrefs.sort;
-  if (value === "byDate") return "date_asc";
-  if (value === "byTalent") return "alpha";
-  if (PLANNER_SORT_VALUES.has(value)) return value;
-  return defaultPlannerPrefs.sort;
+  const validValues = ["order", "name", "status", "date"];
+  return validValues.includes(value) ? value : "order";
 };
 
 const readStoredCollapsedLanes = () => {
@@ -352,18 +308,6 @@ const stripHtml = (value) => {
     .replace(/[\t ]+/g, " ")
     .trim();
 };
-
-// Planner density (match builder: Compact, Comfy)
-const PLANNER_DENSITY_OPTIONS = [
-  { value: "compact", label: "Compact" },
-  { value: "comfortable", label: "Comfy" },
-];
-
-// Planner view modes (match builder: Gallery, Table)
-const PLANNER_VIEW_OPTIONS = [
-  { value: "gallery", label: "Gallery", icon: LayoutGrid, hideLabelOnSmallScreen: true },
-  { value: "table", label: "Table", icon: Table, hideLabelOnSmallScreen: true },
-];
 
 const readStoredPlannerDensity = () => {
   const raw = readStorage(PLANNER_DENSITY_STORAGE_KEY);
@@ -715,139 +659,7 @@ class PlannerErrorBoundary extends Component {
   }
 }
 
-// Simple droppable component for DnD kit
-function DroppableLane({ laneId, children }) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `lane-${laneId}`,
-    data: { type: "lane-shot-target", laneId },
-  });
-  return (
-    <div ref={setNodeRef} data-droppable-over={isOver ? "" : undefined}>
-      {children}
-    </div>
-  );
-}
-
-// Simple draggable shot card for DnD kit
-function DraggableShot({
-  shot,
-  disabled,
-  viewMode,
-  visibleFields,
-  fieldOrder,
-  onEdit,
-  onCardClick,
-  onNudge = null,
-  canEditShots,
-  normaliseProducts,
-  statusOptions,
-  onChangeStatus,
-  isActive = false,
-  isSelected = false,
-  isFocused = false,
-  onFocus = null,
-  selectionMode = false,
-  onToggleSelect = null,
-  density = "compact",
-}) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({
-    id: shot.id,
-    disabled,
-    data: { type: "shot", shotId: shot.id },
-  });
-  const dragStyle = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : {};
-  const style = isActive ? { ...dragStyle, opacity: 0.3 } : dragStyle;
-  const products = typeof normaliseProducts === "function" ? normaliseProducts(shot) : shot.products || [];
-  const cursorClass = disabled ? "" : "cursor-grab active:cursor-grabbing";
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`w-full ${cursorClass}`}
-    >
-      <ShotCard
-        shot={shot}
-        viewMode={viewMode}
-        visibleFields={visibleFields}
-        fieldOrder={fieldOrder}
-        onEdit={onEdit}
-        onCardClick={onCardClick}
-        onNudge={onNudge}
-        canEdit={canEditShots}
-        products={products}
-        statusOptions={statusOptions}
-        onChangeStatus={onChangeStatus}
-        isSelected={isSelected}
-        isFocused={isFocused}
-        onFocus={onFocus}
-        dragHandleAttributes={disabled ? {} : attributes}
-        dragHandleListeners={disabled ? {} : listeners}
-        selectionMode={selectionMode}
-        onToggleSelect={onToggleSelect}
-        density={density}
-      />
-    </div>
-  );
-}
-
-
-function DraggableLane({ laneId, disabled, children }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef: setDragNodeRef,
-    transform,
-    isDragging,
-  } = useDraggable({
-    id: `lane-item-${laneId}`,
-    data: { type: "lane", laneId },
-    disabled,
-  });
-  const { setNodeRef: setDropNodeRef, isOver } = useDroppable({
-    id: `lane-slot-${laneId}`,
-    data: { type: "lane-slot", laneId },
-    disabled,
-  });
-
-  const setNodeRef = useCallback(
-    (node) => {
-      setDragNodeRef(node);
-      setDropNodeRef(node);
-    },
-    [setDragNodeRef, setDropNodeRef]
-  );
-
-  const dragStyle = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : {};
-  const style = isDragging ? { ...dragStyle, opacity: 0.8 } : dragStyle;
-
-  return children({
-    setNodeRef,
-    dragListeners: disabled ? {} : listeners,
-    dragAttributes: disabled ? {} : attributes,
-    isDragging,
-    isOver,
-    style,
-  });
-}
-
-function LaneEndDropZone({ disabled, children }) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: "lane-slot-__end__",
-    data: { type: "lane-slot", laneId: LANE_END_DROPPABLE_ID },
-    disabled,
-  });
-  return (
-    <div ref={setNodeRef} data-lane-drop-over={isOver ? "" : undefined}>
-      {typeof children === "function" ? children(isOver) : children}
-    </div>
-  );
-}
-
-
+// ShotCard component kept for test exports
 function ShotCard({
   shot,
   viewMode,
@@ -1243,38 +1055,6 @@ function ShotCard({
   );
 }
 
-// Droppable slot for inserting a shot in a lane
-function ShotInsertSlot({ laneId, index, compact = false, active = false }) {
-  const id = `slot-${laneId}-${index}`;
-  const { setNodeRef, isOver } = useDroppable({ id, data: { type: "lane-slot-insert", laneId, index } });
-  const bg = isOver ? "bg-primary/10" : "";
-  // Only allocate space when dragging; otherwise zero-height so there are no gaps
-  const baseHeight = !active ? "h-0 my-0" : index === 0 ? "h-6 my-2" : "h-0 my-0";
-  const outerClass = `relative w-full ${baseHeight} ${bg} rounded-md transition-all`;
-  return (
-    <div ref={setNodeRef} className={outerClass} data-insert-slot={id}>
-      {active && isOver && (
-        <div className={`mx-1 flex min-h-[4.5rem] items-center justify-center rounded-md border-2 border-dashed ${isOver ? 'border-primary/70' : 'border-slate-300 dark:border-slate-600'}`}>
-          <span className={`text-[11px] font-medium ${isOver ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`}>Drop here</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Overlay drop zone at the top portion of a card to allow "drop before this card" with minimal drag travel
-function CardBeforeDropZone({ laneId, index, active = false }) {
-  const id = `before-${laneId}-${index}`;
-  const { setNodeRef, isOver } = useDroppable({ id, data: { type: 'lane-card-before', laneId, index } });
-  return (
-    <div
-      ref={setNodeRef}
-      className={`absolute left-0 right-0 top-0 h-1/2 rounded-md ${active ? 'pointer-events-auto' : 'pointer-events-none'} ${isOver ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}
-      aria-hidden={!active}
-    />
-  );
-}
-
 function PlannerSelectionToolbar({
   selectedCount,
   totalCount,
@@ -1425,7 +1205,9 @@ function PlannerPageContent({ embedded = false }) {
       ? plannerPrefs.summaryCollapsed
       : defaultPlannerPrefs.summaryCollapsed;
   const isSmallViewport = useMediaQuery("(max-width: 1023px)");
+  const [searchQuery, setSearchQuery] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState([]);
   const [renumberingLaneIds, setRenumberingLaneIds] = useState(() => new Set());
   const [openLaneMenuId, setOpenLaneMenuId] = useState(null);
@@ -1724,59 +1506,6 @@ function PlannerPageContent({ embedded = false }) {
     () => tagOptions.map((tag) => ({ value: tag.id, label: tag.label, color: tag.color })),
     [tagOptions]
   );
-
-  const locationFilterValue = useMemo(() => {
-    const id = filters.locationId || "";
-    if (!id) return null;
-    return (
-      locationFilterOptions.find((option) => option.value === id) || {
-        value: id,
-        label: "Unknown location",
-      }
-    );
-  }, [filters.locationId, locationFilterOptions]);
-
-  const talentFilterValue = useMemo(
-    () =>
-      (filters.talentIds || []).map((id) =>
-        talentFilterOptions.find((option) => option.value === id) || {
-          value: id,
-          label: "Unknown talent",
-        }
-      ),
-    [filters.talentIds, talentFilterOptions]
-  );
-
-  const productFilterValue = useMemo(
-    () =>
-      (filters.productFamilyIds || []).map((id) =>
-        productFilterOptions.find((option) => option.value === id) || {
-          value: id,
-          label: "Unknown product",
-        }
-      ),
-    [filters.productFamilyIds, productFilterOptions]
-  );
-
-  const tagFilterValue = useMemo(
-    () =>
-      (filters.tagIds || []).map((id) =>
-        tagFilterOptions.find((option) => option.value === id) || {
-          value: id,
-          label: "Unknown tag",
-        }
-      ),
-    [filters.tagIds, tagFilterOptions]
-  );
-
-  const selectPortalTarget =
-    typeof window === "undefined" ? undefined : window.document.body;
-
-  const productNoOptionsMessage =
-    productFilterOptions.length ? "No matching products" : "No products available";
-
-  const tagNoOptionsMessage =
-    tagFilterOptions.length ? "No matching tags" : "No tags available";
 
   const filteredPlannerShots = useMemo(() => {
     if (!Array.isArray(plannerShots) || plannerShots.length === 0) {
@@ -2289,6 +2018,28 @@ function PlannerPageContent({ embedded = false }) {
     [talentOptions]
   );
 
+  // Helper to extract talent names for PlannerCompactCard
+  const extractTalentNames = useCallback(
+    (shot) => {
+      const talentSelection = mapShotTalentToSelection(shot);
+      return talentSelection.map((t) => t.name).filter(Boolean);
+    },
+    [mapShotTalentToSelection]
+  );
+
+  // Helper to extract product names for PlannerCompactCard
+  const extractProductNames = useCallback((products) => {
+    const list = Array.isArray(products) ? products : [];
+    return list.map((p) => p.familyName || p.productName || "Product").filter(Boolean);
+  }, []);
+
+  // Helper to format scheduled time for PlannerCompactCard
+  const formatScheduledTime = useCallback((shot) => {
+    if (!shot?.date) return "";
+    const dateStr = formatShotDate(shot.date);
+    return dateStr || "";
+  }, []);
+
   const openShotEditor = useCallback(
     (shot) => {
       if (!shot) return;
@@ -2446,20 +2197,6 @@ function PlannerPageContent({ embedded = false }) {
     }
   }, [canEditShots, editingShot]);
 
-  const updateViewMode = useCallback(
-    (nextMode) =>
-      setViewMode((previousMode) => (previousMode === nextMode ? previousMode : nextMode)),
-    []
-  );
-
-  const toggleLayoutMode = useCallback(() => {
-    setLayoutMode((prev) => {
-      const next = prev === "tabs" ? "stacked" : "tabs";
-      writeStorage(PLANNER_LAYOUT_MODE_STORAGE_KEY, next);
-      return next;
-    });
-  }, []);
-
   const handleToggleUnassignedTray = useCallback(() => {
     setUnassignedTrayExpanded((prev) => {
       const next = !prev;
@@ -2468,105 +2205,12 @@ function PlannerPageContent({ embedded = false }) {
     });
   }, []);
 
-  // Auto-select first lane when switching to tabs mode or when lanes change
+  // Auto-select first lane when lanes change
   useEffect(() => {
-    if (layoutMode === "tabs" && lanes.length > 0 && !selectedLaneIdForTabs) {
+    if (lanes.length > 0 && !selectedLaneIdForTabs) {
       setSelectedLaneIdForTabs(lanes[0].id);
     }
-  }, [layoutMode, lanes, selectedLaneIdForTabs]);
-
-  const updateGroupBy = useCallback((nextGroup) => {
-    const normalised = normalisePlannerGroup(nextGroup);
-    setPlannerPrefs((prev) =>
-      prev.groupBy === normalised ? prev : { ...prev, groupBy: normalised }
-    );
-  }, []);
-
-  const updatePlannerSort = useCallback((nextSort) => {
-    const normalised = normalisePlannerSort(nextSort);
-    setPlannerPrefs((prev) =>
-      prev.sort === normalised ? prev : { ...prev, sort: normalised }
-    );
-  }, []);
-
-  const handleLocationFilterChange = useCallback(
-    (nextId) => {
-      setFilters((prev) => ({
-        ...prev,
-        locationId: nextId || "",
-      }));
-    },
-    [setFilters]
-  );
-
-  const handleTalentFilterChange = useCallback(
-    (selected) => {
-      const ids = Array.isArray(selected) ? selected.map((option) => option.value) : [];
-      setFilters((prev) => ({
-        ...prev,
-        talentIds: ids,
-      }));
-    },
-    [setFilters]
-  );
-
-  const handleProductFilterChange = useCallback(
-    (selected) => {
-      const ids = Array.isArray(selected) ? selected.map((option) => option.value) : [];
-      setFilters((prev) => ({
-        ...prev,
-        productFamilyIds: ids,
-      }));
-    },
-    [setFilters]
-  );
-
-  const handleTagFilterChange = useCallback(
-    (selected) => {
-      const ids = Array.isArray(selected) ? selected.map((option) => option.value) : [];
-      setFilters((prev) => ({
-        ...prev,
-        tagIds: ids,
-      }));
-    },
-    [setFilters]
-  );
-
-  const activeFilters = useMemo(
-    () =>
-      buildActiveFilterPills(filters, {
-        locations,
-        talentOptions: talentFilterOptions,
-        productOptions: productFilterOptions,
-        tagOptions: tagFilterOptions,
-      }),
-    [filters, locations, talentFilterOptions, productFilterOptions, tagFilterOptions]
-  );
-
-  const removeFilter = useCallback(
-    (filterKey) => {
-      setFilters((prev) => removeFilterKey(prev, filterKey));
-    },
-    [setFilters]
-  );
-
-  const toggleSummaryCollapsed = useCallback(() => {
-    setPlannerPrefs((prev) => {
-      const nextValue =
-        typeof prev.summaryCollapsed === "boolean"
-          ? !prev.summaryCollapsed
-          : !defaultPlannerPrefs.summaryCollapsed;
-      return { ...prev, summaryCollapsed: nextValue };
-    });
-  }, [setPlannerPrefs]);
-
-  useEffect(() => {
-    if (isSmallViewport) {
-      setPlannerPrefs((prev) =>
-        prev.summaryCollapsed ? prev : { ...prev, summaryCollapsed: true }
-      );
-    }
-  }, [isSmallViewport, setPlannerPrefs]);
+  }, [lanes, selectedLaneIdForTabs]);
 
   const handleAutoScrollPointerMove = useCallback(
     (event) => {
@@ -3277,343 +2921,12 @@ function PlannerPageContent({ embedded = false }) {
   const isPlannerLoading = isAuthLoading || lanesLoading || primaryShotsLoading;
   const totalShots = laneSummary.totalShots;
 
-  const isListView = viewMode === "table";
   // Density controls
   const [density, setDensity] = useState(() => readStoredPlannerDensity());
   useEffect(() => {
     writeStorage(PLANNER_DENSITY_STORAGE_KEY, density);
   }, [density]);
-  const isCompactDensity = density === "compact"; // maps to previous "Extra"
-  const padLane = isCompactDensity ? "p-2.5" : "p-4";
-  const gapStack = isCompactDensity ? "gap-2" : "gap-3";
-  const laneWrapperClass = isListView
-    ? `flex w-full flex-col ${gapStack} rounded-xl border border-slate-200 bg-white ${padLane} shadow-sm dark:border-slate-700 dark:bg-slate-800`
-    : `flex flex-1 min-w-[200px] flex-col ${gapStack} rounded-xl border border-slate-200 bg-white ${padLane} shadow-sm dark:border-slate-700 dark:bg-slate-800`;
-  const shotListClass = `flex flex-col ${gapStack}`;
   const unassignedShots = resolvedShotsByLane[UNASSIGNED_LANE_ID] || [];
-  const lanesLockedByGrouping = groupBy !== "none";
-  const derivedGroups = useMemo(
-    () => (groupBy === "none" ? [] : selectPlannerGroups(filteredPlannerShots, { groupBy, sortBy })),
-    [filteredPlannerShots, groupBy, sortBy]
-  );
-
-  // Map of locationId -> name for table rows
-  const locationById = useMemo(() => {
-    const map = new Map();
-    locations.forEach((loc) => {
-      if (loc?.id) map.set(loc.id, loc.name || "");
-    });
-    return map;
-  }, [locations]);
-
-  // Density config for ShotTableView
-  const TABLE_DENSITY_CONFIG = useMemo(() => ({
-    compact: { tableRow: 'py-1.5', tablePadding: 'px-2', tableText: 'text-xs' },
-    comfortable: { tableRow: 'py-3', tablePadding: 'px-4', tableText: 'text-sm' },
-  }), []);
-
-  const plannerViewPrefs = useMemo(() => ({
-    showProducts: visibleFields.products,
-    showTalent: visibleFields.talent,
-    showLocation: visibleFields.location,
-    showNotes: visibleFields.notes,
-    showTags: visibleFields.tags,
-    showImage: visibleFields.image,
-    showName: visibleFields.name,
-    showType: visibleFields.type,
-    showStatus: visibleFields.status,
-    showDate: visibleFields.date,
-    fieldOrder,
-  }), [visibleFields, fieldOrder]);
-
-  // Build rows for ShotTableView from lane shots
-  const buildTableRows = useCallback((laneShots) => {
-    const list = Array.isArray(laneShots) ? laneShots : [];
-    return list.map((shot) => {
-      const products = normaliseShotProducts(shot);
-      const talentSelection = mapShotTalentToSelection(shot);
-      const notesHtml = formatNotesForDisplay(shot.notes || shot.description || "");
-      const locationName = shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
-      return { shot, products, talent: talentSelection, notesHtml, locationName };
-    });
-  }, [locationById, normaliseShotProducts, mapShotTalentToSelection]);
-
-  // Selection handler adapter for ShotTableView
-  const handleTableToggleSelect = useCallback((shotId) => {
-    if (!selectionMode || !shotId) return;
-    const isSelected = sharedSelectedShotIds instanceof Set ? sharedSelectedShotIds.has(shotId) : false;
-    const shot = plannerShotsById.get(shotId);
-    if (!shot) return;
-    handleToggleSelectShot(shot, !isSelected);
-  }, [selectionMode, sharedSelectedShotIds, plannerShotsById, handleToggleSelectShot]);
-
-  // Move shot within current lane in table view
-  const handleTableMoveShot = useCallback(async (laneKey, laneShots, shot, index, delta) => {
-    if (!canEditPlanner || groupBy !== 'none') return;
-    if (!shot || !shot.id) return;
-    const list = Array.isArray(laneShots) ? laneShots : [];
-    if (!list.length) return;
-    const currentIndex = typeof index === 'number' ? index : list.findIndex((s) => s?.id === shot.id);
-    if (currentIndex < 0) return;
-    const targetIndex = Math.max(0, Math.min(list.length - 1, currentIndex + delta));
-    if (targetIndex === currentIndex) return;
-    try {
-      await performShotMove({ shot, targetLaneKey: laneKey, insertIndex: targetIndex });
-      setFocusShotId(shot.id);
-    } catch (error) {
-      console.error('[Planner] Failed to move shot in table', error);
-      toast.error('Could not reorder shot');
-    }
-  }, [canEditPlanner, groupBy, performShotMove, setFocusShotId, toast]);
-
-  const renderLaneBlock = (laneId, title, laneShots, laneMeta = null, options = {}) => {
-    const droppable = options.droppable !== false;
-    const laneList = Array.isArray(laneShots) ? laneShots : [];
-    // In true lane mode (droppable), respect persisted manual order only
-    const displayShots = droppable ? laneList : (options.sortBy ? sortShotsForView(laneList, { sortBy: options.sortBy }) : laneList);
-    const isActiveShotTarget = droppable && overLaneId === laneId;
-    const placeholderVisible = false; // replaced by fine-grained insert slots
-    const isUnassignedLane = laneId === UNASSIGNED_LANE_ID;
-    const laneDraggableEnabled = droppable && laneMeta && canEditPlanner && !lanesLockedByGrouping;
-    const isLaneDropTarget = laneDraggableEnabled && activeLaneId && laneOverId === laneId && activeLaneId !== laneId;
-    const animationClass =
-      typeof options.animationIndex === "number" ? "animate-fade-in opacity-0" : "";
-    const animationStyle =
-      typeof options.animationIndex === "number" ? getStaggerDelay(options.animationIndex) : undefined;
-    const laneContainerClass = isListView ? "w-full" : "flex-1 min-w-[200px]";
-    const isCollapsed = collapsedLaneIds.has(laneId);
-    const toggleCollapsed = () =>
-      setCollapsedLaneIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(laneId)) next.delete(laneId);
-        else next.add(laneId);
-        return next;
-      });
-
-    const buildCard = (dragHandleProps = {}) => (
-      <div
-        className={`${laneWrapperClass} ${
-          isActiveShotTarget ? "border-primary/60 shadow-lg ring-1 ring-primary/20" : ""
-        } ${
-          isLaneDropTarget ? "border-primary/70 ring-2 ring-primary/40" : ""
-        } ${
-          isUnassignedLane ? "border-dashed border-slate-300 bg-slate-50/80 dark:border-slate-600 dark:bg-slate-900/40" : ""
-        }`}
-      >
-        <div
-          className={`mb-3 flex items-start justify-between rounded-md border px-3 py-2 ${
-            isUnassignedLane
-              ? "border-slate-300 bg-white/70 text-slate-600 dark:border-slate-700 dark:bg-slate-900/60"
-              : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900"
-          }`}
-        >
-          <div className="flex items-start gap-2">
-            {laneDraggableEnabled && (
-              <button
-                type="button"
-                className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
-                aria-label={`Reorder lane ${title}`}
-                {...dragHandleProps}
-              >
-                <GripVertical className="h-4 w-4" aria-hidden="true" />
-              </button>
-            )}
-            <div className="flex flex-col gap-1">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
-              <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
-                <Camera className="h-3.5 w-3.5" />
-                <span>{displayShots.length} {displayShots.length === 1 ? "shot" : "shots"}</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-slate-500">
-            {droppable && (
-              <button
-                type="button"
-                onClick={toggleCollapsed}
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 dark:hover:border-slate-700 dark:hover:bg-slate-700"
-                aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} lane ${title}`}
-                aria-pressed={isCollapsed}
-              >
-                <ChevronDown className={`h-4 w-4 transition-transform ${isCollapsed ? '-rotate-90' : 'rotate-0'}`} aria-hidden="true" />
-              </button>
-            )}
-            {droppable && laneMeta && canEditPlanner && (
-              <>
-                <button
-                  type="button"
-                  onClick={() =>
-                    renumberLaneShots(
-                      { laneId: laneMeta.id, laneName: laneMeta.name },
-                      { silent: false }
-                    )
-                  }
-                  className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent transition hover:border-slate-200 hover:bg-slate-100 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:border-slate-700 dark:hover:bg-slate-700 dark:hover:text-primary/80"
-                  title="Renumber shots"
-                  aria-label="Renumber shots"
-                  disabled={renumberingLaneIds.has(laneMeta.id)}
-                >
-                  <ListRestart className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <div className="relative" ref={openLaneMenuId === laneMeta.id ? (node) => {
-                  if (node) {
-                    laneMenuRef.current = node;
-                    node.dataset.laneMenu = laneMeta.id;
-                  }
-                } : null}
-                >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOpenLaneMenuId((previous) =>
-                        previous === laneMeta.id ? null : laneMeta.id
-                      )
-                    }
-                    className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 dark:hover:border-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                    aria-haspopup="menu"
-                    aria-expanded={openLaneMenuId === laneMeta.id}
-                    aria-label={`Lane actions for ${laneMeta.name}`}
-                  >
-                    <MoreVertical className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                  {openLaneMenuId === laneMeta.id && (
-                    <div className="absolute right-0 z-20 mt-2 w-40 overflow-hidden rounded-md border border-slate-200 bg-white py-1 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800" role="menu">
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
-                        onClick={() => {
-                          setOpenLaneMenuId(null);
-                          renameLane(laneMeta);
-                        }}
-                      >
-                        Rename lane
-                      </button>
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-600 transition hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/60"
-                        onClick={() => {
-                          setOpenLaneMenuId(null);
-                          removeLane(laneMeta);
-                        }}
-                      >
-                        Delete lane
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-        {!isCollapsed && isUnassignedLane && (
-          <p className="mb-2 rounded-md border border-dashed border-slate-300 bg-white/60 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/40 dark:text-slate-300">
-            Shots without a lane land here until they are scheduled.
-          </p>
-        )}
-        {!isCollapsed && (
-          <div
-            className={shotListClass}
-            ref={(node) => {
-              if (!node) return;
-              // Attach a native listener once per lane container
-              const handler = async (ev) => {
-                if (!canEditPlanner) return;
-                const { key, altKey, shotId } = ev.detail || {};
-                const shot = plannerShotsById.get(shotId);
-                if (!shot) return;
-                const currentLaneKey = toLaneKey(shot.laneId);
-                const sequence = [UNASSIGNED_LANE_ID, ...lanes.map((l) => l.id)];
-                const laneIndex = sequence.indexOf(currentLaneKey);
-                const laneList = (resolvedShotsByLane[currentLaneKey] || []).slice();
-                const currentIndex = laneList.findIndex((s) => s.id === shotId);
-                if (key === 'ArrowUp') {
-                  const insertIndex = Math.max(0, currentIndex - 1);
-                  await performShotMove({ shot, targetLaneKey: currentLaneKey, insertIndex });
-                } else if (key === 'ArrowDown') {
-                  const insertIndex = Math.min(laneList.length, currentIndex + 1);
-                  await performShotMove({ shot, targetLaneKey: currentLaneKey, insertIndex });
-                } else if (altKey && key === 'ArrowLeft' && laneIndex > 0) {
-                  const targetLaneKey = sequence[laneIndex - 1];
-                  const insertIndex = (resolvedShotsByLane[targetLaneKey] || []).length;
-                  await performShotMove({ shot, targetLaneKey, insertIndex });
-                } else if (altKey && key === 'ArrowRight' && laneIndex < sequence.length - 1) {
-                  const targetLaneKey = sequence[laneIndex + 1];
-                  const insertIndex = (resolvedShotsByLane[targetLaneKey] || []).length;
-                  await performShotMove({ shot, targetLaneKey, insertIndex });
-                }
-              };
-              // To avoid duplicates, remove then add
-              node.removeEventListener('planner:shotKeyMove', handler);
-              node.addEventListener('planner:shotKeyMove', handler);
-            }}
-          >
-          {/* Top insert slot */}
-          <ShotInsertSlot laneId={laneId} index={0} compact={density !== "comfortable"} active={Boolean(activeDragShot)} />
-          {displayShots.map((sh, index) => (
-            <div key={sh.id} className="relative animate-fade-in opacity-0" style={getStaggerDelay(index)}>
-              <CardBeforeDropZone laneId={laneId} index={index} active={Boolean(activeDragShot)} />
-              <DraggableShot
-                shot={sh}
-                disabled={!droppable || !canEditPlanner}
-                viewMode={viewMode}
-                visibleFields={visibleFields}
-                fieldOrder={fieldOrder}
-                onEdit={handleOpenShotEdit}
-                onCardClick={handleShotCardClick}
-                onNudge={handleNudgeShot}
-                canEditShots={canEditShots}
-                normaliseProducts={normaliseShotProducts}
-                statusOptions={shotStatusOptions}
-                onChangeStatus={handleUpdateShotStatus}
-                isActive={activeDragShot?.id === sh.id}
-                isFocused={focusShotId === sh.id}
-                isSelected={sharedSelectedShotIds instanceof Set ? sharedSelectedShotIds.has(sh.id) : false}
-                onFocus={handleFocusShot}
-                selectionMode={selectionMode}
-                onToggleSelect={selectionMode ? handleToggleSelectShot : null}
-                density={density}
-              />
-              {/* Insert slot after each shot */}
-              <ShotInsertSlot laneId={laneId} index={index + 1} compact={density !== "comfortable"} active={Boolean(activeDragShot)} />
-            </div>
-          ))}
-        </div>
-        )}
-      </div>
-    );
-
-    if (!droppable) {
-      return (
-        <div key={laneId} className={`${laneContainerClass} ${animationClass}`} style={animationStyle}>
-          {buildCard()}
-        </div>
-      );
-    }
-
-    if (laneDraggableEnabled) {
-      return (
-        <DraggableLane key={laneId} laneId={laneId} disabled={!laneDraggableEnabled}>
-          {({ setNodeRef, dragListeners, dragAttributes, style }) => (
-            <div
-              ref={setNodeRef}
-              style={{ ...style, ...animationStyle }}
-              className={`${laneContainerClass} ${animationClass}`}
-            >
-              <DroppableLane laneId={laneId}>{buildCard({ ...dragListeners, ...dragAttributes })}</DroppableLane>
-            </div>
-          )}
-        </DraggableLane>
-      );
-    }
-
-    return (
-      <DroppableLane key={laneId} laneId={laneId}>
-        <div className={`${laneContainerClass} ${animationClass}`} style={animationStyle}>
-          {buildCard()}
-        </div>
-      </DroppableLane>
-    );
-  };
 
   const buildShotProduct = useCallback(
     (selection, previous = null) => {
@@ -4109,7 +3422,7 @@ function PlannerPageContent({ embedded = false }) {
           We could not refresh all planner data. Try again shortly or reload the page.
         </div>
       )}
-      {canEditPlanner && groupBy === 'none' && selectionMode && (
+      {canEditPlanner && selectionMode && (
         <PlannerSelectionToolbar
           selectedCount={selectedCount}
           totalCount={totalPlannerShots}
@@ -4126,168 +3439,14 @@ function PlannerPageContent({ embedded = false }) {
           topOffset={embedded ? 314 : 112}
         />
       )}
-      <OverviewToolbar filterPills={activeFilters} onRemoveFilter={removeFilter}>
-        <OverviewToolbarRow>
-          <div className="flex flex-wrap items-center gap-2">
-            <FiltersPopover
-              locationOptions={locationFilterOptions}
-              locationValue={locationFilterValue}
-              onLocationChange={handleLocationFilterChange}
-              talentOptions={talentFilterOptions}
-              talentValue={talentFilterValue}
-              onTalentChange={handleTalentFilterChange}
-              talentNoOptionsMessage={talentNoOptionsMessage}
-              productOptions={productFilterOptions}
-              productValue={productFilterValue}
-              onProductChange={handleProductFilterChange}
-              productNoOptionsMessage={productNoOptionsMessage}
-              tagOptions={tagFilterOptions}
-              tagValue={tagFilterValue}
-              onTagChange={handleTagFilterChange}
-              tagNoOptionsMessage={tagNoOptionsMessage}
-              selectPortalTarget={selectPortalTarget}
-            />
-            <SortMenu
-              options={PLANNER_SORT_OPTIONS}
-              value={sortBy}
-              onChange={updatePlannerSort}
-              title="Sort cards"
-            />
-            <FieldSettingsMenu
-              fields={[
-                { key: "status", label: "Status" },
-                { key: "image", label: "Image" },
-                { key: "name", label: "Shot Name" },
-                { key: "type", label: "Description" },
-                { key: "date", label: "Date" },
-                { key: "notes", label: "Notes" },
-                { key: "products", label: "Products" },
-                { key: "talent", label: "Talent" },
-                { key: "location", label: "Location" },
-                { key: "tags", label: "Tags" },
-              ]}
-              visibleMap={visibleFields}
-              lockedKeys={lockedFields}
-              order={fieldOrder}
-              onToggleVisible={(key) =>
-                setVisibleFields((prev) => ({
-                  ...prev,
-                  [key]: !prev[key],
-                }))
-              }
-              onToggleLock={(key) => {
-                setLockedFields((prev) => {
-                  const set = new Set(prev);
-                  if (set.has(key)) set.delete(key);
-                  else set.add(key);
-                  // If locking, ensure visible
-                  if (set.has(key)) {
-                    setVisibleFields((prev) => ({ ...prev, [key]: true }));
-                  }
-                  return Array.from(set);
-                });
-              }}
-              onReorder={(next) => setFieldOrder(next)}
-            />
-            {canEditPlanner && (
-              <Button
-                type="button"
-                size="sm"
-                variant={selectionMode ? "default" : "outline"}
-                onClick={handleSelectionModeToggle}
-                aria-pressed={selectionMode}
-                disabled={groupBy !== 'none' && !selectionMode}
-                className="flex items-center gap-1.5"
-              >
-                {selectionMode ? <Check className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
-                <span>
-                  {selectionMode
-                    ? selectedCount > 0
-                      ? `Done (${selectedCount})`
-                      : "Exit selection"
-                    : "Select"}
-                </span>
-              </Button>
-            )}
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="planner-group-select"
-                className="text-xs font-medium uppercase tracking-wide text-slate-500"
-              >
-                Group
-              </label>
-              <select
-                id="planner-group-select"
-                className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-                value={groupBy}
-                onChange={(event) => updateGroupBy(event.target.value)}
-              >
-                {PLANNER_GROUP_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <ViewModeMenu
-              options={PLANNER_VIEW_OPTIONS}
-              value={viewMode}
-              onChange={updateViewMode}
-              ariaLabel="Select planner view"
-            />
-            <DensityMenu
-              options={PLANNER_DENSITY_OPTIONS}
-              value={density}
-              onChange={setDensity}
-              ariaLabel="Select card density"
-            />
-            {/* Layout mode toggle (tabs vs stacked) - only show in gallery mode with no grouping */}
-            {viewMode === "gallery" && groupBy === "none" && (
-              <button
-                type="button"
-                onClick={toggleLayoutMode}
-                className={`inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors ${
-                  layoutMode === "tabs"
-                    ? "border-primary bg-primary/10 text-primary dark:bg-primary/20"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                }`}
-                aria-pressed={layoutMode === "tabs"}
-                title={layoutMode === "tabs" ? "Switch to stacked layout" : "Switch to tabbed layout"}
-              >
-                <Layers className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">{layoutMode === "tabs" ? "Tabs" : "Stacked"}</span>
-              </button>
-            )}
-            <Button
-              type="button"
-              onClick={() => setExportOpen(true)}
-              className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800"
-              aria-haspopup="dialog"
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />
-              Export
-            </Button>
-          </div>
-        </OverviewToolbarRow>
-      </OverviewToolbar>
-      <PlannerSummary
-        isLoading={isPlannerLoading}
-        laneSummary={laneSummary}
-        talentSummary={talentSummary}
-        collapsed={summaryCollapsed}
-        onToggle={toggleSummaryCollapsed}
-        onTalentClick={(row) => {
-          // Filter by talent - use talentId if available, otherwise use name
-          const filterValue = row.talentId || row.name;
-          if (!filterValue || row.id === TALENT_UNASSIGNED_ID) return;
-          setFilters((prev) => ({
-            ...prev,
-            talentIds: [filterValue],
-          }));
-        }}
-        activeTalentIds={filters.talentIds || []}
+      {/* Simplified Planner Toolbar */}
+      <PlannerToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        density={density}
+        onDensityChange={setDensity}
+        onExport={() => setExportOpen(true)}
+        isExporting={isExporting}
       />
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <input
@@ -4305,19 +3464,11 @@ function PlannerPageContent({ embedded = false }) {
           Add lane
         </button>
       </div>
-      {lanesLockedByGrouping && (
-        <div className="flex items-start gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-          <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-          <p>
-            Lanes are read-only while grouping shots. Switch Group to "None" to drag, rename, or delete lanes.
-          </p>
-        </div>
-      )}
       {isPlannerLoading ? (
         <div className="flex min-h-[200px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Loading planner…
         </div>
-      ) : groupBy === "none" ? (
+      ) : (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -4326,226 +3477,102 @@ function PlannerPageContent({ embedded = false }) {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          {isListView ? (
-            <div className="flex flex-col gap-4 pb-6">
-              {/* Unassigned lane table */}
-              <div className={laneWrapperClass}>
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Unassigned ({unassignedShots.length})</h3>
-                </div>
-                <div className="mt-3">
-                  <ShotTableView
-                    rows={buildTableRows(unassignedShots)}
-                    viewPrefs={plannerViewPrefs}
-                    density={TABLE_DENSITY_CONFIG[density]}
-                    canEditShots={canEditShots}
-                    selectedShotIds={sharedSelectedShotIds}
-                    onToggleSelect={selectionMode ? handleTableToggleSelect : null}
-                    onEditShot={canEditShots ? handleOpenShotEdit : null}
-                    persistKey={`planner:table:colWidths:${projectId || 'unknown'}`}
-                    onRowReorder={canEditPlanner && groupBy === 'none' ? (from, to) => {
-                      const shot = unassignedShots[from];
-                      if (!shot) return;
-                      lastMoveRef.current = { laneId: UNASSIGNED_LANE_ID, shotId: shot.id, fromIndex: from, toIndex: to };
-                      toast.info('Press Cmd/Ctrl+Z to undo');
-                      // Adjust delta when moving down (to is pre-removal insert index)
-                      const delta = to > from ? to - from - 1 : to - from;
-                      return handleTableMoveShot(UNASSIGNED_LANE_ID, unassignedShots, shot, from, delta);
-                    } : null}
-                    onChangeStatus={handleUpdateShotStatus}
-                    multilineLists
-                    onMoveShotUp={canEditPlanner && groupBy === 'none' ? (shot, rowIndex) => handleTableMoveShot(UNASSIGNED_LANE_ID, unassignedShots, shot, rowIndex, -1) : null}
-                    onMoveShotDown={canEditPlanner && groupBy === 'none' ? (shot, rowIndex) => handleTableMoveShot(UNASSIGNED_LANE_ID, unassignedShots, shot, rowIndex, +1) : null}
-                    focusedShotId={focusShotId}
-                    onFocusShot={handleFocusShot}
-                  />
-                </div>
-              </div>
+          {/* Tabbed layout with lane tabs, grid, and unassigned tray */}
+          <div className="flex flex-col gap-4 pb-6">
+            {lanes.length > 0 && (
+              <>
+                {/* Lane tabs at the top */}
+                <PlannerLaneTabs
+                  lanes={lanes}
+                  shotsByLane={resolvedShotsByLane}
+                  selectedLaneId={selectedLaneIdForTabs}
+                  onSelectLane={setSelectedLaneIdForTabs}
+                  onAddLane={canEditPlanner ? createLaneWithPrompt : null}
+                />
 
-              {/* Each lane as a table */}
-              {lanes.map((lane, index) => {
-                const laneShots = resolvedShotsByLane[lane.id] || [];
-                return (
-                  <div key={lane.id} className={laneWrapperClass}>
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{lane.name} ({laneShots.length})</h3>
-                    </div>
-                    <div className="mt-3">
-                      <ShotTableView
-                        rows={buildTableRows(laneShots)}
-                        viewPrefs={plannerViewPrefs}
-                        density={TABLE_DENSITY_CONFIG[density]}
-                        canEditShots={canEditShots}
-                        selectedShotIds={sharedSelectedShotIds}
-                        onToggleSelect={selectionMode ? handleTableToggleSelect : null}
-                        onEditShot={canEditShots ? handleOpenShotEdit : null}
-                        persistKey={`planner:table:colWidths:${projectId || 'unknown'}`}
-                        onRowReorder={canEditPlanner && groupBy === 'none' ? (from, to) => {
-                          const shot = laneShots[from];
-                          if (!shot) return;
-                          lastMoveRef.current = { laneId: lane.id, shotId: shot.id, fromIndex: from, toIndex: to };
-                          toast.info('Press Cmd/Ctrl+Z to undo');
-                          // Adjust delta when moving down (to is pre-removal insert index)
-                          const delta = to > from ? to - from - 1 : to - from;
-                          return handleTableMoveShot(lane.id, laneShots, shot, from, delta);
-                        } : null}
-                        onChangeStatus={handleUpdateShotStatus}
-                        multilineLists
-                        onMoveShotUp={canEditPlanner && groupBy === 'none' ? (shot, rowIndex) => handleTableMoveShot(lane.id, laneShots, shot, rowIndex, -1) : null}
-                        onMoveShotDown={canEditPlanner && groupBy === 'none' ? (shot, rowIndex) => handleTableMoveShot(lane.id, laneShots, shot, rowIndex, +1) : null}
-                        focusedShotId={focusShotId}
-                        onFocusShot={handleFocusShot}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : layoutMode === "tabs" && lanes.length > 0 ? (
-            /* Tabbed layout with lane tabs, grid, and unassigned tray */
-            <div className="flex flex-col gap-4 pb-6">
-              {/* Lane tabs at the top */}
-              <PlannerLaneTabs
-                lanes={lanes}
-                shotsByLane={resolvedShotsByLane}
-                selectedLaneId={selectedLaneIdForTabs}
-                onSelectLane={setSelectedLaneIdForTabs}
-                onAddLane={canEditPlanner && !lanesLockedByGrouping ? createLaneWithPrompt : null}
-              />
-
-              {/* Selected lane content */}
-              {selectedLaneIdForTabs && (
-                <PlannerLaneGrid
-                  laneId={selectedLaneIdForTabs}
-                  shots={resolvedShotsByLane[selectedLaneIdForTabs] || []}
-                  density={density}
-                  emptyMessage="No shots in this lane yet. Drag shots here or create new ones."
-                  renderShot={(shot, index) => (
-                    <DraggableShot
-                      shot={shot}
-                      disabled={!canEditPlanner || lanesLockedByGrouping}
-                      viewMode={viewMode}
-                      visibleFields={visibleFields}
-                      onEdit={canEditShots ? () => openShotEditor(shot) : null}
-                      canEditShots={canEditShots}
-                      normaliseProducts={normaliseShotProducts}
-                      statusOptions={shotStatusOptions}
-                      onChangeStatus={handleUpdateShotStatus}
+                {/* Selected lane content */}
+                {selectedLaneIdForTabs && (() => {
+                  const selectedLane = lanes.find((l) => l.id === selectedLaneIdForTabs);
+                  const laneName = selectedLane?.name || "Lane";
+                  return (
+                    <PlannerLaneGrid
+                      laneId={selectedLaneIdForTabs}
+                      shots={resolvedShotsByLane[selectedLaneIdForTabs] || []}
                       density={density}
-                      isSelected={sharedSelectedShotIds instanceof Set && sharedSelectedShotIds.has(shot.id)}
-                      onToggleSelect={selectionMode ? (checked) => handleToggleSelectShot(shot, checked) : null}
-                      selectionMode={selectionMode}
+                      emptyMessage="No shots in this lane yet. Drag shots here or create new ones."
+                      renderShot={(shot, index) => {
+                        const products = normaliseShotProducts(shot);
+                        const productNames = extractProductNames(products);
+                        const imagePath = getImageWithFallback(shot, products).path;
+                        return (
+                          <PlannerCompactCard
+                            shot={shot}
+                            imagePath={imagePath}
+                            shotNumber={shot.shotNumber || `${laneName} #${index + 1}`}
+                            talentNames={extractTalentNames(shot)}
+                            productNames={productNames}
+                            scheduledTime={formatScheduledTime(shot)}
+                            canEdit={canEditShots}
+                            onEdit={() => canEditShots && openShotEditor(shot)}
+                            onChangeStatus={handleUpdateShotStatus}
+                          />
+                        );
+                      }}
                     />
-                  )}
+                  );
+                })()}
+              </>
+            )}
+
+            {/* Unassigned shots tray at bottom */}
+            <UnassignedShotsTray
+              laneId={UNASSIGNED_LANE_ID}
+              shots={unassignedShots}
+              expanded={unassignedTrayExpanded}
+              onToggleExpanded={handleToggleUnassignedTray}
+              density={density}
+              renderShots={(shots) => (
+                <PlannerLaneGrid
+                  laneId={UNASSIGNED_LANE_ID}
+                  shots={shots}
+                  density={density}
+                  renderShot={(shot, index) => {
+                    const products = normaliseShotProducts(shot);
+                    const productNames = extractProductNames(products);
+                    const imagePath = getImageWithFallback(shot, products).path;
+                    return (
+                      <PlannerCompactCard
+                        shot={shot}
+                        imagePath={imagePath}
+                        shotNumber=""
+                        talentNames={extractTalentNames(shot)}
+                        productNames={productNames}
+                        scheduledTime={formatScheduledTime(shot)}
+                        canEdit={canEditShots}
+                        onEdit={() => canEditShots && openShotEditor(shot)}
+                        onChangeStatus={handleUpdateShotStatus}
+                      />
+                    );
+                  }}
                 />
               )}
-
-              {/* Unassigned shots tray at bottom */}
-              <UnassignedShotsTray
-                laneId={UNASSIGNED_LANE_ID}
-                shots={unassignedShots}
-                expanded={unassignedTrayExpanded}
-                onToggleExpanded={handleToggleUnassignedTray}
-                density={density}
-                renderShots={(shots) => (
-                  <PlannerLaneGrid
-                    laneId={UNASSIGNED_LANE_ID}
-                    shots={shots}
-                    density={density}
-                    renderShot={(shot, index) => (
-                      <DraggableShot
-                        shot={shot}
-                        disabled={!canEditPlanner || lanesLockedByGrouping}
-                        viewMode={viewMode}
-                        visibleFields={visibleFields}
-                        onEdit={canEditShots ? () => openShotEditor(shot) : null}
-                        canEditShots={canEditShots}
-                        normaliseProducts={normaliseShotProducts}
-                        statusOptions={shotStatusOptions}
-                        onChangeStatus={handleUpdateShotStatus}
-                        density={density}
-                        isSelected={sharedSelectedShotIds instanceof Set && sharedSelectedShotIds.has(shot.id)}
-                        onToggleSelect={selectionMode ? (checked) => handleToggleSelectShot(shot, checked) : null}
-                        selectionMode={selectionMode}
-                      />
-                    )}
-                  />
-                )}
-              />
-            </div>
-          ) : (
-            /* Stacked layout (original grid with all lanes visible) */
-            <div className="pb-6">
-              <div
-                ref={boardScrollRef}
-                className="grid min-w-full gap-4 overflow-x-auto [grid-auto-flow:row] md:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]"
-              >
-                {renderLaneBlock(UNASSIGNED_LANE_ID, "Unassigned", unassignedShots, null, {
-                  sortBy,
-                  animationIndex: 0,
-                })}
-                {lanes.map((lane, index) =>
-                  renderLaneBlock(lane.id, lane.name, resolvedShotsByLane[lane.id] || [], lane, {
-                    sortBy,
-                    animationIndex: index + 1,
-                  })
-                )}
-                {canEditPlanner && !lanesLockedByGrouping && activeLaneId && (
-                  <LaneEndDropZone disabled={!canEditPlanner || lanesLockedByGrouping}>
-                    {(isOver) => (
-                      <div
-                        className={`flex h-full items-center justify-center rounded-card border border-dashed border-slate-300 text-slate-400 transition dark:border-slate-600 dark:text-slate-500 ${
-                          isOver ? "bg-primary/10 text-primary" : ""
-                        }`}
-                      >
-                        <GripVertical className="h-4 w-4" aria-hidden="true" />
-                        <span className="sr-only">Drop lane at end</span>
-                      </div>
-                    )}
-                  </LaneEndDropZone>
-                )}
-              </div>
-            </div>
-          )}
+            />
+          </div>
           <DragOverlay>
             {activeDragShot ? (
-              <div style={{ pointerEvents: 'none' }}>
-                <ShotCard
-                  shot={activeDragShot}
-                  viewMode={viewMode}
-                  visibleFields={visibleFields}
-                  onEdit={null}
-                  canEdit={false}
-                  products={normaliseShotProducts(activeDragShot)}
-                  statusOptions={shotStatusOptions}
-                  onChangeStatus={null}
-                  density={density}
-                />
+              <div style={{ pointerEvents: 'none', width: 180 }}>
+                <div className="rounded-lg border border-primary bg-white p-3 shadow-lg dark:bg-slate-800">
+                  <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {activeDragShot.name || "Untitled shot"}
+                  </p>
+                  <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                    {extractTalentNames(activeDragShot).join(", ") || "No talent"}
+                  </p>
+                </div>
               </div>
             ) : null}
           </DragOverlay>
         </DndContext>
-      ) : (
-        <div className={isListView ? "flex flex-col gap-4 pb-6" : "flex gap-4 overflow-x-auto pb-6"}>
-          {derivedGroups.length ? (
-            derivedGroups.map((group, index) => (
-              <div
-                key={group.id}
-                className="animate-fade-in opacity-0"
-                style={getStaggerDelay(index)}
-              >
-                {renderLaneBlock(group.id, group.name, group.shots, null, {
-                  droppable: false,
-                  sortBy,
-                })}
-              </div>
-            ))
-          ) : (
-            <div className="flex min-h-[160px] w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-              No shots available for the current grouping.
-            </div>
-          )}
-        </div>
       )}
       {undoPrompt && (
         <div className="fixed bottom-6 right-6 z-50 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">

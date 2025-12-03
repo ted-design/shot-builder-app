@@ -133,12 +133,26 @@ export function getPrimaryAttachmentWithStyle(shot) {
  * @returns {{ path: string|null, style: Object }}
  */
 export function getImageWithFallback(shot, products = []) {
+  const defaultStyle = { objectFit: "cover", width: "100%", height: "100%" };
+
   // Prefer primary attachment or legacy reference image
   const primary = getPrimaryAttachmentWithStyle(shot);
   if (primary?.path) return primary;
 
+  // Legacy single-image fields on the shot itself
+  const legacyCandidates = [
+    shot?.referenceImagePath,
+    shot?.previewImageUrl,
+    shot?.thumbnailUrl,
+    shot?.thumbnailImagePath,
+    shot?.imageUrl,
+  ];
+  const legacyPath = legacyCandidates.find((value) => typeof value === "string" && value.trim().length);
+  if (legacyPath) {
+    return { path: legacyPath, style: defaultStyle };
+  }
+
   // Fallback to product imagery
-  const defaultStyle = { objectFit: "cover", width: "100%", height: "100%" };
   const list = Array.isArray(products) ? products : [];
   for (const product of list) {
     if (!product) continue;

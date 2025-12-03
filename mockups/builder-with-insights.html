@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Builder Tab - Redesign Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+          },
+          colors: {
+            primary: {
+              DEFAULT: "#6366f1",
+              dark: "#4f46e5",
+            },
+          },
+          borderRadius: {
+            card: "8px",
+            button: "6px",
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+    .accordion-content.open { max-height: 2000px; }
+    .sidebar { transition: transform 0.3s ease, opacity 0.2s ease; }
+    .sidebar.closed { transform: translateX(100%); opacity: 0; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+  <!-- Header (simplified for mockup) -->
+  <header class="bg-white border-b border-slate-200 px-6 py-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <h1 class="text-xl font-semibold text-slate-900">Fall Collection 2024</h1>
+        <span class="text-sm text-slate-500">48 shots</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- Tab buttons -->
+        <button class="px-4 py-2 text-sm font-medium bg-primary text-white rounded-button">Builder</button>
+        <button class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-button">Planner</button>
+        <button class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-button">Assets</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toolbar -->
+  <div class="bg-white border-b border-slate-200 px-6 py-3">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <!-- Create button -->
+        <button class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-button hover:bg-primary-dark">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          Create
+        </button>
+
+        <!-- Search -->
+        <div class="relative">
+          <input type="text" placeholder="Search shots..." class="w-64 pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-button focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </div>
+
+        <!-- Filter pills -->
+        <div class="flex items-center gap-2 ml-2">
+          <span class="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 text-slate-700 text-sm rounded-full">
+            Location: Studio A
+            <button class="hover:text-slate-900">&times;</button>
+          </span>
+          <span class="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 text-slate-700 text-sm rounded-full">
+            Talent: John D.
+            <button class="hover:text-slate-900">&times;</button>
+          </span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Group By dropdown (NEW) -->
+        <div class="relative">
+          <button id="groupByBtn" class="inline-flex items-center gap-2 px-3 py-2 text-sm text-slate-700 border border-slate-200 rounded-button hover:bg-slate-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+            Group: Date
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+        </div>
+
+        <!-- View mode toggle -->
+        <div class="inline-flex border border-slate-200 rounded-button overflow-hidden">
+          <button class="px-3 py-2 text-sm bg-primary text-white">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+          </button>
+          <button class="px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+          </button>
+        </div>
+
+        <!-- Export button (NEW in Builder) -->
+        <button class="inline-flex items-center gap-2 px-3 py-2 text-sm text-slate-700 border border-slate-200 rounded-button hover:bg-slate-50">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          Export
+        </button>
+
+        <!-- Insights toggle (NEW) -->
+        <button id="insightsToggle" class="inline-flex items-center gap-2 px-3 py-2 text-sm bg-primary text-white rounded-button hover:bg-primary-dark">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+          Insights
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="flex">
+    <!-- Shot List (with accordion grouping) -->
+    <main id="mainContent" class="flex-1 p-6 transition-all duration-300" style="margin-right: 320px;">
+
+      <!-- Accordion Group: Day 1 -->
+      <div class="mb-4">
+        <button onclick="toggleAccordion(this)" class="w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-card hover:bg-slate-50">
+          <div class="flex items-center gap-3">
+            <svg class="w-5 h-5 text-slate-400 transform transition-transform accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            <span class="font-medium text-slate-900">Day 1 - September 12, 2024</span>
+            <span class="px-2 py-0.5 bg-primary/10 text-primary text-sm font-medium rounded-full">12 shots</span>
+          </div>
+          <span class="text-sm text-slate-500">Studio A, Main Set</span>
+        </button>
+        <div class="accordion-content open mt-3">
+          <div class="grid grid-cols-4 gap-4">
+            <!-- Shot Card 1 -->
+            <div class="bg-white border border-slate-200 rounded-card overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+              <div class="aspect-[4/3] bg-slate-100 relative">
+                <img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400&h=300&fit=crop" alt="Shot" class="w-full h-full object-cover">
+                <span class="absolute top-2 left-2 px-2 py-0.5 bg-emerald-500 text-white text-xs font-medium rounded-full">Approved</span>
+              </div>
+              <div class="p-3">
+                <h3 class="font-medium text-slate-900 text-sm truncate">Hero Shot - Black Tee</h3>
+                <p class="text-xs text-slate-500 mt-1 truncate">John D., Amy S.</p>
+                <p class="text-xs text-slate-400 mt-0.5 truncate">Black Tee, Slim Jeans</p>
+              </div>
+            </div>
+            <!-- Shot Card 2 -->
+            <div class="bg-white border border-slate-200 rounded-card overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+              <div class="aspect-[4/3] bg-slate-100 relative">
+                <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&h=300&fit=crop" alt="Shot" class="w-full h-full object-cover">
+                <span class="absolute top-2 left-2 px-2 py-0.5 bg-amber-500 text-white text-xs font-medium rounded-full">In Progress</span>
+              </div>
+              <div class="p-3">
+                <h3 class="font-medium text-slate-900 text-sm truncate">Lifestyle - Outdoor</h3>
+                <p class="text-xs text-slate-500 mt-1 truncate">Mike R.</p>
+                <p class="text-xs text-slate-400 mt-0.5 truncate">White Polo, Khakis</p>
+              </div>
+            </div>
+            <!-- Shot Card 3 -->
+            <div class="bg-white border border-slate-200 rounded-card overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+              <div class="aspect-[4/3] bg-slate-100 relative">
+                <img src="https://images.unsplash.com/photo-1509631179647-0177331693ae?w=400&h=300&fit=crop" alt="Shot" class="w-full h-full object-cover">
+                <span class="absolute top-2 left-2 px-2 py-0.5 bg-slate-500 text-white text-xs font-medium rounded-full">Not Started</span>
+              </div>
+              <div class="p-3">
+                <h3 class="font-medium text-slate-900 text-sm truncate">Detail - Collar Close-up</h3>
+                <p class="text-xs text-slate-500 mt-1 truncate">Jane K.</p>
+                <p class="text-xs text-slate-400 mt-0.5 truncate">Navy Blazer</p>
+              </div>
+            </div>
+            <!-- Shot Card 4 -->
+            <div class="bg-white border border-slate-200 rounded-card overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+              <div class="aspect-[4/3] bg-slate-100 relative">
+                <img src="https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&h=300&fit=crop" alt="Shot" class="w-full h-full object-cover">
+                <span class="absolute top-2 left-2 px-2 py-0.5 bg-emerald-500 text-white text-xs font-medium rounded-full">Approved</span>
+              </div>
+              <div class="p-3">
+                <h3 class="font-medium text-slate-900 text-sm truncate">Flat Lay - Accessories</h3>
+                <p class="text-xs text-slate-500 mt-1 truncate">No Talent</p>
+                <p class="text-xs text-slate-400 mt-0.5 truncate">Watch, Belt, Wallet</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accordion Group: Day 2 (collapsed) -->
+      <div class="mb-4">
+        <button onclick="toggleAccordion(this)" class="w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-card hover:bg-slate-50">
+          <div class="flex items-center gap-3">
+            <svg class="w-5 h-5 text-slate-400 transform transition-transform accordion-icon -rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            <span class="font-medium text-slate-900">Day 2 - September 13, 2024</span>
+            <span class="px-2 py-0.5 bg-primary/10 text-primary text-sm font-medium rounded-full">18 shots</span>
+          </div>
+          <span class="text-sm text-slate-500">Location B, Beach</span>
+        </button>
+        <div class="accordion-content mt-3">
+          <div class="grid grid-cols-4 gap-4">
+            <div class="bg-white border border-slate-200 rounded-card overflow-hidden h-48 flex items-center justify-center text-slate-400">
+              18 shots hidden
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accordion Group: Day 3 (collapsed) -->
+      <div class="mb-4">
+        <button onclick="toggleAccordion(this)" class="w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-card hover:bg-slate-50">
+          <div class="flex items-center gap-3">
+            <svg class="w-5 h-5 text-slate-400 transform transition-transform accordion-icon -rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            <span class="font-medium text-slate-900">Day 3 - September 14, 2024</span>
+            <span class="px-2 py-0.5 bg-primary/10 text-primary text-sm font-medium rounded-full">8 shots</span>
+          </div>
+          <span class="text-sm text-slate-500">Studio A, White Cyclorama</span>
+        </button>
+        <div class="accordion-content mt-3">
+          <div class="grid grid-cols-4 gap-4">
+            <div class="bg-white border border-slate-200 rounded-card overflow-hidden h-48 flex items-center justify-center text-slate-400">
+              8 shots hidden
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unassigned shots -->
+      <div class="mb-4">
+        <button onclick="toggleAccordion(this)" class="w-full flex items-center justify-between px-4 py-3 bg-slate-100 border border-slate-200 rounded-card hover:bg-slate-200">
+          <div class="flex items-center gap-3">
+            <svg class="w-5 h-5 text-slate-400 transform transition-transform accordion-icon -rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            <span class="font-medium text-slate-700">Unassigned</span>
+            <span class="px-2 py-0.5 bg-slate-300 text-slate-700 text-sm font-medium rounded-full">10 shots</span>
+          </div>
+          <span class="text-sm text-slate-500">Not scheduled</span>
+        </button>
+        <div class="accordion-content mt-3">
+          <div class="grid grid-cols-4 gap-4">
+            <div class="bg-white border border-slate-200 rounded-card overflow-hidden h-48 flex items-center justify-center text-slate-400">
+              10 shots hidden
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Insights Sidebar (NEW) -->
+    <aside id="insightsSidebar" class="sidebar fixed right-0 top-0 h-full w-80 bg-white border-l border-slate-200 shadow-lg overflow-y-auto" style="top: 129px;">
+      <div class="p-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
+        <h2 class="font-semibold text-slate-900">Insights</h2>
+        <button id="closeSidebar" class="p-1 hover:bg-slate-100 rounded">
+          <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <!-- Shot Totals -->
+      <div class="p-4 border-b border-slate-200">
+        <h3 class="text-sm font-medium text-slate-700 mb-3">Shot Totals</h3>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-slate-500">
+              <th class="pb-2 font-medium">Lane</th>
+              <th class="pb-2 font-medium text-right">Count</th>
+            </tr>
+          </thead>
+          <tbody class="text-slate-700">
+            <tr class="hover:bg-slate-50 cursor-pointer">
+              <td class="py-1.5">Day 1 - Sep 12</td>
+              <td class="py-1.5 text-right font-medium">12</td>
+            </tr>
+            <tr class="hover:bg-slate-50 cursor-pointer">
+              <td class="py-1.5">Day 2 - Sep 13</td>
+              <td class="py-1.5 text-right font-medium">18</td>
+            </tr>
+            <tr class="hover:bg-slate-50 cursor-pointer">
+              <td class="py-1.5">Day 3 - Sep 14</td>
+              <td class="py-1.5 text-right font-medium">8</td>
+            </tr>
+            <tr class="hover:bg-slate-50 cursor-pointer text-slate-500">
+              <td class="py-1.5">Unassigned</td>
+              <td class="py-1.5 text-right font-medium">10</td>
+            </tr>
+            <tr class="border-t border-slate-200 font-semibold">
+              <td class="pt-2">Total</td>
+              <td class="pt-2 text-right">48</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Talent Coverage Matrix -->
+      <div class="p-4">
+        <h3 class="text-sm font-medium text-slate-700 mb-3">Talent Coverage</h3>
+        <p class="text-xs text-slate-500 mb-3">Click to filter shots by talent</p>
+
+        <div class="space-y-2">
+          <!-- Talent Row 1 -->
+          <div class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded cursor-pointer group">
+            <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium text-sm">JD</div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-slate-900 truncate">John Doe</p>
+              <div class="flex gap-1 mt-1">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded">D1: 5</span>
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded">D2: 3</span>
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded">D3: 2</span>
+              </div>
+            </div>
+            <span class="text-sm font-semibold text-slate-700">10</span>
+          </div>
+
+          <!-- Talent Row 2 -->
+          <div class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded cursor-pointer group">
+            <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-medium text-sm">AS</div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-slate-900 truncate">Amy Smith</p>
+              <div class="flex gap-1 mt-1">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded">D1: 4</span>
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded">D2: 6</span>
+              </div>
+            </div>
+            <span class="text-sm font-semibold text-slate-700">10</span>
+          </div>
+
+          <!-- Talent Row 3 -->
+          <div class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded cursor-pointer group">
+            <div class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-medium text-sm">MR</div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-slate-900 truncate">Mike Roberts</p>
+              <div class="flex gap-1 mt-1">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded">D2: 5</span>
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded">D3: 3</span>
+              </div>
+            </div>
+            <span class="text-sm font-semibold text-slate-700">8</span>
+          </div>
+
+          <!-- Talent Row 4 -->
+          <div class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded cursor-pointer group">
+            <div class="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 font-medium text-sm">JK</div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-slate-900 truncate">Jane Kim</p>
+              <div class="flex gap-1 mt-1">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded">D1: 3</span>
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded">D2: 4</span>
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded">D3: 3</span>
+              </div>
+            </div>
+            <span class="text-sm font-semibold text-slate-700">10</span>
+          </div>
+
+          <!-- No Talent Row -->
+          <div class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded cursor-pointer group border-t border-slate-100 mt-2 pt-2">
+            <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-medium text-sm">--</div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-slate-500 truncate">No Talent Assigned</p>
+              <div class="flex gap-1 mt-1">
+                <span class="px-1.5 py-0.5 bg-slate-100 text-slate-500 text-xs rounded">Various</span>
+              </div>
+            </div>
+            <span class="text-sm font-semibold text-slate-500">10</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    // Accordion toggle (only one open at a time)
+    function toggleAccordion(button) {
+      const content = button.nextElementSibling;
+      const icon = button.querySelector('.accordion-icon');
+      const allContents = document.querySelectorAll('.accordion-content');
+      const allIcons = document.querySelectorAll('.accordion-icon');
+
+      // Close all others first (accordion style)
+      allContents.forEach((c, i) => {
+        if (c !== content) {
+          c.classList.remove('open');
+          allIcons[i].classList.add('-rotate-90');
+        }
+      });
+
+      // Toggle current
+      content.classList.toggle('open');
+      icon.classList.toggle('-rotate-90');
+    }
+
+    // Sidebar toggle
+    const insightsToggle = document.getElementById('insightsToggle');
+    const closeSidebar = document.getElementById('closeSidebar');
+    const sidebar = document.getElementById('insightsSidebar');
+    const mainContent = document.getElementById('mainContent');
+
+    function toggleSidebar() {
+      sidebar.classList.toggle('closed');
+      if (sidebar.classList.contains('closed')) {
+        mainContent.style.marginRight = '0';
+        insightsToggle.classList.remove('bg-primary', 'text-white');
+        insightsToggle.classList.add('text-slate-700', 'border', 'border-slate-200');
+      } else {
+        mainContent.style.marginRight = '320px';
+        insightsToggle.classList.add('bg-primary', 'text-white');
+        insightsToggle.classList.remove('text-slate-700', 'border', 'border-slate-200');
+      }
+    }
+
+    insightsToggle.addEventListener('click', toggleSidebar);
+    closeSidebar.addEventListener('click', toggleSidebar);
+  </script>
+
+</body>
+</html>

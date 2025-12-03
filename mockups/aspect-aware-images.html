@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aspect-Aware Image Handling - Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: { primary: { DEFAULT: "#6366f1", dark: "#4f46e5" } },
+          borderRadius: { card: "8px", button: "6px" },
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .shot-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .shot-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+    /* Aspect-aware image container */
+    .image-container {
+      height: 140px; /* Fixed max height */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent; /* Invisible letterboxing */
+    }
+
+    .image-container img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 6px;
+    }
+
+    /* For comparison: old approach with cover */
+    .image-container-cover {
+      height: 140px;
+      overflow: hidden;
+    }
+
+    .image-container-cover img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen p-8">
+
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-2xl font-bold text-slate-900 mb-2">Aspect-Aware Image Handling</h1>
+    <p class="text-slate-600 mb-8">Images display in full without cropping. Empty space is invisible (transparent background).</p>
+
+    <!-- New Approach: object-fit: contain -->
+    <section class="mb-12">
+      <h2 class="text-lg font-semibold text-slate-800 mb-2">New Approach: <code class="bg-slate-200 px-2 py-1 rounded text-sm">object-fit: contain</code></h2>
+      <p class="text-slate-600 text-sm mb-4">Images show in full, letterbox space is invisible. Rounded corners on the image itself.</p>
+
+      <div class="grid grid-cols-4 gap-4">
+
+        <!-- Landscape Image -->
+        <div class="bg-white rounded-lg p-4 shadow-sm">
+          <p class="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Landscape (16:9)</p>
+          <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+            <div class="image-container">
+              <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=640&h=360&fit=crop" alt="Landscape shot">
+            </div>
+            <div class="p-2">
+              <div class="flex items-center justify-between mb-1">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-01</span>
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              </div>
+              <h4 class="text-xs font-medium text-slate-900 truncate">Store Interior Wide</h4>
+              <p class="text-xs text-slate-500 truncate mt-0.5">No Talent</p>
+              <p class="text-xs text-slate-400 truncate">Product Display</p>
+              <p class="text-xs text-slate-400 mt-0.5">10:00 AM</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-2 text-center">Full width, empty space top/bottom</p>
+        </div>
+
+        <!-- Portrait Image -->
+        <div class="bg-white rounded-lg p-4 shadow-sm">
+          <p class="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Portrait (3:4)</p>
+          <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+            <div class="image-container">
+              <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=300&h=400&fit=crop" alt="Portrait shot">
+            </div>
+            <div class="p-2">
+              <div class="flex items-center justify-between mb-1">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-02</span>
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+              </div>
+              <h4 class="text-xs font-medium text-slate-900 truncate">Fashion Editorial</h4>
+              <p class="text-xs text-slate-500 truncate mt-0.5">Jane K.</p>
+              <p class="text-xs text-slate-400 truncate">Summer Dress</p>
+              <p class="text-xs text-slate-400 mt-0.5">11:30 AM</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-2 text-center">Full height, empty space sides</p>
+        </div>
+
+        <!-- Square Image -->
+        <div class="bg-white rounded-lg p-4 shadow-sm">
+          <p class="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Square (1:1)</p>
+          <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+            <div class="image-container">
+              <img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400&h=400&fit=crop" alt="Square shot">
+            </div>
+            <div class="p-2">
+              <div class="flex items-center justify-between mb-1">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-03</span>
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              </div>
+              <h4 class="text-xs font-medium text-slate-900 truncate">Hero Shot</h4>
+              <p class="text-xs text-slate-500 truncate mt-0.5">John D., Amy S.</p>
+              <p class="text-xs text-slate-400 truncate">Black Tee, Jeans</p>
+              <p class="text-xs text-slate-400 mt-0.5">09:00 AM</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-2 text-center">Fills container well</p>
+        </div>
+
+        <!-- Very Tall Portrait -->
+        <div class="bg-white rounded-lg p-4 shadow-sm">
+          <p class="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Tall Portrait (2:3)</p>
+          <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+            <div class="image-container">
+              <img src="https://images.unsplash.com/photo-1509631179647-0177331693ae?w=280&h=420&fit=crop" alt="Tall portrait shot">
+            </div>
+            <div class="p-2">
+              <div class="flex items-center justify-between mb-1">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-04</span>
+                <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+              </div>
+              <h4 class="text-xs font-medium text-slate-900 truncate">Full Length Model</h4>
+              <p class="text-xs text-slate-500 truncate mt-0.5">Mike R.</p>
+              <p class="text-xs text-slate-400 truncate">Navy Blazer, Chinos</p>
+              <p class="text-xs text-slate-400 mt-0.5">02:00 PM</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-2 text-center">Full height, more side space</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Side by Side Comparison -->
+    <section class="mb-12">
+      <h2 class="text-lg font-semibold text-slate-800 mb-2">Comparison: Contain vs Cover</h2>
+      <p class="text-slate-600 text-sm mb-4">Same portrait image shown with both approaches.</p>
+
+      <div class="grid grid-cols-2 gap-8">
+
+        <!-- Contain (New) -->
+        <div class="bg-white rounded-lg p-6 shadow-sm">
+          <h3 class="text-sm font-semibold text-emerald-600 mb-1 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            New: object-fit: contain
+          </h3>
+          <p class="text-xs text-slate-500 mb-4">Full image visible, no cropping. Letterbox space is invisible.</p>
+
+          <div class="grid grid-cols-3 gap-3">
+            <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+              <div class="image-container" style="height: 120px;">
+                <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=300&h=450&fit=crop" alt="">
+              </div>
+              <div class="p-2">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-01</span>
+                <h4 class="text-xs font-medium text-slate-900 truncate mt-1">Portrait Shot</h4>
+              </div>
+            </div>
+            <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+              <div class="image-container" style="height: 120px;">
+                <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=640&h=360&fit=crop" alt="">
+              </div>
+              <div class="p-2">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-02</span>
+                <h4 class="text-xs font-medium text-slate-900 truncate mt-1">Landscape Shot</h4>
+              </div>
+            </div>
+            <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+              <div class="image-container" style="height: 120px;">
+                <img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400&h=400&fit=crop" alt="">
+              </div>
+              <div class="p-2">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-03</span>
+                <h4 class="text-xs font-medium text-slate-900 truncate mt-1">Square Shot</h4>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 p-3 bg-emerald-50 rounded text-xs text-emerald-700">
+            <strong>Pros:</strong> See the full image, no important content cropped out.<br>
+            <strong>Cons:</strong> Variable visual "weight" between cards.
+          </div>
+        </div>
+
+        <!-- Cover (Old) -->
+        <div class="bg-white rounded-lg p-6 shadow-sm">
+          <h3 class="text-sm font-semibold text-slate-500 mb-1 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+            Old: object-fit: cover
+          </h3>
+          <p class="text-xs text-slate-500 mb-4">Fills container, crops edges. Consistent visual appearance.</p>
+
+          <div class="grid grid-cols-3 gap-3">
+            <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+              <div class="image-container-cover" style="height: 120px;">
+                <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=300&h=450&fit=crop" alt="">
+              </div>
+              <div class="p-2">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-01</span>
+                <h4 class="text-xs font-medium text-slate-900 truncate mt-1">Portrait Shot</h4>
+              </div>
+            </div>
+            <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+              <div class="image-container-cover" style="height: 120px;">
+                <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=640&h=360&fit=crop" alt="">
+              </div>
+              <div class="p-2">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-02</span>
+                <h4 class="text-xs font-medium text-slate-900 truncate mt-1">Landscape Shot</h4>
+              </div>
+            </div>
+            <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+              <div class="image-container-cover" style="height: 120px;">
+                <img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400&h=400&fit=crop" alt="">
+              </div>
+              <div class="p-2">
+                <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-03</span>
+                <h4 class="text-xs font-medium text-slate-900 truncate mt-1">Square Shot</h4>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 p-3 bg-slate-100 rounded text-xs text-slate-600">
+            <strong>Pros:</strong> Uniform visual appearance, cards look consistent.<br>
+            <strong>Cons:</strong> Crops edges of images, may lose important content.
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Grid Demo -->
+    <section class="mb-12">
+      <h2 class="text-lg font-semibold text-slate-800 mb-2">Grid View Demo (Mixed Aspect Ratios)</h2>
+      <p class="text-slate-600 text-sm mb-4">How a realistic grid looks with various image shapes using the new approach.</p>
+
+      <div class="bg-slate-200 rounded-lg p-4">
+        <div class="grid grid-cols-6 gap-3">
+
+          <!-- Card 1: Portrait -->
+          <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+            <div class="image-container" style="height: 100px;">
+              <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=200&h=300&fit=crop" alt="">
+            </div>
+            <div class="p-1.5">
+              <div class="flex items-center justify-between">
+                <span class="px-1 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded">1-01</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              </div>
+              <h4 class="text-[10px] font-medium text-slate-900 truncate mt-0.5">Fashion Portrait</h4>
+              <p class="text-[10px] text-slate-400 truncate">Jane K.</p>
+            </div>
+          </div>
+
+          <!-- Card 2: Landscape -->
+          <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+            <div class="image-container" style="height: 100px;">
+              <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=320&h=180&fit=crop" alt="">
+            </div>
+            <div class="p-1.5">
+              <div class="flex items-center justify-between">
+                <span class="px-1 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded">1-02</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              </div>
+              <h4 class="text-[10px] font-medium text-slate-900 truncate mt-0.5">Store Wide</h4>
+              <p class="text-[10px] text-slate-400 truncate">No Talent</p>
+            </div>
+          </div>
+
+          <!-- Card 3: Square -->
+          <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+            <div class="image-container" style="height: 100px;">
+              <img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=200&h=200&fit=crop" alt="">
+            </div>
+            <div class="p-1.5">
+              <div class="flex items-center justify-between">
+                <span class="px-1 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded">1-03</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              </div>
+              <h4 class="text-[10px] font-medium text-slate-900 truncate mt-0.5">Hero Shot</h4>
+              <p class="text-[10px] text-slate-400 truncate">John D.</p>
+            </div>
+          </div>
+
+          <!-- Card 4: Portrait -->
+          <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+            <div class="image-container" style="height: 100px;">
+              <img src="https://images.unsplash.com/photo-1509631179647-0177331693ae?w=200&h=300&fit=crop" alt="">
+            </div>
+            <div class="p-1.5">
+              <div class="flex items-center justify-between">
+                <span class="px-1 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded">1-04</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+              </div>
+              <h4 class="text-[10px] font-medium text-slate-900 truncate mt-0.5">Full Length</h4>
+              <p class="text-[10px] text-slate-400 truncate">Mike R.</p>
+            </div>
+          </div>
+
+          <!-- Card 5: Flat Lay (square-ish) -->
+          <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+            <div class="image-container" style="height: 100px;">
+              <img src="https://images.unsplash.com/photo-1445205170230-053b83016050?w=200&h=200&fit=crop" alt="">
+            </div>
+            <div class="p-1.5">
+              <div class="flex items-center justify-between">
+                <span class="px-1 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded">1-05</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              </div>
+              <h4 class="text-[10px] font-medium text-slate-900 truncate mt-0.5">Flat Lay</h4>
+              <p class="text-[10px] text-slate-400 truncate">Products</p>
+            </div>
+          </div>
+
+          <!-- Card 6: Wide Landscape -->
+          <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden">
+            <div class="image-container" style="height: 100px;">
+              <img src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=320&h=160&fit=crop" alt="">
+            </div>
+            <div class="p-1.5">
+              <div class="flex items-center justify-between">
+                <span class="px-1 py-0.5 bg-primary/10 text-primary text-[10px] font-semibold rounded">1-06</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              </div>
+              <h4 class="text-[10px] font-medium text-slate-900 truncate mt-0.5">Wide Editorial</h4>
+              <p class="text-[10px] text-slate-400 truncate">Amy S.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <p class="text-xs text-slate-500 mt-3 text-center">Notice how cards have consistent height, but images fill different amounts of the container based on their aspect ratio.</p>
+    </section>
+
+    <!-- Technical Specs -->
+    <section>
+      <h2 class="text-lg font-semibold text-slate-800 mb-4">Implementation CSS</h2>
+      <div class="bg-slate-900 rounded-lg p-6 text-sm font-mono text-slate-300 overflow-x-auto">
+        <pre><code>/* Image container - fixed height, flexible width */
+.image-container {
+  height: 120px;              /* or max-height for more flexibility */
+  display: flex;
+  align-items: center;        /* Vertical centering */
+  justify-content: center;    /* Horizontal centering */
+  background: transparent;    /* Invisible letterboxing */
+}
+
+/* Image itself - fits within bounds, maintains aspect ratio */
+.image-container img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;        /* Key: show full image, no crop */
+  border-radius: 6px;         /* Rounded corners on image, not container */
+}
+
+/* Fallback for no-image state */
+.image-container .placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(241 245 249); /* slate-100 */
+  border-radius: 6px;
+}</code></pre>
+      </div>
+    </section>
+
+  </div>
+
+</body>
+</html>

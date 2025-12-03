@@ -76,6 +76,8 @@ import {
   Package,
   Check,
   MoreVertical,
+  BarChart3,
+  Layers,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -101,6 +103,7 @@ import {
   ToolbarIconButton,
   ViewModeMenu,
   DensityMenu,
+  GroupByMenu,
 } from "../components/overview";
 
 const PlannerPage = lazy(() => import("./PlannerPage"));
@@ -111,6 +114,7 @@ import NotesEditor from "../components/shots/NotesEditor";
 import ShotEditModal from "../components/shots/ShotEditModal";
 import BulkOperationsToolbar from "../components/shots/BulkOperationsToolbar";
 import ShotTableView from "../components/shots/ShotTableView";
+import BuilderGroupedView from "../components/shots/BuilderGroupedView";
 import { useAuth } from "../context/AuthContext";
 import { FLAGS } from "../lib/flags";
 import { useProjectScope } from "../context/ProjectScopeContext";
@@ -146,6 +150,8 @@ import {
   buildSectionDiffMap,
 } from "../lib/shotSectionStatus";
 import { convertLegacyImageToAttachment } from "../lib/migrations/migrateShots";
+import { InsightsSidebar } from "../components/insights";
+import { calculateTalentTotals, calculateGroupedShotTotals } from "../lib/insightsCalculator";
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
@@ -169,6 +175,15 @@ const AVAILABLE_SHOT_TYPES = [
 
 const SHOTS_PREFS_STORAGE_KEY = "shots:viewPrefs";
 const SHOTS_MANUAL_ORDER_PREFIX = "shots:manualOrder:"; // per-project
+const SHOTS_INSIGHTS_STORAGE_KEY = "shots:insightsSidebarOpen";
+const SHOTS_GROUP_BY_STORAGE_KEY = "shots:groupBy";
+
+const SHOT_GROUP_OPTIONS = [
+  { value: "none", label: "No grouping", icon: null },
+  { value: "date", label: "By Date", icon: Calendar },
+  { value: "talent", label: "By Talent", icon: Users },
+  { value: "status", label: "By Status", icon: CircleDot },
+];
 
 const DEFAULT_SHOT_DENSITY = "comfortable";
 const UNTITLED_SHOT_FALLBACK_NAME = "Untitled shot";
@@ -367,6 +382,16 @@ export function ShotsWorkspace() {
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [insightsSidebarOpen, setInsightsSidebarOpen] = useState(() => {
+    const stored = readStorage(SHOTS_INSIGHTS_STORAGE_KEY);
+    return stored === "true" || stored === true;
+  });
+  const [groupBy, setGroupBy] = useState(() => {
+    const stored = readStorage(SHOTS_GROUP_BY_STORAGE_KEY);
+    if (stored === "date" || stored === "talent" || stored === "status") return stored;
+    return "none";
+  });
+  const [expandedGroups, setExpandedGroups] = useState(() => new Set(["all"]));
   const autoSaveTimerRef = useRef(null);
   const autoSaveInflightRef = useRef(false);
   const editingShotRef = useRef(editingShot);
@@ -624,6 +649,60 @@ export function ShotsWorkspace() {
     [filteredShots, viewPrefs.sort]
   );
 
+  // Insights calculations for sidebar
+  const talentLookupByName = useMemo(() => {
+    const lookup = {};
+    talentOptions.forEach((entry) => {
+      if (entry.name) {
+        lookup[entry.name] = {
+          id: entry.talentId,
+          headshotPath: entry.headshotPath,
+        };
+      }
+    });
+    return lookup;
+  }, [talentOptions]);
+
+  const insightsTalentTotals = useMemo(
+    () => calculateTalentTotals(filteredShots, talentLookupByName),
+    [filteredShots, talentLookupByName]
+  );
+
+  const toggleInsightsSidebar = useCallback(() => {
+    setInsightsSidebarOpen((prev) => !prev);
+  }, []);
+
+  // Grouped shots calculation for accordion view
+  const groupedShots = useMemo(
+    () => calculateGroupedShotTotals(sortedShots, groupBy),
+    [sortedShots, groupBy]
+  );
+
+  const toggleGroupExpanded = useCallback((groupKey) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        // Accordion: collapse all others, expand this one
+        next.clear();
+        next.add(groupKey);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleGroupByChange = useCallback((value) => {
+    setGroupBy(value);
+    // Reset expanded groups when changing groupBy
+    if (value === "none") {
+      setExpandedGroups(new Set(["all"]));
+    } else {
+      // Expand the first group by default
+      setExpandedGroups(new Set());
+    }
+  }, []);
+
   // Manual table order per project (persisted locally)
   const manualOrderKey = useMemo(
     () => `${SHOTS_MANUAL_ORDER_PREFIX}${projectId || 'unknown'}`,
@@ -692,6 +771,14 @@ export function ShotsWorkspace() {
       writeStorage(SHOTS_VIEW_STORAGE_KEY, viewMode);
     }
   }, [viewMode]);
+
+  useEffect(() => {
+    writeStorage(SHOTS_INSIGHTS_STORAGE_KEY, insightsSidebarOpen ? "true" : "false");
+  }, [insightsSidebarOpen]);
+
+  useEffect(() => {
+    writeStorage(SHOTS_GROUP_BY_STORAGE_KEY, groupBy);
+  }, [groupBy]);
 
   useEffect(() => {
     writeStorage(
@@ -2931,6 +3018,15 @@ export function ShotsWorkspace() {
                 title="Sort shots"
               />
 
+              {isGalleryView && (
+                <GroupByMenu
+                  options={SHOT_GROUP_OPTIONS}
+                  value={groupBy}
+                  onChange={handleGroupByChange}
+                  title="Group shots"
+                />
+              )}
+
               <ViewModeMenu
                 options={SHOT_VIEW_OPTIONS}
                 value={viewMode}
@@ -2966,6 +3062,19 @@ export function ShotsWorkspace() {
               )}
 
               <ExportButton data={filteredShots} entityType="shots" />
+
+              <Button
+                type="button"
+                variant={insightsSidebarOpen ? "default" : "outline"}
+                size="sm"
+                onClick={toggleInsightsSidebar}
+                aria-pressed={insightsSidebarOpen}
+                aria-label={insightsSidebarOpen ? "Hide insights" : "Show insights"}
+                className="flex items-center gap-1.5"
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">Insights</span>
+              </Button>
             </div>
           </div>
         </OverviewToolbarRow>
@@ -3009,7 +3118,8 @@ export function ShotsWorkspace() {
         />
       )}
 
-      <div className="mx-6 space-y-4">
+      <div className="flex">
+        <div className="min-w-0 flex-1 space-y-4 px-6">
           <p className="text-sm text-slate-600 dark:text-slate-400">
             Build and manage the shot list for the active project. Set the active project from the Dashboard.
           </p>
@@ -3034,41 +3144,76 @@ export function ShotsWorkspace() {
                 </div>
               )
             ) : isGalleryView ? (
-              <VirtualizedGrid
-                items={sortedShots}
-                itemHeight={galleryItemHeight}
-                threshold={80}
-                className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
-                renderItem={(shot, index, isVirtualized) => {
-                  const shotProducts = normaliseShotProducts(shot);
-                  const shotTalentSelection = mapShotTalentToSelection(shot);
-                  const notesHtml = formatNotesForDisplay(shot.description);
-                  const locationName =
-                    shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
-                  return (
-                    <div
-                      className={isVirtualized ? "" : "animate-fade-in opacity-0"}
-                      style={isVirtualized ? {} : getStaggerDelay(index)}
-                    >
-                      <ShotGalleryCard
-                        shot={shot}
-                        locationName={locationName}
-                        products={shotProducts}
-                        talent={shotTalentSelection}
-                        notesHtml={notesHtml}
-                        canEditShots={canEditShots}
-                        onEdit={() => handleEditShot(shot)}
-                        onChangeStatus={canEditShots ? (shot, value) => updateShot(shot, { status: value }) : null}
-                        viewPrefs={viewPrefs}
-                        isSelected={selectedShotIds.has(shot.id)}
-                        onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}
-                        isFocused={focusShotId === shot.id}
-                        onFocus={() => handleFocusShot(shot)}
-                      />
-                    </div>
-                  );
-                }}
-              />
+              groupBy !== "none" ? (
+                <BuilderGroupedView
+                  groups={groupedShots}
+                  expandedGroups={expandedGroups}
+                  onToggleGroup={toggleGroupExpanded}
+                  className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+                  renderShot={(shot, index) => {
+                    const shotProducts = normaliseShotProducts(shot);
+                    const shotTalentSelection = mapShotTalentToSelection(shot);
+                    const notesHtml = formatNotesForDisplay(shot.description);
+                    const locationName =
+                      shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
+                    return (
+                      <div key={shot.id} className="animate-fade-in opacity-0" style={getStaggerDelay(index)}>
+                        <ShotGalleryCard
+                          shot={shot}
+                          locationName={locationName}
+                          products={shotProducts}
+                          talent={shotTalentSelection}
+                          notesHtml={notesHtml}
+                          canEditShots={canEditShots}
+                          onEdit={() => handleEditShot(shot)}
+                          onChangeStatus={canEditShots ? (shot, value) => updateShot(shot, { status: value }) : null}
+                          viewPrefs={viewPrefs}
+                          isSelected={selectedShotIds.has(shot.id)}
+                          onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}
+                          isFocused={focusShotId === shot.id}
+                          onFocus={() => handleFocusShot(shot)}
+                        />
+                      </div>
+                    );
+                  }}
+                />
+              ) : (
+                <VirtualizedGrid
+                  items={sortedShots}
+                  itemHeight={galleryItemHeight}
+                  threshold={80}
+                  className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+                  renderItem={(shot, index, isVirtualized) => {
+                    const shotProducts = normaliseShotProducts(shot);
+                    const shotTalentSelection = mapShotTalentToSelection(shot);
+                    const notesHtml = formatNotesForDisplay(shot.description);
+                    const locationName =
+                      shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
+                    return (
+                      <div
+                        className={isVirtualized ? "" : "animate-fade-in opacity-0"}
+                        style={isVirtualized ? {} : getStaggerDelay(index)}
+                      >
+                        <ShotGalleryCard
+                          shot={shot}
+                          locationName={locationName}
+                          products={shotProducts}
+                          talent={shotTalentSelection}
+                          notesHtml={notesHtml}
+                          canEditShots={canEditShots}
+                          onEdit={() => handleEditShot(shot)}
+                          onChangeStatus={canEditShots ? (shot, value) => updateShot(shot, { status: value }) : null}
+                          viewPrefs={viewPrefs}
+                          isSelected={selectedShotIds.has(shot.id)}
+                          onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}
+                          isFocused={focusShotId === shot.id}
+                          onFocus={() => handleFocusShot(shot)}
+                        />
+                      </div>
+                    );
+                  }}
+                />
+              )
             ) : (
               <ShotTableView
                 rows={
@@ -3107,6 +3252,40 @@ export function ShotsWorkspace() {
               />
             )}
           </div>
+        </div>
+
+        {/* Insights Sidebar */}
+        <InsightsSidebar
+          isOpen={insightsSidebarOpen}
+          onClose={() => setInsightsSidebarOpen(false)}
+          isLoading={shotsLoading || talentLoading}
+          totalShots={filteredShots.length}
+          shotTotalsRows={[
+            { id: "all", name: "All Shots", shotCount: filteredShots.length },
+          ]}
+          talentRows={insightsTalentTotals}
+          onTalentClick={(row) => {
+            // Filter by talent when clicking a talent row
+            if (row.talentId) {
+              const currentTalentIds = filters.talentIds || [];
+              const isActive = currentTalentIds.includes(row.talentId);
+              if (isActive) {
+                // Remove talent filter
+                setFilters({
+                  ...filters,
+                  talentIds: currentTalentIds.filter((id) => id !== row.talentId),
+                });
+              } else {
+                // Add talent filter
+                setFilters({
+                  ...filters,
+                  talentIds: [...currentTalentIds, row.talentId],
+                });
+              }
+            }
+          }}
+          activeTalentIds={filters.talentIds || []}
+        />
       </div>
 
       {canEditShots && isCreateModalOpen && (

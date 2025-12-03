@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planner Tab - Simplified Redesign Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+          },
+          colors: {
+            primary: {
+              DEFAULT: "#6366f1",
+              dark: "#4f46e5",
+            },
+          },
+          borderRadius: {
+            card: "8px",
+            button: "6px",
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .lane-tabs { scrollbar-width: thin; }
+    .lane-tabs::-webkit-scrollbar { height: 4px; }
+    .lane-tabs::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+    .drag-handle { cursor: grab; }
+    .drag-handle:active { cursor: grabbing; }
+    .shot-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .shot-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .shot-card.dragging { opacity: 0.5; transform: rotate(3deg); }
+    .context-menu { display: none; }
+    .context-menu.show { display: block; }
+    .unassigned-tray { transition: max-height 0.3s ease; }
+    .unassigned-tray.collapsed { max-height: 48px; overflow: hidden; }
+    .unassigned-tray.expanded { max-height: 400px; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+  <!-- Header (simplified for mockup) -->
+  <header class="bg-white border-b border-slate-200 px-6 py-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <h1 class="text-xl font-semibold text-slate-900">Fall Collection 2024</h1>
+        <span class="text-sm text-slate-500">48 shots</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- Tab buttons -->
+        <button class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-button">Builder</button>
+        <button class="px-4 py-2 text-sm font-medium bg-primary text-white rounded-button">Planner</button>
+        <button class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-button">Assets</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Minimal Toolbar (drastically simplified) -->
+  <div class="bg-white border-b border-slate-200 px-6 py-3">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Search -->
+        <div class="relative">
+          <input type="text" placeholder="Search shots..." class="w-64 pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-button focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Density toggle only -->
+        <div class="inline-flex border border-slate-200 rounded-button overflow-hidden">
+          <button class="px-3 py-2 text-sm bg-primary text-white text-xs font-medium">Compact</button>
+          <button class="px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 text-xs font-medium">Comfy</button>
+        </div>
+
+        <!-- Export button -->
+        <button class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-button hover:bg-primary-dark">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          Export
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lane Tabs -->
+  <div class="bg-white border-b border-slate-200 px-6 py-2">
+    <div class="flex items-center gap-2">
+      <!-- Scroll left button -->
+      <button class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+      </button>
+
+      <!-- Lane tabs (horizontally scrollable) -->
+      <div class="lane-tabs flex-1 flex items-center gap-2 overflow-x-auto py-1">
+        <!-- Day 1 Tab (selected) -->
+        <button onclick="selectLane(this, 'day1')" class="lane-tab relative flex-shrink-0 px-4 py-2 text-sm font-medium bg-primary text-white rounded-button whitespace-nowrap group">
+          <span>Day 1</span>
+          <span class="ml-2 px-1.5 py-0.5 bg-white/20 rounded text-xs">12</span>
+          <!-- Context menu trigger -->
+          <span onclick="event.stopPropagation(); toggleContextMenu('menu-day1')" class="ml-2 opacity-0 group-hover:opacity-100 hover:bg-white/20 rounded p-0.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </span>
+          <!-- Context menu -->
+          <div id="menu-day1" class="context-menu absolute top-full left-0 mt-1 w-40 bg-white border border-slate-200 rounded-card shadow-lg z-20 py-1">
+            <button class="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Rename</button>
+            <button class="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Renumber Shots</button>
+            <hr class="my-1 border-slate-100">
+            <button class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">Delete Lane</button>
+          </div>
+        </button>
+
+        <!-- Day 2 Tab -->
+        <button onclick="selectLane(this, 'day2')" class="lane-tab relative flex-shrink-0 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-button whitespace-nowrap group">
+          <span>Day 2</span>
+          <span class="ml-2 px-1.5 py-0.5 bg-slate-100 rounded text-xs">18</span>
+          <span onclick="event.stopPropagation(); toggleContextMenu('menu-day2')" class="ml-2 opacity-0 group-hover:opacity-100 hover:bg-slate-200 rounded p-0.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </span>
+          <div id="menu-day2" class="context-menu absolute top-full left-0 mt-1 w-40 bg-white border border-slate-200 rounded-card shadow-lg z-20 py-1">
+            <button class="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Rename</button>
+            <button class="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Renumber Shots</button>
+            <hr class="my-1 border-slate-100">
+            <button class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">Delete Lane</button>
+          </div>
+        </button>
+
+        <!-- Day 3 Tab -->
+        <button onclick="selectLane(this, 'day3')" class="lane-tab relative flex-shrink-0 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-button whitespace-nowrap group">
+          <span>Day 3</span>
+          <span class="ml-2 px-1.5 py-0.5 bg-slate-100 rounded text-xs">8</span>
+          <span onclick="event.stopPropagation(); toggleContextMenu('menu-day3')" class="ml-2 opacity-0 group-hover:opacity-100 hover:bg-slate-200 rounded p-0.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </span>
+          <div id="menu-day3" class="context-menu absolute top-full left-0 mt-1 w-40 bg-white border border-slate-200 rounded-card shadow-lg z-20 py-1">
+            <button class="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Rename</button>
+            <button class="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Renumber Shots</button>
+            <hr class="my-1 border-slate-100">
+            <button class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">Delete Lane</button>
+          </div>
+        </button>
+
+        <!-- Wrap Tab -->
+        <button onclick="selectLane(this, 'wrap')" class="lane-tab relative flex-shrink-0 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-button whitespace-nowrap group">
+          <span>Wrap</span>
+          <span class="ml-2 px-1.5 py-0.5 bg-slate-100 rounded text-xs">0</span>
+          <span onclick="event.stopPropagation(); toggleContextMenu('menu-wrap')" class="ml-2 opacity-0 group-hover:opacity-100 hover:bg-slate-200 rounded p-0.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </span>
+          <div id="menu-wrap" class="context-menu absolute top-full left-0 mt-1 w-40 bg-white border border-slate-200 rounded-card shadow-lg z-20 py-1">
+            <button class="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Rename</button>
+            <button class="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Renumber Shots</button>
+            <hr class="my-1 border-slate-100">
+            <button class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">Delete Lane</button>
+          </div>
+        </button>
+
+        <!-- Add Lane button -->
+        <button class="flex-shrink-0 inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-button border border-dashed border-slate-300">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          Add Lane
+        </button>
+      </div>
+
+      <!-- Scroll right button -->
+      <button class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Lane Content Area -->
+  <main class="p-6" style="min-height: calc(100vh - 280px);">
+    <!-- Drop zone hint -->
+    <div class="border-2 border-dashed border-slate-200 rounded-card p-4 mb-4 text-center text-sm text-slate-400">
+      Drag shots here to add to Day 1
+    </div>
+
+    <!-- Shot Cards Grid (Compact Cards) -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+
+      <!-- Compact Shot Card 1 -->
+      <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden cursor-pointer group">
+        <!-- Drag Handle -->
+        <div class="drag-handle px-2 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-center">
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="currentColor"><path d="M8 6h2v2H8V6zm0 4h2v2H8v-2zm0 4h2v2H8v-2zm6-8h2v2h-2V6zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2z"/></svg>
+        </div>
+        <!-- Thumbnail -->
+        <div class="aspect-square bg-slate-100 relative">
+          <img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=200&h=200&fit=crop" alt="Shot" class="w-full h-full object-cover">
+        </div>
+        <!-- Info -->
+        <div class="p-2">
+          <div class="flex items-center justify-between mb-1">
+            <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-01</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-500" title="Approved"></span>
+          </div>
+          <h4 class="text-xs font-medium text-slate-900 truncate">Hero Shot - Black Tee</h4>
+          <p class="text-xs text-slate-500 truncate mt-0.5">John D., Amy S.</p>
+          <p class="text-xs text-slate-400 truncate">Black Tee, Slim Jeans</p>
+          <p class="text-xs text-slate-400 mt-0.5">09:00 AM</p>
+          <!-- Quick actions on hover -->
+          <div class="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <select class="flex-1 text-xs border border-slate-200 rounded py-1 px-1">
+              <option>Approved</option>
+              <option>In Progress</option>
+              <option>Not Started</option>
+            </select>
+            <button class="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compact Shot Card 2 -->
+      <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden cursor-pointer group">
+        <div class="drag-handle px-2 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-center">
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="currentColor"><path d="M8 6h2v2H8V6zm0 4h2v2H8v-2zm0 4h2v2H8v-2zm6-8h2v2h-2V6zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2z"/></svg>
+        </div>
+        <div class="aspect-square bg-slate-100 relative">
+          <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=200&h=200&fit=crop" alt="Shot" class="w-full h-full object-cover">
+        </div>
+        <div class="p-2">
+          <div class="flex items-center justify-between mb-1">
+            <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-02</span>
+            <span class="w-2 h-2 rounded-full bg-amber-500" title="In Progress"></span>
+          </div>
+          <h4 class="text-xs font-medium text-slate-900 truncate">Lifestyle - Outdoor</h4>
+          <p class="text-xs text-slate-500 truncate mt-0.5">Mike R.</p>
+          <p class="text-xs text-slate-400 truncate">White Polo, Khakis</p>
+          <p class="text-xs text-slate-400 mt-0.5">10:30 AM</p>
+          <div class="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <select class="flex-1 text-xs border border-slate-200 rounded py-1 px-1">
+              <option>Approved</option>
+              <option selected>In Progress</option>
+              <option>Not Started</option>
+            </select>
+            <button class="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compact Shot Card 3 -->
+      <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden cursor-pointer group">
+        <div class="drag-handle px-2 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-center">
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="currentColor"><path d="M8 6h2v2H8V6zm0 4h2v2H8v-2zm0 4h2v2H8v-2zm6-8h2v2h-2V6zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2z"/></svg>
+        </div>
+        <div class="aspect-square bg-slate-100 relative">
+          <img src="https://images.unsplash.com/photo-1509631179647-0177331693ae?w=200&h=200&fit=crop" alt="Shot" class="w-full h-full object-cover">
+        </div>
+        <div class="p-2">
+          <div class="flex items-center justify-between mb-1">
+            <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-03</span>
+            <span class="w-2 h-2 rounded-full bg-slate-400" title="Not Started"></span>
+          </div>
+          <h4 class="text-xs font-medium text-slate-900 truncate">Detail - Collar Close-up</h4>
+          <p class="text-xs text-slate-500 truncate mt-0.5">Jane K.</p>
+          <p class="text-xs text-slate-400 truncate">Navy Blazer</p>
+          <p class="text-xs text-slate-400 mt-0.5">11:00 AM</p>
+          <div class="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <select class="flex-1 text-xs border border-slate-200 rounded py-1 px-1">
+              <option>Approved</option>
+              <option>In Progress</option>
+              <option selected>Not Started</option>
+            </select>
+            <button class="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compact Shot Card 4 -->
+      <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden cursor-pointer group">
+        <div class="drag-handle px-2 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-center">
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="currentColor"><path d="M8 6h2v2H8V6zm0 4h2v2H8v-2zm0 4h2v2H8v-2zm6-8h2v2h-2V6zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2z"/></svg>
+        </div>
+        <div class="aspect-square bg-slate-100 relative">
+          <img src="https://images.unsplash.com/photo-1445205170230-053b83016050?w=200&h=200&fit=crop" alt="Shot" class="w-full h-full object-cover">
+        </div>
+        <div class="p-2">
+          <div class="flex items-center justify-between mb-1">
+            <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-04</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-500" title="Approved"></span>
+          </div>
+          <h4 class="text-xs font-medium text-slate-900 truncate">Flat Lay - Accessories</h4>
+          <p class="text-xs text-slate-500 truncate mt-0.5">No Talent</p>
+          <p class="text-xs text-slate-400 truncate">Watch, Belt, Wallet</p>
+          <p class="text-xs text-slate-400 mt-0.5">02:00 PM</p>
+          <div class="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <select class="flex-1 text-xs border border-slate-200 rounded py-1 px-1">
+              <option selected>Approved</option>
+              <option>In Progress</option>
+              <option>Not Started</option>
+            </select>
+            <button class="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- More placeholder cards -->
+      <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden cursor-pointer group">
+        <div class="drag-handle px-2 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-center">
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="currentColor"><path d="M8 6h2v2H8V6zm0 4h2v2H8v-2zm0 4h2v2H8v-2zm6-8h2v2h-2V6zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2z"/></svg>
+        </div>
+        <div class="aspect-square bg-slate-100 relative">
+          <img src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=200&h=200&fit=crop" alt="Shot" class="w-full h-full object-cover">
+        </div>
+        <div class="p-2">
+          <div class="flex items-center justify-between mb-1">
+            <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-05</span>
+            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+          </div>
+          <h4 class="text-xs font-medium text-slate-900 truncate">Editorial - Window Light</h4>
+          <p class="text-xs text-slate-500 truncate mt-0.5">Amy S.</p>
+          <p class="text-xs text-slate-400 truncate">Cream Blouse</p>
+          <p class="text-xs text-slate-400 mt-0.5">03:30 PM</p>
+          <div class="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <select class="flex-1 text-xs border border-slate-200 rounded py-1 px-1">
+              <option>Approved</option>
+              <option selected>In Progress</option>
+              <option>Not Started</option>
+            </select>
+            <button class="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="shot-card bg-white border border-slate-200 rounded-card overflow-hidden cursor-pointer group">
+        <div class="drag-handle px-2 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-center">
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="currentColor"><path d="M8 6h2v2H8V6zm0 4h2v2H8v-2zm0 4h2v2H8v-2zm6-8h2v2h-2V6zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2z"/></svg>
+        </div>
+        <div class="aspect-square bg-slate-100 relative">
+          <img src="https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=200&h=200&fit=crop" alt="Shot" class="w-full h-full object-cover">
+        </div>
+        <div class="p-2">
+          <div class="flex items-center justify-between mb-1">
+            <span class="px-1.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded">1-06</span>
+            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+          </div>
+          <h4 class="text-xs font-medium text-slate-900 truncate">Campaign - Street Style</h4>
+          <p class="text-xs text-slate-500 truncate mt-0.5">John D.</p>
+          <p class="text-xs text-slate-400 truncate">Denim Jacket</p>
+          <p class="text-xs text-slate-400 mt-0.5">04:00 PM</p>
+          <div class="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <select class="flex-1 text-xs border border-slate-200 rounded py-1 px-1">
+              <option>Approved</option>
+              <option>In Progress</option>
+              <option selected>Not Started</option>
+            </select>
+            <button class="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Unassigned Shots Tray (Fixed at bottom) -->
+  <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg">
+    <div class="unassigned-tray expanded" id="unassignedTray">
+      <!-- Header (always visible) -->
+      <button onclick="toggleUnassigned()" class="w-full flex items-center justify-between px-6 py-3 hover:bg-slate-50">
+        <div class="flex items-center gap-3">
+          <svg id="unassignedIcon" class="w-5 h-5 text-slate-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+          <span class="font-medium text-slate-700">Unassigned Shots</span>
+          <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-sm font-medium rounded-full">10</span>
+        </div>
+        <span class="text-sm text-slate-500">Drag to a lane above to assign</span>
+      </button>
+
+      <!-- Content (collapsible) -->
+      <div class="px-6 pb-4 max-h-64 overflow-y-auto" id="unassignedContent">
+        <div class="grid grid-cols-6 gap-2">
+          <!-- Mini unassigned cards -->
+          <div class="bg-slate-50 border border-slate-200 rounded p-2 cursor-grab hover:bg-slate-100">
+            <div class="aspect-square bg-slate-200 rounded mb-1 overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1551028719-00167b16eac5?w=100&h=100&fit=crop" alt="" class="w-full h-full object-cover">
+            </div>
+            <p class="text-xs text-slate-600 truncate font-medium">New Shot A</p>
+            <p class="text-xs text-slate-400 truncate">Mike R.</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded p-2 cursor-grab hover:bg-slate-100">
+            <div class="aspect-square bg-slate-200 rounded mb-1 overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?w=100&h=100&fit=crop" alt="" class="w-full h-full object-cover">
+            </div>
+            <p class="text-xs text-slate-600 truncate font-medium">New Shot B</p>
+            <p class="text-xs text-slate-400 truncate">Jane K.</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded p-2 cursor-grab hover:bg-slate-100">
+            <div class="aspect-square bg-slate-200 rounded mb-1 overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=100&h=100&fit=crop" alt="" class="w-full h-full object-cover">
+            </div>
+            <p class="text-xs text-slate-600 truncate font-medium">New Shot C</p>
+            <p class="text-xs text-slate-400 truncate">Amy S.</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded p-2 cursor-grab hover:bg-slate-100">
+            <div class="aspect-square bg-slate-200 rounded mb-1"></div>
+            <p class="text-xs text-slate-600 truncate font-medium">New Shot D</p>
+            <p class="text-xs text-slate-400 truncate">No image</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded p-2 cursor-grab hover:bg-slate-100">
+            <div class="aspect-square bg-slate-200 rounded mb-1"></div>
+            <p class="text-xs text-slate-600 truncate font-medium">New Shot E</p>
+            <p class="text-xs text-slate-400 truncate">No image</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded p-2 cursor-grab hover:bg-slate-100">
+            <div class="aspect-square bg-slate-200 rounded mb-1"></div>
+            <p class="text-xs text-slate-600 truncate font-medium">New Shot F</p>
+            <p class="text-xs text-slate-400 truncate">No image</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Lane tab selection
+    function selectLane(btn, laneId) {
+      // Close any open context menus
+      document.querySelectorAll('.context-menu').forEach(m => m.classList.remove('show'));
+
+      // Update tab styles
+      document.querySelectorAll('.lane-tab').forEach(tab => {
+        tab.classList.remove('bg-primary', 'text-white');
+        tab.classList.add('text-slate-600', 'hover:bg-slate-100');
+        const badge = tab.querySelector('span:nth-child(2)');
+        if (badge) {
+          badge.classList.remove('bg-white/20');
+          badge.classList.add('bg-slate-100');
+        }
+      });
+
+      btn.classList.add('bg-primary', 'text-white');
+      btn.classList.remove('text-slate-600', 'hover:bg-slate-100');
+      const badge = btn.querySelector('span:nth-child(2)');
+      if (badge) {
+        badge.classList.add('bg-white/20');
+        badge.classList.remove('bg-slate-100');
+      }
+    }
+
+    // Context menu toggle
+    function toggleContextMenu(menuId) {
+      const menu = document.getElementById(menuId);
+      document.querySelectorAll('.context-menu').forEach(m => {
+        if (m.id !== menuId) m.classList.remove('show');
+      });
+      menu.classList.toggle('show');
+    }
+
+    // Close context menus on click outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.lane-tab')) {
+        document.querySelectorAll('.context-menu').forEach(m => m.classList.remove('show'));
+      }
+    });
+
+    // Unassigned tray toggle
+    function toggleUnassigned() {
+      const tray = document.getElementById('unassignedTray');
+      const icon = document.getElementById('unassignedIcon');
+      const content = document.getElementById('unassignedContent');
+
+      if (tray.classList.contains('expanded')) {
+        tray.classList.remove('expanded');
+        tray.classList.add('collapsed');
+        icon.classList.add('rotate-180');
+        content.style.display = 'none';
+      } else {
+        tray.classList.remove('collapsed');
+        tray.classList.add('expanded');
+        icon.classList.remove('rotate-180');
+        content.style.display = 'block';
+      }
+    }
+  </script>
+
+</body>
+</html>
