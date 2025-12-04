@@ -35,8 +35,8 @@ import {
   SECTION_TYPES,
   getVisibleSections,
 } from "../../lib/plannerSheetSections";
-import useImagePreloader from "../../hooks/useImagePreloader";
-import ExportImageStatus from "../export/ExportImageStatus";
+import useImageExportWorker from "../../hooks/useImageExportWorker";
+import ExportProgressModal from "../export/ExportProgressModal";
 
 const styles = StyleSheet.create({
   page: {
@@ -1212,10 +1212,12 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
       <View key={shotKey} style={styles.tableDataRow} wrap={false}>
         {showImage && (
           <View style={styles.tableImageCell}>
-            {shot?.image ? (
+            {shot?.image && shot.image !== '__PREVIEW_PLACEHOLDER__' ? (
               <Image src={shot.image} style={styles.tableImage} />
             ) : (
-              <View style={{ width: 50, height: 50, backgroundColor: '#f1f5f9', borderRadius: 2 }} />
+              <View style={{ width: 50, height: 50, backgroundColor: '#e2e8f0', borderRadius: 2, justifyContent: 'center', alignItems: 'center' }}>
+                {shot?._hasImage && <Text style={{ fontSize: 6, color: '#94a3b8' }}>IMG</Text>}
+              </View>
             )}
           </View>
         )}
@@ -1329,11 +1331,20 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
         leftColumnStyles.push(styles.listColumnFull);
       }
 
+      // Check if image is a real image or a preview placeholder
+      const hasRealImage = hasImage && shot.image !== '__PREVIEW_PLACEHOLDER__';
+
       return (
         <View key={shotKey} style={cardStyle} wrap={false}>
           <View style={styles.listRow}>
             <View style={leftColumnStyles}>
-              {hasImage ? <Image src={shot.image} style={shotImageStyle} /> : null}
+              {hasRealImage ? (
+                <Image src={shot.image} style={shotImageStyle} />
+              ) : hasImage ? (
+                <View style={[shotImageStyle, { backgroundColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center' }]}>
+                  <Text style={{ fontSize: 8, color: '#94a3b8' }}>Image Preview</Text>
+                </View>
+              ) : null}
               {shotTitle ? <Text style={styles.shotTitle}>{shotTitle}</Text> : null}
               {leftItems.map((item, itemIndex) => renderDetailItem(item, itemIndex))}
             </View>
@@ -1402,12 +1413,21 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
       })
     );
 
+    // Check if image is a real image or a preview placeholder for gallery
+    const hasRealGalleryImage = hasImage && shot.image !== '__PREVIEW_PLACEHOLDER__';
+
     return (
       <View key={shotKey} style={cardStyle} wrap={false}>
         {hasShotNumber ? (
           <Text style={[styles.shotNumberBadge, styles.galleryShotNumber]}>{shotNumber}</Text>
         ) : null}
-        {hasImage ? <Image src={shot.image} style={shotImageStyle} /> : null}
+        {hasRealGalleryImage ? (
+          <Image src={shot.image} style={shotImageStyle} />
+        ) : hasImage ? (
+          <View style={[shotImageStyle, { backgroundColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center' }]}>
+            <Text style={{ fontSize: 8, color: '#94a3b8' }}>Image Preview</Text>
+          </View>
+        ) : null}
         {shotTitle ? <Text style={titleStyle}>{shotTitle}</Text> : null}
         {galleryItemsWithSizing.length ? (
           <View style={[styles.detailStack, styles.galleryDetailStack]}>
@@ -1722,25 +1742,9 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
 
             return true;
           })
-          .map((shot) => {
-            // Debug: Log what image field already exists from buildPlannerExportLanes
-            if (shot.image) {
-              console.log('[PlannerExportModal] Shot already has image:', shot.image);
-            } else {
-              const primaryAttachment = getPrimaryAttachment(shot.attachments);
-              console.log('[PlannerExportModal] Shot missing image:', {
-                shotName: shot.name,
-                hasAttachments: !!shot.attachments?.length,
-                hasPrimaryAttachment: !!primaryAttachment,
-                hasReferenceImagePath: !!shot.referenceImagePath,
-                hasImageUrl: !!shot.imageUrl,
-              });
-            }
-
-            // The image should already be set by buildPlannerExportLanes
-            // Just return the shot as-is
-            return shot;
-          });
+          // The image should already be set by buildPlannerExportLanes
+          // Just return the shots as-is
+          ;
 
         return {
           ...lane,
@@ -1782,23 +1786,18 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     });
   }, [filteredLanes, includeImages, fallbackToProductImages]);
 
-  // Image preloading for reliable PDF export
+  // Image processing for PDF export - only runs when user clicks Download
+  // This is the key change: images are NOT processed during preview
   const {
-    isLoading: isPreloadingImages,
-    progress: imageProgress,
-    isReadyForExport: imagesReadyForExport,
-    failedImages,
-    retryImage,
-    skipImage,
-    skipAllFailed,
-    retryAllFailed,
-    getImageDataMap,
-  } = useImagePreloader(
-    lanesWithImageFallback,
-    includeImages && inlineImages, // Only preload if both images are enabled and we're inlining
-    fallbackToProductImages,
-    { density, enabled: open } // Only preload when modal is open
-  );
+    processImagesForExport,
+    cancelProcessing,
+    resetProgress,
+    progress: exportProgress,
+    isProcessing: isExportingWithImages,
+  } = useImageExportWorker();
+
+  // State for showing export progress modal
+  const [showExportProgress, setShowExportProgress] = useState(false);
 
   // Flatten all shots from filtered lanes for preview
   const filteredShots = useMemo(() => {
@@ -1912,35 +1911,32 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     ]
   );
 
-  // Prepare lanes for preview with preloaded images
+  // Prepare lanes for preview - NO image processing happens here
+  // Preview shows placeholder indicators for images to keep UI responsive
+  // Actual image processing only happens when user clicks "Export PDF"
   const previewLanes = useMemo(() => {
-    const shouldIncludeImages = Boolean(fields.image);
-    if (!shouldIncludeImages || !inlineImages) {
-      // No images or not inlining - strip images for preview
-      return lanesWithImageFallback.map((lane) => {
-        const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
-        const shots = laneShots.map((shot) => ({ ...shot, image: null }));
-        return { ...lane, shots };
-      });
-    }
+    const shouldShowImages = Boolean(fields.image);
 
-    // Use preloaded images
-    const imageDataMap = getImageDataMap();
+    // For preview, we use a special marker to indicate where images would appear
+    // This keeps the preview lightweight and responsive
     return lanesWithImageFallback.map((lane) => {
       const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
       const shots = laneShots.map((shot) => {
         const preparedShot = { ...shot };
-        const shotId = shot?.id ? String(shot.id) : null;
-        if (shotId && imageDataMap.has(shotId)) {
-          preparedShot.image = imageDataMap.get(shotId);
+        if (shouldShowImages && shot?.image) {
+          // Mark that this shot HAS an image, but don't include the actual data
+          // The PDF renderer will show a placeholder
+          preparedShot.image = '__PREVIEW_PLACEHOLDER__';
+          preparedShot._hasImage = true;
         } else {
           preparedShot.image = null;
+          preparedShot._hasImage = false;
         }
         return preparedShot;
       });
       return { ...lane, shots };
     });
-  }, [lanesWithImageFallback, fields.image, inlineImages, getImageDataMap]);
+  }, [lanesWithImageFallback, fields.image]);
 
   // Debounced preview document to prevent excessive PDF regeneration
   // while user is actively changing settings
@@ -2021,16 +2017,38 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       toast.error("No shots match your current filters.");
       return;
     }
+
+    const shouldIncludeImages = Boolean(fields.image);
+
     try {
       setIsGenerating(true);
-      const shouldIncludeImages = Boolean(fields.image);
-      setGenerationStage("Preparing export…");
-
-      // Use preloaded images if inlining, otherwise fall back to original logic
       let preparedLanes;
+
+      // If images are enabled and we're inlining, process them with Web Worker
       if (shouldIncludeImages && inlineImages) {
-        // Use already-preloaded images from the hook
-        const imageDataMap = getImageDataMap();
+        // Show progress modal for image processing
+        setShowExportProgress(true);
+        resetProgress();
+
+        // Process images using Web Worker (off main thread)
+        const { imageDataMap, successCount, failedCount } = await processImagesForExport(
+          lanesWithImageFallback,
+          density,
+          fallbackToProductImages
+        );
+
+        if (failedCount > 0 && successCount === 0) {
+          toast.error("Failed to load any images. Try exporting without images.");
+          setShowExportProgress(false);
+          setIsGenerating(false);
+          return;
+        }
+
+        if (failedCount > 0) {
+          toast.warning(`${failedCount} images failed to load and will be skipped.`);
+        }
+
+        // Prepare lanes with processed image data
         preparedLanes = lanesWithImageFallback.map((lane) => {
           const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
           const shots = laneShots.map((shot) => {
@@ -2039,7 +2057,6 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
             if (shotId && imageDataMap.has(shotId)) {
               preparedShot.image = imageDataMap.get(shotId);
             } else {
-              // Image was not successfully loaded or was skipped
               preparedShot.image = null;
             }
             return preparedShot;
@@ -2058,6 +2075,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
         });
       }
 
+      // Generate PDF (this is fast since images are already processed)
       setGenerationStage("Rendering PDF…");
       const blob = await pdf(
         <PlannerPdfDocument
@@ -2067,6 +2085,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
           options={selectedOptions}
         />
       ).toBlob();
+
+      // Download the PDF
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -2076,11 +2096,14 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+
       toast.success("PDF export saved");
+      setShowExportProgress(false);
       onClose?.();
     } catch (error) {
       console.error("[Planner] Failed to export PDF", error);
       toast.error("Unable to generate PDF export");
+      setShowExportProgress(false);
     } finally {
       setIsGenerating(false);
       setGenerationStage("");
@@ -2095,7 +2118,10 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     onClose,
     fields.image,
     inlineImages,
-    getImageDataMap,
+    processImagesForExport,
+    resetProgress,
+    density,
+    fallbackToProductImages,
   ]);
 
   const handleDownloadCsv = useCallback(() => {
@@ -2199,12 +2225,11 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
 
           <Button
             onClick={handleDownloadPdf}
-            disabled={!hasShots || isLoading || isGenerating || !imagesReadyForExport}
+            disabled={!hasShots || isLoading || isGenerating}
             className="gap-2"
-            title={!imagesReadyForExport ? "Waiting for images to load" : undefined}
           >
             <FileDown className="w-4 h-4" />
-            {isGenerating ? "Exporting..." : isPreloadingImages ? "Loading images..." : "Export PDF"}
+            {isGenerating ? "Exporting..." : "Export PDF"}
           </Button>
         </div>
       </div>
@@ -2217,21 +2242,6 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
             style={{ width: showPreview ? `${dividerPosition}%` : '100%' }}
           >
             <div className="p-6 space-y-6">
-              {/* Image Loading Status */}
-              {includeImages && inlineImages && (
-                <ExportImageStatus
-                  isLoading={isPreloadingImages}
-                  progress={imageProgress}
-                  failedImages={failedImages}
-                  isReadyForExport={imagesReadyForExport}
-                  onRetry={retryImage}
-                  onSkip={skipImage}
-                  onSkipAll={skipAllFailed}
-                  onRetryAll={retryAllFailed}
-                  includeImages={includeImages}
-                />
-              )}
-
               {/* Document Settings */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Document Settings</h3>
@@ -2633,6 +2643,17 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
             </div>
           )}
         </div>
+
+        {/* Export Progress Modal - shown during image processing */}
+        <ExportProgressModal
+          open={showExportProgress}
+          progress={exportProgress}
+          onCancel={() => {
+            cancelProcessing();
+            setShowExportProgress(false);
+            setIsGenerating(false);
+          }}
+        />
       </div>
   );
 };

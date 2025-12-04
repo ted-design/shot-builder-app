@@ -75,12 +75,15 @@ interface Lane {
 const loadImage = async (
   source: string,
   cropPosition: { x: number; y: number },
-  dimensions: { width: number; height: number }
+  dimensions: { width: number; height: number },
+  signal?: AbortSignal
 ): Promise<string> => {
   // Step 1: Resolve storage path to URL (this doesn't fetch, just gets the URL)
   let imageUrl: string;
   try {
-    const result = await resolveImageSource(source);
+    const result = await resolveImageSource(source, {
+      signal,
+    });
     imageUrl = result.url;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -233,10 +236,11 @@ export function useImagePreloader(
     shotId: string,
     source: string,
     cropPosition: { x: number; y: number },
-    existingRetryCount: number = 0
+    existingRetryCount: number = 0,
+    signal?: AbortSignal
   ): Promise<{ success: boolean; dataUrl: string | null; error: string | null }> => {
     try {
-      const dataUrl = await loadImage(source, cropPosition, dimensions);
+      const dataUrl = await loadImage(source, cropPosition, dimensions, signal);
       return { success: true, dataUrl, error: null };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -307,11 +311,13 @@ export function useImagePreloader(
 
         if (abortControllerRef.current?.signal.aborted) break;
 
+        const signal = abortControllerRef.current?.signal;
         const result = await loadSingleImage(
           shot.shotId,
           shot.source,
           shot.cropPosition,
-          0
+          0,
+          signal
         );
 
         // Accumulate results instead of updating state per-image
@@ -400,7 +406,8 @@ export function useImagePreloader(
       shotId,
       shot.source,
       shot.cropPosition,
-      entry.retryCount
+      entry.retryCount,
+      abortControllerRef.current?.signal || undefined
     );
 
     setImages((prev) => {
