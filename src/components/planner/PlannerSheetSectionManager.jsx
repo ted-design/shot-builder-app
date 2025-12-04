@@ -23,10 +23,31 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Eye, EyeOff } from 'lucide-react';
 import {
   SECTION_CONFIG,
+  SECTION_TYPES,
   getSortedSections,
   LAYOUT_PRESETS,
 } from '../../lib/plannerSheetSections';
 import { toast } from '../../lib/toast';
+
+// Define combined section groups that appear as single entries in the PDF
+const COMBINED_SECTIONS = {
+  SHOT_COMBINED: {
+    id: 'SHOT_COMBINED',
+    label: 'Shot',
+    description: 'Shot number and title (combined in PDF)',
+    sections: [SECTION_TYPES.SHOT_NUMBER, SECTION_TYPES.SHOT_NAME],
+    icon: SECTION_CONFIG[SECTION_TYPES.SHOT_NUMBER]?.icon,
+    category: 'columns',
+  },
+  DATE_LOC_COMBINED: {
+    id: 'DATE_LOC_COMBINED',
+    label: 'Date/Location',
+    description: 'Date and location (combined in PDF)',
+    sections: [SECTION_TYPES.DATE, SECTION_TYPES.LOCATION],
+    icon: SECTION_CONFIG[SECTION_TYPES.DATE]?.icon,
+    category: 'columns',
+  },
+};
 
 /**
  * Individual sortable section item
@@ -48,8 +69,15 @@ function SortableSection({ section, sectionState, onToggle, onFlexChange }) {
   };
 
   const IconComponent = section.icon;
-  const isVisible = sectionState?.visible !== false;
+  // For combined sections, use the combined visibility; otherwise regular
+  const isVisible = section.isCombined
+    ? section.combinedVisible
+    : sectionState?.visible !== false;
   const isRequired = section.required;
+  // For combined sections, use combined flex; otherwise regular
+  const currentFlex = section.isCombined
+    ? section.combinedFlex
+    : (sectionState?.flex ?? section.flex ?? 1);
 
   return (
     <div
@@ -110,9 +138,9 @@ function SortableSection({ section, sectionState, onToggle, onFlexChange }) {
           <input
             type="number"
             min="0.5"
-            max="3"
+            max={section.isCombined ? 6 : 3}
             step="0.1"
-            value={sectionState?.flex ?? section.flex ?? 1}
+            value={currentFlex}
             onChange={(e) => onFlexChange(section.id, parseFloat(e.target.value) || 1)}
             className="w-16 px-2 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
             onClick={(e) => e.stopPropagation()}
@@ -166,15 +194,71 @@ export default function PlannerSheetSectionManager({
     })
   );
 
-  // Get sorted sections based on current order
-  const sections = getSortedSections(SECTION_CONFIG).map((section) => {
-    const state = sectionStates[section.id] || {};
-    return {
-      ...section,
-      order: state.order ?? section.order,
-    };
-  }).sort((a, b) => a.order - b.order);
+  // IDs that are part of combined sections
+  const combinedSectionIds = new Set(
+    Object.values(COMBINED_SECTIONS).flatMap(c => c.sections)
+  );
 
+  // Get sorted sections based on current order, consolidating combined sections
+  const buildConsolidatedSections = () => {
+    const allSections = getSortedSections(SECTION_CONFIG);
+    const result = [];
+    const processed = new Set();
+
+    allSections.forEach((section) => {
+      if (processed.has(section.id)) return;
+
+      // Check if this section is part of a combined group
+      const combinedGroup = Object.values(COMBINED_SECTIONS).find(
+        c => c.sections.includes(section.id)
+      );
+
+      if (combinedGroup) {
+        // Only add combined group once
+        if (!processed.has(combinedGroup.id)) {
+          processed.add(combinedGroup.id);
+          combinedGroup.sections.forEach(id => processed.add(id));
+
+          // Check if any section in the group is visible
+          const anyVisible = combinedGroup.sections.some(
+            id => sectionStates[id]?.visible !== false
+          );
+
+          // Get the combined flex (sum of individual flex values)
+          const combinedFlex = combinedGroup.sections.reduce((sum, id) => {
+            const sectionConfig = SECTION_CONFIG[id];
+            return sum + (sectionStates[id]?.flex ?? sectionConfig?.flex ?? 1);
+          }, 0);
+
+          // Use the first section's order for the combined group
+          const firstSectionId = combinedGroup.sections[0];
+          const firstSectionOrder = sectionStates[firstSectionId]?.order ??
+            SECTION_CONFIG[firstSectionId]?.order ?? 0;
+
+          result.push({
+            ...combinedGroup,
+            order: firstSectionOrder,
+            isCombined: true,
+            combinedVisible: anyVisible,
+            combinedFlex,
+          });
+        }
+      } else {
+        // Regular section
+        processed.add(section.id);
+        const state = sectionStates[section.id] || {};
+        result.push({
+          ...section,
+          order: state.order ?? section.order,
+          isCombined: false,
+        });
+      }
+    });
+
+    return result.sort((a, b) => a.order - b.order);
+  };
+
+  const sections = buildConsolidatedSections();
   const sectionIds = sections.map(s => s.id);
 
   /**
@@ -203,9 +287,32 @@ export default function PlannerSheetSectionManager({
   };
 
   /**
-   * Toggle section visibility
+   * Toggle section visibility (handles combined sections)
    */
   const handleToggle = (sectionId) => {
+    // Check if this is a combined section
+    const combinedGroup = COMBINED_SECTIONS[sectionId];
+
+    if (combinedGroup) {
+      // Toggle all sections in the combined group
+      const anyVisible = combinedGroup.sections.some(
+        id => sectionStates[id]?.visible !== false
+      );
+      const newVisible = !anyVisible;
+
+      const newStates = { ...sectionStates };
+      combinedGroup.sections.forEach(id => {
+        newStates[id] = {
+          ...newStates[id],
+          visible: newVisible,
+        };
+      });
+
+      onSectionStatesChange(newStates);
+      return;
+    }
+
+    // Regular section
     const section = SECTION_CONFIG[sectionId];
     if (section?.required) return; // Can't toggle required sections
 
@@ -221,9 +328,35 @@ export default function PlannerSheetSectionManager({
   };
 
   /**
-   * Update column flex width
+   * Update column flex width (handles combined sections)
    */
   const handleFlexChange = (sectionId, flex) => {
+    // Check if this is a combined section
+    const combinedGroup = COMBINED_SECTIONS[sectionId];
+
+    if (combinedGroup) {
+      // Distribute the new flex proportionally to underlying sections
+      const currentTotal = combinedGroup.sections.reduce((sum, id) => {
+        const sectionConfig = SECTION_CONFIG[id];
+        return sum + (sectionStates[id]?.flex ?? sectionConfig?.flex ?? 1);
+      }, 0);
+
+      const newStates = { ...sectionStates };
+      combinedGroup.sections.forEach(id => {
+        const sectionConfig = SECTION_CONFIG[id];
+        const currentFlex = sectionStates[id]?.flex ?? sectionConfig?.flex ?? 1;
+        const proportion = currentFlex / currentTotal;
+        newStates[id] = {
+          ...newStates[id],
+          flex: Math.round(flex * proportion * 10) / 10, // Round to 1 decimal
+        };
+      });
+
+      onSectionStatesChange(newStates);
+      return;
+    }
+
+    // Regular section
     const newStates = {
       ...sectionStates,
       [sectionId]: {

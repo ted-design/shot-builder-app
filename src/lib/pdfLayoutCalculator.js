@@ -309,3 +309,109 @@ export function getLayoutSummary(layout, totalCards) {
     pageDimensions: layout.pageDimensions,
   };
 }
+
+/**
+ * Calculate page break indices for shots in HTML preview
+ *
+ * @param {Array} shots - Array of shot objects to layout
+ * @param {Object} config - Export configuration
+ * @param {string} config.layoutMode - 'gallery' or 'table'
+ * @param {string} config.density - 'compact', 'standard', or 'detailed'
+ * @param {string} config.orientation - 'portrait' or 'landscape'
+ * @param {boolean} config.includeImages - Whether images are included
+ * @returns {Object} Page break information
+ */
+export function calculatePageBreaks(shots, config = {}) {
+  const {
+    layoutMode = 'table',
+    density = 'standard',
+    orientation = 'portrait',
+    includeImages = true,
+  } = config;
+
+  if (!shots || shots.length === 0) {
+    return {
+      breakIndices: [],
+      totalPages: 1,
+      shotsPerPage: 0,
+    };
+  }
+
+  const totalShots = shots.length;
+
+  if (layoutMode === 'gallery') {
+    // Use gallery layout calculator
+    const layout = calculateLayout(density, totalShots, orientation);
+    const breakIndices = [];
+
+    for (let i = layout.cardsPerPage; i < totalShots; i += layout.cardsPerPage) {
+      breakIndices.push(i);
+    }
+
+    return {
+      breakIndices,
+      totalPages: layout.totalPages,
+      shotsPerPage: layout.cardsPerPage,
+      columns: layout.columns,
+      rows: layout.rows,
+    };
+  }
+
+  // Table mode calculations
+  // Estimate rows per page based on density and orientation
+  const usableArea = getUsableArea(orientation);
+
+  // Estimated row height based on density and whether images are included
+  let rowHeight;
+  if (includeImages) {
+    rowHeight = {
+      compact: 60,   // Image + minimal text
+      standard: 75,  // Image + standard text
+      detailed: 90,  // Image + detailed text
+    }[density] || 75;
+  } else {
+    rowHeight = {
+      compact: 24,   // Text only
+      standard: 32,  // Text with more spacing
+      detailed: 40,  // Text with full details
+    }[density] || 32;
+  }
+
+  // Account for header row and some padding
+  const headerHeight = 40;
+  const availableHeight = usableArea.height - headerHeight;
+  const rowsPerPage = Math.floor(availableHeight / rowHeight);
+
+  const breakIndices = [];
+  for (let i = rowsPerPage; i < totalShots; i += rowsPerPage) {
+    breakIndices.push(i);
+  }
+
+  const totalPages = Math.ceil(totalShots / rowsPerPage);
+
+  return {
+    breakIndices,
+    totalPages,
+    shotsPerPage: rowsPerPage,
+    rowHeight,
+  };
+}
+
+/**
+ * Get page number for a shot at given index
+ *
+ * @param {number} shotIndex - Index of the shot
+ * @param {Array} breakIndices - Array of break indices from calculatePageBreaks
+ * @returns {number} Page number (1-based)
+ */
+export function getPageForShot(shotIndex, breakIndices) {
+  let page = 1;
+  for (const breakIndex of breakIndices) {
+    if (shotIndex >= breakIndex) {
+      page++;
+    } else {
+      break;
+    }
+  }
+  return page;
+}
