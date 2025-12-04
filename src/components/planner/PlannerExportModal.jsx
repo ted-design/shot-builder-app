@@ -26,7 +26,7 @@ import { processImageForPDF, getOptimalImageDimensions } from "../../lib/pdfImag
 import { getPrimaryAttachment } from "../../lib/imageHelpers";
 import { FileDown, Eye, X, GripVertical } from "lucide-react";
 import PlannerSheetSectionManager from "./PlannerSheetSectionManager";
-import PlannerSheetPreview from "./PlannerSheetPreview";
+import PdfPagePreview from "../export/PdfPagePreview";
 import {
   getDefaultSectionConfig,
   exportSettingsToSectionConfig,
@@ -35,6 +35,8 @@ import {
   SECTION_TYPES,
   getVisibleSections,
 } from "../../lib/plannerSheetSections";
+import useImagePreloader from "../../hooks/useImagePreloader";
+import ExportImageStatus from "../export/ExportImageStatus";
 
 const styles = StyleSheet.create({
   page: {
@@ -632,7 +634,7 @@ const BLOCK_TAGS = new Set([
   "hr",
 ]);
 
-const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
+const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, options }) => {
   const orientation = options.orientation === "landscape" ? "landscape" : "portrait";
   const layout = options.layout === "gallery" ? "gallery" : "table"; // treat non-gallery as table
   const densityId = options.density || "standard";
@@ -645,8 +647,8 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
   const visibleFields = options.fields || {};
   const customLabels = options.customLabels || {};
 
-  // Convert fields to sectionStates for table rendering
-  const sectionStates = exportSettingsToSectionConfig(visibleFields);
+  // Use sectionStates from options if available (includes flex values), otherwise fallback
+  const sectionStates = options.sectionStates || exportSettingsToSectionConfig(visibleFields);
 
   const showLaneSummary = options.includeLaneSummary && laneSummary?.lanes?.length;
   const showTalentSummary = options.includeTalentSummary && talentSummary?.rows?.length;
@@ -1037,14 +1039,85 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
     );
   };
 
+  // Process columns for table view - consolidates Shot Number + Title into "Shot"
+  // and Date + Location into "Date/Loc"
+  const getTableColumnLayout = (sectionStates) => {
+    const visibleSections = getVisibleSections(sectionStates);
+    const columnSections = visibleSections.filter(s => s.category === 'columns' && s.id !== SECTION_TYPES.IMAGE);
+
+    // Track which sections we've processed
+    const processed = new Set();
+    const consolidatedColumns = [];
+
+    // Check visibility for combined columns
+    const showShotNumber = sectionStates[SECTION_TYPES.SHOT_NUMBER]?.visible !== false;
+    const showShotName = sectionStates[SECTION_TYPES.SHOT_NAME]?.visible !== false;
+    const showDate = sectionStates[SECTION_TYPES.DATE]?.visible !== false;
+    const showLocation = sectionStates[SECTION_TYPES.LOCATION]?.visible !== false;
+
+    for (const section of columnSections) {
+      if (processed.has(section.id)) continue;
+
+      // Consolidate Shot Number + Shot Name into "Shot" column
+      if (section.id === SECTION_TYPES.SHOT_NUMBER || section.id === SECTION_TYPES.SHOT_NAME) {
+        if (!processed.has('SHOT_COMBINED') && (showShotNumber || showShotName)) {
+          processed.add('SHOT_COMBINED');
+          processed.add(SECTION_TYPES.SHOT_NUMBER);
+          processed.add(SECTION_TYPES.SHOT_NAME);
+          consolidatedColumns.push({
+            id: 'SHOT_COMBINED',
+            label: 'Shot',
+            flex: (showShotNumber ? (sectionStates[SECTION_TYPES.SHOT_NUMBER]?.flex ?? 0.8) : 0) +
+                  (showShotName ? (sectionStates[SECTION_TYPES.SHOT_NAME]?.flex ?? 2) : 0),
+            isCombined: true,
+            showNumber: showShotNumber,
+            showTitle: showShotName,
+          });
+        }
+        continue;
+      }
+
+      // Consolidate Date + Location into "Date/Loc" column
+      if (section.id === SECTION_TYPES.DATE || section.id === SECTION_TYPES.LOCATION) {
+        if (!processed.has('DATE_LOC_COMBINED') && (showDate || showLocation)) {
+          processed.add('DATE_LOC_COMBINED');
+          processed.add(SECTION_TYPES.DATE);
+          processed.add(SECTION_TYPES.LOCATION);
+          consolidatedColumns.push({
+            id: 'DATE_LOC_COMBINED',
+            label: 'Date/Loc',
+            flex: (showDate ? (sectionStates[SECTION_TYPES.DATE]?.flex ?? 1) : 0) +
+                  (showLocation ? (sectionStates[SECTION_TYPES.LOCATION]?.flex ?? 1.5) : 0),
+            isCombined: true,
+            showDate: showDate,
+            showLocation: showLocation,
+          });
+        }
+        continue;
+      }
+
+      // Regular columns pass through
+      processed.add(section.id);
+      consolidatedColumns.push({
+        id: section.id,
+        label: section.label,
+        flex: sectionStates[section.id]?.flex ?? section.flex ?? 1,
+        isCombined: false,
+        section: section,
+      });
+    }
+
+    return consolidatedColumns;
+  };
+
   // Render table header row with column labels
   const renderTableHeaderRow = (sectionStates, customLabels = {}) => {
     const visibleSections = getVisibleSections(sectionStates);
     const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
 
-    // Calculate column widths (simplified approach for PDF)
-    const columnSections = visibleSections.filter(s => s.category === 'columns' && s.id !== SECTION_TYPES.IMAGE);
-    const totalFlex = columnSections.reduce((sum, s) => sum + (sectionStates[s.id]?.flex ?? s.flex ?? 1), 0);
+    // Get consolidated column layout
+    const columns = getTableColumnLayout(sectionStates);
+    const totalFlex = columns.reduce((sum, col) => sum + col.flex, 0);
 
     return (
       <View style={styles.tableHeaderRow} wrap={false}>
@@ -1053,13 +1126,15 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
             <Text style={styles.tableHeaderCell}>{customLabels[SECTION_TYPES.IMAGE] || 'IMAGE'}</Text>
           </View>
         )}
-        {columnSections.map(section => {
-          const flex = sectionStates[section.id]?.flex ?? section.flex ?? 1;
-          const width = `${((flex / totalFlex) * 100).toFixed(2)}%`;
-          const label = customLabels[section.id] || section.label;
+        {columns.map(column => {
+          const width = `${((column.flex / totalFlex) * 100).toFixed(2)}%`;
+          // For combined columns, use fixed label; for regular, allow custom labels
+          const label = column.isCombined
+            ? column.label
+            : (customLabels[column.id] || column.label);
 
           return (
-            <View key={section.id} style={{ width, flexShrink: 0 }}>
+            <View key={column.id} style={{ width, flexShrink: 0 }}>
               <Text style={styles.tableHeaderCell}>{label.toUpperCase()}</Text>
             </View>
           );
@@ -1074,27 +1149,40 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
     const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
     const shotKey = shot?.id || index;
 
-    // Calculate column widths (same as header)
-    const columnSections = visibleSections.filter(s => s.category === 'columns' && s.id !== SECTION_TYPES.IMAGE);
-    const totalFlex = columnSections.reduce((sum, s) => sum + (sectionStates[s.id]?.flex ?? s.flex ?? 1), 0);
+    // Get consolidated column layout (same as header)
+    const columns = getTableColumnLayout(sectionStates);
+    const totalFlex = columns.reduce((sum, col) => sum + col.flex, 0);
 
-    // Render cell content based on section type
-    const renderCellContent = (section) => {
-      switch (section.id) {
-        case SECTION_TYPES.SHOT_NUMBER:
-          return shot.shotNumber || '-';
+    // Render cell content based on column type
+    const renderCellContent = (column) => {
+      // Handle combined Shot column (number + title)
+      if (column.id === 'SHOT_COMBINED') {
+        const lines = [];
+        if (column.showNumber && shot.shotNumber) {
+          lines.push(shot.shotNumber);
+        }
+        if (column.showTitle) {
+          lines.push(shot.name || 'Untitled Shot');
+        }
+        return lines.length > 0 ? lines.join('\n') : '-';
+      }
 
-        case SECTION_TYPES.SHOT_NAME:
-          return shot.name || 'Untitled Shot';
+      // Handle combined Date/Location column
+      if (column.id === 'DATE_LOC_COMBINED') {
+        const lines = [];
+        if (column.showDate && shot.date) {
+          lines.push(shot.date);
+        }
+        if (column.showLocation && shot.location) {
+          lines.push(shot.location);
+        }
+        return lines.length > 0 ? lines.join('\n') : '-';
+      }
 
+      // Regular columns
+      switch (column.id) {
         case SECTION_TYPES.SHOT_TYPE:
           return shot.type || '-';
-
-        case SECTION_TYPES.DATE:
-          return shot.date || '-';
-
-        case SECTION_TYPES.LOCATION:
-          return shot.location || '-';
 
         case SECTION_TYPES.TALENT: {
           const talentList = ensureStringList(shot?.talent);
@@ -1102,8 +1190,9 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
         }
 
         case SECTION_TYPES.PRODUCTS: {
+          // Each product on its own line
           const productList = ensureStringList(shot?.products);
-          return productList.length > 0 ? productList.join(', ') : '-';
+          return productList.length > 0 ? productList.join('\n') : '-';
         }
 
         case SECTION_TYPES.NOTES: {
@@ -1130,13 +1219,12 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
             )}
           </View>
         )}
-        {columnSections.map(section => {
-          const flex = sectionStates[section.id]?.flex ?? section.flex ?? 1;
-          const width = `${((flex / totalFlex) * 100).toFixed(2)}%`;
+        {columns.map(column => {
+          const width = `${((column.flex / totalFlex) * 100).toFixed(2)}%`;
 
           return (
-            <View key={section.id} style={{ width, flexShrink: 0 }}>
-              <Text style={styles.tableDataCell}>{renderCellContent(section)}</Text>
+            <View key={column.id} style={{ width, flexShrink: 0 }}>
+              <Text style={styles.tableDataCell}>{renderCellContent(column)}</Text>
             </View>
           );
         })}
@@ -1418,7 +1506,10 @@ const PlannerPdfDocument = ({ lanes, laneSummary, talentSummary, options }) => {
       </Page>
     </Document>
   );
-};
+});
+
+// Display name for debugging
+PlannerPdfDocument.displayName = 'PlannerPdfDocument';
 
 const escapeCsv = (value) => {
   if (value == null) return "";
@@ -1691,6 +1782,24 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     });
   }, [filteredLanes, includeImages, fallbackToProductImages]);
 
+  // Image preloading for reliable PDF export
+  const {
+    isLoading: isPreloadingImages,
+    progress: imageProgress,
+    isReadyForExport: imagesReadyForExport,
+    failedImages,
+    retryImage,
+    skipImage,
+    skipAllFailed,
+    retryAllFailed,
+    getImageDataMap,
+  } = useImagePreloader(
+    lanesWithImageFallback,
+    includeImages && inlineImages, // Only preload if both images are enabled and we're inlining
+    fallbackToProductImages,
+    { density, enabled: open } // Only preload when modal is open
+  );
+
   // Flatten all shots from filtered lanes for preview
   const filteredShots = useMemo(() => {
     if (!Array.isArray(lanesWithImageFallback)) return [];
@@ -1783,6 +1892,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       density,
       galleryColumns: resolvedGalleryColumns,
       fields,
+      sectionStates, // Pass full section states including flex values for column widths
       customLabels,
       includeLaneSummary,
       includeTalentSummary,
@@ -1795,11 +1905,90 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       density,
       resolvedGalleryColumns,
       fields,
+      sectionStates,
       customLabels,
       includeLaneSummary,
       includeTalentSummary,
     ]
   );
+
+  // Prepare lanes for preview with preloaded images
+  const previewLanes = useMemo(() => {
+    const shouldIncludeImages = Boolean(fields.image);
+    if (!shouldIncludeImages || !inlineImages) {
+      // No images or not inlining - strip images for preview
+      return lanesWithImageFallback.map((lane) => {
+        const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+        const shots = laneShots.map((shot) => ({ ...shot, image: null }));
+        return { ...lane, shots };
+      });
+    }
+
+    // Use preloaded images
+    const imageDataMap = getImageDataMap();
+    return lanesWithImageFallback.map((lane) => {
+      const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+      const shots = laneShots.map((shot) => {
+        const preparedShot = { ...shot };
+        const shotId = shot?.id ? String(shot.id) : null;
+        if (shotId && imageDataMap.has(shotId)) {
+          preparedShot.image = imageDataMap.get(shotId);
+        } else {
+          preparedShot.image = null;
+        }
+        return preparedShot;
+      });
+      return { ...lane, shots };
+    });
+  }, [lanesWithImageFallback, fields.image, inlineImages, getImageDataMap]);
+
+  // Debounced preview document to prevent excessive PDF regeneration
+  // while user is actively changing settings
+  const [debouncedPreviewInputs, setDebouncedPreviewInputs] = useState(null);
+  const previewDebounceRef = useRef(null);
+
+  // Debounce the preview inputs (500ms delay) to prevent UI blocking
+  // during rapid setting changes - async usePDF hook handles the rest
+  useEffect(() => {
+    if (!hasShots || !open) {
+      setDebouncedPreviewInputs(null);
+      return;
+    }
+
+    // Clear previous timeout
+    if (previewDebounceRef.current) {
+      clearTimeout(previewDebounceRef.current);
+    }
+
+    // Set new timeout - 500ms gives user time to finish interactions
+    previewDebounceRef.current = setTimeout(() => {
+      setDebouncedPreviewInputs({
+        lanes: previewLanes,
+        laneSummary: derivedLaneSummary,
+        talentSummary: derivedTalentSummary,
+        options: selectedOptions,
+      });
+    }, 500);
+
+    return () => {
+      if (previewDebounceRef.current) {
+        clearTimeout(previewDebounceRef.current);
+      }
+    };
+  }, [hasShots, open, previewLanes, derivedLaneSummary, derivedTalentSummary, selectedOptions]);
+
+  // Create PDF document element for preview using debounced inputs
+  const previewDocument = useMemo(() => {
+    if (!debouncedPreviewInputs) return null;
+    return (
+      <PlannerPdfDocument
+        lanes={debouncedPreviewInputs.lanes}
+        laneSummary={debouncedPreviewInputs.laneSummary}
+        talentSummary={debouncedPreviewInputs.talentSummary}
+        options={debouncedPreviewInputs.options}
+      />
+    );
+  }, [debouncedPreviewInputs]);
 
   const handleToggleLane = useCallback((laneId) => {
     setSelectedLaneIds((previous) => {
@@ -1834,19 +2023,40 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     }
     try {
       setIsGenerating(true);
-      const includeImages = Boolean(fields.image);
-      setImageLoadProgress({ loaded: 0, total: 0 });
-      setGenerationStage("Loading images…");
+      const shouldIncludeImages = Boolean(fields.image);
+      setGenerationStage("Preparing export…");
 
-      const preparedLanes = await prepareLanesForPdf(lanesWithImageFallback, {
-        includeImages,
-        density,
-        inlineImages,
-        onProgress: (loaded, total) => {
-          setImageLoadProgress({ loaded, total });
-          setGenerationStage(`Loading images… ${loaded}/${total}`);
-        },
-      });
+      // Use preloaded images if inlining, otherwise fall back to original logic
+      let preparedLanes;
+      if (shouldIncludeImages && inlineImages) {
+        // Use already-preloaded images from the hook
+        const imageDataMap = getImageDataMap();
+        preparedLanes = lanesWithImageFallback.map((lane) => {
+          const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+          const shots = laneShots.map((shot) => {
+            const preparedShot = { ...shot };
+            const shotId = shot?.id ? String(shot.id) : null;
+            if (shotId && imageDataMap.has(shotId)) {
+              preparedShot.image = imageDataMap.get(shotId);
+            } else {
+              // Image was not successfully loaded or was skipped
+              preparedShot.image = null;
+            }
+            return preparedShot;
+          });
+          return { ...lane, shots };
+        });
+      } else if (shouldIncludeImages && !inlineImages) {
+        // Pass through URLs for non-inlined images (legacy behavior)
+        preparedLanes = lanesWithImageFallback;
+      } else {
+        // No images - strip them out
+        preparedLanes = lanesWithImageFallback.map((lane) => {
+          const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+          const shots = laneShots.map((shot) => ({ ...shot, image: null }));
+          return { ...lane, shots };
+        });
+      }
 
       setGenerationStage("Rendering PDF…");
       const blob = await pdf(
@@ -1884,8 +2094,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     title,
     onClose,
     fields.image,
-    density,
     inlineImages,
+    getImageDataMap,
   ]);
 
   const handleDownloadCsv = useCallback(() => {
@@ -1987,9 +2197,14 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
             Export CSV
           </Button>
 
-          <Button onClick={handleDownloadPdf} disabled={!hasShots || isLoading || isGenerating} className="gap-2">
+          <Button
+            onClick={handleDownloadPdf}
+            disabled={!hasShots || isLoading || isGenerating || !imagesReadyForExport}
+            className="gap-2"
+            title={!imagesReadyForExport ? "Waiting for images to load" : undefined}
+          >
             <FileDown className="w-4 h-4" />
-            {isGenerating ? "Exporting..." : "Export PDF"}
+            {isGenerating ? "Exporting..." : isPreloadingImages ? "Loading images..." : "Export PDF"}
           </Button>
         </div>
       </div>
@@ -2002,6 +2217,21 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
             style={{ width: showPreview ? `${dividerPosition}%` : '100%' }}
           >
             <div className="p-6 space-y-6">
+              {/* Image Loading Status */}
+              {includeImages && inlineImages && (
+                <ExportImageStatus
+                  isLoading={isPreloadingImages}
+                  progress={imageProgress}
+                  failedImages={failedImages}
+                  isReadyForExport={imagesReadyForExport}
+                  onRetry={retryImage}
+                  onSkip={skipImage}
+                  onSkipAll={skipAllFailed}
+                  onRetryAll={retryAllFailed}
+                  includeImages={includeImages}
+                />
+              )}
+
               {/* Document Settings */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Document Settings</h3>
@@ -2390,22 +2620,15 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
             </div>
           )}
 
-          {/* Right Panel - Preview */}
+          {/* Right Panel - Live PDF Preview */}
           {showPreview && (
             <div
-              className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-900 p-6"
+              className="flex-1 overflow-hidden bg-slate-100 dark:bg-slate-900"
               style={{ width: `${100 - dividerPosition}%` }}
             >
-              <PlannerSheetPreview
-                lanes={lanesWithImageFallback}
-                sectionStates={sectionStates}
-                layoutMode={layoutMode}
-                orientation={orientation}
-                density={density}
-                galleryColumns={resolvedGalleryColumns}
-                title={title}
-                subtitle={subtitle}
-                customLabels={customLabels}
+              <PdfPagePreview
+                document={previewDocument}
+                status={previewDocument ? 'ready' : 'generating'}
               />
             </div>
           )}

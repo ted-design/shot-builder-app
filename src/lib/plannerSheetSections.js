@@ -55,7 +55,7 @@ export const SECTION_CONFIG = {
     label: 'Shot Image',
     description: 'Reference image for shot',
     icon: Image,
-    defaultVisible: false,
+    defaultVisible: true, // Changed to ON by default
     required: false,
     order: 1,
     category: 'columns',
@@ -381,15 +381,19 @@ export function isColumnSection(sectionId) {
 }
 
 /**
- * Get visible field keys (for backward compatibility with existing code)
+ * Get all field keys with their visibility state
+ * Returns { fieldKey: boolean } for all fields, not just visible ones
+ * This is critical for PDF generation to know which columns to hide
  */
 export function getVisibleFieldKeys(sectionStates) {
   const fields = {};
 
   Object.entries(sectionStates).forEach(([sectionId, state]) => {
     const section = SECTION_CONFIG[sectionId];
-    if (section?.fieldKey && state.visible !== false) {
-      fields[section.fieldKey] = true;
+    if (section?.fieldKey) {
+      // Include ALL fields with their visibility state, not just visible ones
+      // This ensures hidden columns are properly excluded from PDF
+      fields[section.fieldKey] = state.visible !== false;
     }
   });
 
