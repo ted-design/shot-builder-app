@@ -8,21 +8,23 @@ import { productFamiliesPath, productFamilySkusPath } from "../lib/paths";
 import { normalizeColorName, upsertColorSwatch, deleteColorSwatch } from "../lib/colorPalette";
 import { isValidHexColor } from "../lib/colorExtraction";
 import { canEditProducts } from "../lib/rbac";
-import { Card, CardContent, CardHeader } from "../components/ui/card";
+import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { toast } from "../lib/toast";
 import AppImage from "../components/common/AppImage";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { PageHeader } from "../components/ui/PageHeader";
-
-const emptyDraft = {
-  name: "",
-  hexColor: "",
-  aliases: "",
-  file: null,
-  previewUrl: null,
-};
+import { MoreVertical, Plus } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
+import SwatchCreateModal from "../components/palette/SwatchCreateModal";
+import SwatchEditModal from "../components/palette/SwatchEditModal";
+import ConfirmDialog from "../components/common/ConfirmDialog";
 
 const normaliseAliases = (value) =>
   value
@@ -36,8 +38,11 @@ export default function PalettePage() {
   const { swatches = [], paletteIndex, loading } = useColorSwatches(clientId);
   const { data: families = [] } = useProducts(clientId);
 
-  const [drafts, setDrafts] = useState({});
-  const [newDraft, setNewDraft] = useState(emptyDraft);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingSwatch, setEditingSwatch] = useState(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [swatchToDelete, setSwatchToDelete] = useState(null);
   const [savingKey, setSavingKey] = useState(null);
   const [seeding, setSeeding] = useState(false);
   const [search, setSearch] = useState("");
@@ -81,56 +86,69 @@ export default function PalettePage() {
     }
   }, [swatches, search, sort, usageCounts]);
 
-  const getDraft = (colorKey) => drafts[colorKey] || { ...emptyDraft, name: swatches.find((s) => s.colorKey === colorKey)?.name || "" };
-
-  const updateDraft = (colorKey, updates) => {
-    setDrafts((prev) => ({
-      ...prev,
-      [colorKey]: { ...getDraft(colorKey), ...updates },
-    }));
-  };
-
-  const resetDraft = (colorKey) => {
-    setDrafts((prev) => {
-      const next = { ...prev };
-      delete next[colorKey];
-      return next;
-    });
-  };
-
-  const handleFileChange = (colorKey, file) => {
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    updateDraft(colorKey, { file, previewUrl: url });
-  };
-
-  const handleSave = async (colorKey) => {
+  const handleCreate = async (draft) => {
     if (!canEdit) return;
-    const original = swatches.find((s) => s.colorKey === colorKey);
-    const draft = getDraft(colorKey);
-    const name = (draft.name || original?.name || "").trim();
+
+    const name = draft.name.trim();
     if (!name) {
       toast.error("Name is required");
       return;
     }
-    const hexColor = draft.hexColor?.trim() || original?.hexColor || null;
+
+    if (draft.hexColor && !isValidHexColor(draft.hexColor)) {
+      toast.error("Hex must be in #RRGGBB format");
+      return;
+    }
+
+    setSavingKey("new");
+    try {
+      await upsertColorSwatch({
+        db,
+        clientId,
+        name,
+        hexColor: draft.hexColor || null,
+        aliases: normaliseAliases(draft.aliases),
+        swatchImageFile: draft.file || null,
+      });
+      toast.success(`Created ${name}`);
+      setCreateModalOpen(false);
+    } catch (error) {
+      console.error("Failed to create swatch", error);
+      toast.error(error?.message || "Unable to create swatch");
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
+  const handleEdit = async (draft) => {
+    if (!canEdit || !editingSwatch) return;
+
+    const name = draft.name.trim();
+    if (!name) {
+      toast.error("Name is required");
+      return;
+    }
+
+    const hexColor = draft.hexColor?.trim() || null;
     if (hexColor && !isValidHexColor(hexColor)) {
       toast.error("Hex must be in #RRGGBB format");
       return;
     }
-    setSavingKey(colorKey);
+
+    setSavingKey(editingSwatch.colorKey);
     try {
       await upsertColorSwatch({
         db,
         clientId,
         name,
         hexColor: hexColor || null,
-        aliases: normaliseAliases(draft.aliases || (original?.aliases || []).join(", ")),
+        aliases: normaliseAliases(draft.aliases),
         swatchImageFile: draft.file || null,
-        swatchImagePath: original?.swatchImagePath || null,
+        swatchImagePath: editingSwatch.swatchImagePath || null,
       });
       toast.success(`Saved ${name}`);
-      resetDraft(colorKey);
+      setEditModalOpen(false);
+      setEditingSwatch(null);
     } catch (error) {
       console.error("Failed to save swatch", error);
       toast.error(error?.message || "Unable to save swatch");
@@ -139,57 +157,31 @@ export default function PalettePage() {
     }
   };
 
-  const handleDelete = async (swatch) => {
-    if (!canEdit) return;
-    const usage = usageCounts.get(normalizeColorName(swatch.name)) || 0;
+  const handleDeleteConfirm = async () => {
+    if (!canEdit || !swatchToDelete) return;
+
+    const usage = usageCounts.get(normalizeColorName(swatchToDelete.name)) || 0;
     if (usage > 0) {
       toast.error("Swatch is in use by products. Relink SKUs before deleting.");
+      setDeleteConfirmOpen(false);
+      setSwatchToDelete(null);
       return;
     }
-    setSavingKey(swatch.colorKey);
+
+    setSavingKey(swatchToDelete.colorKey);
     try {
       await deleteColorSwatch({
         db,
         clientId,
-        colorKey: swatch.colorKey,
-        swatchImagePath: swatch.swatchImagePath,
+        colorKey: swatchToDelete.colorKey,
+        swatchImagePath: swatchToDelete.swatchImagePath,
       });
-      toast.success(`Deleted ${swatch.name}`);
-      resetDraft(swatch.colorKey);
+      toast.success(`Deleted ${swatchToDelete.name}`);
+      setDeleteConfirmOpen(false);
+      setSwatchToDelete(null);
     } catch (error) {
       console.error("Failed to delete swatch", error);
       toast.error(error?.message || "Unable to delete swatch");
-    } finally {
-      setSavingKey(null);
-    }
-  };
-
-  const handleCreate = async () => {
-    if (!canEdit) return;
-    const name = newDraft.name.trim();
-    if (!name) {
-      toast.error("Name is required");
-      return;
-    }
-    if (newDraft.hexColor && !isValidHexColor(newDraft.hexColor)) {
-      toast.error("Hex must be in #RRGGBB format");
-      return;
-    }
-    setSavingKey("new");
-    try {
-      await upsertColorSwatch({
-        db,
-        clientId,
-        name,
-        hexColor: newDraft.hexColor || null,
-        aliases: normaliseAliases(newDraft.aliases),
-        swatchImageFile: newDraft.file || null,
-      });
-      toast.success(`Created ${name}`);
-      setNewDraft(emptyDraft);
-    } catch (error) {
-      console.error("Failed to create swatch", error);
-      toast.error(error?.message || "Unable to create swatch");
     } finally {
       setSavingKey(null);
     }
@@ -256,113 +248,95 @@ export default function PalettePage() {
     }
   }, [clientId, canEdit, paletteIndex, families]);
 
+  const openEditModal = (swatch) => {
+    setEditingSwatch(swatch);
+    setEditModalOpen(true);
+  };
+
+  const handleDeleteFromModal = (swatch) => {
+    setSwatchToDelete(swatch);
+    setDeleteConfirmOpen(true);
+  };
+
   const renderRow = (swatch) => {
-    const draft = getDraft(swatch.colorKey);
-    const currentHex = draft.hexColor || swatch.hexColor || "";
+    const currentHex = swatch.hexColor || "";
     const usage = usageCounts.get(normalizeColorName(swatch.name)) || 0;
+    const isSaving = savingKey === swatch.colorKey;
+
     return (
-      <tr key={swatch.colorKey} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
+      <tr key={swatch.colorKey} className="border-b border-slate-100 last:border-0 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+        {/* Actions Menu */}
         <td className="px-4 py-3 align-middle">
-          <Input
-            value={draft.name || swatch.name || ""}
-            onChange={(e) => updateDraft(swatch.colorKey, { name: e.target.value })}
-            disabled={!canEdit}
-          />
-          <div className="mt-1 text-xs text-slate-500">Key: {swatch.colorKey}</div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="rounded p-1 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50"
+                disabled={!canEdit || isSaving}
+                aria-label="Actions"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => openEditModal(swatch)}>
+                Edit
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </td>
+
+        {/* Name */}
+        <td className="px-4 py-3 align-middle">
+          <div className="font-medium text-slate-900 dark:text-slate-100">{swatch.name}</div>
+          <div className="mt-0.5 text-xs text-slate-500">Key: {swatch.colorKey}</div>
+        </td>
+
+        {/* Hex Color */}
         <td className="px-4 py-3 align-middle">
           <div className="flex items-center gap-3">
             <div
-              className="h-8 w-8 rounded-full border border-slate-300 dark:border-slate-700"
+              className="h-8 w-8 rounded-full border border-slate-300 dark:border-slate-700 flex-shrink-0"
               style={{ backgroundColor: currentHex || "#CBD5E1" }}
               title={currentHex || "No hex"}
             />
-            <Input
-              value={currentHex}
-              placeholder="#RRGGBB"
-              onChange={(e) => updateDraft(swatch.colorKey, { hexColor: e.target.value.toUpperCase() })}
-              disabled={!canEdit}
-              className="w-28 font-mono text-sm"
+            <span className="font-mono text-sm text-slate-600 dark:text-slate-400">
+              {currentHex || "—"}
+            </span>
+          </div>
+        </td>
+
+        {/* Texture */}
+        <td className="px-4 py-3 align-middle">
+          {swatch.swatchImagePath ? (
+            <AppImage
+              src={swatch.swatchImagePath}
+              alt={swatch.name}
+              className="h-12 w-12 overflow-hidden rounded border border-slate-200 dark:border-slate-700"
+              imageClassName="h-full w-full object-cover"
+              placeholder={null}
+              fallback={null}
             />
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded border border-dashed border-slate-300 dark:border-slate-600 text-xs text-slate-500">
+              None
+            </div>
+          )}
+        </td>
+
+        {/* Aliases */}
+        <td className="px-4 py-3 align-middle">
+          <div className="text-sm text-slate-600 dark:text-slate-400">
+            {Array.isArray(swatch.aliases) && swatch.aliases.length > 0
+              ? swatch.aliases.join(", ")
+              : "—"}
           </div>
         </td>
-        <td className="px-4 py-3 align-middle">
-          <div className="flex items-center gap-2">
-            {draft.previewUrl ? (
-              <AppImage
-                src={draft.previewUrl}
-                alt=""
-                className="h-12 w-12 overflow-hidden rounded border border-slate-200"
-                imageClassName="h-full w-full object-cover"
-                placeholder={null}
-                fallback={null}
-              />
-            ) : swatch.swatchImagePath ? (
-              <AppImage
-                src={swatch.swatchImagePath}
-                alt=""
-                className="h-12 w-12 overflow-hidden rounded border border-slate-200"
-                imageClassName="h-full w-full object-cover"
-                placeholder={null}
-                fallback={null}
-              />
-            ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded border border-dashed border-slate-300 text-xs text-slate-500">
-                None
-              </div>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              disabled={!canEdit}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleFileChange(swatch.colorKey, file);
-                e.target.value = "";
-              }}
-            />
-          </div>
-        </td>
-        <td className="px-4 py-3 align-middle">
-          <Input
-            value={draft.aliases || (swatch.aliases || []).join(", ")}
-            onChange={(e) => updateDraft(swatch.colorKey, { aliases: e.target.value })}
-            disabled={!canEdit}
-            placeholder="Comma-separated"
-          />
-        </td>
-        <td className="px-4 py-3 align-middle text-center text-sm text-slate-600 dark:text-slate-300">
-          {usage}
-        </td>
-        <td className="px-4 py-3 align-middle">
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => handleSave(swatch.colorKey)}
-              disabled={!canEdit || savingKey === swatch.colorKey}
-            >
-              {savingKey === swatch.colorKey ? "Saving…" : "Save"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => resetDraft(swatch.colorKey)}
-              disabled={!canEdit}
-            >
-              Reset
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              onClick={() => handleDelete(swatch)}
-              disabled={!canEdit || savingKey === swatch.colorKey}
-            >
-              Delete
-            </Button>
-          </div>
+
+        {/* Usage */}
+        <td className="px-4 py-3 align-middle text-center">
+          <span className="inline-flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+            {usage}
+          </span>
         </td>
       </tr>
     );
@@ -396,77 +370,18 @@ export default function PalettePage() {
               <Button type="button" onClick={handleSeed} disabled={!canEdit || seeding}>
                 {seeding ? "Seeding…" : "Seed from products"}
               </Button>
+              <Button
+                type="button"
+                onClick={() => setCreateModalOpen(true)}
+                disabled={!canEdit}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Swatch
+              </Button>
             </div>
           </PageHeader.Actions>
         </PageHeader.Content>
       </PageHeader>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Add swatch</h3>
-              <p className="text-sm text-slate-500">Name, optional hex, optional texture image.</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Input
-                placeholder="Name"
-                value={newDraft.name}
-                onChange={(e) => setNewDraft((prev) => ({ ...prev, name: e.target.value }))}
-                className="w-40"
-              />
-              <Input
-                placeholder="#RRGGBB"
-                value={newDraft.hexColor}
-                onChange={(e) => setNewDraft((prev) => ({ ...prev, hexColor: e.target.value.toUpperCase() }))}
-                className="w-28 font-mono text-sm"
-              />
-              <Input
-                placeholder="Aliases (comma separated)"
-                value={newDraft.aliases}
-                onChange={(e) => setNewDraft((prev) => ({ ...prev, aliases: e.target.value }))}
-                className="w-60"
-              />
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const url = URL.createObjectURL(file);
-                    setNewDraft((prev) => ({ ...prev, file, previewUrl: url }));
-                  }
-                  e.target.value = "";
-                }}
-              />
-              <Button type="button" onClick={handleCreate} disabled={!canEdit || savingKey === "new"}>
-                {savingKey === "new" ? "Saving…" : "Create"}
-              </Button>
-            </div>
-          </div>
-          {newDraft.previewUrl && (
-            <div className="mt-2 flex items-center gap-2">
-              <div className="text-xs text-slate-500">Preview:</div>
-              <AppImage
-                src={newDraft.previewUrl}
-                alt=""
-                className="h-12 w-12 overflow-hidden rounded border border-slate-200"
-                imageClassName="h-full w-full object-cover"
-                placeholder={null}
-                fallback={null}
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => setNewDraft((prev) => ({ ...prev, file: null, previewUrl: null }))}
-              >
-                Remove
-              </Button>
-            </div>
-          )}
-        </CardHeader>
-      </Card>
 
       <Card>
         <CardContent className="p-0">
@@ -475,18 +390,33 @@ export default function PalettePage() {
               <LoadingSpinner />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="py-8 text-center text-sm text-slate-500">No swatches yet.</div>
+            <div className="py-12 text-center">
+              <p className="text-sm text-slate-500">
+                {search ? "No swatches match your search." : "No swatches yet."}
+              </p>
+              {!search && canEdit && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setCreateModalOpen(true)}
+                  className="mt-4"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create your first swatch
+                </Button>
+              )}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
                 <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                   <tr>
+                    <th className="w-12 px-4 py-3"></th>
                     <th className="px-4 py-3">Name</th>
                     <th className="px-4 py-3">Hex</th>
                     <th className="px-4 py-3">Texture</th>
                     <th className="px-4 py-3">Aliases</th>
                     <th className="px-4 py-3 text-center">Usage</th>
-                    <th className="px-4 py-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody>{filtered.map(renderRow)}</tbody>
@@ -495,6 +425,47 @@ export default function PalettePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Create Modal */}
+      <SwatchCreateModal
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onSave={handleCreate}
+        saving={savingKey === "new"}
+      />
+
+      {/* Edit Modal */}
+      <SwatchEditModal
+        open={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setEditingSwatch(null);
+        }}
+        onSave={handleEdit}
+        onDelete={handleDeleteFromModal}
+        swatch={editingSwatch}
+        saving={savingKey === editingSwatch?.colorKey}
+        usageCount={editingSwatch ? (usageCounts.get(normalizeColorName(editingSwatch.name)) || 0) : 0}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => {
+          setDeleteConfirmOpen(false);
+          setSwatchToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Swatch"
+        message={
+          swatchToDelete
+            ? `Are you sure you want to delete "${swatchToDelete.name}"? This action cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete"
+        variant="destructive"
+        loading={savingKey === swatchToDelete?.colorKey}
+      />
     </div>
   );
 }

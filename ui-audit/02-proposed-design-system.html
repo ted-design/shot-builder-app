@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shot Builder - Proposed Design System</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Core Colors */
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #3b82f6;
+
+      /* Neutral Scale (Slate) */
+      --neutral-50: #f8fafc;
+      --neutral-100: #f1f5f9;
+      --neutral-200: #e2e8f0;
+      --neutral-300: #cbd5e1;
+      --neutral-400: #94a3b8;
+      --neutral-500: #64748b;
+      --neutral-600: #475569;
+      --neutral-700: #334155;
+      --neutral-800: #1e293b;
+      --neutral-900: #0f172a;
+
+      /* Border Radius Scale */
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --radius-xl: 12px;
+      --radius-full: 9999px;
+
+      /* Spacing Scale */
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --space-8: 32px;
+      --space-10: 40px;
+      --space-12: 48px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+      background: var(--neutral-50);
+      color: var(--neutral-900);
+      line-height: 1.6;
+    }
+
+    /* Header */
+    .design-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      padding: 80px 40px;
+      text-align: center;
+    }
+
+    .design-header h1 {
+      font-size: 56px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 16px;
+    }
+
+    .design-header .subtitle {
+      font-size: 20px;
+      opacity: 0.9;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .badge-proposed {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 24px;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 60px 40px;
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 80px;
+    }
+
+    .section-title {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--neutral-900);
+      margin-bottom: 12px;
+    }
+
+    .section-desc {
+      font-size: 16px;
+      color: var(--neutral-600);
+      max-width: 700px;
+      margin-bottom: 40px;
+    }
+
+    /* Token Grid */
+    .token-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .token-card {
+      background: white;
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .token-card-header {
+      background: var(--neutral-50);
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--neutral-200);
+    }
+
+    .token-card-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--neutral-700);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .token-card-body {
+      padding: 20px;
+    }
+
+    /* Color Swatches */
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+    }
+
+    .color-swatch {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .color-info {
+      flex: 1;
+    }
+
+    .color-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--neutral-900);
+    }
+
+    .color-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--neutral-500);
+    }
+
+    /* Spacing Visual */
+    .spacing-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 8px 0;
+    }
+
+    .spacing-bar {
+      height: 24px;
+      background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+      border-radius: var(--radius-sm);
+    }
+
+    .spacing-label {
+      width: 80px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--neutral-600);
+    }
+
+    .spacing-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--neutral-400);
+    }
+
+    /* Radius Demo */
+    .radius-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+    }
+
+    .radius-item {
+      text-align: center;
+    }
+
+    .radius-box {
+      width: 100%;
+      aspect-ratio: 1;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      margin-bottom: 8px;
+    }
+
+    .radius-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--neutral-700);
+    }
+
+    .radius-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--neutral-400);
+    }
+
+    /* Component Showcase */
+    .component-showcase {
+      background: white;
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .showcase-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: var(--neutral-50);
+      border-bottom: 1px solid var(--neutral-200);
+    }
+
+    .showcase-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--neutral-900);
+    }
+
+    .showcase-label {
+      font-size: 12px;
+      color: var(--neutral-500);
+      background: var(--neutral-100);
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+    }
+
+    .showcase-body {
+      padding: 32px;
+    }
+
+    .showcase-dark {
+      background: var(--neutral-900);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: inherit;
+      font-weight: 500;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: none;
+    }
+
+    .btn-sm {
+      height: 32px;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+
+    .btn-md {
+      height: 40px;
+      padding: 0 16px;
+      font-size: 14px;
+    }
+
+    .btn-lg {
+      height: 48px;
+      padding: 0 24px;
+      font-size: 15px;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-secondary {
+      background: var(--neutral-100);
+      color: var(--neutral-700);
+    }
+
+    .btn-secondary:hover {
+      background: var(--neutral-200);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--neutral-600);
+    }
+
+    .btn-ghost:hover {
+      background: var(--neutral-100);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--neutral-300);
+      color: var(--neutral-700);
+    }
+
+    .btn-outline:hover {
+      background: var(--neutral-50);
+      border-color: var(--neutral-400);
+    }
+
+    .btn-destructive {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-icon {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    /* SVG Icons */
+    .icon {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .icon-lg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Input */
+    .input-wrapper {
+      margin-bottom: 20px;
+    }
+
+    .input-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--neutral-700);
+      margin-bottom: 6px;
+    }
+
+    .input {
+      width: 100%;
+      height: 40px;
+      padding: 0 12px;
+      font-size: 14px;
+      font-family: inherit;
+      border: 1px solid var(--neutral-300);
+      border-radius: var(--radius-md);
+      background: white;
+      color: var(--neutral-900);
+      transition: all 0.15s ease;
+    }
+
+    .input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+
+    .input::placeholder {
+      color: var(--neutral-400);
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: var(--radius-full);
+    }
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.1);
+      color: #059669;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: #d97706;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .badge-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: #dc2626;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .badge-info {
+      background: rgba(59, 130, 246, 0.1);
+      color: #2563eb;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .badge-neutral {
+      background: var(--neutral-100);
+      color: var(--neutral-600);
+      border: 1px solid var(--neutral-200);
+    }
+
+    .badge-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Cards */
+    .card {
+      background: white;
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      transform: translateY(-2px);
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      background: var(--neutral-50);
+      border-bottom: 1px solid var(--neutral-200);
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .card-footer {
+      padding: 12px 20px;
+      background: var(--neutral-50);
+      border-top: 1px solid var(--neutral-200);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* Toolbar Standard */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      background: white;
+      border-bottom: 1px solid var(--neutral-200);
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--neutral-200);
+      margin: 0 var(--space-2);
+    }
+
+    .toolbar-spacer {
+      flex: 1;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      height: 36px;
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius-md);
+      background: var(--neutral-50);
+      transition: all 0.15s ease;
+    }
+
+    .search-box:focus-within {
+      background: white;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .search-box input {
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      width: 200px;
+      outline: none;
+    }
+
+    .search-box input::placeholder {
+      color: var(--neutral-400);
+    }
+
+    .search-box svg {
+      color: var(--neutral-400);
+    }
+
+    /* Page Layout */
+    .page-demo {
+      background: var(--neutral-100);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--neutral-200);
+    }
+
+    .page-nav {
+      height: 56px;
+      background: white;
+      border-bottom: 1px solid var(--neutral-200);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 32px;
+    }
+
+    .page-nav-logo {
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--neutral-900);
+    }
+
+    .page-nav-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .page-nav-link {
+      font-size: 14px;
+      color: var(--neutral-600);
+      text-decoration: none;
+      padding: 16px 0;
+      border-bottom: 2px solid transparent;
+    }
+
+    .page-nav-link.active {
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .page-header {
+      background: white;
+      border-bottom: 1px solid var(--neutral-200);
+      padding: 24px;
+    }
+
+    .page-header-content {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--neutral-900);
+      margin-bottom: 4px;
+    }
+
+    .page-description {
+      font-size: 14px;
+      color: var(--neutral-500);
+    }
+
+    .page-content {
+      padding: 24px;
+    }
+
+    /* Grid Demo */
+    .grid-demo {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .grid-item {
+      background: white;
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      min-height: 120px;
+    }
+
+    /* Code Block */
+    .code-block {
+      background: var(--neutral-900);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      overflow-x: auto;
+      margin-top: 16px;
+    }
+
+    .code-block code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--neutral-300);
+      line-height: 1.6;
+    }
+
+    .code-block .keyword {
+      color: #c792ea;
+    }
+
+    .code-block .string {
+      color: #c3e88d;
+    }
+
+    .code-block .comment {
+      color: var(--neutral-500);
+    }
+
+    .code-block .property {
+      color: #82aaff;
+    }
+
+    /* Spec Table */
+    .spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .spec-table th,
+    .spec-table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--neutral-200);
+    }
+
+    .spec-table th {
+      background: var(--neutral-50);
+      font-weight: 600;
+      color: var(--neutral-600);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .spec-table code {
+      background: var(--neutral-100);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--primary);
+    }
+
+    /* Rule Card */
+    .rule-card {
+      background: white;
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .rule-card h4 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--neutral-900);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .rule-card p {
+      font-size: 14px;
+      color: var(--neutral-600);
+      margin-bottom: 16px;
+    }
+
+    .rule-do {
+      border-left: 3px solid var(--secondary);
+    }
+
+    .rule-dont {
+      border-left: 3px solid var(--danger);
+    }
+
+    .rule-example {
+      display: flex;
+      gap: 16px;
+    }
+
+    .rule-example-item {
+      flex: 1;
+      padding: 16px;
+      border-radius: var(--radius-md);
+    }
+
+    .rule-example-do {
+      background: rgba(16, 185, 129, 0.05);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .rule-example-dont {
+      background: rgba(239, 68, 68, 0.05);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .rule-example-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .rule-example-do .rule-example-label {
+      color: var(--secondary);
+    }
+
+    .rule-example-dont .rule-example-label {
+      color: var(--danger);
+    }
+  </style>
+</head>
+<body>
+  <header class="design-header">
+    <h1>Proposed Design System</h1>
+    <p class="subtitle">A unified, consistent design language for Shot Builder that prioritizes clarity, accessibility, and professional aesthetics</p>
+    <span class="badge-proposed">Standardized Specifications</span>
+  </header>
+
+  <div class="container">
+
+    <!-- Section 1: Color System -->
+    <section class="section">
+      <h2 class="section-title">1. Color System</h2>
+      <p class="section-desc">A cohesive palette built on the existing Indigo primary with semantic colors for status and feedback. All colors have proper dark mode variants.</p>
+
+      <div class="token-grid">
+        <div class="token-card">
+          <div class="token-card-header">
+            <h3>Primary Colors</h3>
+          </div>
+          <div class="token-card-body">
+            <div class="color-row">
+              <div class="color-swatch" style="background: #6366f1;"></div>
+              <div class="color-info">
+                <div class="color-name">Primary</div>
+                <div class="color-value">#6366f1 (Indigo-500)</div>
+              </div>
+            </div>
+            <div class="color-row">
+              <div class="color-swatch" style="background: #4f46e5;"></div>
+              <div class="color-info">
+                <div class="color-name">Primary Dark</div>
+                <div class="color-value">#4f46e5 (Indigo-600)</div>
+              </div>
+            </div>
+            <div class="color-row">
+              <div class="color-swatch" style="background: #10b981;"></div>
+              <div class="color-info">
+                <div class="color-name">Secondary</div>
+                <div class="color-value">#10b981 (Emerald-500)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="token-card">
+          <div class="token-card-header">
+            <h3>Semantic Colors</h3>
+          </div>
+          <div class="token-card-body">
+            <div class="color-row">
+              <div class="color-swatch" style="background: #10b981;"></div>
+              <div class="color-info">
+                <div class="color-name">Success</div>
+                <div class="color-value">#10b981 (Emerald-500)</div>
+              </div>
+            </div>
+            <div class="color-row">
+              <div class="color-swatch" style="background: #f59e0b;"></div>
+              <div class="color-info">
+                <div class="color-name">Warning</div>
+                <div class="color-value">#f59e0b (Amber-500)</div>
+              </div>
+            </div>
+            <div class="color-row">
+              <div class="color-swatch" style="background: #ef4444;"></div>
+              <div class="color-info">
+                <div class="color-name">Danger</div>
+                <div class="color-value">#ef4444 (Red-500)</div>
+              </div>
+            </div>
+            <div class="color-row">
+              <div class="color-swatch" style="background: #3b82f6;"></div>
+              <div class="color-info">
+                <div class="color-name">Info</div>
+                <div class="color-value">#3b82f6 (Blue-500)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="token-card">
+          <div class="token-card-header">
+            <h3>Neutral Scale</h3>
+          </div>
+          <div class="token-card-body">
+            <div class="color-row">
+              <div class="color-swatch" style="background: #f8fafc;"></div>
+              <div class="color-info">
+                <div class="color-name">Neutral 50</div>
+                <div class="color-value">Background, surface</div>
+              </div>
+            </div>
+            <div class="color-row">
+              <div class="color-swatch" style="background: #e2e8f0;"></div>
+              <div class="color-info">
+                <div class="color-name">Neutral 200</div>
+                <div class="color-value">Borders, dividers</div>
+              </div>
+            </div>
+            <div class="color-row">
+              <div class="color-swatch" style="background: #64748b;"></div>
+              <div class="color-info">
+                <div class="color-name">Neutral 500</div>
+                <div class="color-value">Placeholder text</div>
+              </div>
+            </div>
+            <div class="color-row">
+              <div class="color-swatch" style="background: #0f172a;"></div>
+              <div class="color-info">
+                <div class="color-name">Neutral 900</div>
+                <div class="color-value">Primary text</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Spacing -->
+    <section class="section">
+      <h2 class="section-title">2. Spacing Scale</h2>
+      <p class="section-desc">A consistent 4px base unit spacing system. Use semantic spacing tokens instead of arbitrary pixel values.</p>
+
+      <div class="component-showcase">
+        <div class="showcase-header">
+          <span class="showcase-title">Spacing Tokens</span>
+          <span class="showcase-label">4px base unit</span>
+        </div>
+        <div class="showcase-body">
+          <div class="spacing-row">
+            <span class="spacing-label">space-1</span>
+            <div class="spacing-bar" style="width: 4px;"></div>
+            <span class="spacing-value">4px</span>
+          </div>
+          <div class="spacing-row">
+            <span class="spacing-label">space-2</span>
+            <div class="spacing-bar" style="width: 8px;"></div>
+            <span class="spacing-value">8px - Icon margins, tight gaps</span>
+          </div>
+          <div class="spacing-row">
+            <span class="spacing-label">space-3</span>
+            <div class="spacing-bar" style="width: 12px;"></div>
+            <span class="spacing-value">12px - Toolbar gaps (STANDARD)</span>
+          </div>
+          <div class="spacing-row">
+            <span class="spacing-label">space-4</span>
+            <div class="spacing-bar" style="width: 16px;"></div>
+            <span class="spacing-value">16px - Card padding, section gaps</span>
+          </div>
+          <div class="spacing-row">
+            <span class="spacing-label">space-6</span>
+            <div class="spacing-bar" style="width: 24px;"></div>
+            <span class="spacing-value">24px - Page padding (STANDARD)</span>
+          </div>
+          <div class="spacing-row">
+            <span class="spacing-label">space-8</span>
+            <div class="spacing-bar" style="width: 32px;"></div>
+            <span class="spacing-value">32px - Large section spacing</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rule-card rule-do" style="margin-top: 24px;">
+        <h4>
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--secondary);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Standardized Gaps
+        </h4>
+        <table class="spec-table">
+          <thead>
+            <tr>
+              <th>Context</th>
+              <th>Gap</th>
+              <th>Token</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Toolbar items</td>
+              <td>12px</td>
+              <td><code>gap-3</code></td>
+            </tr>
+            <tr>
+              <td>Button icon + text</td>
+              <td>8px</td>
+              <td><code>gap-2</code></td>
+            </tr>
+            <tr>
+              <td>Card grid</td>
+              <td>16px</td>
+              <td><code>gap-4</code></td>
+            </tr>
+            <tr>
+              <td>Page horizontal padding</td>
+              <td>24px</td>
+              <td><code>px-6</code></td>
+            </tr>
+            <tr>
+              <td>Section vertical spacing</td>
+              <td>24px</td>
+              <td><code>space-y-6</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 3: Border Radius -->
+    <section class="section">
+      <h2 class="section-title">3. Border Radius</h2>
+      <p class="section-desc">Use semantic radius tokens for consistent roundedness. Components should use design tokens, not arbitrary Tailwind classes.</p>
+
+      <div class="component-showcase">
+        <div class="showcase-header">
+          <span class="showcase-title">Radius Scale</span>
+          <span class="showcase-label">Design Tokens</span>
+        </div>
+        <div class="showcase-body">
+          <div class="radius-grid">
+            <div class="radius-item">
+              <div class="radius-box" style="border-radius: 4px;"></div>
+              <div class="radius-name">radius-sm</div>
+              <div class="radius-value">4px</div>
+            </div>
+            <div class="radius-item">
+              <div class="radius-box" style="border-radius: 6px;"></div>
+              <div class="radius-name">radius-md</div>
+              <div class="radius-value">6px</div>
+            </div>
+            <div class="radius-item">
+              <div class="radius-box" style="border-radius: 8px;"></div>
+              <div class="radius-name">radius-lg</div>
+              <div class="radius-value">8px</div>
+            </div>
+            <div class="radius-item">
+              <div class="radius-box" style="border-radius: 12px;"></div>
+              <div class="radius-name">radius-xl</div>
+              <div class="radius-value">12px</div>
+            </div>
+            <div class="radius-item">
+              <div class="radius-box" style="border-radius: 9999px;"></div>
+              <div class="radius-name">radius-full</div>
+              <div class="radius-value">pill</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rule-card rule-do" style="margin-top: 24px;">
+        <h4>
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--secondary);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Component Radius Assignments
+        </h4>
+        <table class="spec-table">
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>Token</th>
+              <th>Tailwind</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Cards, Modals, Dropdowns</td>
+              <td><code>rounded-card</code></td>
+              <td><code>rounded-lg</code> (8px)</td>
+            </tr>
+            <tr>
+              <td>Buttons, Inputs</td>
+              <td><code>rounded-button</code></td>
+              <td><code>rounded-md</code> (6px)</td>
+            </tr>
+            <tr>
+              <td>Badges, Tags, Pills</td>
+              <td><code>rounded-badge</code></td>
+              <td><code>rounded-full</code></td>
+            </tr>
+            <tr>
+              <td>Small UI elements</td>
+              <td><code>rounded-sm</code></td>
+              <td><code>rounded</code> (4px)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 4: Components -->
+    <section class="section">
+      <h2 class="section-title">4. Component Standards</h2>
+      <p class="section-desc">Unified component styling with consistent variants, sizes, and interaction states.</p>
+
+      <!-- Buttons -->
+      <div class="component-showcase" style="margin-bottom: 24px;">
+        <div class="showcase-header">
+          <span class="showcase-title">Buttons</span>
+          <span class="showcase-label">5 variants, 3 sizes</span>
+        </div>
+        <div class="showcase-body">
+          <div class="btn-row">
+            <button class="btn btn-md btn-primary">Primary</button>
+            <button class="btn btn-md btn-secondary">Secondary</button>
+            <button class="btn btn-md btn-outline">Outline</button>
+            <button class="btn btn-md btn-ghost">Ghost</button>
+            <button class="btn btn-md btn-destructive">Destructive</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-sm btn-primary">Small</button>
+            <button class="btn btn-md btn-primary">Medium</button>
+            <button class="btn btn-lg btn-primary">Large</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-icon btn-ghost">
+              <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
+            <button class="btn btn-icon btn-ghost">
+              <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </button>
+            <button class="btn btn-icon btn-ghost">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inputs -->
+      <div class="component-showcase" style="margin-bottom: 24px;">
+        <div class="showcase-header">
+          <span class="showcase-title">Form Inputs</span>
+          <span class="showcase-label">Consistent focus ring</span>
+        </div>
+        <div class="showcase-body">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <div class="input-wrapper">
+              <label class="input-label">Text Input</label>
+              <input type="text" class="input" placeholder="Enter text...">
+            </div>
+            <div class="input-wrapper">
+              <label class="input-label">Search Input</label>
+              <div class="search-box">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Search...">
+              </div>
+            </div>
+          </div>
+          <div class="code-block">
+            <code>
+<span class="comment">/* Standard focus ring - use on ALL inputs */</span>
+<span class="property">focus:outline-none</span>
+<span class="property">focus:ring-2</span>
+<span class="property">focus:ring-primary</span>
+<span class="property">dark:focus:ring-indigo-400</span>
+            </code>
+          </div>
+        </div>
+      </div>
+
+      <!-- Badges -->
+      <div class="component-showcase" style="margin-bottom: 24px;">
+        <div class="showcase-header">
+          <span class="showcase-title">Badges & Status</span>
+          <span class="showcase-label">Semantic colors</span>
+        </div>
+        <div class="showcase-body">
+          <div class="badge-row" style="margin-bottom: 16px;">
+            <span class="badge badge-success">Active</span>
+            <span class="badge badge-success">Complete</span>
+            <span class="badge badge-success">Published</span>
+          </div>
+          <div class="badge-row" style="margin-bottom: 16px;">
+            <span class="badge badge-warning">Pending</span>
+            <span class="badge badge-warning">In Progress</span>
+            <span class="badge badge-warning">Draft</span>
+          </div>
+          <div class="badge-row" style="margin-bottom: 16px;">
+            <span class="badge badge-danger">Failed</span>
+            <span class="badge badge-danger">Error</span>
+            <span class="badge badge-danger">Cancelled</span>
+          </div>
+          <div class="badge-row" style="margin-bottom: 16px;">
+            <span class="badge badge-info">New</span>
+            <span class="badge badge-info">Updated</span>
+            <span class="badge badge-info">Info</span>
+          </div>
+          <div class="badge-row">
+            <span class="badge badge-neutral">Archived</span>
+            <span class="badge badge-neutral">Inactive</span>
+            <span class="badge badge-neutral">Default</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: Standard Toolbar -->
+    <section class="section">
+      <h2 class="section-title">5. Standard Toolbar Pattern</h2>
+      <p class="section-desc">A single, consistent toolbar design to be used across all list/grid pages. Eliminates the current variation between pages.</p>
+
+      <div class="component-showcase">
+        <div class="showcase-header">
+          <span class="showcase-title">Standard Page Toolbar</span>
+          <span class="showcase-label">gap-3 (12px)</span>
+        </div>
+        <div class="showcase-body" style="padding: 0;">
+          <div class="toolbar">
+            <div class="toolbar-group">
+              <div class="search-box">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Search products...">
+              </div>
+            </div>
+
+            <div class="toolbar-divider"></div>
+
+            <div class="toolbar-group">
+              <button class="btn btn-icon btn-ghost" title="Sort">
+                <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+              </button>
+              <button class="btn btn-icon btn-ghost" title="View">
+                <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </button>
+              <button class="btn btn-icon btn-ghost" title="Density">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/><circle cx="19" cy="5" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="19" cy="19" r="1"/><circle cx="5" cy="5" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="5" cy="19" r="1"/></svg>
+              </button>
+              <button class="btn btn-icon btn-ghost" title="Fields">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+
+            <div class="toolbar-spacer"></div>
+
+            <div class="toolbar-group">
+              <button class="btn btn-sm btn-outline">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export
+              </button>
+              <button class="btn btn-sm btn-primary">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                New Product
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rule-card rule-do" style="margin-top: 24px;">
+        <h4>Toolbar Specifications</h4>
+        <table class="spec-table">
+          <thead>
+            <tr>
+              <th>Property</th>
+              <th>Value</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Gap between items</td>
+              <td><code>gap-3</code> (12px)</td>
+              <td>Consistent across all toolbars</td>
+            </tr>
+            <tr>
+              <td>Padding</td>
+              <td><code>py-3 px-4</code></td>
+              <td>12px vertical, 16px horizontal</td>
+            </tr>
+            <tr>
+              <td>Icon button size</td>
+              <td><code>36x36px</code></td>
+              <td>Use <code>btn-icon</code> class</td>
+            </tr>
+            <tr>
+              <td>Text button size</td>
+              <td><code>btn-sm</code> (32px height)</td>
+              <td>Small buttons in toolbar context</td>
+            </tr>
+            <tr>
+              <td>Search width</td>
+              <td><code>200px</code></td>
+              <td>Expandable on focus</td>
+            </tr>
+            <tr>
+              <td>Divider</td>
+              <td><code>1px x 24px</code></td>
+              <td>Group logical sections</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 6: Page Layout -->
+    <section class="section">
+      <h2 class="section-title">6. Standard Page Layout</h2>
+      <p class="section-desc">A consistent page structure with aligned horizontal padding across navigation, header, and content areas.</p>
+
+      <div class="component-showcase">
+        <div class="showcase-header">
+          <span class="showcase-title">Page Layout Demo</span>
+          <span class="showcase-label">24px horizontal padding throughout</span>
+        </div>
+        <div class="showcase-body" style="padding: 0;">
+          <div class="page-demo">
+            <!-- Nav -->
+            <div class="page-nav">
+              <div class="page-nav-logo">Shot Builder</div>
+              <div class="page-nav-links">
+                <a href="#" class="page-nav-link">Dashboard</a>
+                <a href="#" class="page-nav-link active">Products</a>
+                <a href="#" class="page-nav-link">Talent</a>
+                <a href="#" class="page-nav-link">Locations</a>
+              </div>
+            </div>
+
+            <!-- Page Header -->
+            <div class="page-header">
+              <div class="page-header-content">
+                <div>
+                  <h1 class="page-title">Products</h1>
+                  <p class="page-description">Manage product families and SKUs across all projects</p>
+                </div>
+                <div class="toolbar-group">
+                  <button class="btn btn-sm btn-outline">Export</button>
+                  <button class="btn btn-sm btn-primary">New Product</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="toolbar">
+              <div class="search-box">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Search...">
+              </div>
+              <div class="toolbar-divider"></div>
+              <button class="btn btn-icon btn-ghost">
+                <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+              </button>
+              <button class="btn btn-icon btn-ghost">
+                <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </button>
+              <div class="toolbar-spacer"></div>
+              <div class="badge-row">
+                <span class="badge badge-info">Category: Outerwear</span>
+                <span class="badge badge-info">Status: Active</span>
+              </div>
+            </div>
+
+            <!-- Content -->
+            <div class="page-content">
+              <div class="grid-demo">
+                <div class="grid-item">
+                  <div style="font-weight: 600; margin-bottom: 4px;">Product A</div>
+                  <div style="font-size: 13px; color: var(--neutral-500);">3 SKUs</div>
+                </div>
+                <div class="grid-item">
+                  <div style="font-weight: 600; margin-bottom: 4px;">Product B</div>
+                  <div style="font-size: 13px; color: var(--neutral-500);">5 SKUs</div>
+                </div>
+                <div class="grid-item">
+                  <div style="font-weight: 600; margin-bottom: 4px;">Product C</div>
+                  <div style="font-size: 13px; color: var(--neutral-500);">2 SKUs</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rule-card rule-do" style="margin-top: 24px;">
+        <h4>Layout Specifications</h4>
+        <table class="spec-table">
+          <thead>
+            <tr>
+              <th>Property</th>
+              <th>Value</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Max content width</td>
+              <td><code>1440px</code></td>
+              <td>Consistent across ALL pages</td>
+            </tr>
+            <tr>
+              <td>Horizontal padding</td>
+              <td><code>px-6</code> (24px)</td>
+              <td>Nav, header, content all aligned</td>
+            </tr>
+            <tr>
+              <td>Nav height</td>
+              <td><code>56px</code></td>
+              <td>Fixed height for top navigation</td>
+            </tr>
+            <tr>
+              <td>PageHeader sticky offset</td>
+              <td><code>top-14</code> (56px)</td>
+              <td>Below nav, z-index 40</td>
+            </tr>
+            <tr>
+              <td>Content top padding</td>
+              <td><code>py-6</code> (24px)</td>
+              <td>Consistent vertical rhythm</td>
+            </tr>
+            <tr>
+              <td>Card grid gap</td>
+              <td><code>gap-4</code> (16px)</td>
+              <td>Between grid items</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 7: Rules -->
+    <section class="section">
+      <h2 class="section-title">7. Design Rules</h2>
+      <p class="section-desc">Guidelines for maintaining consistency as the application grows.</p>
+
+      <div class="rule-card rule-do">
+        <h4>
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--secondary);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          DO: Use Design Tokens
+        </h4>
+        <p>Always use semantic tokens instead of arbitrary values. This ensures consistency and makes future updates easier.</p>
+        <div class="rule-example">
+          <div class="rule-example-item rule-example-do">
+            <div class="rule-example-label">Do</div>
+            <code>className="rounded-card"</code><br>
+            <code>className="gap-3"</code><br>
+            <code>className="px-6"</code>
+          </div>
+          <div class="rule-example-item rule-example-dont">
+            <div class="rule-example-label">Don't</div>
+            <code>className="rounded-lg"</code><br>
+            <code>className="gap-[13px]"</code><br>
+            <code>className="px-[26px]"</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="rule-card rule-do">
+        <h4>
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--secondary);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          DO: Use Semantic Status Components
+        </h4>
+        <p>Use StatusBadge for status indicators and TagBadge for user tags. Never create inline badge styles.</p>
+        <div class="rule-example">
+          <div class="rule-example-item rule-example-do">
+            <div class="rule-example-label">Do</div>
+            <code>&lt;StatusBadge status="active"&gt;</code><br>
+            <code>&lt;TagBadge color="blue"&gt;</code>
+          </div>
+          <div class="rule-example-item rule-example-dont">
+            <div class="rule-example-label">Don't</div>
+            <code>&lt;span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full"&gt;</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="rule-card rule-do">
+        <h4>
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--secondary);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          DO: Consistent Focus States
+        </h4>
+        <p>All interactive elements must have a visible focus indicator with ring-2 for accessibility compliance.</p>
+        <div class="rule-example">
+          <div class="rule-example-item rule-example-do">
+            <div class="rule-example-label">Do</div>
+            <code>focus:ring-2 focus:ring-primary</code>
+          </div>
+          <div class="rule-example-item rule-example-dont">
+            <div class="rule-example-label">Don't</div>
+            <code>focus:ring-1 focus:ring-primary/20</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="rule-card rule-do">
+        <h4>
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--secondary);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          DO: Align Sticky Elements
+        </h4>
+        <p>Use consistent sticky positioning with proper z-index layering to prevent visual conflicts.</p>
+        <div class="rule-example">
+          <div class="rule-example-item rule-example-do">
+            <div class="rule-example-label">Stack Order</div>
+            <code>TopNav: z-50, top-0</code><br>
+            <code>PageHeader: z-40, top-14</code><br>
+            <code>BulkToolbar: z-30, top-28</code>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer style="text-align: center; padding: 60px 40px; background: var(--neutral-100); border-top: 1px solid var(--neutral-200);">
+    <p style="color: var(--neutral-600); font-size: 16px; font-weight: 600; margin-bottom: 8px;">Shot Builder Design System v1.0</p>
+    <p style="color: var(--neutral-500); font-size: 14px;">Ready for implementation upon approval</p>
+  </footer>
+</body>
+</html>

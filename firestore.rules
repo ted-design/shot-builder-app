@@ -85,11 +85,39 @@ service cloud.firestore {
     match /clients/{clientId}/talent/{docId} {
       allow read: if clientMatches(clientId);
       allow create, update, delete: if clientMatches(clientId) && isAuthed();
+
+      // Versions - immutable document snapshots for version history
+      match /versions/{versionId} {
+        allow read: if clientMatches(clientId);
+        allow create: if clientMatches(clientId) && isAuthed() &&
+          request.resource.data.createdBy == request.auth.uid;
+        allow update, delete: if false; // Versions are immutable
+      }
+
+      // Presence - field-level locking for collaborative editing
+      match /presence {
+        allow read: if clientMatches(clientId);
+        allow write: if clientMatches(clientId) && isAuthed();
+      }
     }
 
     match /clients/{clientId}/locations/{docId} {
       allow read: if clientMatches(clientId);
       allow create, update, delete: if clientMatches(clientId) && isAuthed();
+
+      // Versions - immutable document snapshots for version history
+      match /versions/{versionId} {
+        allow read: if clientMatches(clientId);
+        allow create: if clientMatches(clientId) && isAuthed() &&
+          request.resource.data.createdBy == request.auth.uid;
+        allow update, delete: if false; // Versions are immutable
+      }
+
+      // Presence - field-level locking for collaborative editing
+      match /presence {
+        allow read: if clientMatches(clientId);
+        allow write: if clientMatches(clientId) && isAuthed();
+      }
     }
 
     match /clients/{clientId}/shots/{docId} {
@@ -117,6 +145,20 @@ service cloud.firestore {
         // Only comment author can delete (soft delete) their own comment
         allow delete: if clientMatches(clientId) && isAuthed() &&
           resource.data.createdBy == request.auth.uid;
+      }
+
+      // Versions - immutable document snapshots for version history
+      match /versions/{versionId} {
+        allow read: if clientMatches(clientId);
+        allow create: if clientMatches(clientId) && isAuthed() &&
+          request.resource.data.createdBy == request.auth.uid;
+        allow update, delete: if false; // Versions are immutable
+      }
+
+      // Presence - field-level locking for collaborative editing
+      match /presence {
+        allow read: if clientMatches(clientId);
+        allow write: if clientMatches(clientId) && isAuthed();
       }
     }
 
@@ -161,6 +203,20 @@ service cloud.firestore {
         allow read: if clientMatches(clientId);
         allow create, update: if clientMatches(clientId) && (isAdmin() || isProducer());
         allow delete: if clientMatches(clientId) && isAdmin();
+      }
+
+      // Versions - immutable document snapshots for version history
+      match /versions/{versionId} {
+        allow read: if clientMatches(clientId);
+        allow create: if clientMatches(clientId) && isAuthed() &&
+          request.resource.data.createdBy == request.auth.uid;
+        allow update, delete: if false; // Versions are immutable
+      }
+
+      // Presence - field-level locking for collaborative editing
+      match /presence {
+        allow read: if clientMatches(clientId);
+        allow write: if clientMatches(clientId) && isAuthed();
       }
     }
 

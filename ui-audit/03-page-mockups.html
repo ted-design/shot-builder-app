@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shot Builder - Before/After Page Mockups</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #3b82f6;
+      --neutral-50: #f8fafc;
+      --neutral-100: #f1f5f9;
+      --neutral-200: #e2e8f0;
+      --neutral-300: #cbd5e1;
+      --neutral-400: #94a3b8;
+      --neutral-500: #64748b;
+      --neutral-600: #475569;
+      --neutral-700: #334155;
+      --neutral-800: #1e293b;
+      --neutral-900: #0f172a;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--neutral-900);
+      color: var(--neutral-100);
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.1) 0%, transparent 100%);
+      border-bottom: 1px solid var(--neutral-800);
+      padding: 48px 40px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 40px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .header p {
+      color: var(--neutral-400);
+      font-size: 18px;
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 48px 40px;
+    }
+
+    .comparison-section {
+      margin-bottom: 80px;
+    }
+
+    .comparison-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .comparison-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--neutral-100);
+    }
+
+    .comparison-badges {
+      display: flex;
+      gap: 8px;
+    }
+
+    .badge-before {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-after {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .comparison-card {
+      background: var(--neutral-800);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--neutral-700);
+    }
+
+    .comparison-card.before {
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .comparison-card.after {
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .card-label {
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .comparison-card.before .card-label {
+      background: rgba(239, 68, 68, 0.1);
+      color: #fca5a5;
+      border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .comparison-card.after .card-label {
+      background: rgba(16, 185, 129, 0.1);
+      color: #6ee7b7;
+      border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .card-body {
+      background: white;
+      min-height: 400px;
+    }
+
+    /* Mockup Styles */
+    .mockup-nav {
+      height: 56px;
+      background: white;
+      border-bottom: 1px solid var(--neutral-200);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 32px;
+    }
+
+    .mockup-logo {
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--neutral-900);
+    }
+
+    .mockup-nav-links {
+      display: flex;
+      gap: 20px;
+    }
+
+    .mockup-nav-link {
+      font-size: 13px;
+      color: var(--neutral-600);
+      text-decoration: none;
+      padding: 16px 0;
+      border-bottom: 2px solid transparent;
+    }
+
+    .mockup-nav-link.active {
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .mockup-header {
+      background: white;
+      border-bottom: 1px solid var(--neutral-200);
+      padding: 20px 24px;
+    }
+
+    .mockup-header-content {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .mockup-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--neutral-900);
+      margin-bottom: 4px;
+    }
+
+    .mockup-desc {
+      font-size: 13px;
+      color: var(--neutral-500);
+    }
+
+    .mockup-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .mockup-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .mockup-btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .mockup-btn-outline {
+      background: white;
+      border: 1px solid var(--neutral-300);
+      color: var(--neutral-700);
+    }
+
+    .mockup-btn-ghost {
+      background: transparent;
+      color: var(--neutral-600);
+    }
+
+    .mockup-btn-icon {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+
+    /* Toolbar Styles */
+    .mockup-toolbar {
+      background: white;
+      border-bottom: 1px solid var(--neutral-200);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .mockup-toolbar-card {
+      background: var(--neutral-50);
+      border: 1px solid var(--neutral-200);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mockup-search {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border: 1px solid var(--neutral-200);
+      border-radius: 6px;
+      background: var(--neutral-50);
+    }
+
+    .mockup-search input {
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      width: 160px;
+      outline: none;
+    }
+
+    .mockup-toolbar-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--neutral-200);
+      margin: 0 12px;
+    }
+
+    .mockup-content {
+      padding: 20px 24px;
+      background: var(--neutral-50);
+    }
+
+    .mockup-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .mockup-card {
+      background: white;
+      border: 1px solid var(--neutral-200);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .mockup-card-img {
+      height: 100px;
+      background: linear-gradient(135deg, var(--neutral-200) 0%, var(--neutral-300) 100%);
+    }
+
+    .mockup-card-body {
+      padding: 12px;
+    }
+
+    .mockup-card-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--neutral-900);
+      margin-bottom: 4px;
+    }
+
+    .mockup-card-meta {
+      font-size: 12px;
+      color: var(--neutral-500);
+    }
+
+    .mockup-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 500;
+      border-radius: 9999px;
+    }
+
+    .mockup-badge-success {
+      background: rgba(16, 185, 129, 0.1);
+      color: #059669;
+    }
+
+    .mockup-badge-warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: #d97706;
+    }
+
+    .mockup-badge-info {
+      background: rgba(59, 130, 246, 0.1);
+      color: #2563eb;
+    }
+
+    /* Icon */
+    .icon {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    /* Issue Callouts */
+    .issues-list {
+      margin-top: 16px;
+      padding: 16px;
+      background: rgba(239, 68, 68, 0.05);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 8px;
+    }
+
+    .issues-list h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fca5a5;
+      margin-bottom: 12px;
+    }
+
+    .issues-list ul {
+      list-style: none;
+      font-size: 13px;
+      color: var(--neutral-400);
+    }
+
+    .issues-list li {
+      padding: 4px 0;
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .issues-list li::before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: #f87171;
+    }
+
+    .improvements-list {
+      margin-top: 16px;
+      padding: 16px;
+      background: rgba(16, 185, 129, 0.05);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 8px;
+    }
+
+    .improvements-list h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #6ee7b7;
+      margin-bottom: 12px;
+    }
+
+    .improvements-list ul {
+      list-style: none;
+      font-size: 13px;
+      color: var(--neutral-400);
+    }
+
+    .improvements-list li {
+      padding: 4px 0;
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .improvements-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #34d399;
+    }
+
+    /* Before state highlights */
+    .before .mockup-toolbar { gap: 8px; }  /* Tighter gap - inconsistent */
+    .before .mockup-header { padding: 20px 32px; } /* Different padding */
+    .before .mockup-content { padding: 20px 32px; } /* Different padding */
+
+    /* After state improvements */
+    .after .mockup-toolbar { gap: 12px; }
+    .after .mockup-header { padding: 24px; }
+    .after .mockup-content { padding: 24px; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>Before / After Mockups</h1>
+    <p>Visual comparisons showing the transformation from inconsistent to standardized UI</p>
+  </header>
+
+  <div class="container">
+
+    <!-- Products Page Comparison -->
+    <section class="comparison-section">
+      <div class="comparison-header">
+        <h2 class="comparison-title">Products Page - Toolbar Pattern</h2>
+        <div class="comparison-badges">
+          <span class="badge-before">Current State</span>
+          <span class="badge-after">Proposed Design</span>
+        </div>
+      </div>
+
+      <div class="comparison-grid">
+        <!-- Before -->
+        <div class="comparison-card before">
+          <div class="card-label">Before - Inconsistent</div>
+          <div class="card-body">
+            <div class="mockup-nav">
+              <div class="mockup-logo">Shot Builder</div>
+              <div class="mockup-nav-links">
+                <a class="mockup-nav-link">Dashboard</a>
+                <a class="mockup-nav-link active">Products</a>
+                <a class="mockup-nav-link">Talent</a>
+              </div>
+            </div>
+            <div class="mockup-header" style="padding: 20px 32px;">
+              <div class="mockup-header-content">
+                <div>
+                  <div class="mockup-title">Products</div>
+                  <div class="mockup-desc">Manage product families and SKUs</div>
+                </div>
+              </div>
+            </div>
+            <!-- Toolbar in Card - Current inconsistent pattern -->
+            <div class="mockup-toolbar-card">
+              <button class="mockup-btn mockup-btn-outline" style="font-size: 12px;">Filters</button>
+              <button class="mockup-btn mockup-btn-outline" style="font-size: 12px;">Select Mode</button>
+              <div class="mockup-search" style="margin-left: 4px;">
+                <svg class="icon" style="color: var(--neutral-400);" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Search...">
+              </div>
+              <button class="mockup-btn mockup-btn-icon mockup-btn-ghost">
+                <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+              </button>
+              <button class="mockup-btn mockup-btn-icon mockup-btn-ghost">
+                <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </button>
+              <div style="flex: 1;"></div>
+              <button class="mockup-btn mockup-btn-primary" style="font-size: 12px;">New product</button>
+            </div>
+            <div class="mockup-content" style="padding: 20px 32px;">
+              <div class="mockup-grid">
+                <div class="mockup-card">
+                  <div class="mockup-card-img"></div>
+                  <div class="mockup-card-body">
+                    <div class="mockup-card-title">Merino Wool Hoodie</div>
+                    <div class="mockup-card-meta">12 SKUs</div>
+                  </div>
+                </div>
+                <div class="mockup-card">
+                  <div class="mockup-card-img"></div>
+                  <div class="mockup-card-body">
+                    <div class="mockup-card-title">Travel Pants</div>
+                    <div class="mockup-card-meta">8 SKUs</div>
+                  </div>
+                </div>
+                <div class="mockup-card">
+                  <div class="mockup-card-img"></div>
+                  <div class="mockup-card-body">
+                    <div class="mockup-card-title">Crew Neck Tee</div>
+                    <div class="mockup-card-meta">15 SKUs</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="issues-list">
+            <h4>Issues Identified</h4>
+            <ul>
+              <li>Toolbar inside Card creates nested borders</li>
+              <li>Different padding (32px) than other pages</li>
+              <li>gap-2 (8px) instead of standard gap-3 (12px)</li>
+              <li>Primary action "New product" in wrong location</li>
+              <li>Filter/Select buttons use outline instead of ghost</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- After -->
+        <div class="comparison-card after">
+          <div class="card-label">After - Standardized</div>
+          <div class="card-body">
+            <div class="mockup-nav">
+              <div class="mockup-logo">Shot Builder</div>
+              <div class="mockup-nav-links">
+                <a class="mockup-nav-link">Dashboard</a>
+                <a class="mockup-nav-link active">Products</a>
+                <a class="mockup-nav-link">Talent</a>
+              </div>
+            </div>
+            <div class="mockup-header">
+              <div class="mockup-header-content">
+                <div>
+                  <div class="mockup-title">Products</div>
+                  <div class="mockup-desc">Manage product families and SKUs</div>
+                </div>
+                <div class="mockup-actions">
+                  <button class="mockup-btn mockup-btn-outline">Export</button>
+                  <button class="mockup-btn mockup-btn-primary">New product</button>
+                </div>
+              </div>
+            </div>
+            <div class="mockup-toolbar" style="gap: 12px;">
+              <div class="mockup-search">
+                <svg class="icon" style="color: var(--neutral-400);" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Search products...">
+              </div>
+              <div class="mockup-toolbar-divider"></div>
+              <button class="mockup-btn mockup-btn-icon mockup-btn-ghost">
+                <svg class="icon" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              </button>
+              <button class="mockup-btn mockup-btn-icon mockup-btn-ghost">
+                <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+              </button>
+              <button class="mockup-btn mockup-btn-icon mockup-btn-ghost">
+                <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </button>
+              <button class="mockup-btn mockup-btn-icon mockup-btn-ghost">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+              <div style="flex: 1;"></div>
+              <span class="mockup-badge mockup-badge-info" style="font-size: 11px;">Status: Active</span>
+            </div>
+            <div class="mockup-content">
+              <div class="mockup-grid">
+                <div class="mockup-card">
+                  <div class="mockup-card-img"></div>
+                  <div class="mockup-card-body">
+                    <div class="mockup-card-title">Merino Wool Hoodie</div>
+                    <div class="mockup-card-meta">12 SKUs</div>
+                  </div>
+                </div>
+                <div class="mockup-card">
+                  <div class="mockup-card-img"></div>
+                  <div class="mockup-card-body">
+                    <div class="mockup-card-title">Travel Pants</div>
+                    <div class="mockup-card-meta">8 SKUs</div>
+                  </div>
+                </div>
+                <div class="mockup-card">
+                  <div class="mockup-card-img"></div>
+                  <div class="mockup-card-body">
+                    <div class="mockup-card-title">Crew Neck Tee</div>
+                    <div class="mockup-card-meta">15 SKUs</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="improvements-list">
+            <h4>Improvements Made</h4>
+            <ul>
+              <li>Toolbar directly below header (no Card wrapper)</li>
+              <li>Consistent 24px padding throughout</li>
+              <li>Standard gap-3 (12px) between toolbar items</li>
+              <li>Primary action moved to PageHeader.Actions</li>
+              <li>Icon-only buttons for compact toolbar tools</li>
+              <li>Filter pills shown inline in toolbar</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Talent Page Comparison -->
+    <section class="comparison-section">
+      <div class="comparison-header">
+        <h2 class="comparison-title">Talent Page - Card Styling</h2>
+        <div class="comparison-badges">
+          <span class="badge-before">Current State</span>
+          <span class="badge-after">Proposed Design</span>
+        </div>
+      </div>
+
+      <div class="comparison-grid">
+        <!-- Before -->
+        <div class="comparison-card before">
+          <div class="card-label">Before - Inconsistent</div>
+          <div class="card-body">
+            <div class="mockup-nav">
+              <div class="mockup-logo">Shot Builder</div>
+              <div class="mockup-nav-links">
+                <a class="mockup-nav-link">Dashboard</a>
+                <a class="mockup-nav-link">Products</a>
+                <a class="mockup-nav-link active">Talent</a>
+              </div>
+            </div>
+            <div class="mockup-header" style="padding: 20px 24px;">
+              <div class="mockup-header-content">
+                <div>
+                  <div class="mockup-title">Talent</div>
+                  <div class="mockup-desc">Track models, agencies, and wardrobe notes</div>
+                </div>
+                <div class="mockup-actions" style="gap: 12px;">
+                  <div class="mockup-search">
+                    <svg class="icon" style="color: var(--neutral-400);" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" placeholder="Search...">
+                  </div>
+                  <button class="mockup-btn mockup-btn-icon mockup-btn-ghost">
+                    <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  </button>
+                  <button class="mockup-btn mockup-btn-outline">Export</button>
+                  <button class="mockup-btn mockup-btn-primary">New talent</button>
+                </div>
+              </div>
+            </div>
+            <div class="mockup-content">
+              <div class="mockup-grid" style="grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                <div class="mockup-card" style="border-radius: 12px;">
+                  <div class="mockup-card-img" style="height: 140px;"></div>
+                  <div class="mockup-card-body" style="padding: 10px;">
+                    <div class="mockup-card-title" style="font-size: 13px;">Sarah Johnson</div>
+                    <div class="mockup-card-meta" style="font-size: 11px;">Elite Models</div>
+                    <div style="margin-top: 6px;">
+                      <span class="mockup-badge" style="background: #dcfce7; color: #166534; border-radius: 6px;">Active</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mockup-card" style="border-radius: 12px;">
+                  <div class="mockup-card-img" style="height: 140px;"></div>
+                  <div class="mockup-card-body" style="padding: 10px;">
+                    <div class="mockup-card-title" style="font-size: 13px;">Michael Chen</div>
+                    <div class="mockup-card-meta" style="font-size: 11px;">Wilhelmina</div>
+                    <div style="margin-top: 6px;">
+                      <span class="mockup-badge" style="background: #fef3c7; color: #92400e; border-radius: 10px;">Pending</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mockup-card" style="border-radius: 12px;">
+                  <div class="mockup-card-img" style="height: 140px;"></div>
+                  <div class="mockup-card-body" style="padding: 10px;">
+                    <div class="mockup-card-title" style="font-size: 13px;">Emma Davis</div>
+                    <div class="mockup-card-meta" style="font-size: 11px;">IMG</div>
+                    <div style="margin-top: 6px;">
+                      <span class="mockup-badge" style="background: #e0f2fe; color: #075985; border-radius: 4px;">New</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mockup-card" style="border-radius: 12px;">
+                  <div class="mockup-card-img" style="height: 140px;"></div>
+                  <div class="mockup-card-body" style="padding: 10px;">
+                    <div class="mockup-card-title" style="font-size: 13px;">Alex Rivera</div>
+                    <div class="mockup-card-meta" style="font-size: 11px;">Ford Models</div>
+                    <div style="margin-top: 6px;">
+                      <span class="mockup-badge" style="background: #f1f5f9; color: #475569; border-radius: 9999px;">Archived</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="issues-list">
+            <h4>Issues Identified</h4>
+            <ul>
+              <li>Cards use rounded-xl (12px) instead of rounded-card (8px)</li>
+              <li>Status badges have 4 different border-radius values</li>
+              <li>Toolbar mixed into PageHeader.Actions (gap-3)</li>
+              <li>Grid gap is 12px instead of standard 16px</li>
+              <li>Inline badge styling instead of StatusBadge component</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- After -->
+        <div class="comparison-card after">
+          <div class="card-label">After - Standardized</div>
+          <div class="card-body">
+            <div class="mockup-nav">
+              <div class="mockup-logo">Shot Builder</div>
+              <div class="mockup-nav-links">
+                <a class="mockup-nav-link">Dashboard</a>
+                <a class="mockup-nav-link">Products</a>
+                <a class="mockup-nav-link active">Talent</a>
+              </div>
+            </div>
+            <div class="mockup-header">
+              <div class="mockup-header-content">
+                <div>
+                  <div class="mockup-title">Talent</div>
+                  <div class="mockup-desc">Track models, agencies, and wardrobe notes</div>
+                </div>
+                <div class="mockup-actions">
+                  <button class="mockup-btn mockup-btn-outline">Export</button>
+                  <button class="mockup-btn mockup-btn-primary">New talent</button>
+                </div>
+              </div>
+            </div>
+            <div class="mockup-toolbar" style="gap: 12px;">
+              <div class="mockup-search">
+                <svg class="icon" style="color: var(--neutral-400);" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Search talent...">
+              </div>
+              <div class="mockup-toolbar-divider"></div>
+              <button class="mockup-btn mockup-btn-icon mockup-btn-ghost">
+                <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+              </button>
+              <button class="mockup-btn mockup-btn-icon mockup-btn-ghost">
+                <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </button>
+              <button class="mockup-btn mockup-btn-icon mockup-btn-ghost">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="mockup-content">
+              <div class="mockup-grid" style="grid-template-columns: repeat(4, 1fr); gap: 16px;">
+                <div class="mockup-card" style="border-radius: 8px;">
+                  <div class="mockup-card-img" style="height: 140px;"></div>
+                  <div class="mockup-card-body">
+                    <div class="mockup-card-title" style="font-size: 14px;">Sarah Johnson</div>
+                    <div class="mockup-card-meta">Elite Models</div>
+                    <div style="margin-top: 8px;">
+                      <span class="mockup-badge mockup-badge-success">Active</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mockup-card" style="border-radius: 8px;">
+                  <div class="mockup-card-img" style="height: 140px;"></div>
+                  <div class="mockup-card-body">
+                    <div class="mockup-card-title" style="font-size: 14px;">Michael Chen</div>
+                    <div class="mockup-card-meta">Wilhelmina</div>
+                    <div style="margin-top: 8px;">
+                      <span class="mockup-badge mockup-badge-warning">Pending</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mockup-card" style="border-radius: 8px;">
+                  <div class="mockup-card-img" style="height: 140px;"></div>
+                  <div class="mockup-card-body">
+                    <div class="mockup-card-title" style="font-size: 14px;">Emma Davis</div>
+                    <div class="mockup-card-meta">IMG</div>
+                    <div style="margin-top: 8px;">
+                      <span class="mockup-badge mockup-badge-info">New</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mockup-card" style="border-radius: 8px;">
+                  <div class="mockup-card-img" style="height: 140px;"></div>
+                  <div class="mockup-card-body">
+                    <div class="mockup-card-title" style="font-size: 14px;">Alex Rivera</div>
+                    <div class="mockup-card-meta">Ford Models</div>
+                    <div style="margin-top: 8px;">
+                      <span class="mockup-badge" style="background: var(--neutral-100); color: var(--neutral-600); border-radius: 9999px;">Archived</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="improvements-list">
+            <h4>Improvements Made</h4>
+            <ul>
+              <li>Cards use rounded-card (8px) consistently</li>
+              <li>All badges use StatusBadge with rounded-full</li>
+              <li>Toolbar separated from PageHeader into its own row</li>
+              <li>Grid gap standardized to 16px</li>
+              <li>Semantic badge components (no inline styling)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Planner Toolbar Comparison -->
+    <section class="comparison-section">
+      <div class="comparison-header">
+        <h2 class="comparison-title">Planner Page - Floating vs Attached Toolbar</h2>
+        <div class="comparison-badges">
+          <span class="badge-before">Current State</span>
+          <span class="badge-after">Proposed Design</span>
+        </div>
+      </div>
+
+      <div class="comparison-grid">
+        <!-- Before -->
+        <div class="comparison-card before">
+          <div class="card-label">Before - Floating Card Toolbar</div>
+          <div class="card-body">
+            <div class="mockup-nav">
+              <div class="mockup-logo">Shot Builder</div>
+              <div class="mockup-nav-links">
+                <a class="mockup-nav-link">Dashboard</a>
+                <a class="mockup-nav-link active">Planner</a>
+                <a class="mockup-nav-link">Shots</a>
+              </div>
+            </div>
+            <div class="mockup-header">
+              <div class="mockup-header-content">
+                <div>
+                  <div class="mockup-title">Planner</div>
+                  <div class="mockup-desc">Drag and drop shots to organize your shoot</div>
+                </div>
+              </div>
+            </div>
+            <div class="mockup-content" style="padding-top: 16px;">
+              <!-- Floating toolbar card -->
+              <div style="background: white; border: 1px solid var(--neutral-200); border-radius: 8px; padding: 8px 16px; display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                <div class="mockup-search" style="border-radius: 9999px;">
+                  <svg class="icon" style="color: var(--neutral-400);" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input type="text" placeholder="Search shots...">
+                </div>
+                <div style="flex: 1;"></div>
+                <button class="mockup-btn mockup-btn-icon mockup-btn-ghost">
+                  <svg class="icon" viewBox="0 0 24 24"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/></svg>
+                </button>
+                <button class="mockup-btn mockup-btn-outline">Export</button>
+              </div>
+              <!-- Planner lanes -->
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                <div style="background: var(--neutral-100); border-radius: 8px; padding: 12px; min-height: 200px;">
+                  <div style="font-weight: 600; font-size: 13px; color: var(--neutral-700); margin-bottom: 8px;">Day 1</div>
+                  <div style="background: white; border: 1px solid var(--neutral-200); border-radius: 6px; padding: 8px; font-size: 12px;">Shot A</div>
+                </div>
+                <div style="background: var(--neutral-100); border-radius: 8px; padding: 12px; min-height: 200px;">
+                  <div style="font-weight: 600; font-size: 13px; color: var(--neutral-700); margin-bottom: 8px;">Day 2</div>
+                  <div style="background: white; border: 1px solid var(--neutral-200); border-radius: 6px; padding: 8px; font-size: 12px;">Shot B</div>
+                </div>
+                <div style="background: var(--neutral-100); border-radius: 8px; padding: 12px; min-height: 200px;">
+                  <div style="font-weight: 600; font-size: 13px; color: var(--neutral-700); margin-bottom: 8px;">Day 3</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="issues-list">
+            <h4>Issues Identified</h4>
+            <ul>
+              <li>Toolbar is a floating card (not attached to header)</li>
+              <li>Uses gap-4 (16px) instead of standard gap-3 (12px)</li>
+              <li>Search uses rounded-full instead of rounded-md</li>
+              <li>Not sticky - scrolls out of view</li>
+              <li>Different visual weight than other page toolbars</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- After -->
+        <div class="comparison-card after">
+          <div class="card-label">After - Attached Sticky Toolbar</div>
+          <div class="card-body">
+            <div class="mockup-nav">
+              <div class="mockup-logo">Shot Builder</div>
+              <div class="mockup-nav-links">
+                <a class="mockup-nav-link">Dashboard</a>
+                <a class="mockup-nav-link active">Planner</a>
+                <a class="mockup-nav-link">Shots</a>
+              </div>
+            </div>
+            <div class="mockup-header">
+              <div class="mockup-header-content">
+                <div>
+                  <div class="mockup-title">Planner</div>
+                  <div class="mockup-desc">Drag and drop shots to organize your shoot</div>
+                </div>
+                <div class="mockup-actions">
+                  <button class="mockup-btn mockup-btn-outline">Export</button>
+                </div>
+              </div>
+            </div>
+            <div class="mockup-toolbar" style="gap: 12px;">
+              <div class="mockup-search">
+                <svg class="icon" style="color: var(--neutral-400);" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Search shots...">
+              </div>
+              <div class="mockup-toolbar-divider"></div>
+              <button class="mockup-btn mockup-btn-icon mockup-btn-ghost">
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/></svg>
+              </button>
+              <button class="mockup-btn mockup-btn-icon mockup-btn-ghost">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+              </button>
+            </div>
+            <div class="mockup-content">
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                <div style="background: var(--neutral-100); border-radius: 8px; padding: 12px; min-height: 200px;">
+                  <div style="font-weight: 600; font-size: 13px; color: var(--neutral-700); margin-bottom: 8px;">Day 1</div>
+                  <div style="background: white; border: 1px solid var(--neutral-200); border-radius: 8px; padding: 10px; font-size: 13px;">Shot A</div>
+                </div>
+                <div style="background: var(--neutral-100); border-radius: 8px; padding: 12px; min-height: 200px;">
+                  <div style="font-weight: 600; font-size: 13px; color: var(--neutral-700); margin-bottom: 8px;">Day 2</div>
+                  <div style="background: white; border: 1px solid var(--neutral-200); border-radius: 8px; padding: 10px; font-size: 13px;">Shot B</div>
+                </div>
+                <div style="background: var(--neutral-100); border-radius: 8px; padding: 12px; min-height: 200px;">
+                  <div style="font-weight: 600; font-size: 13px; color: var(--neutral-700); margin-bottom: 8px;">Day 3</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="improvements-list">
+            <h4>Improvements Made</h4>
+            <ul>
+              <li>Toolbar attached below header (standard pattern)</li>
+              <li>Standard gap-3 (12px) between items</li>
+              <li>Search uses consistent rounded-md styling</li>
+              <li>Sticky toolbar stays visible while scrolling</li>
+              <li>Export moved to PageHeader.Actions</li>
+              <li>Visual consistency with other pages</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer style="text-align: center; padding: 40px; border-top: 1px solid var(--neutral-800);">
+    <p style="color: var(--neutral-500); font-size: 14px;">Shot Builder UI/UX Audit - Page 3 of 3</p>
+    <p style="color: var(--neutral-600); font-size: 12px; margin-top: 8px;">Review complete. Ready for implementation upon approval.</p>
+  </footer>
+</body>
+</html>
