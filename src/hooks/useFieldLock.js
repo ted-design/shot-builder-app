@@ -14,6 +14,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import {
   doc,
+  setDoc,
   updateDoc,
   deleteField,
   onSnapshot,
@@ -154,17 +155,24 @@ export function useFieldLock(clientId, entityType, entityId, fieldPath, options 
     setIsAcquiring(true);
 
     try {
-      await updateDoc(presenceRef, {
-        [`locks.${fieldPath}`]: {
-          userId: user.uid,
-          userName: user.displayName || user.email || "Unknown User",
-          userAvatar: user.photoURL || null,
-          fieldPath,
-          acquiredAt: serverTimestamp(),
-          heartbeat: serverTimestamp(),
+      // Use setDoc with merge to create presence doc if it doesn't exist
+      await setDoc(
+        presenceRef,
+        {
+          locks: {
+            [fieldPath]: {
+              userId: user.uid,
+              userName: user.displayName || user.email || "Unknown User",
+              userAvatar: user.photoURL || null,
+              fieldPath,
+              acquiredAt: serverTimestamp(),
+              heartbeat: serverTimestamp(),
+            },
+          },
+          lastActivity: serverTimestamp(),
         },
-        lastActivity: serverTimestamp(),
-      });
+        { merge: true }
+      );
 
       hasLockRef.current = true;
 
