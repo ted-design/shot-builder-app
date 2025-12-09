@@ -33,6 +33,10 @@ import {
   createStatusChangedActivity,
   createShotDeletedActivity,
 } from "../lib/activityLogger";
+import {
+  createVersionSnapshot,
+  createInitialVersion,
+} from "../lib/versionLogger";
 
 /**
  * Hook for creating a new shot
@@ -69,6 +73,19 @@ export function useCreateShot(clientId, options = {}) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.shots(clientId, newShot.projectId),
       });
+
+      // Create initial version snapshot (non-blocking)
+      if (user) {
+        createInitialVersion(
+          clientId,
+          "shots",
+          newShot.id,
+          newShot,
+          user
+        ).catch((error) => {
+          console.error("[useCreateShot] Initial version snapshot failed:", error);
+        });
+      }
 
       // Log activity (non-blocking)
       if (options.projectId && user) {
@@ -172,9 +189,26 @@ export function useUpdateShot(clientId, projectId, options = {}) {
         queryKey: queryKeys.shots(clientId, projectId),
       });
 
+      const { shotId, updates } = variables;
+
+      // Create version snapshot (non-blocking)
+      if (user && context?.previousShot) {
+        const currentShot = { ...context.previousShot, ...updates };
+        createVersionSnapshot(
+          clientId,
+          "shots",
+          shotId,
+          context.previousShot,
+          currentShot,
+          user,
+          "update"
+        ).catch((error) => {
+          console.error("[useUpdateShot] Version snapshot failed:", error);
+        });
+      }
+
       // Log activity (non-blocking)
       if (projectId && user && context?.previousShot) {
-        const { shotId, updates } = variables;
         const shotName = options.shotName || context.previousShot.name || `Shot ${context.previousShot.shotNumber || shotId}`;
 
         // Check if this is a status change

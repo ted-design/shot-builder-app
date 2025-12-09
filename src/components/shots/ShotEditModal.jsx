@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { History } from "lucide-react";
 import { Modal } from "../ui/modal";
 import { Card, CardHeader, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
@@ -16,6 +17,7 @@ import SingleImageDropzone from "../common/SingleImageDropzone";
 import AppImage from "../common/AppImage";
 import MultiImageAttachmentManager from "./MultiImageAttachmentManager";
 import AdvancedImageCropEditor from "./AdvancedImageCropEditor";
+import { VersionHistoryPanel, ActiveEditorsBar } from "../versioning";
 
 const steps = [
   { id: "basics", label: "Basics", description: "Core details & references" },
@@ -65,6 +67,7 @@ export default function ShotEditModal({
   const [cropEditorOpen, setCropEditorOpen] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState(null);
   const [advancedActionsOpen, setAdvancedActionsOpen] = useState(false);
+  const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
   const tabRefs = useRef([]);
 
   useEffect(() => {
@@ -187,6 +190,19 @@ export default function ShotEditModal({
               <p className="text-sm text-slate-500 dark:text-slate-400">{description}</p>
             </div>
             <div className="flex items-center gap-2">
+              {/* History button - only show for existing shots */}
+              {shotId && clientId && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setHistoryPanelOpen(true)}
+                  className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                >
+                  <History className="h-4 w-4 mr-1" />
+                  History
+                </Button>
+              )}
               <button
                 type="button"
                 aria-label="Close"
@@ -197,6 +213,16 @@ export default function ShotEditModal({
               </button>
             </div>
           </div>
+
+          {/* Active editors bar - shows who else is editing */}
+          {shotId && clientId && (
+            <ActiveEditorsBar
+              clientId={clientId}
+              entityType="shots"
+              entityId={shotId}
+              enabled={open}
+            />
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
@@ -646,6 +672,18 @@ export default function ShotEditModal({
         attachment={editingAttachment}
         onSave={handleSaveCrop}
       />
+
+      {/* Version History Panel */}
+      {shotId && clientId && (
+        <VersionHistoryPanel
+          open={historyPanelOpen}
+          onClose={() => setHistoryPanelOpen(false)}
+          clientId={clientId}
+          entityType="shots"
+          entityId={shotId}
+          entityName={shotName || draft?.name}
+        />
+      )}
     </Modal>
   );
 }

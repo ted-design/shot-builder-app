@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shot Builder UI Audit - Current Inconsistencies</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-300: #cbd5e1;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+      --indigo-500: #6366f1;
+      --indigo-600: #4f46e5;
+      --red-500: #ef4444;
+      --amber-500: #f59e0b;
+      --emerald-500: #10b981;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: var(--slate-100);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .audit-header {
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.15) 0%, transparent 100%);
+      border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 60px 40px;
+      text-align: center;
+    }
+
+    .audit-header h1 {
+      font-size: 48px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .audit-header .subtitle {
+      font-size: 20px;
+      color: var(--slate-400);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .badge-critical {
+      display: inline-block;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 60px 40px;
+    }
+
+    .section {
+      margin-bottom: 80px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .section-number {
+      width: 48px;
+      height: 48px;
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--indigo-500);
+    }
+
+    .section-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--slate-100);
+    }
+
+    .section-desc {
+      color: var(--slate-400);
+      font-size: 16px;
+      margin-bottom: 32px;
+      max-width: 800px;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 24px;
+    }
+
+    .comparison-card {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .comparison-card.problem {
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--slate-700);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--slate-300);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .card-header .file-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--slate-500);
+      background: var(--slate-900);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .card-body {
+      padding: 24px;
+    }
+
+    /* Toolbar Mockups */
+    .toolbar-mockup {
+      background: #fff;
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-mockup.dark {
+      background: var(--slate-900);
+    }
+
+    .toolbar-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .toolbar-btn.ghost {
+      background: transparent;
+      color: var(--slate-600);
+      border-color: transparent;
+    }
+
+    .toolbar-btn.outline {
+      background: transparent;
+      color: var(--slate-700);
+      border-color: var(--slate-300);
+    }
+
+    .toolbar-btn.primary {
+      background: var(--indigo-500);
+      color: white;
+    }
+
+    .toolbar-btn.icon-only {
+      padding: 8px;
+      width: 36px;
+      height: 36px;
+      justify-content: center;
+    }
+
+    .search-input {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border: 1px solid var(--slate-200);
+      border-radius: 6px;
+      background: white;
+    }
+
+    .search-input input {
+      border: none;
+      outline: none;
+      font-size: 13px;
+      width: 180px;
+    }
+
+    .search-input svg {
+      color: var(--slate-400);
+    }
+
+    /* Issue Highlight */
+    .issue-highlight {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px dashed rgba(239, 68, 68, 0.4);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .issue-highlight h4 {
+      color: #fca5a5;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .issue-highlight p {
+      color: var(--slate-400);
+      font-size: 13px;
+    }
+
+    .issue-highlight code {
+      background: var(--slate-900);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #fca5a5;
+    }
+
+    /* Spacing Visual */
+    .spacing-demo {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      padding: 20px;
+      background: var(--slate-900);
+      border-radius: 8px;
+    }
+
+    .spacing-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .spacing-block .value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--slate-500);
+    }
+
+    .spacing-block .bar {
+      width: 40px;
+      background: var(--indigo-500);
+      border-radius: 4px;
+    }
+
+    .spacing-block .bar.inconsistent {
+      background: var(--red-500);
+    }
+
+    .spacing-block .label {
+      font-size: 10px;
+      color: var(--slate-500);
+      text-align: center;
+    }
+
+    /* Table */
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .audit-table th,
+    .audit-table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--slate-700);
+    }
+
+    .audit-table th {
+      background: var(--slate-900);
+      color: var(--slate-400);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .audit-table td {
+      color: var(--slate-300);
+    }
+
+    .audit-table code {
+      background: var(--slate-900);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+
+    .severity-high {
+      color: #fca5a5;
+    }
+
+    .severity-medium {
+      color: #fcd34d;
+    }
+
+    .severity-low {
+      color: #86efac;
+    }
+
+    /* Rounded Examples */
+    .rounded-examples {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .rounded-example {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .rounded-box {
+      width: 80px;
+      height: 80px;
+      background: var(--indigo-500);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .rounded-label {
+      font-size: 12px;
+      color: var(--slate-400);
+      text-align: center;
+    }
+
+    .rounded-label.inconsistent {
+      color: #fca5a5;
+    }
+
+    /* Summary Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 60px;
+    }
+
+    .stat-card {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .stat-card.critical {
+      border-color: rgba(239, 68, 68, 0.4);
+      background: rgba(239, 68, 68, 0.05);
+    }
+
+    .stat-value {
+      font-size: 48px;
+      font-weight: 700;
+      color: var(--slate-100);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .stat-card.critical .stat-value {
+      color: #fca5a5;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      color: var(--slate-400);
+    }
+
+    /* SVG Icons inline */
+    .icon {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    /* Badge Examples */
+    .badge-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .demo-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .demo-badge.rounded-full { border-radius: 9999px; }
+    .demo-badge.rounded-badge { border-radius: 10px; }
+    .demo-badge.rounded-md { border-radius: 6px; }
+    .demo-badge.rounded-lg { border-radius: 8px; }
+
+    .demo-badge.emerald {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .demo-badge.amber {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .demo-badge.red {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .demo-badge.slate {
+      background: rgba(100, 116, 139, 0.15);
+      color: #94a3b8;
+      border: 1px solid rgba(100, 116, 139, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <header class="audit-header">
+    <h1>Shot Builder UI/UX Audit</h1>
+    <p class="subtitle">A comprehensive analysis of design inconsistencies, component usage patterns, and UX issues across the application</p>
+    <span class="badge-critical">37 Issues Identified</span>
+  </header>
+
+  <div class="container">
+    <!-- Summary Stats -->
+    <div class="stats-grid">
+      <div class="stat-card critical">
+        <div class="stat-value">12</div>
+        <div class="stat-label">High Priority Issues</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">15</div>
+        <div class="stat-label">Medium Priority Issues</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">10</div>
+        <div class="stat-label">Low Priority Issues</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">23</div>
+        <div class="stat-label">Files to Update</div>
+      </div>
+    </div>
+
+    <!-- Section 1: Layout Inconsistencies -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">1</div>
+        <h2 class="section-title">Layout & Container Inconsistencies</h2>
+      </div>
+      <p class="section-desc">The app uses conflicting max-width values and padding across different pages, creating an inconsistent visual experience as users navigate between sections.</p>
+
+      <div class="comparison-grid">
+        <div class="comparison-card problem">
+          <div class="card-header">
+            <h3>Max-Width Variations</h3>
+          </div>
+          <div class="card-body">
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th>Page</th>
+                  <th>Max-Width</th>
+                  <th>Actual Pixels</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>TopNavigationLayout</td>
+                  <td><code>max-w-[1440px]</code></td>
+                  <td>1440px</td>
+                </tr>
+                <tr>
+                  <td>ProjectsPage</td>
+                  <td><code>max-w-screen-lg</code></td>
+                  <td class="severity-high">~1024px</td>
+                </tr>
+                <tr>
+                  <td>AccountSettingsPage</td>
+                  <td><code>max-w-6xl</code></td>
+                  <td class="severity-medium">~1152px</td>
+                </tr>
+                <tr>
+                  <td>Products/Shots</td>
+                  <td>No limit</td>
+                  <td>~1408px usable</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="issue-highlight">
+              <h4>
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Visual Impact
+              </h4>
+              <p>Projects page appears narrower than other pages, creating jarring transitions when navigating. Content doesn't fill available space within the global container.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="comparison-card problem">
+          <div class="card-header">
+            <h3>Padding Misalignment</h3>
+          </div>
+          <div class="card-body">
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th>Location</th>
+                  <th>Desktop</th>
+                  <th>Mobile</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Top Nav Bar</td>
+                  <td><code>px-6</code> (24px)</td>
+                  <td><code>px-4</code></td>
+                </tr>
+                <tr>
+                  <td>Main Content</td>
+                  <td class="severity-high"><code>px-8</code> (32px)</td>
+                  <td><code>px-4</code></td>
+                </tr>
+                <tr>
+                  <td>PageHeader</td>
+                  <td><code>content-padding</code></td>
+                  <td>24px</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="issue-highlight">
+              <h4>
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Visual Impact
+              </h4>
+              <p>Header items and main content don't align vertically. The 8px difference between nav (24px) and content (32px) creates a visible "step" in the layout.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Toolbar Inconsistencies -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">2</div>
+        <h2 class="section-title">Toolbar Pattern Inconsistencies</h2>
+      </div>
+      <p class="section-desc">Different pages implement toolbars with varying spacing, component placement, and styling patterns. This creates cognitive overhead for users who must relearn interactions on each page.</p>
+
+      <div class="comparison-grid">
+        <div class="comparison-card problem">
+          <div class="card-header">
+            <h3>TalentPage Toolbar</h3>
+            <span class="file-path">TalentPage.jsx:960-1016</span>
+          </div>
+          <div class="card-body">
+            <div class="toolbar-mockup">
+              <div class="search-input">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Search talent...">
+              </div>
+              <button class="toolbar-btn icon-only ghost">
+                <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </button>
+              <button class="toolbar-btn icon-only ghost">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+              <button class="toolbar-btn outline">Export</button>
+              <button class="toolbar-btn primary">New talent</button>
+            </div>
+            <div class="issue-highlight">
+              <h4>Gap: <code>gap-3</code> (12px)</h4>
+              <p>Uses 12px spacing between toolbar items. Actions in PageHeader.Actions wrapper.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="comparison-card problem">
+          <div class="card-header">
+            <h3>ProductsPage Toolbar</h3>
+            <span class="file-path">ProductsPage.jsx:2608-2694</span>
+          </div>
+          <div class="card-body">
+            <div class="toolbar-mockup">
+              <button class="toolbar-btn outline">Filters</button>
+              <button class="toolbar-btn outline">Select Mode</button>
+              <div class="search-input">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Search products...">
+              </div>
+              <button class="toolbar-btn icon-only ghost">
+                <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+              </button>
+              <button class="toolbar-btn icon-only ghost">
+                <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </button>
+              <button class="toolbar-btn primary">New product</button>
+            </div>
+            <div class="issue-highlight">
+              <h4>Gap: <code>gap-2</code> (8px)</h4>
+              <p>Uses tighter 8px spacing. Toolbar is inside a Card component within PageHeader, creating nested borders.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="comparison-card problem">
+          <div class="card-header">
+            <h3>PlannerToolbar</h3>
+            <span class="file-path">PlannerToolbar.jsx:64</span>
+          </div>
+          <div class="card-body">
+            <div class="toolbar-mockup" style="border: 1px solid #e2e8f0; border-radius: 8px;">
+              <div class="search-input" style="border-radius: 9999px;">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Search shots...">
+              </div>
+              <div style="flex: 1;"></div>
+              <button class="toolbar-btn icon-only ghost">
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              </button>
+              <button class="toolbar-btn outline">Export</button>
+            </div>
+            <div class="issue-highlight">
+              <h4>Gap: <code>gap-4</code> (16px)</h4>
+              <p>Uses 16px spacing. NOT sticky. Separate card styling with rounded-lg border. Floating layout instead of attached to PageHeader.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="comparison-card problem">
+          <div class="card-header">
+            <h3>Spacing Comparison</h3>
+          </div>
+          <div class="card-body">
+            <div class="spacing-demo">
+              <div class="spacing-block">
+                <span class="value">6px</span>
+                <div class="bar inconsistent" style="height: 30px;"></div>
+                <span class="label">Search<br>internal</span>
+              </div>
+              <div class="spacing-block">
+                <span class="value">8px</span>
+                <div class="bar inconsistent" style="height: 40px;"></div>
+                <span class="label">Products<br>toolbar</span>
+              </div>
+              <div class="spacing-block">
+                <span class="value">12px</span>
+                <div class="bar" style="height: 60px;"></div>
+                <span class="label">Talent<br>toolbar</span>
+              </div>
+              <div class="spacing-block">
+                <span class="value">16px</span>
+                <div class="bar inconsistent" style="height: 80px;"></div>
+                <span class="label">Planner<br>toolbar</span>
+              </div>
+            </div>
+            <div class="issue-highlight">
+              <h4>
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                No Standard Gap Value
+              </h4>
+              <p>Toolbars use 4 different gap values (6px, 8px, 12px, 16px) with no clear rationale for when to use which.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Border Radius Inconsistencies -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">3</div>
+        <h2 class="section-title">Border Radius Inconsistencies</h2>
+      </div>
+      <p class="section-desc">Despite having design tokens (<code>rounded-card: 8px</code>, <code>rounded-button: 6px</code>, <code>rounded-badge: 10px</code>), components frequently use hardcoded values instead.</p>
+
+      <div class="comparison-card problem" style="max-width: 100%;">
+        <div class="card-header">
+          <h3>Radius Values Found in Codebase</h3>
+        </div>
+        <div class="card-body">
+          <div class="rounded-examples">
+            <div class="rounded-example">
+              <div class="rounded-box" style="border-radius: 4px;">4px</div>
+              <span class="rounded-label inconsistent">rounded<br>(inputs)</span>
+            </div>
+            <div class="rounded-example">
+              <div class="rounded-box" style="border-radius: 6px;">6px</div>
+              <span class="rounded-label">rounded-md<br>(standard)</span>
+            </div>
+            <div class="rounded-example">
+              <div class="rounded-box" style="border-radius: 8px;">8px</div>
+              <span class="rounded-label">rounded-lg<br>rounded-card</span>
+            </div>
+            <div class="rounded-example">
+              <div class="rounded-box" style="border-radius: 10px;">10px</div>
+              <span class="rounded-label">rounded-badge<br>(pills)</span>
+            </div>
+            <div class="rounded-example">
+              <div class="rounded-box" style="border-radius: 12px;">12px</div>
+              <span class="rounded-label inconsistent">rounded-xl<br>(some cards)</span>
+            </div>
+            <div class="rounded-example">
+              <div class="rounded-box" style="border-radius: 16px;">16px</div>
+              <span class="rounded-label inconsistent">rounded-2xl<br>(login)</span>
+            </div>
+            <div class="rounded-example">
+              <div class="rounded-box" style="border-radius: 9999px;">full</div>
+              <span class="rounded-label">rounded-full<br>(badges)</span>
+            </div>
+          </div>
+
+          <div class="issue-highlight" style="margin-top: 24px;">
+            <h4>Files Using Wrong Radius</h4>
+            <table class="audit-table" style="margin-top: 12px;">
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Current</th>
+                  <th>Should Be</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>ShotProductCard.jsx:110</code></td>
+                  <td class="severity-high"><code>rounded-lg</code></td>
+                  <td><code>rounded-card</code></td>
+                </tr>
+                <tr>
+                  <td><code>AttachmentThumbnail.jsx:57</code></td>
+                  <td class="severity-high"><code>rounded-lg</code></td>
+                  <td><code>rounded-card</code></td>
+                </tr>
+                <tr>
+                  <td><code>AdvancedImageCropEditor.jsx:107</code></td>
+                  <td class="severity-medium"><code>rounded-lg</code></td>
+                  <td><code>rounded-card</code></td>
+                </tr>
+                <tr>
+                  <td><code>BulkTaggingToolbar.jsx:141</code></td>
+                  <td class="severity-medium"><code>rounded-md</code></td>
+                  <td><code>rounded-card</code></td>
+                </tr>
+                <tr>
+                  <td><code>ShotProductAddModal.jsx:447</code></td>
+                  <td class="severity-high"><code>rounded</code></td>
+                  <td><code>rounded-md</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: Badge/Status Inconsistencies -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">4</div>
+        <h2 class="section-title">Badge & Status Inconsistencies</h2>
+      </div>
+      <p class="section-desc">The app has three badge systems (Badge, StatusBadge, TagBadge) but components often create inline badge styles instead of using these components.</p>
+
+      <div class="comparison-grid">
+        <div class="comparison-card problem">
+          <div class="card-header">
+            <h3>Current Badge Variations</h3>
+          </div>
+          <div class="card-body">
+            <p style="color: var(--slate-400); font-size: 13px; margin-bottom: 16px;">Same semantic meaning, different implementations:</p>
+
+            <div style="margin-bottom: 20px;">
+              <span style="color: var(--slate-500); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Active/Complete Status</span>
+              <div class="badge-row" style="margin-top: 8px;">
+                <span class="demo-badge rounded-full emerald">Active (StatusBadge)</span>
+                <span class="demo-badge rounded-badge emerald">Complete (inline)</span>
+                <span class="demo-badge rounded-md emerald">Success (Badge)</span>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <span style="color: var(--slate-500); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Pending/Warning Status</span>
+              <div class="badge-row" style="margin-top: 8px;">
+                <span class="demo-badge rounded-full amber">Pending (StatusBadge)</span>
+                <span class="demo-badge rounded-lg amber">In Progress (inline)</span>
+                <span class="demo-badge rounded-md amber">Warning (Badge)</span>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <span style="color: var(--slate-500); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Error/Archived Status</span>
+              <div class="badge-row" style="margin-top: 8px;">
+                <span class="demo-badge rounded-full red">Failed (StatusBadge)</span>
+                <span class="demo-badge rounded-badge slate">Archived (inline)</span>
+                <span class="demo-badge rounded-md red">Error (Badge)</span>
+              </div>
+            </div>
+
+            <div class="issue-highlight">
+              <h4>
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                10+ instances of inline badge styling
+              </h4>
+              <p>Components define badge colors inline instead of using StatusBadge or TagBadge components. This leads to inconsistent colors, radii, and padding.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="comparison-card problem">
+          <div class="card-header">
+            <h3>Shape Inconsistencies</h3>
+          </div>
+          <div class="card-body">
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th>Component</th>
+                  <th>Shape</th>
+                  <th>Expected</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>StatusBadge</td>
+                  <td><code>rounded-badge</code> (10px)</td>
+                  <td class="severity-low">Correct</td>
+                </tr>
+                <tr>
+                  <td>TagBadge</td>
+                  <td><code>rounded-full</code></td>
+                  <td class="severity-low">Correct</td>
+                </tr>
+                <tr>
+                  <td>Badge (shadcn)</td>
+                  <td><code>rounded-full</code></td>
+                  <td class="severity-low">Correct</td>
+                </tr>
+                <tr>
+                  <td>Inline badges</td>
+                  <td class="severity-high">Mixed</td>
+                  <td>Use components</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: Input/Form Inconsistencies -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">5</div>
+        <h2 class="section-title">Form Input Inconsistencies</h2>
+      </div>
+      <p class="section-desc">Form inputs show variations in focus ring width, border radius, and dark mode handling across different parts of the application.</p>
+
+      <div class="comparison-card problem" style="max-width: 100%;">
+        <div class="card-header">
+          <h3>Focus Ring Variations</h3>
+        </div>
+        <div class="card-body">
+          <table class="audit-table">
+            <thead>
+              <tr>
+                <th>Location</th>
+                <th>Ring Width</th>
+                <th>Ring Opacity</th>
+                <th>Dark Mode</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>input.jsx</code> (design system)</td>
+                <td><code>ring-2</code></td>
+                <td>100%</td>
+                <td class="severity-low">Yes</td>
+              </tr>
+              <tr>
+                <td><code>ShotProductAddModal.jsx</code></td>
+                <td class="severity-high"><code>ring-1</code></td>
+                <td>100%</td>
+                <td class="severity-low">Yes</td>
+              </tr>
+              <tr>
+                <td><code>BulkTaggingToolbar.jsx</code></td>
+                <td><code>ring-2</code></td>
+                <td class="severity-high">20%</td>
+                <td class="severity-medium">Partial</td>
+              </tr>
+              <tr>
+                <td><code>ExpandableSearch.jsx</code></td>
+                <td><code>ring-2</code></td>
+                <td class="severity-medium">60%</td>
+                <td class="severity-low">Yes</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="issue-highlight" style="margin-top: 20px;">
+            <h4>
+              <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Accessibility Concern
+            </h4>
+            <p>Inconsistent focus indicators make it harder for keyboard users to track focus. The <code>ring-2 ring-primary/20</code> pattern is too subtle for WCAG compliance.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 6: Sticky Position Conflicts -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-number">6</div>
+        <h2 class="section-title">Sticky Position & Z-Index Conflicts</h2>
+      </div>
+      <p class="section-desc">Multiple sticky elements with conflicting top offsets and z-indices create unpredictable stacking behavior.</p>
+
+      <div class="comparison-card problem" style="max-width: 100%;">
+        <div class="card-header">
+          <h3>Sticky Element Stack</h3>
+        </div>
+        <div class="card-body">
+          <table class="audit-table">
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Top Offset</th>
+                <th>Z-Index</th>
+                <th>Issue</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>TopNavigationLayout (nav)</td>
+                <td><code>top-0</code></td>
+                <td><code>z-50</code></td>
+                <td class="severity-low">Base layer</td>
+              </tr>
+              <tr>
+                <td>PageHeader</td>
+                <td><code>top-14</code> (56px)</td>
+                <td><code>z-40</code></td>
+                <td class="severity-low">Below nav, correct</td>
+              </tr>
+              <tr>
+                <td>BulkOperationsToolbar</td>
+                <td class="severity-high"><code>top-28</code> (112px)</td>
+                <td><code>z-40</code></td>
+                <td>Same z-index as PageHeader</td>
+              </tr>
+              <tr>
+                <td>BulkTaggingToolbar</td>
+                <td><code>top-28</code></td>
+                <td class="severity-high"><code>z-30</code></td>
+                <td>Lower z-index, could be overlapped</td>
+              </tr>
+              <tr>
+                <td>PlannerToolbar</td>
+                <td class="severity-medium">Not sticky</td>
+                <td>N/A</td>
+                <td>Inconsistent behavior</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer style="text-align: center; padding: 40px; border-top: 1px solid var(--slate-800);">
+    <p style="color: var(--slate-500); font-size: 14px;">Shot Builder UI/UX Audit - Page 1 of 2</p>
+    <p style="color: var(--slate-600); font-size: 12px; margin-top: 8px;">Open <code>02-proposed-design-system.html</code> for recommended solutions</p>
+  </footer>
+</body>
+</html>
