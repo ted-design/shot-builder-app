@@ -318,7 +318,7 @@ export default function ProjectsPage() {
   return (
     <div className="mx-auto max-w-screen-lg space-y-6">
       {/* PageHeader component with filters and presets */}
-      <PageHeader sticky={true} className="top-14 z-30">
+      <PageHeader sticky={true} className="top-14 z-40">
         <PageHeader.Content>
           <div>
             <PageHeader.Title>

@@ -1,6 +1,5 @@
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { Card, CardContent } from "../ui/card";
 
 export default function OverviewToolbar({
   anchorId = "shots-toolbar-anchor",
@@ -9,31 +8,33 @@ export default function OverviewToolbar({
   onRemoveFilter,
 }) {
   const content = (
-    <Card className="border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:transform-none bg-white/95 dark:bg-slate-900/80 backdrop-blur">
-      <CardContent className="py-3 sm:py-4">
-        <div className="flex flex-col gap-4">
-          {children}
-          {filterPills.length > 0 && (
-            <div className="flex w-full flex-wrap gap-2">
-              {filterPills.map((pill) => (
-                <button
-                  key={pill.key}
-                  type="button"
-                  onClick={() => onRemoveFilter?.(pill.key)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/20"
-                >
-                  <span>
-                    {pill.label}
-                    {pill.value ? `: ${pill.value}` : ""}
-                  </span>
-                  <X className="h-3 w-3" aria-hidden="true" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <div
+      className="border-b border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900"
+      role="toolbar"
+      aria-label="Shots toolbar"
+    >
+      <div className="px-6 py-3 space-y-3">
+        {children}
+        {filterPills.length > 0 && (
+          <div className="flex w-full flex-wrap gap-2">
+            {filterPills.map((pill) => (
+              <button
+                key={pill.key}
+                type="button"
+                onClick={() => onRemoveFilter?.(pill.key)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary transition hover:bg-primary/20 dark:border-primary/30 dark:bg-primary/15"
+              >
+                <span>
+                  {pill.label}
+                  {pill.value ? `: ${pill.value}` : ""}
+                </span>
+                <X className="h-3 w-3" aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 
   if (typeof document === "undefined") {
