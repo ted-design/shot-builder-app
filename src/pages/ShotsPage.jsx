@@ -3918,7 +3918,7 @@ export default function ShotsPage({ initialView = null }) {
   return (
     <ShotsOverviewProvider value={overviewValue}>
       <div className="flex min-h-screen flex-col bg-slate-50">
-        <PageHeader sticky={true} className="top-20 z-[39]" data-shot-overview-header>
+        <PageHeader sticky={true} className="top-14 z-40" data-shot-overview-header>
           <PageHeader.Content>
             <div>
               <PageHeader.Title>Shots</PageHeader.Title>
