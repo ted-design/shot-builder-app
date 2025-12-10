@@ -5,6 +5,18 @@ import AppImage from "../common/AppImage";
 import { formatFileSize } from "../../lib/images";
 import { extractColorFromFile, isValidHexColor } from "../../lib/colorExtraction";
 import { findPaletteMatch } from "../../lib/colorPalette";
+import { Star, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../ui/alert-dialog";
 
 export default function ColorListEditor({
   colors = [],
@@ -20,6 +32,8 @@ export default function ColorListEditor({
   paletteSwatches = [],
   paletteIndex = { byKey: new Map(), byName: new Map() },
   onSaveToPalette,
+  heroLocalId,
+  onHeroSelect,
 }) {
   const [extracting, setExtracting] = useState({});
   const paletteNames = useMemo(
@@ -27,6 +41,13 @@ export default function ColorListEditor({
     [paletteSwatches]
   );
   const paletteListId = "palette-swatch-names";
+  const statusOptionsWithLegacy = useMemo(() => {
+    const hasArchived = colors.some((color) => color.status === "archived");
+    if (hasArchived && !statusOptions.some((option) => option.value === "archived")) {
+      return [...statusOptions, { value: "archived", label: "Archived (legacy)" }];
+    }
+    return statusOptions;
+  }, [colors, statusOptions]);
 
   // Auto-extract color from the uploaded image file
   const handleAutoExtract = useCallback(async (localId, imageFile) => {
@@ -46,215 +67,282 @@ export default function ColorListEditor({
   }, [onFieldChange]);
   return (
     <div className="relative space-y-3">
-      <h3 className="text-sm font-semibold text-slate-700">Colours</h3>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-700">Colours</h3>
+          {sizeNote && <p className="text-sm text-slate-500">{sizeNote}</p>}
+          {skuHelper && <p className="text-xs text-slate-500">{skuHelper}</p>}
+        </div>
+        <Button type="button" size="sm" variant="secondary" onClick={onAddColor}>
+          Add colourway
+        </Button>
+      </div>
       {paletteNames.length > 0 && (
         <ColorListEditor.PaletteDatalist id={paletteListId} names={paletteNames} />
       )}
-      {sizeNote && <p className="text-sm text-slate-500">{sizeNote}</p>}
-      {skuHelper && <p className="text-xs text-slate-500">{skuHelper}</p>}
-      <div className="space-y-4">
-        {colors.map((color) => (
-          <fieldset key={color.localId} className="space-y-4 rounded-card border border-slate-200 p-4">
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Colour name</label>
-                <Input
-                  value={color.colorName}
-                  onChange={(event) => onFieldChange(color.localId, { colorName: event.target.value })}
-                  list={paletteNames.length ? paletteListId : undefined}
-                  placeholder="e.g. Black"
-                />
-                {(() => {
-                  const paletteMatch = findPaletteMatch(color, paletteIndex);
-                  if (paletteMatch) {
-                    return (
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <span>Palette swatch</span>
-                        {paletteMatch.hexColor && (
-                          <span className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] text-slate-700">
-                            {paletteMatch.hexColor}
-                          </span>
-                        )}
-                        {paletteMatch.swatchImagePath && (
-                          <AppImage
-                            src={paletteMatch.swatchImagePath}
-                            alt=""
-                            className="h-6 w-6 overflow-hidden rounded-full border border-slate-200"
-                            imageClassName="h-full w-full object-cover"
-                            placeholder={null}
-                            fallback={null}
-                          />
-                        )}
-                      </div>
-                    );
-                  }
-                  if (color.colorName?.trim() && onSaveToPalette) {
-                    const canSave = color.hexColor && isValidHexColor(color.hexColor);
-                    return (
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                        <span>Not linked to palette</span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={!canSave}
-                          onClick={() => onSaveToPalette(color.localId)}
-                        >
-                          Save swatch
-                        </Button>
-                        {!canSave && <span className="text-[11px] text-slate-500">Add a valid hex first</span>}
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">SKU (optional)</label>
-                <Input
-                  value={color.skuCode}
-                  onChange={(event) => onFieldChange(color.localId, { skuCode: event.target.value })}
-                  placeholder="e.g. UM-3021-BLK"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Status</label>
-                <select
-                  value={color.status}
-                  onChange={(event) => onFieldChange(color.localId, { status: event.target.value })}
-                  className="w-full rounded border border-slate-300 px-2 py-2 text-sm md:max-w-[180px]"
-                >
-                  {statusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            {/* Hex Color Picker */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Swatch colour</label>
-              <p className="text-xs text-slate-500">
-                Set the colour swatch displayed in product listings. Use the picker or enter a hex code.
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Native color picker */}
-                <input
-                  type="color"
-                  value={color.hexColor || "#CCCCCC"}
-                  onChange={(event) => onFieldChange(color.localId, { hexColor: event.target.value.toUpperCase() })}
-                  className="h-10 w-10 cursor-pointer rounded border border-slate-300 p-0.5"
-                  title="Pick a colour"
-                />
-                {/* Hex input */}
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-slate-500">#</span>
-                  <Input
-                    value={(color.hexColor || "").replace(/^#/, "")}
-                    onChange={(event) => {
-                      const value = event.target.value.toUpperCase().replace(/[^0-9A-F]/g, "").slice(0, 6);
-                      if (value.length === 6) {
-                        onFieldChange(color.localId, { hexColor: `#${value}` });
-                      } else {
-                        onFieldChange(color.localId, { hexColor: value ? `#${value}` : null });
-                      }
-                    }}
-                    placeholder="CCCCCC"
-                    className="w-24 font-mono text-sm"
-                    maxLength={6}
-                  />
-                </div>
-                {/* Preview swatch */}
-                {color.hexColor && isValidHexColor(color.hexColor) && (
-                  <div
-                    className="h-8 w-8 rounded-full border-2 border-slate-300"
-                    style={{ backgroundColor: color.hexColor }}
-                    title={color.hexColor}
-                  />
-                )}
-                {/* Auto-extract button */}
-                {color.imageFile && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAutoExtract(color.localId, color.imageFile)}
-                    disabled={extracting[color.localId]}
-                  >
-                    {extracting[color.localId] ? "Extracting…" : "Auto-extract from image"}
-                  </Button>
-                )}
-                {/* Clear button */}
-                {color.hexColor && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onFieldChange(color.localId, { hexColor: null })}
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Colour image</label>
-              {color.imagePreview && (
-                <AppImage
-                  src={color.imagePreview}
-                  alt={`${color.colorName || "Colour"} preview`}
-                  loading="lazy"
-                  className="h-40 w-full overflow-hidden rounded-card"
-                  imageClassName="h-full w-full object-cover"
-                  placeholder={null}
-                  fallback={
-                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
-                      No preview
+      <div className="grid gap-4 md:grid-cols-2">
+        {colors.map((color) => {
+          const paletteMatch = findPaletteMatch(color, paletteIndex);
+          const isHero = heroLocalId === color.localId;
+          return (
+            <fieldset
+              key={color.localId}
+              className="space-y-3 rounded-card border border-slate-200/80 bg-white p-3 shadow-sm"
+            >
+              {/* Header row with colour name and actions */}
+              <div className="flex items-start gap-2">
+                <div className="flex-1 space-y-1">
+                  <label className="text-xs font-medium text-slate-600">Colour name</label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={color.colorName}
+                      onChange={(event) => onFieldChange(color.localId, { colorName: event.target.value })}
+                      list={paletteNames.length ? paletteListId : undefined}
+                      placeholder="e.g. Black"
+                      className="h-8 flex-1 text-sm"
+                    />
+                    {onHeroSelect && (
+                      <button
+                        type="button"
+                        className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-slate-500 transition-colors ${
+                          isHero
+                            ? "border-amber-400 bg-amber-50 text-amber-700"
+                            : "border-slate-200 hover:border-slate-300 hover:text-slate-700"
+                        }`}
+                        onClick={() => onHeroSelect(color.localId)}
+                        aria-pressed={isHero}
+                        aria-label={isHero ? "Default thumbnail" : "Set as default thumbnail"}
+                      >
+                        <Star
+                          className="h-3.5 w-3.5"
+                          fill={isHero ? "#f59e0b" : "none"}
+                          strokeWidth={1.75}
+                        />
+                      </button>
+                    )}
+                  </div>
+                  {paletteMatch ? (
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                      <span>Palette swatch</span>
+                      {paletteMatch.hexColor && (
+                        <span className="rounded border border-slate-200 bg-slate-50 px-1 py-0.5 font-mono text-[10px] text-slate-700">
+                          {paletteMatch.hexColor}
+                        </span>
+                      )}
+                      {paletteMatch.swatchImagePath && (
+                        <AppImage
+                          src={paletteMatch.swatchImagePath}
+                          alt=""
+                          className="h-5 w-5 overflow-hidden rounded-full border border-slate-200"
+                          imageClassName="h-full w-full object-cover"
+                          placeholder={null}
+                          fallback={null}
+                        />
+                      )}
                     </div>
-                  }
-                />
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (!file) return;
-                    onImageSelect?.(color.localId, file);
-                    event.target.value = "";
-                  }}
-                />
-                {(color.imagePreview || color.imagePath) && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onClearImage?.(color.localId)}
-                  >
-                    Remove image
-                  </Button>
-                )}
-              </div>
-              {recommendedMessage && <p className="text-xs text-slate-500">{recommendedMessage}</p>}
-              {color.imageFile && (
-                <div className="text-xs text-slate-500">
-                  {color.imageFile.name} • {formatFileSize(color.imageFile.size)}
+                  ) : color.colorName?.trim() && onSaveToPalette ? (
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                      <span>Not linked</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-5 px-1.5 text-[10px]"
+                        disabled={!color.hexColor || !isValidHexColor(color.hexColor)}
+                        onClick={() => onSaveToPalette(color.localId)}
+                      >
+                        Save to palette
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
-              )}
-            </div>
-            <div className="flex justify-end">
-              <Button type="button" variant="outline" size="sm" onClick={() => onRemoveColor(color.localId)}>
-                Remove colour
-              </Button>
-            </div>
-          </fieldset>
-        ))}
+                <div className="flex shrink-0 items-center gap-1">
+                  {isHero && (
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800">
+                      Hero
+                    </span>
+                  )}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-red-50 hover:text-red-600"
+                        aria-label="Remove colourway"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remove colourway?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will remove "{color.colorName || "this colourway"}" and its image. This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => onRemoveColor(color.localId)}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Remove
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+
+              {/* Compact horizontal layout: image left, fields right */}
+              <div className="flex gap-3">
+                {/* Image thumbnail */}
+                <div className="w-24 shrink-0 space-y-1.5">
+                  <div className="aspect-[4/5] overflow-hidden rounded border border-slate-200 bg-slate-50">
+                    {color.imagePreview ? (
+                      <AppImage
+                        src={color.imagePreview}
+                        alt={`${color.colorName || "Colour"} preview`}
+                        loading="lazy"
+                        fit="contain"
+                        className="h-full w-full"
+                        imageClassName="h-full w-full object-contain"
+                        placeholder={
+                          <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">
+                            Loading…
+                          </div>
+                        }
+                        fallback={
+                          <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">
+                            No preview
+                          </div>
+                        }
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">
+                        No image
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-1">
+                    <label className="flex-1 cursor-pointer rounded bg-slate-100 px-1.5 py-1 text-center text-[10px] font-medium text-slate-600 hover:bg-slate-200">
+                      Choose
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (!file) return;
+                          onImageSelect?.(color.localId, file);
+                          event.target.value = "";
+                        }}
+                        className="sr-only"
+                      />
+                    </label>
+                    {(color.imagePreview || color.imagePath) && (
+                      <button
+                        type="button"
+                        className="rounded bg-slate-100 px-1.5 py-1 text-[10px] font-medium text-slate-600 hover:bg-red-100 hover:text-red-600"
+                        onClick={() => onClearImage?.(color.localId)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Fields */}
+                <div className="flex-1 space-y-2">
+                  {/* SKU and Status row */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-medium text-slate-500">SKU</label>
+                      <Input
+                        value={color.skuCode}
+                        onChange={(event) => onFieldChange(color.localId, { skuCode: event.target.value })}
+                        placeholder="e.g. UM-BLK"
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-medium text-slate-500">Status</label>
+                      <select
+                        value={color.status}
+                        onChange={(event) => onFieldChange(color.localId, { status: event.target.value })}
+                        className="h-7 w-full rounded border border-slate-300 px-1.5 text-xs"
+                      >
+                        {statusOptionsWithLegacy.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Swatch colour - only show when NOT linked to palette */}
+                  {!paletteMatch && (
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-medium text-slate-500">Swatch colour</label>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="color"
+                          value={color.hexColor || "#CCCCCC"}
+                          onChange={(event) =>
+                            onFieldChange(color.localId, { hexColor: event.target.value.toUpperCase() })
+                          }
+                          className="h-7 w-7 cursor-pointer rounded border border-slate-300 p-0.5"
+                          title="Pick a colour"
+                        />
+                        <div className="flex items-center gap-0.5">
+                          <span className="text-[10px] text-slate-400">#</span>
+                          <Input
+                            value={(color.hexColor || "").replace(/^#/, "")}
+                            onChange={(event) => {
+                              const value = event.target.value.toUpperCase().replace(/[^0-9A-F]/g, "").slice(0, 6);
+                              if (value.length === 6) {
+                                onFieldChange(color.localId, { hexColor: `#${value}` });
+                              } else {
+                                onFieldChange(color.localId, { hexColor: value ? `#${value}` : null });
+                              }
+                            }}
+                            placeholder="CCCCCC"
+                            className="h-7 w-14 font-mono text-[10px]"
+                            maxLength={6}
+                          />
+                        </div>
+                        {color.imageFile && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-[10px]"
+                            onClick={() => handleAutoExtract(color.localId, color.imageFile)}
+                            disabled={extracting[color.localId]}
+                          >
+                            {extracting[color.localId] ? "…" : "Extract"}
+                          </Button>
+                        )}
+                        {color.hexColor && (
+                          <button
+                            type="button"
+                            className="text-[10px] text-slate-400 hover:text-slate-600"
+                            onClick={() => onFieldChange(color.localId, { hexColor: null })}
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </fieldset>
+          );
+        })}
       </div>
       <div className="sticky bottom-0 flex justify-end border-t border-slate-200 bg-white/95 px-2 py-3 backdrop-blur">
         <Button type="button" variant="secondary" onClick={onAddColor}>
-          Add colour
+          Add colourway
         </Button>
       </div>
     </div>

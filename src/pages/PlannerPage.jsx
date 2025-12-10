@@ -151,6 +151,15 @@ const normalisePlannerSort = (value) => {
   return validValues.includes(value) ? value : "order";
 };
 
+// Normalise planner group value
+const normalisePlannerGroup = (value) => {
+  const validValues = ["none"];
+  return validValues.includes(value) ? value : "none";
+};
+
+// Stable no-op function for fallback callbacks (prevents infinite re-renders)
+const noop = () => {};
+
 const readStoredCollapsedLanes = () => {
   try {
     const raw = readStorage(PLANNER_COLLAPSED_LANES_STORAGE_KEY);
@@ -1242,9 +1251,9 @@ function PlannerPageContent({ embedded = false }) {
   const filters = overview?.filters ?? localFilters;
   const setFilters = overview?.setFilters ?? setLocalFilters;
   const focusShotId = overview?.focusShotId ?? null;
-  const setFocusShotId = overview?.setFocusShotId ?? (() => {});
+  const setFocusShotId = overview?.setFocusShotId ?? noop;
   const sharedSelectedShotIds = overview?.selectedShotIds || null;
-  const setSharedSelectedShotIds = overview?.setSelectedShotIds ?? (() => {});
+  const setSharedSelectedShotIds = overview?.setSelectedShotIds ?? noop;
   const selectedCount = sharedSelectedShotIds instanceof Set ? sharedSelectedShotIds.size : 0;
   const totalPlannerShots = Array.isArray(plannerShots) ? plannerShots.length : 0;
   const allShotsSelected = selectionMode && totalPlannerShots > 0 && selectedCount === totalPlannerShots;
@@ -1279,6 +1288,10 @@ function PlannerPageContent({ embedded = false }) {
     setBulkMoveTarget("");
     setSelectionMode(false);
   }, [clearSelection]);
+
+  // Ref to hold latest exitSelectionMode for use in effects without causing re-runs
+  const exitSelectionModeRef = useRef(exitSelectionMode);
+  exitSelectionModeRef.current = exitSelectionMode;
 
   const handleSelectionModeToggle = useCallback(() => {
     if (selectionMode) {
@@ -1339,9 +1352,9 @@ function PlannerPageContent({ embedded = false }) {
 
   useEffect(() => {
     if (groupBy !== 'none' && selectionMode) {
-      exitSelectionMode();
+      exitSelectionModeRef.current();
     }
-  }, [groupBy, selectionMode, exitSelectionMode]);
+  }, [groupBy, selectionMode]);
 
   // TanStack Query hooks for cached data with realtime updates
   const { data: lanes = [], isLoading: lanesLoading } = useLanes(clientId, projectId);
