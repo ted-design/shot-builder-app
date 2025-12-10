@@ -4,8 +4,10 @@ import { onIdTokenChanged } from "firebase/auth";
 import { auth } from "./lib/firebase";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { FLAGS } from "./lib/flags";
+import { FLAGS, isDemoModeActive } from "./lib/flags";
 import { useAuth } from "./context/AuthContext";
+import { DemoModeAuthProvider } from "./context/DemoModeAuthProvider";
+import DemoModeBanner from "./components/DemoModeBanner";
 import { adaptUser } from "./auth/adapter";
 import AuthReadyGate from "./auth/AuthReadyGate";
 import TopNavigationLayout from "./routes/TopNavigationLayout";
@@ -92,9 +94,16 @@ function LegacyPlannerRedirect() {
   return <Navigate to="/projects" replace />;
 }
 
-export default function App() {
+// Inner app component that uses auth context (must be inside DemoModeAuthProvider)
+function AppRoutes() {
   const [user, setUser] = useState(null);
-  useEffect(() => onIdTokenChanged(auth, setUser), []);
+  const isDemo = isDemoModeActive();
+
+  // Only subscribe to Firebase auth changes if NOT in demo mode
+  useEffect(() => {
+    if (isDemo) return; // Skip Firebase auth in demo mode
+    return onIdTokenChanged(auth, setUser);
+  }, [isDemo]);
 
   // Read from new AuthContext only for route guards when flag is ON
   const authCtx = useAuth();
@@ -138,6 +147,8 @@ export default function App() {
       <ThemeProvider>
         <SearchCommandProvider>
           <BrowserRouter>
+            {/* Demo mode banner - shows when demo mode is active */}
+            <DemoModeBanner />
             <ProjectScopeProvider>
               {/* Global search command palette (Cmd+K) */}
               <SearchCommand />
@@ -355,5 +366,14 @@ export default function App() {
         </SearchCommandProvider>
       </ThemeProvider>
     </QueryClientProvider>
+  );
+}
+
+// Main App component - wraps everything with DemoModeAuthProvider
+export default function App() {
+  return (
+    <DemoModeAuthProvider enabled={isDemoModeActive()}>
+      <AppRoutes />
+    </DemoModeAuthProvider>
   );
 }

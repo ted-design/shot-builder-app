@@ -10,6 +10,7 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import { LOCK_EXPIRATION_MS } from "../types/versioning";
+import { isDemoModeActive } from "../lib/flags";
 
 /**
  * Hook for subscribing to all presence/locks on an entity
@@ -37,14 +38,16 @@ import { LOCK_EXPIRATION_MS } from "../types/versioning";
  */
 export function useEntityPresence(clientId, entityType, entityId, options = {}) {
   const { user } = useAuth();
+  const isDemo = isDemoModeActive();
   const [presenceData, setPresenceData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!isDemo);
 
   const excludeSelf = options.excludeSelf !== false;
 
+  // Skip Firestore presence in demo mode
   const presenceRef =
-    clientId && entityType && entityId
-      ? doc(db, "clients", clientId, entityType, entityId, "presence")
+    clientId && entityType && entityId && !isDemo
+      ? doc(db, "clients", clientId, entityType, entityId, "presence", "state")
       : null;
 
   // Check if a lock has expired

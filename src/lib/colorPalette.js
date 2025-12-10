@@ -1,5 +1,4 @@
-import { doc, setDoc } from "firebase/firestore";
-import { deleteDoc } from "firebase/firestore";
+import { doc, setDoc, deleteDoc } from "./demoSafeFirestore";
 import { uploadImageFile, deleteImageByPath } from "./firebase";
 import { colorSwatchPath } from "./paths";
 import { normalizeHexColor } from "./colorExtraction";

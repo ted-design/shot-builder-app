@@ -9,7 +9,7 @@ import {
   query,
   serverTimestamp,
   updateDoc,
-} from "firebase/firestore";
+} from "../lib/demoSafeFirestore";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";

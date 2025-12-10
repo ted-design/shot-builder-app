@@ -26,6 +26,7 @@ import {
   ReCaptchaV3Provider,
 } from "firebase/app-check";
 import { compressImageFile } from "./imageCompression";
+import { isDemoModeActive } from "./flags";
 
 type FirebaseEnvKey =
   | "VITE_FIREBASE_API_KEY"
@@ -271,6 +272,14 @@ export async function uploadImageFile(
   if (!file) throw new Error("No file provided");
   if (!folder || !id) throw new Error("uploadImageFile requires folder and id");
 
+  // Demo mode: return fake URL without uploading
+  if (isDemoModeActive()) {
+    console.info("[Demo Mode] Image upload blocked, returning preview URL");
+    const fakeUrl = URL.createObjectURL(file);
+    const fakePath = `demo/images/${folder}/${id}/${Date.now()}-${file.name}`;
+    return { downloadURL: fakeUrl, path: fakePath };
+  }
+
   // Standardize all image uploads through the same optimization pipeline (WebP conversion)
   const shouldOptimize = optimize !== false && typeof file.type === "string" && file.type.startsWith("image/");
   const optimized = shouldOptimize ? await compressImageFile(file, { convertToWebP: true }) : file;
@@ -286,6 +295,13 @@ export async function uploadImageFile(
 
 export async function deleteImageByPath(path: string | undefined | null): Promise<void> {
   if (!path) return;
+
+  // Demo mode: no-op
+  if (isDemoModeActive()) {
+    console.info("[Demo Mode] Image delete blocked for:", path);
+    return;
+  }
+
   const ref = storageRef(storage, path);
   await deleteObject(ref);
 }

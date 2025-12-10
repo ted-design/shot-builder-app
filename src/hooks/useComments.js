@@ -17,7 +17,7 @@ import {
   updateDoc,
   doc,
   serverTimestamp,
-} from "firebase/firestore";
+} from "../lib/demoSafeFirestore";
 import { db } from "../lib/firebase";
 import { queryKeys } from "./useFirestoreQuery";
 import { getMentionedUserIds } from "../lib/mentions";

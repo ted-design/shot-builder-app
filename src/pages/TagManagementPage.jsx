@@ -10,7 +10,7 @@ import {
   doc,
   updateDoc,
   writeBatch,
-} from "firebase/firestore";
+} from "../lib/demoSafeFirestore";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";

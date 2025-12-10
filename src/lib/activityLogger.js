@@ -7,6 +7,7 @@
 
 import { collection, addDoc, serverTimestamp, writeBatch, query, where, limit, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
+import { isDemoModeActive } from "./flags";
 
 /**
  * Log an activity to Firestore
@@ -43,6 +44,12 @@ export async function logActivity(clientId, projectId, activityData) {
   // Feature flag check (can be disabled in development)
   if (import.meta.env.VITE_DISABLE_ACTIVITY_LOGGING === "true") {
     return null;
+  }
+
+  // Demo mode: skip logging
+  if (isDemoModeActive()) {
+    console.info("[Demo Mode] Activity logging skipped:", activityData.type);
+    return "demo-activity-id";
   }
 
   try {

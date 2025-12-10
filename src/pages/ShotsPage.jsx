@@ -50,7 +50,7 @@ import {
   arrayRemove,
   serverTimestamp,
   writeBatch,
-} from "firebase/firestore";
+} from "../lib/demoSafeFirestore";
 import { db, uploadImageFile } from "../lib/firebase";
 import {
   shotsPath as getShotsPath,

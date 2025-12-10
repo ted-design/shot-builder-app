@@ -92,6 +92,16 @@ export const FLAGS = {
 
 export const FEATURE_PROJECT_SCOPING = FLAGS.projectScoping;
 
+/**
+ * Check if demo mode is currently active.
+ * Demo mode allows browsing the app with real data but blocks all writes.
+ * Activate via URL param: ?demo=true
+ * Clear via: ?demo=clear
+ */
+export function isDemoModeActive(): boolean {
+  return FLAGS.demoMode === true;
+}
+
 // Console notice when override is active
 if (typeof window !== "undefined") {
   const isOverrideActive =
