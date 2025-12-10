@@ -143,3 +143,34 @@ html.dark .rich-text-editor-wrapper .ProseMirror-bubble-menu button,
 html.dark .rich-text-editor-wrapper [class*="bubble"] button {
   color: rgb(243 244 246) !important;
 }
+
+/**
+ * Compact editor variant for product notes
+ * Starts at ~3 lines height and grows up to max-height
+ */
+.product-note-editor .ProseMirror {
+  min-height: 72px !important;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.product-note-editor .richtext-editor {
+  min-height: auto !important;
+}
+
+/* Smaller toolbar for compact variant */
+.product-note-editor .richtext-toolbar {
+  padding: 4px 8px;
+  gap: 2px;
+}
+
+.product-note-editor .richtext-toolbar button {
+  padding: 4px;
+  height: 28px;
+  width: 28px;
+}
+
+/* Hide wrapper's character counter (library shows its own) */
+.product-note-editor > .text-xs.text-right {
+  display: none;
+}

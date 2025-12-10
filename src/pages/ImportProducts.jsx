@@ -15,6 +15,7 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { useAuth } from "../context/AuthContext";
 import { canEditProducts, ROLE } from "../lib/rbac";
 import { showError } from "../lib/toast";
+import { isActiveSkuStatus } from "../lib/productMutations";
 
 /** Utility: robust CSV parser for simple, comma-separated files with quoted fields. */
 function parseCSV(text) {
@@ -178,7 +179,7 @@ export default function ImportProducts() {
         const skuCodes = Array.from(new Set(skuEntries.map((entry) => entry.skuCode).filter(Boolean)));
         const colorNames = Array.from(new Set(skuEntries.map((entry) => entry.colorName).filter(Boolean)));
         const sizeOptions = Array.from(new Set(skuEntries.flatMap((entry) => entry.sizes).filter(Boolean)));
-        const activeSkuCount = skuEntries.filter((entry) => entry.status === "active").length;
+        const activeSkuCount = skuEntries.filter((entry) => isActiveSkuStatus(entry.status)).length;
 
         const familyData = {
           styleName: group.name,

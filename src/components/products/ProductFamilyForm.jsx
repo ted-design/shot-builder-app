@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { storage } from "../../lib/firebase";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
+import DOMPurify from "dompurify";
 import { Button } from "../ui/button";
 import { Input, Checkbox } from "../ui/input";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
 import AppImage from "../common/AppImage";
 import SizeListInput from "./SizeListInput";
 import ColorListEditor from "./ColorListEditor";
+import RichTextEditor from "../shots/RichTextEditor";
 import { compressImageFile, formatFileSize } from "../../lib/images";
 import {
   getTypesForGender,
@@ -31,8 +33,9 @@ const FAMILY_STATUS = [
 
 const SKU_STATUS = [
   { value: "active", label: "Active" },
+  { value: "phasing_out", label: "Phasing out" },
+  { value: "coming_soon", label: "Coming soon" },
   { value: "discontinued", label: "Discontinued" },
-  { value: "archived", label: "Archived" },
 ];
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -126,6 +129,15 @@ const buildInitialColours = (initialValue) => {
   }));
 };
 
+const resolveHeroLocalId = (initialValue, colours) => {
+  if (!colours.length) return null;
+  if (initialValue?.thumbnailImagePath) {
+    const match = colours.find((colour) => colour.imagePath === initialValue.thumbnailImagePath);
+    if (match) return match.localId;
+  }
+  return colours[0].localId;
+};
+
 export default function ProductFamilyForm({
   initialValue,
   onSubmit,
@@ -135,56 +147,46 @@ export default function ProductFamilyForm({
   paletteSwatches = [],
   paletteIndex = null,
   onUpsertSwatch,
+  onDelete,
 }) {
+  const initialColours = useMemo(() => buildInitialColours(initialValue), [initialValue]);
   const [familyState, setFamilyState] = useState(() => buildInitialState(initialValue));
-  const [colours, setColours] = useState(() => buildInitialColours(initialValue));
+  const [colours, setColours] = useState(initialColours);
+  const [heroLocalId, setHeroLocalId] = useState(() =>
+    resolveHeroLocalId(initialValue, initialColours)
+  );
   const [removedColourIds, setRemovedColourIds] = useState([]);
   const [advancedOpen, setAdvancedOpen] = useState(() => {
     if (!initialValue) return false;
     const notesLength = Array.isArray(initialValue.notes) ? initialValue.notes.length : 0;
-    return Boolean(
-      initialValue.previousStyleNumber ||
-        initialValue.headerImagePath ||
-        notesLength ||
-        initialValue.thumbnailImagePath
-    );
+    return Boolean(initialValue.previousStyleNumber || initialValue.headerImagePath || notesLength);
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [newNoteText, setNewNoteText] = useState("");
-
-  const [thumbnailImage, setThumbnailImage] = useState({
-    file: null,
-    preview: null,
-    path: initialValue?.thumbnailImagePath || null,
-    remove: false,
-  });
   const [headerImage, setHeaderImage] = useState({
     file: null,
     preview: null,
     path: initialValue?.headerImagePath || null,
     remove: false,
   });
+  const [deleting, setDeleting] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const resolvedPaletteIndex = useMemo(
     () => paletteIndex || { byKey: new Map(), byName: new Map() },
     [paletteIndex]
   );
 
-  const thumbnailObjectUrl = useRef(null);
   const headerObjectUrl = useRef(null);
   const colourObjectUrls = useRef(new Set());
 
   useEffect(() => {
+    const nextColours = buildInitialColours(initialValue);
     setFamilyState(buildInitialState(initialValue));
-    setColours(buildInitialColours(initialValue));
+    setColours(nextColours);
+    setHeroLocalId(resolveHeroLocalId(initialValue, nextColours));
     setRemovedColourIds([]);
-    setThumbnailImage((prev) => ({
-      ...prev,
-      file: null,
-      preview: null,
-      path: initialValue?.thumbnailImagePath || null,
-      remove: false,
-    }));
     setHeaderImage((prev) => ({
       ...prev,
       file: null,
@@ -192,37 +194,9 @@ export default function ProductFamilyForm({
       path: initialValue?.headerImagePath || null,
       remove: false,
     }));
+    setDeleteText("");
+    setConfirmingDelete(false);
   }, [initialValue]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!initialValue?.thumbnailImagePath) {
-      setThumbnailImage((prev) => ({ ...prev, preview: null, path: null }));
-      return () => {
-        cancelled = true;
-      };
-    }
-    (async () => {
-      try {
-        const url = await getDownloadURL(
-          storageRef(storage, initialValue.thumbnailImagePath)
-        );
-        if (!cancelled) {
-          setThumbnailImage((prev) => ({
-            ...prev,
-            preview: url,
-            path: initialValue.thumbnailImagePath,
-            remove: false,
-          }));
-        }
-      } catch (err) {
-        console.warn("Failed to load thumbnail image", err);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [initialValue?.thumbnailImagePath]);
 
   useEffect(() => {
     let mounted = true;
@@ -293,15 +267,15 @@ export default function ProductFamilyForm({
     );
   }, [resolvedPaletteIndex]);
 
-  useEffect(
-    () => () => {
-      if (thumbnailObjectUrl.current) {
-        URL.revokeObjectURL(thumbnailObjectUrl.current);
-        thumbnailObjectUrl.current = null;
-      }
-    },
-    []
-  );
+  useEffect(() => {
+    if (!colours.length) {
+      if (heroLocalId !== null) setHeroLocalId(null);
+      return;
+    }
+    if (!heroLocalId || !colours.some((colour) => colour.localId === heroLocalId)) {
+      setHeroLocalId(colours[0].localId);
+    }
+  }, [colours, heroLocalId]);
 
   useEffect(
     () => () => {
@@ -379,37 +353,19 @@ export default function ProductFamilyForm({
     updateFamily({ notes: familyState.notes.filter((note) => note.id !== id) });
   };
 
-  const handleThumbnailImage = async (file) => {
-    if (!file) return;
-    if (thumbnailObjectUrl.current) {
-      URL.revokeObjectURL(thumbnailObjectUrl.current);
-      thumbnailObjectUrl.current = null;
-    }
+  const handleDeleteFamily = async () => {
+    if (!onDelete || !initialValue) return;
+    if (deleteText.trim() !== "DELETE") return;
     try {
-      const compressed = await compressImageFile(file, {
-        maxDimension: 1600,
-        quality: 0.82,
-      });
-      const url = URL.createObjectURL(compressed);
-      thumbnailObjectUrl.current = url;
-      setThumbnailImage((prev) => ({
-        file: compressed,
-        preview: url,
-        path: prev.path,
-        remove: false,
-      }));
+      setDeleting(true);
+      await onDelete(initialValue, { skipPrompt: true });
+      onCancel?.();
     } catch (err) {
-      console.error("Failed to process thumbnail image", err);
-      setError("Unable to load thumbnail image. Please try a different file.");
+      console.error("Failed to delete product family", err);
+      setError(err?.message || "Failed to delete product.");
+    } finally {
+      setDeleting(false);
     }
-  };
-
-  const clearThumbnailImage = () => {
-    if (thumbnailObjectUrl.current) {
-      URL.revokeObjectURL(thumbnailObjectUrl.current);
-      thumbnailObjectUrl.current = null;
-    }
-    setThumbnailImage((prev) => ({ ...prev, file: null, preview: null, remove: true }));
   };
 
   const handleHeaderImage = async (file) => {
@@ -559,6 +515,11 @@ export default function ProductFamilyForm({
       return;
     }
 
+    const resolvedHeroId =
+      heroLocalId && preparedColours.some((colour) => colour.localId === heroLocalId)
+        ? heroLocalId
+        : preparedColours[0]?.localId || null;
+
     const payload = {
       family: {
         styleName,
@@ -580,9 +541,8 @@ export default function ProductFamilyForm({
                 : Date.now(),
         })),
         sizes: trimmedSizes,
-        thumbnailImageFile: thumbnailImage.file,
-        removeThumbnailImage: thumbnailImage.remove,
-        currentThumbnailImagePath: thumbnailImage.path || null,
+        heroColorLocalId: resolvedHeroId,
+        currentThumbnailImagePath: initialValue?.thumbnailImagePath || null,
         headerImageFile: headerImage.file,
         removeHeaderImage: headerImage.remove,
         currentHeaderImagePath: headerImage.path || null,
@@ -594,6 +554,7 @@ export default function ProductFamilyForm({
         skuCode: colour.skuCode,
         status: colour.status,
         archived: colour.status === "archived",
+        isHero: colour.localId === resolvedHeroId,
         colorKey: colour.colorKey || null,
         hexColor: colour.hexColor || null,
         // All colour entries share the normalised family size list to avoid divergent data.
@@ -617,7 +578,7 @@ export default function ProductFamilyForm({
     setSubmitting(false);
   };
 
-  const recommendedMessage = "Use 1600x2000px JPGs under 2.5MB for best results.";
+  const recommendedMessage = "Use 4:5 images (e.g. 1600x2000px JPGs under 2.5MB) for best results.";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -727,42 +688,6 @@ export default function ProductFamilyForm({
             inputPlaceholder="e.g. XS"
           />
         </div>
-        <div className="md:col-span-2 space-y-2">
-          <label className="block text-sm font-medium text-slate-700">Family thumbnail</label>
-          {thumbnailImage.preview && (
-            <AppImage
-              src={thumbnailImage.preview}
-              alt="Thumbnail preview"
-              loading="lazy"
-              className="h-48 w-full overflow-hidden rounded-card"
-              imageClassName="h-full w-full object-cover"
-              placeholder={null}
-              fallback={
-                <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
-                  Preview unavailable
-                </div>
-              }
-            />
-          )}
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => handleThumbnailImage(event.target.files?.[0])}
-            />
-            {(thumbnailImage.preview || thumbnailImage.path) && (
-              <Button type="button" variant="ghost" size="sm" onClick={clearThumbnailImage}>
-                Remove image
-              </Button>
-            )}
-          </div>
-          <p className="text-xs text-slate-500">{recommendedMessage}</p>
-          {thumbnailImage.file && (
-            <div className="text-xs text-slate-500">
-              {thumbnailImage.file.name} • {formatFileSize(thumbnailImage.file.size)}
-            </div>
-          )}
-        </div>
       </div>
 
       <ColorListEditor
@@ -776,6 +701,8 @@ export default function ProductFamilyForm({
         paletteIndex={resolvedPaletteIndex}
         onSaveToPalette={handleSaveSwatchToPalette}
         statusOptions={SKU_STATUS}
+        heroLocalId={heroLocalId}
+        onHeroSelect={setHeroLocalId}
         sizeNote={
           trimmedSizes.length
             ? `Colours inherit ${trimmedSizes.length} size${trimmedSizes.length === 1 ? "" : "s"}.`
@@ -789,7 +716,15 @@ export default function ProductFamilyForm({
         <button
           type="button"
           className="text-sm font-medium text-primary"
-          onClick={() => setAdvancedOpen((open) => !open)}
+          onClick={() =>
+            setAdvancedOpen((open) => {
+              if (open) {
+                setConfirmingDelete(false);
+                setDeleteText("");
+              }
+              return !open;
+            })
+          }
           aria-expanded={advancedOpen}
         >
           {advancedOpen ? "Hide advanced" : "Show advanced"}
@@ -813,9 +748,14 @@ export default function ProductFamilyForm({
                   src={headerImage.preview}
                   alt="Header preview"
                   loading="lazy"
-                  className="h-48 w-full overflow-hidden rounded-card"
-                  imageClassName="h-full w-full object-cover"
-                  placeholder={null}
+                  fit="contain"
+                  className="flex min-h-[180px] w-full items-center justify-center overflow-hidden rounded-card border border-slate-200 bg-slate-50"
+                  imageClassName="max-h-72 w-auto object-contain"
+                  placeholder={
+                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
+                      Loading preview…
+                    </div>
+                  }
                   fallback={
                     <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
                       Preview unavailable
@@ -861,16 +801,24 @@ export default function ProductFamilyForm({
                         ×
                       </button>
                     </div>
-                    <div className="whitespace-pre-wrap text-sm text-slate-700">{note.text}</div>
+                    <div
+                      className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
+                      dangerouslySetInnerHTML={{
+                        __html: DOMPurify.sanitize(note.text || ""),
+                      }}
+                    />
                   </div>
                 ))}
               </div>
-              <textarea
+              <RichTextEditor
                 value={newNoteText}
-                onChange={(event) => setNewNoteText(event.target.value)}
-                rows={3}
-                className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                placeholder="Add a note (press Add note to save with timestamp)"
+                onChange={setNewNoteText}
+                placeholder="Add a note with formatting (press Add note to save with timestamp)"
+                minHeight="72px"
+                maxHeight="200px"
+                characterLimit={5000}
+                hideToolbar={false}
+                className="product-note-editor"
               />
               <div className="flex justify-end">
                 <Button type="button" onClick={addNote} disabled={!newNoteText.trim()}>
@@ -890,6 +838,67 @@ export default function ProductFamilyForm({
                 Archived products stay hidden from selectors but remain available for history and migration.
               </p>
             </div>
+            {canDelete && initialValue?.id && onDelete && (
+              <div className="space-y-3 rounded-card border border-red-200 bg-red-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">Danger zone</p>
+                    <p className="text-xs text-red-700">
+                      Delete this product family and all colourways. This action cannot be undone.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={confirmingDelete ? "secondary" : "destructive"}
+                    size="sm"
+                    onClick={() => {
+                      setConfirmingDelete((open) => !open);
+                      setDeleteText("");
+                    }}
+                    disabled={deleting}
+                  >
+                    {confirmingDelete ? "Cancel" : "Delete family"}
+                  </Button>
+                </div>
+                {confirmingDelete && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-red-700">
+                      Type DELETE to confirm. This removes the family and all colourways from selectors.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        value={deleteText}
+                        onChange={(event) => setDeleteText(event.target.value)}
+                        placeholder="Type DELETE to confirm"
+                        className="w-full max-w-xs"
+                        disabled={deleting}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setConfirmingDelete(false);
+                          setDeleteText("");
+                        }}
+                        disabled={deleting}
+                      >
+                        Never mind
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDeleteFamily}
+                        disabled={deleting || deleteText.trim() !== "DELETE"}
+                      >
+                        {deleting ? "Deleting…" : "Permanently delete"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -901,15 +910,12 @@ export default function ProductFamilyForm({
       )}
 
       <div className="flex flex-wrap items-center justify-end gap-3">
-        {canDelete && (
-          <span className="text-xs text-slate-500">Contact an admin to delete a product permanently.</span>
-        )}
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={submitting}>
+        <Button type="submit" disabled={submitting || deleting}>
           {submitting && <LoadingSpinner size="sm" className="mr-2" />}
           {submitting ? "Saving…" : submitLabel}
         </Button>

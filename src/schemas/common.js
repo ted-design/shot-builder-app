@@ -57,7 +57,14 @@ export const genderSchema = z.enum(["men", "mens", "women", "womens", "unisex", 
 /**
  * Status enum for products and SKUs
  */
-export const productStatusSchema = z.enum(["active", "inactive", "archived", "discontinued"]);
+export const productStatusSchema = z.enum([
+  "active",
+  "phasing_out",
+  "coming_soon",
+  "inactive",
+  "archived",
+  "discontinued",
+]);
 
 /**
  * Soft delete fields

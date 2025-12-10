@@ -49,6 +49,7 @@ export const createProductSkuSchema = z.object({
   removeImage: z.boolean().optional().default(false),
   colorKey: z.string().max(120).nullable().optional(),
   hexColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid hex color format").nullable().optional(),
+  isHero: z.boolean().optional().default(false),
 });
 
 /**
@@ -105,6 +106,7 @@ export const createProductFamilySchema = z.object({
     // Current image paths (for updates)
     currentHeaderImagePath: storagePathSchema,
     currentThumbnailImagePath: storagePathSchema,
+    heroColorLocalId: z.string().nullable().optional(),
   }),
   skus: z.array(createProductSkuSchema).min(1, "At least one SKU is required"),
   removedSkuIds: z.array(z.string()).optional().default([]),
@@ -126,4 +128,5 @@ export const updateProductFamilySchema = z.object({
   sizes: stringArraySchema.optional(),
   headerImageFile: z.any().nullable().optional(),
   thumbnailImageFile: z.any().nullable().optional(),
+  heroColorLocalId: z.string().nullable().optional(),
 });

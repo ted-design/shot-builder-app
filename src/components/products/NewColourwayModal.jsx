@@ -12,8 +12,9 @@ import { findPaletteMatch } from "../../lib/colorPalette";
 
 const SKU_STATUS = [
   { value: "active", label: "Active" },
+  { value: "phasing_out", label: "Phasing out" },
+  { value: "coming_soon", label: "Coming soon" },
   { value: "discontinued", label: "Discontinued" },
-  { value: "archived", label: "Archived" },
 ];
 
 export default function NewColourwayModal({
@@ -322,9 +323,14 @@ export default function NewColourwayModal({
                   src={imageState.preview}
                   alt={`${colorName || "Colour"} preview`}
                   loading="lazy"
-                  className="h-40 w-full overflow-hidden rounded-card"
-                  imageClassName="h-full w-full object-cover"
-                  placeholder={null}
+                  fit="contain"
+                  className="flex min-h-[180px] w-full items-center justify-center overflow-hidden rounded-card border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40"
+                  imageClassName="max-h-72 w-auto object-contain"
+                  placeholder={
+                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-500 dark:text-slate-400">
+                      Loading preview…
+                    </div>
+                  }
                   fallback={
                     <div className="flex h-full w-full items-center justify-center text-xs text-slate-500 dark:text-slate-400">
                       Preview unavailable

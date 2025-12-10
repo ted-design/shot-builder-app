@@ -1130,7 +1130,13 @@ export default function ProductsPage() {
       const familySizes = Array.isArray(payload.family.sizes) ? payload.family.sizes : [];
       const aggregates = buildSkuAggregates(payload.skus, familySizes);
       const familyRef = doc(db, ...productFamilyPathForClient(familyId));
-      let thumbnailPath = payload.family.currentThumbnailImagePath || null;
+      const heroLocalId =
+        payload.family.heroColorLocalId ||
+        payload.skus.find((sku) => sku.isHero)?.localId ||
+        null;
+      let heroImagePath = null;
+      let fallbackImagePath = null;
+      const previousThumbnailPath = payload.family.currentThumbnailImagePath || null;
 
       const updates = {
         styleName: payload.family.styleName,
@@ -1152,15 +1158,6 @@ export default function ProductsPage() {
         updatedBy: user?.uid || null,
       };
 
-      if (payload.family.removeThumbnailImage) {
-        updates.thumbnailImagePath = null;
-        const pathToRemove = payload.family.currentThumbnailImagePath;
-        if (pathToRemove) {
-          await deleteImageByPath(pathToRemove).catch(() => {});
-        }
-        thumbnailPath = null;
-      }
-
       if (payload.family.removeHeaderImage) {
         updates.headerImagePath = null;
         const pathToRemove = payload.family.currentHeaderImagePath;
@@ -1170,23 +1167,6 @@ export default function ProductsPage() {
       }
 
       await updateDoc(familyRef, updates);
-
-      if (payload.family.thumbnailImageFile) {
-        const { path } = await uploadImageFile(payload.family.thumbnailImageFile, {
-          folder: "productFamilies",
-          id: `${familyId}/thumbnail`,
-          optimize: false, // already optimized in form layer
-        });
-        await updateDoc(familyRef, {
-          thumbnailImagePath: path,
-          updatedAt: Date.now(),
-          updatedBy: user?.uid || null,
-        });
-        if (thumbnailPath && thumbnailPath !== path) {
-          await deleteImageByPath(thumbnailPath).catch(() => {});
-        }
-        thumbnailPath = path;
-      }
 
       if (payload.family.headerImageFile) {
         const { path } = await uploadImageFile(payload.family.headerImageFile, {
@@ -1205,7 +1185,6 @@ export default function ProductsPage() {
         }
       }
 
-      let fallbackImagePath = null;
       for (const sku of payload.skus) {
         if (sku.id) {
           const skuRef = doc(db, ...productFamilySkuPathForClient(familyId, sku.id));
@@ -1252,6 +1231,9 @@ export default function ProductsPage() {
           if (!fallbackImagePath && nextImagePath && !sku.removeImage) {
             fallbackImagePath = nextImagePath;
           }
+          if (!heroImagePath && heroLocalId && sku.localId === heroLocalId && nextImagePath && !sku.removeImage) {
+            heroImagePath = nextImagePath;
+          }
         } else {
           const skuCollection = collection(db, ...productFamilySkusPathForClient(familyId));
           const skuRef = doc(skuCollection);
@@ -1291,6 +1273,9 @@ export default function ProductsPage() {
           if (!fallbackImagePath && imagePath && !sku.removeImage) {
             fallbackImagePath = imagePath;
           }
+          if (!heroImagePath && heroLocalId && sku.localId === heroLocalId && imagePath && !sku.removeImage) {
+            heroImagePath = imagePath;
+          }
         }
       }
 
@@ -1303,10 +1288,11 @@ export default function ProductsPage() {
         });
       }
 
-      if (!thumbnailPath && fallbackImagePath) {
+      const nextThumbnailPath = heroImagePath || fallbackImagePath || previousThumbnailPath || null;
+      if (nextThumbnailPath !== previousThumbnailPath) {
         await updateDoc(familyRef, {
-          thumbnailImagePath: fallbackImagePath,
-          updatedAt: Date.now(),
+          thumbnailImagePath: nextThumbnailPath,
+          updatedAt: now,
           updatedBy: user?.uid || null,
         });
       }

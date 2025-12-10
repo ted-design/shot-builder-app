@@ -52,6 +52,10 @@ const formatProductImageFilename = (styleNumber, styleName, colorName) => {
   return `${parts.join('_')}.webp`;
 };
 
+const ACTIVE_SKU_STATUSES = new Set(["active", "phasing_out", "coming_soon"]);
+export const isActiveSkuStatus = (status) =>
+  ACTIVE_SKU_STATUSES.has(typeof status === "string" ? status.toLowerCase() : status);
+
 const buildSkuAggregates = (skus, familySizes = []) => {
   const skuCodes = new Set();
   const colorNames = new Set();
@@ -63,7 +67,7 @@ const buildSkuAggregates = (skus, familySizes = []) => {
     if (sku.skuCode) skuCodes.add(sku.skuCode);
     if (sku.colorName) colorNames.add(sku.colorName);
     (sku.sizes || []).forEach((size) => size && sizes.add(size));
-    if (sku.status === "active") activeSkuCount += 1;
+    if (isActiveSkuStatus(sku.status)) activeSkuCount += 1;
   });
 
   return {
@@ -137,6 +141,11 @@ export const createProductFamily = async ({ db, clientId, payload, userId }) => 
   const familyRef = await addDoc(familiesCollection, baseData);
   const familyId = familyRef.id;
   let thumbnailPath = null;
+  const heroLocalId =
+    payload.family?.heroColorLocalId ||
+    (payload.skus || []).find((sku) => sku.isHero)?.localId ||
+    null;
+  let heroImagePath = null;
 
   if (payload.family?.thumbnailImageFile) {
     const { path } = await uploadImageFile(payload.family.thumbnailImageFile, {
@@ -193,6 +202,13 @@ export const createProductFamily = async ({ db, clientId, payload, userId }) => 
       fallbackImagePath = imagePath;
     }
 
+    if (!heroImagePath) {
+      const isHero = heroLocalId ? sku.localId === heroLocalId : false;
+      if ((isHero || !heroLocalId) && imagePath && !sku.removeImage) {
+        heroImagePath = imagePath;
+      }
+    }
+
     await setDoc(skuRef, {
       colorName: sku.colorName,
       skuCode: sku.skuCode,
@@ -211,9 +227,11 @@ export const createProductFamily = async ({ db, clientId, payload, userId }) => 
     });
   }
 
-  if (!thumbnailPath && fallbackImagePath) {
+  const finalThumbnailPath = heroImagePath || fallbackImagePath || thumbnailPath;
+
+  if (finalThumbnailPath) {
     await updateDoc(familyRef, {
-      thumbnailImagePath: fallbackImagePath,
+      thumbnailImagePath: finalThumbnailPath,
       updatedAt: Date.now(),
       updatedBy: userId || null,
     });
