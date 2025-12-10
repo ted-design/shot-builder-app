@@ -13,6 +13,7 @@ const toastMock = {
   error: vi.fn(),
   info: vi.fn(),
   warning: vi.fn(),
+  showConfirm: vi.fn(() => Promise.resolve(true)),
 };
 
 const authState = {
@@ -143,7 +144,10 @@ vi.mock("../../lib/firebase", () => ({
   auth: { currentUser: { uid: "test-user", getIdToken: vi.fn(() => Promise.resolve()) } },
 }));
 
-vi.mock("../../lib/toast", () => ({ toast: toastMock }));
+vi.mock("../../lib/toast", () => ({
+  toast: toastMock,
+  showConfirm: vi.fn(() => Promise.resolve(true)),
+}));
 
 vi.mock("../../context/AuthContext", () => ({
   useAuth: () => authState,

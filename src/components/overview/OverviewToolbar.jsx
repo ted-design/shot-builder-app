@@ -9,7 +9,7 @@ export default function OverviewToolbar({
 }) {
   const content = (
     <div
-      className="border-b border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900"
+      className="border-b border-neutral-200/60 dark:border-neutral-700/60 pb-4"
       role="toolbar"
       aria-label="Shots toolbar"
     >

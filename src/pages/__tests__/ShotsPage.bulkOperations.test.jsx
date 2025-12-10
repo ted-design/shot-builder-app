@@ -9,6 +9,7 @@ const toastMock = {
   error: vi.fn(),
   info: vi.fn(),
   warning: vi.fn(),
+  showConfirm: vi.fn(() => Promise.resolve(true)),
 };
 
 const writeBatchCalls = [];

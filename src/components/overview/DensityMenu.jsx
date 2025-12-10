@@ -42,13 +42,16 @@ export default function DensityMenu({
   onChange,
   ariaLabel = "Select density",
   className = "",
+  variant = "outline",
 }) {
+  const currentOption = options.find((opt) => opt.value === value) || options[0];
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
-          variant="ghost"
+          variant={variant}
           size="icon"
           aria-label={ariaLabel}
           className={className}

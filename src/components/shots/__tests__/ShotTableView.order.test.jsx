@@ -47,7 +47,6 @@ describe("ShotTableView column ordering", () => {
       "Image",
       "Status",
       "Date",
-      "Description",
       "Location",
       "Products",
       "Talent",

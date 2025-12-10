@@ -9,6 +9,7 @@ const toastMock = {
   error: vi.fn(),
   info: vi.fn(),
   warning: vi.fn(),
+  showConfirm: vi.fn(() => Promise.resolve(true)),
 };
 
 const writeBatchCalls = [];
@@ -45,6 +46,7 @@ vi.mock("../../lib/firebase", () => ({
 
 vi.mock("../../lib/toast", () => ({
   toast: toastMock,
+  showConfirm: vi.fn(() => Promise.resolve(true)),
 }));
 
 vi.mock("../../context/AuthContext", () => ({

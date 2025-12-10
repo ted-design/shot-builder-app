@@ -41,6 +41,8 @@ export default function ViewModeMenu({
   onChange,
   ariaLabel = "Select view",
   className = "",
+  variant = "outline",
+  showLabel = false,
 }) {
   // Find the current option to display its icon
   const currentOption = options.find((opt) => opt.value === value) || options[0];
@@ -51,12 +53,13 @@ export default function ViewModeMenu({
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
-          variant="ghost"
-          size="icon"
+          variant={variant}
+          size={showLabel ? "sm" : "icon"}
           aria-label={ariaLabel}
           className={className}
         >
           {Icon && <Icon className="h-4 w-4" />}
+          {showLabel && <span className="ml-1.5 hidden sm:inline">{currentOption?.label}</span>}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">

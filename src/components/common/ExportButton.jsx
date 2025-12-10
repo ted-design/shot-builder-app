@@ -86,9 +86,10 @@ export default function ExportButton({ data, entityType, buttonVariant = "second
         size={buttonSize}
         disabled
         title="No data to export"
+        className="flex items-center gap-1.5"
       >
-        <Download className="mr-2 h-4 w-4" />
-        Export
+        <Download className="h-4 w-4" />
+        <span className="hidden sm:inline">Export</span>
       </Button>
     );
   }
@@ -99,9 +100,10 @@ export default function ExportButton({ data, entityType, buttonVariant = "second
         variant={buttonVariant}
         size={buttonSize}
         onClick={handleOpenModal}
+        className="flex items-center gap-1.5"
       >
-        <Download className="mr-2 h-4 w-4" />
-        Export
+        <Download className="h-4 w-4" />
+        <span className="hidden sm:inline">Export</span>
       </Button>
 
       {modalOpen && (
