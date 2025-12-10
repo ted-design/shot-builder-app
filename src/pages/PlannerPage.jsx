@@ -10,7 +10,7 @@
 // previous Planner implementation.
 
 import React, { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   DndContext,
   DragOverlay,
@@ -1260,9 +1260,12 @@ function PlannerPageContent({ embedded = false }) {
   const groupBy = plannerPrefs.groupBy;
   const sortBy = plannerPrefs.sort;
   const navigate = useNavigate();
+  const { projectId: urlProjectId } = useParams();
   const { currentProjectId, ready: scopeReady, setLastVisitedPath } = useProjectScope();
   const redirectNotifiedRef = useRef(false);
-  const projectId = currentProjectId;
+  // Use URL param as primary source of truth (available immediately on navigation)
+  // Fall back to context for cases where URL param isn't available
+  const projectId = urlProjectId || currentProjectId;
   const {
     clientId,
     role: globalRole,

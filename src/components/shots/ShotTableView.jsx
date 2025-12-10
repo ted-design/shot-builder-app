@@ -1,11 +1,18 @@
 import { memo, useMemo, useRef, useState, useEffect } from "react";
-import { ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUp, ArrowDown, ChevronDown, Check } from "lucide-react";
 import { Button } from "../ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { toDateInputValue } from "../../lib/shotDraft";
 import { normaliseShotStatus, shotStatusOptions } from "../../lib/shotStatus";
 import { getImageWithFallback, hasMultipleAttachments, getAttachmentCount } from "../../lib/imageHelpers";
 import AppImage from "../common/AppImage";
 import { readStorage, writeStorage } from "../../lib/safeStorage";
+import { TagBadge } from "../ui/TagBadge";
 
 const STATUS_LABEL_MAP = new Map(shotStatusOptions.map(({ value, label }) => [value, label]));
 const CLEAN_TAG_REGEX = /<[^>]+>/g;
@@ -79,6 +86,9 @@ const ShotTableView = memo(function ShotTableView({
   const moveEnabled = typeof onMoveShotUp === "function" || typeof onMoveShotDown === "function";
   const actionsEnabled = editEnabled || moveEnabled;
 
+  // When both name and type are visible, consolidate into a single "shotInfo" column
+  const consolidatedShotColumn = showName && showType;
+
   const columns = useMemo(() => {
     const addIf = (condition, item, list) => {
       if (condition) list.push(item);
@@ -101,7 +111,8 @@ const ShotTableView = memo(function ShotTableView({
 
     const defs = {
       image: { key: "image", label: "Image", width: "80px", align: "center" },
-      name: { key: "name", label: "Shot", width: "minmax(220px, 1.4fr)" },
+      // When consolidated, use wider column for shot info
+      name: { key: "name", label: "Shot", width: consolidatedShotColumn ? "minmax(240px, 1.6fr)" : "minmax(220px, 1.4fr)" },
       type: { key: "type", label: "Description", width: "minmax(120px, 0.7fr)" },
       status: { key: "status", label: "Status", width: "minmax(120px, 0.7fr)" },
       date: { key: "date", label: "Date", width: "minmax(120px, 0.6fr)" },
@@ -112,10 +123,11 @@ const ShotTableView = memo(function ShotTableView({
       notes: { key: "notes", label: "Notes", width: "minmax(220px, 1.3fr)" },
     };
 
+    // Skip "type" column if consolidated into "name"
     const visibility = {
       image: showImage,
       name: showName,
-      type: showType,
+      type: showType && !consolidatedShotColumn, // Skip if consolidated
       status: showStatus,
       date: showDate,
       location: showLocation,
@@ -144,8 +156,10 @@ const ShotTableView = memo(function ShotTableView({
     showLocation,
     showProducts,
     showTalent,
+    showTags,
     showNotes,
     onRowReorder,
+    consolidatedShotColumn,
   ]);
 
   // Column resizing (persisted per-project/tab when persistKey is provided)
@@ -454,7 +468,7 @@ const ShotTableView = memo(function ShotTableView({
                 if (columnKey === "image" && showImage) {
                   return (
                     <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-center`}>
-                      <div className="relative inline-block w-16 h-12 rounded border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800">
+                      <div className="relative inline-flex items-center justify-center w-16 h-12 rounded border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800">
                         {imagePath ? (
                           <>
                             <AppImage
@@ -462,8 +476,8 @@ const ShotTableView = memo(function ShotTableView({
                               alt={shot?.name || "Shot"}
                               preferredSize={96}
                               loading="lazy"
-                              className="w-full h-full"
-                              imageClassName="w-full h-full object-cover"
+                              className="w-full h-full flex items-center justify-center"
+                              imageClassName="max-w-full max-h-full object-contain"
                               style={imageStyle}
                               fallback={
                                 <div className="flex h-full w-full items-center justify-center text-[9px] text-slate-400">
@@ -488,38 +502,40 @@ const ShotTableView = memo(function ShotTableView({
                 }
 
                 if (columnKey === "tags" && showTags) {
+                  const shotTags = Array.isArray(shot?.tags) ? shot.tags.filter(t => t?.label) : [];
                   return (
                     <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
-                      {multilineLists ? (
-                        tagLabels.length ? (
-                          <div className="space-y-1 leading-5">
-                            {tagLabels.map((line, i) => (
-                              <div key={i} className="truncate" title={line}>{line}</div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-500">—</span>
-                        )
-                      ) : (
-                        <div className="truncate" title={tagsSummary || "—"}>
-                          {tagsSummary || "—"}
+                      {shotTags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {shotTags.map((tag) => (
+                            <TagBadge key={tag.id || tag.label} tag={tag} />
+                          ))}
                         </div>
+                      ) : (
+                        <span className="text-xs text-slate-500">—</span>
                       )}
                     </div>
                   );
                 }
 
                 if (columnKey === "name" && showName) {
+                  // When consolidated, show both name and description in this column
+                  const showDescriptionHere = consolidatedShotColumn && shot?.type;
                   return (
                     <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-900 dark:text-slate-100`}>
-                      <div className="font-semibold leading-5" title={shot?.name || "Unnamed shot"}>
+                      <div className="font-semibold leading-5 truncate" title={shot?.name || "Unnamed shot"}>
                         {shot?.name || "Unnamed shot"}
                       </div>
+                      {showDescriptionHere && (
+                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5" title={shot.type}>
+                          {shot.type}
+                        </div>
+                      )}
                     </div>
                   );
                 }
 
-                if (columnKey === "type" && showType) {
+                if (columnKey === "type" && showType && !consolidatedShotColumn) {
                   return (
                     <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
                       {shot?.type || "—"}
@@ -531,17 +547,32 @@ const ShotTableView = memo(function ShotTableView({
                   return (
                     <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow}`}>
                       {typeof onChangeStatus === 'function' ? (
-                        <select
-                          className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-700 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-                          value={statusValue}
-                          onChange={(e) => onChangeStatus(shot, e.target.value)}
-                          aria-label={`Change status for ${shot?.name || 'shot'}`}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {shotStatusOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </select>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors hover:opacity-80 ${statusClass}`}
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={`Change status for ${shot?.name || 'shot'}`}
+                            >
+                              <span>{statusLabel}</span>
+                              <ChevronDown className="h-3 w-3 opacity-60" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="min-w-[120px]" onClick={(e) => e.stopPropagation()}>
+                            {shotStatusOptions.map((opt) => (
+                              <DropdownMenuItem
+                                key={opt.value}
+                                onClick={() => onChangeStatus(shot, opt.value)}
+                                className="flex items-center gap-2"
+                              >
+                                <span className="flex-1">{opt.label}</span>
+                                {opt.value === statusValue && (
+                                  <Check className="h-4 w-4 text-primary" />
+                                )}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       ) : (
                         <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${statusClass}`}>
                           {statusLabel}
@@ -573,18 +604,12 @@ const ShotTableView = memo(function ShotTableView({
                     : [];
                   return (
                     <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
-                      {multilineLists ? (
-                        productLines.length ? (
-                          <div className="space-y-1 leading-5">
-                            {productLines.map((line, i) => (
-                              <div key={i} className="truncate" title={line}>{line}</div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-500">No products linked</span>
-                        )
-                      ) : productsSummary ? (
-                        <p className="line-clamp-2 leading-5">{productsSummary}</p>
+                      {productLines.length ? (
+                        <div className="space-y-0.5 leading-5">
+                          {productLines.map((line, i) => (
+                            <div key={i} className="truncate text-xs" title={line}>{line}</div>
+                          ))}
+                        </div>
                       ) : (
                         <span className="text-xs text-slate-500">No products linked</span>
                       )}

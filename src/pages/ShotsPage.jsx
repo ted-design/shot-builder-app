@@ -16,7 +16,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import {
   useShots,
@@ -64,6 +64,7 @@ import {
   LayoutGrid,
   Search,
   ChevronDown,
+  ChevronRight,
   Camera,
   Calendar,
   Users,
@@ -78,6 +79,16 @@ import {
   MoreVertical,
   BarChart3,
   Layers,
+  FileText,
+  MapPin,
+  Copy,
+  FolderInput,
+  FolderOutput,
+  Archive,
+  Trash2,
+  Pencil,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -88,12 +99,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "../components/ui/dropdown-menu";
 import { shotStatusOptions } from "../lib/shotStatus";
 import ExportButton from "../components/common/ExportButton";
+import ProjectPickerModal from "../components/common/ProjectPickerModal";
 import { searchShots } from "../lib/search";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
-import { PageHeader } from "../components/ui/PageHeader";
 import { ShotsOverviewProvider, useShotsOverview } from "../context/ShotsOverviewContext";
 import {
   FieldSettingsMenu,
@@ -104,10 +116,12 @@ import {
   ViewModeMenu,
   DensityMenu,
   GroupByMenu,
+  FilterMenu,
 } from "../components/overview";
 
 const PlannerPage = lazy(() => import("./PlannerPage"));
 import { VirtualizedGrid } from "../components/ui/VirtualizedList";
+import { ButtonGroup } from "../components/ui/ButtonGroup";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
@@ -121,7 +135,7 @@ import { useProjectScope } from "../context/ProjectScopeContext";
 import { canEditProducts, canManageShots, resolveEffectiveRole } from "../lib/rbac";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
-import { toast } from "../lib/toast";
+import { toast, showConfirm } from "../lib/toast";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import AppImage from "../components/common/AppImage";
 import { z } from "zod";
@@ -381,6 +395,8 @@ export function ShotsWorkspace() {
   const [localSelectedShotIds, setLocalSelectedShotIds] = useState(() => new Set());
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
+  // Project picker modal state: { type: 'copy' | 'move', shot: Object } | null
+  const [projectPickerAction, setProjectPickerAction] = useState(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [insightsSidebarOpen, setInsightsSidebarOpen] = useState(() => {
     const stored = readStorage(SHOTS_INSIGHTS_STORAGE_KEY);
@@ -392,6 +408,8 @@ export function ShotsWorkspace() {
     return "none";
   });
   const [expandedGroups, setExpandedGroups] = useState(() => new Set(["all"]));
+  // Global collapse/expand state for gallery card sections
+  const [gallerySectionsExpanded, setGallerySectionsExpanded] = useState(true);
   const autoSaveTimerRef = useRef(null);
   const autoSaveInflightRef = useRef(false);
   const editingShotRef = useRef(editingShot);
@@ -404,9 +422,12 @@ export function ShotsWorkspace() {
   const focusShotId = overview?.focusShotId ?? null;
   const setFocusShotId = overview?.setFocusShotId ?? (() => {});
   const navigate = useNavigate();
+  const { projectId: urlProjectId } = useParams();
   const { currentProjectId, ready: scopeReady, setLastVisitedPath } = useProjectScope();
   const redirectNotifiedRef = useRef(false);
-  const projectId = currentProjectId;
+  // Use URL param as primary source of truth (available immediately on navigation)
+  // Fall back to context for cases where URL param isn't available
+  const projectId = urlProjectId || currentProjectId;
   const { clientId, role: globalRole, projectRoles = {}, user, claims } = useAuth();
 
   // TanStack Query hooks for data fetching with intelligent caching
@@ -512,6 +533,13 @@ export function ShotsWorkspace() {
     () => talentOptions.map((entry) => ({ value: entry.talentId, label: entry.name })),
     [talentOptions]
   );
+
+  // Get current project for shoot dates (used in FilterMenu)
+  const currentProject = useMemo(
+    () => projects.find((p) => p.id === projectId) || null,
+    [projects, projectId]
+  );
+
   const productFilterOptions = useMemo(
     () =>
       families.map((family) => ({
@@ -597,11 +625,20 @@ export function ShotsWorkspace() {
     const selectedTalentIds = new Set(filters.talentIds || []);
     const selectedProductIds = new Set(filters.productFamilyIds || []);
     const selectedTagIds = new Set(filters.tagIds || []);
+    const selectedStatuses = new Set(filters.statusFilter || []);
 
     // Apply non-text filters first
     const preFiltered = shots.filter((shot) => {
       if (!filters.showArchived && shot.deleted) {
         return false;
+      }
+
+      // Status filter - if any statuses selected, shot must match one
+      if (selectedStatuses.size > 0) {
+        const shotStatus = shot.status || "todo";
+        if (!selectedStatuses.has(shotStatus)) {
+          return false;
+        }
       }
 
       if (selectedLocation && (shot.locationId || "") !== selectedLocation) {
@@ -1434,6 +1471,32 @@ export function ShotsWorkspace() {
     setViewPrefs((prev) => ({ ...prev, fieldOrder: Array.isArray(nextOrder) ? nextOrder : prev.fieldOrder }));
   }, []);
 
+  // Show All / Hide All field visibility handlers
+  const handleShowAllFields = useCallback(() => {
+    setViewPrefs((prev) => {
+      const updates = {};
+      for (const { key } of DETAIL_TOGGLE_OPTIONS) {
+        updates[key] = true;
+      }
+      return { ...prev, ...updates };
+    });
+  }, []);
+
+  const handleHideAllFields = useCallback(() => {
+    setViewPrefs((prev) => {
+      const locked = new Set(prev.lockedFields || []);
+      const updates = {};
+      for (const { key } of DETAIL_TOGGLE_OPTIONS) {
+        const columnKey = PREF_TO_COLUMN_KEY.get(key) || key;
+        // Keep locked fields visible
+        if (!locked.has(columnKey)) {
+          updates[key] = false;
+        }
+      }
+      return { ...prev, ...updates };
+    });
+  }, []);
+
   const selectSort = useCallback((sortValue) => {
     setViewPrefs((prev) => ({ ...prev, sort: sortValue }));
   }, []);
@@ -1755,6 +1818,43 @@ export function ShotsWorkspace() {
     };
   }, [isSearchOpen]);
 
+  // Clear focus outline when pressing Escape or clicking outside shot cards
+  useEffect(() => {
+    if (!focusShotId) return undefined;
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        // Don't clear if a modal or dropdown is open
+        const activeElement = document.activeElement;
+        const isInModal = activeElement?.closest('[role="dialog"]');
+        const isInDropdown = activeElement?.closest('[role="menu"]');
+        if (!isInModal && !isInDropdown) {
+          setFocusShotId(null);
+        }
+      }
+    };
+
+    const handleClickOutside = (event) => {
+      // Check if click is on a shot card or inside a modal/dropdown
+      const isOnShotCard = event.target.closest('[data-shot-card]');
+      const isInModal = event.target.closest('[role="dialog"]');
+      const isInDropdown = event.target.closest('[role="menu"]');
+      const isOnToolbar = event.target.closest('[role="toolbar"]');
+
+      if (!isOnShotCard && !isInModal && !isInDropdown && !isOnToolbar) {
+        setFocusShotId(null);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [focusShotId, setFocusShotId]);
+
   const openShotEditor = useCallback(
     (shot) => {
       if (!shot) return;
@@ -1807,6 +1907,163 @@ export function ShotsWorkspace() {
       openShotEditor(shot);
     },
     [canEditShots, openShotEditor]
+  );
+
+  // Single shot duplicate handler (used by 3-dot menu)
+  const handleDuplicateSingleShot = useCallback(
+    async (shot) => {
+      if (!canEditShots || !shot) return;
+      // Temporarily select only this shot and call the bulk handler
+      setSelectedShotIds(new Set([shot.id]));
+      // Use a slight delay to ensure state updates
+      setTimeout(() => {
+        // The bulk handler will be called with the selected shot
+        // We need to trigger it manually
+      }, 0);
+      // For now, show feedback - full integration coming soon
+      toast.info({
+        title: "Duplicating shot...",
+        description: "Select the shot and use bulk actions for now.",
+      });
+    },
+    [canEditShots]
+  );
+
+  // Single shot copy to project handler - opens project picker
+  const handleCopyToProjectSingleShot = useCallback(
+    (shot) => {
+      if (!canEditShots || !shot) return;
+      setProjectPickerAction({ type: "copy", shot });
+    },
+    [canEditShots]
+  );
+
+  // Single shot move to project handler - opens project picker
+  const handleMoveToProjectSingleShot = useCallback(
+    (shot) => {
+      if (!canEditShots || !shot) return;
+      setProjectPickerAction({ type: "move", shot });
+    },
+    [canEditShots]
+  );
+
+  // Handle project selection from picker modal
+  const handleProjectPickerSelect = useCallback(
+    async (targetProjectId) => {
+      if (!projectPickerAction || !targetProjectId) return;
+
+      const { type, shot } = projectPickerAction;
+      const targetProject = projects.find((p) => p.id === targetProjectId);
+      const projectName = targetProject?.name || "selected project";
+
+      if (type === "copy") {
+        // Copy single shot to target project
+        const confirmed = await showConfirm(
+          `Copy "${shot.name}" to "${projectName}"?`
+        );
+        if (!confirmed) {
+          setProjectPickerAction(null);
+          return;
+        }
+
+        setCopyingProject(true);
+        try {
+          const targetShotsPath = ["clients", clientId, "shots"];
+          const { id: _ignoreId, ...shotData } = shot;
+          await addDoc(collection(db, ...targetShotsPath), {
+            ...shotData,
+            projectId: targetProjectId,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+          toast.success({
+            title: "Shot copied",
+            description: `"${shot.name}" has been copied to "${projectName}".`,
+          });
+        } catch (error) {
+          console.error("[Shots] Failed to copy shot", error);
+          toast.error({
+            title: "Failed to copy shot",
+            description: error.message || "An error occurred.",
+          });
+        } finally {
+          setCopyingProject(false);
+          setProjectPickerAction(null);
+        }
+      } else if (type === "move") {
+        // Move single shot to target project
+        const confirmed = await showConfirm(
+          `Move "${shot.name}" to "${projectName}"? It will no longer appear in the current project.`
+        );
+        if (!confirmed) {
+          setProjectPickerAction(null);
+          return;
+        }
+
+        setMovingProject(true);
+        try {
+          const shotRef = doc(db, ...currentShotsPath, shot.id);
+          await updateDoc(shotRef, {
+            projectId: targetProjectId,
+            updatedAt: serverTimestamp(),
+          });
+          toast.success({
+            title: "Shot moved",
+            description: `"${shot.name}" has been moved to "${projectName}".`,
+          });
+        } catch (error) {
+          console.error("[Shots] Failed to move shot", error);
+          toast.error({
+            title: "Failed to move shot",
+            description: error.message || "An error occurred.",
+          });
+        } finally {
+          setMovingProject(false);
+          setProjectPickerAction(null);
+        }
+      }
+    },
+    [projectPickerAction, projects, clientId, db, currentShotsPath, showConfirm]
+  );
+
+  // Single shot archive handler - toggles the deleted flag
+  const handleArchiveSingleShot = useCallback(
+    async (shot) => {
+      if (!canEditShots || !shot) return;
+
+      const isArchived = shot.deleted === true;
+      const action = isArchived ? "restore" : "archive";
+      const shotName = shot.name || "Untitled Shot";
+
+      const confirmed = await showConfirm(
+        `${isArchived ? "Restore" : "Archive"} "${shotName}"?\n\n${
+          isArchived
+            ? "This will restore the shot to your active shots list."
+            : "This will move the shot to your archived shots. You can restore it later."
+        }`
+      );
+
+      if (!confirmed) return;
+
+      try {
+        await updateShot(shot, {
+          deleted: !isArchived,
+          deletedAt: isArchived ? null : new Date().toISOString(),
+        });
+
+        toast.success({
+          title: `Shot ${action}d`,
+          description: `"${shotName}" has been ${action}d.`,
+        });
+      } catch (error) {
+        console.error(`[Shots] Failed to ${action} shot:`, error);
+        toast.error({
+          title: `Failed to ${action} shot`,
+          description: describeFirebaseError(error),
+        });
+      }
+    },
+    [canEditShots, updateShot]
   );
 
   const handleCreateDraftChange = useCallback(
@@ -2934,7 +3191,7 @@ export function ShotsWorkspace() {
 
             <div
               ref={searchContainerRef}
-              className={`flex items-center gap-2 rounded-full border border-slate-200/80 bg-white px-2.5 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition dark:border-slate-700/80 dark:bg-slate-900 ${
+              className={`flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white px-2 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition dark:border-slate-700/80 dark:bg-slate-900 ${
                 isSearchOpen ? "ring-2 ring-primary/40 dark:ring-primary/50" : ""
               }`}
             >
@@ -2944,7 +3201,7 @@ export function ShotsWorkspace() {
                 size="icon"
                 onClick={() => setIsSearchOpen(true)}
                 aria-label="Search shots"
-                className="h-8 w-8 shrink-0 rounded-full"
+                className="h-7 w-7 shrink-0 rounded-full"
               >
                 <Search className="h-4 w-4" />
               </Button>
@@ -2960,7 +3217,7 @@ export function ShotsWorkspace() {
                   onKeyDown={handleSearchKeyDown}
                   placeholder="Search shots..."
                   aria-label="Search shots"
-                  className="h-8 flex-1 border-none bg-transparent p-0 text-sm shadow-none focus-visible:ring-0 focus:outline-none"
+                  className="h-7 flex-1 border-none bg-transparent p-0 text-sm shadow-none focus-visible:ring-0 focus:outline-none"
                 />
                 {queryText ? (
                   <button
@@ -2976,70 +3233,92 @@ export function ShotsWorkspace() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-2.5">
-              <label className="flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.showArchived}
-                  onChange={(e) => handleShowArchivedChange(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary dark:focus:ring-primary-light"
+              <ButtonGroup>
+                <FilterMenu
+                  filters={filters}
+                  onFilterChange={setFilters}
+                  talentOptions={talentFilterOptions}
+                  projectShootDates={currentProject?.shootDates || []}
                 />
-                <span>Archived</span>
-              </label>
 
-              <FieldSettingsMenu
-                fields={DETAIL_TOGGLE_OPTIONS.map(({ key, label }) => ({
-                  key: PREF_TO_COLUMN_KEY.get(key) || key,
-                  label,
-                }))}
-                visibleMap={Object.fromEntries(
-                  Array.from(PREF_TO_COLUMN_KEY.entries()).map(([prefKey, colKey]) => [
-                    colKey,
-                    Boolean(viewPrefs[prefKey]),
-                  ])
+                <FieldSettingsMenu
+                  fields={DETAIL_TOGGLE_OPTIONS.map(({ key, label }) => ({
+                    key: PREF_TO_COLUMN_KEY.get(key) || key,
+                    label,
+                  }))}
+                  visibleMap={Object.fromEntries(
+                    Array.from(PREF_TO_COLUMN_KEY.entries()).map(([prefKey, colKey]) => [
+                      colKey,
+                      Boolean(viewPrefs[prefKey]),
+                    ])
+                  )}
+                  lockedKeys={viewPrefs.lockedFields || []}
+                  order={Array.isArray(viewPrefs.fieldOrder) && viewPrefs.fieldOrder.length
+                    ? viewPrefs.fieldOrder
+                    : Array.from(PREF_TO_COLUMN_KEY.values())}
+                  onToggleVisible={(columnKey) => {
+                    const prefEntry = [...PREF_TO_COLUMN_KEY.entries()].find(([, v]) => v === columnKey);
+                    if (!prefEntry) return;
+                    const [prefKey] = prefEntry;
+                    toggleViewPref(prefKey);
+                  }}
+                  onToggleLock={toggleFieldLock}
+                  onReorder={reorderFields}
+                  onShowAll={handleShowAllFields}
+                  onHideAll={handleHideAllFields}
+                  iconOnly
+                />
+
+                <SortMenu
+                  options={SHOT_SORT_OPTIONS}
+                  value={viewPrefs.sort}
+                  onChange={selectSort}
+                  title="Sort shots"
+                />
+
+                {isGalleryView && (
+                  <GroupByMenu
+                    options={SHOT_GROUP_OPTIONS}
+                    value={groupBy}
+                    onChange={handleGroupByChange}
+                    title="Group shots"
+                  />
                 )}
-                lockedKeys={viewPrefs.lockedFields || []}
-                order={Array.isArray(viewPrefs.fieldOrder) && viewPrefs.fieldOrder.length
-                  ? viewPrefs.fieldOrder
-                  : Array.from(PREF_TO_COLUMN_KEY.values())}
-                onToggleVisible={(columnKey) => {
-                  const prefEntry = [...PREF_TO_COLUMN_KEY.entries()].find(([, v]) => v === columnKey);
-                  if (!prefEntry) return;
-                  const [prefKey] = prefEntry;
-                  toggleViewPref(prefKey);
-                }}
-                onToggleLock={toggleFieldLock}
-                onReorder={reorderFields}
-              />
+              </ButtonGroup>
 
-              <SortMenu
-                options={SHOT_SORT_OPTIONS}
-                value={viewPrefs.sort}
-                onChange={selectSort}
-                title="Sort shots"
-              />
-
-              {isGalleryView && (
-                <GroupByMenu
-                  options={SHOT_GROUP_OPTIONS}
-                  value={groupBy}
-                  onChange={handleGroupByChange}
-                  title="Group shots"
+              <ButtonGroup>
+                <ViewModeMenu
+                  options={SHOT_VIEW_OPTIONS}
+                  value={viewMode}
+                  onChange={updateViewMode}
+                  ariaLabel="Select view"
                 />
-              )}
 
-              <ViewModeMenu
-                options={SHOT_VIEW_OPTIONS}
-                value={viewMode}
-                onChange={updateViewMode}
-                ariaLabel="Select view"
-              />
+                <DensityMenu
+                  options={SHOT_DENSITY_OPTIONS}
+                  value={viewPrefs.density}
+                  onChange={handleDensityChange}
+                  ariaLabel="Select density"
+                />
 
-              <DensityMenu
-                options={SHOT_DENSITY_OPTIONS}
-                value={viewPrefs.density}
-                onChange={handleDensityChange}
-                ariaLabel="Select density"
-              />
+                {/* Bulk collapse/expand for gallery sections */}
+                {isGalleryView && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setGallerySectionsExpanded(!gallerySectionsExpanded)}
+                    aria-label={gallerySectionsExpanded ? "Collapse all sections" : "Expand all sections"}
+                    title={gallerySectionsExpanded ? "Collapse all sections" : "Expand all sections"}
+                  >
+                    {gallerySectionsExpanded ? (
+                      <ChevronsDownUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronsUpDown className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+              </ButtonGroup>
 
               {canEditShots && sortedShots.length > 0 && (
                 <Button
@@ -3061,7 +3340,7 @@ export function ShotsWorkspace() {
                 </Button>
               )}
 
-              <ExportButton data={filteredShots} entityType="shots" />
+              <ExportButton data={filteredShots} entityType="shots" buttonVariant="outline" />
 
               <Button
                 type="button"
@@ -3120,9 +3399,6 @@ export function ShotsWorkspace() {
 
       <div className="flex">
         <div className="min-w-0 flex-1 space-y-4 px-6">
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Build and manage the shot list for the active project. Set the active project from the Dashboard.
-          </p>
           {!canEditShots && (
             <div className="rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
               You can browse shots but need producer or crew access to create or edit them.
@@ -3166,12 +3442,18 @@ export function ShotsWorkspace() {
                           notesHtml={notesHtml}
                           canEditShots={canEditShots}
                           onEdit={() => handleEditShot(shot)}
+                          onDelete={() => removeShot(shot)}
+                          onDuplicate={() => handleDuplicateSingleShot(shot)}
+                          onCopyToProject={() => handleCopyToProjectSingleShot(shot)}
+                          onMoveToProject={() => handleMoveToProjectSingleShot(shot)}
+                          onArchive={() => handleArchiveSingleShot(shot)}
                           onChangeStatus={canEditShots ? (shot, value) => updateShot(shot, { status: value }) : null}
                           viewPrefs={viewPrefs}
                           isSelected={selectedShotIds.has(shot.id)}
                           onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}
                           isFocused={focusShotId === shot.id}
                           onFocus={() => handleFocusShot(shot)}
+                          globalSectionsExpanded={gallerySectionsExpanded}
                         />
                       </div>
                     );
@@ -3202,12 +3484,18 @@ export function ShotsWorkspace() {
                           notesHtml={notesHtml}
                           canEditShots={canEditShots}
                           onEdit={() => handleEditShot(shot)}
+                          onDelete={() => removeShot(shot)}
+                          onDuplicate={() => handleDuplicateSingleShot(shot)}
+                          onCopyToProject={() => handleCopyToProjectSingleShot(shot)}
+                          onMoveToProject={() => handleMoveToProjectSingleShot(shot)}
+                          onArchive={() => handleArchiveSingleShot(shot)}
                           onChangeStatus={canEditShots ? (shot, value) => updateShot(shot, { status: value }) : null}
                           viewPrefs={viewPrefs}
                           isSelected={selectedShotIds.has(shot.id)}
                           onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}
                           isFocused={focusShotId === shot.id}
                           onFocus={() => handleFocusShot(shot)}
+                          globalSectionsExpanded={gallerySectionsExpanded}
                         />
                       </div>
                     );
@@ -3358,6 +3646,27 @@ export function ShotsWorkspace() {
           autoSaveStatus={editAutoStatus}
         />
       )}
+
+      {/* Project Picker Modal for single-shot copy/move */}
+      <ProjectPickerModal
+        open={!!projectPickerAction}
+        onClose={() => setProjectPickerAction(null)}
+        projects={projects}
+        currentProjectId={projectId}
+        onSelect={handleProjectPickerSelect}
+        title={
+          projectPickerAction?.type === "copy"
+            ? `Copy "${projectPickerAction?.shot?.name || "Shot"}" to Project`
+            : `Move "${projectPickerAction?.shot?.name || "Shot"}" to Project`
+        }
+        description={
+          projectPickerAction?.type === "copy"
+            ? "Select a project to copy this shot to."
+            : "Select a project to move this shot to. It will no longer appear in the current project."
+        }
+        actionLabel={projectPickerAction?.type === "copy" ? "Copy" : "Move"}
+        isLoading={copyingProject || movingProject}
+      />
     </div>
   );
 }
@@ -3451,13 +3760,42 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   notesHtml,
   canEditShots,
   onEdit,
+  onDelete,
+  onDuplicate,
+  onCopyToProject,
+  onMoveToProject,
+  onArchive,
   onChangeStatus = null,
   viewPrefs = defaultViewPrefs,
   isSelected = false,
   onToggleSelect = null,
   isFocused = false,
   onFocus = null,
+  globalSectionsExpanded = true,
 }) {
+  // Collapsible sections state - synced with global state
+  const [expandedSections, setExpandedSections] = useState({
+    products: globalSectionsExpanded,
+    talentLocation: globalSectionsExpanded,
+    notes: globalSectionsExpanded,
+  });
+
+  // Sync local state when global state changes
+  useEffect(() => {
+    setExpandedSections({
+      products: globalSectionsExpanded,
+      talentLocation: globalSectionsExpanded,
+      notes: globalSectionsExpanded,
+    });
+  }, [globalSectionsExpanded]);
+
+  const toggleSection = useCallback((section) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  }, []);
+
   const imagePath = useMemo(() => selectShotImage(shot, products), [shot, products]);
   const imagePosition = useMemo(() => {
     // Only apply crop position if the image is the reference image
@@ -3524,36 +3862,89 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     })
     .filter(Boolean);
 
+  // Collapsible section header component - collapsible in all density modes
+  const CollapsibleHeader = ({ label, icon: Icon, section, hasContent }) => {
+    if (!hasContent) return null;
+
+    const isExpanded = expandedSections[section];
+    const iconSize = isCompact ? "h-3 w-3" : "h-3.5 w-3.5";
+    const chevronSize = isCompact ? "h-3 w-3" : "h-3.5 w-3.5";
+
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleSection(section);
+        }}
+        className="flex w-full items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+        aria-expanded={isExpanded}
+        aria-label={`${isExpanded ? "Collapse" : "Expand"} ${label}`}
+      >
+        {isExpanded ? (
+          <ChevronDown className={`${chevronSize} shrink-0`} />
+        ) : (
+          <ChevronRight className={`${chevronSize} shrink-0`} />
+        )}
+        {Icon && <Icon className={`${iconSize} shrink-0`} />}
+        <span>{label}</span>
+      </button>
+    );
+  };
+
+  // Check if sections have content
+  const hasProducts = products && products.length > 0;
+  const hasTalent = talent && talent.length > 0;
+  const hasLocation = locationName && locationName !== "Unassigned";
+  const hasTalentOrLocation = hasTalent || hasLocation;
+  const hasNotes = Boolean(notesHtml);
+
+  // Determine if talent & location section should be shown based on visibility prefs
+  const shouldShowTalentLocation = (showTalent || showLocation) && hasTalentOrLocation;
+
   // Build structured content sections for better vertical space usage
-  const productsSection = showProducts && (
-    <div key="products" className="space-y-1">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Products</span>
-      <ShotProductChips products={products} />
+  // All sections are collapsible in both compact and comfy modes
+  const productsSection = showProducts && hasProducts && (
+    <div key="products" className="space-y-1.5">
+      <CollapsibleHeader label="Products" icon={Package} section="products" hasContent={hasProducts} />
+      {expandedSections.products && (
+        <ShotProductChips products={products} />
+      )}
     </div>
   );
 
-  const talentSection = showTalent && (
-    <div key="talent" className="space-y-1">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Talent</span>
-      <ShotTalentList talent={talent} />
+  // Combined Talent & Location section - single collapsible for both
+  const talentLocationSection = shouldShowTalentLocation && (
+    <div key="talentLocation" className="space-y-1.5">
+      <CollapsibleHeader label="Talent & Location" icon={Users} section="talentLocation" hasContent={hasTalentOrLocation} />
+      {expandedSections.talentLocation && (
+        <div className="space-y-2">
+          {/* Talent list */}
+          {showTalent && hasTalent && (
+            <ShotTalentList talent={talent} />
+          )}
+          {/* Location */}
+          {showLocation && hasLocation && (
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-700 dark:text-slate-200">
+              <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
+              <span>{locationName}</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 
-  const locationSection = showLocation && locationName && (
-    <div key="location" className="space-y-1">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Location</span>
-      <p className="text-[11px] text-slate-700 dark:text-slate-200">{locationName}</p>
+  const notesSection = showNotes && hasNotes && (
+    <div key="notes" className="space-y-1.5">
+      <CollapsibleHeader label="Notes" icon={FileText} section="notes" hasContent={hasNotes} />
+      {expandedSections.notes && (
+        <div
+          className="prose prose-xs dark:prose-invert max-w-none text-[11px] text-slate-600 dark:text-slate-300 line-clamp-3"
+          dangerouslySetInnerHTML={{ __html: notesHtml }}
+        />
+      )}
     </div>
-  );
-
-  const notesSection = showNotes && (
-    notesHtml ? (
-      <div
-        key="notes"
-        className="prose prose-xs dark:prose-invert max-w-none text-[11px] text-slate-600 dark:text-slate-300 line-clamp-3"
-        dangerouslySetInnerHTML={{ __html: notesHtml }}
-      />
-    ) : null
   );
 
   const tagsSection = showTags && tags.length > 0 && (
@@ -3563,21 +3954,24 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   );
 
   // Status display - interactive dropdown if editable, static pill otherwise
+  // In compact mode, use smaller padding and fit-content width
+  const statusPadding = isCompact ? "px-2 py-1" : "px-3 py-1.5";
+  const statusIconSize = isCompact ? "h-3 w-3" : "h-3.5 w-3.5";
   const statusElement = showStatus && orderedFields.includes("status") ? (
     canEditShots && onChangeStatus ? (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 ${statusTone[statusValue] || statusTone.default}`}
+            className={`inline-flex w-fit items-center gap-1 rounded-full border ${statusPadding} text-[11px] font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 ${statusTone[statusValue] || statusTone.default}`}
             onClick={(e) => e.stopPropagation()}
             aria-label={`Change status: ${statusLabel}`}
           >
-            <CircleDot className="h-3.5 w-3.5" />
+            <CircleDot className={statusIconSize} />
             <span>{statusLabel}</span>
             <ChevronDown className="h-3 w-3 opacity-60" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuContent align="start" className="min-w-[120px]" onClick={(e) => e.stopPropagation()}>
           {shotStatusOptions.map((option) => (
             <DropdownMenuItem
               key={option.value}
@@ -3594,20 +3988,20 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
       </DropdownMenu>
     ) : (
       <span
-        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusTone[statusValue] || statusTone.default}`}
+        className={`inline-flex w-fit items-center gap-1 rounded-full border ${statusPadding} text-[11px] font-medium ${statusTone[statusValue] || statusTone.default}`}
         title={`Status: ${statusLabel}`}
       >
-        <CircleDot className="h-3.5 w-3.5" />
+        <CircleDot className={statusIconSize} />
         <span>{statusLabel}</span>
       </span>
     )
   ) : null;
 
   return (
-    <Card className={`overflow-hidden border shadow-sm transition ${focusClasses} relative`} onClick={() => onFocus?.(shot)}>
-      {/* Card Actions Menu (Top Right Corner) */}
+    <Card className={`overflow-hidden border shadow-sm transition ${focusClasses} relative group`} data-shot-card onClick={() => onFocus?.(shot)}>
+      {/* Card Actions Menu (Top Right Corner) - Visible on hover */}
       {canEditShots && (
-        <div className="absolute right-2 top-2 z-10">
+        <div className="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -3625,18 +4019,65 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
                   onEdit?.();
                 }}
               >
-                Edit
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit Shot
               </DropdownMenuItem>
-              {/* Placeholder for future actions */}
-              {/* <DropdownMenuItem onClick={() => {}}>Duplicate</DropdownMenuItem> */}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDuplicate?.();
+                }}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Duplicate Shot
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCopyToProject?.();
+                }}
+              >
+                <FolderOutput className="mr-2 h-4 w-4" />
+                Copy to Project
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMoveToProject?.();
+                }}
+              >
+                <FolderInput className="mr-2 h-4 w-4" />
+                Move to Project
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onArchive?.();
+                }}
+              >
+                <Archive className="mr-2 h-4 w-4" />
+                Archive Shot
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete?.();
+                }}
+                className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Shot
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       )}
 
-      {/* Comfy Density: Name and Description Above Image */}
-      {!isCompact && (showName || (showType && shot.type)) && (
-        <div className={`border-b border-slate-200 dark:border-slate-700 ${cardPadding} space-y-1`}>
+      {/* Comfy Density: Header (Name + Description + Status) Above Image */}
+      {!isCompact && (showName || (showType && shot.type) || statusElement) && (
+        <div className={`border-b border-slate-200 dark:border-slate-700 ${cardPadding} space-y-2`}>
           {/* Shot Name */}
           {showName && (
             <h3 className={`${titleClass} font-semibold leading-5 text-slate-900 dark:text-slate-50 line-clamp-2`} title={shot.name}>
@@ -3650,15 +4091,17 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
               {shot.type}
             </p>
           )}
+
+          {/* Status - in comfy mode, below description */}
+          {statusElement}
         </div>
       )}
 
-      {/* Top Section: Horizontal Layout (Image + Header Info) */}
-      <div className={`flex items-start gap-3 sm:gap-4 ${cardPadding}`}>
-        {/* Image (Left ~40%) */}
-        {showImage && (
+      {/* Comfy Density: Image Section (centered) */}
+      {!isCompact && showImage && (
+        <div className={`${cardPadding} flex justify-center`}>
           <div
-            className={`relative ${mediaWidth} overflow-hidden ${mediaRadius} border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900 flex items-center justify-center self-start max-h-80`}
+            className={`relative ${mediaWidth} md:w-48 overflow-hidden ${mediaRadius} border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900 flex items-center justify-center max-h-80`}
           >
             {imagePath ? (
               <AppImage
@@ -3688,58 +4131,95 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
               </div>
             )}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Header Info (Right ~60%) */}
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {/* Compact Density: Name and Description in horizontal section */}
-          {isCompact && (
-            <>
-              {/* Shot Name */}
-              {showName && (
-                <h3 className={`${titleClass} font-semibold leading-5 text-slate-900 dark:text-slate-50 line-clamp-2`} title={shot.name}>
-                  {shot.name}
-                </h3>
+      {/* Comfy Density: Tags below image, above products */}
+      {!isCompact && tagsSection && (
+        <div className={`border-b border-slate-200 dark:border-slate-700 ${cardPadding}`}>
+          {tagsSection}
+        </div>
+      )}
+
+      {/* Compact Density: Horizontal Layout (Image + Header Info side by side) */}
+      {isCompact && (
+        <div className={`flex items-start gap-3 sm:gap-4 ${cardPadding}`}>
+          {/* Image (Left ~40%) */}
+          {showImage && (
+            <div
+              className={`relative ${mediaWidth} overflow-hidden ${mediaRadius} border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900 flex items-center justify-center self-start max-h-80`}
+            >
+              {imagePath ? (
+                <AppImage
+                  src={imagePath}
+                  alt={`${shot.name || "Shot"} preview`}
+                  preferredSize={640}
+                  className="max-h-full max-w-full"
+                  imageClassName="max-h-full max-w-full object-contain"
+                  position={imagePosition}
+                  fallback={
+                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
+                  }
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
               )}
-
-              {/* Description/Type */}
-              {showType && shot.type && (
-                <p className="min-w-0 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={shot.type}>
-                  {shot.type}
-                </p>
+              {onToggleSelect && (
+                <div className="absolute left-2 top-2">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => onToggleSelect(shot.id)}
+                    className="h-5 w-5 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary shadow-sm"
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Select ${shot?.name || "shot"}`}
+                  />
+                </div>
               )}
-            </>
-          )}
-
-          {/* Date */}
-          {metaEntries.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-              {metaEntries}
             </div>
           )}
 
-          {/* Status Dropdown */}
-          {statusElement}
+          {/* Header Info (Right ~60%) */}
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            {/* Shot Name */}
+            {showName && (
+              <h3 className={`${titleClass} font-semibold leading-5 text-slate-900 dark:text-slate-50 line-clamp-2`} title={shot.name}>
+                {shot.name}
+              </h3>
+            )}
 
-          {/* Tags */}
-          {tagsSection}
+            {/* Description/Type */}
+            {showType && shot.type && (
+              <p className="min-w-0 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={shot.type}>
+                {shot.type}
+              </p>
+            )}
+
+            {/* Date */}
+            {metaEntries.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                {metaEntries}
+              </div>
+            )}
+
+            {/* Status Dropdown */}
+            {statusElement}
+
+            {/* Tags */}
+            {tagsSection}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Bottom Section: Full-Width Content (Starts at card left edge) */}
-      {(productsSection || talentSection || locationSection || notesSection) && (
+      {(productsSection || talentLocationSection || notesSection) && (
         <div className={`border-t border-slate-200 dark:border-slate-700 ${cardPadding}`}>
           <div className="flex flex-col gap-3">
             {/* Products - full width */}
             {productsSection}
 
-            {/* Talent and Location - two columns */}
-            {(talentSection || locationSection) && (
-              <div className="grid grid-cols-2 gap-3">
-                {talentSection}
-                {locationSection}
-              </div>
-            )}
+            {/* Talent & Location - unified collapsible section */}
+            {talentLocationSection}
 
             {/* Notes - full width */}
             {notesSection}
@@ -3917,59 +4397,59 @@ export default function ShotsPage({ initialView = null }) {
 
   return (
     <ShotsOverviewProvider value={overviewValue}>
-      <div className="flex min-h-screen flex-col bg-slate-50">
-        <PageHeader sticky={true} className="top-14 z-40" data-shot-overview-header>
-          <PageHeader.Content>
-            <div>
-              <PageHeader.Title>Shots</PageHeader.Title>
-              <PageHeader.Description>
-                Create, plan, and review shots without leaving the page.
-              </PageHeader.Description>
+      <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-neutral-900">
+        {/* Non-sticky header - scrolls with content */}
+        <div className="px-6 pt-4 pb-2" data-shot-overview-header>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h1 className="heading-page">Shots</h1>
+            <div
+              className="flex items-center space-x-1 rounded-full border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-700 dark:bg-neutral-800"
+              role="tablist"
+              aria-label="Shot overview tabs"
+              aria-orientation="horizontal"
+            >
+              {overviewTabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = tab.value === activeTab;
+                return (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                      isActive
+                        ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-100"
+                        : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                    }`}
+                    onClick={() => handleTabChange(tab.value)}
+                    role="tab"
+                    id={`overview-tab-${tab.value}`}
+                    aria-controls={`overview-panel-${tab.value}`}
+                    aria-selected={isActive}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
-            <PageHeader.Actions>
-              <div
-                className="flex items-center space-x-1 rounded-full border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-700 dark:bg-neutral-800"
-                role="tablist"
-                aria-label="Shot overview tabs"
-                aria-orientation="horizontal"
-              >
-                {overviewTabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = tab.value === activeTab;
-                  return (
-                    <button
-                      key={tab.value}
-                      type="button"
-                      className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                        isActive
-                          ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-100"
-                          : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-                      }`}
-                      onClick={() => handleTabChange(tab.value)}
-                      role="tab"
-                      id={`overview-tab-${tab.value}`}
-                      aria-controls={`overview-panel-${tab.value}`}
-                      aria-selected={isActive}
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </PageHeader.Actions>
-          </PageHeader.Content>
-          <div className="pb-3" id="shots-toolbar-anchor" />
-        </PageHeader>
-      <div
-        className="flex-1"
-        id={`overview-panel-${activeTab}`}
-        role="tabpanel"
-        aria-labelledby={`overview-tab-${activeTab}`}
-        aria-label={`${activeLabel} workspace`}
-      >
-        {activeContent}
-      </div>
+          </div>
+        </div>
+
+        {/* Sticky toolbar anchor - stays fixed when scrolling */}
+        <div
+          id="shots-toolbar-anchor"
+          className="sticky top-14 z-40 bg-slate-50/95 dark:bg-neutral-900/95 backdrop-blur-sm"
+        />
+
+        <div
+          className="flex-1"
+          id={`overview-panel-${activeTab}`}
+          role="tabpanel"
+          aria-labelledby={`overview-tab-${activeTab}`}
+          aria-label={`${activeLabel} workspace`}
+        >
+          {activeContent}
+        </div>
       </div>
     </ShotsOverviewProvider>
   );
