@@ -19,7 +19,7 @@ import {
   serverTimestamp,
   getDocs,
   where,
-} from "firebase/firestore";
+} from "../lib/demoSafeFirestore";
 import { db } from "../lib/firebase";
 import { showError, showConfirm } from "../lib/toast";
 import { pullsPath, DEFAULT_PROJECT_ID, lanesPath, shotsPath, productFamiliesPath, productFamilySkusPath } from "../lib/paths";

@@ -12,7 +12,7 @@ import {
   query,
   serverTimestamp,
   updateDoc,
-} from "firebase/firestore";
+} from "../lib/demoSafeFirestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import { useProjectScope } from "../context/ProjectScopeContext";

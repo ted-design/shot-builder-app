@@ -131,3 +131,15 @@ export function setDemoModeOverride(value) {
     }
   } catch {}
 }
+
+/**
+ * Check if demo mode is currently active
+ *
+ * Demo mode allows browsing the app with real data but blocks all writes.
+ * Changes appear to succeed (optimistic UI) but don't persist.
+ *
+ * @returns {boolean} True if demo mode is active
+ */
+export function isDemoModeActive() {
+  return FLAGS.demoMode === true;
+}

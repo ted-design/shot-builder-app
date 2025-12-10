@@ -26,6 +26,7 @@ import {
   LOCK_HEARTBEAT_INTERVAL_MS,
   LOCK_EXPIRATION_MS,
 } from "../types/versioning";
+import { isDemoModeActive } from "../lib/flags";
 
 /**
  * Hook for acquiring and managing a field lock
@@ -54,18 +55,20 @@ import {
  */
 export function useFieldLock(clientId, entityType, entityId, fieldPath, options = {}) {
   const { user } = useAuth();
+  const isDemo = isDemoModeActive();
+
   const [lockState, setLockState] = useState({
     isLocked: false,
     lockedBy: null,
-    hasLock: false,
+    hasLock: isDemo, // In demo mode, always have lock
   });
   const [isAcquiring, setIsAcquiring] = useState(false);
 
   const heartbeatIntervalRef = useRef(null);
   const hasLockRef = useRef(false);
 
-  const presenceRef = clientId && entityType && entityId
-    ? doc(db, "clients", clientId, entityType, entityId, "presence")
+  const presenceRef = clientId && entityType && entityId && !isDemo
+    ? doc(db, "clients", clientId, entityType, entityId, "presence", "state")
     : null;
 
   // Check if a lock has expired
@@ -138,6 +141,11 @@ export function useFieldLock(clientId, entityType, entityId, fieldPath, options 
 
   // Acquire lock
   const acquireLock = useCallback(async () => {
+    // Demo mode: always succeed
+    if (isDemo) {
+      return true;
+    }
+
     if (!presenceRef || !user || !fieldPath) {
       return false;
     }
@@ -262,6 +270,11 @@ export function useFieldLock(clientId, entityType, entityId, fieldPath, options 
 export async function ensurePresenceDocument(clientId, entityType, entityId) {
   if (!clientId || !entityType || !entityId) return;
 
+  // Demo mode: skip presence document creation
+  if (isDemoModeActive()) {
+    return;
+  }
+
   try {
     const presenceRef = doc(
       db,
@@ -269,7 +282,8 @@ export async function ensurePresenceDocument(clientId, entityType, entityId) {
       clientId,
       entityType,
       entityId,
-      "presence"
+      "presence",
+      "state"
     );
 
     // Use merge: true to create if not exists

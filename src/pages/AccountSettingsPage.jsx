@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { updateEmail, updateProfile } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc } from "../lib/demoSafeFirestore";
 import Avatar from "../components/ui/Avatar";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { useAuth } from "../context/AuthContext";

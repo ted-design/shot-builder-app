@@ -26,6 +26,7 @@ import { queryKeys } from "./useFirestoreQuery";
 import { toast } from "../lib/toast";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { useAuth } from "../context/AuthContext";
+import { isDemoModeActive } from "../lib/flags";
 import {
   logActivity,
   createShotCreatedActivity,
@@ -59,6 +60,13 @@ export function useCreateShot(clientId, options = {}) {
 
   return useMutation({
     mutationFn: async (shotData) => {
+      // Demo mode: return fake success without Firebase write
+      if (isDemoModeActive()) {
+        const fakeId = `demo-shot-${Date.now()}`;
+        console.info("[Demo Mode] Shot creation blocked, returning fake ID:", fakeId);
+        return { id: fakeId, ...shotData };
+      }
+
       const shotsRef = collection(db, "clients", clientId, "shots");
       const docRef = await addDoc(shotsRef, {
         ...shotData,
@@ -74,30 +82,33 @@ export function useCreateShot(clientId, options = {}) {
         queryKey: queryKeys.shots(clientId, newShot.projectId),
       });
 
-      // Create initial version snapshot (non-blocking)
-      if (user) {
-        createInitialVersion(
-          clientId,
-          "shots",
-          newShot.id,
-          newShot,
-          user
-        ).catch((error) => {
-          console.error("[useCreateShot] Initial version snapshot failed:", error);
-        });
-      }
+      // Skip Firebase side effects in demo mode
+      if (!isDemoModeActive()) {
+        // Create initial version snapshot (non-blocking)
+        if (user) {
+          createInitialVersion(
+            clientId,
+            "shots",
+            newShot.id,
+            newShot,
+            user
+          ).catch((error) => {
+            console.error("[useCreateShot] Initial version snapshot failed:", error);
+          });
+        }
 
-      // Log activity (non-blocking)
-      if (options.projectId && user) {
-        const activityData = createShotCreatedActivity(
-          user.uid,
-          user.displayName || user.email || "Unknown User",
-          user.photoURL || null,
-          newShot
-        );
-        logActivity(clientId, options.projectId, activityData).catch((error) => {
-          console.error("[useCreateShot] Activity logging failed:", error);
-        });
+        // Log activity (non-blocking)
+        if (options.projectId && user) {
+          const activityData = createShotCreatedActivity(
+            user.uid,
+            user.displayName || user.email || "Unknown User",
+            user.photoURL || null,
+            newShot
+          );
+          logActivity(clientId, options.projectId, activityData).catch((error) => {
+            console.error("[useCreateShot] Activity logging failed:", error);
+          });
+        }
       }
 
       if (options.onSuccess) {
@@ -137,6 +148,12 @@ export function useUpdateShot(clientId, projectId, options = {}) {
 
   return useMutation({
     mutationFn: async ({ shotId, updates }) => {
+      // Demo mode: return fake success without Firebase write
+      if (isDemoModeActive()) {
+        console.info("[Demo Mode] Shot update blocked for:", shotId);
+        return { shotId, updates };
+      }
+
       const shotRef = doc(db, "clients", clientId, "shots", shotId);
       await updateDoc(shotRef, {
         ...updates,
@@ -191,53 +208,56 @@ export function useUpdateShot(clientId, projectId, options = {}) {
 
       const { shotId, updates } = variables;
 
-      // Create version snapshot (non-blocking)
-      if (user && context?.previousShot) {
-        const currentShot = { ...context.previousShot, ...updates };
-        createVersionSnapshot(
-          clientId,
-          "shots",
-          shotId,
-          context.previousShot,
-          currentShot,
-          user,
-          "update"
-        ).catch((error) => {
-          console.error("[useUpdateShot] Version snapshot failed:", error);
-        });
-      }
-
-      // Log activity (non-blocking)
-      if (projectId && user && context?.previousShot) {
-        const shotName = options.shotName || context.previousShot.name || `Shot ${context.previousShot.shotNumber || shotId}`;
-
-        // Check if this is a status change
-        if (updates.status && updates.status !== context.previousShot.status) {
-          const activityData = createStatusChangedActivity(
-            user.uid,
-            user.displayName || user.email || "Unknown User",
-            user.photoURL || null,
+      // Skip Firebase side effects in demo mode
+      if (!isDemoModeActive()) {
+        // Create version snapshot (non-blocking)
+        if (user && context?.previousShot) {
+          const currentShot = { ...context.previousShot, ...updates };
+          createVersionSnapshot(
+            clientId,
+            "shots",
             shotId,
-            shotName,
-            context.previousShot.status,
-            updates.status
-          );
-          logActivity(clientId, projectId, activityData).catch((error) => {
-            console.error("[useUpdateShot] Activity logging failed:", error);
+            context.previousShot,
+            currentShot,
+            user,
+            "update"
+          ).catch((error) => {
+            console.error("[useUpdateShot] Version snapshot failed:", error);
           });
-        } else {
-          // Regular update
-          const activityData = createShotUpdatedActivity(
-            user.uid,
-            user.displayName || user.email || "Unknown User",
-            user.photoURL || null,
-            shotId,
-            shotName,
-            updates
-          );
-          logActivity(clientId, projectId, activityData).catch((error) => {
-            console.error("[useUpdateShot] Activity logging failed:", error);
-          });
+        }
+
+        // Log activity (non-blocking)
+        if (projectId && user && context?.previousShot) {
+          const shotName = options.shotName || context.previousShot.name || `Shot ${context.previousShot.shotNumber || shotId}`;
+
+          // Check if this is a status change
+          if (updates.status && updates.status !== context.previousShot.status) {
+            const activityData = createStatusChangedActivity(
+              user.uid,
+              user.displayName || user.email || "Unknown User",
+              user.photoURL || null,
+              shotId,
+              shotName,
+              context.previousShot.status,
+              updates.status
+            );
+            logActivity(clientId, projectId, activityData).catch((error) => {
+              console.error("[useUpdateShot] Activity logging failed:", error);
+            });
+          } else {
+            // Regular update
+            const activityData = createShotUpdatedActivity(
+              user.uid,
+              user.displayName || user.email || "Unknown User",
+              user.photoURL || null,
+              shotId,
+              shotName,
+              updates
+            );
+            logActivity(clientId, projectId, activityData).catch((error) => {
+              console.error("[useUpdateShot] Activity logging failed:", error);
+            });
+          }
         }
       }
 
@@ -269,6 +289,12 @@ export function useDeleteShot(clientId, projectId, options = {}) {
 
   return useMutation({
     mutationFn: async ({ shotId }) => {
+      // Demo mode: return fake success without Firebase write
+      if (isDemoModeActive()) {
+        console.info("[Demo Mode] Shot deletion blocked for:", shotId);
+        return { shotId };
+      }
+
       const shotRef = doc(db, "clients", clientId, "shots", shotId);
       await updateDoc(shotRef, {
         deleted: true,
@@ -320,21 +346,24 @@ export function useDeleteShot(clientId, projectId, options = {}) {
         queryKey: queryKeys.shots(clientId, projectId),
       });
 
-      // Log activity (non-blocking)
-      if (projectId && user && context?.deletedShot) {
-        const { shotId } = variables;
-        const shotName = options.shotName || context.deletedShot.name || `Shot ${context.deletedShot.shotNumber || shotId}`;
+      // Skip Firebase side effects in demo mode
+      if (!isDemoModeActive()) {
+        // Log activity (non-blocking)
+        if (projectId && user && context?.deletedShot) {
+          const { shotId } = variables;
+          const shotName = options.shotName || context.deletedShot.name || `Shot ${context.deletedShot.shotNumber || shotId}`;
 
-        const activityData = createShotDeletedActivity(
-          user.uid,
-          user.displayName || user.email || "Unknown User",
-          user.photoURL || null,
-          shotId,
-          shotName
-        );
-        logActivity(clientId, projectId, activityData).catch((error) => {
-          console.error("[useDeleteShot] Activity logging failed:", error);
-        });
+          const activityData = createShotDeletedActivity(
+            user.uid,
+            user.displayName || user.email || "Unknown User",
+            user.photoURL || null,
+            shotId,
+            shotName
+          );
+          logActivity(clientId, projectId, activityData).catch((error) => {
+            console.error("[useDeleteShot] Activity logging failed:", error);
+          });
+        }
       }
 
       if (options.onSuccess) {
@@ -364,6 +393,12 @@ export function useBulkUpdateShots(clientId, projectId, options = {}) {
 
   return useMutation({
     mutationFn: async ({ shotIds, updates }) => {
+      // Demo mode: return fake success without Firebase write
+      if (isDemoModeActive()) {
+        console.info("[Demo Mode] Bulk shot update blocked for:", shotIds.length, "shots");
+        return { shotIds, updates };
+      }
+
       const batch = writeBatch(db);
       const BATCH_LIMIT = 500;
 
@@ -419,6 +454,13 @@ export function useCreateProject(clientId, options = {}) {
 
   return useMutation({
     mutationFn: async (projectData) => {
+      // Demo mode: return fake success without Firebase write
+      if (isDemoModeActive()) {
+        const fakeId = `demo-project-${Date.now()}`;
+        console.info("[Demo Mode] Project creation blocked, returning fake ID:", fakeId);
+        return { id: fakeId, ...projectData };
+      }
+
       const projectsRef = collection(db, "clients", clientId, "projects");
       const docRef = await addDoc(projectsRef, {
         ...projectData,
@@ -460,6 +502,12 @@ export function useUpdateProject(clientId, options = {}) {
 
   return useMutation({
     mutationFn: async ({ projectId, updates }) => {
+      // Demo mode: return fake success without Firebase write
+      if (isDemoModeActive()) {
+        console.info("[Demo Mode] Project update blocked for:", projectId);
+        return { projectId, updates };
+      }
+
       const projectRef = doc(db, "clients", clientId, "projects", projectId);
       await updateDoc(projectRef, {
         ...updates,
@@ -520,6 +568,13 @@ export function useCreateProduct(clientId, options = {}) {
 
   return useMutation({
     mutationFn: async (productData) => {
+      // Demo mode: return fake success without Firebase write
+      if (isDemoModeActive()) {
+        const fakeId = `demo-product-${Date.now()}`;
+        console.info("[Demo Mode] Product creation blocked, returning fake ID:", fakeId);
+        return { id: fakeId, ...productData };
+      }
+
       const productsRef = collection(db, "clients", clientId, "productFamilies");
       const docRef = await addDoc(productsRef, {
         ...productData,
@@ -561,6 +616,12 @@ export function useUpdateProduct(clientId, options = {}) {
 
   return useMutation({
     mutationFn: async ({ productId, updates }) => {
+      // Demo mode: return fake success without Firebase write
+      if (isDemoModeActive()) {
+        console.info("[Demo Mode] Product update blocked for:", productId);
+        return { productId, updates };
+      }
+
       const productRef = doc(db, "clients", clientId, "productFamilies", productId);
       await updateDoc(productRef, {
         ...updates,
@@ -626,6 +687,12 @@ export function useMarkAsRead(clientId, userId, options = {}) {
 
   return useMutation({
     mutationFn: async ({ notificationIds }) => {
+      // Demo mode: return fake success without Firebase write
+      if (isDemoModeActive()) {
+        console.info("[Demo Mode] Mark as read blocked for:", notificationIds.length, "notifications");
+        return { notificationIds };
+      }
+
       const batch = writeBatch(db);
 
       notificationIds.forEach((notificationId) => {
@@ -700,6 +767,12 @@ export function useDismissNotification(clientId, userId, options = {}) {
 
   return useMutation({
     mutationFn: async ({ notificationId }) => {
+      // Demo mode: return fake success without Firebase write
+      if (isDemoModeActive()) {
+        console.info("[Demo Mode] Notification dismissal blocked for:", notificationId);
+        return { notificationId };
+      }
+
       const notificationRef = doc(db, "clients", clientId, "notifications", notificationId);
       await deleteDoc(notificationRef);
       return { notificationId };

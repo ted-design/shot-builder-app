@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, setDoc, updateDoc } from "firebase/firestore";
+import { addDoc, collection, doc, setDoc, updateDoc } from "./demoSafeFirestore";
 import { uploadImageFile } from "./firebase";
 import { productFamiliesPath, productFamilyPath, productFamilySkusPath } from "./paths";
 import { createProductFamilySchema, createProductSkuSchema } from "../schemas/index.js";

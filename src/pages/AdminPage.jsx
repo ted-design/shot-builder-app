@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { addDoc, collection, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import { addDoc, collection, doc, onSnapshot, serverTimestamp, setDoc } from "../lib/demoSafeFirestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../lib/firebase";
 import { CLIENT_ID, talentPath, locationsPath } from "../lib/paths";

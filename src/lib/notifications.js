@@ -6,6 +6,7 @@
 
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
+import { isDemoModeActive } from "./flags";
 
 /**
  * Notification types with metadata
@@ -98,6 +99,12 @@ export function getNotificationType(type) {
  * });
  */
 export async function createNotification(clientId, notification) {
+  // Demo mode: return fake success
+  if (isDemoModeActive()) {
+    console.info("[Demo Mode] Notification creation skipped:", notification.type);
+    return "demo-notification-id";
+  }
+
   if (!clientId) {
     throw new Error("clientId is required");
   }
@@ -244,6 +251,12 @@ export function getUnreadCount(notifications) {
  * });
  */
 export async function createMentionNotifications(clientId, mentionedUserIds, context) {
+  // Demo mode: return early
+  if (isDemoModeActive()) {
+    console.info("[Demo Mode] Mention notifications skipped");
+    return [];
+  }
+
   if (!clientId) {
     throw new Error("clientId is required");
   }

@@ -35,7 +35,7 @@ import {
   arrayRemove,
   writeBatch,
   serverTimestamp,
-} from "firebase/firestore";
+} from "../lib/demoSafeFirestore";
 import { db } from "../lib/firebase";
 import { FLAGS } from "../lib/flags";
 import {

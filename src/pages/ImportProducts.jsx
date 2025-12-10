@@ -1,7 +1,7 @@
 // src/pages/ImportProducts.jsx
 import React, { useMemo, useState } from "react";
 import { db } from "../lib/firebase";
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from "../lib/demoSafeFirestore";
 import {
   productFamiliesPath,
   productFamilyPath,

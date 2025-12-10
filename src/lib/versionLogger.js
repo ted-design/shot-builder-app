@@ -16,6 +16,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { isDemoModeActive } from "./flags";
 import { VERSION_RETENTION_DAYS } from "../types/versioning";
 
 /**
@@ -123,6 +124,12 @@ export async function createVersionSnapshot(
     return null;
   }
 
+  // Demo mode: skip version logging
+  if (isDemoModeActive()) {
+    console.info("[Demo Mode] Version logging skipped:", entityType, entityId);
+    return "demo-version-id";
+  }
+
   try {
     if (!clientId || !entityType || !entityId) {
       console.warn("[Version Logger] Missing clientId, entityType, or entityId");
@@ -220,6 +227,12 @@ export async function restoreVersion(
   versionId,
   user
 ) {
+  // Demo mode: return fake success
+  if (isDemoModeActive()) {
+    console.info("[Demo Mode] Version restore blocked:", versionId);
+    return { success: true };
+  }
+
   try {
     if (!clientId || !entityType || !entityId || !versionId) {
       return { success: false, error: "Missing required parameters" };

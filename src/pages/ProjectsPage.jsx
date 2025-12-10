@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { addDoc, collection, doc, updateDoc, setDoc, serverTimestamp, deleteField } from "firebase/firestore";
+import { addDoc, collection, doc, updateDoc, setDoc, serverTimestamp, deleteField } from "../lib/demoSafeFirestore";
 import { auth, db } from "../lib/firebase";
 import { useProjects } from "../hooks/useFirestoreQuery";
 import { CLIENT_ID, projectsPath } from "../lib/paths";
