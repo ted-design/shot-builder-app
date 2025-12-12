@@ -184,7 +184,16 @@ if (typeof window !== 'undefined') {
           await user.getIdToken(true);
           console.log('🔄 [Firebase] Auth token refreshed for Firestore');
         } catch (err) {
-          console.error('❌ [Firebase] Failed to refresh token:', err);
+          // Ignore IDB errors that occur when navigating away during auth
+          // These are benign race conditions and don't affect functionality
+          const isIDBClosingError =
+            err instanceof DOMException &&
+            err.name === 'InvalidStateError' &&
+            err.message?.includes('database connection is closing');
+
+          if (!isIDBClosingError) {
+            console.error('❌ [Firebase] Failed to refresh token:', err);
+          }
         }
       }
     });

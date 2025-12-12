@@ -65,6 +65,28 @@ Sentry.init({
       console.log('Sentry event (dev mode, not sent):', event, hint);
       return null;
     }
+
+    // Filter out benign IndexedDB errors from Firebase Auth persistence
+    // These occur when navigating away during auth state changes and are non-actionable
+    // See: https://github.com/nicolo-ribaudo/idb/issues/295
+    const error = hint?.originalException;
+    if (
+      error instanceof DOMException &&
+      error.name === 'InvalidStateError' &&
+      error.message?.includes('database connection is closing')
+    ) {
+      return null;
+    }
+
+    // Also check exception values for the same error pattern
+    const exceptionValues = event?.exception?.values;
+    if (exceptionValues?.some((ex) =>
+      ex.type === 'InvalidStateError' &&
+      ex.value?.includes('database connection is closing')
+    )) {
+      return null;
+    }
+
     return event;
   },
 });
