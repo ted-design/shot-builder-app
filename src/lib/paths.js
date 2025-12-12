@@ -116,3 +116,31 @@ export const colorSwatchPath = (colorKey, clientId) => [
   ...colorSwatchesPath(clientId),
   colorKey,
 ];
+
+// =============================================================================
+// Schedule paths (for Call Sheet Builder)
+// =============================================================================
+
+// Path to all schedules for a project
+export const schedulesPath = (projectId, clientId) => [
+  ...projectPath(projectId, clientId),
+  "schedules",
+];
+
+// Path to a specific schedule document
+export const schedulePath = (projectId, scheduleId, clientId) => [
+  ...schedulesPath(projectId, clientId),
+  scheduleId,
+];
+
+// Path to schedule entries subcollection
+export const scheduleEntriesPath = (projectId, scheduleId, clientId) => [
+  ...schedulePath(projectId, scheduleId, clientId),
+  "entries",
+];
+
+// Path to a specific schedule entry
+export const scheduleEntryPath = (projectId, scheduleId, entryId, clientId) => [
+  ...scheduleEntriesPath(projectId, scheduleId, clientId),
+  entryId,
+];

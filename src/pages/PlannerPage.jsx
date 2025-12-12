@@ -3684,6 +3684,15 @@ export default function PlannerPage(props) {
   );
 }
 
+// Named exports for reuse in other pages (e.g., ShotsPage PDF export)
+export {
+  groupShotsByLane,
+  buildPlannerExportLanes,
+  stripHtml,
+  normaliseShotTalent,
+  UNASSIGNED_LANE_ID,
+};
+
 export const __test = {
   readStoredPlannerView,
   readStoredVisibleFields,

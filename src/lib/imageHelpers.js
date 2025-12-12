@@ -30,11 +30,11 @@ export function getShotImagePath(shot) {
   // Try new multi-image format first
   if (shot.attachments && Array.isArray(shot.attachments) && shot.attachments.length > 0) {
     const primary = getPrimaryAttachment(shot.attachments);
-    return primary?.path || null;
+    return primary?.path || primary?.downloadURL || null;
   }
 
   // Fall back to legacy format
-  return shot.referenceImagePath || null;
+  return shot.referenceImagePath || shot.downloadURL || null;
 }
 
 /**

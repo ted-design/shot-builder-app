@@ -89,6 +89,7 @@ import {
   Pencil,
   ChevronsDownUp,
   ChevronsUpDown,
+  FileDown,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -120,6 +121,14 @@ import {
 } from "../components/overview";
 
 const PlannerPage = lazy(() => import("./PlannerPage"));
+const CallSheetEmbed = lazy(() => import("../components/callsheet/CallSheetEmbed"));
+const PlannerExportModal = lazy(() => import("../components/planner/PlannerExportModal"));
+
+// Import export normalization helpers from PlannerPage
+import {
+  groupShotsByLane,
+  buildPlannerExportLanes,
+} from "./PlannerPage";
 import { VirtualizedGrid } from "../components/ui/VirtualizedList";
 import { ButtonGroup } from "../components/ui/ButtonGroup";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
@@ -398,6 +407,7 @@ export function ShotsWorkspace() {
   // Project picker modal state: { type: 'copy' | 'move', shot: Object } | null
   const [projectPickerAction, setProjectPickerAction] = useState(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isPdfExportOpen, setIsPdfExportOpen] = useState(false);
   const [insightsSidebarOpen, setInsightsSidebarOpen] = useState(() => {
     const stored = readStorage(SHOTS_INSIGHTS_STORAGE_KEY);
     return stored === "true" || stored === true;
@@ -704,6 +714,15 @@ export function ShotsWorkspace() {
     () => calculateTalentTotals(filteredShots, talentLookupByName),
     [filteredShots, talentLookupByName]
   );
+
+  // Transform shots into lanes-with-shots format for PDF export
+  // Use PlannerPage's normalization to convert talent/products to strings and resolve images
+  const lanesForExport = useMemo(() => {
+    // Group shots by laneId using PlannerPage's helper
+    const shotsByLane = groupShotsByLane(filteredShots);
+    // Build export data with proper normalization (talent names, product labels, images)
+    return buildPlannerExportLanes(shotsByLane, lanes, null);
+  }, [filteredShots, lanes]);
 
   const toggleInsightsSidebar = useCallback(() => {
     setInsightsSidebarOpen((prev) => !prev);
@@ -3344,6 +3363,18 @@ export function ShotsWorkspace() {
 
               <Button
                 type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsPdfExportOpen(true)}
+                className="flex items-center gap-1.5"
+                title="Export PDF"
+              >
+                <FileDown className="h-4 w-4" />
+                <span className="hidden sm:inline">PDF</span>
+              </Button>
+
+              <Button
+                type="button"
                 variant={insightsSidebarOpen ? "default" : "outline"}
                 size="sm"
                 onClick={toggleInsightsSidebar}
@@ -3667,6 +3698,17 @@ export function ShotsWorkspace() {
         actionLabel={projectPickerAction?.type === "copy" ? "Copy" : "Move"}
         isLoading={copyingProject || movingProject}
       />
+
+      {/* PDF Export Modal */}
+      <Suspense fallback={null}>
+        <PlannerExportModal
+          open={isPdfExportOpen}
+          onClose={() => setIsPdfExportOpen(false)}
+          lanes={lanesForExport}
+          isLoading={shotsLoading}
+          projectName={currentProject?.name || "Shots Export"}
+        />
+      </Suspense>
     </div>
   );
 }
@@ -4236,14 +4278,15 @@ export const __test__readStoredViewPrefs = readStoredViewPrefs;
 const OVERVIEW_TAB_STORAGE_KEY = "shots:overviewTab";
 
 const normaliseOverviewTab = (value) => {
-  if (value === "planner") return "planner";
+  if (value === "schedule") return "schedule";
+  if (value === "planner") return "schedule"; // Redirect legacy planner to schedule
   if (value === "assets") return "assets";
   return "shots";
 };
 
 const overviewTabs = [
   { value: "shots", label: "Builder", icon: Camera },
-  { value: "planner", label: "Planner", icon: Calendar },
+  { value: "schedule", label: "Schedule", icon: Calendar },
   { value: "assets", label: "Assets", icon: Users },
 ];
 
@@ -4364,8 +4407,8 @@ export default function ShotsPage({ initialView = null }) {
 
   // Remember last visited path including tab
   useEffect(() => {
-    if (activeTab === "planner") {
-      setLastVisitedPath("/shots?view=planner");
+    if (activeTab === "schedule") {
+      setLastVisitedPath("/shots?view=schedule");
     } else if (activeTab === "assets") {
       setLastVisitedPath("/shots?view=assets");
     } else {
@@ -4374,7 +4417,7 @@ export default function ShotsPage({ initialView = null }) {
   }, [activeTab, setLastVisitedPath]);
 
   const activeContent = useMemo(() => {
-    if (activeTab === "planner") {
+    if (activeTab === "schedule") {
       return (
         <Suspense
           fallback={
@@ -4383,7 +4426,7 @@ export default function ShotsPage({ initialView = null }) {
             </div>
           }
         >
-          <PlannerPage embedded />
+          <CallSheetEmbed />
         </Suspense>
       );
     }
@@ -4393,7 +4436,7 @@ export default function ShotsPage({ initialView = null }) {
     return <ShotsWorkspace />;
   }, [activeTab]);
 
-  const activeLabel = activeTab === "planner" ? "Planner" : activeTab === "assets" ? "Assets" : "Builder";
+  const activeLabel = activeTab === "schedule" ? "Schedule" : activeTab === "assets" ? "Assets" : "Builder";
 
   return (
     <ShotsOverviewProvider value={overviewValue}>

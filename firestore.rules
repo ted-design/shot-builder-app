@@ -19,12 +19,18 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return request.auth != null && request.auth.token.role == 'admin';
+      // Support case variations (Admin, admin, ADMIN)
+      let role = request.auth.token.role;
+      return request.auth != null &&
+        (role == 'admin' || role == 'Admin' || role == 'ADMIN');
     }
 
     function isProducer() {
+      // Support case variations for producer and wardrobe roles
+      let role = request.auth.token.role;
       return request.auth != null &&
-        (request.auth.token.role == 'producer' || request.auth.token.role == 'wardrobe');
+        (role == 'producer' || role == 'Producer' || role == 'PRODUCER' ||
+         role == 'wardrobe' || role == 'Wardrobe' || role == 'WARDROBE');
     }
 
     function hasProjectRole(projectId, roles) {
@@ -259,6 +265,31 @@ service cloud.firestore {
 
         // Only admins can delete activities (for cleanup/retention purposes)
         allow delete: if clientMatches(clientId) && isAdmin();
+      }
+
+      // Schedules - call sheet scheduling for projects
+      match /schedules/{scheduleId} {
+        // Anyone with project access can read schedules
+        allow read: if clientMatches(clientId) &&
+          (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+
+        // Producers and above can create/update schedules
+        allow create, update: if clientMatches(clientId) &&
+          (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+
+        // Only admins can delete schedules
+        allow delete: if clientMatches(clientId) && isAdmin();
+
+        // Schedule entries - individual items on the schedule
+        match /entries/{entryId} {
+          // Anyone with project access can read entries
+          allow read: if clientMatches(clientId) &&
+            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+
+          // Producers and above can create/update/delete entries
+          allow create, update, delete: if clientMatches(clientId) &&
+            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+        }
       }
 
       match /{collectionId}/{docId} {

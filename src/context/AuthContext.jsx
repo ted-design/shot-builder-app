@@ -99,6 +99,15 @@ export function AuthProvider({ children }) {
         const claimRole = normalizeRole(tokenClaims.role);
         const claimClient = tokenClaims.clientId || CLIENT_ID;
 
+        // Debug: Log actual token claims for permission debugging
+        console.log("[AuthContext] Token claims:", {
+          role: tokenClaims.role,
+          clientId: tokenClaims.clientId,
+          orgId: tokenClaims.orgId,
+          normalizedRole: claimRole,
+          resolvedClientId: claimClient,
+        });
+
         // Validate required claims
         if (!tokenClaims.role || !tokenClaims.clientId) {
           setClaimsError(new Error("Missing required custom claims. Please contact administrator."));

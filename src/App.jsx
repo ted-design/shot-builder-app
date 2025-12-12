@@ -58,6 +58,7 @@ const RichTextEditorDemo = lazy(() => import("./pages/dev/RichTextEditorDemo"));
 const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
 const ProjectAssetsPage = lazy(() => import("./pages/ProjectAssetsPage"));
 const AccountSettingsPage = lazy(() => import("./pages/AccountSettingsPage"));
+const CallSheetPage = lazy(() => import("./pages/CallSheetPage"));
 
 function MaybeRedirectLogin({ user }) {
   const location = useLocation();
@@ -229,6 +230,14 @@ function AppRoutes() {
                       element={
                         <Suspense fallback={<PageLoadingFallback />}>
                           <ProjectAssetsPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="schedule"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <CallSheetPage />
                         </Suspense>
                       }
                     />
