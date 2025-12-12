@@ -133,25 +133,31 @@ function renderCellContent(columnKey, entry) {
             </span>
           )}
           <div className="flex items-start gap-2">
-            {isShot && entry.resolvedImage && (
-              <div className="mt-0.5 h-10 w-14 flex-shrink-0 overflow-hidden rounded bg-slate-100 dark:bg-slate-700">
-                <AppImage
-                  src={entry.resolvedImage}
-                  alt=""
-                  className="h-full w-full"
-                  imageClassName="h-full w-full object-cover"
-                  fallback={
-                    <div className="flex h-full w-full items-center justify-center">
-                      <ImageIcon className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-                    </div>
-                  }
-                />
-              </div>
-            )}
+	            {isShot && entry.resolvedImage && (
+	              <div className="mt-0.5 w-14 flex-shrink-0 overflow-hidden rounded bg-slate-100 dark:bg-slate-700 aspect-[4/3] flex items-center justify-center">
+	                <AppImage
+	                  src={entry.resolvedImage}
+	                  alt=""
+	                  className="h-full w-full"
+	                  imageClassName="h-full w-full object-contain"
+	                  position={entry.resolvedImagePosition}
+	                  fallback={
+	                    <div className="flex h-full w-full items-center justify-center">
+	                      <ImageIcon className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+	                    </div>
+	                  }
+	                />
+	              </div>
+	            )}
             <div className="min-w-0 flex-1">
               <div className="font-medium text-slate-900 dark:text-slate-100">
                 {entry.resolvedTitle || "—"}
               </div>
+              {entry.resolvedDetails && (
+                <div className="mt-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
+                  {entry.resolvedDetails}
+                </div>
+              )}
               {entry.description && (
                 <div className="mt-0.5 line-clamp-2 text-slate-600 dark:text-slate-400">
                   {entry.description}
@@ -368,13 +374,7 @@ function CallSheetPreview({
       })
     : "Schedule Date";
 
-  // Zoom scale class
-  const zoomClass =
-    zoomLevel < 1
-      ? "text-xs"
-      : zoomLevel > 1
-      ? "text-base"
-      : "text-sm";
+  const previewZoom = typeof zoomLevel === "number" && zoomLevel > 0 ? zoomLevel : 1;
 
   const configuredTimeColumnWidth = timeColumn?.width || "md";
   const timeColumnWidth =
@@ -385,7 +385,7 @@ function CallSheetPreview({
   const baseRowHeight = 44;
 
   return (
-    <div className={`flex h-full flex-col overflow-hidden bg-white dark:bg-slate-900 ${zoomClass}`}>
+    <div className="flex h-full flex-col overflow-hidden bg-white text-sm dark:bg-slate-900">
       {/* Header */}
       <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
         <div className="flex items-center justify-between">
@@ -424,7 +424,7 @@ function CallSheetPreview({
       {/* Scrollable Content */}
       <div className="flex-1 overflow-auto p-4">
         {/* Schedule Table */}
-        <div className="rounded-lg border border-slate-300 dark:border-slate-600">
+        <div style={{ zoom: previewZoom }} className="rounded-lg border border-slate-300 dark:border-slate-600">
           {isMultiTrack ? (
             <>
               {/* Multi-track Header - Time + Track Columns */}
@@ -504,10 +504,7 @@ function CallSheetPreview({
                           (bannerCategory &&
                             CUSTOM_ENTRY_CATEGORY_COLORS[bannerCategory]) ||
                           "#64748B";
-                        const bannerHeight = baseRowHeight * Math.max(
-                          1,
-                          (bannerEntry.duration || incrementMinutes) / incrementMinutes
-                        );
+                        const bannerHeight = baseRowHeight;
                         const appliesTo =
                           Array.isArray(bannerEntry.appliesToTrackIds) &&
                           bannerEntry.appliesToTrackIds.length > 0
@@ -516,6 +513,9 @@ function CallSheetPreview({
                         const appliesToSet = new Set(
                           appliesTo.filter((id) => laneTracks.some((t) => t.id === id))
                         );
+                        const isFullWidthBanner =
+                          laneTracks.length > 0 &&
+                          laneTracks.every((track) => appliesToSet.has(track.id));
                         const includedByIndex = laneTracks.map((track) =>
                           appliesToSet.has(track.id)
                         );
@@ -541,7 +541,35 @@ function CallSheetPreview({
                                 {renderCellContent("time", bannerEntry)}
                               </div>
                             </div>
-                            {laneTracks.map((track, trackIndex) => {
+                            {isFullWidthBanner ? (
+                              <div className="flex flex-1 items-stretch border-l border-slate-200 px-2 py-2 dark:border-slate-700">
+                                <div
+                                  className="flex w-full items-center justify-center px-3 py-2 text-center"
+                                  style={{
+                                    minHeight: bannerHeight,
+                                    borderLeftColor: bannerColor,
+                                    borderLeftWidth: 3,
+                                    backgroundColor: withAlpha(bannerColor, "14"),
+                                    borderRadius: 8,
+                                  }}
+                                >
+                                  <div className="flex flex-col items-center">
+                                    <span className="text-xs font-semibold uppercase text-slate-600 dark:text-slate-400">
+                                      {getCategoryLabel(bannerCategory)}
+                                    </span>
+                                    <div className="font-medium text-slate-900 dark:text-slate-100">
+                                      {bannerEntry.resolvedTitle || "—"}
+                                    </div>
+                                    {bannerEntry.description && (
+                                      <div className="text-xs text-slate-700 dark:text-slate-300">
+                                        {bannerEntry.description}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              laneTracks.map((track, trackIndex) => {
                               const included = appliesToSet.has(track.id);
                               const borderSideClass =
                                 trackIndex === 0
@@ -572,7 +600,7 @@ function CallSheetPreview({
                                   className={cellClasses}
                                 >
                                   <div
-                                    className="flex w-full items-center px-3 py-2"
+                                    className="flex w-full items-center justify-center px-3 py-2 text-center"
                                     style={{
                                       minHeight: bannerHeight,
                                       borderLeftColor: isSegmentStart
@@ -587,7 +615,7 @@ function CallSheetPreview({
                                     }}
                                   >
                                     {showContent ? (
-                                      <div className="flex flex-col">
+                                      <div className="flex flex-col items-center">
                                         <span className="text-xs font-semibold uppercase text-slate-600 dark:text-slate-400">
                                           {getCategoryLabel(bannerCategory)}
                                         </span>
@@ -606,7 +634,8 @@ function CallSheetPreview({
                                   </div>
                                 </div>
                               );
-                            })}
+                            })
+                            )}
                           </div>
                         );
                       })}
@@ -617,6 +646,15 @@ function CallSheetPreview({
                             ? "bg-white dark:bg-slate-900"
                             : "bg-slate-50/50 dark:bg-slate-800/30";
                         globalRowIndex += 1;
+                        const entriesForRow = laneTracks.map((track) => {
+                          const trackEntries = slot.perTrack.get(track.id) || [];
+                          return trackEntries[rowIndex] || null;
+                        });
+                        const filledIndices = entriesForRow
+                          .map((entry, idx) => (entry ? idx : -1))
+                          .filter((idx) => idx !== -1);
+                        const shouldSpanRow = laneTracks.length > 1 && filledIndices.length === 1;
+                        const spanIndex = shouldSpanRow ? filledIndices[0] : -1;
 
                         return (
                           <div
@@ -638,9 +676,10 @@ function CallSheetPreview({
                             </div>
 
                             {laneTracks.map((track, trackIndex) => {
-                              const trackEntries =
-                                slot.perTrack.get(track.id) || [];
-                              const entry = trackEntries[rowIndex];
+                              const entry = entriesForRow[trackIndex];
+                              if (shouldSpanRow && trackIndex !== spanIndex) {
+                                return null;
+                              }
                               const heightPx = baseRowHeight * Math.max(
                                 1,
                                 (entry?.duration || incrementMinutes) /
@@ -648,7 +687,7 @@ function CallSheetPreview({
                               );
 
                               const borderSideClass =
-                                trackIndex === 0
+                                trackIndex === 0 || (shouldSpanRow && trackIndex === spanIndex)
                                   ? "border-l border-slate-200 dark:border-slate-700"
                                   : "";
 
@@ -656,6 +695,7 @@ function CallSheetPreview({
                                 <div
                                   key={`${slot.minutes}-${rowIndex}-${track.id}`}
                                   className={`flex min-w-[220px] flex-1 items-stretch border-r border-slate-200 px-2 py-2 dark:border-slate-700 ${borderSideClass}`}
+                                  style={shouldSpanRow ? { flexGrow: laneTracks.length } : undefined}
                                 >
                                   {entry ? (
                                     entry.type === "custom" ? (
@@ -683,6 +723,11 @@ function CallSheetPreview({
                                         <div className="font-medium text-slate-900 dark:text-slate-100">
                                           {entry.resolvedTitle || "—"}
                                         </div>
+                                        {entry.resolvedDetails && (
+                                          <div className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                                            {entry.resolvedDetails}
+                                          </div>
+                                        )}
                                         {entry.description && (
                                           <div className="text-xs text-slate-700 dark:text-slate-300">
                                             {entry.description}
@@ -713,21 +758,22 @@ function CallSheetPreview({
                                             (col) => col.key === "image"
                                           );
                                           if (!hasInlineImageColumn && entry.resolvedImage) {
-                                            return (
-                                              <div className="h-20 w-full overflow-hidden rounded bg-slate-100 dark:bg-slate-700">
-                                                <AppImage
-                                                  src={entry.resolvedImage}
-                                                  alt=""
-                                                  className="h-full w-full"
-                                                  imageClassName="h-full w-full object-cover"
-                                                  fallback={
-                                                    <div className="flex h-full w-full items-center justify-center">
-                                                      <ImageIcon className="h-5 w-5 text-slate-400 dark:text-slate-500" />
-                                                    </div>
-                                                  }
-                                                />
-                                              </div>
-                                            );
+	                                            return (
+	                                              <div className="w-full overflow-hidden rounded bg-slate-100 dark:bg-slate-700 aspect-video flex items-center justify-center">
+	                                                <AppImage
+	                                                  src={entry.resolvedImage}
+	                                                  alt=""
+	                                                  className="h-full w-full"
+	                                                  imageClassName="h-full w-full object-contain"
+	                                                  position={entry.resolvedImagePosition}
+	                                                  fallback={
+	                                                    <div className="flex h-full w-full items-center justify-center">
+	                                                      <ImageIcon className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+	                                                    </div>
+	                                                  }
+	                                                />
+	                                              </div>
+	                                            );
                                           }
                                           return null;
                                         })()}
@@ -742,19 +788,24 @@ function CallSheetPreview({
                                                   {entry.shotNumber || "—"}
                                                 </div>
                                               );
-                                            case "description":
-                                              return (
-                                                <div key="description" className="flex flex-col gap-0.5">
-                                                  <div className="font-medium text-slate-900 dark:text-slate-100">
-                                                    {entry.resolvedTitle || "—"}
-                                                  </div>
-                                                  {entry.description && (
-                                                    <div className="line-clamp-2 text-xs text-slate-700 dark:text-slate-300">
-                                                      {entry.description}
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              );
+	                                            case "description":
+	                                              return (
+	                                                <div key="description" className="flex flex-col gap-0.5">
+	                                                  <div className="font-medium text-slate-900 dark:text-slate-100">
+	                                                    {entry.resolvedTitle || "—"}
+	                                                  </div>
+	                                                  {entry.resolvedDetails && (
+	                                                    <div className="text-xs font-medium text-slate-700 dark:text-slate-300">
+	                                                      {entry.resolvedDetails}
+	                                                    </div>
+	                                                  )}
+	                                                  {entry.description && (
+	                                                    <div className="line-clamp-2 text-xs text-slate-700 dark:text-slate-300">
+	                                                      {entry.description}
+	                                                    </div>
+	                                                  )}
+	                                                </div>
+	                                              );
                                             case "talent":
                                               if (!entry.resolvedTalent?.length) return null;
                                               return (
@@ -795,21 +846,25 @@ function CallSheetPreview({
                                               );
                                             case "image":
                                               if (!entry.resolvedImage) return null;
-                                              return (
-                                                <div key="image" className="mt-1 h-20 w-full overflow-hidden rounded bg-slate-100 dark:bg-slate-700">
-                                                  <AppImage
-                                                    src={entry.resolvedImage}
-                                                    alt=""
-                                                    className="h-full w-full"
-                                                    imageClassName="h-full w-full object-cover"
-                                                    fallback={
-                                                      <div className="flex h-full w-full items-center justify-center">
-                                                        <ImageIcon className="h-5 w-5 text-slate-400 dark:text-slate-500" />
-                                                      </div>
-                                                    }
-                                                  />
-                                                </div>
-                                              );
+	                                              return (
+	                                                <div
+	                                                  key="image"
+	                                                  className="mt-1 w-full overflow-hidden rounded bg-slate-100 dark:bg-slate-700 aspect-video flex items-center justify-center"
+	                                                >
+	                                                  <AppImage
+	                                                    src={entry.resolvedImage}
+	                                                    alt=""
+	                                                    className="h-full w-full"
+	                                                    imageClassName="h-full w-full object-contain"
+	                                                    position={entry.resolvedImagePosition}
+	                                                    fallback={
+	                                                      <div className="flex h-full w-full items-center justify-center">
+	                                                        <ImageIcon className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+	                                                      </div>
+	                                                    }
+	                                                  />
+	                                                </div>
+	                                              );
                                             default:
                                               return null;
                                           }

@@ -18,16 +18,19 @@ import {
   useDeleteScheduleEntry,
   useBatchUpdateEntries,
 } from "../../hooks/useScheduleEntries";
+import { useCreateShot } from "../../hooks/useFirestoreMutations";
 import { reorderEntry, sortEntriesByTime } from "../../lib/cascadeEngine";
 import { DEFAULT_TRACKS, DEFAULT_SCHEDULE_SETTINGS, DEFAULT_COLUMNS } from "../../types/schedule";
 import CallSheetToolbar from "./CallSheetToolbar";
 import VerticalTimelineView from "./vertical/VerticalTimelineView";
 import EntryFormModal from "./entries/EntryFormModal";
+import ScheduleShotEditorModal from "./entries/ScheduleShotEditorModal";
 import ColumnConfigModal from "./columns/ColumnConfigModal";
 import TrackManager from "./tracks/TrackManager";
 import CallSheetExportModal from "./export/CallSheetExportModal";
 import { toast } from "../../lib/toast";
 import { Loader2, Calendar } from "lucide-react";
+import { parseDateToTimestamp } from "../../lib/shotDraft";
 
 /**
  * CallSheetBuilder - Main container component for the call sheet timeline editor
@@ -69,6 +72,8 @@ function CallSheetBuilder({
   const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
   const [isTrackManagerOpen, setIsTrackManagerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isShotEditorOpen, setIsShotEditorOpen] = useState(false);
+  const [shotEditorShot, setShotEditorShot] = useState(null);
 
   // Schedule data
   const { schedule, loading: scheduleLoading, error: scheduleError } = useSchedule(
@@ -125,6 +130,8 @@ function CallSheetBuilder({
       },
     }
   );
+
+  const createShotMutation = useCreateShot(clientId, { projectId });
 
   const { addCustomItemAtEnd, isLoading: isAddingCustom } = useAddCustomItem(
     clientId,
@@ -304,6 +311,51 @@ function CallSheetBuilder({
     return Array.from(locationsMap.values());
   }, [locationsMap]);
 
+  const productFamilies = useMemo(() => Array.from(productsMap.values()), [productsMap]);
+  const talentOptions = useMemo(() => Array.from(talentMap.values()), [talentMap]);
+
+  const handleCreateShotInSchedule = useCallback(
+    async (trackId) => {
+      if (!clientId || !projectId) return;
+      const effectiveTrackId = trackId || tracks.find((t) => t.scope !== "shared" && t.id !== "shared")?.id || tracks[0]?.id;
+      if (!effectiveTrackId) return;
+
+      const today = new Date().toISOString().slice(0, 10);
+      const baseShot = {
+        projectId,
+        name: "New Shot",
+        type: "",
+        description: "",
+        status: "todo",
+        date: parseDateToTimestamp(today),
+        locationId: "",
+        products: [],
+        productIds: [],
+        talent: [],
+        talentIds: [],
+        tags: [],
+        notes: "",
+        referenceImagePath: "",
+        attachments: [],
+      };
+
+      const created = await createShotMutation.mutateAsync(baseShot);
+      const duration = settings.defaultEntryDuration || 30;
+      addShotAtEnd(created.id, effectiveTrackId, resolvedEntries, duration);
+      setShotEditorShot({ ...baseShot, id: created.id });
+      setIsShotEditorOpen(true);
+    },
+    [
+      clientId,
+      projectId,
+      tracks,
+      settings.defaultEntryDuration,
+      createShotMutation,
+      addShotAtEnd,
+      resolvedEntries,
+    ]
+  );
+
   // Loading state
   if (scheduleLoading || entriesLoading) {
     return (
@@ -384,7 +436,22 @@ function CallSheetBuilder({
         talentMap={talentMap}
         productsMap={productsMap}
         onAddShot={handleAddShot}
+        onCreateShot={handleCreateShotInSchedule}
         onAddCustomItem={handleAddCustomItem}
+      />
+
+      <ScheduleShotEditorModal
+        open={isShotEditorOpen}
+        onClose={() => {
+          setIsShotEditorOpen(false);
+          setShotEditorShot(null);
+        }}
+        clientId={clientId}
+        projectId={projectId}
+        shot={shotEditorShot}
+        families={productFamilies}
+        locations={locationsArray}
+        talentOptions={talentOptions}
       />
 
       {/* Column Configuration Modal */}

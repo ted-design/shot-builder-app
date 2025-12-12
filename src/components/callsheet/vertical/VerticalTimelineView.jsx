@@ -16,16 +16,18 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Plus, Camera, Coffee, Clock } from "lucide-react";
+import {
+  Plus,
+  Camera,
+  ZoomIn,
+  ZoomOut,
+  RefreshCw,
+  RotateCcw,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Button } from "../../ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../../ui/dropdown-menu";
 import VerticalEntryCard from "./VerticalEntryCard";
 import CallSheetPreview from "./CallSheetPreview";
 import { sortEntriesByTime } from "../../../lib/cascadeEngine";
@@ -70,7 +72,30 @@ function VerticalTimelineView({
   onOpenColumnConfig,
 }) {
   const [selectedEntryId, setSelectedEntryId] = useState(null);
-  const [previewZoom, setPreviewZoom] = useState(1);
+  const [previewZoomPercent, setPreviewZoomPercent] = useState(100);
+  const [previewRefreshNonce, setPreviewRefreshNonce] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const previewZoom = useMemo(() => previewZoomPercent / 100, [previewZoomPercent]);
+  const zoomStep = 10;
+  const minZoom = 50;
+  const maxZoom = 200;
+
+  const handleZoomOut = useCallback(() => {
+    setPreviewZoomPercent((prev) => Math.max(minZoom, prev - zoomStep));
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    setPreviewZoomPercent((prev) => Math.min(maxZoom, prev + zoomStep));
+  }, []);
+
+  const handleResetZoom = useCallback(() => {
+    setPreviewZoomPercent(100);
+  }, []);
+
+  const handleRefreshPreview = useCallback(() => {
+    setPreviewRefreshNonce((prev) => prev + 1);
+  }, []);
 
   // Sort entries by start time
   const sortedEntries = useMemo(() => {
@@ -190,7 +215,81 @@ function VerticalTimelineView({
     return grouped;
   }, [sortedEntries]);
 
-  return (
+  const previewHeader = (
+    <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+      <h3 className="font-semibold text-slate-900 dark:text-slate-100">Preview</h3>
+      <div className="flex items-center gap-2">
+        {/* Zoom Controls */}
+        <div className="flex items-center overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleZoomOut}
+            disabled={previewZoomPercent <= minZoom}
+            className="h-8 w-8 rounded-none"
+            title="Zoom out"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <div className="flex h-8 min-w-[56px] items-center justify-center border-x border-slate-200 px-2 text-xs font-medium tabular-nums text-slate-700 dark:border-slate-700 dark:text-slate-200">
+            {previewZoomPercent}%
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleZoomIn}
+            disabled={previewZoomPercent >= maxZoom}
+            className="h-8 w-8 rounded-none"
+            title="Zoom in"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleResetZoom}
+          disabled={previewZoomPercent === 100}
+          className="h-8 w-8"
+          title="Reset zoom"
+        >
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleRefreshPreview}
+          className="h-8 w-8"
+          title="Refresh preview"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsFullscreen((prev) => !prev)}
+          className="h-8 w-8"
+          title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+        >
+          {isFullscreen ? (
+            <Minimize2 className="h-4 w-4" />
+          ) : (
+            <Maximize2 className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+
+  const content = (
     <PanelGroup direction="horizontal" className="h-full">
       {/* Left Panel - Entry Editor */}
       <Panel defaultSize={60} minSize={30}>
@@ -207,43 +306,22 @@ function VerticalTimelineView({
             </p>
           </div>
 
-          {/* Add Button */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" size="sm" className="gap-1.5">
-                <Plus className="h-4 w-4" />
-                Add
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onAddShot?.("shot")}>
-                <Camera className="mr-2 h-4 w-4" />
-                Add Shot
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onAddCustomItem?.("setup")}>
-                <Clock className="mr-2 h-4 w-4" />
-                Setup / Load-in
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onAddCustomItem?.("break")}>
-                <Coffee className="mr-2 h-4 w-4" />
-                Break
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onAddCustomItem?.("lunch")}>
-                Lunch
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onAddCustomItem?.("wrap")}>
-                Wrap
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onAddCustomItem?.("travel")}>
-                Location Move
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onAddCustomItem?.("other")}>
-                Custom Item
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-2">
+            <Button type="button" size="sm" className="gap-1.5" onClick={() => onAddShot?.("shot")}>
+              <Plus className="h-4 w-4" />
+              Add Shot
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => onAddCustomItem?.()}
+            >
+              <Plus className="h-4 w-4" />
+              Add Banner
+            </Button>
+          </div>
         </div>
 
         {/* Scrollable Entry List */}
@@ -320,46 +398,13 @@ function VerticalTimelineView({
       {/* Right Panel - Live Preview */}
       <Panel defaultSize={40} minSize={20}>
         <div className="flex h-full flex-col bg-slate-50 dark:bg-slate-900">
-        {/* Preview Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
-          <h3 className="font-semibold text-slate-900 dark:text-slate-100">
-            Preview
-          </h3>
-          {/* Zoom Controls */}
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant={previewZoom === 0.75 ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setPreviewZoom(0.75)}
-              className="h-7 px-2 text-xs"
-            >
-              75%
-            </Button>
-            <Button
-              type="button"
-              variant={previewZoom === 1 ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setPreviewZoom(1)}
-              className="h-7 px-2 text-xs"
-            >
-              100%
-            </Button>
-            <Button
-              type="button"
-              variant={previewZoom === 1.25 ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setPreviewZoom(1.25)}
-              className="h-7 px-2 text-xs"
-            >
-              125%
-            </Button>
-          </div>
-        </div>
+          {/* Preview Header */}
+          {previewHeader}
 
         {/* Preview Content */}
         <div className="flex-1 overflow-hidden">
           <CallSheetPreview
+            key={previewRefreshNonce}
             schedule={schedule}
             entries={sortedEntries}
             tracks={tracks}
@@ -373,6 +418,16 @@ function VerticalTimelineView({
       </Panel>
     </PanelGroup>
   );
+
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 z-50 flex h-screen w-screen flex-col bg-slate-50 dark:bg-slate-900">
+        {content}
+      </div>
+    );
+  }
+
+  return content;
 }
 
 export default VerticalTimelineView;
