@@ -30,11 +30,26 @@ export function getShotImagePath(shot) {
   // Try new multi-image format first
   if (shot.attachments && Array.isArray(shot.attachments) && shot.attachments.length > 0) {
     const primary = getPrimaryAttachment(shot.attachments);
-    return primary?.path || primary?.downloadURL || null;
+    return primary?.downloadURL || primary?.path || null;
   }
 
   // Fall back to legacy format
-  return shot.referenceImagePath || shot.downloadURL || null;
+  if (shot.referenceImagePath) return shot.referenceImagePath;
+  if (shot.downloadURL) return shot.downloadURL;
+
+  // Fall back to product images (useful when shots don't have a dedicated image)
+  const products = Array.isArray(shot.products) ? shot.products : [];
+  for (const product of products) {
+    if (!product) continue;
+    if (product.thumbnailImagePath) return product.thumbnailImagePath;
+    if (Array.isArray(product.images)) {
+      const candidate = product.images.find(Boolean);
+      if (candidate) return candidate;
+    }
+    if (product.colourImagePath) return product.colourImagePath;
+  }
+
+  return null;
 }
 
 /**

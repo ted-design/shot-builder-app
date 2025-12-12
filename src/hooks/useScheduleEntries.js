@@ -28,7 +28,7 @@ import { useAuth } from "../context/AuthContext";
 import { isDemoModeActive } from "../lib/flags";
 import { scheduleQueryKeys } from "./useSchedule";
 import { calculateEndTime } from "../lib/timeUtils";
-import { getShotImagePath } from "../lib/imageHelpers";
+import { getPrimaryAttachmentWithStyle, getShotImagePath } from "../lib/imageHelpers";
 import { stripHtml } from "../pages/PlannerPage";
 import {
   applyTimeChange,
@@ -143,6 +143,53 @@ export function useResolvedScheduleEntries(
       return `${name} (${detailParts.join(" • ")})`;
     };
 
+    const prefersDetailedLabel = (nextLabel, currentLabel) => {
+      if (!nextLabel) return false;
+      if (!currentLabel) return true;
+      const nextDetailed = nextLabel.includes("(");
+      const currentDetailed = currentLabel.includes("(");
+      return nextDetailed && !currentDetailed;
+    };
+
+    const selectShotImage = (shot, shotProducts, productsMap) => {
+      if (!shot) return null;
+
+      // Priority 1: Primary attachment from new multi-image system
+      if (shot.attachments && Array.isArray(shot.attachments) && shot.attachments.length > 0) {
+        const primary = shot.attachments.find((att) => att.isPrimary) || shot.attachments[0];
+        if (primary?.downloadURL) return primary.downloadURL;
+        if (primary?.path) return primary.path;
+      }
+
+      // Priority 2: Legacy reference image
+      if (shot.referenceImagePath) return shot.referenceImagePath;
+      if (shot.downloadURL) return shot.downloadURL;
+
+      // Priority 3: Shot-level product images (when no shot image is attached)
+      if (Array.isArray(shotProducts)) {
+        for (const product of shotProducts) {
+          if (!product) continue;
+          if (product.thumbnailImagePath) return product.thumbnailImagePath;
+          if (product.colourImagePath) return product.colourImagePath;
+        }
+      }
+
+      // Priority 4: Family product images (via lookup map)
+      const productIds = Array.isArray(shot.productIds) ? shot.productIds : [];
+      for (const productId of productIds) {
+        const family = productsMap?.get?.(productId);
+        if (!family) continue;
+        if (family.thumbnailImagePath) return family.thumbnailImagePath;
+        if (Array.isArray(family.images)) {
+          const candidate = family.images.find(Boolean);
+          if (candidate) return candidate;
+        }
+        if (family.colourImagePath) return family.colourImagePath;
+      }
+
+      return null;
+    };
+
     // First, resolve entry data
     const resolved = entries.map((entry) => {
       const endTime = calculateEndTime(entry.startTime, entry.duration);
@@ -152,10 +199,12 @@ export function useResolvedScheduleEntries(
         ...entry,
         endTime,
         resolvedTitle: "",
+        resolvedDetails: "",
         resolvedTalent: [],
         resolvedProducts: [],
         resolvedLocation: "",
         resolvedImage: null,
+        resolvedImagePosition: undefined,
         resolvedNotes: "",
         hasOverlap: false,
         overlapsWith: [],
@@ -186,19 +235,31 @@ export function useResolvedScheduleEntries(
             : shot.products && typeof shot.products === "object"
             ? Object.values(shot.products)
             : [];
+          const labelByProductId = new Map();
+          const addProductLabel = (key, label) => {
+            if (!label) return;
+            const existing = labelByProductId.get(key);
+            if (!existing || prefersDetailedLabel(label, existing)) {
+              labelByProductId.set(key, label);
+            }
+          };
+
           shotProducts.forEach((product) => {
             const label = formatProductLabel(product);
-            if (label) productLabels.push(label);
+            const key = product?.productId || product?.id || label;
+            if (key) addProductLabel(String(key), label);
           });
 
           const productIds = Array.isArray(shot.productIds) ? shot.productIds : [];
           productIds.forEach((productId) => {
+            if (labelByProductId.has(productId)) return;
             const product = productsMap.get(productId);
             const label = formatProductLabel(product);
-            if (label) productLabels.push(label);
+            if (label) addProductLabel(productId, label);
           });
 
-          const productNames = Array.from(new Set(productLabels));
+          const productNames = Array.from(labelByProductId.values());
+          const resolvedDetails = shot.type ? stripHtml(String(shot.type)) : "";
 
           // Resolve location (entry override wins)
           const entryLocation = entry.locationId
@@ -212,17 +273,23 @@ export function useResolvedScheduleEntries(
 
           const entryNotes = entry.notes ? stripHtml(entry.notes) : "";
           const shotNotes = shot.notes ? stripHtml(shot.notes) : "";
-          const resolvedNotes = entryNotes || shotNotes;
+          const shotDescriptionNotes = shot.description ? stripHtml(shot.description) : "";
+          const resolvedNotes = entryNotes || shotDescriptionNotes || shotNotes;
 
-          const shotDescription = shot.description || shot.type || "";
+          const shotImage = getPrimaryAttachmentWithStyle(shot);
           return {
             ...baseResolved,
             resolvedTitle: shot.name || shot.shotNumber || `Shot ${entry.shotRef}`,
+            resolvedDetails,
             resolvedTalent: talentNames,
             resolvedProducts: productNames,
             resolvedLocation: locationName,
-            resolvedImage: getShotImagePath(shot),
-            description: shotDescription ? stripHtml(String(shotDescription)) : "",
+            resolvedImage:
+              shotImage?.path ||
+              selectShotImage(shot, shotProducts, productsMap) ||
+              getShotImagePath(shot),
+            resolvedImagePosition: shotImage?.objectPosition,
+            description: "",
             resolvedNotes,
           };
         }

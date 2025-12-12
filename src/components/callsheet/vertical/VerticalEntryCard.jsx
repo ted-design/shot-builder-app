@@ -23,6 +23,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../ui/dropdown-menu";
+import {
+  minutesToTime12h,
+  minutesToTimeString,
+  parseDuration,
+  parseTimeToMinutes,
+  roundToIncrement,
+} from "../../../lib/timeUtils";
 
 // Entry type color mapping
 const CATEGORY_COLORS = {
@@ -81,17 +88,29 @@ function VerticalEntryCard({
   onTrackChange,
   onDelete,
 }) {
-  const [isEditingTime, setIsEditingTime] = useState(false);
+  const [isTimeMenuOpen, setIsTimeMenuOpen] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
-  const [timeValue, setTimeValue] = useState(entry.startTime || "09:00");
+  const [timeDraft, setTimeDraft] = useState(() =>
+    minutesToTime12h(parseTimeToMinutes(entry.startTime || "09:00"))
+  );
+  const [isDurationMenuOpen, setIsDurationMenuOpen] = useState(false);
+  const [durationDraft, setDurationDraft] = useState(() =>
+    entry.duration ? formatDuration(entry.duration) : ""
+  );
   const [notesValue, setNotesValue] = useState(entry.resolvedNotes || "");
 
   // Sync local state with prop changes (important for Firestore updates)
   useEffect(() => {
-    if (!isEditingTime && entry.startTime !== timeValue) {
-      setTimeValue(entry.startTime || "09:00");
+    if (!isTimeMenuOpen) {
+      setTimeDraft(minutesToTime12h(parseTimeToMinutes(entry.startTime || "09:00")));
     }
-  }, [entry.startTime, isEditingTime]);
+  }, [entry.startTime, isTimeMenuOpen]);
+
+  useEffect(() => {
+    if (!isDurationMenuOpen) {
+      setDurationDraft(entry.duration ? formatDuration(entry.duration) : "");
+    }
+  }, [entry.duration, isDurationMenuOpen]);
 
   useEffect(() => {
     if (!isEditingNotes && entry.resolvedNotes !== notesValue) {
@@ -125,12 +144,39 @@ function VerticalEntryCard({
   const imageUrl = entry.resolvedImage;
 
   // Handle time edit
-  const handleTimeSubmit = useCallback(() => {
-    setIsEditingTime(false);
-    if (timeValue !== entry.startTime && onTimeChange) {
-      onTimeChange(entry.id, timeValue);
+  const incrementMinutes = settings.timeIncrement || 15;
+  const applyTimeDraft = useCallback(() => {
+    const minutes = parseTimeToMinutes(timeDraft);
+    const nextTime = roundToIncrement(minutesToTimeString(minutes), incrementMinutes);
+    setIsTimeMenuOpen(false);
+    if (nextTime !== entry.startTime && onTimeChange) {
+      onTimeChange(entry.id, nextTime);
     }
-  }, [entry.id, entry.startTime, timeValue, onTimeChange]);
+  }, [entry.id, entry.startTime, timeDraft, onTimeChange, incrementMinutes]);
+
+  const adjustTimeDraft = useCallback(
+    (deltaMinutes) => {
+      const current = parseTimeToMinutes(timeDraft);
+      const next = Math.max(0, Math.min(1439, current + deltaMinutes));
+      setTimeDraft(minutesToTime12h(next));
+    },
+    [timeDraft]
+  );
+
+  const toggleTimeDraftAmPm = useCallback(() => {
+    const current = parseTimeToMinutes(timeDraft);
+    const next = (current + 12 * 60) % (24 * 60);
+    setTimeDraft(minutesToTime12h(next));
+  }, [timeDraft]);
+
+  const applyDurationDraft = useCallback(() => {
+    const parsed = parseDuration(durationDraft);
+    if (!parsed || parsed <= 0) return;
+    setIsDurationMenuOpen(false);
+    if (parsed !== entry.duration && onDurationChange) {
+      onDurationChange(entry.id, parsed);
+    }
+  }, [durationDraft, entry.duration, entry.id, onDurationChange]);
 
   // Handle notes edit
   const handleNotesSubmit = useCallback(() => {
@@ -166,30 +212,88 @@ function VerticalEntryCard({
         </button>
 
         {/* Time */}
-        {isEditingTime ? (
-          <Input
-            type="time"
-            step={(settings.timeIncrement || 15) * 60}
-            value={timeValue}
-            onChange={(e) => setTimeValue(e.target.value)}
-            onBlur={handleTimeSubmit}
-            onKeyDown={(e) => e.key === "Enter" && handleTimeSubmit()}
-            className="h-7 w-24 px-2 text-sm font-medium"
-            autoFocus
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsEditingTime(true);
-            }}
-            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-sm font-medium text-slate-900 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
+        <DropdownMenu open={isTimeMenuOpen} onOpenChange={setIsTimeMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-sm font-medium text-slate-900 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
+              title="Edit time"
+            >
+              <Clock className="h-3.5 w-3.5 text-slate-400" />
+              {minutesToTime12h(parseTimeToMinutes(entry.startTime || "09:00"))}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className="w-72 p-3"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Clock className="h-3.5 w-3.5 text-slate-400" />
-            {entry.startTime || "—"}
-          </button>
-        )}
+            <div className="space-y-3">
+              <div>
+                <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">Time</div>
+                <Input
+                  value={timeDraft}
+                  onChange={(e) => setTimeDraft(e.target.value)}
+                  placeholder="e.g., 8:30 AM"
+                  onKeyDown={(e) => e.key === "Enter" && applyTimeDraft()}
+                  className="mt-2 h-9"
+                  autoFocus
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => adjustTimeDraft(-incrementMinutes)}
+                >
+                  -{incrementMinutes}m
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => adjustTimeDraft(incrementMinutes)}
+                >
+                  +{incrementMinutes}m
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => adjustTimeDraft(-60)}
+                >
+                  -1h
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => adjustTimeDraft(60)}
+                >
+                  +1h
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={toggleTimeDraftAmPm}>
+                  AM/PM
+                </Button>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsTimeMenuOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="button" size="sm" onClick={applyTimeDraft}>
+                  Apply
+                </Button>
+              </div>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Category badge */}
         <span className={`rounded px-2 py-0.5 text-xs font-medium ${categoryColor}`}>
@@ -198,21 +302,66 @@ function VerticalEntryCard({
 
         {/* Duration (click to edit) */}
         {settings.showDurations && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              const next = window.prompt("Duration (minutes)", `${entry.duration || 0}`);
-              if (!next) return;
-              const parsed = parseInt(next, 10);
-              if (Number.isNaN(parsed) || parsed <= 0) return;
-              onDurationChange?.(entry.id, parsed);
-            }}
-            className="rounded px-1.5 py-0.5 text-xs text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-            title="Edit duration"
-          >
-            {formatDuration(entry.duration)}
-          </button>
+          <DropdownMenu open={isDurationMenuOpen} onOpenChange={setIsDurationMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                className="rounded px-1.5 py-0.5 text-xs text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+                title="Edit duration"
+              >
+                {formatDuration(entry.duration)}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="w-72 p-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="space-y-3">
+                <div>
+                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Duration
+                  </div>
+                  <Input
+                    value={durationDraft}
+                    onChange={(e) => setDurationDraft(e.target.value)}
+                    placeholder="e.g., 1h 30m"
+                    onKeyDown={(e) => e.key === "Enter" && applyDurationDraft()}
+                    className="mt-2 h-9"
+                    autoFocus
+                  />
+                  <div className="mt-1 text-xs text-slate-400">Supports “90m”, “1h”, “1h 30m”.</div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[15, 30, 45, 60, 90, 120].map((minutes) => (
+                    <Button
+                      key={minutes}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDurationDraft(formatDuration(minutes))}
+                    >
+                      {formatDuration(minutes)}
+                    </Button>
+                  ))}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsDurationMenuOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="button" size="sm" onClick={applyDurationDraft}>
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
 
         {/* Track selector dropdown */}
@@ -263,12 +412,13 @@ function VerticalEntryCard({
       <div className="flex gap-3 p-3">
         {/* Image thumbnail (for shots) */}
         {isShot && (
-          <div className="h-16 w-20 flex-shrink-0 overflow-hidden rounded bg-slate-100 dark:bg-slate-700">
+          <div className="w-24 flex-shrink-0 overflow-hidden rounded bg-slate-100 dark:bg-slate-700 aspect-[4/3] flex items-center justify-center">
             <AppImage
               src={imageUrl}
               alt=""
               className="h-full w-full"
-              imageClassName="h-full w-full object-cover"
+              imageClassName="h-full w-full object-contain"
+              position={entry.resolvedImagePosition}
               fallback={
                 <div className="flex h-full w-full items-center justify-center">
                   <ImageIcon className="h-6 w-6 text-slate-400" />
@@ -284,6 +434,13 @@ function VerticalEntryCard({
           <h4 className="font-medium text-slate-900 dark:text-slate-100">
             {entry.resolvedTitle || "Untitled"}
           </h4>
+
+          {/* Details (e.g., colourway) */}
+          {entry.resolvedDetails && (
+            <p className="mt-0.5 text-sm font-medium text-slate-600 dark:text-slate-300">
+              {entry.resolvedDetails}
+            </p>
+          )}
 
           {/* Description */}
           {entry.description && (

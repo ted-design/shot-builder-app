@@ -29,6 +29,7 @@ import CustomEntryForm from "./CustomEntryForm";
  * @param {Map} props.talentMap - Talent lookup map
  * @param {Map} props.productsMap - Products lookup map
  * @param {Function} props.onAddShot - Callback when shot is added
+ * @param {Function} props.onCreateShot - Callback to create a new shot
  * @param {Function} props.onAddCustomItem - Callback when custom item is added
  * @param {object} props.editingEntry - Entry being edited (for edit mode)
  */
@@ -44,6 +45,7 @@ function EntryFormModal({
   talentMap = new Map(),
   productsMap = new Map(),
   onAddShot,
+  onCreateShot,
   onAddCustomItem,
   editingEntry = null,
 }) {
@@ -124,6 +126,7 @@ function EntryFormModal({
               talentMap={talentMap}
               productsMap={productsMap}
               onSelectShot={handleSelectShot}
+              onCreateShot={onCreateShot}
               onClose={onClose}
             />
           </div>

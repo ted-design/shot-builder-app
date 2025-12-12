@@ -2,7 +2,7 @@
 // Panel for selecting existing shots to add to the schedule with multi-select support
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { Search, Camera, Loader2, CheckSquare, Square, X, ChevronDown, User, Tag } from "lucide-react";
+import { Search, Camera, Loader2, CheckSquare, Square, X, ChevronDown, User, Tag, Plus } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import {
@@ -37,6 +37,7 @@ function resolveTalentName(talentItem, talentMap) {
  * @param {Map} props.talentMap - Map of talent ID to talent data
  * @param {Map} props.productsMap - Map of product ID to product data
  * @param {Function} props.onSelectShot - Callback when shot is selected (shotId, trackId)
+ * @param {Function} props.onCreateShot - Callback to create a new shot (trackId)
  * @param {Function} props.onClose - Callback to close the picker
  */
 function ShotEntryPicker({
@@ -47,6 +48,7 @@ function ShotEntryPicker({
   talentMap = new Map(),
   productsMap = new Map(),
   onSelectShot,
+  onCreateShot,
   onClose,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -178,6 +180,19 @@ function ShotEntryPicker({
 
   // Get selected track
   const selectedTrack = tracks.find((t) => t.id === selectedTrackId) || tracks[0];
+
+  const handleCreateShot = useCallback(async () => {
+    if (typeof onCreateShot !== "function") return;
+    setIsAdding(true);
+    try {
+      await onCreateShot(selectedTrackId);
+      onClose?.();
+    } catch (error) {
+      console.error("Failed to create shot:", error);
+    } finally {
+      setIsAdding(false);
+    }
+  }, [onCreateShot, selectedTrackId, onClose]);
 
   // Toggle shot selection
   const handleToggleShot = useCallback((shotId) => {
@@ -411,9 +426,44 @@ function ShotEntryPicker({
           )}
         </p>
         <div className="flex items-center gap-2">
+          {tracks.length > 1 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2" disabled={isAdding}>
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: selectedTrack?.color || "#64748B" }}
+                  />
+                  <span className="max-w-[120px] truncate">{selectedTrack?.name || "Track"}</span>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {tracks.map((track) => (
+                  <DropdownMenuItem
+                    key={track.id}
+                    onClick={() => setSelectedTrackId(track.id)}
+                    className="gap-2"
+                  >
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: track.color || "#64748B" }}
+                    />
+                    {track.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
+          {typeof onCreateShot === "function" && (
+            <Button variant="secondary" onClick={handleCreateShot} disabled={isAdding} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Shot
+            </Button>
+          )}
           <Button
             onClick={handleAddSelected}
             disabled={selectedShotIds.size === 0 || isAdding}
