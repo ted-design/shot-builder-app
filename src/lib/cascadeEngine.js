@@ -223,7 +223,7 @@ export function applyDurationChange(entries, entryId, newDuration, options = {})
   // Merge results, keeping duration change for the resized entry
   const mergedResults = cascadeResults.map((r) => {
     if (r.id === entryId) {
-      return { ...r, duration: newDuration };
+      return { ...r, duration: newDuration, changed: true };
     }
     return r;
   });

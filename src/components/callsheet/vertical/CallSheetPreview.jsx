@@ -133,17 +133,18 @@ function renderCellContent(columnKey, entry) {
             </span>
           )}
           <div className="flex items-start gap-2">
-	            {isShot && entry.resolvedImage && (
-	              <div className="mt-0.5 w-14 flex-shrink-0 overflow-hidden rounded bg-slate-100 dark:bg-slate-700 aspect-[4/3] flex items-center justify-center">
-	                <AppImage
-	                  src={entry.resolvedImage}
-	                  alt=""
-	                  className="h-full w-full"
-	                  imageClassName="h-full w-full object-contain"
-	                  position={entry.resolvedImagePosition}
-	                  fallback={
-	                    <div className="flex h-full w-full items-center justify-center">
-	                      <ImageIcon className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+		            {isShot && entry.resolvedImage && (
+		              <div className="mt-0.5 w-14 flex-shrink-0 overflow-hidden rounded bg-slate-100 dark:bg-slate-700 aspect-[4/3] flex items-center justify-center">
+		                <AppImage
+		                  src={entry.resolvedImage}
+		                  alt=""
+		                  fit="cover"
+		                  className="h-full w-full"
+		                  imageClassName="h-full w-full"
+		                  position={entry.resolvedImagePosition}
+		                  fallback={
+		                    <div className="flex h-full w-full items-center justify-center">
+		                      <ImageIcon className="h-4 w-4 text-slate-400 dark:text-slate-500" />
 	                    </div>
 	                  }
 	                />
@@ -303,13 +304,10 @@ function CallSheetPreview({
       map.set(minutes, list);
     });
     for (const [minutes, list] of map.entries()) {
-      map.set(
-        minutes,
-        [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-      );
+      map.set(minutes, [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
     }
     return map;
-  }, [sortedEntries, isMultiTrack]);
+  }, [sortedEntries, isMultiTrack, sharedTrackIds]);
 
   const entriesForSlots = useMemo(() => {
     if (!isMultiTrack) return sortedEntries;
@@ -342,9 +340,7 @@ function CallSheetPreview({
       .map(([minutes, perTrack]) => {
         const sortedPerTrack = new Map();
         for (const [trackId, list] of perTrack.entries()) {
-          const listSorted = [...list].sort(
-            (a, b) => (a.order ?? 0) - (b.order ?? 0)
-          );
+          const listSorted = [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
           sortedPerTrack.set(trackId, listSorted);
         }
         return { minutes, perTrack: sortedPerTrack };
@@ -754,31 +750,37 @@ function CallSheetPreview({
                                           </div>
                                         )}
                                         {(() => {
-                                          const hasInlineImageColumn = nonTimeColumns.some(
-                                            (col) => col.key === "image"
+                                          const hasInlineImageColumn = nonTimeColumns.some((col) => col.key === "image");
+                                          const hasDescriptionColumn = nonTimeColumns.some(
+                                            (col) => col.key === "description"
                                           );
-                                          if (!hasInlineImageColumn && entry.resolvedImage) {
-	                                            return (
-	                                              <div className="w-full overflow-hidden rounded bg-slate-100 dark:bg-slate-700 aspect-video flex items-center justify-center">
-	                                                <AppImage
-	                                                  src={entry.resolvedImage}
-	                                                  alt=""
-	                                                  className="h-full w-full"
-	                                                  imageClassName="h-full w-full object-contain"
-	                                                  position={entry.resolvedImagePosition}
-	                                                  fallback={
-	                                                    <div className="flex h-full w-full items-center justify-center">
-	                                                      <ImageIcon className="h-5 w-5 text-slate-400 dark:text-slate-500" />
-	                                                    </div>
-	                                                  }
-	                                                />
-	                                              </div>
-	                                            );
-                                          }
-                                          return null;
-                                        })()}
-                                        {nonTimeColumns.map((col) => {
-                                          switch (col.key) {
+                                          const showThumbnailInDescription =
+                                            !hasInlineImageColumn && hasDescriptionColumn && entry.resolvedImage;
+                                          const showFallbackImage =
+                                            !hasInlineImageColumn && !hasDescriptionColumn && entry.resolvedImage;
+
+                                          return (
+                                            <>
+                                              {showFallbackImage ? (
+                                                <div className="w-full overflow-hidden rounded bg-slate-100 dark:bg-slate-700 aspect-video flex items-center justify-center">
+                                                  <AppImage
+                                                    src={entry.resolvedImage}
+                                                    alt=""
+                                                    fit="cover"
+                                                    className="h-full w-full"
+                                                    imageClassName="h-full w-full"
+                                                    position={entry.resolvedImagePosition}
+                                                    fallback={
+                                                      <div className="flex h-full w-full items-center justify-center">
+                                                        <ImageIcon className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+                                                      </div>
+                                                    }
+                                                  />
+                                                </div>
+                                              ) : null}
+
+                                              {nonTimeColumns.map((col) => {
+                                                switch (col.key) {
                                             case "shot":
                                               return (
                                                 <div
@@ -788,24 +790,43 @@ function CallSheetPreview({
                                                   {entry.shotNumber || "—"}
                                                 </div>
                                               );
-	                                            case "description":
-	                                              return (
-	                                                <div key="description" className="flex flex-col gap-0.5">
-	                                                  <div className="font-medium text-slate-900 dark:text-slate-100">
-	                                                    {entry.resolvedTitle || "—"}
-	                                                  </div>
-	                                                  {entry.resolvedDetails && (
-	                                                    <div className="text-xs font-medium text-slate-700 dark:text-slate-300">
-	                                                      {entry.resolvedDetails}
-	                                                    </div>
-	                                                  )}
-	                                                  {entry.description && (
-	                                                    <div className="line-clamp-2 text-xs text-slate-700 dark:text-slate-300">
-	                                                      {entry.description}
-	                                                    </div>
-	                                                  )}
-	                                                </div>
-	                                              );
+		                                            case "description":
+		                                              return (
+		                                                <div key="description" className="flex gap-2">
+		                                                  {showThumbnailInDescription ? (
+		                                                    <div className="mt-0.5 w-20 flex-shrink-0 overflow-hidden rounded bg-slate-100 dark:bg-slate-700 aspect-[4/3] flex items-center justify-center">
+		                                                      <AppImage
+		                                                        src={entry.resolvedImage}
+		                                                        alt=""
+		                                                        fit="cover"
+		                                                        className="h-full w-full"
+		                                                        imageClassName="h-full w-full"
+		                                                        position={entry.resolvedImagePosition}
+		                                                        fallback={
+		                                                          <div className="flex h-full w-full items-center justify-center">
+		                                                            <ImageIcon className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+		                                                          </div>
+		                                                        }
+		                                                      />
+		                                                    </div>
+		                                                  ) : null}
+		                                                  <div className="min-w-0 flex-1 flex flex-col gap-0.5">
+		                                                    <div className="font-medium text-slate-900 dark:text-slate-100">
+		                                                      {entry.resolvedTitle || "—"}
+		                                                    </div>
+		                                                    {entry.resolvedDetails && (
+		                                                      <div className="text-xs font-medium text-slate-700 dark:text-slate-300">
+		                                                        {entry.resolvedDetails}
+		                                                      </div>
+		                                                    )}
+		                                                    {entry.description && (
+		                                                      <div className="line-clamp-2 text-xs text-slate-700 dark:text-slate-300">
+		                                                        {entry.description}
+		                                                      </div>
+		                                                    )}
+		                                                  </div>
+		                                                </div>
+		                                              );
                                             case "talent":
                                               if (!entry.resolvedTalent?.length) return null;
                                               return (
@@ -846,29 +867,33 @@ function CallSheetPreview({
                                               );
                                             case "image":
                                               if (!entry.resolvedImage) return null;
-	                                              return (
-	                                                <div
-	                                                  key="image"
-	                                                  className="mt-1 w-full overflow-hidden rounded bg-slate-100 dark:bg-slate-700 aspect-video flex items-center justify-center"
-	                                                >
-	                                                  <AppImage
-	                                                    src={entry.resolvedImage}
-	                                                    alt=""
-	                                                    className="h-full w-full"
-	                                                    imageClassName="h-full w-full object-contain"
-	                                                    position={entry.resolvedImagePosition}
-	                                                    fallback={
-	                                                      <div className="flex h-full w-full items-center justify-center">
-	                                                        <ImageIcon className="h-5 w-5 text-slate-400 dark:text-slate-500" />
-	                                                      </div>
-	                                                    }
-	                                                  />
-	                                                </div>
-	                                              );
+		                                              return (
+		                                                <div
+		                                                  key="image"
+		                                                  className="mt-1 w-full overflow-hidden rounded bg-slate-100 dark:bg-slate-700 aspect-video flex items-center justify-center"
+		                                                >
+		                                                  <AppImage
+		                                                    src={entry.resolvedImage}
+		                                                    alt=""
+		                                                    fit="cover"
+		                                                    className="h-full w-full"
+		                                                    imageClassName="h-full w-full"
+		                                                    position={entry.resolvedImagePosition}
+		                                                    fallback={
+		                                                      <div className="flex h-full w-full items-center justify-center">
+		                                                        <ImageIcon className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+		                                                      </div>
+		                                                    }
+		                                                  />
+		                                                </div>
+		                                              );
                                             default:
                                               return null;
                                           }
                                         })}
+                                            </>
+                                          );
+                                        })()}
                                       </div>
                                     )
                                   ) : (

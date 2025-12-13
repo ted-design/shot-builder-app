@@ -31,12 +31,14 @@ import { calculateEndTime } from "../lib/timeUtils";
 import { getPrimaryAttachmentWithStyle, getShotImagePath } from "../lib/imageHelpers";
 import { stripHtml } from "../pages/PlannerPage";
 import {
-  applyTimeChange,
-  applyDurationChange,
   getNextAvailableTime,
   sortEntriesByTime,
 } from "../lib/cascadeEngine";
 import { buildOverlapMap, resolveOverlaps } from "../lib/overlapUtils";
+import {
+  buildGaplessDurationChangeUpdates,
+  buildGaplessTimeChangeUpdates,
+} from "../lib/gaplessSchedule";
 
 /**
  * Hook for subscribing to schedule entries with real-time updates.
@@ -600,32 +602,13 @@ export function useMoveEntry(
         });
       }
 
-      // Calculate cascade
-      const cascadeResults = applyTimeChange(allEntries, entryId, newStartTime, {
-        cascadeEnabled: true,
-        gapMinutes: 0,
-      });
+      const updates = buildGaplessTimeChangeUpdates(allEntries, entryId, newStartTime);
+      if (updates.length === 0) return;
 
-      // Filter to only changed entries
-      const changedEntries = cascadeResults.filter((r) => r.changed);
-
-      if (changedEntries.length === 0) {
-        return; // Nothing to update
+      if (updates.length === 1) {
+        const [{ entryId: targetId, ...entryUpdates }] = updates;
+        return updateEntry.mutate({ entryId: targetId, updates: entryUpdates });
       }
-
-      if (changedEntries.length === 1) {
-        // Single entry changed, use simple update
-        return updateEntry.mutate({
-          entryId: changedEntries[0].id,
-          updates: { startTime: changedEntries[0].startTime },
-        });
-      }
-
-      // Multiple entries changed, use batch update
-      const updates = changedEntries.map((r) => ({
-        entryId: r.id,
-        startTime: r.startTime,
-      }));
 
       return batchUpdate.mutate({ updates });
     },
@@ -669,33 +652,12 @@ export function useResizeEntry(
         });
       }
 
-      // Calculate cascade
-      const cascadeResults = applyDurationChange(allEntries, entryId, newDuration, {
-        cascadeEnabled: true,
-        gapMinutes: 0,
-      });
-
-      // Build update list
-      const updates = cascadeResults
-        .filter((r) => r.changed)
-        .map((r) => ({
-          entryId: r.id,
-          ...(r.duration !== undefined && { duration: r.duration }),
-          ...(r.startTime !== undefined && { startTime: r.startTime }),
-        }));
-
-      if (updates.length === 0) {
-        return;
-      }
+      const updates = buildGaplessDurationChangeUpdates(allEntries, entryId, newDuration);
+      if (updates.length === 0) return;
 
       if (updates.length === 1) {
-        return updateEntry.mutate({
-          entryId: updates[0].entryId,
-          updates: {
-            ...(updates[0].duration !== undefined && { duration: updates[0].duration }),
-            ...(updates[0].startTime !== undefined && { startTime: updates[0].startTime }),
-          },
-        });
+        const [{ entryId: targetId, ...entryUpdates }] = updates;
+        return updateEntry.mutate({ entryId: targetId, updates: entryUpdates });
       }
 
       return batchUpdate.mutate({ updates });
