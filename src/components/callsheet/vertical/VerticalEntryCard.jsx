@@ -416,8 +416,9 @@ function VerticalEntryCard({
             <AppImage
               src={imageUrl}
               alt=""
+              fit="cover"
               className="h-full w-full"
-              imageClassName="h-full w-full object-contain"
+              imageClassName="h-full w-full"
               position={entry.resolvedImagePosition}
               fallback={
                 <div className="flex h-full w-full items-center justify-center">

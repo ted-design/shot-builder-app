@@ -25,11 +25,12 @@ import {
   RotateCcw,
   Maximize2,
   Minimize2,
+  Settings,
 } from "lucide-react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Button } from "../../ui/button";
 import VerticalEntryCard from "./VerticalEntryCard";
-import CallSheetPreview from "./CallSheetPreview";
+import CallSheetTimelinePreview from "./CallSheetTimelinePreview";
 import { sortEntriesByTime } from "../../../lib/cascadeEngine";
 
 /**
@@ -50,7 +51,6 @@ import { sortEntriesByTime } from "../../../lib/cascadeEngine";
  * @param {Function} props.onMoveEntryToTrack - Callback to move entry to different track
  * @param {Function} props.onAddShot - Callback to add shot
  * @param {Function} props.onAddCustomItem - Callback to add custom item
- * @param {Function} props.onColumnResize - Callback for inline column resize (key, newWidth)
  * @param {Function} props.onOpenColumnConfig - Callback to open full column config modal
  */
 function VerticalTimelineView({
@@ -68,7 +68,6 @@ function VerticalTimelineView({
   onMoveEntryToTrack,
   onAddShot,
   onAddCustomItem,
-  onColumnResize,
   onOpenColumnConfig,
 }) {
   const [selectedEntryId, setSelectedEntryId] = useState(null);
@@ -271,6 +270,19 @@ function VerticalTimelineView({
           <RefreshCw className="h-4 w-4" />
         </Button>
 
+        {onOpenColumnConfig ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onOpenColumnConfig}
+            className="h-8 w-8"
+            title="Configure columns"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        ) : null}
+
         <Button
           type="button"
           variant="ghost"
@@ -403,15 +415,12 @@ function VerticalTimelineView({
 
         {/* Preview Content */}
         <div className="flex-1 overflow-hidden">
-          <CallSheetPreview
+          <CallSheetTimelinePreview
             key={previewRefreshNonce}
             schedule={schedule}
             entries={sortedEntries}
             tracks={tracks}
-            columnConfig={schedule?.columnConfig}
             zoomLevel={previewZoom}
-            onColumnResize={onColumnResize}
-            onOpenColumnConfig={onOpenColumnConfig}
           />
         </div>
         </div>

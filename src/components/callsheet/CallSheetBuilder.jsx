@@ -1,7 +1,7 @@
 // src/components/callsheet/CallSheetBuilder.jsx
 // Main container for the Call Sheet Builder (vertical editor + preview)
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   useSchedule,
   useUpdateScheduleTracks,
@@ -11,7 +11,6 @@ import {
   useResolvedScheduleEntries,
   useMoveEntry,
   useResizeEntry,
-  useMoveEntryToTrack,
   useAddShotToSchedule,
   useAddCustomItem,
   useUpdateScheduleEntry,
@@ -19,7 +18,12 @@ import {
   useBatchUpdateEntries,
 } from "../../hooks/useScheduleEntries";
 import { useCreateShot } from "../../hooks/useFirestoreMutations";
-import { reorderEntry, sortEntriesByTime } from "../../lib/cascadeEngine";
+import { sortEntriesByTime } from "../../lib/cascadeEngine";
+import {
+  buildGaplessNormalizeStartTimeUpdates,
+  buildGaplessReorderUpdates,
+  getTrackAnchorStartMinutes,
+} from "../../lib/gaplessSchedule";
 import { DEFAULT_TRACKS, DEFAULT_SCHEDULE_SETTINGS, DEFAULT_COLUMNS } from "../../types/schedule";
 import CallSheetToolbar from "./CallSheetToolbar";
 import VerticalTimelineView from "./vertical/VerticalTimelineView";
@@ -31,6 +35,7 @@ import CallSheetExportModal from "./export/CallSheetExportModal";
 import { toast } from "../../lib/toast";
 import { Loader2, Calendar } from "lucide-react";
 import { parseDateToTimestamp } from "../../lib/shotDraft";
+import { parseTimeToMinutes } from "../../lib/timeUtils";
 
 /**
  * CallSheetBuilder - Main container component for the call sheet timeline editor
@@ -107,8 +112,6 @@ function CallSheetBuilder({
     scheduleId,
     schedule?.settings?.cascadeChanges ?? true
   );
-
-  const { moveToTrack } = useMoveEntryToTrack(clientId, projectId, scheduleId);
 
   // Schedule update hooks
   const { updateTracks } = useUpdateScheduleTracks(clientId, projectId, scheduleId, {
@@ -235,76 +238,116 @@ function CallSheetBuilder({
     [deleteEntry]
   );
 
-  // Handle inline column resize from preview
-  const handleColumnResize = useCallback(
-    (columnKey, newWidth) => {
-      const currentColumns = columnConfig.length > 0 ? columnConfig : DEFAULT_COLUMNS;
-      const updatedColumns = currentColumns.map((col) =>
-        col.key === columnKey
-          ? { ...col, width: newWidth, visible: newWidth !== "hidden" }
-          : col
-      );
-      updateColumns(updatedColumns);
-    },
-    [columnConfig, updateColumns]
-  );
-
   const handleReorderEntries = useCallback(
     (entryId, oldIndex, newIndex) => {
       if (oldIndex === newIndex) return;
 
-      // Get sorted entries for finding target
       const sortedEntries = sortEntriesByTime(resolvedEntries);
+      const movedEntry = sortedEntries.find((entry) => entry.id === entryId);
+      if (!movedEntry) return;
 
-      // Find the target entry at the new position
-      const targetEntry = sortedEntries[newIndex];
-      if (!targetEntry) return;
+      const clampedOldIndex = Math.max(0, Math.min(sortedEntries.length - 1, oldIndex));
+      const clampedNewIndex = Math.max(0, Math.min(sortedEntries.length - 1, newIndex));
+      if (clampedOldIndex === clampedNewIndex) return;
 
-      // Determine insert position: before if moving up, after if moving down
-      const position = newIndex < oldIndex ? "before" : "after";
+      const reorderedGlobal = [...sortedEntries];
+      const [removed] = reorderedGlobal.splice(clampedOldIndex, 1);
+      reorderedGlobal.splice(clampedNewIndex, 0, removed);
 
-      // Get cascade setting from schedule
-      const cascadeEnabled = schedule?.settings?.cascadeChanges ?? true;
+      const trackId = movedEntry.trackId;
+      const trackEntries = resolvedEntries.filter((entry) => entry.trackId === trackId);
+      const anchorStartMinutes = getTrackAnchorStartMinutes(trackEntries);
 
-      // Call cascade engine to calculate new order and times
-      const { reorderedEntries, timeChanges } = reorderEntry(
-        resolvedEntries,
-        entryId,
-        targetEntry.id,
-        position,
-        { cascadeEnabled, gapMinutes: 0 }
+      const orderedTrackIds = reorderedGlobal
+        .filter((entry) => entry.trackId === trackId)
+        .map((entry) => entry.id);
+
+      const updates = buildGaplessReorderUpdates(resolvedEntries, trackId, orderedTrackIds, {
+        anchorStartMinutes,
+      });
+
+      if (updates.length > 0) batchUpdateEntries({ updates });
+    },
+    [resolvedEntries, batchUpdateEntries]
+  );
+
+  const handleMoveEntryToTrack = useCallback(
+    (entryId, newTrackId) => {
+      const entry = resolvedEntries.find((candidate) => candidate.id === entryId);
+      if (!entry || !newTrackId || entry.trackId === newTrackId) return;
+
+      const sourceTrackId = entry.trackId;
+      const nextEntries = resolvedEntries.map((candidate) =>
+        candidate.id === entryId ? { ...candidate, trackId: newTrackId } : candidate
       );
 
-      // Build updates array from order changes and time changes
+      const globalSorted = sortEntriesByTime(nextEntries);
+
+      const sourceEntriesBefore = resolvedEntries.filter((candidate) => candidate.trackId === sourceTrackId);
+      const destEntriesBefore = resolvedEntries.filter((candidate) => candidate.trackId === newTrackId);
+
+      const sourceAnchor = getTrackAnchorStartMinutes(sourceEntriesBefore);
+      const destAnchor = getTrackAnchorStartMinutes(destEntriesBefore) ?? parseTimeToMinutes(entry.startTime);
+
+      const sourceOrderIds = globalSorted
+        .filter((candidate) => candidate.trackId === sourceTrackId)
+        .map((candidate) => candidate.id);
+      const destOrderIds = globalSorted
+        .filter((candidate) => candidate.trackId === newTrackId)
+        .map((candidate) => candidate.id);
+
       const updates = [];
+      updates.push({ entryId, trackId: newTrackId });
 
-      // Collect order changes
-      reorderedEntries.forEach((entry) => {
-        const original = resolvedEntries.find((e) => e.id === entry.id);
-        if (original && original.order !== entry.order) {
-          updates.push({ entryId: entry.id, order: entry.order });
-        }
+      const sourceUpdates = buildGaplessReorderUpdates(nextEntries, sourceTrackId, sourceOrderIds, {
+        anchorStartMinutes: sourceAnchor,
+      });
+      const destUpdates = buildGaplessReorderUpdates(nextEntries, newTrackId, destOrderIds, {
+        anchorStartMinutes: destAnchor,
       });
 
-      // Merge time changes
-      timeChanges.forEach((change) => {
-        if (change.changed) {
-          const existing = updates.find((u) => u.entryId === change.id);
-          if (existing) {
-            existing.startTime = change.startTime;
-          } else {
-            updates.push({ entryId: change.id, startTime: change.startTime });
-          }
-        }
-      });
+      const byId = new Map();
+      const merge = (update) => {
+        const existing = byId.get(update.entryId) || { entryId: update.entryId };
+        byId.set(update.entryId, { ...existing, ...update });
+      };
 
-      // Execute batch update if there are changes
-      if (updates.length > 0) {
-        batchUpdateEntries({ updates });
-      }
+      updates.forEach(merge);
+      sourceUpdates.forEach(merge);
+      destUpdates.forEach(merge);
+
+      const merged = Array.from(byId.values());
+      if (merged.length > 0) batchUpdateEntries({ updates: merged });
     },
-    [resolvedEntries, schedule?.settings?.cascadeChanges, batchUpdateEntries]
+    [resolvedEntries, batchUpdateEntries]
   );
+
+  // One-time normalization per schedule to remove overlaps/gaps in each lane track.
+  // This also fixes single-track "shared" banners (appliesToTrackIds length 1) by packing them with that lane.
+  const normalizedScheduleRef = useRef(null);
+  useEffect(() => {
+    if (!scheduleId) return;
+    if (!schedule?.settings?.cascadeChanges) return;
+    if (entriesLoading) return;
+    if (normalizedScheduleRef.current === scheduleId) return;
+    if (!Array.isArray(resolvedEntries) || resolvedEntries.length === 0) return;
+
+    const laneTrackIds = (tracks || [])
+      .filter((t) => t.scope !== "shared" && t.id !== "shared")
+      .map((t) => t.id);
+    if (laneTrackIds.length === 0) return;
+
+    const updates = [];
+    laneTrackIds.forEach((trackId) => {
+      updates.push(...buildGaplessNormalizeStartTimeUpdates(resolvedEntries, trackId));
+    });
+
+    if (updates.length > 0) {
+      batchUpdateEntries({ updates });
+    }
+
+    normalizedScheduleRef.current = scheduleId;
+  }, [scheduleId, schedule?.settings?.cascadeChanges, entriesLoading, resolvedEntries, tracks, batchUpdateEntries]);
 
   // Locations array for vertical view
   const locationsArray = useMemo(() => {
@@ -416,10 +459,9 @@ function CallSheetBuilder({
         onUpdateEntryLocation={handleUpdateEntryLocation}
         onDeleteEntry={handleDeleteEntry}
         onReorderEntries={handleReorderEntries}
-        onMoveEntryToTrack={moveToTrack}
+        onMoveEntryToTrack={handleMoveEntryToTrack}
         onAddShot={handleOpenEntryModal}
         onAddCustomItem={(category) => handleOpenEntryModal("custom", category)}
-        onColumnResize={handleColumnResize}
         onOpenColumnConfig={() => setIsColumnConfigOpen(true)}
       />
 
