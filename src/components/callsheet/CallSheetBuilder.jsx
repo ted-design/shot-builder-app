@@ -6,6 +6,7 @@ import {
   useSchedule,
   useUpdateScheduleTracks,
   useUpdateScheduleColumns,
+  useUpdateScheduleSettings,
 } from "../../hooks/useSchedule";
 import {
   useResolvedScheduleEntries,
@@ -35,7 +36,7 @@ import CallSheetExportModal from "./export/CallSheetExportModal";
 import { toast } from "../../lib/toast";
 import { Loader2, Calendar } from "lucide-react";
 import { parseDateToTimestamp } from "../../lib/shotDraft";
-import { parseTimeToMinutes } from "../../lib/timeUtils";
+import { minutesToTimeString, parseTimeToMinutes } from "../../lib/timeUtils";
 
 /**
  * CallSheetBuilder - Main container component for the call sheet timeline editor
@@ -74,6 +75,7 @@ function CallSheetBuilder({
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [entryModalMode, setEntryModalMode] = useState("select"); // 'shot' | 'custom' | 'select'
   const [entryModalCategory, setEntryModalCategory] = useState(null);
+  const [editingEntry, setEditingEntry] = useState(null);
   const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
   const [isTrackManagerOpen, setIsTrackManagerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -118,8 +120,12 @@ function CallSheetBuilder({
     onSuccess: () => toast.success({ title: "Tracks updated" }),
   });
 
-  const { updateColumns } = useUpdateScheduleColumns(clientId, projectId, scheduleId, {
+  const { updateColumns, updateColumn } = useUpdateScheduleColumns(clientId, projectId, scheduleId, {
     onSuccess: () => toast.success({ title: "Columns updated" }),
+  });
+
+  const { setDayStartTime } = useUpdateScheduleSettings(clientId, projectId, scheduleId, {
+    onSuccess: () => toast.success({ title: "Schedule settings updated" }),
   });
 
   // Entry creation hooks
@@ -186,11 +192,13 @@ function CallSheetBuilder({
   const settings = schedule?.settings || DEFAULT_SCHEDULE_SETTINGS;
   const tracks = schedule?.tracks || DEFAULT_TRACKS;
   const columnConfig = schedule?.columnConfig || [];
+  const effectiveColumns = columnConfig.length > 0 ? columnConfig : DEFAULT_COLUMNS;
 
   // Modal handlers
   const handleOpenEntryModal = useCallback((type, category = null) => {
     setEntryModalMode(type === "shot" ? "shot" : type === "custom" ? "custom" : "select");
     setEntryModalCategory(category);
+    setEditingEntry(null);
     setIsEntryModalOpen(true);
   }, []);
 
@@ -198,11 +206,12 @@ function CallSheetBuilder({
     setIsEntryModalOpen(false);
     setEntryModalMode("select");
     setEntryModalCategory(null);
+    setEditingEntry(null);
   }, []);
 
   const handleAddShot = useCallback(
     (shotId, trackId) => {
-      const duration = settings.defaultEntryDuration || 30;
+      const duration = typeof settings.defaultEntryDuration === "number" ? settings.defaultEntryDuration : 15;
       addShotAtEnd(shotId, trackId, resolvedEntries, duration);
     },
     [addShotAtEnd, resolvedEntries, settings.defaultEntryDuration]
@@ -213,6 +222,41 @@ function CallSheetBuilder({
       addCustomItemAtEnd(customData, trackId, resolvedEntries, duration, appliesToTrackIds);
     },
     [addCustomItemAtEnd, resolvedEntries]
+  );
+
+  const handleEditCustomEntry = useCallback((entry) => {
+    if (!entry || entry.type !== "custom") return;
+    setEditingEntry(entry);
+    setEntryModalMode("custom");
+    setEntryModalCategory(entry.customData?.category || null);
+    setIsEntryModalOpen(true);
+  }, []);
+
+  const handleUpdateCustomItem = useCallback(
+    async (entryId, { customData, trackId, duration, appliesToTrackIds }) => {
+      if (!entryId) return;
+      const updates = {
+        customData,
+        trackId,
+        duration,
+        appliesToTrackIds: appliesToTrackIds ?? null,
+        notes: customData?.notes ? String(customData.notes) : null,
+      };
+      updateEntry({ entryId, updates });
+      toast.success({ title: "Banner updated" });
+      handleCloseEntryModal();
+    },
+    [handleCloseEntryModal, updateEntry]
+  );
+
+  const handleColumnResize = useCallback(
+    (columnKey, nextWidth) => {
+      const updates = {
+        width: nextWidth,
+      };
+      updateColumn(columnKey, updates, effectiveColumns);
+    },
+    [effectiveColumns, updateColumn]
   );
 
   // Vertical view handlers
@@ -357,6 +401,66 @@ function CallSheetBuilder({
   const productFamilies = useMemo(() => Array.from(productsMap.values()), [productsMap]);
   const talentOptions = useMemo(() => Array.from(talentMap.values()), [talentMap]);
 
+  const handleSetDayStartTime = useCallback(
+    (nextDayStartTime) => {
+      const nextValue = typeof nextDayStartTime === "string" ? nextDayStartTime : settings.dayStartTime;
+      if (!nextValue) return;
+
+      if (!Array.isArray(resolvedEntries) || resolvedEntries.length === 0) {
+        setDayStartTime(nextValue, settings);
+        return;
+      }
+
+      let earliestStartMinutes = null;
+      let latestEndMinutes = null;
+      resolvedEntries.forEach((entry) => {
+        const startMinutes = parseTimeToMinutes(entry.startTime || settings.dayStartTime || "00:00");
+        const duration = typeof entry.duration === "number" ? Math.max(0, entry.duration) : 0;
+        const endMinutes = startMinutes + duration;
+        if (earliestStartMinutes == null || startMinutes < earliestStartMinutes) earliestStartMinutes = startMinutes;
+        if (latestEndMinutes == null || endMinutes > latestEndMinutes) latestEndMinutes = endMinutes;
+      });
+
+      if (earliestStartMinutes == null) {
+        setDayStartTime(nextValue, settings);
+        return;
+      }
+
+      const targetStartMinutes = parseTimeToMinutes(nextValue);
+      const delta = targetStartMinutes - earliestStartMinutes;
+
+      if (delta !== 0 && latestEndMinutes != null) {
+        const shiftedStart = earliestStartMinutes + delta;
+        const shiftedEnd = latestEndMinutes + delta;
+        if (shiftedStart < 0 || shiftedEnd > 24 * 60) {
+          toast.error({
+            title: "Start time out of range",
+            description: "Choose a start time that keeps all entries within the day.",
+          });
+          return;
+        }
+      }
+
+      if (delta !== 0) {
+        const updates = resolvedEntries
+          .map((entry) => {
+            const startMinutes = parseTimeToMinutes(entry.startTime || "00:00");
+            const nextStartTime = minutesToTimeString(startMinutes + delta);
+            if (nextStartTime === entry.startTime) return null;
+            return { entryId: entry.id, startTime: nextStartTime };
+          })
+          .filter(Boolean);
+
+        if (updates.length > 0) {
+          batchUpdateEntries({ updates });
+        }
+      }
+
+      setDayStartTime(nextValue, settings);
+    },
+    [resolvedEntries, batchUpdateEntries, setDayStartTime, settings]
+  );
+
   const handleCreateShotInSchedule = useCallback(
     async (trackId) => {
       if (!clientId || !projectId) return;
@@ -367,6 +471,7 @@ function CallSheetBuilder({
       const baseShot = {
         projectId,
         name: "New Shot",
+        shotNumber: "",
         type: "",
         description: "",
         status: "todo",
@@ -383,7 +488,7 @@ function CallSheetBuilder({
       };
 
       const created = await createShotMutation.mutateAsync(baseShot);
-      const duration = settings.defaultEntryDuration || 30;
+      const duration = typeof settings.defaultEntryDuration === "number" ? settings.defaultEntryDuration : 15;
       addShotAtEnd(created.id, effectiveTrackId, resolvedEntries, duration);
       setShotEditorShot({ ...baseShot, id: created.id });
       setIsShotEditorOpen(true);
@@ -438,6 +543,7 @@ function CallSheetBuilder({
         clientId={clientId}
         projectId={projectId}
         scheduleId={scheduleId}
+        onSetDayStartTime={handleSetDayStartTime}
         onEditColumns={() => setIsColumnConfigOpen(true)}
         onEditTracks={() => setIsTrackManagerOpen(true)}
         onExport={() => setIsExportModalOpen(true)}
@@ -453,6 +559,8 @@ function CallSheetBuilder({
         tracks={tracks}
         locations={locationsArray}
         settings={settings}
+        columnConfig={effectiveColumns}
+        onColumnResize={handleColumnResize}
         onMoveEntry={(entryId, newTime) => moveEntry(entryId, newTime, resolvedEntries)}
         onResizeEntry={(entryId, newDuration) => resizeEntry(entryId, newDuration, resolvedEntries)}
         onUpdateEntryNotes={handleUpdateEntryNotes}
@@ -463,6 +571,7 @@ function CallSheetBuilder({
         onAddShot={handleOpenEntryModal}
         onAddCustomItem={(category) => handleOpenEntryModal("custom", category)}
         onOpenColumnConfig={() => setIsColumnConfigOpen(true)}
+        onEditEntry={handleEditCustomEntry}
       />
 
       {/* Entry Form Modal */}
@@ -480,6 +589,8 @@ function CallSheetBuilder({
         onAddShot={handleAddShot}
         onCreateShot={handleCreateShotInSchedule}
         onAddCustomItem={handleAddCustomItem}
+        onUpdateCustomItem={handleUpdateCustomItem}
+        editingEntry={editingEntry}
       />
 
       <ScheduleShotEditorModal

@@ -2,7 +2,7 @@
 // Main container for the vertical timeline view (SetHero-style)
 // Split-pane layout: left = entry editor, right = live preview
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   DndContext,
   closestCenter,
@@ -19,6 +19,8 @@ import {
 import {
   Plus,
   Camera,
+  Image as ImageIcon,
+  ImageOff,
   ZoomIn,
   ZoomOut,
   RefreshCw,
@@ -30,7 +32,7 @@ import {
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Button } from "../../ui/button";
 import VerticalEntryCard from "./VerticalEntryCard";
-import CallSheetTimelinePreview from "./CallSheetTimelinePreview";
+import CallSheetPreview from "./CallSheetPreview";
 import { sortEntriesByTime } from "../../../lib/cascadeEngine";
 
 /**
@@ -52,6 +54,9 @@ import { sortEntriesByTime } from "../../../lib/cascadeEngine";
  * @param {Function} props.onAddShot - Callback to add shot
  * @param {Function} props.onAddCustomItem - Callback to add custom item
  * @param {Function} props.onOpenColumnConfig - Callback to open full column config modal
+ * @param {Function} props.onEditEntry - Callback to edit a custom entry
+ * @param {Array} props.columnConfig - Column config for single-track preview
+ * @param {Function} props.onColumnResize - Callback when preview column is resized
  */
 function VerticalTimelineView({
   schedule,
@@ -69,11 +74,31 @@ function VerticalTimelineView({
   onAddShot,
   onAddCustomItem,
   onOpenColumnConfig,
+  onEditEntry,
+  columnConfig,
+  onColumnResize,
 }) {
   const [selectedEntryId, setSelectedEntryId] = useState(null);
   const [previewZoomPercent, setPreviewZoomPercent] = useState(100);
   const [previewRefreshNonce, setPreviewRefreshNonce] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showPreviewImages, setShowPreviewImages] = useState(() => {
+    try {
+      const stored = localStorage.getItem("callSheetPreview.showImages");
+      if (stored == null) return true;
+      return stored === "true";
+    } catch (error) {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("callSheetPreview.showImages", String(showPreviewImages));
+    } catch (error) {
+      // ignore storage failures
+    }
+  }, [showPreviewImages]);
 
   const previewZoom = useMemo(() => previewZoomPercent / 100, [previewZoomPercent]);
   const zoomStep = 10;
@@ -226,12 +251,12 @@ function VerticalTimelineView({
             size="sm"
             onClick={handleZoomOut}
             disabled={previewZoomPercent <= minZoom}
-            className="h-8 w-8 rounded-none"
+            className="h-9 w-9 rounded-none"
             title="Zoom out"
           >
-            <ZoomOut className="h-4 w-4" />
+            <ZoomOut className="h-5 w-5" />
           </Button>
-          <div className="flex h-8 min-w-[56px] items-center justify-center border-x border-slate-200 px-2 text-xs font-medium tabular-nums text-slate-700 dark:border-slate-700 dark:text-slate-200">
+          <div className="flex h-9 min-w-[60px] items-center justify-center border-x border-slate-200 px-2 text-xs font-medium tabular-nums text-slate-700 dark:border-slate-700 dark:text-slate-200">
             {previewZoomPercent}%
           </div>
           <Button
@@ -240,10 +265,10 @@ function VerticalTimelineView({
             size="sm"
             onClick={handleZoomIn}
             disabled={previewZoomPercent >= maxZoom}
-            className="h-8 w-8 rounded-none"
+            className="h-9 w-9 rounded-none"
             title="Zoom in"
           >
-            <ZoomIn className="h-4 w-4" />
+            <ZoomIn className="h-5 w-5" />
           </Button>
         </div>
 
@@ -253,10 +278,10 @@ function VerticalTimelineView({
           size="sm"
           onClick={handleResetZoom}
           disabled={previewZoomPercent === 100}
-          className="h-8 w-8"
+          className="h-9 w-9"
           title="Reset zoom"
         >
-          <RotateCcw className="h-4 w-4" />
+          <RotateCcw className="h-5 w-5" />
         </Button>
 
         <Button
@@ -264,10 +289,25 @@ function VerticalTimelineView({
           variant="ghost"
           size="sm"
           onClick={handleRefreshPreview}
-          className="h-8 w-8"
+          className="h-9 w-9"
           title="Refresh preview"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className="h-5 w-5" />
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowPreviewImages((prev) => !prev)}
+          className="h-9 w-9"
+          title={showPreviewImages ? "Hide images" : "Show images"}
+        >
+          {showPreviewImages ? (
+            <ImageIcon className="h-5 w-5" />
+          ) : (
+            <ImageOff className="h-5 w-5" />
+          )}
         </Button>
 
         {onOpenColumnConfig ? (
@@ -276,10 +316,10 @@ function VerticalTimelineView({
             variant="ghost"
             size="sm"
             onClick={onOpenColumnConfig}
-            className="h-8 w-8"
+            className="h-9 w-9"
             title="Configure columns"
           >
-            <Settings className="h-4 w-4" />
+            <Settings className="h-5 w-5" />
           </Button>
         ) : null}
 
@@ -288,13 +328,13 @@ function VerticalTimelineView({
           variant="ghost"
           size="sm"
           onClick={() => setIsFullscreen((prev) => !prev)}
-          className="h-8 w-8"
+          className="h-9 w-9"
           title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
         >
           {isFullscreen ? (
-            <Minimize2 className="h-4 w-4" />
+            <Minimize2 className="h-5 w-5" />
           ) : (
-            <Maximize2 className="h-4 w-4" />
+            <Maximize2 className="h-5 w-5" />
           )}
         </Button>
       </div>
@@ -390,6 +430,7 @@ function VerticalTimelineView({
                             onNotesChange={handleNotesChange}
                             onLocationChange={handleLocationChange}
                             onTrackChange={handleTrackChange}
+                            onEditCustom={onEditEntry}
                             onDelete={handleDelete}
                           />
                         </div>
@@ -415,12 +456,15 @@ function VerticalTimelineView({
 
         {/* Preview Content */}
         <div className="flex-1 overflow-hidden">
-          <CallSheetTimelinePreview
+          <CallSheetPreview
             key={previewRefreshNonce}
             schedule={schedule}
             entries={sortedEntries}
             tracks={tracks}
+            columnConfig={columnConfig}
             zoomLevel={previewZoom}
+            showImages={showPreviewImages}
+            onColumnResize={onColumnResize}
           />
         </div>
         </div>

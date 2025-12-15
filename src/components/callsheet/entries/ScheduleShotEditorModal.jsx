@@ -18,6 +18,7 @@ function normaliseShotDraft(shot) {
   return {
     ...shot,
     date: toDateInputValue(shot.date),
+    shotNumber: shot.shotNumber ? String(shot.shotNumber) : "",
     type: shot.type || "",
     description: typeof shot.description === "string" ? shot.description : shot.description || "",
     locationId: shot.locationId || "",
@@ -122,6 +123,7 @@ export default function ScheduleShotEditorModal({
     const products = Array.isArray(draft.products) ? draft.products.map(mapProductForWrite) : [];
     const updates = {
       name: draft.name || "",
+      shotNumber: draft.shotNumber ? String(draft.shotNumber).trim() : "",
       type: draft.type || "",
       description: draft.description || "",
       status: draft.status || "todo",
@@ -173,4 +175,3 @@ export default function ScheduleShotEditorModal({
     />
   );
 }
-

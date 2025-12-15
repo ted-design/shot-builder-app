@@ -18,7 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../ui/dropdown-menu";
-import { DEFAULT_COLUMNS, COLUMN_WIDTH_VALUES } from "../../../types/schedule";
+import { DEFAULT_COLUMNS } from "../../../types/schedule";
 
 // Width options with labels
 const WIDTH_OPTIONS = [
@@ -27,7 +27,6 @@ const WIDTH_OPTIONS = [
   { value: "md", label: "Medium" },
   { value: "lg", label: "Large" },
   { value: "xl", label: "X-Large" },
-  { value: "hidden", label: "Hidden" },
 ];
 
 /**
@@ -71,9 +70,7 @@ function ColumnConfigModal({
   const handleWidthChange = useCallback((key, newWidth) => {
     setEditedColumns((prev) =>
       prev.map((col) =>
-        col.key === key
-          ? { ...col, width: newWidth, visible: newWidth !== "hidden" }
-          : col
+        col.key === key ? { ...col, width: newWidth } : col
       )
     );
   }, []);
@@ -122,7 +119,13 @@ function ColumnConfigModal({
 
   // Save changes
   const handleSave = useCallback(() => {
-    onSave?.(editedColumns);
+    const sanitized = editedColumns.map((col) => {
+      if (col.width === "hidden") {
+        return { ...col, width: "md", visible: false };
+      }
+      return col;
+    });
+    onSave?.(sanitized);
     onClose();
   }, [editedColumns, onSave, onClose]);
 

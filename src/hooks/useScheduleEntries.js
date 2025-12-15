@@ -1,7 +1,7 @@
 // src/hooks/useScheduleEntries.js
 // React hook for schedule entry operations with shot data joins
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   collection,
@@ -27,7 +27,7 @@ import { describeFirebaseError } from "../lib/firebaseErrors";
 import { useAuth } from "../context/AuthContext";
 import { isDemoModeActive } from "../lib/flags";
 import { scheduleQueryKeys } from "./useSchedule";
-import { calculateEndTime } from "../lib/timeUtils";
+import { calculateEndTime, parseTimeToMinutes, minutesToTimeString } from "../lib/timeUtils";
 import { getPrimaryAttachmentWithStyle, getShotImagePath } from "../lib/imageHelpers";
 import { stripHtml } from "../pages/PlannerPage";
 import {
@@ -200,6 +200,7 @@ export function useResolvedScheduleEntries(
       const baseResolved = {
         ...entry,
         endTime,
+        shotNumber: "",
         resolvedTitle: "",
         resolvedDetails: "",
         resolvedTalent: [],
@@ -281,6 +282,7 @@ export function useResolvedScheduleEntries(
           const shotImage = getPrimaryAttachmentWithStyle(shot);
           return {
             ...baseResolved,
+            shotNumber: shot.shotNumber ? String(shot.shotNumber) : "",
             resolvedTitle: shot.name || shot.shotNumber || `Shot ${entry.shotRef}`,
             resolvedDetails,
             resolvedTalent: talentNames,
@@ -306,6 +308,7 @@ export function useResolvedScheduleEntries(
         const resolvedNotes = entryNotes || customNotes;
         return {
           ...baseResolved,
+          shotNumber: "",
           resolvedTitle: entry.customData.title || "Custom Item",
           resolvedTalent: entry.customData.talent || [],
           resolvedProducts: [],
@@ -367,7 +370,7 @@ export function useCreateScheduleEntry(clientId, projectId, scheduleId, options 
       const fullData = {
         trackId: entryData.trackId,
         startTime: entryData.startTime || "09:00",
-        duration: entryData.duration || 30,
+        duration: typeof entryData.duration === "number" ? entryData.duration : 15,
         order: entryData.order || 0,
         type: entryData.type || "custom",
         shotRef: entryData.shotRef || null,
@@ -712,10 +715,11 @@ export function useMoveEntryToTrack(clientId, projectId, scheduleId, options = {
  */
 export function useAddShotToSchedule(clientId, projectId, scheduleId, options = {}) {
   const createEntry = useCreateScheduleEntry(clientId, projectId, scheduleId, options);
+  const pendingEndMinutesByTrackRef = useRef(new Map());
 
   const addShot = useCallback(
     (shotId, trackId, startTime, duration = 30) => {
-      return createEntry.mutate({
+      return createEntry.mutateAsync({
         trackId,
         startTime,
         duration,
@@ -729,8 +733,17 @@ export function useAddShotToSchedule(clientId, projectId, scheduleId, options = 
 
   const addShotAtEnd = useCallback(
     (shotId, trackId, allEntries, duration = 30) => {
-      const startTime = getNextAvailableTime(allEntries, trackId, 0);
-      return createEntry.mutate({
+      const baseStartTime = getNextAvailableTime(allEntries, trackId, 0);
+      const baseStartMinutes = parseTimeToMinutes(baseStartTime);
+      const pendingEndMinutes = pendingEndMinutesByTrackRef.current.get(trackId);
+      const startMinutes =
+        typeof pendingEndMinutes === "number"
+          ? Math.max(baseStartMinutes, pendingEndMinutes)
+          : baseStartMinutes;
+      const startTime = minutesToTimeString(startMinutes);
+      pendingEndMinutesByTrackRef.current.set(trackId, startMinutes + duration);
+
+      return createEntry.mutateAsync({
         trackId,
         startTime,
         duration,
@@ -760,10 +773,11 @@ export function useAddShotToSchedule(clientId, projectId, scheduleId, options = 
  */
 export function useAddCustomItem(clientId, projectId, scheduleId, options = {}) {
   const createEntry = useCreateScheduleEntry(clientId, projectId, scheduleId, options);
+  const pendingEndMinutesByTrackRef = useRef(new Map());
 
   const addCustomItem = useCallback(
     (customData, trackId, startTime, duration = 30, appliesToTrackIds = null) => {
-      return createEntry.mutate({
+      return createEntry.mutateAsync({
         trackId,
         startTime,
         duration,
@@ -778,8 +792,17 @@ export function useAddCustomItem(clientId, projectId, scheduleId, options = {}) 
 
   const addCustomItemAtEnd = useCallback(
     (customData, trackId, allEntries, duration = 30, appliesToTrackIds = null) => {
-      const startTime = getNextAvailableTime(allEntries, trackId, 0);
-      return createEntry.mutate({
+      const baseStartTime = getNextAvailableTime(allEntries, trackId, 0);
+      const baseStartMinutes = parseTimeToMinutes(baseStartTime);
+      const pendingEndMinutes = pendingEndMinutesByTrackRef.current.get(trackId);
+      const startMinutes =
+        typeof pendingEndMinutes === "number"
+          ? Math.max(baseStartMinutes, pendingEndMinutes)
+          : baseStartMinutes;
+      const startTime = minutesToTimeString(startMinutes);
+      pendingEndMinutesByTrackRef.current.set(trackId, startMinutes + duration);
+
+      return createEntry.mutateAsync({
         trackId,
         startTime,
         duration,

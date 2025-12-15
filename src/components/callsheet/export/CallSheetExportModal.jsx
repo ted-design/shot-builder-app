@@ -10,12 +10,13 @@ import {
   View,
   pdf,
 } from "@react-pdf/renderer";
-import { X, Download, FileText, Loader2, Eye, Clock, Users, MapPin, Package } from "lucide-react";
+import { X, Download, Loader2, Eye, Clock, Users, Printer } from "lucide-react";
 import { Button } from "../../ui/button";
-import { minutesToTime12h, calculateEndTime, formatDuration } from "../../../lib/timeUtils";
+import { minutesToTime12h, formatDuration, parseTimeToMinutes } from "../../../lib/timeUtils";
 import {
   CUSTOM_ENTRY_CATEGORY_LABELS,
   CUSTOM_ENTRY_CATEGORY_COLORS,
+  DEFAULT_COLUMNS,
 } from "../../../types/schedule";
 
 // Lazy load preview component
@@ -24,119 +25,86 @@ const PdfPagePreview = lazy(() => import("../../export/PdfPagePreview"));
 // PDF Styles
 const styles = StyleSheet.create({
   page: {
-    padding: 40,
+    padding: 24,
     fontFamily: "Helvetica",
-    fontSize: 10,
+    fontSize: 9,
+    color: "#0f172a",
   },
   header: {
-    marginBottom: 20,
-    borderBottom: "2pt solid #1e293b",
-    paddingBottom: 12,
+    marginBottom: 16,
+    borderBottom: "2pt solid #334155",
+    paddingBottom: 10,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
-    color: "#1e293b",
-    marginBottom: 4,
+    color: "#0f172a",
+    marginBottom: 3,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 10,
     color: "#64748b",
   },
-  trackSection: {
-    marginBottom: 16,
+  table: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    borderRadius: 8,
+    overflow: "hidden",
   },
-  trackHeader: {
+  row: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    paddingBottom: 4,
-    borderBottom: "1pt solid #e2e8f0",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
   },
-  trackDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
+  headerRow: {
+    flexDirection: "row",
+    backgroundColor: "#f1f5f9",
+    borderBottomWidth: 2,
+    borderBottomColor: "#94a3b8",
   },
-  trackName: {
-    fontSize: 12,
+  cell: {
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    justifyContent: "center",
+  },
+  cellBorderRight: {
+    borderRightWidth: 1,
+    borderRightColor: "#e2e8f0",
+  },
+  headerCellText: {
+    fontSize: 8,
     fontWeight: "bold",
+    textTransform: "uppercase",
     color: "#334155",
   },
-  entryRow: {
-    flexDirection: "row",
-    borderBottom: "0.5pt solid #f1f5f9",
-    paddingVertical: 6,
-  },
-  timeCol: {
-    width: 70,
-    paddingRight: 8,
-  },
-  timeText: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#1e293b",
-  },
-  timeEndText: {
-    fontSize: 8,
-    color: "#94a3b8",
-  },
-  durationCol: {
-    width: 50,
-    paddingRight: 8,
-  },
-  durationText: {
+  timePrimary: {
     fontSize: 9,
-    color: "#64748b",
-  },
-  titleCol: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  titleText: {
-    fontSize: 10,
     fontWeight: "bold",
-    color: "#1e293b",
+    color: "#0f172a",
   },
-  categoryBadge: {
+  timeSecondary: {
+    fontSize: 7,
+    color: "#64748b",
+    marginTop: 1,
+  },
+  entryTitle: {
+    fontSize: 9,
+    fontWeight: "bold",
+    color: "#0f172a",
+  },
+  entryMeta: {
+    fontSize: 7,
+    color: "#475569",
+    marginTop: 1,
+  },
+  badge: {
     fontSize: 7,
     paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 2,
-    marginBottom: 2,
-  },
-  notesText: {
-    fontSize: 8,
-    color: "#64748b",
-    marginTop: 2,
-  },
-  detailsCol: {
-    width: 150,
-  },
-  detailRow: {
-    flexDirection: "row",
-    marginBottom: 2,
-  },
-  detailLabel: {
-    fontSize: 7,
-    color: "#94a3b8",
-    width: 45,
-  },
-  detailValue: {
-    fontSize: 8,
-    color: "#475569",
-    flex: 1,
-  },
-  footer: {
-    position: "absolute",
-    bottom: 30,
-    left: 40,
-    right: 40,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    fontSize: 8,
-    color: "#94a3b8",
+    paddingVertical: 2,
+    borderRadius: 3,
+    marginBottom: 3,
+    alignSelf: "flex-start",
   },
   emptyState: {
     textAlign: "center",
@@ -144,27 +112,253 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 40,
   },
+  footer: {
+    position: "absolute",
+    bottom: 20,
+    left: 32,
+    right: 32,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    fontSize: 8,
+    color: "#94a3b8",
+  },
 });
+
+const PDF_FLEX_WEIGHTS = {
+  xs: 0.9,
+  sm: 1.15,
+  md: 1.5,
+  lg: 2.0,
+  xl: 3.0,
+};
+
+function getFlexWeight(widthPreset) {
+  if (!widthPreset || typeof widthPreset !== "string") return PDF_FLEX_WEIGHTS.md;
+  return PDF_FLEX_WEIGHTS[widthPreset] || PDF_FLEX_WEIGHTS.md;
+}
+
+function normalizeList(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => (typeof item === "string" ? item : item?.name || item?.familyName || item?.label))
+    .filter(Boolean);
+}
+
+function formatTimeCell(entry) {
+  const startMinutes = parseTimeToMinutes(entry.startTime);
+  const duration = typeof entry.duration === "number" ? Math.max(0, entry.duration) : 0;
+  const endMinutes = startMinutes + duration;
+  const start = minutesToTime12h(startMinutes);
+  const end = minutesToTime12h(endMinutes);
+  return { start, end, duration };
+}
+
+function getEffectiveColumns(schedule) {
+  const configured = Array.isArray(schedule?.columnConfig) ? schedule.columnConfig : null;
+  return configured && configured.length > 0 ? configured : DEFAULT_COLUMNS;
+}
+
+function getVisiblePreviewColumns(columns) {
+  const visible = (Array.isArray(columns) ? columns : [])
+    .filter((col) => col.visible !== false && col.width !== "hidden")
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  return visible.filter((col) => col.key !== "duration");
+}
+
+function buildActiveLaneTracks(tracks, sortedEntries) {
+  const orderedTracks = [...(tracks || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const sharedTrackIdsBase = new Set(
+    orderedTracks
+      .filter((track) => track.scope === "shared" || track.id === "shared")
+      .map((track) => track.id)
+  );
+
+  const legacySharedLaneTrackIds = new Set();
+  sortedEntries.forEach((entry) => {
+    if (entry.type !== "shot") return;
+    if (sharedTrackIdsBase.has(entry.trackId)) legacySharedLaneTrackIds.add(entry.trackId);
+  });
+
+  const sharedTrackIds = new Set(sharedTrackIdsBase);
+  legacySharedLaneTrackIds.forEach((id) => sharedTrackIds.delete(id));
+
+  const laneCandidateTracks = orderedTracks.filter((track) => !sharedTrackIds.has(track.id));
+  const sharedEntries = sortedEntries.filter((entry) => entry.type === "custom" && sharedTrackIds.has(entry.trackId));
+
+  const activeLaneTrackIds = new Set();
+  sortedEntries.forEach((entry) => {
+    if (sharedTrackIds.has(entry.trackId)) return;
+    activeLaneTrackIds.add(entry.trackId);
+  });
+  sharedEntries.forEach((entry) => {
+    if (!Array.isArray(entry.appliesToTrackIds) || entry.appliesToTrackIds.length === 0) return;
+    entry.appliesToTrackIds.forEach((trackId) => activeLaneTrackIds.add(trackId));
+  });
+  if (activeLaneTrackIds.size === 0 && sharedEntries.length > 0 && laneCandidateTracks.length > 0) {
+    activeLaneTrackIds.add(laneCandidateTracks[0].id);
+  }
+
+  const laneTracks = laneCandidateTracks.filter((track) => activeLaneTrackIds.has(track.id));
+  return { laneTracks, sharedTrackIds, sharedEntries };
+}
+
+function renderSingleTrackCell(entry, columnKey) {
+  const isShot = entry.type === "shot";
+  const isCustom = entry.type === "custom";
+
+  if (columnKey === "time") {
+    const { start, end, duration } = formatTimeCell(entry);
+    return (
+      <View>
+        <Text style={styles.timePrimary}>
+          {start}–{end}
+        </Text>
+        {duration ? <Text style={styles.timeSecondary}>{formatDuration(duration)}</Text> : null}
+      </View>
+    );
+  }
+
+  if (columnKey === "shot") {
+    return <Text>{isShot ? entry.shotNumber || "—" : "—"}</Text>;
+  }
+
+  if (columnKey === "description") {
+    const category = entry.customData?.category;
+    const badgeColor = category ? CUSTOM_ENTRY_CATEGORY_COLORS[category] : null;
+    const badgeLabel = category ? CUSTOM_ENTRY_CATEGORY_LABELS[category] : null;
+    const title = entry.resolvedTitle || entry.title || "—";
+    const details = entry.resolvedDetails || entry.description || "";
+    return (
+      <View>
+        {isCustom && badgeLabel ? (
+          <Text
+            style={[
+              styles.badge,
+              {
+                backgroundColor: badgeColor ? `${badgeColor}20` : "#e2e8f0",
+                color: badgeColor || "#475569",
+              },
+            ]}
+          >
+            {badgeLabel}
+          </Text>
+        ) : null}
+        <Text style={styles.entryTitle}>{title}</Text>
+        {details ? <Text style={styles.entryMeta}>{details}</Text> : null}
+      </View>
+    );
+  }
+
+  if (columnKey === "talent") {
+    const names = normalizeList(entry.resolvedTalent);
+    return <Text>{names.length ? names.join(", ") : "—"}</Text>;
+  }
+
+  if (columnKey === "products") {
+    const names = normalizeList(entry.resolvedProducts);
+    return <Text>{names.length ? names.join(", ") : "—"}</Text>;
+  }
+
+  if (columnKey === "location") {
+    return <Text>{entry.resolvedLocation || "—"}</Text>;
+  }
+
+  if (columnKey === "notes") {
+    return <Text>{entry.resolvedNotes || "—"}</Text>;
+  }
+
+  return <Text>—</Text>;
+}
+
+function renderEntryBlocks(entries, trackColor) {
+  if (!Array.isArray(entries) || entries.length === 0) return null;
+  return (
+    <View>
+      {entries.map((entry, index) => {
+        const isCustom = entry.type === "custom";
+        const category = entry.customData?.category;
+        const badgeColor = category ? CUSTOM_ENTRY_CATEGORY_COLORS[category] : null;
+        const badgeLabel = category ? CUSTOM_ENTRY_CATEGORY_LABELS[category] : null;
+        const title = entry.resolvedTitle || entry.title || "—";
+        const details = entry.resolvedDetails || entry.description || "";
+        const shotNumber = entry.shotNumber ? String(entry.shotNumber) : "";
+        const talent = normalizeList(entry.resolvedTalent);
+        const products = normalizeList(entry.resolvedProducts);
+        const location = entry.resolvedLocation ? String(entry.resolvedLocation) : "";
+        const notes = entry.resolvedNotes ? String(entry.resolvedNotes) : "";
+        const duration = typeof entry.duration === "number" ? Math.max(0, entry.duration) : 0;
+        const durationLabel = duration ? formatDuration(duration) : null;
+
+        return (
+          <View
+            key={entry.id}
+            style={{
+              borderWidth: 1,
+              borderColor: isCustom ? (badgeColor || "#94a3b8") : trackColor || "#94a3b8",
+              borderRadius: 6,
+              paddingVertical: 6,
+              paddingHorizontal: 6,
+              marginBottom: index === entries.length - 1 ? 0 : 6,
+              backgroundColor: isCustom
+                ? badgeColor
+                  ? `${badgeColor}14`
+                  : "#f1f5f9"
+                : trackColor
+                ? `${trackColor}10`
+                : "#f8fafc",
+            }}
+          >
+            {isCustom && badgeLabel ? (
+              <Text
+                style={[
+                  styles.badge,
+                  {
+                    backgroundColor: badgeColor ? `${badgeColor}20` : "#e2e8f0",
+                    color: badgeColor || "#475569",
+                  },
+                ]}
+              >
+                {badgeLabel}
+              </Text>
+            ) : null}
+            <Text style={styles.entryTitle}>
+              {shotNumber ? `${shotNumber} • ` : ""}
+              {title}
+            </Text>
+            {details ? <Text style={styles.entryMeta}>{details}</Text> : null}
+            {durationLabel ? <Text style={styles.entryMeta}>{durationLabel}</Text> : null}
+            {talent.length ? <Text style={styles.entryMeta}>Talent: {talent.slice(0, 5).join(", ")}</Text> : null}
+            {products.length ? <Text style={styles.entryMeta}>Products: {products.slice(0, 4).join(", ")}</Text> : null}
+            {location ? <Text style={styles.entryMeta}>Location: {location}</Text> : null}
+            {notes ? <Text style={styles.entryMeta}>Notes: {notes.slice(0, 160)}</Text> : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
 
 /**
  * PDF Document component for call sheet
  */
 const CallSheetPdfDocument = ({ schedule, entries, tracks }) => {
-  // Group entries by track
-  const entriesByTrack = useMemo(() => {
-    const grouped = new Map();
-    tracks.forEach((track) => grouped.set(track.id, []));
-    entries.forEach((entry) => {
-      const trackEntries = grouped.get(entry.trackId) || [];
-      trackEntries.push(entry);
-      grouped.set(entry.trackId, trackEntries);
+  const sortedEntries = useMemo(() => {
+    return [...(entries || [])].sort((a, b) => {
+      const am = parseTimeToMinutes(a.startTime);
+      const bm = parseTimeToMinutes(b.startTime);
+      if (am !== bm) return am - bm;
+      return (a.order ?? 0) - (b.order ?? 0);
     });
-    // Sort by start time within each track
-    grouped.forEach((trackEntries) => {
-      trackEntries.sort((a, b) => a.startTime.localeCompare(b.startTime));
-    });
-    return grouped;
-  }, [entries, tracks]);
+  }, [entries]);
+
+  const columns = useMemo(() => getEffectiveColumns(schedule), [schedule]);
+  const previewColumns = useMemo(() => getVisiblePreviewColumns(columns), [columns]);
+
+  const { laneTracks, sharedEntries, sharedTrackIds } = useMemo(() => {
+    return buildActiveLaneTracks(tracks, sortedEntries);
+  }, [tracks, sortedEntries]);
+
+  const isMultiTrack = laneTracks.length > 1;
 
   const formatDate = (date) => {
     if (!date) return "";
@@ -177,120 +371,155 @@ const CallSheetPdfDocument = ({ schedule, entries, tracks }) => {
     });
   };
 
+  const timeSlots = useMemo(() => {
+    const byTime = new Map();
+    const entriesForSlots = isMultiTrack
+      ? sortedEntries.filter((entry) => !(entry.type === "custom" && sharedTrackIds.has(entry.trackId)))
+      : sortedEntries;
+
+    entriesForSlots.forEach((entry) => {
+      const minutes = parseTimeToMinutes(entry.startTime);
+      const perTrack = byTime.get(minutes) || new Map();
+      const list = perTrack.get(entry.trackId) || [];
+      list.push(entry);
+      perTrack.set(entry.trackId, list);
+      byTime.set(minutes, perTrack);
+    });
+
+    if (isMultiTrack) {
+      sharedEntries.forEach((entry) => {
+        const minutes = parseTimeToMinutes(entry.startTime);
+        if (!byTime.has(minutes)) byTime.set(minutes, new Map());
+      });
+    }
+
+    return Array.from(byTime.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([minutes, perTrack]) => {
+        const sortedPerTrack = new Map();
+        for (const [trackId, list] of perTrack.entries()) {
+          sortedPerTrack.set(trackId, [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+        }
+        return { minutes, perTrack: sortedPerTrack };
+      });
+  }, [sortedEntries, isMultiTrack, sharedEntries, sharedTrackIds]);
+
+  const scheduleTitle = schedule?.name || "Schedule";
+  const scheduleSubtitle = formatDate(schedule?.date);
+
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        {/* Header */}
+      <Page size="LETTER" orientation={isMultiTrack ? "landscape" : "portrait"} style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.title}>{schedule?.name || "Call Sheet"}</Text>
-          <Text style={styles.subtitle}>{formatDate(schedule?.date)}</Text>
+          <Text style={styles.title}>{scheduleTitle}</Text>
+          <Text style={styles.subtitle}>{scheduleSubtitle}</Text>
         </View>
 
-        {/* Tracks and Entries */}
-        {tracks.map((track) => {
-          const trackEntries = entriesByTrack.get(track.id) || [];
-          if (trackEntries.length === 0) return null;
-
-          return (
-            <View key={track.id} style={styles.trackSection} wrap={false}>
-              {/* Track Header */}
-              <View style={styles.trackHeader}>
-                <View style={[styles.trackDot, { backgroundColor: track.color }]} />
-                <Text style={styles.trackName}>{track.name}</Text>
-              </View>
-
-              {/* Entries */}
-              {trackEntries.map((entry) => {
-                const isCustom = entry.type === "custom";
-                const category = entry.customData?.category;
-                const categoryColor = category
-                  ? CUSTOM_ENTRY_CATEGORY_COLORS[category]
-                  : null;
-
-                return (
-                  <View key={entry.id} style={styles.entryRow} wrap={false}>
-                    {/* Time */}
-                    <View style={styles.timeCol}>
-                      <Text style={styles.timeText}>
-                        {minutesToTime12h(entry.startTime)}
-                      </Text>
-                      <Text style={styles.timeEndText}>
-                        → {minutesToTime12h(calculateEndTime(entry.startTime, entry.duration))}
-                      </Text>
-                    </View>
-
-                    {/* Duration */}
-                    <View style={styles.durationCol}>
-                      <Text style={styles.durationText}>
-                        {formatDuration(entry.duration)}
-                      </Text>
-                    </View>
-
-                    {/* Title/Description */}
-                    <View style={styles.titleCol}>
-                      {isCustom && category && (
-                        <Text
-                          style={[
-                            styles.categoryBadge,
-                            {
-                              backgroundColor: categoryColor ? `${categoryColor}20` : "#f1f5f9",
-                              color: categoryColor || "#64748b",
-                            },
-                          ]}
-                        >
-                          {CUSTOM_ENTRY_CATEGORY_LABELS[category]}
-                        </Text>
-                      )}
-                      <Text style={styles.titleText}>
-                        {entry.resolvedTitle || "Untitled"}
-                      </Text>
-                      {entry.resolvedNotes && (
-                        <Text style={styles.notesText}>
-                          {entry.resolvedNotes}
-                        </Text>
-                      )}
-                    </View>
-
-                    {/* Details */}
-                    <View style={styles.detailsCol}>
-                      {entry.resolvedTalent?.length > 0 && (
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>Talent:</Text>
-                          <Text style={styles.detailValue}>
-                            {entry.resolvedTalent.join(", ")}
-                          </Text>
-                        </View>
-                      )}
-                      {entry.resolvedProducts?.length > 0 && (
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>Products:</Text>
-                          <Text style={styles.detailValue}>
-                            {entry.resolvedProducts.join(", ")}
-                          </Text>
-                        </View>
-                      )}
-                      {entry.resolvedLocation && (
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>Location:</Text>
-                          <Text style={styles.detailValue}>
-                            {entry.resolvedLocation}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          );
-        })}
-
-        {/* Empty state */}
-        {entries.length === 0 && (
+        {sortedEntries.length === 0 ? (
           <Text style={styles.emptyState}>No entries in schedule</Text>
+        ) : (
+          <View style={styles.table}>
+            {isMultiTrack ? (
+              <>
+                <View style={styles.headerRow}>
+                  <View style={[styles.cell, styles.cellBorderRight, { width: 90 }]}>
+                    <Text style={styles.headerCellText}>Time</Text>
+                  </View>
+                  {laneTracks.map((track, index) => (
+                    <View
+                      key={track.id}
+                      style={[
+                        styles.cell,
+                        index < laneTracks.length - 1 ? styles.cellBorderRight : null,
+                        { flexGrow: 1, flexBasis: 0 },
+                      ]}
+                    >
+                      <Text style={styles.headerCellText}>{track.name}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {timeSlots.map((slot) => {
+                  const sharedAtTime = sharedEntries.filter(
+                    (entry) => parseTimeToMinutes(entry.startTime) === slot.minutes
+                  );
+
+                  return (
+                    <View key={slot.minutes} wrap={false}>
+                      <View style={styles.row}>
+                        <View style={[styles.cell, styles.cellBorderRight, { width: 90 }]}>
+                          <Text style={styles.timePrimary}>{minutesToTime12h(slot.minutes)}</Text>
+                        </View>
+                        {laneTracks.map((track, index) => (
+                          <View
+                            key={`${slot.minutes}-${track.id}`}
+                            style={[
+                              styles.cell,
+                              index < laneTracks.length - 1 ? styles.cellBorderRight : null,
+                              { flexGrow: 1, flexBasis: 0 },
+                            ]}
+                          >
+                            {renderEntryBlocks(slot.perTrack.get(track.id), track.color)}
+                          </View>
+                        ))}
+                      </View>
+
+                      {sharedAtTime.length ? (
+                        <View style={styles.row}>
+                          <View style={[styles.cell, styles.cellBorderRight, { width: 90 }]} />
+                          <View style={[styles.cell, { flexGrow: 1, flexBasis: 0 }]}>
+                            {renderEntryBlocks(sharedAtTime, "#64748B")}
+                          </View>
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </>
+            ) : (
+              <>
+                <View style={styles.headerRow}>
+                  {previewColumns.map((col, idx) => {
+                    const widthPreset = col.width || "md";
+                    const cellStyle = [
+                      styles.cell,
+                      idx < previewColumns.length - 1 ? styles.cellBorderRight : null,
+                      col.key === "time"
+                        ? { width: 84, flexShrink: 0 }
+                        : { flexGrow: getFlexWeight(widthPreset), flexBasis: 0, flexShrink: 1 },
+                    ];
+                    return (
+                      <View key={col.key} style={cellStyle}>
+                        <Text style={styles.headerCellText}>{col.label}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                {sortedEntries.map((entry) => (
+                  <View key={entry.id} style={styles.row} wrap={false}>
+                    {previewColumns.map((col, idx) => {
+                      const widthPreset = col.width || "md";
+                      const cellStyle = [
+                        styles.cell,
+                        idx < previewColumns.length - 1 ? styles.cellBorderRight : null,
+                        col.key === "time"
+                          ? { width: 84, flexShrink: 0 }
+                          : { flexGrow: getFlexWeight(widthPreset), flexBasis: 0, flexShrink: 1 },
+                      ];
+                      return (
+                        <View key={`${entry.id}-${col.key}`} style={cellStyle}>
+                          {renderSingleTrackCell(entry, col.key)}
+                        </View>
+                      );
+                    })}
+                  </View>
+                ))}
+              </>
+            )}
+          </View>
         )}
 
-        {/* Footer */}
         <View style={styles.footer} fixed>
           <Text>Generated {new Date().toLocaleDateString()}</Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
@@ -312,14 +541,15 @@ function CallSheetExportModal({
 }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const pdfDocument = useMemo(() => {
+    return <CallSheetPdfDocument schedule={schedule} entries={entries} tracks={tracks} />;
+  }, [schedule, entries, tracks]);
 
   // Generate PDF blob
   const generatePdf = useCallback(async () => {
     setIsGenerating(true);
     try {
-      const doc = <CallSheetPdfDocument schedule={schedule} entries={entries} tracks={tracks} />;
-      const blob = await pdf(doc).toBlob();
+      const blob = await pdf(pdfDocument).toBlob();
       return blob;
     } catch (error) {
       console.error("Error generating PDF:", error);
@@ -327,7 +557,7 @@ function CallSheetExportModal({
     } finally {
       setIsGenerating(false);
     }
-  }, [schedule, entries, tracks]);
+  }, [pdfDocument]);
 
   // Handle download
   const handleDownload = useCallback(async () => {
@@ -347,34 +577,25 @@ function CallSheetExportModal({
     }
   }, [generatePdf, schedule?.name, onClose]);
 
-  // Handle preview toggle
-  const handlePreviewToggle = useCallback(async () => {
-    if (showPreview) {
-      setShowPreview(false);
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(null);
-      }
-    } else {
-      try {
-        const blob = await generatePdf();
-        const url = URL.createObjectURL(blob);
-        setPreviewUrl(url);
-        setShowPreview(true);
-      } catch (error) {
-        console.error("Preview failed:", error);
-      }
-    }
-  }, [showPreview, previewUrl, generatePdf]);
+  const handlePrintPreview = useCallback(() => {
+    const body = document?.body;
+    if (!body) return;
 
-  // Cleanup on close
-  React.useEffect(() => {
-    if (!isOpen && previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-      setShowPreview(false);
-    }
-  }, [isOpen, previewUrl]);
+    const cleanup = () => {
+      body.removeAttribute("data-callsheet-printing");
+      window.removeEventListener("afterprint", cleanup);
+    };
+
+    window.addEventListener("afterprint", cleanup);
+    body.setAttribute("data-callsheet-printing", "1");
+    onClose?.();
+    window.setTimeout(() => window.print(), 50);
+  }, [onClose]);
+
+  // Handle preview toggle
+  const handlePreviewToggle = useCallback(() => {
+    setShowPreview((prev) => !prev);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -445,6 +666,20 @@ function CallSheetExportModal({
             {/* Actions */}
             <div className="space-y-3">
               <Button
+                onClick={handlePrintPreview}
+                disabled={isGenerating}
+                className="w-full gap-2"
+              >
+                {isGenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Printer className="h-4 w-4" />
+                )}
+                Print / Save as PDF (matches preview)
+              </Button>
+
+              <Button
+                variant="outline"
                 onClick={handleDownload}
                 disabled={isGenerating}
                 className="w-full gap-2"
@@ -454,7 +689,7 @@ function CallSheetExportModal({
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
-                Download PDF
+                Download PDF (legacy)
               </Button>
 
               <Button
@@ -468,7 +703,7 @@ function CallSheetExportModal({
                 ) : (
                   <Eye className="h-4 w-4" />
                 )}
-                {showPreview ? "Hide Preview" : "Show Preview"}
+                {showPreview ? "Hide PDF Preview" : "Show PDF Preview"}
               </Button>
             </div>
           </div>
@@ -476,24 +711,15 @@ function CallSheetExportModal({
           {/* Preview panel */}
           {showPreview && (
             <div className="flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-800">
-              {previewUrl ? (
-                <Suspense
-                  fallback={
-                    <div className="flex h-full items-center justify-center">
-                      <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                    </div>
-                  }
-                >
-                  <PdfPagePreview
-                    url={previewUrl}
-                    className="mx-auto rounded-lg shadow-lg"
-                  />
-                </Suspense>
-              ) : (
-                <div className="flex h-full items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                </div>
-              )}
+              <Suspense
+                fallback={
+                  <div className="flex h-full items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                  </div>
+                }
+              >
+                <PdfPagePreview document={pdfDocument} className="mx-auto rounded-lg shadow-lg" />
+              </Suspense>
             </div>
           )}
         </div>
