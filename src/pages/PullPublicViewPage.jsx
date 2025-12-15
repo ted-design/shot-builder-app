@@ -10,6 +10,7 @@ import { db } from "../lib/firebase";
 import { normalizePullItem, sortPullItemsByGender, getPullItemDisplayName, getTotalQuantity } from "../lib/pullItems";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import PullItemsTable from "../components/pulls/PullItemsTable";
+import PullPublicResponder from "../components/pulls/PullPublicResponder";
 
 export default function PullPublicViewPage() {
   const { shareToken } = useParams();
@@ -104,6 +105,7 @@ export default function PullPublicViewPage() {
     return null;
   }
 
+  const canRespond = !!pull.shareAllowResponses;
   const items = (pull.items || []).map((item) => normalizePullItem(item));
   const sortedItems = sortPullItemsByGender(items);
 
@@ -125,7 +127,7 @@ export default function PullPublicViewPage() {
             <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300">
               Shared View
             </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400">Read-only</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">{canRespond ? "Respond enabled" : "Read-only"}</span>
           </div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{pull.title || "Pull Sheet"}</h1>
           <div className="mt-1 flex gap-4 text-sm text-slate-600 dark:text-slate-400">
@@ -139,6 +141,20 @@ export default function PullPublicViewPage() {
           </div>
         </div>
 
+        {canRespond ? (
+          <PullPublicResponder
+            shareToken={shareToken}
+            pull={pull}
+            onPullUpdated={(updatedPull) => {
+              setPull((prev) => ({
+                ...(prev || {}),
+                ...(updatedPull || {}),
+                items: updatedPull?.items || prev?.items || [],
+              }));
+            }}
+          />
+        ) : null}
+
         {/* Pull Items */}
         <Card>
           <CardHeader>
@@ -151,7 +167,9 @@ export default function PullPublicViewPage() {
 
         {/* Footer */}
         <div className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
-          This is a read-only view. Contact the pull creator to request changes.
+          {canRespond
+            ? "Updates are submitted using your email address and recorded on the pull sheet."
+            : "This is a read-only view. Contact the pull creator to request changes."}
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import AppImage from "../common/AppImage";
 import { formatNotesForDisplay } from "../../lib/sanitize";
 import { db } from "../../lib/firebase";
 import { MEASUREMENT_LABEL_MAP, orderMeasurementKeys } from "./measurementOptions";
+import { getMeasurementDisplayValue } from "../../lib/measurements";
 
 const formatContactLine = (talent) => {
   const parts = [talent?.phone, talent?.email].filter(Boolean);
@@ -177,7 +178,7 @@ export default function TalentDetailModal({ open, talent, onClose, onEdit, canEd
                     {measurementKeys.map((key) => (
                       <div key={key} className="flex justify-between gap-3">
                         <dt className="text-slate-500">{MEASUREMENT_LABEL_MAP[key] || key}</dt>
-                        <dd className="text-right">{talent.measurements?.[key]}</dd>
+                        <dd className="text-right">{getMeasurementDisplayValue(key, talent.measurements?.[key])}</dd>
                       </div>
                     ))}
                   </dl>

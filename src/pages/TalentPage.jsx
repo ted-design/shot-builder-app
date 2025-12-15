@@ -30,6 +30,7 @@ import { writeDoc } from "../lib/firestoreWrites";
 import { toast, showConfirm } from "../lib/toast";
 import { talentPath } from "../lib/paths";
 import { ROLE, canManageTalent } from "../lib/rbac";
+import { normalizeMeasurementsMap } from "../lib/measurements";
 import { LayoutGrid, Table, User, Upload } from "lucide-react";
 import { readStorage, writeStorage } from "../lib/safeStorage";
 import { nanoid } from "nanoid";
@@ -60,20 +61,6 @@ const getNotesPreview = (talentRecord, maxLength = 140) => {
   if (!plain) return "";
   if (plain.length <= maxLength) return plain;
   return `${plain.slice(0, maxLength).trim()}…`;
-};
-
-const normalizeMeasurements = (input) => {
-  if (!input || typeof input !== "object") return {};
-  const result = {};
-  Object.entries(input).forEach(([key, value]) => {
-    const trimmed = typeof value === "string" ? value.trim() : value;
-    if (trimmed === undefined || trimmed === null) return;
-    const stringValue = String(trimmed).trim();
-    if (stringValue) {
-      result[key] = stringValue;
-    }
-  });
-  return result;
 };
 
 const normaliseGalleryOrder = (items = []) =>
@@ -204,7 +191,7 @@ const readFieldPrefs = () => {
   return { visibility, order, locked };
 };
 
-function TalentCard({ talent, canManage, onEdit, onView, editDisabled, visibility, densityKey }) {
+function TalentCard({ talent, canManage, onView, editDisabled, visibility, densityKey }) {
   const displayName = talent.name || buildDisplayName(talent.firstName, talent.lastName);
   const contactLine = formatContact(talent);
   const notesPreview = getNotesPreview(talent);
@@ -275,13 +262,7 @@ function TalentCard({ talent, canManage, onEdit, onView, editDisabled, visibilit
           <Button size="sm" variant="outline" onClick={() => onView?.(talent)} disabled={editDisabled}>
             View
           </Button>
-          {canManage ? (
-            <Button size="sm" variant="secondary" onClick={() => onEdit(talent)} disabled={editDisabled}>
-              Edit
-            </Button>
-          ) : (
-            <div className="text-xs text-slate-500 dark:text-slate-400">Read only</div>
-          )}
+          {!canManage && <div className="text-xs text-slate-500 dark:text-slate-400">Read only</div>}
         </div>
       </CardContent>
     </Card>
@@ -308,7 +289,7 @@ function CreateTalentCard({ onClick, disabled }) {
   );
 }
 
-function TalentRowMenu({ talent, open, onClose, onEdit, onView }) {
+function TalentRowMenu({ talent, open, onClose, onView }) {
   if (!open) return null;
 
   return (
@@ -331,17 +312,6 @@ function TalentRowMenu({ talent, open, onClose, onEdit, onView }) {
           View details
         </button>
       )}
-      <button
-        type="button"
-        role="menuitem"
-        className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
-        onClick={() => {
-          onEdit?.(talent);
-          onClose();
-        }}
-      >
-        Edit
-      </button>
     </div>
   );
 }
@@ -559,7 +529,7 @@ export default function TalentPage() {
     try {
       const notesHtml = notes || sizing || "";
       const notesPlain = stripHtml(notesHtml || "");
-      const measurementData = normalizeMeasurements(measurements);
+      const measurementData = normalizeMeasurementsMap(measurements);
       const docRef = await writeDoc("create talent", () =>
         addDoc(collection(db, ...currentTalentPath), {
           firstName: first,
@@ -731,7 +701,7 @@ export default function TalentPage() {
         patch.sizing = stripHtml(notesHtml);
       }
       if (Object.prototype.hasOwnProperty.call(updates, "measurements")) {
-        patch.measurements = normalizeMeasurements(updates.measurements);
+        patch.measurements = normalizeMeasurementsMap(updates.measurements);
       }
       if (Object.prototype.hasOwnProperty.call(updates, "galleryImages")) {
         const nextGallery = Array.isArray(updates.galleryImages) ? updates.galleryImages : [];
@@ -867,7 +837,6 @@ export default function TalentPage() {
                               talent={entry}
                               open={rowMenuId === entry.id}
                               onClose={() => setRowMenuId(null)}
-                              onEdit={setEditTarget}
                               onView={setDetailTarget}
                             />
                           </div>
@@ -1051,7 +1020,6 @@ export default function TalentPage() {
               key={entry.id}
               talent={entry}
               canManage={canManage}
-              onEdit={setEditTarget}
               onView={setDetailTarget}
               editDisabled={editBusy && editTarget?.id === entry.id}
               visibility={resolvedVisibility}

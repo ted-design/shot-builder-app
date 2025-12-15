@@ -183,6 +183,261 @@ exports.resolvePullShareToken = functions
     }
   });
 
+const isValidEmail = (email) => {
+  if (!email || typeof email !== "string") return false;
+  const trimmed = email.trim();
+  if (!trimmed) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+};
+
+const coerceInt = (value, { min = null, max = null } = {}) => {
+  const number = typeof value === "number" ? value : Number(String(value ?? "").trim());
+  if (!Number.isFinite(number)) return null;
+  const rounded = Math.round(number);
+  if (min !== null && rounded < min) return min;
+  if (max !== null && rounded > max) return max;
+  return rounded;
+};
+
+const calculateItemFulfillment = (item) => {
+  if (!item || !Array.isArray(item.sizes) || item.sizes.length === 0) return "pending";
+
+  let totalRequested = 0;
+  let totalFulfilled = 0;
+  let hasSubstitution = false;
+
+  item.sizes.forEach((size) => {
+    totalRequested += size.quantity || 0;
+    totalFulfilled += size.fulfilled || 0;
+    if (size.status === "substituted") hasSubstitution = true;
+  });
+
+  if (hasSubstitution) return "substituted";
+  if (totalFulfilled <= 0) return "pending";
+  if (totalFulfilled >= totalRequested) return "fulfilled";
+  return "partial";
+};
+
+const generatePublicItemId = () => {
+  try {
+    // Node 18+ supports crypto.randomUUID
+    // eslint-disable-next-line global-require
+    const { randomUUID } = require("crypto");
+    if (typeof randomUUID === "function") return `public-${randomUUID()}`;
+  } catch {
+    // Ignore and fall back
+  }
+  return `public-${Math.random().toString(36).slice(2)}`;
+};
+
+/**
+ * Callable: publicUpdatePull (Cloud Functions v1)
+ * Allows unauthenticated updates to a shared pull when:
+ * - shareEnabled=true
+ * - shareToken matches
+ * - shareAllowResponses=true
+ * Warehouse crew supplies an email for attribution (not verified).
+ *
+ * data: {
+ *   shareToken: string,
+ *   email: string,
+ *   actions: Array<
+ *     | { type: "updateFulfillment", itemId: string, sizes: Array<{ size: string, fulfilled: number, status?: string }> }
+ *     | { type: "addItem", item: { familyName: string, styleNumber?: string|null, gender?: string|null, notes?: string|null, sizes: Array<{ size: string, quantity: number }> } }
+ *   >
+ * }
+ */
+exports.publicUpdatePull = functions
+  .region("northamerica-northeast1")
+  .https.onCall(async (data) => {
+    const payload = data || {};
+    const shareToken = payload.shareToken;
+    const email = payload.email;
+    const actions = Array.isArray(payload.actions) ? payload.actions : [];
+
+    if (!shareToken || typeof shareToken !== "string" || shareToken.length < 10) {
+      throw new functions.https.HttpsError("invalid-argument", "Invalid share token.");
+    }
+
+    if (!isValidEmail(email)) {
+      throw new functions.https.HttpsError("invalid-argument", "A valid email is required.");
+    }
+
+    if (actions.length === 0) {
+      throw new functions.https.HttpsError("invalid-argument", "No actions provided.");
+    }
+
+    const db = admin.firestore();
+
+    const pullsQuery = db.collectionGroup("pulls")
+      .where("shareToken", "==", shareToken)
+      .where("shareEnabled", "==", true)
+      .limit(1);
+
+    const snapshot = await pullsQuery.get();
+    if (snapshot.empty) {
+      throw new functions.https.HttpsError("not-found", "Pull not found or sharing is disabled.");
+    }
+
+    const pullDoc = snapshot.docs[0];
+
+    const result = await db.runTransaction(async (tx) => {
+      const freshSnap = await tx.get(pullDoc.ref);
+      if (!freshSnap.exists) {
+        throw new functions.https.HttpsError("not-found", "Pull not found.");
+      }
+
+      const pullData = freshSnap.data() || {};
+
+      if (!pullData.shareEnabled || pullData.shareToken !== shareToken) {
+        throw new functions.https.HttpsError("permission-denied", "Sharing is disabled for this pull.");
+      }
+
+      if (!pullData.shareAllowResponses) {
+        throw new functions.https.HttpsError("permission-denied", "Responses are disabled for this pull.");
+      }
+
+      if (pullData.shareExpireAt) {
+        const expireDate = pullData.shareExpireAt.toDate ? pullData.shareExpireAt.toDate() : new Date(pullData.shareExpireAt);
+        if (expireDate < new Date()) {
+          throw new functions.https.HttpsError("failed-precondition", "Share link has expired.");
+        }
+      }
+
+      const existingItems = Array.isArray(pullData.items) ? pullData.items.slice() : [];
+      const updatedItems = existingItems.map((item) => ({ ...item, sizes: Array.isArray(item.sizes) ? item.sizes.map((s) => ({ ...s })) : [] }));
+
+      const activityEntries = [];
+
+      actions.forEach((action) => {
+        if (!action || typeof action !== "object") return;
+
+        if (action.type === "updateFulfillment") {
+          const itemId = action.itemId;
+          const sizes = Array.isArray(action.sizes) ? action.sizes : [];
+          if (!itemId || typeof itemId !== "string" || sizes.length === 0) return;
+
+          const idx = updatedItems.findIndex((it) => it.id === itemId);
+          if (idx < 0) return;
+
+          const item = updatedItems[idx];
+          const nextSizes = Array.isArray(item.sizes) ? item.sizes.map((s) => ({ ...s })) : [];
+
+          const updatesApplied = [];
+          sizes.forEach((sizeUpdate) => {
+            const sizeLabel = sizeUpdate?.size;
+            if (!sizeLabel || typeof sizeLabel !== "string") return;
+
+            const sizeIdx = nextSizes.findIndex((s) => s.size === sizeLabel);
+            if (sizeIdx < 0) return;
+
+            const current = nextSizes[sizeIdx];
+            const quantity = typeof current.quantity === "number" ? current.quantity : 0;
+            const nextFulfilled = coerceInt(sizeUpdate.fulfilled, { min: 0, max: quantity });
+            if (nextFulfilled === null) return;
+
+            const allowedStatuses = new Set(["pending", "fulfilled", "substituted"]);
+            const requestedStatus = typeof sizeUpdate.status === "string" ? sizeUpdate.status : null;
+            const derivedStatus = nextFulfilled >= quantity ? "fulfilled" : nextFulfilled > 0 ? "pending" : "pending";
+            const nextStatus = requestedStatus && allowedStatuses.has(requestedStatus)
+              ? requestedStatus
+              : derivedStatus;
+
+            nextSizes[sizeIdx] = { ...current, fulfilled: nextFulfilled, status: nextStatus };
+            updatesApplied.push({ size: sizeLabel, fulfilled: nextFulfilled, status: nextStatus });
+          });
+
+          const nextItem = { ...item, sizes: nextSizes };
+          nextItem.fulfillmentStatus = calculateItemFulfillment(nextItem);
+          updatedItems[idx] = nextItem;
+
+          if (updatesApplied.length) {
+            activityEntries.push({
+              type: "fulfillment",
+              itemId,
+              sizes: updatesApplied,
+            });
+          }
+        }
+
+        if (action.type === "addItem") {
+          const itemInput = action.item || {};
+          const familyName = typeof itemInput.familyName === "string" ? itemInput.familyName.trim() : "";
+          const sizesInput = Array.isArray(itemInput.sizes) ? itemInput.sizes : [];
+          if (!familyName || sizesInput.length === 0) return;
+
+          const normalizedSizes = sizesInput
+            .map((entry) => {
+              const sizeLabel = typeof entry.size === "string" ? entry.size.trim() : "";
+              if (!sizeLabel) return null;
+              const quantity = coerceInt(entry.quantity, { min: 1, max: 999 });
+              if (quantity === null) return null;
+              return { size: sizeLabel, quantity, fulfilled: 0, status: "pending" };
+            })
+            .filter(Boolean);
+
+          if (!normalizedSizes.length) return;
+
+          const newItem = {
+            id: generatePublicItemId(),
+            familyId: generatePublicItemId(),
+            familyName,
+            styleNumber: typeof itemInput.styleNumber === "string" && itemInput.styleNumber.trim()
+              ? itemInput.styleNumber.trim()
+              : null,
+            colourId: null,
+            colourName: null,
+            colourImagePath: null,
+            sizes: normalizedSizes,
+            notes: typeof itemInput.notes === "string" ? itemInput.notes.trim() : "",
+            gender: typeof itemInput.gender === "string" && itemInput.gender.trim() ? itemInput.gender.trim() : null,
+            category: null,
+            genderOverride: null,
+            categoryOverride: null,
+            fulfillmentStatus: "pending",
+            shotIds: [],
+            publicCreatedByEmail: String(email).trim(),
+          };
+
+          newItem.fulfillmentStatus = calculateItemFulfillment(newItem);
+          updatedItems.push(newItem);
+
+          activityEntries.push({
+            type: "addItem",
+            itemId: newItem.id,
+            familyName: newItem.familyName,
+            sizes: newItem.sizes.map((s) => ({ size: s.size, quantity: s.quantity })),
+          });
+        }
+      });
+
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      tx.update(pullDoc.ref, {
+        items: updatedItems,
+        updatedAt: now,
+        lastPublicUpdateAt: now,
+        lastPublicUpdateEmail: String(email).trim(),
+      });
+
+      activityEntries.forEach((entry) => {
+        const ref = pullDoc.ref.collection("publicActivity").doc();
+        tx.set(ref, {
+          createdAt: now,
+          email: String(email).trim(),
+          entry,
+        });
+      });
+
+      return {
+        id: pullDoc.id,
+        title: pullData.title || pullData.name || "",
+        items: updatedItems,
+      };
+    });
+
+    return { ok: true, pull: result };
+  });
+
 /**
  * Scheduled: cleanupVersionsAndLocks (Cloud Functions v1)
  * Runs every hour to clean up:

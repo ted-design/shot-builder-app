@@ -1085,10 +1085,19 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
     }
   };
 
-  const handleGenerateShareLink = async (token) => {
+  const handleGenerateShareLink = async (token, options = {}) => {
+    const allowResponses = options?.allowResponses === false ? false : true;
     await updateDoc(doc(db, ...pullsPath(projectId, clientId), pull.id), {
       shareToken: token,
       shareEnabled: true,
+      shareAllowResponses: allowResponses,
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  const handleSetShareAllowResponses = async (enabled) => {
+    await updateDoc(doc(db, ...pullsPath(projectId, clientId), pull.id), {
+      shareAllowResponses: !!enabled,
       updatedAt: serverTimestamp(),
     });
   };
@@ -1096,6 +1105,7 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
   const handleRevokeShareLink = async () => {
     await updateDoc(doc(db, ...pullsPath(projectId, clientId), pull.id), {
       shareEnabled: false,
+      shareAllowResponses: false,
       updatedAt: serverTimestamp(),
     });
   };
@@ -1326,6 +1336,7 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
         <PullShareModal
           pull={pull}
           onGenerateLink={handleGenerateShareLink}
+          onSetResponsesEnabled={handleSetShareAllowResponses}
           onRevokeLink={handleRevokeShareLink}
           onClose={() => setShareModalOpen(false)}
         />

@@ -9,7 +9,6 @@ import { adaptUser } from "../auth/adapter";
 import { roleLabel } from "../lib/rbac";
 import { projectPath } from "../lib/paths";
 import { SkipLink } from "../components/ui/SkipLink";
-import ProjectIndicator from "../components/ui/ProjectIndicator";
 import QuickActionsMenu from "../components/ui/QuickActionsMenu";
 import Avatar from "../components/ui/Avatar";
 import Breadcrumb from "../components/ui/Breadcrumb";
@@ -211,17 +210,16 @@ function UserMenu({ userLabel, navRoleLabel, userEmail, userPhotoUrl, onSignOut 
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="hidden items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light md:flex"
+        className="hidden items-center gap-2 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/80 dark:focus-visible:ring-primary-light md:flex"
         aria-haspopup="true"
         aria-expanded={isOpen}
       >
         <Avatar
           name={userLabel}
           email={userEmail}
-          photoUrl={userPhotoUrl}
+          photoUrl={null}
           size="sm"
         />
-        <span className="max-w-[120px] truncate">{userLabel}</span>
         <ChevronDown
           className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
         />
@@ -395,7 +393,6 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
 
           {/* Actions */}
           <div className="flex items-center gap-2 md:gap-3">
-            <ProjectIndicator />
             <QuickActionsMenu />
             <NotificationBell />
             <button

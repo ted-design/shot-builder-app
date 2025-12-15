@@ -31,3 +31,20 @@ if (typeof globalThis.ResizeObserver === "undefined") {
 if (!HTMLElement.prototype.scrollIntoView) {
   HTMLElement.prototype.scrollIntoView = function scrollIntoView() {};
 }
+
+// matchMedia is not implemented in jsdom; provide a minimal stub so components
+// relying on media queries (e.g. prefers-reduced-motion) can render in tests.
+// @ts-ignore
+if (typeof window !== "undefined" && typeof window.matchMedia === "undefined") {
+  // @ts-ignore
+  window.matchMedia = (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  });
+}
