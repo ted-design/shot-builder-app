@@ -110,7 +110,7 @@ export interface ScheduleSettings {
 export const DEFAULT_SCHEDULE_SETTINGS: ScheduleSettings = {
   showDurations: true,
   cascadeChanges: true,
-  defaultEntryDuration: 30,
+  defaultEntryDuration: 15,
   dayStartTime: "06:00",
   timeIncrement: 15,
 };

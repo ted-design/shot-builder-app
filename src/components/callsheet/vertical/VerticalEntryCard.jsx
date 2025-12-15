@@ -7,6 +7,7 @@ import {
   Clock,
   MapPin,
   FileText,
+  Pencil,
   Trash2,
   Image as ImageIcon,
   ChevronDown,
@@ -71,6 +72,7 @@ function formatDuration(minutes) {
  * @param {Function} props.onNotesChange - Notes change callback
  * @param {Function} props.onLocationChange - Location change callback
  * @param {Function} props.onTrackChange - Track change callback
+ * @param {Function} props.onEditCustom - Edit callback for custom items
  * @param {Function} props.onDelete - Delete callback
  */
 function VerticalEntryCard({
@@ -86,6 +88,7 @@ function VerticalEntryCard({
   onNotesChange,
   onLocationChange,
   onTrackChange,
+  onEditCustom,
   onDelete,
 }) {
   const [isTimeMenuOpen, setIsTimeMenuOpen] = useState(false);
@@ -525,6 +528,22 @@ function VerticalEntryCard({
 
         {/* Spacer */}
         <div className="flex-1" />
+
+        {!isShot && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditCustom?.(entry);
+            }}
+            className="h-7 px-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+            title="Edit banner"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+        )}
 
         {/* Delete button */}
         <Button

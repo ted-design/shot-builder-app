@@ -1,15 +1,14 @@
 // src/components/callsheet/vertical/CallSheetPreview.jsx
 // Live preview table for the call sheet (SetHero style right panel)
 
-import React, { useMemo } from "react";
-import { Clock, Calendar, Users, FileText, Settings, ChevronDown, Check, Image as ImageIcon } from "lucide-react";
+import React, { useMemo, useEffect, useState } from "react";
+import { Clock, Calendar, Users, FileText, ChevronDown, Check, Image as ImageIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../ui/dropdown-menu";
-import { Button } from "../../ui/button";
 
 import {
   DEFAULT_COLUMNS,
@@ -26,7 +25,6 @@ const WIDTH_OPTIONS = [
   { value: "md", label: "M", desc: "Medium" },
   { value: "lg", label: "L", desc: "Large" },
   { value: "xl", label: "XL", desc: "Extra Large" },
-  { value: "hidden", label: "Hide", desc: "Hidden" },
 ];
 
 /**
@@ -92,9 +90,10 @@ function withAlpha(hex, alphaHex) {
 /**
  * Render cell content based on column key
  */
-function renderCellContent(columnKey, entry) {
+function renderCellContent(columnKey, entry, options = {}) {
   const isShot = entry.type === "shot";
   const isCustom = !isShot;
+  const showImages = options.showImages !== false;
 
   switch (columnKey) {
     case "time":
@@ -133,7 +132,7 @@ function renderCellContent(columnKey, entry) {
             </span>
           )}
           <div className="flex items-start gap-2">
-		            {isShot && entry.resolvedImage && (
+		            {isShot && showImages && entry.resolvedImage && (
 		              <div className="mt-0.5 w-14 flex-shrink-0 overflow-hidden rounded bg-slate-100 dark:bg-slate-700 aspect-[4/3] flex items-center justify-center">
 		                <AppImage
 		                  src={entry.resolvedImage}
@@ -202,7 +201,7 @@ function renderCellContent(columnKey, entry) {
       );
     case "notes":
       return entry.resolvedNotes ? (
-        <span className="line-clamp-2 text-slate-600 dark:text-slate-400">
+        <span className="line-clamp-2 break-words text-slate-600 dark:text-slate-400">
           {entry.resolvedNotes}
         </span>
       ) : (
@@ -222,8 +221,8 @@ function renderCellContent(columnKey, entry) {
  * @param {Array} props.tracks - Tracks array
  * @param {Array} props.columnConfig - Column configuration (optional)
  * @param {number} props.zoomLevel - Preview zoom level (0.75, 1, 1.25)
+ * @param {boolean} props.showImages - Whether to show images in preview
  * @param {Function} props.onColumnResize - Callback when column size changes (key, newWidth)
- * @param {Function} props.onOpenColumnConfig - Callback to open full column config modal
  */
 function CallSheetPreview({
   schedule,
@@ -231,9 +230,21 @@ function CallSheetPreview({
   tracks = [],
   columnConfig,
   zoomLevel = 1,
+  showImages = true,
   onColumnResize,
-  onOpenColumnConfig,
 }) {
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  useEffect(() => {
+    const handleBefore = () => setIsPrinting(true);
+    const handleAfter = () => setIsPrinting(false);
+    window.addEventListener("beforeprint", handleBefore);
+    window.addEventListener("afterprint", handleAfter);
+    return () => {
+      window.removeEventListener("beforeprint", handleBefore);
+      window.removeEventListener("afterprint", handleAfter);
+    };
+  }, []);
   // Sort entries by start time
   const sortedEntries = useMemo(() => {
     return sortEntriesByTime(entries);
@@ -270,7 +281,7 @@ function CallSheetPreview({
     return [...tracks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }, [tracks]);
 
-  const sharedTrackIds = useMemo(() => {
+  const sharedTrackIdsBase = useMemo(() => {
     return new Set(
       orderedTracks
         .filter((track) => track.scope === "shared" || track.id === "shared")
@@ -278,26 +289,55 @@ function CallSheetPreview({
     );
   }, [orderedTracks]);
 
-  const primaryTracks = useMemo(() => {
-    const sharedHasShots = sortedEntries.some(
-      (entry) => sharedTrackIds.has(entry.trackId) && entry.type === "shot"
-    );
-    return orderedTracks.filter((track) => {
-      if (!sharedTrackIds.has(track.id)) return true;
-      return sharedHasShots;
+  const legacySharedLaneTrackIds = useMemo(() => {
+    const ids = new Set();
+    sortedEntries.forEach((entry) => {
+      if (entry.type !== "shot") return;
+      if (sharedTrackIdsBase.has(entry.trackId)) ids.add(entry.trackId);
     });
-  }, [orderedTracks, sortedEntries, sharedTrackIds]);
+    return ids;
+  }, [sortedEntries, sharedTrackIdsBase]);
 
-  const isMultiTrack = primaryTracks.length > 1;
+  const sharedTrackIds = useMemo(() => {
+    const ids = new Set(sharedTrackIdsBase);
+    legacySharedLaneTrackIds.forEach((id) => ids.delete(id));
+    return ids;
+  }, [sharedTrackIdsBase, legacySharedLaneTrackIds]);
+
+  const laneCandidateTracks = useMemo(() => {
+    return orderedTracks.filter((track) => !sharedTrackIds.has(track.id));
+  }, [orderedTracks, sharedTrackIds]);
+
+  const sharedEntries = useMemo(() => {
+    return sortedEntries.filter((entry) => entry.type === "custom" && sharedTrackIds.has(entry.trackId));
+  }, [sortedEntries, sharedTrackIds]);
+
   const laneTracks = useMemo(() => {
-    return primaryTracks.filter((track) => !sharedTrackIds.has(track.id));
-  }, [primaryTracks, sharedTrackIds]);
+    const activeLaneTrackIds = new Set();
+
+    sortedEntries.forEach((entry) => {
+      if (sharedTrackIds.has(entry.trackId)) return;
+      activeLaneTrackIds.add(entry.trackId);
+    });
+
+    sharedEntries.forEach((entry) => {
+      if (!Array.isArray(entry.appliesToTrackIds) || entry.appliesToTrackIds.length === 0) return;
+      entry.appliesToTrackIds.forEach((trackId) => activeLaneTrackIds.add(trackId));
+    });
+
+    if (activeLaneTrackIds.size === 0 && sharedEntries.length > 0 && laneCandidateTracks.length > 0) {
+      activeLaneTrackIds.add(laneCandidateTracks[0].id);
+    }
+
+    return laneCandidateTracks.filter((track) => activeLaneTrackIds.has(track.id));
+  }, [sortedEntries, sharedTrackIds, sharedEntries, laneCandidateTracks]);
+
+  const isMultiTrack = laneTracks.length > 1;
 
   const sharedCustomSlots = useMemo(() => {
     if (!isMultiTrack) return new Map();
     const map = new Map();
-    sortedEntries.forEach((entry) => {
-      if (entry.type !== "custom" || !sharedTrackIds.has(entry.trackId)) return;
+    sharedEntries.forEach((entry) => {
       const minutes = parseTimeToMinutes(entry.startTime);
       const list = map.get(minutes) || [];
       list.push(entry);
@@ -307,7 +347,7 @@ function CallSheetPreview({
       map.set(minutes, [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
     }
     return map;
-  }, [sortedEntries, isMultiTrack, sharedTrackIds]);
+  }, [sharedEntries, isMultiTrack]);
 
   const entriesForSlots = useMemo(() => {
     if (!isMultiTrack) return sortedEntries;
@@ -371,6 +411,8 @@ function CallSheetPreview({
     : "Schedule Date";
 
   const previewZoom = typeof zoomLevel === "number" && zoomLevel > 0 ? zoomLevel : 1;
+  const previewShowImages = showImages !== false;
+  const allowColumnResize = Boolean(onColumnResize) && !isPrinting;
 
   const configuredTimeColumnWidth = timeColumn?.width || "md";
   const timeColumnWidth =
@@ -381,52 +423,45 @@ function CallSheetPreview({
   const baseRowHeight = 44;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-white text-sm dark:bg-slate-900">
-      {/* Header */}
-      <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold text-slate-900 dark:text-slate-100">
-              {schedule?.name || "Call Sheet Preview"}
-            </h3>
-            <div className="mt-1 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                {scheduleDate}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {sortedEntries.length} items
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">Live Preview</span>
-            {onOpenColumnConfig && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onOpenColumnConfig}
-                className="h-6 w-6 p-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                title="Configure columns"
-              >
-                <Settings className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="flex h-full flex-col overflow-hidden bg-slate-100 text-sm dark:bg-slate-900">
+      <div className="flex-1 overflow-auto p-6">
+        <div className="mx-auto w-fit">
+          <div
+            data-callsheet-print-scale
+            className="origin-top"
+            style={{ transform: `scale(${previewZoom})` }}
+          >
+            <div
+              data-callsheet-print-root
+              data-callsheet-paper
+              className="w-[816px] min-h-[1056px] rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
+            >
+              <div className="border-b border-slate-200 bg-slate-50 px-6 py-5 dark:border-slate-700 dark:bg-slate-800">
+                <div className="flex items-start justify-between gap-6">
+                  <div className="min-w-0">
+                    <h3 className="truncate font-semibold text-slate-900 dark:text-slate-100">
+                      {schedule?.name || "Call Sheet Preview"}
+                    </h3>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span className="truncate">{scheduleDate}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <Clock className="h-3.5 w-3.5" />
+                    {sortedEntries.length} items
+                  </div>
+                </div>
+              </div>
 
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-auto p-4">
-        {/* Schedule Table */}
-        <div style={{ zoom: previewZoom }} className="rounded-lg border border-slate-300 dark:border-slate-600">
+              <div className="px-6 py-6">
+                <div className="rounded-lg border border-slate-300 dark:border-slate-600">
           {isMultiTrack ? (
             <>
               {/* Multi-track Header - Time + Track Columns */}
               <div className="flex items-stretch border-b-2 border-slate-400 bg-slate-100 dark:border-slate-500 dark:bg-slate-800">
                 <div className={`group relative ${getWidthClass(timeColumnWidth)}`}>
-                  {onColumnResize ? (
+                  {allowColumnResize ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
@@ -534,7 +569,7 @@ function CallSheetPreview({
                               className={`flex items-center overflow-hidden px-2 py-2 ${getWidthClass(timeColumnWidth)} border-r border-slate-200 dark:border-slate-700`}
                             >
                               <div className="w-full overflow-hidden">
-                                {renderCellContent("time", bannerEntry)}
+                                {renderCellContent("time", bannerEntry, { showImages: previewShowImages })}
                               </div>
                             </div>
                             {isFullWidthBanner ? (
@@ -559,6 +594,17 @@ function CallSheetPreview({
                                     {bannerEntry.description && (
                                       <div className="text-xs text-slate-700 dark:text-slate-300">
                                         {bannerEntry.description}
+                                      </div>
+                                    )}
+                                    {bannerEntry.resolvedLocation && (
+                                      <div className="mt-0.5 text-xs text-slate-700 dark:text-slate-300">
+                                        <span className="font-semibold">Location:</span>{" "}
+                                        {bannerEntry.resolvedLocation}
+                                      </div>
+                                    )}
+                                    {bannerEntry.resolvedNotes && (
+                                      <div className="mt-0.5 line-clamp-2 break-words text-xs text-slate-700 dark:text-slate-300">
+                                        {bannerEntry.resolvedNotes}
                                       </div>
                                     )}
                                   </div>
@@ -621,6 +667,17 @@ function CallSheetPreview({
                                         {bannerEntry.description && (
                                           <div className="text-xs text-slate-700 dark:text-slate-300">
                                             {bannerEntry.description}
+                                          </div>
+                                        )}
+                                        {bannerEntry.resolvedLocation && (
+                                          <div className="mt-0.5 text-xs text-slate-700 dark:text-slate-300">
+                                            <span className="font-semibold">Location:</span>{" "}
+                                            {bannerEntry.resolvedLocation}
+                                          </div>
+                                        )}
+                                        {bannerEntry.resolvedNotes && (
+                                          <div className="mt-0.5 line-clamp-2 break-words text-xs text-slate-700 dark:text-slate-300">
+                                            {bannerEntry.resolvedNotes}
                                           </div>
                                         )}
                                       </div>
@@ -729,6 +786,17 @@ function CallSheetPreview({
                                             {entry.description}
                                           </div>
                                         )}
+                                        {entry.resolvedLocation && (
+                                          <div className="mt-0.5 text-xs text-slate-700 dark:text-slate-300">
+                                            <span className="font-semibold">Location:</span>{" "}
+                                            {entry.resolvedLocation}
+                                          </div>
+                                        )}
+                                        {entry.resolvedNotes && (
+                                          <div className="mt-0.5 line-clamp-2 break-words text-xs text-slate-700 dark:text-slate-300">
+                                            {entry.resolvedNotes}
+                                          </div>
+                                        )}
                                       </div>
                                     ) : (
                                       <div
@@ -755,9 +823,9 @@ function CallSheetPreview({
                                             (col) => col.key === "description"
                                           );
                                           const showThumbnailInDescription =
-                                            !hasInlineImageColumn && hasDescriptionColumn && entry.resolvedImage;
+                                            previewShowImages && !hasInlineImageColumn && hasDescriptionColumn && entry.resolvedImage;
                                           const showFallbackImage =
-                                            !hasInlineImageColumn && !hasDescriptionColumn && entry.resolvedImage;
+                                            previewShowImages && !hasInlineImageColumn && !hasDescriptionColumn && entry.resolvedImage;
 
                                           return (
                                             <>
@@ -861,12 +929,12 @@ function CallSheetPreview({
                                             case "notes":
                                               if (!entry.resolvedNotes) return null;
                                               return (
-                                                <div key="notes" className="line-clamp-2 text-xs text-slate-700 dark:text-slate-300">
+                                                <div key="notes" className="line-clamp-2 break-words text-xs text-slate-700 dark:text-slate-300">
                                                   {entry.resolvedNotes}
                                                 </div>
                                               );
                                             case "image":
-                                              if (!entry.resolvedImage) return null;
+                                              if (!previewShowImages || !entry.resolvedImage) return null;
 		                                              return (
 		                                                <div
 		                                                  key="image"
@@ -925,7 +993,7 @@ function CallSheetPreview({
                         : getWidthClass(col.width)
                     }`}
                   >
-                    {onColumnResize ? (
+                    {allowColumnResize ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
@@ -993,7 +1061,7 @@ function CallSheetPreview({
                         className={`flex items-center overflow-hidden px-2 py-2 ${getWidthClass(timeColumnWidth)} border-r border-slate-200 dark:border-slate-700`}
                       >
                         <div className="w-full overflow-hidden">
-                          {renderCellContent("time", entry)}
+                          {renderCellContent("time", entry, { showImages: previewShowImages })}
                         </div>
                       </div>
                       <div
@@ -1014,6 +1082,16 @@ function CallSheetPreview({
                           {entry.description && (
                             <div className="text-xs text-slate-700 dark:text-slate-300">
                               {entry.description}
+                            </div>
+                          )}
+                          {entry.resolvedLocation && (
+                            <div className="mt-0.5 text-xs text-slate-700 dark:text-slate-300">
+                              <span className="font-semibold">Location:</span> {entry.resolvedLocation}
+                            </div>
+                          )}
+                          {entry.resolvedNotes && (
+                            <div className="mt-0.5 line-clamp-2 break-words text-xs text-slate-700 dark:text-slate-300">
+                              {entry.resolvedNotes}
                             </div>
                           )}
                         </div>
@@ -1041,7 +1119,7 @@ function CallSheetPreview({
                         }`}
                       >
                         <div className="w-full overflow-hidden">
-                          {renderCellContent(col.key, entry)}
+                          {renderCellContent(col.key, entry, { showImages: previewShowImages })}
                         </div>
                       </div>
                     ))}
@@ -1059,7 +1137,7 @@ function CallSheetPreview({
               <p className="text-xs">Add items to the schedule to see them here</p>
             </div>
           )}
-        </div>
+                </div>
 
         {/* Talent Summary (if any shots have talent) */}
         {sortedEntries.some((e) => e.resolvedTalent?.length > 0) && (
@@ -1146,6 +1224,10 @@ function CallSheetPreview({
             </div>
           </div>
         )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

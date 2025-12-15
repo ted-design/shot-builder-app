@@ -340,6 +340,21 @@ export default function ShotEditModal({
                       )}
                     </div>
                     <div>
+                      <label
+                        className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                        htmlFor={`${uniquePrefix}-shot-number`}
+                      >
+                        Shot Number
+                      </label>
+                      <Input
+                        id={`${uniquePrefix}-shot-number`}
+                        value={draft.shotNumber || ""}
+                        onChange={(event) => handleFieldChange({ shotNumber: event.target.value })}
+                        placeholder="e.g., 12A"
+                        disabled={navigationDisabled}
+                      />
+                    </div>
+                    <div>
                       <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor={`${uniquePrefix}-status`}>
                         Status
                       </label>

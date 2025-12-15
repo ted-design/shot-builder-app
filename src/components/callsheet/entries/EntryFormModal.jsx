@@ -47,6 +47,7 @@ function EntryFormModal({
   onAddShot,
   onCreateShot,
   onAddCustomItem,
+  onUpdateCustomItem,
   editingEntry = null,
 }) {
   const [activeMode, setActiveMode] = useState(mode);
@@ -55,10 +56,14 @@ function EntryFormModal({
   // Reset mode when modal opens
   React.useEffect(() => {
     if (isOpen) {
-      setActiveMode(mode);
+      if (editingEntry?.type === "custom") {
+        setActiveMode("custom");
+      } else {
+        setActiveMode(mode);
+      }
       setIsSubmitting(false);
     }
-  }, [isOpen, mode]);
+  }, [isOpen, mode, editingEntry]);
 
   // Handle shot selection
   const handleSelectShot = useCallback(
@@ -81,19 +86,24 @@ function EntryFormModal({
     async ({ customData, trackId, duration, appliesToTrackIds }) => {
       try {
         setIsSubmitting(true);
-        await onAddCustomItem(customData, trackId, duration, appliesToTrackIds);
-        onClose();
+        if (editingEntry?.type === "custom") {
+          await onUpdateCustomItem?.(editingEntry.id, { customData, trackId, duration, appliesToTrackIds });
+        } else {
+          await onAddCustomItem(customData, trackId, duration, appliesToTrackIds);
+          onClose();
+        }
       } catch (error) {
         console.error("Failed to add custom item:", error);
       } finally {
         setIsSubmitting(false);
       }
     },
-    [onAddCustomItem, onClose]
+    [editingEntry, onUpdateCustomItem, onAddCustomItem, onClose]
   );
 
   // Modal title based on mode
   const getTitle = () => {
+    if (editingEntry?.type === "custom") return "Edit Banner";
     switch (activeMode) {
       case "shot":
         return "Add Shots to Schedule";
@@ -138,6 +148,18 @@ function EntryFormModal({
   // Use standard modal for type selection and custom items
   if (!isOpen) return null;
 
+  const customInitialData =
+    editingEntry?.type === "custom"
+      ? {
+          title: editingEntry.customData?.title || "",
+          category: editingEntry.customData?.category || initialCategory || "other",
+          duration: typeof editingEntry.duration === "number" ? editingEntry.duration : 30,
+          notes: editingEntry.notes || editingEntry.customData?.notes || "",
+          trackId: editingEntry.trackId || null,
+          appliesToTrackIds: editingEntry.appliesToTrackIds || null,
+        }
+      : null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
@@ -175,7 +197,7 @@ function EntryFormModal({
         {/* Content */}
         <div className="max-h-[calc(85vh-60px)] overflow-y-auto">
           {/* Type selector (when in select mode) */}
-          {activeMode === "select" && (
+          {activeMode === "select" && !editingEntry && (
             <div className="p-4">
               <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
                 What would you like to add?
@@ -221,6 +243,7 @@ function EntryFormModal({
           {/* Custom entry form */}
           {activeMode === "custom" && (
             <CustomEntryForm
+              initialData={customInitialData}
               initialCategory={initialCategory}
               tracks={tracks}
               onSubmit={handleCustomSubmit}

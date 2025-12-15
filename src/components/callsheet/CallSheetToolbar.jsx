@@ -15,6 +15,9 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Modal } from "../ui/modal";
+import { Card, CardHeader, CardContent } from "../ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +25,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuLabel,
 } from "../ui/dropdown-menu";
 import { useUpdateScheduleSettings } from "../../hooks/useSchedule";
@@ -36,6 +41,7 @@ import { useUpdateScheduleSettings } from "../../hooks/useSchedule";
  * @param {string} props.clientId - Client ID
  * @param {string} props.projectId - Project ID
  * @param {string} props.scheduleId - Schedule ID
+ * @param {Function} props.onSetDayStartTime - Callback to set schedule day start time (and shift entries)
  * @param {Function} props.onEditColumns - Callback to open column config
  * @param {Function} props.onEditTracks - Callback to open track manager
  * @param {Function} props.onExport - Callback to open export modal
@@ -50,6 +56,7 @@ function CallSheetToolbar({
   clientId,
   projectId,
   scheduleId,
+  onSetDayStartTime,
   onEditColumns,
   onEditTracks,
   onExport,
@@ -58,6 +65,8 @@ function CallSheetToolbar({
   onDuplicateSchedule,
 }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDayStartModalOpen, setIsDayStartModalOpen] = useState(false);
+  const [dayStartDraft, setDayStartDraft] = useState(settings.dayStartTime || "06:00");
 
   const { updateSettings } = useUpdateScheduleSettings(
     clientId,
@@ -83,8 +92,14 @@ function CallSheetToolbar({
     updateSettings({ timeIncrement: increment }, settings);
   };
 
+  React.useEffect(() => {
+    if (!isDayStartModalOpen) return;
+    setDayStartDraft(settings.dayStartTime || "06:00");
+  }, [isDayStartModalOpen, settings.dayStartTime]);
+
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-800">
+    <>
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-800">
       {/* Left: Quick Actions */}
       <div className="flex items-center gap-2">
         {/* Add Actions */}
@@ -187,28 +202,22 @@ function CallSheetToolbar({
 
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Time Increment</DropdownMenuLabel>
-
-            <DropdownMenuCheckboxItem
-              checked={settings.timeIncrement === 5}
-              onCheckedChange={() => handleTimeIncrementChange(5)}
+            <DropdownMenuRadioGroup
+              value={String(settings.timeIncrement || 15)}
+              onValueChange={(value) => handleTimeIncrementChange(Number(value))}
             >
-              5 minutes
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              checked={settings.timeIncrement === 15}
-              onCheckedChange={() => handleTimeIncrementChange(15)}
-            >
-              15 minutes
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              checked={settings.timeIncrement === 30}
-              onCheckedChange={() => handleTimeIncrementChange(30)}
-            >
-              30 minutes
-            </DropdownMenuCheckboxItem>
+              <DropdownMenuRadioItem value="5">5 minutes</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="15">15 minutes</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="30">30 minutes</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
 
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                setIsDayStartModalOpen(true);
+              }}
+            >
               <Clock className="mr-2 h-4 w-4" />
               Set Day Start Time
             </DropdownMenuItem>
@@ -250,6 +259,52 @@ function CallSheetToolbar({
         </DropdownMenu>
       </div>
     </div>
+
+      <Modal
+        open={isDayStartModalOpen}
+        onClose={() => setIsDayStartModalOpen(false)}
+        labelledBy="callsheet-day-start-title"
+        contentClassName="max-w-md"
+      >
+        <Card className="border-0 shadow-none">
+          <CardHeader>
+            <h2 id="callsheet-day-start-title" className="text-lg font-semibold">
+              Set Day Start Time
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Shifts the earliest entry and updates everything that follows.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="callsheet-day-start-input">
+                Start time
+              </label>
+              <Input
+                id="callsheet-day-start-input"
+                type="time"
+                value={dayStartDraft}
+                onChange={(event) => setDayStartDraft(event.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" type="button" onClick={() => setIsDayStartModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  onSetDayStartTime?.(dayStartDraft);
+                  setIsDayStartModalOpen(false);
+                }}
+              >
+                Apply
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </Modal>
+    </>
   );
 }
 
