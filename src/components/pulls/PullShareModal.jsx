@@ -14,20 +14,24 @@ import { Copy, ExternalLink, X } from "lucide-react";
 export default function PullShareModal({
   pull,
   onGenerateLink,
+  onSetResponsesEnabled,
   onRevokeLink,
   onClose,
 }) {
   const [generating, setGenerating] = useState(false);
   const [revoking, setRevoking] = useState(false);
+  const [allowResponses, setAllowResponses] = useState(true);
+  const [savingResponseSetting, setSavingResponseSetting] = useState(false);
 
   const isShared = pull.shareEnabled && pull.shareToken;
   const shareURL = isShared ? getShareableURL(pull.shareToken) : "";
+  const responsesEnabled = !!pull.shareAllowResponses;
 
   const handleGenerate = async () => {
     setGenerating(true);
     try {
       const token = generateShareToken();
-      await onGenerateLink(token);
+      await onGenerateLink(token, { allowResponses });
       toast.success({ title: "Share link generated" });
     } catch (error) {
       console.error("[PullShareModal] Failed to generate link", error);
@@ -79,7 +83,7 @@ export default function PullShareModal({
             Share Pull
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            Generate a view-only link that anyone can access
+            Generate a link that anyone can access
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -87,9 +91,20 @@ export default function PullShareModal({
             /* Not Shared State */
             <div className="rounded-card border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-6 text-center">
               <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
-                This pull is not currently shared. Generate a link to allow anyone with the URL
-                to view it.
+                This pull is not currently shared. Generate a link to allow anyone with the URL to view it.
               </p>
+              <div className="mb-4 flex items-center justify-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                <input
+                  id="pull-share-allow-responses"
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={allowResponses}
+                  onChange={(event) => setAllowResponses(event.target.checked)}
+                />
+                <label htmlFor="pull-share-allow-responses" className="select-none">
+                  Allow warehouse responses (email required)
+                </label>
+              </div>
               <Button onClick={handleGenerate} disabled={generating}>
                 {generating ? "Generating..." : "Generate Share Link"}
               </Button>
@@ -133,9 +148,41 @@ export default function PullShareModal({
                 </div>
 
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Anyone with this link can view the pull in read-only mode. They will not be able
-                  to edit or export it.
+                  Anyone with this link can view the pull. You can optionally allow warehouse crews to submit updates
+                  by entering their email address.
                 </p>
+              </div>
+
+              <div className="rounded-card border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Warehouse responses</div>
+                    <div className="text-xs text-slate-600 dark:text-slate-400">
+                      When enabled, responders can update fulfillment and add items. They must enter an email address.
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={async () => {
+                      if (typeof onSetResponsesEnabled !== "function") return;
+                      setSavingResponseSetting(true);
+                      try {
+                        await onSetResponsesEnabled(!responsesEnabled);
+                        toast.success({ title: !responsesEnabled ? "Responses enabled" : "Responses disabled" });
+                      } catch (error) {
+                        console.error("[PullShareModal] Failed to update response setting", error);
+                        toast.error({ title: "Failed to update setting" });
+                      } finally {
+                        setSavingResponseSetting(false);
+                      }
+                    }}
+                    disabled={savingResponseSetting}
+                  >
+                    {savingResponseSetting ? "Saving..." : responsesEnabled ? "Disable" : "Enable"}
+                  </Button>
+                </div>
               </div>
 
               <div className="rounded-card border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">

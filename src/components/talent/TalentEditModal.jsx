@@ -9,6 +9,7 @@ import SingleImageDropzone from "../common/SingleImageDropzone";
 import RichTextEditor from "../shots/RichTextEditor";
 import MeasurementFields from "./MeasurementFields";
 import TalentImageManager from "./TalentImageManager";
+import { normalizeMeasurementsMap } from "../../lib/measurements";
 
 function buildDisplayName(firstName, lastName) {
   const first = (firstName || "").trim();
@@ -73,7 +74,7 @@ export default function TalentEditModal({
     setRemoveImage(false);
     setError("");
     setSaving(false);
-    setMeasurements(talent?.measurements || {});
+    setMeasurements(normalizeMeasurementsMap(talent?.measurements || {}));
     setGalleryImages(normalizeGalleryImages(talent?.galleryImages));
   }, [open, talent]);
 

@@ -7,6 +7,11 @@ import {
   getMeasurementOptionsForGender,
   orderMeasurementKeys,
 } from "./measurementOptions";
+import {
+  coerceMeasurementNumber,
+  getMeasurementInputKind,
+  inchesToFeetInches,
+} from "../../lib/measurements";
 
 export default function MeasurementFields({
   gender,
@@ -29,7 +34,15 @@ export default function MeasurementFields({
     const key = pendingKey;
     setPendingKey("");
     if (typeof onChange === "function") {
-      onChange({ ...measurements, [key]: measurements[key] || "" });
+      const kind = getMeasurementInputKind(key);
+      const nextValue = kind === "height"
+        ? { unit: "in", value: "" }
+        : kind === "inches"
+        ? { unit: "in", value: "" }
+        : kind === "us"
+        ? { unit: "us", value: "" }
+        : "";
+      onChange({ ...measurements, [key]: measurements[key] ?? nextValue });
     }
   };
 
@@ -80,6 +93,16 @@ export default function MeasurementFields({
         <div className="grid gap-3 sm:grid-cols-2">
           {orderedKeys.map((key) => {
             const label = MEASUREMENT_LABEL_MAP[key] || key;
+            const kind = getMeasurementInputKind(key);
+            const rawValue = measurements[key];
+            const numericValue = coerceMeasurementNumber(key, measurements[key]);
+            const heightParts = kind === "height" ? inchesToFeetInches(numericValue) : null;
+            const numericInputValue =
+              kind === "inches" || kind === "us"
+                ? rawValue && typeof rawValue === "object" && Object.prototype.hasOwnProperty.call(rawValue, "value")
+                  ? rawValue.value
+                  : rawValue
+                : null;
             return (
               <div key={key} className="space-y-1.5 rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
                 <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -93,12 +116,98 @@ export default function MeasurementFields({
                     Remove
                   </button>
                 </div>
-                <Input
-                  value={measurements[key] || ""}
-                  onChange={(event) => handleValueChange(key, event.target.value)}
-                  placeholder="Add value"
-                  disabled={disabled}
-                />
+                {kind === "height" ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Feet
+                      </div>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={9}
+                        value={heightParts?.feet ?? ""}
+                        onChange={(event) => {
+                          const nextFeet = event.target.value;
+                          const currentInches = heightParts?.inches ?? 0;
+                          if (!nextFeet) {
+                            handleValueChange(key, { unit: "in", value: "" });
+                            return;
+                          }
+                          const feetNumber = Number(nextFeet);
+                          if (!Number.isFinite(feetNumber) || feetNumber <= 0) {
+                            handleValueChange(key, { unit: "in", value: "" });
+                            return;
+                          }
+                          handleValueChange(key, { unit: "in", value: feetNumber * 12 + currentInches });
+                        }}
+                        placeholder="5"
+                        disabled={disabled}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Inches
+                      </div>
+                      <select
+                        value={heightParts?.inches ?? 0}
+                        onChange={(event) => {
+                          const currentFeet = heightParts?.feet ?? null;
+                          const nextInches = Number(event.target.value);
+                          if (currentFeet === null || !Number.isFinite(nextInches)) {
+                            handleValueChange(key, { unit: "in", value: "" });
+                            return;
+                          }
+                          handleValueChange(key, { unit: "in", value: currentFeet * 12 + nextInches });
+                        }}
+                        disabled={disabled || heightParts?.feet === null}
+                        className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/60 dark:border-slate-700 dark:bg-slate-900"
+                      >
+                        {Array.from({ length: 12 }, (_, idx) => (
+                          <option key={idx} value={idx}>
+                            {idx}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ) : kind === "inches" ? (
+                  <div className="space-y-1">
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.25"
+                      min="0"
+                      value={numericInputValue ?? ""}
+                      onChange={(event) => handleValueChange(key, { unit: "in", value: event.target.value })}
+                      placeholder="e.g. 32"
+                      disabled={disabled}
+                    />
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">Inches</div>
+                  </div>
+                ) : kind === "us" ? (
+                  <div className="space-y-1">
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.5"
+                      min="0"
+                      value={numericInputValue ?? ""}
+                      onChange={(event) => handleValueChange(key, { unit: "us", value: event.target.value })}
+                      placeholder="e.g. 10"
+                      disabled={disabled}
+                    />
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">US size</div>
+                  </div>
+                ) : (
+                  <Input
+                    value={measurements[key] || ""}
+                    onChange={(event) => handleValueChange(key, event.target.value)}
+                    placeholder="Add value"
+                    disabled={disabled}
+                  />
+                )}
               </div>
             );
           })}
