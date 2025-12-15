@@ -17,7 +17,7 @@ import {
   Tags,
   FileText,
   Calendar,
-  Images,
+  Image,
   Palette,
   Settings,
 } from "lucide-react";
@@ -40,7 +40,7 @@ const quickActionGroups = [
         id: "assets",
         label: "Assets",
         description: "Project uploads",
-        icon: Images,
+        icon: Image,
         projectScoped: true,
         path: "/assets",
         color: "text-indigo-600 dark:text-indigo-400",
