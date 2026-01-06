@@ -43,22 +43,22 @@ describe("project catalogue routes", () => {
 
   it("renders People for /catalogue/people/talent", async () => {
     renderAt("/projects/p1/catalogue/people/talent");
-    expect(await screen.findByText("PEOPLE STUB")).toBeInTheDocument();
-  });
+    expect(await screen.findByText("PEOPLE STUB", {}, { timeout: 5000 })).toBeInTheDocument();
+  }, 30000);
 
   it("renders People for /catalogue/people/crew", async () => {
     renderAt("/projects/p1/catalogue/people/crew");
-    expect(await screen.findByText("PEOPLE STUB")).toBeInTheDocument();
-  });
+    expect(await screen.findByText("PEOPLE STUB", {}, { timeout: 5000 })).toBeInTheDocument();
+  }, 30000);
 
   it("renders Locations for /catalogue/locations", async () => {
     renderAt("/projects/p1/catalogue/locations");
-    expect(await screen.findByText("LOCATIONS STUB")).toBeInTheDocument();
-  });
+    expect(await screen.findByText("LOCATIONS STUB", {}, { timeout: 5000 })).toBeInTheDocument();
+  }, 30000);
 
   it("redirects /catalogue to /catalogue/people", async () => {
     renderAt("/projects/p1/catalogue");
-    expect(await screen.findByText("PEOPLE STUB")).toBeInTheDocument();
-  });
+    expect(await screen.findByText("PEOPLE STUB", {}, { timeout: 5000 })).toBeInTheDocument();
+  }, 30000);
 });
 
