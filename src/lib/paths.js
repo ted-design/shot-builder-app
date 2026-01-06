@@ -95,6 +95,8 @@ export const productFamilySkuPath = (familyId, skuId, clientId) => [
 ];
 export const talentPath = (clientId) => ["clients", resolveClientId(clientId), "talent"];
 export const locationsPath = (clientId) => ["clients", resolveClientId(clientId), "locations"];
+export const crewPath = (clientId) => ["clients", resolveClientId(clientId), "crew"];
+export const crewMemberPath = (crewMemberId, clientId) => [...crewPath(clientId), crewMemberId];
 
 // Lanes (for the planner) remain scoped to the project.  They are stored
 // under `projects/{projectId}/lanes` because each project maintains its own
@@ -143,4 +145,67 @@ export const scheduleEntriesPath = (projectId, scheduleId, clientId) => [
 export const scheduleEntryPath = (projectId, scheduleId, entryId, clientId) => [
   ...scheduleEntriesPath(projectId, scheduleId, clientId),
   entryId,
+];
+
+// =============================================================================
+// Project crew paths
+// =============================================================================
+
+// Path to all crew assignments for a project
+export const projectCrewAssignmentsPath = (projectId, clientId) => [
+  ...projectPath(projectId, clientId),
+  "crewAssignments",
+];
+
+// Path to a specific crew assignment document
+export const projectCrewAssignmentPath = (projectId, assignmentId, clientId) => [
+  ...projectCrewAssignmentsPath(projectId, clientId),
+  assignmentId,
+];
+
+// =============================================================================
+// Department paths (org + project)
+// =============================================================================
+
+// Organization-wide departments live under the client.
+export const departmentsPath = (clientId) => [
+  "clients",
+  resolveClientId(clientId),
+  "departments",
+];
+
+export const departmentPath = (departmentId, clientId) => [
+  ...departmentsPath(clientId),
+  departmentId,
+];
+
+export const departmentPositionsPath = (departmentId, clientId) => [
+  ...departmentPath(departmentId, clientId),
+  "positions",
+];
+
+export const departmentPositionPath = (departmentId, positionId, clientId) => [
+  ...departmentPositionsPath(departmentId, clientId),
+  positionId,
+];
+
+// Project-scoped departments live under the project document.
+export const projectDepartmentsPath = (projectId, clientId) => [
+  ...projectPath(projectId, clientId),
+  "departments",
+];
+
+export const projectDepartmentPath = (projectId, departmentId, clientId) => [
+  ...projectDepartmentsPath(projectId, clientId),
+  departmentId,
+];
+
+export const projectDepartmentPositionsPath = (projectId, departmentId, clientId) => [
+  ...projectDepartmentPath(projectId, departmentId, clientId),
+  "positions",
+];
+
+export const projectDepartmentPositionPath = (projectId, departmentId, positionId, clientId) => [
+  ...projectDepartmentPositionsPath(projectId, departmentId, clientId),
+  positionId,
 ];

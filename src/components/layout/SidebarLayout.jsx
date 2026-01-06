@@ -1,12 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import React, { useMemo } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { SidebarProvider, useSidebar } from '../../context/SidebarContext';
 import { useAuth } from '../../context/AuthContext';
 import { useProjectScope } from '../../context/ProjectScopeContext';
-import { db } from '../../lib/firebase';
-import { projectPath } from '../../lib/paths';
-import { generateBreadcrumbs, shouldShowBreadcrumbs } from '../../lib/breadcrumbs';
+import { useProjects } from "../../hooks/useFirestoreQuery";
+import { CLIENT_ID } from "../../lib/paths";
+import { generateBreadcrumbs, shouldShowBreadcrumbs } from "../../lib/breadcrumbs";
 import Sidebar, { MobileSidebar } from './Sidebar';
 import SidebarHeader from './SidebarHeader';
 import Breadcrumb from '../ui/Breadcrumb';
@@ -23,45 +22,53 @@ const SIDEBAR_WIDTH_COLLAPSED = 64;
  */
 function SidebarLayoutContent() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { isExpanded } = useSidebar();
   const { clientId } = useAuth();
-  const { currentProjectId } = useProjectScope();
-  const [currentProject, setCurrentProject] = useState(null);
+  const { currentProjectId, setCurrentProjectId } = useProjectScope();
 
   const sidebarWidth = isExpanded ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED;
 
-  // Fetch current project details for breadcrumbs
-  useEffect(() => {
-    if (!currentProjectId || !clientId) {
-      setCurrentProject(null);
-      return;
-    }
+  const resolvedClientId = clientId || CLIENT_ID;
+  const { data: projects = [] } = useProjects(resolvedClientId, {
+    enabled: Boolean(resolvedClientId),
+  });
 
-    const fetchProject = async () => {
-      try {
-        const projectRef = doc(db, ...projectPath(currentProjectId, clientId));
-        const projectSnap = await getDoc(projectRef);
-        if (projectSnap.exists()) {
-          setCurrentProject({ id: projectSnap.id, ...projectSnap.data() });
-        } else {
-          setCurrentProject(null);
-        }
-      } catch (error) {
-        console.error('Failed to fetch project for breadcrumbs:', error);
-        setCurrentProject(null);
-      }
-    };
+  const currentProject = useMemo(() => {
+    if (!currentProjectId) return null;
+    return projects.find((project) => project.id === currentProjectId) || null;
+  }, [projects, currentProjectId]);
 
-    fetchProject();
-  }, [currentProjectId, clientId]);
+  const projectMenuItems = useMemo(() => {
+    if (!currentProjectId || !projects.length) return undefined;
+    const recent = [...projects]
+      .filter((p) => p && p.id && !p.deletedAt && p.status !== "archived")
+      .slice(0, 10);
+
+    return [
+      { label: "All Projects", href: "/projects" },
+      { type: "separator" },
+      ...recent.map((project) => ({
+        label: project.name || "Untitled Project",
+        onSelect: () => {
+          setCurrentProjectId(project.id);
+          navigate(`/projects/${project.id}/dashboard`);
+        },
+      })),
+    ];
+  }, [currentProjectId, projects, navigate, setCurrentProjectId]);
 
   // Generate breadcrumbs
   const breadcrumbItems = useMemo(() => {
-    const context = currentProject
-      ? { projectName: currentProject.name, projectId: currentProject.id }
+    const context = currentProjectId
+      ? {
+          projectName: currentProject?.name || "Project",
+          projectId: currentProjectId,
+          projectMenuItems,
+        }
       : {};
-    return generateBreadcrumbs(location.pathname, context);
-  }, [location.pathname, currentProject]);
+    return generateBreadcrumbs(location.pathname, context, location.search);
+  }, [location.pathname, location.search, currentProjectId, currentProject, projectMenuItems]);
 
   const showBreadcrumbs = shouldShowBreadcrumbs(location.pathname);
 

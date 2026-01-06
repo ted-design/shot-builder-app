@@ -367,8 +367,8 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
       projectName: currentProject?.name || null,
       projectId: currentProjectId || null,
     };
-    return generateBreadcrumbs(location.pathname, context);
-  }, [location.pathname, currentProject, currentProjectId]);
+    return generateBreadcrumbs(location.pathname, context, location.search);
+  }, [location.pathname, location.search, currentProject, currentProjectId]);
 
   const showBreadcrumbs = shouldShowBreadcrumbs(location.pathname);
 

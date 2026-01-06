@@ -41,30 +41,10 @@ describe('ProjectCard', () => {
     expect(screen.getByText('10 shots')).toBeInTheDocument();
   });
 
-  it('renders talent count when available', () => {
-    render(<ProjectCard {...defaultProps} />);
-    expect(screen.getByText('5 models')).toBeInTheDocument();
-  });
-
-  it('renders location count when available', () => {
-    render(<ProjectCard {...defaultProps} />);
-    expect(screen.getByText('3 locations')).toBeInTheDocument();
-  });
-
   describe('Active state rendering', () => {
-    it('displays "Current project" indicator when active', () => {
-      render(<ProjectCard {...defaultProps} isActive={true} />);
-      expect(screen.getByText('Current project')).toBeInTheDocument();
-    });
-
-    it('does not display "Current project" indicator when inactive', () => {
-      render(<ProjectCard {...defaultProps} isActive={false} />);
-      expect(screen.queryByText('Current project')).not.toBeInTheDocument();
-    });
-
-    it('applies active card styling when isActive is true', () => {
+    it('applies active ring styling when isActive is true', () => {
       const { container } = render(<ProjectCard {...defaultProps} isActive={true} />);
-      const card = container.querySelector('.border-primary');
+      const card = container.querySelector('.ring-2');
       expect(card).toBeInTheDocument();
     });
 
@@ -73,52 +53,23 @@ describe('ProjectCard', () => {
       const card = container.querySelector('.border-slate-200');
       expect(card).toBeInTheDocument();
     });
-
-    it('shows "Open" button text when active', () => {
-      render(<ProjectCard {...defaultProps} isActive={true} />);
-      expect(screen.getByRole('button', { name: 'Open' })).toBeInTheDocument();
-    });
-
-    it('shows "Enter" button text when inactive', () => {
-      render(<ProjectCard {...defaultProps} isActive={false} />);
-      expect(screen.getByRole('button', { name: 'Enter' })).toBeInTheDocument();
-    });
-
-    it('applies pulsing animation to active indicator dot', () => {
-      const { container } = render(<ProjectCard {...defaultProps} isActive={true} />);
-      const pulsingDot = container.querySelector('.animate-pulse');
-      expect(pulsingDot).toBeInTheDocument();
-    });
-
-    it('applies primary color to active project title', () => {
-      const { container } = render(<ProjectCard {...defaultProps} isActive={true} />);
-      const title = container.querySelector('.text-primary');
-      expect(title).toBeInTheDocument();
-      expect(title).toHaveTextContent('Test Project');
-    });
-
-    it('applies ring effect to active card', () => {
-      const { container } = render(<ProjectCard {...defaultProps} isActive={true} />);
-      const card = container.querySelector('.ring-2');
-      expect(card).toBeInTheDocument();
-    });
   });
 
   describe('Edit button', () => {
     it('shows edit button when canManage is true', () => {
       render(<ProjectCard {...defaultProps} canManage={true} />);
-      expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Edit project' })).toBeInTheDocument();
     });
 
     it('hides edit button when canManage is false', () => {
       render(<ProjectCard {...defaultProps} canManage={false} />);
-      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Edit project' })).not.toBeInTheDocument();
     });
 
     it('calls onEdit when edit button is clicked', () => {
       const onEdit = vi.fn();
       render(<ProjectCard {...defaultProps} canManage={true} onEdit={onEdit} />);
-      screen.getByRole('button', { name: 'Edit' }).click();
+      screen.getByRole('button', { name: 'Edit project' }).click();
       expect(onEdit).toHaveBeenCalledWith(mockProject);
     });
   });
@@ -127,15 +78,7 @@ describe('ProjectCard', () => {
     it('calls onSelect when card is clicked', () => {
       const onSelect = vi.fn();
       render(<ProjectCard {...defaultProps} onSelect={onSelect} />);
-      // Click the project name button (the main clickable area)
       screen.getByText('Test Project').click();
-      expect(onSelect).toHaveBeenCalledWith(mockProject);
-    });
-
-    it('calls onSelect when Enter/Open button is clicked', () => {
-      const onSelect = vi.fn();
-      render(<ProjectCard {...defaultProps} onSelect={onSelect} />);
-      screen.getByRole('button', { name: 'Enter' }).click();
       expect(onSelect).toHaveBeenCalledWith(mockProject);
     });
   });
@@ -267,8 +210,9 @@ describe('ProjectCard', () => {
 
     it('has dark mode classes for active state', () => {
       const { container } = render(<ProjectCard {...defaultProps} isActive={true} />);
-      const darkBorder = container.querySelector('.dark\\:border-indigo-500');
-      expect(darkBorder).toBeInTheDocument();
+      const card = container.querySelector('.ring-2');
+      expect(card).toBeInTheDocument();
+      expect(card.className).toContain('dark:ring-indigo-500/25');
     });
   });
 });

@@ -14,6 +14,12 @@ export default {
         'immediate-red': '#E31E24',
         'immediate-red-dark': '#B51A1F',
 
+        // Sidebar theme tokens (dark sidebar even in light mode)
+        sidebar: 'rgb(15 23 42)', // slate-900
+        'sidebar-border': 'rgb(30 41 59)', // slate-800
+        'sidebar-hover': 'rgb(30 41 59)', // slate-800
+        'sidebar-active': 'rgb(51 65 85)', // slate-700
+
         // UI colors (primary actions)
         primary: {
           DEFAULT: "#6366f1", // indigo-500

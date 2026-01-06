@@ -28,7 +28,9 @@ export default function LibraryPage() {
             >
               {[
                 { to: "/library/talent", label: "Talent" },
+                { to: "/library/crew", label: "Crew" },
                 { to: "/library/locations", label: "Locations" },
+                { to: "/library/departments", label: "Departments" },
                 { to: "/library/tags", label: "Tags" },
                 { to: "/library/palette", label: "Palette" },
               ].map((tab) => {

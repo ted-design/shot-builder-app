@@ -23,6 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ROLE } from '../../lib/rbac';
 import SidebarNavItem from './SidebarNavItem';
 import SidebarNavGroup from './SidebarNavGroup';
+import SidebarRecentProjects from "./SidebarRecentProjects";
 
 /**
  * SidebarNav
@@ -61,6 +62,15 @@ export default function SidebarNav({ isExpanded }) {
     ];
   }, [currentProjectId, isInProjectContext]);
 
+  const shotsItems = useMemo(() => {
+    if (!isInProjectContext || !currentProjectId) return [];
+    return [
+      { to: `/projects/${currentProjectId}/shots`, label: "Builder", icon: Camera },
+      { to: `/projects/${currentProjectId}/schedule`, label: "Schedule", icon: Calendar },
+      { to: `/projects/${currentProjectId}/assets`, label: "Assets", icon: Users },
+    ];
+  }, [currentProjectId, isInProjectContext]);
+
   return (
     <nav className="flex-1 py-4 px-3 overflow-y-auto">
       <div
@@ -76,6 +86,7 @@ export default function SidebarNav({ isExpanded }) {
               label="All Projects"
               isExpanded={isExpanded}
             />
+            <SidebarRecentProjects isExpanded={isExpanded} />
 
             <SidebarNavItem
               to="/products"
@@ -121,23 +132,11 @@ export default function SidebarNav({ isExpanded }) {
             <SidebarNavItem
               to={`/projects/${currentProjectId}/dashboard`}
               icon={LayoutDashboard}
-              label="Dashboard"
+              label="Project Dashboard"
               isExpanded={isExpanded}
             />
 
-            <SidebarNavItem
-              to={`/projects/${currentProjectId}/shots`}
-              icon={Camera}
-              label="Shots"
-              isExpanded={isExpanded}
-            />
-
-            <SidebarNavItem
-              to={`/projects/${currentProjectId}/schedule`}
-              icon={Calendar}
-              label="Schedule"
-              isExpanded={isExpanded}
-            />
+            <SidebarNavGroup icon={Camera} label="Shots" items={shotsItems} isExpanded={isExpanded} defaultOpen={true} />
 
             <SidebarNavGroup
               icon={Users}
@@ -168,6 +167,29 @@ export default function SidebarNav({ isExpanded }) {
               label="Settings"
               isExpanded={isExpanded}
             />
+
+            {/* Global navigation */}
+            <div className={`${isExpanded ? "pt-4" : "pt-3"} pb-1`}>
+              <div
+                className={`mx-2 border-t border-sidebar-border/60 ${isExpanded ? "pt-3" : "pt-2"}`}
+                aria-hidden="true"
+              />
+              {isExpanded ? (
+                <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+                  Global
+                </div>
+              ) : null}
+            </div>
+
+            <SidebarNavItem to="/products" icon={Package} label="Products" isExpanded={isExpanded} />
+
+            <SidebarNavGroup icon={Library} label="Library" items={libraryItems} isExpanded={isExpanded} />
+
+            <SidebarNavItem to="/account" icon={Settings} label="Settings" isExpanded={isExpanded} />
+
+            {userRole === ROLE.ADMIN && (
+              <SidebarNavItem to="/admin" icon={Shield} label="Admin" isExpanded={isExpanded} />
+            )}
           </>
         )}
       </div>

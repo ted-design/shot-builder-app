@@ -1,0 +1,198 @@
+/* Sidebar Animations
+ * Motion blur effects and smooth transitions for the collapsible sidebar
+ * Based on Figma design with 350ms cubic-bezier(0.4, 0, 0.2, 1) timing
+ */
+
+/* Sidebar width transition */
+.sidebar-transition {
+  transition: width 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Icon styling - no translateX to prevent clipping in collapsed state */
+.sidebar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: filter;
+}
+
+/* Text fade and slide animations with masking effect */
+.sidebar-text {
+  display: inline-block;
+  white-space: nowrap;
+  transition:
+    opacity 250ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    filter 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, transform, filter;
+}
+
+.sidebar-text-visible {
+  animation: fadeInSlide 350ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.sidebar-project-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.sidebar-text-hidden {
+  animation: fadeOutSlide 250ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes fadeInSlide {
+  0% {
+    opacity: 0;
+    transform: translateX(-12px);
+    filter: blur(1px);
+  }
+  30% {
+    opacity: 0.3;
+    filter: blur(0.6px);
+  }
+  60% {
+    opacity: 0.7;
+    filter: blur(0.3px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+    filter: blur(0px);
+  }
+}
+
+@keyframes fadeOutSlide {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+    filter: blur(0px);
+  }
+  40% {
+    opacity: 0.6;
+    filter: blur(0.6px);
+  }
+  70% {
+    opacity: 0.2;
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-12px);
+    filter: blur(1.2px);
+  }
+}
+
+/* Chevron icon fade */
+.sidebar-chevron {
+  transition:
+    opacity 350ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    filter 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, filter, transform;
+}
+
+.sidebar-chevron-visible {
+  animation: fadeIn 350ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.sidebar-chevron-hidden {
+  animation: fadeOut 250ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.sidebar-chevron-open {
+  transform: rotate(90deg);
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    filter: blur(0.5px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0px);
+  }
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(0.5px);
+  }
+}
+
+/* Submenu slide in animation */
+.sidebar-submenu {
+  animation: submenuSlideIn 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  overflow: hidden;
+}
+
+@keyframes submenuSlideIn {
+  0% {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  100% {
+    max-height: 300px;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile overlay backdrop */
+.sidebar-backdrop {
+  transition: opacity 200ms ease-out;
+}
+
+.sidebar-backdrop-visible {
+  opacity: 1;
+}
+
+.sidebar-backdrop-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Mobile sidebar slide */
+.sidebar-mobile {
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-mobile-open {
+  transform: translateX(0);
+}
+
+.sidebar-mobile-closed {
+  transform: translateX(-100%);
+}
+
+/* Active indicator animation */
+.sidebar-active-indicator {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Project dropdown animation */
+.sidebar-dropdown {
+  animation: dropdownSlideIn 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes dropdownSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

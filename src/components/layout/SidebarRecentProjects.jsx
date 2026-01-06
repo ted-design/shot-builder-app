@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Folder } from 'lucide-react';
 import { useProjects } from '../../hooks/useFirestoreQuery';
 import { useAuth } from '../../context/AuthContext';
@@ -14,9 +14,8 @@ import '../../styles/sidebar-animations.css';
  * Positioned below the Projects nav item.
  */
 export default function SidebarRecentProjects({ isExpanded }) {
-  const navigate = useNavigate();
   const { clientId } = useAuth();
-  const { setCurrentProjectId, lastVisitedPath } = useProjectScope();
+  const { setCurrentProjectId } = useProjectScope();
   const resolvedClientId = clientId || CLIENT_ID;
 
   const { data: projects = [], isLoading } = useProjects(resolvedClientId);
@@ -34,13 +33,6 @@ export default function SidebarRecentProjects({ isExpanded }) {
       })
       .slice(0, 3);
   }, [projects]);
-
-  const handleProjectClick = (projectId) => {
-    setCurrentProjectId(projectId);
-    // Navigate to the last visited section within the project (default: /shots)
-    const path = lastVisitedPath || '/shots';
-    navigate(`/projects/${projectId}${path}`);
-  };
 
   if (!isExpanded) return null;
   if (isLoading) {
@@ -66,14 +58,15 @@ export default function SidebarRecentProjects({ isExpanded }) {
   return (
     <div className="sidebar-dropdown space-y-1 pl-4 mt-1">
       {recentProjects.map((project) => (
-        <button
+        <Link
           key={project.id}
-          onClick={() => handleProjectClick(project.id)}
+          to={`/projects/${project.id}/dashboard`}
+          onClick={() => setCurrentProjectId(project.id)}
           className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-neutral-400 hover:bg-sidebar-hover hover:text-white transition-colors duration-150 text-left"
         >
           <Folder className="h-4 w-4 shrink-0" />
           <span className="truncate">{project.name || 'Untitled Project'}</span>
-        </button>
+        </Link>
       ))}
     </div>
   );

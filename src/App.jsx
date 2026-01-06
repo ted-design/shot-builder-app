@@ -10,7 +10,7 @@ import { DemoModeAuthProvider } from "./context/DemoModeAuthProvider";
 import DemoModeBanner from "./components/DemoModeBanner";
 import { adaptUser } from "./auth/adapter";
 import AuthReadyGate from "./auth/AuthReadyGate";
-import TopNavigationLayout from "./routes/TopNavigationLayout";
+import SidebarLayout from "./components/layout/SidebarLayout";
 import RequireRole from "./routes/RequireRole";
 import ProjectParamScope from "./routes/ProjectParamScope";
 import { ProjectScopeProvider, useProjectScope } from "./context/ProjectScopeContext";
@@ -42,12 +42,14 @@ const TalentPage = lazy(() => import("./pages/TalentPage"));
 const LocationsPage = lazy(() => import("./pages/LocationsPage"));
 const LibraryPage = lazy(() => import("./pages/LibraryPage"));
 const LibraryTalentPage = lazy(() => import("./pages/LibraryTalentPage"));
+const LibraryCrewPage = lazy(() => import("./pages/LibraryCrewPage"));
 const LibraryLocationsPage = lazy(() => import("./pages/LibraryLocationsPage"));
 const PalettePage = lazy(() => import("./pages/PalettePage"));
 const PullsPage = lazy(() => import("./pages/PullsPage"));
 const PullPublicViewPage = lazy(() => import("./pages/PullPublicViewPage"));
 const PullEditorPage = lazy(() => import("./pages/PullEditorPage"));
 const TagManagementPage = lazy(() => import("./pages/TagManagementPage"));
+const DepartmentsPage = lazy(() => import("./pages/DepartmentsPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const ImageDiagnosticsPage = lazy(() => import("./pages/dev/ImageDiagnosticsPage"));
 const BrandLockupTest = lazy(() => import("./pages/dev/BrandLockupTest"));
@@ -59,6 +61,12 @@ const PDFExportModalLazy = lazy(() => import("./components/PDFExportModal"));
 const ProjectAssetsPage = lazy(() => import("./pages/ProjectAssetsPage"));
 const AccountSettingsPage = lazy(() => import("./pages/AccountSettingsPage"));
 const CallSheetPage = lazy(() => import("./pages/CallSheetPage"));
+const ProjectDashboardPage = lazy(() => import("./pages/ProjectDashboardPage"));
+const ProjectDepartmentsPage = lazy(() => import("./pages/ProjectDepartmentsPage"));
+const ProjectSettingsPage = lazy(() => import("./pages/ProjectSettingsPage"));
+const CataloguePage = lazy(() => import("./pages/CataloguePage"));
+const CataloguePeoplePage = lazy(() => import("./pages/CataloguePeoplePage"));
+const CatalogueLocationsPage = lazy(() => import("./pages/CatalogueLocationsPage"));
 
 function MaybeRedirectLogin({ user }) {
   const location = useLocation();
@@ -75,7 +83,7 @@ function AuthenticatedLayout({ guardUser, navUser, fallbackRole }) {
   if (!guardUser) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-  return <TopNavigationLayout fallbackUser={navUser} fallbackRole={fallbackRole} />;
+  return <SidebarLayout fallbackUser={navUser} fallbackRole={fallbackRole} />;
 }
 
 // Legacy redirects to new project-scoped routes
@@ -216,6 +224,31 @@ function AppRoutes() {
 
                   {/* Project-scoped routes */}
                   <Route path="/projects/:projectId" element={<ProjectParamScope />}>
+                    <Route index element={<Navigate to="dashboard" replace />} />
+                    <Route
+                      path="dashboard"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <ProjectDashboardPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="departments"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <ProjectDepartmentsPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="settings"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <ProjectSettingsPage />
+                        </Suspense>
+                      }
+                    />
                     <Route
                       path="shots"
                       element={
@@ -224,6 +257,48 @@ function AppRoutes() {
                         </Suspense>
                       }
                     />
+                    <Route
+                      path="catalogue"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <CataloguePage />
+                        </Suspense>
+                      }
+                    >
+                      <Route index element={<Navigate to="people" replace />} />
+                      <Route
+                        path="people"
+                        element={
+                          <Suspense fallback={<PageLoadingFallback />}>
+                            <CataloguePeoplePage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="people/talent"
+                        element={
+                          <Suspense fallback={<PageLoadingFallback />}>
+                            <CataloguePeoplePage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="people/crew"
+                        element={
+                          <Suspense fallback={<PageLoadingFallback />}>
+                            <CataloguePeoplePage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="locations"
+                        element={
+                          <Suspense fallback={<PageLoadingFallback />}>
+                            <CatalogueLocationsPage />
+                          </Suspense>
+                        }
+                      />
+                    </Route>
                     <Route path="planner" element={<Navigate to="../shots?view=planner" replace />} />
                     <Route
                       path="assets"
@@ -276,10 +351,26 @@ function AppRoutes() {
                       }
                     />
                     <Route
+                      path="crew"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <LibraryCrewPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
                       path="locations"
                       element={
                         <Suspense fallback={<PageLoadingFallback />}>
                           <LibraryLocationsPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="departments"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <DepartmentsPage />
                         </Suspense>
                       }
                     />
