@@ -114,7 +114,7 @@ export default function PreviewPanel({
     if (typeof window === "undefined") return "";
     if (!projectId || !scheduleId) return "";
     const url = new URL(window.location.href);
-    url.pathname = `/app/projects/${projectId}/schedule`;
+    url.pathname = `/projects/${projectId}/schedule`;
     url.searchParams.set("scheduleId", scheduleId);
     url.searchParams.set("callSheetBuilder", "1");
     url.searchParams.set("preview", "1");
