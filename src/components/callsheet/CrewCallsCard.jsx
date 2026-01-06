@@ -36,7 +36,7 @@ function getDeltaTag(deltaMinutes) {
   return { label: `DELAY ${Math.abs(deltaMinutes)}m`, tone: "amber" };
 }
 
-export default function CrewCallsCard({ clientId, projectId, scheduleId, generalCrewCallTime }) {
+export default function CrewCallsCard({ clientId, projectId, scheduleId, generalCrewCallTime, readOnly = false }) {
   const { departments } = useDepartments(clientId);
   const { departments: projectDepartments } = useProjectDepartments(clientId, projectId);
   const { crewById } = useOrganizationCrew(clientId);
@@ -129,6 +129,7 @@ export default function CrewCallsCard({ clientId, projectId, scheduleId, general
   }, [assignedCrew, callsByCrewMemberId]);
 
   const applyCrewCall = (crewMemberId) => {
+    if (readOnly) return;
     const raw = (draftByCrewMemberId[crewMemberId] || "").trim();
     if (!raw) {
       deleteCrewCall.mutate(crewMemberId);
@@ -149,7 +150,7 @@ export default function CrewCallsCard({ clientId, projectId, scheduleId, general
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
-              Crew call overrides
+              Crew call times
             </div>
             <div className="text-xs text-slate-500">
               Leave blank to use general crew call. Enter a time (HH:MM) or text like “OFF” / “O/C”.
@@ -186,13 +187,16 @@ export default function CrewCallsCard({ clientId, projectId, scheduleId, general
             >
               Phones
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsClearModalOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setIsClearModalOpen(true)} disabled={readOnly}>
               Clear overrides
             </Button>
           </div>
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Crew times are relative to the general crew call time.
+        </div>
         {loadingAssignments ? (
           <div className="text-sm text-slate-500">Loading…</div>
         ) : assignmentsError ? (
@@ -267,6 +271,7 @@ export default function CrewCallsCard({ clientId, projectId, scheduleId, general
                                   }}
                                   onBlur={() => applyCrewCall(assignment.crewMemberId)}
                                   placeholder={generalCrewCallTime ? `Default: ${generalCrewCallTime}` : "HH:MM or text"}
+                                  disabled={readOnly}
                                   className="w-48 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
                                 />
                               </td>
@@ -299,6 +304,7 @@ export default function CrewCallsCard({ clientId, projectId, scheduleId, general
                                     }));
                                     deleteCrewCall.mutate(assignment.crewMemberId);
                                   }}
+                                  disabled={readOnly}
                                 >
                                   Clear
                                 </Button>
@@ -348,6 +354,7 @@ export default function CrewCallsCard({ clientId, projectId, scheduleId, general
                 assignedCrew.forEach(({ assignment }) => deleteCrewCall.mutate(assignment.crewMemberId));
                 setIsClearModalOpen(false);
               }}
+              disabled={readOnly}
             >
               Clear
             </Button>

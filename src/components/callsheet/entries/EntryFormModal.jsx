@@ -22,6 +22,7 @@ import CustomEntryForm from "./CustomEntryForm";
  * @param {Function} props.onClose - Callback to close modal
  * @param {string} props.mode - 'shot' | 'custom' | 'select' (choose type first)
  * @param {string} props.initialCategory - Pre-selected category for custom entries
+ * @param {string|null} props.defaultStartTime - Optional HH:MM time to add entries at
  * @param {Array} props.shots - Available shots
  * @param {boolean} props.shotsLoading - Whether shots are loading
  * @param {Array} props.tracks - Available tracks
@@ -38,6 +39,7 @@ function EntryFormModal({
   onClose,
   mode = "select",
   initialCategory = null,
+  defaultStartTime = null,
   shots = [],
   shotsLoading = false,
   tracks = [],
@@ -67,10 +69,10 @@ function EntryFormModal({
 
   // Handle shot selection
   const handleSelectShot = useCallback(
-    async (shotId, trackId) => {
+    async (shotId, trackId, startTime = null) => {
       try {
         setIsSubmitting(true);
-        await onAddShot(shotId, trackId);
+        await onAddShot(shotId, trackId, startTime);
         // Don't close - allow adding multiple shots
       } catch (error) {
         console.error("Failed to add shot:", error);
@@ -89,7 +91,7 @@ function EntryFormModal({
         if (editingEntry?.type === "custom") {
           await onUpdateCustomItem?.(editingEntry.id, { customData, trackId, duration, appliesToTrackIds });
         } else {
-          await onAddCustomItem(customData, trackId, duration, appliesToTrackIds);
+          await onAddCustomItem(customData, trackId, duration, appliesToTrackIds, defaultStartTime);
           onClose();
         }
       } catch (error) {
@@ -104,13 +106,14 @@ function EntryFormModal({
   // Modal title based on mode
   const getTitle = () => {
     if (editingEntry?.type === "custom") return "Edit Banner";
+    const atTime = defaultStartTime ? ` at ${defaultStartTime}` : "";
     switch (activeMode) {
       case "shot":
-        return "Add Shots to Schedule";
+        return `Add Shots to Schedule${atTime}`;
       case "custom":
         return initialCategory
-          ? `Add ${initialCategory.charAt(0).toUpperCase() + initialCategory.slice(1)}`
-          : "Add Custom Item";
+          ? `Add ${initialCategory.charAt(0).toUpperCase() + initialCategory.slice(1)}${atTime}`
+          : `Add Custom Item${atTime}`;
       default:
         return "Add to Schedule";
     }
@@ -136,6 +139,7 @@ function EntryFormModal({
               talentMap={talentMap}
               productsMap={productsMap}
               onSelectShot={handleSelectShot}
+              defaultStartTime={defaultStartTime}
               onCreateShot={onCreateShot}
               onClose={onClose}
             />
@@ -246,6 +250,7 @@ function EntryFormModal({
               initialData={customInitialData}
               initialCategory={initialCategory}
               tracks={tracks}
+              defaultStartTime={defaultStartTime}
               onSubmit={handleCustomSubmit}
               onCancel={onClose}
               isSubmitting={isSubmitting}

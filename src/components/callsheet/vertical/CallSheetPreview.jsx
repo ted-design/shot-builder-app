@@ -2,7 +2,17 @@
 // Live preview table for the call sheet (SetHero style right panel)
 
 import React, { useMemo, useEffect, useState } from "react";
-import { Clock, Calendar, Users, FileText, ChevronDown, Check, Image as ImageIcon } from "lucide-react";
+import {
+  Clock,
+  Calendar,
+  Users,
+  FileText,
+  Info,
+  AlertTriangle,
+  ChevronDown,
+  Check,
+  Image as ImageIcon,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +27,9 @@ import {
 import { sortEntriesByTime } from "../../../lib/cascadeEngine";
 import { minutesToTime12h, parseTimeToMinutes } from "../../../lib/timeUtils";
 import AppImage from "../../common/AppImage";
+import { buildCallSheetVariableContext, resolveCallSheetVariable } from "../../../lib/callsheet/variables";
+import { formatNotesForDisplay } from "../../../lib/sanitize";
+import { DEFAULT_CLIENT_ROSTER_COLUMNS, DEFAULT_TALENT_ROSTER_COLUMNS, normalizeRosterColumns } from "../../../lib/callsheet/peopleColumns";
 
 // Width options for inline column resize
 const WIDTH_OPTIONS = [
@@ -42,6 +55,18 @@ function getWidthClass(width) {
   return widthMap[width] || "w-32 min-w-[128px] flex-shrink-0";
 }
 
+function getRosterWidthClass(width) {
+  const widthMap = {
+    xs: "w-16 min-w-[64px]",
+    sm: "w-24 min-w-[96px]",
+    md: "w-32 min-w-[128px]",
+    lg: "w-48 min-w-[192px]",
+    xl: "min-w-[240px]",
+    hidden: "hidden",
+  };
+  return widthMap[width] || "w-32 min-w-[128px]";
+}
+
 /**
  * Format time from 24h to 12h format
  */
@@ -49,6 +74,26 @@ function formatTime12h(timeStr) {
   if (!timeStr) return "—";
   const minutes = parseTimeToMinutes(timeStr);
   return minutesToTime12h(minutes);
+}
+
+function isTimeString(value) {
+  if (!value) return false;
+  return /^\d{1,2}:\d{2}$/.test(String(value).trim());
+}
+
+function getTimeDeltaMinutes(baseTime, overrideTime) {
+  if (!isTimeString(baseTime) || !isTimeString(overrideTime)) return null;
+  const base = parseTimeToMinutes(baseTime);
+  const next = parseTimeToMinutes(overrideTime);
+  if (!Number.isFinite(base) || !Number.isFinite(next)) return null;
+  return next - base;
+}
+
+function getDeltaTag(deltaMinutes) {
+  if (!Number.isFinite(deltaMinutes)) return null;
+  if (deltaMinutes === 0) return { label: "ON TIME", tone: "muted" };
+  if (deltaMinutes < 0) return { label: `EARLY ${Math.abs(deltaMinutes)}m`, tone: "blue" };
+  return { label: `DELAY ${Math.abs(deltaMinutes)}m`, tone: "amber" };
 }
 
 /**
@@ -61,6 +106,10 @@ function formatDuration(minutes) {
   if (h === 0) return `${m}m`;
   if (m === 0) return `${h}hr`;
   return `${h}h ${m}m`;
+}
+
+function isHexColor(value) {
+  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
 }
 
 /**
@@ -107,6 +156,11 @@ function renderCellContent(columnKey, entry, options = {}) {
               {formatDuration(entry.duration)}
             </div>
           )}
+          {entry.flag ? (
+            <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+              {String(entry.flag)}
+            </div>
+          ) : null}
         </div>
       );
     case "duration":
@@ -231,7 +285,14 @@ function CallSheetPreview({
   columnConfig,
   zoomLevel = 1,
   showImages = true,
+  mobileMode = false,
   onColumnResize,
+  dayDetails,
+  crewRows = [],
+  talentRows = [],
+  clientRows = [],
+  sections,
+  layoutV2,
 }) {
   const [isPrinting, setIsPrinting] = useState(false);
 
@@ -422,6 +483,842 @@ function CallSheetPreview({
   const showDurations = schedule?.settings?.showDurations ?? true;
   const baseRowHeight = 44;
 
+  const headerEnabled = useMemo(() => {
+    const list = Array.isArray(sections) ? sections : [];
+    const headerSection = list.find((s) => s?.type === "header");
+    if (!headerSection) return true;
+    return headerSection.isVisible !== false;
+  }, [sections]);
+
+  const talentEnabled = useMemo(() => {
+    const list = Array.isArray(sections) ? sections : [];
+    const section = list.find((s) => s?.type === "talent");
+    if (!section) return false;
+    return section.isVisible !== false;
+  }, [sections]);
+
+  const orderedSectionsList = useMemo(() => {
+    const list = Array.isArray(sections) ? [...sections] : [];
+    return list.sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0));
+  }, [sections]);
+
+  const visibleNonHeaderSections = useMemo(() => {
+    return orderedSectionsList.filter((section) => section?.type !== "header" && section?.isVisible !== false);
+  }, [orderedSectionsList]);
+
+  const scheduleSection = useMemo(() => {
+    return orderedSectionsList.find((section) => section?.type === "schedule") || null;
+  }, [orderedSectionsList]);
+
+  const scheduleVisible = scheduleSection ? scheduleSection.isVisible !== false : true;
+
+  const scheduleSectionIndex = useMemo(() => {
+    return visibleNonHeaderSections.findIndex((section) => section?.type === "schedule");
+  }, [visibleNonHeaderSections]);
+
+  const scheduleInsertIndex = useMemo(() => {
+    return scheduleSectionIndex >= 0 ? scheduleSectionIndex : 0;
+  }, [scheduleSectionIndex]);
+
+  const nonScheduleSections = useMemo(() => {
+    return visibleNonHeaderSections.filter((section) => section?.type !== "schedule");
+  }, [visibleNonHeaderSections]);
+
+  const sectionsBeforeSchedule = useMemo(() => {
+    if (!scheduleVisible) return nonScheduleSections;
+    return nonScheduleSections.slice(0, scheduleInsertIndex);
+  }, [nonScheduleSections, scheduleInsertIndex, scheduleVisible]);
+
+  const sectionsAfterSchedule = useMemo(() => {
+    if (!scheduleVisible) return [];
+    return nonScheduleSections.slice(scheduleInsertIndex);
+  }, [nonScheduleSections, scheduleInsertIndex, scheduleVisible]);
+
+  const clientsSection = useMemo(() => {
+    const list = Array.isArray(sections) ? sections : [];
+    return list.find((s) => s?.type === "clients") || null;
+  }, [sections]);
+
+  const clientsTitle = useMemo(() => {
+    const raw = clientsSection?.config?.title;
+    const title = raw != null ? String(raw) : "";
+    return title.trim() ? title : "Clients";
+  }, [clientsSection?.config?.title]);
+
+  const clientsColumns = useMemo(() => {
+    return normalizeRosterColumns(clientsSection?.config?.columnConfig, DEFAULT_CLIENT_ROSTER_COLUMNS);
+  }, [clientsSection?.config?.columnConfig]);
+
+  const visibleClientsColumns = useMemo(() => {
+    return clientsColumns
+      .filter((col) => col.visible !== false && col.width !== "hidden")
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [clientsColumns]);
+
+  const talentSection = useMemo(() => {
+    const list = Array.isArray(sections) ? sections : [];
+    return list.find((s) => s?.type === "talent") || null;
+  }, [sections]);
+
+  const talentTitle = useMemo(() => {
+    const raw = talentSection?.config?.title;
+    const title = raw != null ? String(raw) : "";
+    return title.trim() ? title : "Talent";
+  }, [talentSection?.config?.title]);
+
+  const talentColumns = useMemo(() => {
+    return normalizeRosterColumns(talentSection?.config?.columnConfig, DEFAULT_TALENT_ROSTER_COLUMNS);
+  }, [talentSection?.config?.columnConfig]);
+
+  const visibleTalentColumns = useMemo(() => {
+    return talentColumns
+      .filter((col) => col.visible !== false && col.width !== "hidden")
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [talentColumns]);
+
+  const crewGroups = useMemo(() => {
+    const groups = new Map();
+    (crewRows || []).forEach((row) => {
+      const dept = row?.department && String(row.department).trim() ? String(row.department).trim() : "Unassigned";
+      if (!groups.has(dept)) groups.set(dept, []);
+      groups.get(dept).push(row);
+    });
+    const ordered = Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+    return ordered.map(([department, rows]) => ({
+      department,
+      rows: [...rows].sort((a, b) => String(a?.name || "").localeCompare(String(b?.name || ""))),
+    }));
+  }, [crewRows]);
+
+  const variableCtx = useMemo(
+    () =>
+      buildCallSheetVariableContext({
+        schedule,
+        dayDetails: dayDetails || null,
+      }),
+    [dayDetails, schedule]
+  );
+
+  const callSheetSettings = layoutV2?.settings || null;
+  const callSheetColors = callSheetSettings?.colors || null;
+
+  const spacingKey =
+    callSheetSettings?.spacing === "compact" || callSheetSettings?.spacing === "relaxed" || callSheetSettings?.spacing === "normal"
+      ? callSheetSettings.spacing
+      : "normal";
+  const bodySpacingClassName = spacingKey === "compact" ? "space-y-4" : spacingKey === "relaxed" ? "space-y-8" : "space-y-6";
+  const bodyPaddingClassName = spacingKey === "compact" ? "px-5 py-5" : spacingKey === "relaxed" ? "px-7 py-7" : "px-6 py-6";
+
+  const paperStyle = useMemo(() => {
+    if (mobileMode) {
+      return {
+        width: "390px",
+        minHeight: "844px",
+        backgroundColor: callSheetColors?.background || undefined,
+      };
+    }
+
+    const width = callSheetSettings?.pageSize?.width;
+    const height = callSheetSettings?.pageSize?.height;
+    const unit = callSheetSettings?.pageSize?.unit;
+
+    const dpi = 96;
+    const mmToInches = 1 / 25.4;
+    const widthInches =
+      typeof width === "number" && Number.isFinite(width)
+        ? unit === "mm"
+          ? width * mmToInches
+          : width
+        : 8.5;
+    const heightInches =
+      typeof height === "number" && Number.isFinite(height)
+        ? unit === "mm"
+          ? height * mmToInches
+          : height
+        : 11;
+
+    const widthPx = Math.round(widthInches * dpi);
+    const heightPx = Math.round(heightInches * dpi);
+
+    return {
+      width: `${widthPx}px`,
+      minHeight: `${heightPx}px`,
+      backgroundColor: callSheetColors?.background || undefined,
+    };
+  }, [
+    mobileMode,
+    callSheetSettings?.pageSize?.width,
+    callSheetSettings?.pageSize?.height,
+    callSheetSettings?.pageSize?.unit,
+    callSheetColors?.background,
+  ]);
+
+  const header = layoutV2?.header || null;
+  const dayNotesHtml = useMemo(() => formatNotesForDisplay(dayDetails?.notes || ""), [dayDetails?.notes]);
+  const dayNotesPlacement = dayDetails?.notesStyle?.placement === "top" ? "top" : "bottom";
+  const dayNotesColor = isHexColor(dayDetails?.notesStyle?.color) ? dayDetails.notesStyle.color : null;
+  const dayNotesIcon = dayDetails?.notesStyle?.icon || null;
+  const customLocations = useMemo(
+    () => (Array.isArray(dayDetails?.customLocations) ? dayDetails.customLocations : []),
+    [dayDetails?.customLocations]
+  );
+
+  const renderHeaderText = (item) => {
+    if (!item || item.enabled === false) return null;
+    const raw = item.type === "variable" ? resolveCallSheetVariable(item.value, variableCtx) : String(item.value || "");
+    const text = String(raw || "");
+    return text.trim() ? text : "";
+  };
+
+  const renderHeaderItem = (item, idx, columnKey) => {
+    if (!item || item.enabled === false) return null;
+    const align =
+      item.style?.align ||
+      (columnKey === "right" ? "right" : columnKey === "center" ? "center" : "left");
+    const color = item.style?.color || undefined;
+    const fontSize = typeof item.style?.fontSize === "number" ? item.style.fontSize : undefined;
+    const lineHeight = typeof item.style?.lineHeight === "number" ? item.style.lineHeight : undefined;
+    const marginTop = typeof item.style?.marginTop === "number" ? item.style.marginTop : undefined;
+    const marginBottom = typeof item.style?.marginBottom === "number" ? item.style.marginBottom : undefined;
+    const marginLeft = typeof item.style?.marginLeft === "number" ? item.style.marginLeft : undefined;
+    const marginRight = typeof item.style?.marginRight === "number" ? item.style.marginRight : undefined;
+    const wrap = item.style?.wrap === "nowrap" ? "nowrap" : "pre-wrap";
+
+    const style = {
+      textAlign: align,
+      color,
+      fontSize,
+      lineHeight,
+      marginTop,
+      marginBottom,
+      marginLeft,
+      marginRight,
+      whiteSpace: wrap,
+      overflowWrap: "anywhere",
+    };
+
+    if (item.type === "image") {
+      const src = String(item.value || "").trim();
+      if (!src) return null;
+      const shape =
+        columnKey === "center"
+          ? header?.centerShape === "circle"
+            ? "rounded-full"
+            : header?.centerShape === "rectangle"
+            ? "rounded-md"
+            : ""
+          : "";
+      return (
+        <div key={`header-${columnKey}-img-${idx}`} style={style} className="my-1">
+          <img
+            src={src}
+            alt=""
+            className={["mx-auto max-h-16 max-w-full object-contain", shape].filter(Boolean).join(" ")}
+          />
+        </div>
+      );
+    }
+
+    const text = renderHeaderText(item);
+    if (!text) return null;
+    return (
+      <div key={`header-${columnKey}-txt-${idx}`} style={style} className="my-0.5">
+        {text}
+      </div>
+    );
+  };
+
+  const renderDetailRow = (label, value) => {
+    const text = value != null && String(value).trim() ? String(value).trim() : "—";
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-900">
+        <div className="font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+        <div className="font-medium text-slate-800 dark:text-slate-200">{text}</div>
+      </div>
+    );
+  };
+
+  const renderLocationCard = (label, ref) => {
+    const title = ref?.label && String(ref.label).trim() ? String(ref.label).trim() : "—";
+    const notes = ref?.notes && String(ref.notes).trim() ? String(ref.notes).trim() : "";
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+        <div className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{title}</div>
+        {notes ? <div className="mt-1 text-xs text-slate-500">{notes}</div> : null}
+      </div>
+    );
+  };
+
+  const renderMainNotes = () => {
+    const icon =
+      dayNotesIcon === "alert"
+        ? AlertTriangle
+        : dayNotesIcon === "info"
+        ? Info
+        : dayNotesIcon === "note"
+        ? FileText
+        : null;
+    const Icon = icon;
+    const style = dayNotesColor ? { backgroundColor: dayNotesColor } : undefined;
+    return (
+      <div
+        className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+        style={style}
+      >
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {Icon ? <Icon className="h-4 w-4" /> : null}
+          <span>Main Notes</span>
+        </div>
+        {dayNotesHtml ? (
+          <div
+            className="prose prose-sm mt-2 max-w-none text-slate-800 dark:prose-invert dark:text-slate-200"
+            dangerouslySetInnerHTML={{ __html: dayNotesHtml }}
+          />
+        ) : (
+          <div className="mt-2 text-xs text-slate-500">—</div>
+        )}
+      </div>
+    );
+  };
+
+  const renderPageBreakSection = () => {
+    const printStyle = isPrinting ? { breakAfter: "page", pageBreakAfter: "always" } : undefined;
+    return (
+      <div style={printStyle} className="py-3">
+        <div className="flex items-center justify-center gap-3">
+          <div className="h-px flex-1 border-t border-dashed border-slate-400 dark:border-slate-600" />
+          <div className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
+            Page Break
+          </div>
+          <div className="h-px flex-1 border-t border-dashed border-slate-400 dark:border-slate-600" />
+        </div>
+        {!isPrinting ? (
+          <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-600 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300">
+            New Page
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderRemindersSection = (section) => {
+    const raw = section?.config?.text != null ? String(section.config.text) : "";
+    const items = raw
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    return (
+      <div className="rounded-lg border border-slate-300 dark:border-slate-600">
+        <div className="bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white dark:bg-slate-950">
+          Reminders
+        </div>
+        <div className="p-4">
+          {items.length === 0 ? (
+            <div className="text-sm text-slate-500">No reminders</div>
+          ) : (
+            <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700 dark:text-slate-300">
+              {items.map((item, idx) => (
+                <li key={`${idx}-${item}`} className="break-words">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderCustomBannerSection = (section) => {
+    const text = section?.config?.text != null ? String(section.config.text).trim() : "";
+    const label = text || "Banner";
+    return (
+      <div className="rounded-lg border border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-900">
+        <div className="bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white dark:bg-slate-950">
+          Banner
+        </div>
+        <div className="p-4">
+          <div className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
+            {label}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderExtrasSection = (section) => {
+    const titleRaw = section?.config?.title != null ? String(section.config.title) : "";
+    const title = titleRaw.trim() ? titleRaw.trim() : "Extras & Dept. Notes";
+    const rows = Array.isArray(section?.config?.rows) ? section.config.rows : [];
+    const normalized = rows
+      .map((row) => {
+        if (!row || typeof row !== "object") return null;
+        const id = row.id != null ? String(row.id) : null;
+        const rowTitle = row.title != null ? String(row.title).trim() : "";
+        const text = row.text != null ? String(row.text).trim() : "";
+        if (!rowTitle && !text) return null;
+        return { id, title: rowTitle, text };
+      })
+      .filter(Boolean);
+
+    return (
+      <div className="rounded-lg border border-slate-300 dark:border-slate-600">
+        <div className="bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white dark:bg-slate-950">
+          {title}
+        </div>
+        <div className="grid gap-3 p-4">
+          {normalized.length === 0 ? (
+            <div className="text-sm text-slate-500">No extras / department notes</div>
+          ) : (
+            normalized.map((row, idx) => (
+              <div
+                key={row.id || `${idx}-${row.title}`}
+                className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+              >
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{row.title || "Row"}</div>
+                <div className="mt-1 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">
+                  {row.text || "—"}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAdvancedScheduleSection = (section) => {
+    const titleRaw = section?.config?.title != null ? String(section.config.title) : "";
+    const title = titleRaw.trim() ? titleRaw.trim() : "Advanced Schedule";
+    const textRaw = section?.config?.text != null ? String(section.config.text) : "";
+    const text = textRaw.trim();
+
+    return (
+      <div className="rounded-lg border border-slate-300 dark:border-slate-600">
+        <div className="bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white dark:bg-slate-950">
+          {title}
+        </div>
+        <div className="p-4">
+          <div className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">{text || "—"}</div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderNotesContactsSection = () => {
+    return (
+      <div className="rounded-lg border border-slate-300 dark:border-slate-600">
+        <div className="bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white dark:bg-slate-950">
+          Notes / Contacts
+        </div>
+        <div className="grid gap-4 p-4">
+          <div className="grid gap-2 md:grid-cols-2">
+            {renderDetailRow("Set Medic", dayDetails?.setMedic)}
+            {renderDetailRow("Script Ver.", dayDetails?.scriptVersion)}
+            {renderDetailRow("Schedule Ver.", dayDetails?.scheduleVersion)}
+            {renderDetailRow("Key People", dayDetails?.keyPeople)}
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {renderLocationCard("Production Office", dayDetails?.productionOffice)}
+            {renderLocationCard("Nearest Hospital", dayDetails?.nearestHospital)}
+            {renderLocationCard("Parking", dayDetails?.parking)}
+            {renderLocationCard("Basecamp", dayDetails?.basecamp)}
+          </div>
+          {renderMainNotes()}
+        </div>
+      </div>
+    );
+  };
+
+  const renderQuoteSection = (section) => {
+    const titleRaw = section?.config?.title != null ? String(section.config.title) : "";
+    const title = titleRaw.trim() ? titleRaw.trim() : "Quote of the Day";
+    const quoteRaw = section?.config?.quote != null ? String(section.config.quote) : "";
+    const authorRaw = section?.config?.author != null ? String(section.config.author) : "";
+    const quote = quoteRaw.trim();
+    const author = authorRaw.trim();
+
+    return (
+      <div className="rounded-lg border border-slate-300 dark:border-slate-600">
+        <div className="bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white dark:bg-slate-950">
+          {title}
+        </div>
+        <div className="p-4">
+          <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+            <div className="text-sm font-medium italic text-slate-800 dark:text-slate-200">
+              {quote ? `“${quote}”` : "—"}
+            </div>
+            {author ? <div className="mt-2 text-xs font-semibold text-slate-500">— {author}</div> : null}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDayDetailsSection = () => {
+    return (
+      <div className="rounded-lg border border-slate-300 dark:border-slate-600">
+        <div className="bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white dark:bg-slate-950">
+          Day Details
+        </div>
+        <div className="grid gap-4 p-4">
+          {dayNotesPlacement === "top" ? renderMainNotes() : null}
+          <div className="grid gap-2 md:grid-cols-3">
+            {renderDetailRow("Crew Call", dayDetails?.crewCallTime)}
+            {renderDetailRow("Shooting Call", dayDetails?.shootingCallTime)}
+            {renderDetailRow("Est. Wrap", dayDetails?.estimatedWrap)}
+            {renderDetailRow("Breakfast", dayDetails?.breakfastTime)}
+            {renderDetailRow("1st Meal", dayDetails?.firstMealTime)}
+            {renderDetailRow("2nd Meal", dayDetails?.secondMealTime)}
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Key People</div>
+              <div className="mt-1 whitespace-pre-wrap text-xs text-slate-700 dark:text-slate-300">
+                {dayDetails?.keyPeople && String(dayDetails.keyPeople).trim() ? String(dayDetails.keyPeople).trim() : "—"}
+              </div>
+              <div className="mt-3 grid gap-2">
+                {renderDetailRow("Set Medic", dayDetails?.setMedic)}
+                {renderDetailRow("Script Ver.", dayDetails?.scriptVersion)}
+                {renderDetailRow("Schedule Ver.", dayDetails?.scheduleVersion)}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Weather</div>
+              <div className="mt-1 text-xs text-slate-700 dark:text-slate-300">
+                {dayDetails?.weather?.summary && String(dayDetails.weather.summary).trim()
+                  ? String(dayDetails.weather.summary).trim()
+                  : "—"}
+              </div>
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                {renderDetailRow("Low", dayDetails?.weather?.lowTemp != null ? `${dayDetails.weather.lowTemp}` : null)}
+                {renderDetailRow("High", dayDetails?.weather?.highTemp != null ? `${dayDetails.weather.highTemp}` : null)}
+                {renderDetailRow("Sunrise", dayDetails?.weather?.sunrise)}
+                {renderDetailRow("Sunset", dayDetails?.weather?.sunset)}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            {renderLocationCard("Production Office", dayDetails?.productionOffice)}
+            {renderLocationCard("Nearest Hospital", dayDetails?.nearestHospital)}
+            {renderLocationCard("Parking", dayDetails?.parking)}
+            {renderLocationCard("Basecamp", dayDetails?.basecamp)}
+            {customLocations.map((row) =>
+              renderLocationCard(String(row?.title || "Location"), {
+                label: row?.label ?? null,
+                notes: row?.notes ?? null,
+              })
+            )}
+          </div>
+
+          {dayNotesPlacement !== "top" ? renderMainNotes() : null}
+        </div>
+      </div>
+    );
+  };
+
+  const renderSectionContent = (section) => {
+    if (!section) return null;
+
+    switch (section.type) {
+      case "day-details":
+        return renderDayDetailsSection();
+      case "reminders":
+        return renderRemindersSection(section);
+      case "custom-banner":
+        return renderCustomBannerSection(section);
+      case "notes-contacts":
+        return renderNotesContactsSection();
+      case "extras":
+        return renderExtrasSection(section);
+      case "advanced-schedule":
+        return renderAdvancedScheduleSection(section);
+      case "quote":
+        return renderQuoteSection(section);
+      case "page-break":
+        return renderPageBreakSection();
+      case "clients":
+        return (
+          <div className="rounded-lg border border-slate-300 dark:border-slate-600">
+            <div className="bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white dark:bg-slate-950">
+              {clientsTitle}
+            </div>
+            {Array.isArray(clientRows) && clientRows.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-[980px] w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+                  <thead className="bg-slate-100 dark:bg-slate-800 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    <tr>
+                      {visibleClientsColumns.map((col) => (
+                        <th key={col.key} className={`px-3 py-2 text-left ${getRosterWidthClass(col.width)}`}>
+                          {col.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {clientRows.map((row, idx) => (
+                      <tr
+                        key={row.id || idx}
+                        className={idx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/50 dark:bg-slate-800/30"}
+                      >
+                        {visibleClientsColumns.map((col) => {
+                          const key = col.key;
+                          if (key === "id") {
+                            return (
+                              <td key="id" className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">
+                                {row?.idLabel ? String(row.idLabel) : "—"}
+                              </td>
+                            );
+                          }
+
+                          if (key === "name") {
+                            return (
+                              <td key="name" className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">
+                                {row?.name ? String(row.name) : "—"}
+                              </td>
+                            );
+                          }
+
+                          if (key === "call") {
+                            const callValue = row?.callTime ? String(row.callTime) : row?.callText ? String(row.callText) : "";
+                            const callDisplay = isTimeString(callValue) ? formatTime12h(callValue) : callValue || "—";
+                            return (
+                              <td key="call" className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                                {callDisplay}
+                              </td>
+                            );
+                          }
+
+                          if (key === "set") {
+                            const setValue = row?.setTime ? String(row.setTime) : "";
+                            const setDisplay = isTimeString(setValue) ? formatTime12h(setValue) : setValue || "—";
+                            return (
+                              <td key="set" className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                                {setDisplay}
+                              </td>
+                            );
+                          }
+
+                          const value =
+                            key === "role"
+                              ? row?.role
+                              : key === "status"
+                                ? row?.status
+                                : key === "transportation"
+                                  ? row?.transportation
+                                  : key === "blockRhs"
+                                    ? row?.blockRhs
+                                    : key === "muWard"
+                                      ? row?.muWard
+                                      : key === "remarks"
+                                        ? row?.remarks
+                                        : null;
+
+                          return (
+                            <td key={key} className="px-3 py-2 text-slate-600 dark:text-slate-400">
+                              {value ? String(value) : "—"}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-4 text-sm text-slate-500">No clients in callsheet</div>
+            )}
+          </div>
+        );
+      case "talent":
+        return (
+          <div className="rounded-lg border border-slate-300 dark:border-slate-600">
+            <div className="bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white dark:bg-slate-950">
+              {talentTitle}
+            </div>
+            {Array.isArray(talentRows) && talentRows.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-[980px] w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+                  <thead className="bg-slate-100 dark:bg-slate-800 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    <tr>
+                      {visibleTalentColumns.map((col) => (
+                        <th key={col.key} className={`px-3 py-2 text-left ${getRosterWidthClass(col.width)}`}>
+                          {col.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {talentRows.map((row, idx) => (
+                      <tr
+                        key={row.talentId || idx}
+                        className={idx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/50 dark:bg-slate-800/30"}
+                      >
+                        {visibleTalentColumns.map((col) => {
+                          const key = col.key;
+                          if (key === "id") {
+                            return (
+                              <td key="id" className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">
+                                {row?.idLabel ? String(row.idLabel) : "—"}
+                              </td>
+                            );
+                          }
+
+                          if (key === "name") {
+                            return (
+                              <td key="name" className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">
+                                {row?.name ? String(row.name) : "—"}
+                              </td>
+                            );
+                          }
+
+                          if (key === "call") {
+                            const callValue = row?.callTime ? String(row.callTime) : row?.callText ? String(row.callText) : "";
+                            const callDisplay = isTimeString(callValue) ? formatTime12h(callValue) : callValue || "—";
+                            return (
+                              <td key="call" className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                                {callDisplay}
+                              </td>
+                            );
+                          }
+
+                          if (key === "set") {
+                            const setValue = row?.setTime ? String(row.setTime) : "";
+                            const setDisplay = isTimeString(setValue) ? formatTime12h(setValue) : setValue || "—";
+                            return (
+                              <td key="set" className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                                {setDisplay}
+                              </td>
+                            );
+                          }
+
+                          const value =
+                            key === "role"
+                              ? row?.role
+                              : key === "status"
+                                ? row?.status
+                                : key === "transportation"
+                                  ? row?.transportation
+                                  : key === "blockRhs"
+                                    ? row?.blockRhs
+                                    : key === "muWard"
+                                      ? row?.muWard
+                                      : key === "remarks"
+                                        ? row?.remarks
+                                        : null;
+
+                          return (
+                            <td key={key} className="px-3 py-2 text-slate-600 dark:text-slate-400">
+                              {value ? String(value) : "—"}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-4 text-sm text-slate-500">No talents in callsheet</div>
+            )}
+          </div>
+        );
+      case "crew":
+        return (
+          <div className="rounded-lg border border-slate-300 dark:border-slate-600">
+            <div className="bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white dark:bg-slate-950">
+              Crew
+            </div>
+            <div className="p-4">
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                Crew times are relative to the general crew call time.
+              </div>
+              {crewGroups.length === 0 ? (
+                <div className="text-sm text-slate-500">No crew assigned to this project yet.</div>
+              ) : (
+                <div className="space-y-6">
+                  {crewGroups.map((group) => (
+                    <div key={group.department} className="space-y-2">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{group.department}</div>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+                          <thead className="bg-slate-50 dark:bg-slate-900 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                            <tr>
+                              <th className="px-3 py-2 text-left">Crew</th>
+                              <th className="px-3 py-2 text-left w-36">Call</th>
+                              <th className="px-3 py-2 text-left w-28">Delta</th>
+                              <th className="px-3 py-2 text-left">Notes</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {group.rows.map((row) => {
+                              const baseTime = dayDetails?.crewCallTime ? String(dayDetails.crewCallTime).trim() : "";
+                              const override =
+                                (row?.callTime && String(row.callTime).trim()) ||
+                                (row?.callText && String(row.callText).trim()) ||
+                                "";
+                              const effective =
+                                (isTimeString(override) ? override : "") || (isTimeString(baseTime) ? baseTime : "");
+                              const delta = getTimeDeltaMinutes(baseTime, effective);
+                              const deltaTag = getDeltaTag(delta);
+                              const callDisplay = effective
+                                ? formatTime12h(effective)
+                                : override
+                                  ? String(override)
+                                  : baseTime
+                                    ? formatTime12h(baseTime)
+                                    : "—";
+
+                              return (
+                                <tr key={row.crewMemberId}>
+                                  <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">
+                                    {row?.name ? String(row.name) : "—"}
+                                  </td>
+                                  <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{callDisplay}</td>
+                                  <td className="px-3 py-2 text-slate-600 dark:text-slate-400">
+                                    {deltaTag ? (
+                                      <span
+                                        className={[
+                                          "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                                          deltaTag.tone === "blue"
+                                            ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
+                                            : deltaTag.tone === "amber"
+                                              ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200"
+                                              : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+                                        ].join(" ")}
+                                      >
+                                        {deltaTag.label}
+                                      </span>
+                                    ) : (
+                                      "—"
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2 text-slate-600 dark:text-slate-400">
+                                    {row?.notes ? String(row.notes) : "—"}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="flex h-full flex-col overflow-hidden bg-slate-100 text-sm dark:bg-slate-900">
       <div className="flex-1 overflow-auto p-6">
@@ -434,28 +1331,51 @@ function CallSheetPreview({
             <div
               data-callsheet-print-root
               data-callsheet-paper
-              className="w-[816px] min-h-[1056px] rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
+              className="rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
+              style={paperStyle}
             >
               <div className="border-b border-slate-200 bg-slate-50 px-6 py-5 dark:border-slate-700 dark:bg-slate-800">
-                <div className="flex items-start justify-between gap-6">
-                  <div className="min-w-0">
-                    <h3 className="truncate font-semibold text-slate-900 dark:text-slate-100">
-                      {schedule?.name || "Call Sheet Preview"}
-                    </h3>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                      <Calendar className="h-3.5 w-3.5" />
-                      <span className="truncate">{scheduleDate}</span>
+                {headerEnabled && header ? (
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="min-w-0">
+                      {(header.left?.items || []).map((item, idx) => renderHeaderItem(item, idx, "left"))}
+                    </div>
+                    <div className="min-w-0">
+                      {(header.center?.items || []).map((item, idx) => renderHeaderItem(item, idx, "center"))}
+                    </div>
+                    <div className="min-w-0">
+                      {(header.right?.items || []).map((item, idx) => renderHeaderItem(item, idx, "right"))}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                    <Clock className="h-3.5 w-3.5" />
-                    {sortedEntries.length} items
+                ) : (
+                  <div className="flex items-start justify-between gap-6">
+                    <div className="min-w-0">
+                      <h3 className="truncate font-semibold text-slate-900 dark:text-slate-100">
+                        {schedule?.name || "Call Sheet Preview"}
+                      </h3>
+                      <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span className="truncate">{scheduleDate}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <Clock className="h-3.5 w-3.5" />
+                      {sortedEntries.length} items
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
-              <div className="px-6 py-6">
-                <div className="rounded-lg border border-slate-300 dark:border-slate-600">
+              <div className={bodyPaddingClassName}>
+                <div className={bodySpacingClassName}>
+                  {sectionsBeforeSchedule.map((section) => {
+                    const content = renderSectionContent(section);
+                    if (!content) return null;
+                    return <React.Fragment key={section.id}>{content}</React.Fragment>;
+                  })}
+
+                  {scheduleVisible ? (
+                    <div className="rounded-lg border border-slate-300 dark:border-slate-600">
           {isMultiTrack ? (
             <>
               {/* Multi-track Header - Time + Track Columns */}
@@ -1137,10 +2057,18 @@ function CallSheetPreview({
               <p className="text-xs">Add items to the schedule to see them here</p>
             </div>
           )}
+                    </div>
+                  ) : null}
+
+                  {sectionsAfterSchedule.map((section) => {
+                    const content = renderSectionContent(section);
+                    if (!content) return null;
+                    return <React.Fragment key={section.id}>{content}</React.Fragment>;
+                  })}
                 </div>
 
-        {/* Talent Summary (if any shots have talent) */}
-        {sortedEntries.some((e) => e.resolvedTalent?.length > 0) && (
+        {/* Talent Summary (from schedule only; shown when roster section is disabled) */}
+        {!talentEnabled && sortedEntries.some((e) => e.resolvedTalent?.length > 0) && (
           <div className="mt-6">
             <h4 className="mb-2 flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
               <Users className="h-4 w-4" />

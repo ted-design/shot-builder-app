@@ -7,6 +7,7 @@ import {
   Clock,
   MapPin,
   FileText,
+  Flag,
   Pencil,
   Trash2,
   Image as ImageIcon,
@@ -43,6 +44,15 @@ const CATEGORY_COLORS = {
   talent: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
   other: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
 };
+
+const FLAG_OPTIONS = [
+  { value: null, label: "None" },
+  { value: "Important", label: "Important" },
+  { value: "Client", label: "Client" },
+  { value: "Wardrobe", label: "Wardrobe" },
+  { value: "HMU", label: "HMU" },
+  { value: "Travel", label: "Travel" },
+];
 
 /**
  * Format duration in minutes to human-readable string
@@ -82,12 +92,16 @@ function VerticalEntryCard({
   locations = [],
   settings = {},
   isSelected = false,
+  checked = false,
   onSelect,
+  onCheckedChange,
   onTimeChange,
   onDurationChange,
   onNotesChange,
   onLocationChange,
   onTrackChange,
+  onFlagChange,
+  onEditShot,
   onEditCustom,
   onDelete,
 }) {
@@ -145,6 +159,8 @@ function VerticalEntryCard({
 
   // Get image for shots
   const imageUrl = entry.resolvedImage;
+  const flagValue = entry.flag || null;
+  const flagLabel = FLAG_OPTIONS.find((opt) => opt.value === flagValue)?.label || String(flagValue || "Flag");
 
   // Handle time edit
   const incrementMinutes = settings.timeIncrement || 15;
@@ -204,12 +220,24 @@ function VerticalEntryCard({
     >
       {/* Header: Time, Category Badge, Duration */}
       <div className="flex items-center gap-3 border-b border-slate-100 px-3 py-2 dark:border-slate-700">
+        {/* Checkbox */}
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onCheckedChange?.(entry.id, e.target.checked)}
+          onClick={(e) => e.stopPropagation()}
+          className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+          aria-label="Select entry"
+        />
+
         {/* Drag handle */}
         <button
           type="button"
           className="cursor-grab touch-none text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-400"
           {...attributes}
           {...listeners}
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Drag entry"
         >
           <GripVertical className="h-4 w-4" />
         </button>
@@ -436,6 +464,11 @@ function VerticalEntryCard({
         <div className="min-w-0 flex-1">
           {/* Title */}
           <h4 className="font-medium text-slate-900 dark:text-slate-100">
+            {isShot && entry.shotNumber ? (
+              <span className="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-200">
+                {entry.shotNumber}
+              </span>
+            ) : null}
             {entry.resolvedTitle || "Untitled"}
           </h4>
 
@@ -480,6 +513,34 @@ function VerticalEntryCard({
 
       {/* Footer: Location, Notes, Actions */}
       <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2 dark:border-slate-700">
+        {/* Flag dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={(e) => e.stopPropagation()}
+              className={[
+                "h-7 gap-1.5 px-2 text-xs",
+                flagValue ? "text-amber-700 dark:text-amber-400" : "",
+              ].join(" ")}
+            >
+              <Flag className="h-3.5 w-3.5" />
+              {flagLabel}
+              <ChevronDown className="h-3 w-3 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+            {FLAG_OPTIONS.map((opt) => (
+              <DropdownMenuItem key={opt.label} onClick={() => onFlagChange?.(entry.id, opt.value)}>
+                <span className="flex-1">{opt.label}</span>
+                {opt.value === flagValue ? <Check className="h-4 w-4" /> : null}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {/* Location dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -488,13 +549,14 @@ function VerticalEntryCard({
               variant="ghost"
               size="sm"
               className="h-7 gap-1.5 px-2 text-xs"
+              onClick={(e) => e.stopPropagation()}
             >
               <MapPin className="h-3.5 w-3.5" />
               {entry.resolvedLocation || "Set location"}
               <ChevronDown className="h-3 w-3 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent>
+          <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
             <DropdownMenuItem onClick={() => onLocationChange?.(entry.id, null)}>
               No location
             </DropdownMenuItem>
@@ -544,6 +606,22 @@ function VerticalEntryCard({
             <Pencil className="h-3.5 w-3.5" />
           </Button>
         )}
+
+        {isShot ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditShot?.(entry);
+            }}
+            className="h-7 px-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+            title="Edit shot"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+        ) : null}
 
         {/* Delete button */}
         <Button

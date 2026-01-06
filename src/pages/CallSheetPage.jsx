@@ -2,7 +2,7 @@
 // Page component for the Call Sheet Builder
 
 import React, { useState, useMemo, useCallback, lazy, Suspense } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import {
   collection,
   query,
@@ -44,9 +44,10 @@ const CallSheetBuilder = lazy(() =>
  */
 function CallSheetPage() {
   const { projectId } = useParams();
-  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, clientId } = useAuth();
   const { activeProject } = useProjectScope();
+  const isPreviewMode = searchParams.get("preview") === "1";
 
   const isEnabled = FLAGS.callSheetBuilder;
   const effectiveClientId = isEnabled ? clientId : null;
@@ -54,6 +55,7 @@ function CallSheetPage() {
 
   // Active schedule ID (from URL or first available)
   const [activeScheduleId, setActiveScheduleId] = useState(null);
+  const scheduleIdFromUrl = searchParams.get("scheduleId");
 
   // Schedule create modal state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -133,12 +135,28 @@ function CallSheetPage() {
     return new Map(products.map((p) => [p.id, p]));
   }, [products]);
 
-  // Set active schedule to first one if not set
+  // Prefer scheduleId from URL when valid; otherwise fall back to the first schedule.
   React.useEffect(() => {
-    if (!activeScheduleId && schedules.length > 0) {
+    if (schedules.length === 0) return;
+
+    if (scheduleIdFromUrl && schedules.some((s) => s.id === scheduleIdFromUrl)) {
+      setActiveScheduleId(scheduleIdFromUrl);
+      return;
+    }
+
+    if (!activeScheduleId) {
       setActiveScheduleId(schedules[0].id);
     }
-  }, [activeScheduleId, schedules]);
+  }, [activeScheduleId, schedules, scheduleIdFromUrl]);
+
+  // Keep the active schedule mirrored in the URL for shareable links.
+  React.useEffect(() => {
+    if (!activeScheduleId) return;
+    if (searchParams.get("scheduleId") === activeScheduleId) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("scheduleId", activeScheduleId);
+    setSearchParams(next, { replace: true });
+  }, [activeScheduleId, searchParams, setSearchParams]);
 
   // Active schedule object
   const activeSchedule = useMemo(() => {
@@ -210,18 +228,55 @@ function CallSheetPage() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 p-4">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <PageHeader
-            title="Call Sheet"
-            icon={<Calendar className="h-5 w-5" />}
-            subtitle={activeProject?.name}
-          />
+    <div className={isPreviewMode ? "flex h-full flex-col" : "flex h-full flex-col gap-4 p-4"}>
+      {!isPreviewMode ? (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <PageHeader
+              title="Call Sheet"
+              icon={<Calendar className="h-5 w-5" />}
+              subtitle={activeProject?.name}
+            />
 
-          {/* Schedule Selector */}
-          {schedules.length > 0 && (
+            {schedules.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    {activeSchedule?.name || "Select Schedule"}
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {schedules.map((schedule) => (
+                    <DropdownMenuItem
+                      key={schedule.id}
+                      onClick={() => setActiveScheduleId(schedule.id)}
+                    >
+                      <div className="flex flex-col">
+                        <span>{schedule.name}</span>
+                        <span className="text-xs text-slate-500">
+                          {formatScheduleDate(schedule.date)}
+                        </span>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+
+          <Button onClick={handleOpenCreateModal} className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            New Schedule
+          </Button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Call Sheet Preview</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">{activeProject?.name}</div>
+          </div>
+          {schedules.length > 0 ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-2">
@@ -229,31 +284,20 @@ function CallSheetPage() {
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
+              <DropdownMenuContent align="end">
                 {schedules.map((schedule) => (
-                  <DropdownMenuItem
-                    key={schedule.id}
-                    onClick={() => setActiveScheduleId(schedule.id)}
-                  >
+                  <DropdownMenuItem key={schedule.id} onClick={() => setActiveScheduleId(schedule.id)}>
                     <div className="flex flex-col">
                       <span>{schedule.name}</span>
-                      <span className="text-xs text-slate-500">
-                        {formatScheduleDate(schedule.date)}
-                      </span>
+                      <span className="text-xs text-slate-500">{formatScheduleDate(schedule.date)}</span>
                     </div>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
+          ) : null}
         </div>
-
-        {/* Create Schedule Button */}
-        <Button onClick={handleOpenCreateModal} className="gap-1.5">
-          <Plus className="h-4 w-4" />
-          New Schedule
-        </Button>
-      </div>
+      )}
 
       {/* Main Content */}
       {schedules.length === 0 ? (
@@ -286,6 +330,7 @@ function CallSheetPage() {
             clientId={clientId}
             projectId={projectId}
             scheduleId={activeScheduleId}
+            viewMode={isPreviewMode ? "preview" : "builder"}
             shots={shots}
             shotsLoading={shotsLoading}
             shotsMap={shotsMap}
@@ -303,13 +348,15 @@ function CallSheetPage() {
       )}
 
       {/* Create Schedule Modal */}
-      <ScheduleCreateModal
-        open={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={handleCreateSchedule}
-        existingDates={schedules.map((s) => s.date)}
-        busy={createSchedule.isPending}
-      />
+      {!isPreviewMode ? (
+        <ScheduleCreateModal
+          open={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSubmit={handleCreateSchedule}
+          existingDates={schedules.map((s) => s.date)}
+          busy={createSchedule.isPending}
+        />
+      ) : null}
     </div>
   );
 }

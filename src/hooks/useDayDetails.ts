@@ -22,12 +22,14 @@ function buildDefaultDayDetails(scheduleId: string): DayDetails {
     nearestHospital: null,
     parking: null,
     basecamp: null,
+    customLocations: null,
     weather: null,
     keyPeople: null,
     setMedic: null,
     scriptVersion: null,
     scheduleVersion: null,
     notes: null,
+    notesStyle: null,
     createdAt: null,
     updatedAt: null,
     createdBy: null,
@@ -137,4 +139,3 @@ export function useDayDetails(
     updateDayDetails,
   };
 }
-

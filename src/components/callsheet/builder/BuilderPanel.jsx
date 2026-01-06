@@ -18,6 +18,7 @@ function sectionLabel(type) {
     crew: "Crew",
     "notes-contacts": "Notes / Contacts",
     "custom-banner": "Custom Banner",
+    quote: "Quote of the Day",
   };
   return labels[type] || type;
 }

@@ -35,12 +35,22 @@ service cloud.firestore {
 
     function hasProjectRole(projectId, roles) {
       let clientId = userClient();
+      let memberPath = /databases/$(database)/documents/clients/$(clientId)/projects/$(projectId)/members/$(request.auth.uid);
+      let memberRole = exists(memberPath) ? get(memberPath).data.role : null;
+      // Normalize role to lowercase for comparison
+      let normalizedRole = memberRole == 'Producer' ? 'producer'
+        : memberRole == 'PRODUCER' ? 'producer'
+        : memberRole == 'Wardrobe' ? 'wardrobe'
+        : memberRole == 'WARDROBE' ? 'wardrobe'
+        : memberRole == 'Viewer' ? 'viewer'
+        : memberRole == 'VIEWER' ? 'viewer'
+        : memberRole == 'Crew' ? 'crew'
+        : memberRole == 'CREW' ? 'crew'
+        : memberRole;
       return clientId != null &&
         request.auth != null &&
-        exists(/databases/$(database)/documents/clients/$(clientId)/projects/$(projectId)/members/$(request.auth.uid)) &&
-        roles.hasAny([
-          get(/databases/$(database)/documents/clients/$(clientId)/projects/$(projectId)/members/$(request.auth.uid)).data.role
-        ]);
+        memberRole != null &&
+        roles.hasAny([normalizedRole]);
     }
 
     function isSystemAdmin() {
@@ -287,6 +297,46 @@ service cloud.firestore {
             (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
 
           // Producers and above can create/update/delete entries
+          allow create, update, delete: if clientMatches(clientId) &&
+            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+        }
+
+        // Day details - call times, notes, weather (per schedule)
+        match /dayDetails/{detailId} {
+          allow read: if clientMatches(clientId) &&
+            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+          allow create, update, delete: if clientMatches(clientId) &&
+            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+        }
+
+        // Talent call overrides (per schedule)
+        match /talentCalls/{talentId} {
+          allow read: if clientMatches(clientId) &&
+            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+          allow create, update, delete: if clientMatches(clientId) &&
+            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+        }
+
+        // Crew call overrides (per schedule)
+        match /crewCalls/{crewMemberId} {
+          allow read: if clientMatches(clientId) &&
+            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+          allow create, update, delete: if clientMatches(clientId) &&
+            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+        }
+
+        // Client call rows (per schedule)
+        match /clientCalls/{clientCallId} {
+          allow read: if clientMatches(clientId) &&
+            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+          allow create, update, delete: if clientMatches(clientId) &&
+            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+        }
+
+        // Call sheet builder state (config/layout/templates) for a schedule.
+        match /callSheet/{docId} {
+          allow read: if clientMatches(clientId) &&
+            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
           allow create, update, delete: if clientMatches(clientId) &&
             (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
         }

@@ -23,6 +23,9 @@ function normalizeTalentCall(talentId: string, raw: any): TalentCallSheet {
     callText: raw?.callText ?? null,
     setTime: raw?.setTime ?? null,
     wrapTime: raw?.wrapTime ?? null,
+    role: raw?.role ?? null,
+    blockRhs: raw?.blockRhs ?? null,
+    muWard: raw?.muWard ?? null,
     status: raw?.status ?? null,
     transportation: raw?.transportation ?? null,
     notes: raw?.notes ?? null,
@@ -128,4 +131,3 @@ export function useTalentCalls(
     deleteTalentCall,
   };
 }
-
