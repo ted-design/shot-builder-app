@@ -27,6 +27,7 @@ const WIDTH_OPTIONS = [
   { value: "md", label: "Medium" },
   { value: "lg", label: "Large" },
   { value: "xl", label: "X-Large" },
+  { value: "hidden", label: "Hidden" },
 ];
 
 /**
@@ -42,6 +43,8 @@ function ColumnConfigModal({
   isOpen,
   onClose,
   columns = DEFAULT_COLUMNS,
+  sectionTitle = "",
+  onSectionTitleChange,
   onSave,
 }) {
   // Local state for editing
@@ -57,6 +60,10 @@ function ColumnConfigModal({
     }
   }, [isOpen, columns]);
 
+  const defaultsByKey = React.useMemo(() => {
+    return new Map(DEFAULT_COLUMNS.map((col) => [col.key, col]));
+  }, []);
+
   // Handle label change
   const handleLabelChange = useCallback((key, newLabel) => {
     setEditedColumns((prev) =>
@@ -70,7 +77,13 @@ function ColumnConfigModal({
   const handleWidthChange = useCallback((key, newWidth) => {
     setEditedColumns((prev) =>
       prev.map((col) =>
-        col.key === key ? { ...col, width: newWidth } : col
+        col.key === key
+          ? {
+              ...col,
+              width: newWidth,
+              visible: newWidth === "hidden" ? false : col.visible,
+            }
+          : col
       )
     );
   }, []);
@@ -83,6 +96,22 @@ function ColumnConfigModal({
       )
     );
   }, []);
+
+  const handleResetField = useCallback((key) => {
+    const defaultColumn = defaultsByKey.get(key);
+    if (!defaultColumn) return;
+    setEditedColumns((prev) =>
+      prev.map((col) => {
+        if (col.key !== key) return col;
+        return {
+          ...col,
+          label: defaultColumn.label,
+          width: defaultColumn.width,
+          visible: defaultColumn.visible,
+        };
+      })
+    );
+  }, [defaultsByKey]);
 
   // Handle drag start
   const handleDragStart = (e, index) => {
@@ -121,7 +150,7 @@ function ColumnConfigModal({
   const handleSave = useCallback(() => {
     const sanitized = editedColumns.map((col) => {
       if (col.width === "hidden") {
-        return { ...col, width: "md", visible: false };
+        return { ...col, visible: false };
       }
       return col;
     });
@@ -167,9 +196,22 @@ function ColumnConfigModal({
 
         {/* Content */}
         <div className="max-h-[calc(85vh-130px)] overflow-y-auto p-4">
-          <p className="mb-4 text-sm text-slate-500">
-            Drag to reorder columns. Click the eye icon to show/hide.
-          </p>
+          <div className="mb-4 space-y-3">
+            <div>
+              <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Section title</div>
+              <div className="mt-1 text-xs text-slate-500">Used as the table header label in the call sheet.</div>
+              <Input
+                type="text"
+                value={sectionTitle}
+                onChange={(e) => onSectionTitleChange?.(e.target.value)}
+                className="mt-2"
+                placeholder="Today’s Schedule"
+              />
+            </div>
+            <p className="text-sm text-slate-500">
+              Drag to reorder fields. Use the eye to show/hide and the size dropdown to set widths.
+            </p>
+          </div>
 
           <div className="space-y-2">
             {editedColumns.map((column, index) => (
@@ -216,6 +258,17 @@ function ColumnConfigModal({
                   className="flex-1"
                 />
 
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleResetField(column.key)}
+                  className="h-8 px-2 text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                  title="Reset field"
+                >
+                  Reset
+                </Button>
+
                 {/* Width selector */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -252,7 +305,7 @@ function ColumnConfigModal({
             className="gap-1.5"
           >
             <RotateCcw className="h-4 w-4" />
-            Reset to Defaults
+            Reset all to default
           </Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>

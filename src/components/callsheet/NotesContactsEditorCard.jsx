@@ -26,7 +26,7 @@ function buildLocationRef(label) {
   return { locationId: null, label: trimmed, notes: null };
 }
 
-export default function NotesContactsEditorCard({ clientId, projectId, scheduleId }) {
+export default function NotesContactsEditorCard({ clientId, projectId, scheduleId, readOnly = false }) {
   const { dayDetails, hasRemoteDayDetails, ensureDayDetails, updateDayDetails } = useDayDetails(
     clientId,
     projectId,
@@ -48,8 +48,9 @@ export default function NotesContactsEditorCard({ clientId, projectId, scheduleI
   useEffect(() => {
     if (!scheduleId) return;
     if (hasRemoteDayDetails) return;
+    if (readOnly) return;
     ensureDayDetails.mutate();
-  }, [ensureDayDetails, hasRemoteDayDetails, scheduleId]);
+  }, [ensureDayDetails, hasRemoteDayDetails, readOnly, scheduleId]);
 
   useEffect(() => {
     if (!dayDetails) return;
@@ -93,6 +94,7 @@ export default function NotesContactsEditorCard({ clientId, projectId, scheduleI
                   notes: normalizeText(dayDetails.notes),
                 });
               }}
+              disabled={readOnly}
             >
               Reset
             </Button>
@@ -110,9 +112,9 @@ export default function NotesContactsEditorCard({ clientId, projectId, scheduleI
                   notes: toNullableText(draft.notes),
                 });
               }}
-              disabled={updateDayDetails.isPending}
+              disabled={readOnly || updateDayDetails.isPending}
             >
-              {updateDayDetails.isPending ? "Saving..." : "Save"}
+              {readOnly ? "Read-only" : updateDayDetails.isPending ? "Saving..." : "Save"}
             </Button>
           </div>
         </div>
@@ -211,4 +213,3 @@ export default function NotesContactsEditorCard({ clientId, projectId, scheduleI
     </Card>
   );
 }
-

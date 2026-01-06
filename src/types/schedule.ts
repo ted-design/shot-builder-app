@@ -236,6 +236,9 @@ export interface ScheduleEntry {
   /** Optional schedule-specific notes for this entry */
   notes?: string | null;
 
+  /** Optional schedule-specific flag (e.g., "Important", "Wardrobe") */
+  flag?: string | null;
+
   /** Optional subset of tracks this custom item applies to */
   appliesToTrackIds?: string[] | null;
 

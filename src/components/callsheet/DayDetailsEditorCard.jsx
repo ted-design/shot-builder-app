@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/button";
 import { useDayDetails } from "../../hooks/useDayDetails";
 
-export default function DayDetailsEditorCard({ clientId, projectId, scheduleId }) {
+export default function DayDetailsEditorCard({ clientId, projectId, scheduleId, readOnly = false }) {
   const { dayDetails, hasRemoteDayDetails, ensureDayDetails, updateDayDetails } = useDayDetails(
     clientId,
     projectId,
@@ -19,8 +19,9 @@ export default function DayDetailsEditorCard({ clientId, projectId, scheduleId }
   useEffect(() => {
     if (!scheduleId) return;
     if (hasRemoteDayDetails) return;
+    if (readOnly) return;
     ensureDayDetails.mutate();
-  }, [ensureDayDetails, hasRemoteDayDetails, scheduleId]);
+  }, [ensureDayDetails, hasRemoteDayDetails, readOnly, scheduleId]);
 
   useEffect(() => {
     if (!dayDetails) return;
@@ -52,6 +53,7 @@ export default function DayDetailsEditorCard({ clientId, projectId, scheduleId }
                   estimatedWrap: dayDetails.estimatedWrap || "",
                 });
               }}
+              disabled={readOnly}
             >
               Reset
             </Button>
@@ -63,9 +65,9 @@ export default function DayDetailsEditorCard({ clientId, projectId, scheduleId }
                   estimatedWrap: draft.estimatedWrap,
                 });
               }}
-              disabled={updateDayDetails.isPending}
+              disabled={readOnly || updateDayDetails.isPending}
             >
-              {updateDayDetails.isPending ? "Saving..." : "Save"}
+              {readOnly ? "Read-only" : updateDayDetails.isPending ? "Saving..." : "Save"}
             </Button>
           </div>
         </div>
@@ -109,4 +111,3 @@ export default function DayDetailsEditorCard({ clientId, projectId, scheduleId }
     </Card>
   );
 }
-

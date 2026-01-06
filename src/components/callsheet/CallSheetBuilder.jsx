@@ -2,12 +2,15 @@
 // Main container for the Call Sheet Builder (vertical editor + preview)
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   useSchedule,
   useUpdateScheduleTracks,
   useUpdateScheduleColumns,
   useUpdateScheduleSettings,
 } from "../../hooks/useSchedule";
+import { useCallSheetConfig } from "../../hooks/useCallSheetConfig";
+import { useDayDetails } from "../../hooks/useDayDetails";
 import {
   useResolvedScheduleEntries,
   useMoveEntry,
@@ -28,6 +31,18 @@ import {
 import { DEFAULT_TRACKS, DEFAULT_SCHEDULE_SETTINGS, DEFAULT_COLUMNS } from "../../types/schedule";
 import CallSheetToolbar from "./CallSheetToolbar";
 import VerticalTimelineView from "./vertical/VerticalTimelineView";
+import WorkingPanel from "./builder/WorkingPanel";
+import PreviewPanel from "./builder/PreviewPanel";
+import { buildCallSheetLayoutV2 } from "../../lib/callsheet/layoutV2";
+import { useCallSheetLayoutV2 } from "../../hooks/useCallSheetLayoutV2";
+import { useProjectMemberRole } from "../../hooks/useProjectMemberRole";
+import { useTalentCalls } from "../../hooks/useTalentCalls";
+import { useCrewCalls } from "../../hooks/useCrewCalls";
+import { useClientCalls } from "../../hooks/useClientCalls";
+import { useOrganizationCrew } from "../../hooks/useOrganizationCrew";
+import { useProjectCrew } from "../../hooks/useProjectCrew";
+import { useDepartments } from "../../hooks/useDepartments";
+import { useProjectDepartments } from "../../hooks/useProjectDepartments";
 import EntryFormModal from "./entries/EntryFormModal";
 import ScheduleShotEditorModal from "./entries/ScheduleShotEditorModal";
 import ColumnConfigModal from "./columns/ColumnConfigModal";
@@ -59,6 +74,7 @@ function CallSheetBuilder({
   clientId,
   projectId,
   scheduleId,
+  viewMode = "builder",
   shots = [],
   shotsLoading = false,
   shotsMap = new Map(),
@@ -70,11 +86,14 @@ function CallSheetBuilder({
   onDeleteSchedule,
   onDuplicateSchedule,
 }) {
+  const normalizedViewMode = viewMode === "preview" ? "preview" : "builder";
+  const isPreviewOnly = normalizedViewMode === "preview";
 
   // Modal state
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [entryModalMode, setEntryModalMode] = useState("select"); // 'shot' | 'custom' | 'select'
   const [entryModalCategory, setEntryModalCategory] = useState(null);
+  const [entryModalStartTime, setEntryModalStartTime] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
   const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
   const [isTrackManagerOpen, setIsTrackManagerOpen] = useState(false);
@@ -124,12 +143,12 @@ function CallSheetBuilder({
     onSuccess: () => toast.success({ title: "Columns updated" }),
   });
 
-  const { setDayStartTime } = useUpdateScheduleSettings(clientId, projectId, scheduleId, {
+  const { updateSettings, toggleCascade, setDayStartTime } = useUpdateScheduleSettings(clientId, projectId, scheduleId, {
     onSuccess: () => toast.success({ title: "Schedule settings updated" }),
   });
 
   // Entry creation hooks
-  const { addShotAtEnd, isLoading: isAddingShot } = useAddShotToSchedule(
+  const { addShot, addShotAtEnd, isLoading: isAddingShot } = useAddShotToSchedule(
     clientId,
     projectId,
     scheduleId,
@@ -142,7 +161,7 @@ function CallSheetBuilder({
 
   const createShotMutation = useCreateShot(clientId, { projectId });
 
-  const { addCustomItemAtEnd, isLoading: isAddingCustom } = useAddCustomItem(
+  const { addCustomItem, addCustomItemAtEnd, isLoading: isAddingCustom } = useAddCustomItem(
     clientId,
     projectId,
     scheduleId,
@@ -194,10 +213,333 @@ function CallSheetBuilder({
   const columnConfig = schedule?.columnConfig || [];
   const effectiveColumns = columnConfig.length > 0 ? columnConfig : DEFAULT_COLUMNS;
 
+  // Call sheet config (sections/settings)
+  const {
+    config: remoteCallSheetConfig,
+    ensureConfig,
+    updateConfig,
+  } = useCallSheetConfig(clientId, projectId, scheduleId);
+
+  const { projectRole, canWrite: canWriteProject } = useProjectMemberRole(clientId, projectId);
+
+  const [callSheetConfig, setCallSheetConfig] = useState(remoteCallSheetConfig);
+  const [activeSectionId, setActiveSectionId] = useState(null);
+  const [panelView, setPanelView] = useState({ mode: "outline" });
+  const layoutInitAttemptedRef = useRef(false);
+  const configInitAttemptedRef = useRef(false);
+
+  useEffect(() => {
+    setCallSheetConfig(remoteCallSheetConfig);
+  }, [remoteCallSheetConfig]);
+
+  // Reset config init flag when schedule changes
+  useEffect(() => {
+    configInitAttemptedRef.current = false;
+  }, [scheduleId]);
+
+  useEffect(() => {
+    if (!clientId || !projectId || !scheduleId) return;
+    if (!canWriteProject) return;
+    if (ensureConfig.isPending || configInitAttemptedRef.current) return;
+    configInitAttemptedRef.current = true;
+    ensureConfig.mutate();
+  }, [clientId, projectId, scheduleId, canWriteProject, ensureConfig]);
+
+  useEffect(() => {
+    layoutInitAttemptedRef.current = false;
+  }, [scheduleId]);
+
+  useEffect(() => {
+    setPanelView({ mode: "outline" });
+  }, [scheduleId]);
+
+  const {
+    layoutDoc,
+    hasRemoteLayout,
+    ensureLayout: ensureLayoutV2,
+    updateLayout: updateLayoutV2,
+  } = useCallSheetLayoutV2(clientId, projectId, scheduleId);
+
+  const [layoutV2Local, setLayoutV2Local] = useState(null);
+
+  useEffect(() => {
+    setLayoutV2Local(null);
+  }, [scheduleId]);
+
+  useEffect(() => {
+    setLayoutV2Local(layoutDoc?.layout || null);
+  }, [layoutDoc?.layout]);
+
+  const ensureLayoutV2FromConfig = useCallback(
+    (nextConfig) => {
+      if (!schedule || !nextConfig) return;
+      if (!canWriteProject) return;
+      const layout = buildCallSheetLayoutV2({ schedule, legacyCallSheetConfig: nextConfig });
+
+      if (!hasRemoteLayout && !layoutInitAttemptedRef.current) {
+        layoutInitAttemptedRef.current = true;
+        ensureLayoutV2.mutate({ layout });
+      }
+    },
+    [canWriteProject, ensureLayoutV2, hasRemoteLayout, schedule, updateLayoutV2]
+  );
+
+  useEffect(() => {
+    if (!callSheetConfig || !schedule) return;
+    if (hasRemoteLayout) return;
+    if (layoutInitAttemptedRef.current) return;
+    ensureLayoutV2FromConfig(callSheetConfig);
+  }, [callSheetConfig, hasRemoteLayout, schedule, ensureLayoutV2FromConfig]);
+
+  const applyCallSheetConfigUpdate = useCallback(
+    (updates) => {
+      setCallSheetConfig((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, ...updates };
+        if (updates?.sections) next.sections = updates.sections;
+        return next;
+      });
+      if (canWriteProject) {
+        updateConfig.mutate(updates);
+      }
+    },
+    [canWriteProject, updateConfig]
+  );
+
+  const sections = useMemo(() => {
+    return Array.isArray(callSheetConfig?.sections) ? callSheetConfig.sections : [];
+  }, [callSheetConfig?.sections]);
+
+  const orderedSections = useMemo(() => {
+    return [...sections].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [sections]);
+
+  useEffect(() => {
+    if (orderedSections.length === 0) return;
+    if (activeSectionId && orderedSections.some((s) => s.id === activeSectionId)) return;
+    const preferred = orderedSections.find((s) => s.type === "schedule")?.id || orderedSections[0].id;
+    setActiveSectionId(preferred);
+  }, [activeSectionId, orderedSections]);
+
+  const activeSection = useMemo(() => {
+    return orderedSections.find((s) => s.id === activeSectionId) || null;
+  }, [activeSectionId, orderedSections]);
+
+  const scheduleSectionForFields = useMemo(() => {
+    return orderedSections.find((s) => s.type === "schedule") || null;
+  }, [orderedSections]);
+
+  const scheduleSectionTitle = useMemo(() => {
+    const raw = scheduleSectionForFields?.config?.title;
+    const title = raw != null ? String(raw) : "";
+    return title.trim() ? title : "Today's Schedule";
+  }, [scheduleSectionForFields?.config?.title]);
+
+  // NOTE: handleUpdateSectionConfig must be defined BEFORE handleScheduleSectionTitleChange
+  // to avoid Temporal Dead Zone error
+  const handleUpdateSectionConfig = useCallback(
+    (sectionId, updates) => {
+      const nextSections = orderedSections.map((section) => {
+        if (section.id !== sectionId) return section;
+        return { ...section, config: { ...(section.config || {}), ...(updates || {}) } };
+      });
+      applyCallSheetConfigUpdate({ sections: nextSections });
+    },
+    [applyCallSheetConfigUpdate, orderedSections]
+  );
+
+  const handleScheduleSectionTitleChange = useCallback(
+    (nextTitle) => {
+      if (!scheduleSectionForFields) return;
+      handleUpdateSectionConfig(scheduleSectionForFields.id, { title: String(nextTitle || "") });
+    },
+    [handleUpdateSectionConfig, scheduleSectionForFields]
+  );
+
+  const scheduledTalentIds = useMemo(() => {
+    const ids = new Set();
+    (resolvedEntries || []).forEach((entry) => {
+      if (!entry || entry.type !== "shot" || !entry.shotRef) return;
+      const shot = shotsMap.get(entry.shotRef);
+      if (!shot) return;
+      const list = Array.isArray(shot.talent) ? shot.talent : [];
+      list.forEach((talentItem) => {
+        if (!talentItem) return;
+        if (typeof talentItem === "string") {
+          ids.add(talentItem);
+          return;
+        }
+        if (typeof talentItem === "object") {
+          if (talentItem.talentId) ids.add(talentItem.talentId);
+        }
+      });
+    });
+    return Array.from(ids);
+  }, [resolvedEntries, shotsMap]);
+
+  const { dayDetails } = useDayDetails(clientId, projectId, scheduleId);
+  const { calls: talentCalls = [] } = useTalentCalls(clientId, projectId, scheduleId);
+  const { calls: clientCalls = [] } = useClientCalls(clientId, projectId, scheduleId);
+  const { callsByCrewMemberId } = useCrewCalls(clientId, projectId, scheduleId);
+  const { crewById } = useOrganizationCrew(clientId);
+  const { assignments: crewAssignments = [] } = useProjectCrew(clientId, projectId);
+  const { departments: orgDepartments = [] } = useDepartments(clientId);
+  const { departments: projectDepartments = [] } = useProjectDepartments(clientId, projectId);
+
+  const talentRows = useMemo(() => {
+    return (talentCalls || [])
+      .map((call) => {
+        const talent = talentMap.get(call.talentId) || null;
+        const name = talent?.name ? String(talent.name) : `Missing (${call.talentId})`;
+        const idLabel = talent?.talentId ? String(talent.talentId) : "";
+        return {
+          talentId: call.talentId,
+          idLabel,
+          name,
+          role: call.role || "",
+          status: call.status || "",
+          transportation: call.transportation || "",
+          callTime: call.callTime || "",
+          callText: call.callText || "",
+          blockRhs: call.blockRhs || "",
+          muWard: call.muWard || "",
+          setTime: call.setTime || "",
+          remarks: call.notes || "",
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [talentCalls, talentMap]);
+
+  const crewRows = useMemo(() => {
+    const departmentNameByKey = new Map();
+    orgDepartments.forEach((d) => departmentNameByKey.set(`org:${d.id}`, d.name));
+    projectDepartments.forEach((d) => departmentNameByKey.set(`project:${d.id}`, d.name));
+
+    return (crewAssignments || [])
+      .map((assignment) => {
+        const member = crewById.get(assignment.crewMemberId) || null;
+        const name = member
+          ? `${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unnamed"
+          : `Missing (${assignment.crewMemberId})`;
+
+        const resolvedScope = assignment.departmentScope || (assignment.departmentId ? "org" : null);
+        const resolvedId = assignment.departmentId || member?.departmentId || null;
+        const deptKey = resolvedScope && resolvedId ? `${resolvedScope}:${resolvedId}` : "__unassigned__";
+        const department =
+          deptKey === "__unassigned__"
+            ? "Unassigned"
+            : departmentNameByKey.get(deptKey) || "Unknown department";
+
+        const call = callsByCrewMemberId?.get(assignment.crewMemberId) || null;
+        const defaultCall = dayDetails?.crewCallTime ? String(dayDetails.crewCallTime).trim() : "";
+        const callTime = call?.callTime ? String(call.callTime).trim() : "";
+        const callText = call?.callText ? String(call.callText).trim() : "";
+        const notes = call?.notes ? String(call.notes) : "";
+
+        return {
+          crewMemberId: assignment.crewMemberId,
+          department,
+          name,
+          callTime,
+          callText,
+          defaultCall,
+          notes,
+        };
+      })
+      .sort((a, b) => {
+        const dept = a.department.localeCompare(b.department);
+        if (dept !== 0) return dept;
+        return a.name.localeCompare(b.name);
+      });
+  }, [callsByCrewMemberId, crewAssignments, crewById, dayDetails?.crewCallTime, orgDepartments, projectDepartments]);
+
+  const clientRows = useMemo(() => {
+    return (clientCalls || [])
+      .map((call, idx) => {
+        return {
+          id: call.id,
+          idLabel: String(idx + 1),
+          name: call.name || "Unnamed",
+          role: call.role || "",
+          status: call.status || "",
+          transportation: call.transportation || "",
+          callTime: call.callTime || "",
+          callText: call.callText || "",
+          blockRhs: call.blockRhs || "",
+          muWard: call.muWard || "",
+          setTime: call.setTime || "",
+          remarks: call.notes || "",
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [clientCalls]);
+
+  const handleReorderSections = useCallback(
+    (nextSections) => {
+      applyCallSheetConfigUpdate({ sections: nextSections });
+    },
+    [applyCallSheetConfigUpdate]
+  );
+
+  const handleToggleSection = useCallback(
+    (sectionId, nextVisible) => {
+      const nextSections = orderedSections
+        .map((section, idx) => {
+          if (section.id !== sectionId) return { ...section, order: idx };
+          return { ...section, isVisible: nextVisible, order: idx };
+        })
+        .map((section, idx) => ({ ...section, order: idx }));
+      applyCallSheetConfigUpdate({ sections: nextSections });
+    },
+    [applyCallSheetConfigUpdate, orderedSections]
+  );
+
+  const handleAddSection = useCallback(
+    (type, config = {}, afterId = null) => {
+      const suffix = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+      const id = `section-${type}-${suffix}`;
+      const nextSection = { id, type, isVisible: true, order: 0, config };
+      const insertAfterIndex = afterId ? orderedSections.findIndex((s) => s.id === afterId) : -1;
+      const insertAt = insertAfterIndex >= 0 ? insertAfterIndex + 1 : orderedSections.length;
+      const nextSections = [
+        ...orderedSections.slice(0, insertAt),
+        nextSection,
+        ...orderedSections.slice(insertAt),
+      ].map((section, idx) => ({ ...section, order: idx }));
+      applyCallSheetConfigUpdate({ sections: nextSections });
+      setActiveSectionId(id);
+      setPanelView({ mode: "section", section: type });
+    },
+    [applyCallSheetConfigUpdate, orderedSections]
+  );
+
+  const handleDeleteSection = useCallback(
+    (sectionId) => {
+      const nextSections = orderedSections
+        .filter((section) => section.id !== sectionId)
+        .map((section, idx) => ({ ...section, order: idx }));
+      applyCallSheetConfigUpdate({ sections: nextSections });
+      if (activeSectionId === sectionId) {
+        setActiveSectionId(nextSections[0]?.id || null);
+        setPanelView({ mode: "outline" });
+      }
+    },
+    [activeSectionId, applyCallSheetConfigUpdate, orderedSections]
+  );
+
   // Modal handlers
   const handleOpenEntryModal = useCallback((type, category = null) => {
     setEntryModalMode(type === "shot" ? "shot" : type === "custom" ? "custom" : "select");
     setEntryModalCategory(category);
+    setEntryModalStartTime(null);
+    setEditingEntry(null);
+    setIsEntryModalOpen(true);
+  }, []);
+
+  const handleOpenEntryModalAtTime = useCallback((type, category = null, startTime = null) => {
+    setEntryModalMode(type === "shot" ? "shot" : type === "custom" ? "custom" : "select");
+    setEntryModalCategory(category);
+    setEntryModalStartTime(startTime || null);
     setEditingEntry(null);
     setIsEntryModalOpen(true);
   }, []);
@@ -206,22 +548,31 @@ function CallSheetBuilder({
     setIsEntryModalOpen(false);
     setEntryModalMode("select");
     setEntryModalCategory(null);
+    setEntryModalStartTime(null);
     setEditingEntry(null);
   }, []);
 
   const handleAddShot = useCallback(
-    (shotId, trackId) => {
+    async (shotId, trackId, startTime = null) => {
       const duration = typeof settings.defaultEntryDuration === "number" ? settings.defaultEntryDuration : 15;
-      addShotAtEnd(shotId, trackId, resolvedEntries, duration);
+      if (startTime) {
+        await addShot(shotId, trackId, startTime, duration);
+      } else {
+        await addShotAtEnd(shotId, trackId, resolvedEntries, duration);
+      }
     },
-    [addShotAtEnd, resolvedEntries, settings.defaultEntryDuration]
+    [addShot, addShotAtEnd, resolvedEntries, settings.defaultEntryDuration]
   );
 
   const handleAddCustomItem = useCallback(
-    (customData, trackId, duration, appliesToTrackIds) => {
-      addCustomItemAtEnd(customData, trackId, resolvedEntries, duration, appliesToTrackIds);
+    async (customData, trackId, duration, appliesToTrackIds, startTime = null) => {
+      if (startTime) {
+        await addCustomItem(customData, trackId, startTime, duration, appliesToTrackIds);
+      } else {
+        await addCustomItemAtEnd(customData, trackId, resolvedEntries, duration, appliesToTrackIds);
+      }
     },
-    [addCustomItemAtEnd, resolvedEntries]
+    [addCustomItem, addCustomItemAtEnd, resolvedEntries]
   );
 
   const handleEditCustomEntry = useCallback((entry) => {
@@ -273,6 +624,38 @@ function CallSheetBuilder({
     },
     [updateEntry]
   );
+
+  const handleEditShotEntry = useCallback(
+    (entry) => {
+      const shotId = entry?.shotRef;
+      if (!shotId) return;
+      const shot = shotsMap?.get?.(shotId);
+      if (!shot) {
+        toast.error({ title: "Shot not found", description: "This schedule entry references a missing shot." });
+        return;
+      }
+      setShotEditorShot({ ...shot, id: shotId });
+      setIsShotEditorOpen(true);
+    },
+    [shotsMap]
+  );
+
+  const handleUpdateEntryFlag = useCallback(
+    (entryId, flag) => {
+      updateEntry({ entryId, updates: { flag: flag || null } });
+    },
+    [updateEntry]
+  );
+
+  const handleToggleShowDurations = useCallback(() => {
+    if (!schedule?.settings) return;
+    updateSettings({ showDurations: !(schedule.settings.showDurations ?? true) }, schedule.settings);
+  }, [schedule?.settings, updateSettings]);
+
+  const handleToggleCascade = useCallback(() => {
+    if (!schedule?.settings) return;
+    toggleCascade(schedule.settings);
+  }, [schedule?.settings, toggleCascade]);
 
   const handleDeleteEntry = useCallback(
     (entryId) => {
@@ -462,7 +845,7 @@ function CallSheetBuilder({
   );
 
   const handleCreateShotInSchedule = useCallback(
-    async (trackId) => {
+    async (trackId, startTime = null) => {
       if (!clientId || !projectId) return;
       const effectiveTrackId = trackId || tracks.find((t) => t.scope !== "shared" && t.id !== "shared")?.id || tracks[0]?.id;
       if (!effectiveTrackId) return;
@@ -489,7 +872,11 @@ function CallSheetBuilder({
 
       const created = await createShotMutation.mutateAsync(baseShot);
       const duration = typeof settings.defaultEntryDuration === "number" ? settings.defaultEntryDuration : 15;
-      addShotAtEnd(created.id, effectiveTrackId, resolvedEntries, duration);
+      if (startTime) {
+        await addShot(created.id, effectiveTrackId, startTime, duration);
+      } else {
+        await addShotAtEnd(created.id, effectiveTrackId, resolvedEntries, duration);
+      }
       setShotEditorShot({ ...baseShot, id: created.id });
       setIsShotEditorOpen(true);
     },
@@ -499,6 +886,7 @@ function CallSheetBuilder({
       tracks,
       settings.defaultEntryDuration,
       createShotMutation,
+      addShot,
       addShotAtEnd,
       resolvedEntries,
     ]
@@ -536,102 +924,224 @@ function CallSheetBuilder({
   return (
     <div className="flex h-full flex-col gap-4">
       {/* Toolbar */}
-      <CallSheetToolbar
-        schedule={schedule}
-        onAddShot={handleOpenEntryModal}
-        settings={settings}
-        clientId={clientId}
-        projectId={projectId}
-        scheduleId={scheduleId}
-        onSetDayStartTime={handleSetDayStartTime}
-        onEditColumns={() => setIsColumnConfigOpen(true)}
-        onEditTracks={() => setIsTrackManagerOpen(true)}
-        onExport={() => setIsExportModalOpen(true)}
-        onEditSchedule={onEditSchedule}
-        onDeleteSchedule={onDeleteSchedule}
-        onDuplicateSchedule={onDuplicateSchedule}
-      />
+      {!isPreviewOnly ? (
+        <CallSheetToolbar
+          schedule={schedule}
+          onAddShot={canWriteProject ? handleOpenEntryModal : undefined}
+          settings={settings}
+          clientId={clientId}
+          projectId={projectId}
+          scheduleId={scheduleId}
+          onSetDayStartTime={handleSetDayStartTime}
+          onEditColumns={() => setIsColumnConfigOpen(true)}
+          onEditTracks={() => setIsTrackManagerOpen(true)}
+          onExport={() => setIsExportModalOpen(true)}
+          onEditSchedule={onEditSchedule}
+          onDeleteSchedule={onDeleteSchedule}
+          onDuplicateSchedule={onDuplicateSchedule}
+        />
+      ) : null}
 
-      {/* Editor (vertical) view */}
-      <VerticalTimelineView
-        schedule={schedule}
-        entries={resolvedEntries}
-        tracks={tracks}
-        locations={locationsArray}
-        settings={settings}
-        columnConfig={effectiveColumns}
-        onColumnResize={handleColumnResize}
-        onMoveEntry={(entryId, newTime) => moveEntry(entryId, newTime, resolvedEntries)}
-        onResizeEntry={(entryId, newDuration) => resizeEntry(entryId, newDuration, resolvedEntries)}
-        onUpdateEntryNotes={handleUpdateEntryNotes}
-        onUpdateEntryLocation={handleUpdateEntryLocation}
-        onDeleteEntry={handleDeleteEntry}
-        onReorderEntries={handleReorderEntries}
-        onMoveEntryToTrack={handleMoveEntryToTrack}
-        onAddShot={handleOpenEntryModal}
-        onAddCustomItem={(category) => handleOpenEntryModal("custom", category)}
-        onOpenColumnConfig={() => setIsColumnConfigOpen(true)}
-        onEditEntry={handleEditCustomEntry}
-      />
+      {!isPreviewOnly && !canWriteProject ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Read-only: your project role is <span className="font-semibold">{projectRole || "unknown"}</span>. Ask an
+          admin to set your role to <span className="font-semibold">producer</span> or{" "}
+          <span className="font-semibold">wardrobe</span> to edit call sheets.
+        </div>
+      ) : null}
+
+      {isPreviewOnly ? (
+        <div className="flex-1 min-h-0">
+          <PreviewPanel
+            projectId={projectId}
+            scheduleId={scheduleId}
+            schedule={schedule}
+            entries={resolvedEntries}
+            tracks={tracks}
+            columnConfig={effectiveColumns}
+            onColumnResize={undefined}
+            dayDetails={dayDetails}
+            crewRows={crewRows}
+            talentRows={talentRows}
+            clientRows={clientRows}
+            sections={orderedSections}
+            callSheetConfig={callSheetConfig}
+            layoutV2={layoutV2Local}
+          />
+        </div>
+      ) : (
+        <PanelGroup direction="horizontal" className="flex-1 min-h-0">
+          <Panel defaultSize={38} minSize={28} className="min-w-[380px]">
+            <WorkingPanel
+              panelView={panelView}
+              setPanelView={setPanelView}
+              sections={orderedSections}
+              orderedSections={orderedSections}
+              activeSectionId={activeSectionId}
+              activeSection={activeSection}
+              canWrite={canWriteProject}
+              onSelectSection={setActiveSectionId}
+              onReorderSections={handleReorderSections}
+              onToggleSection={handleToggleSection}
+              onAddSection={handleAddSection}
+              onDeleteSection={handleDeleteSection}
+              onEditFields={canWriteProject ? () => setIsColumnConfigOpen(true) : undefined}
+              onDone={() => setPanelView({ mode: "outline" })}
+              readOnly={!canWriteProject}
+              editorProps={{
+                clientId,
+                projectId,
+                scheduleId,
+                schedule,
+                scheduleSettings: settings,
+                scheduledTalentIds,
+                onToggleShowDurations: canWriteProject ? handleToggleShowDurations : undefined,
+                onToggleCascade: canWriteProject ? handleToggleCascade : undefined,
+                onOpenScheduleFields: canWriteProject ? () => setIsColumnConfigOpen(true) : undefined,
+                onAddScene: canWriteProject ? () => handleOpenEntryModal("shot") : undefined,
+                onAddBanner: canWriteProject ? () => handleOpenEntryModal("custom", "other") : undefined,
+                onAddMove: canWriteProject ? () => handleOpenEntryModal("custom", "travel") : undefined,
+                onLookupSceneAtTime: canWriteProject
+                  ? (startTime) => handleOpenEntryModalAtTime("shot", null, startTime)
+                  : undefined,
+                onCreateSceneAtTime: canWriteProject
+                  ? (startTime) => handleCreateShotInSchedule(null, startTime)
+                  : undefined,
+                onAddCustomAtTime: canWriteProject
+                  ? (category, startTime) => handleOpenEntryModalAtTime("custom", category, startTime)
+                  : undefined,
+                dayDetails,
+                callSheetConfig,
+                onUpdateCallSheetConfig: applyCallSheetConfigUpdate,
+                layoutV2: layoutV2Local,
+                onUpdateLayoutV2: (nextLayout) => {
+                  setLayoutV2Local(nextLayout);
+                  updateLayoutV2.mutate({ layout: nextLayout });
+                },
+                generalCrewCallTime: dayDetails?.crewCallTime || "",
+                onUpdateSectionConfig: handleUpdateSectionConfig,
+                scheduleEditor: (
+                  <VerticalTimelineView
+                    schedule={schedule}
+                    entries={resolvedEntries}
+                    tracks={tracks}
+                    locations={locationsArray}
+                    settings={settings}
+                    showPreviewPanel={false}
+                    showEditorHeader={false}
+                    columnConfig={effectiveColumns}
+                    onMoveEntry={
+                      canWriteProject ? (entryId, newTime) => moveEntry(entryId, newTime, resolvedEntries) : undefined
+                    }
+                    onResizeEntry={
+                      canWriteProject
+                        ? (entryId, newDuration) => resizeEntry(entryId, newDuration, resolvedEntries)
+                        : undefined
+                    }
+                    onUpdateEntryNotes={canWriteProject ? handleUpdateEntryNotes : undefined}
+                    onUpdateEntryLocation={canWriteProject ? handleUpdateEntryLocation : undefined}
+                    onUpdateEntryFlag={canWriteProject ? handleUpdateEntryFlag : undefined}
+                    onDeleteEntry={canWriteProject ? handleDeleteEntry : undefined}
+                    onReorderEntries={canWriteProject ? handleReorderEntries : undefined}
+                    onMoveEntryToTrack={canWriteProject ? handleMoveEntryToTrack : undefined}
+                    onAddShot={canWriteProject ? handleOpenEntryModal : undefined}
+                    onAddCustomItem={canWriteProject ? (category) => handleOpenEntryModal("custom", category) : undefined}
+                    onOpenColumnConfig={canWriteProject ? () => setIsColumnConfigOpen(true) : undefined}
+                    onEditEntry={canWriteProject ? handleEditCustomEntry : undefined}
+                    onEditShotEntry={canWriteProject ? handleEditShotEntry : undefined}
+                  />
+                ),
+              }}
+            />
+          </Panel>
+
+          <PanelResizeHandle className="w-2 bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/60 transition-colors cursor-col-resize" />
+
+          <Panel defaultSize={62} minSize={32} className="min-w-[500px]">
+            <PreviewPanel
+              projectId={projectId}
+              scheduleId={scheduleId}
+              schedule={schedule}
+              entries={resolvedEntries}
+              tracks={tracks}
+              columnConfig={effectiveColumns}
+              onColumnResize={canWriteProject ? handleColumnResize : undefined}
+              dayDetails={dayDetails}
+              crewRows={crewRows}
+              talentRows={talentRows}
+              clientRows={clientRows}
+              sections={orderedSections}
+              callSheetConfig={callSheetConfig}
+              layoutV2={layoutV2Local}
+            />
+          </Panel>
+        </PanelGroup>
+      )}
 
       {/* Entry Form Modal */}
-      <EntryFormModal
-        isOpen={isEntryModalOpen}
-        onClose={handleCloseEntryModal}
-        mode={entryModalMode}
-        initialCategory={entryModalCategory}
-        shots={shots}
-        shotsLoading={shotsLoading}
-        tracks={tracks}
-        existingEntries={resolvedEntries}
-        talentMap={talentMap}
-        productsMap={productsMap}
-        onAddShot={handleAddShot}
-        onCreateShot={handleCreateShotInSchedule}
-        onAddCustomItem={handleAddCustomItem}
-        onUpdateCustomItem={handleUpdateCustomItem}
-        editingEntry={editingEntry}
-      />
+      {!isPreviewOnly ? (
+        <EntryFormModal
+          isOpen={isEntryModalOpen}
+          onClose={handleCloseEntryModal}
+          mode={entryModalMode}
+          initialCategory={entryModalCategory}
+          defaultStartTime={entryModalStartTime}
+          shots={shots}
+          shotsLoading={shotsLoading}
+          tracks={tracks}
+          existingEntries={resolvedEntries}
+          talentMap={talentMap}
+          productsMap={productsMap}
+          onAddShot={handleAddShot}
+          onCreateShot={handleCreateShotInSchedule}
+          onAddCustomItem={handleAddCustomItem}
+          onUpdateCustomItem={handleUpdateCustomItem}
+          editingEntry={editingEntry}
+        />
+      ) : null}
 
-      <ScheduleShotEditorModal
-        open={isShotEditorOpen}
-        onClose={() => {
-          setIsShotEditorOpen(false);
-          setShotEditorShot(null);
-        }}
-        clientId={clientId}
-        projectId={projectId}
-        shot={shotEditorShot}
-        families={productFamilies}
-        locations={locationsArray}
-        talentOptions={talentOptions}
-      />
+      {!isPreviewOnly ? (
+        <>
+          <ScheduleShotEditorModal
+            open={isShotEditorOpen}
+            onClose={() => {
+              setIsShotEditorOpen(false);
+              setShotEditorShot(null);
+            }}
+            clientId={clientId}
+            projectId={projectId}
+            shot={shotEditorShot}
+            families={productFamilies}
+            locations={locationsArray}
+            talentOptions={talentOptions}
+          />
 
-      {/* Column Configuration Modal */}
-      <ColumnConfigModal
-        isOpen={isColumnConfigOpen}
-        onClose={() => setIsColumnConfigOpen(false)}
-        columns={columnConfig.length > 0 ? columnConfig : DEFAULT_COLUMNS}
-        onSave={updateColumns}
-      />
+          <ColumnConfigModal
+            isOpen={isColumnConfigOpen}
+            onClose={() => setIsColumnConfigOpen(false)}
+            columns={columnConfig.length > 0 ? columnConfig : DEFAULT_COLUMNS}
+            sectionTitle={scheduleSectionTitle}
+            onSectionTitleChange={handleScheduleSectionTitleChange}
+            onSave={updateColumns}
+          />
 
-      {/* Track Manager Modal */}
-      <TrackManager
-        isOpen={isTrackManagerOpen}
-        onClose={() => setIsTrackManagerOpen(false)}
-        tracks={tracks}
-        onSave={updateTracks}
-        entriesByTrack={entriesByTrack}
-      />
+          <TrackManager
+            isOpen={isTrackManagerOpen}
+            onClose={() => setIsTrackManagerOpen(false)}
+            tracks={tracks}
+            onSave={updateTracks}
+            entriesByTrack={entriesByTrack}
+          />
 
-      {/* Export Modal */}
-      <CallSheetExportModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        schedule={schedule}
-        entries={resolvedEntries}
-        tracks={tracks}
-      />
+          <CallSheetExportModal
+            isOpen={isExportModalOpen}
+            onClose={() => setIsExportModalOpen(false)}
+            schedule={schedule}
+            entries={resolvedEntries}
+            tracks={tracks}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

@@ -36,7 +36,8 @@ function resolveTalentName(talentItem, talentMap) {
  * @param {Array} props.tracks - Available tracks to add to
  * @param {Map} props.talentMap - Map of talent ID to talent data
  * @param {Map} props.productsMap - Map of product ID to product data
- * @param {Function} props.onSelectShot - Callback when shot is selected (shotId, trackId)
+ * @param {Function} props.onSelectShot - Callback when shot is selected (shotId, trackId, startTime?)
+ * @param {string|null} props.defaultStartTime - Optional HH:MM time to add at (enables single-select)
  * @param {Function} props.onCreateShot - Callback to create a new shot (trackId)
  * @param {Function} props.onClose - Callback to close the picker
  */
@@ -48,6 +49,7 @@ function ShotEntryPicker({
   talentMap = new Map(),
   productsMap = new Map(),
   onSelectShot,
+  defaultStartTime = null,
   onCreateShot,
   onClose,
 }) {
@@ -62,6 +64,7 @@ function ShotEntryPicker({
   const [selectedTrackId, setSelectedTrackId] = useState(initialTrackId);
   const [selectedShotIds, setSelectedShotIds] = useState(new Set());
   const [isAdding, setIsAdding] = useState(false);
+  const singleSelect = Boolean(defaultStartTime);
 
   useEffect(() => {
     if (!tracks.some((t) => t.id === selectedTrackId)) {
@@ -197,21 +200,25 @@ function ShotEntryPicker({
   // Toggle shot selection
   const handleToggleShot = useCallback((shotId) => {
     setSelectedShotIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(shotId)) {
-        newSet.delete(shotId);
-      } else {
-        newSet.add(shotId);
+      if (singleSelect) {
+        return prev.has(shotId) ? new Set() : new Set([shotId]);
       }
-      return newSet;
+      const next = new Set(prev);
+      if (next.has(shotId)) {
+        next.delete(shotId);
+      } else {
+        next.add(shotId);
+      }
+      return next;
     });
-  }, []);
+  }, [singleSelect]);
 
   // Select all available shots
   const handleSelectAll = useCallback(() => {
+    if (singleSelect) return;
     const availableIds = availableShots.map((s) => s.id);
     setSelectedShotIds(new Set(availableIds));
-  }, [availableShots]);
+  }, [availableShots, singleSelect]);
 
   // Clear selection
   const handleClearSelection = useCallback(() => {
@@ -226,7 +233,7 @@ function ShotEntryPicker({
     try {
       // Add shots sequentially to maintain order
       for (const shotId of selectedShotIds) {
-        await onSelectShot(shotId, selectedTrackId);
+        await onSelectShot(shotId, selectedTrackId, defaultStartTime);
       }
       setSelectedShotIds(new Set());
     } catch (error) {
@@ -234,10 +241,10 @@ function ShotEntryPicker({
     } finally {
       setIsAdding(false);
     }
-  }, [selectedShotIds, selectedTrackId, onSelectShot]);
+  }, [defaultStartTime, selectedShotIds, selectedTrackId, onSelectShot]);
 
   // Check if all available shots are selected
-  const allSelected = availableShots.length > 0 &&
+  const allSelected = !singleSelect && availableShots.length > 0 &&
     availableShots.every((s) => selectedShotIds.has(s.id));
 
   return (
@@ -352,33 +359,35 @@ function ShotEntryPicker({
           )}
         </div>
 
-        {/* Selection actions */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={allSelected ? handleClearSelection : handleSelectAll}
-            disabled={availableShots.length === 0}
-            className="gap-1.5 text-sm"
-          >
-            {allSelected ? (
-              <>
-                <Square className="h-4 w-4" />
-                Clear All
-              </>
-            ) : (
-              <>
-                <CheckSquare className="h-4 w-4" />
-                Select All
-              </>
-            )}
-          </Button>
-          {selectedShotIds.size > 0 && (
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {selectedShotIds.size} selected
-            </span>
-          )}
-        </div>
+	        {/* Selection actions */}
+	        <div className="flex items-center gap-2">
+	          {!singleSelect && (
+	            <Button
+	              variant="ghost"
+	              size="sm"
+	              onClick={allSelected ? handleClearSelection : handleSelectAll}
+	              disabled={availableShots.length === 0}
+	              className="gap-1.5 text-sm"
+	            >
+	              {allSelected ? (
+	                <>
+	                  <Square className="h-4 w-4" />
+	                  Clear All
+	                </>
+	              ) : (
+	                <>
+	                  <CheckSquare className="h-4 w-4" />
+	                  Select All
+	                </>
+	              )}
+	            </Button>
+	          )}
+	          {selectedShotIds.size > 0 && (
+	            <span className="text-sm text-slate-500 dark:text-slate-400">
+	              {selectedShotIds.size} selected
+	            </span>
+	          )}
+	        </div>
       </div>
 
       {/* Shot list */}
@@ -464,25 +473,26 @@ function ShotEntryPicker({
               Create Shot
             </Button>
           )}
-          <Button
-            onClick={handleAddSelected}
-            disabled={selectedShotIds.size === 0 || isAdding}
-            className="gap-2"
-          >
-            {isAdding ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Adding...
-              </>
-            ) : (
-              <>
-                Add {selectedShotIds.size > 0 ? selectedShotIds.size : ""} Shot
-                {selectedShotIds.size !== 1 ? "s" : ""}
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
+	          <Button
+	            onClick={handleAddSelected}
+	            disabled={selectedShotIds.size === 0 || isAdding}
+	            className="gap-2"
+	          >
+	            {isAdding ? (
+	              <>
+	                <Loader2 className="h-4 w-4 animate-spin" />
+	                Adding...
+	              </>
+	            ) : (
+	              <>
+	                {singleSelect && defaultStartTime
+	                  ? `Add at ${defaultStartTime}`
+	                  : `Add ${selectedShotIds.size > 0 ? selectedShotIds.size : ""} Shot${selectedShotIds.size !== 1 ? "s" : ""}`}
+	              </>
+	            )}
+	          </Button>
+	        </div>
+	      </div>
     </div>
   );
 }

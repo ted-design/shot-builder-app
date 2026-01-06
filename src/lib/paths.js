@@ -52,6 +52,16 @@ export const projectPath = (projectId, clientId) => [
   projectId,
 ];
 
+export const projectMembersPath = (projectId, clientId) => [
+  ...projectPath(projectId, clientId),
+  "members",
+];
+
+export const projectMemberPath = (projectId, userId, clientId) => [
+  ...projectMembersPath(projectId, clientId),
+  userId,
+];
+
 // Path to the global shots collection.  Do not pass a project ID here.
 export const shotsPath = (clientId) => ["clients", resolveClientId(clientId), "shots"];
 
@@ -145,6 +155,72 @@ export const scheduleEntriesPath = (projectId, scheduleId, clientId) => [
 export const scheduleEntryPath = (projectId, scheduleId, entryId, clientId) => [
   ...scheduleEntriesPath(projectId, scheduleId, clientId),
   entryId,
+];
+
+// =============================================================================
+// Schedule call sheet supporting docs (day details + calls)
+// =============================================================================
+
+export const scheduleDayDetailsPath = (projectId, scheduleId, clientId) => [
+  ...schedulePath(projectId, scheduleId, clientId),
+  "dayDetails",
+];
+
+export const scheduleDayDetailPath = (projectId, scheduleId, detailId, clientId) => [
+  ...scheduleDayDetailsPath(projectId, scheduleId, clientId),
+  detailId,
+];
+
+export const scheduleTalentCallsPath = (projectId, scheduleId, clientId) => [
+  ...schedulePath(projectId, scheduleId, clientId),
+  "talentCalls",
+];
+
+export const scheduleTalentCallPath = (projectId, scheduleId, talentId, clientId) => [
+  ...scheduleTalentCallsPath(projectId, scheduleId, clientId),
+  talentId,
+];
+
+export const scheduleCrewCallsPath = (projectId, scheduleId, clientId) => [
+  ...schedulePath(projectId, scheduleId, clientId),
+  "crewCalls",
+];
+
+export const scheduleCrewCallPath = (projectId, scheduleId, crewMemberId, clientId) => [
+  ...scheduleCrewCallsPath(projectId, scheduleId, clientId),
+  crewMemberId,
+];
+
+export const scheduleClientCallsPath = (projectId, scheduleId, clientId) => [
+  ...schedulePath(projectId, scheduleId, clientId),
+  "clientCalls",
+];
+
+export const scheduleClientCallPath = (projectId, scheduleId, clientCallId, clientId) => [
+  ...scheduleClientCallsPath(projectId, scheduleId, clientId),
+  clientCallId,
+];
+
+// =============================================================================
+// Call sheet builder config/layout paths (per schedule)
+// =============================================================================
+
+// Subcollection under a schedule for call sheet builder state (layout, templates, etc.)
+export const callSheetPath = (projectId, scheduleId, clientId) => [
+  ...schedulePath(projectId, scheduleId, clientId),
+  "callSheet",
+];
+
+// Legacy / v1 call sheet config document.
+export const callSheetConfigPath = (projectId, scheduleId, clientId) => [
+  ...callSheetPath(projectId, scheduleId, clientId),
+  "config",
+];
+
+// SetHero-style / v2 layout document.
+export const callSheetLayoutPath = (projectId, scheduleId, clientId) => [
+  ...callSheetPath(projectId, scheduleId, clientId),
+  "layout",
 ];
 
 // =============================================================================

@@ -89,8 +89,8 @@ function SidebarLayoutContent() {
 
       {/* Main content area */}
       <div
-        className="flex flex-1 flex-col transition-all duration-sidebar ease-sidebar"
-        style={{ marginLeft: window.innerWidth >= 768 ? sidebarWidth : 0 }}
+        className="flex flex-1 flex-col transition-all duration-sidebar ease-sidebar md:ml-[var(--sidebar-width)]"
+        style={{ "--sidebar-width": `${sidebarWidth}px` }}
       >
         <SkipLink />
         <SidebarHeader />

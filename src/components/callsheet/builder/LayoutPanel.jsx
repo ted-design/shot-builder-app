@@ -15,10 +15,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Eye, EyeOff, Plus, MoreHorizontal } from "lucide-react";
+import { GripVertical, Eye, EyeOff, Plus, MoreHorizontal, Pencil } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Modal } from "../../ui/modal";
+import TemplatesModal from "../modals/TemplatesModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +41,7 @@ function sectionLabel(type) {
     crew: "Crew",
     "notes-contacts": "Notes / Contacts",
     "custom-banner": "Custom Banner",
+    quote: "Quote of the Day",
   };
   return labels[type] || type;
 }
@@ -62,7 +64,7 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
       ref={setNodeRef}
       style={style}
       className={[
-        "flex items-center gap-2 rounded-lg border px-2 py-2 transition-colors",
+        "group flex items-center gap-2 rounded-lg border px-2 py-2 transition-colors",
         isActive
           ? "border-blue-300 bg-blue-50 dark:border-blue-900/50 dark:bg-blue-900/20"
           : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900",
@@ -71,7 +73,7 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
     >
       <button
         type="button"
-        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-70 group-hover:opacity-100 transition-opacity"
         {...attributes}
         {...listeners}
         aria-label={`Drag ${sectionLabel(section.type)}`}
@@ -87,15 +89,32 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
         <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
           {sectionLabel(section.type)}
         </div>
+        {visible ? null : (
+          <div className="mt-0.5 text-[11px] font-medium text-slate-500">
+            Disabled
+          </div>
+        )}
         {section.type === "custom-banner" && section.config?.text ? (
           <div className="truncate text-xs text-slate-500">{String(section.config.text)}</div>
         ) : null}
       </button>
 
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+        onClick={() => onClick(section.id)}
+        aria-label="Edit section"
+        title="Edit section"
+      >
+        <Pencil className="h-4 w-4" />
+      </Button>
+
       <button
         type="button"
         onClick={() => onToggle(section.id, !visible)}
-        className="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+        className="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-800 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
         aria-label={visible ? "Hide section" : "Show section"}
         title={visible ? "Hide section" : "Show section"}
       >
@@ -104,7 +123,12 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Section actions">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+            aria-label="Section actions"
+          >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -156,6 +180,7 @@ export default function LayoutPanel({
   const [bannerText, setBannerText] = useState("Banner");
   const [bannerAfterId, setBannerAfterId] = useState(null);
   const bannerInputRef = useRef(null);
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -187,30 +212,38 @@ export default function LayoutPanel({
     <div className="flex h-full flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{title}</div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 gap-1.5">
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() => {
-                setBannerText("Banner");
-                setBannerAfterId(null);
-                setIsAddBannerOpen(true);
-              }}
-            >
-              Custom banner…
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onAddSection("page-break")}>Page break</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onAddSection("reminders")}>Reminders</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onAddSection("notes-contacts")}>
-              Notes / Contacts
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-8" onClick={() => setIsTemplatesOpen(true)}>
+            Load / Save
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  setBannerText("Banner");
+                  setBannerAfterId(null);
+                  setIsAddBannerOpen(true);
+                }}
+              >
+                Custom banner…
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddSection("page-break")}>Page break</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddSection("reminders")}>Reminders</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddSection("extras")}>Extras & Dept. Notes</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddSection("advanced-schedule")}>Advanced Schedule</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddSection("quote")}>Quote of the Day</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddSection("notes-contacts")}>
+                Notes / Contacts
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-2">
@@ -348,6 +381,8 @@ export default function LayoutPanel({
           </div>
         </div>
       </Modal>
+
+      <TemplatesModal open={isTemplatesOpen} onClose={() => setIsTemplatesOpen(false)} />
     </div>
   );
 }

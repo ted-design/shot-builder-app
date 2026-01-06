@@ -64,21 +64,26 @@ function VerticalTimelineView({
   tracks = [],
   locations = [],
   settings = {},
+  showPreviewPanel = true,
+  showEditorHeader = true,
   onMoveEntry,
   onResizeEntry,
   onUpdateEntryNotes,
   onUpdateEntryLocation,
+  onUpdateEntryFlag,
   onDeleteEntry,
   onReorderEntries,
   onMoveEntryToTrack,
   onAddShot,
   onAddCustomItem,
   onOpenColumnConfig,
+  onEditShotEntry,
   onEditEntry,
   columnConfig,
   onColumnResize,
 }) {
-  const [selectedEntryId, setSelectedEntryId] = useState(null);
+  const [activeEntryId, setActiveEntryId] = useState(null);
+  const [checkedEntryIds, setCheckedEntryIds] = useState(() => new Set());
   const [previewZoomPercent, setPreviewZoomPercent] = useState(100);
   const [previewRefreshNonce, setPreviewRefreshNonce] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -195,6 +200,15 @@ function VerticalTimelineView({
     [onUpdateEntryLocation]
   );
 
+  const handleFlagChange = useCallback(
+    (entryId, flagValue) => {
+      if (onUpdateEntryFlag) {
+        onUpdateEntryFlag(entryId, flagValue);
+      }
+    },
+    [onUpdateEntryFlag]
+  );
+
   // Handle track change
   const handleTrackChange = useCallback(
     (entryId, newTrackId) => {
@@ -223,6 +237,15 @@ function VerticalTimelineView({
     [tracks]
   );
 
+  const handleCheckedChange = useCallback((entryId, nextChecked) => {
+    setCheckedEntryIds((prev) => {
+      const next = new Set(prev);
+      if (nextChecked) next.add(entryId);
+      else next.delete(entryId);
+      return next;
+    });
+  }, []);
+
   // Entry IDs for sortable context
   const entryIds = useMemo(() => sortedEntries.map((e) => e.id), [sortedEntries]);
 
@@ -239,7 +262,7 @@ function VerticalTimelineView({
     return grouped;
   }, [sortedEntries]);
 
-  const previewHeader = (
+  const previewHeader = showPreviewPanel ? (
     <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
       <h3 className="font-semibold text-slate-900 dark:text-slate-100">Preview</h3>
       <div className="flex items-center gap-2">
@@ -339,42 +362,46 @@ function VerticalTimelineView({
         </Button>
       </div>
     </div>
-  );
+  ) : null;
 
   const content = (
     <PanelGroup direction="horizontal" className="h-full">
       {/* Left Panel - Entry Editor */}
       <Panel defaultSize={60} minSize={30}>
-        <div className="flex h-full flex-col border-r border-slate-200 dark:border-slate-700">
+        <div
+          className={[
+            "flex h-full flex-col",
+            showPreviewPanel ? "border-r border-slate-200 dark:border-slate-700" : "",
+          ].join(" ")}
+        >
         {/* Panel Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-          <div>
-            <h3 className="font-semibold text-slate-900 dark:text-slate-100">
-              Schedule Entries
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {sortedEntries.length} items
-              {settings.cascadeChanges && " • Cascade mode"}
-            </p>
-          </div>
+        {showEditorHeader ? (
+          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+            <div>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100">Schedule Entries</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {sortedEntries.length} items{settings.cascadeChanges ? " • Cascade mode" : ""}
+              </p>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <Button type="button" size="sm" className="gap-1.5" onClick={() => onAddShot?.("shot")}>
-              <Plus className="h-4 w-4" />
-              Add Shot
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="gap-1.5"
-              onClick={() => onAddCustomItem?.()}
-            >
-              <Plus className="h-4 w-4" />
-              Add Banner
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button type="button" size="sm" className="gap-1.5" onClick={() => onAddShot?.("shot")}>
+                <Plus className="h-4 w-4" />
+                Add Shot
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => onAddCustomItem?.()}
+              >
+                <Plus className="h-4 w-4" />
+                Add Banner
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {/* Scrollable Entry List */}
         <div className="flex-1 overflow-y-auto p-4">
@@ -423,13 +450,17 @@ function VerticalTimelineView({
                             tracks={tracks}
                             locations={locations}
                             settings={settings}
-                            isSelected={selectedEntryId === entry.id}
-                            onSelect={setSelectedEntryId}
+                            isSelected={activeEntryId === entry.id}
+                            checked={checkedEntryIds.has(entry.id)}
+                            onSelect={setActiveEntryId}
+                            onCheckedChange={handleCheckedChange}
                             onTimeChange={handleTimeChange}
                             onDurationChange={handleDurationChange}
                             onNotesChange={handleNotesChange}
                             onLocationChange={handleLocationChange}
                             onTrackChange={handleTrackChange}
+                            onFlagChange={handleFlagChange}
+                            onEditShot={onEditShotEntry}
                             onEditCustom={onEditEntry}
                             onDelete={handleDelete}
                           />
@@ -445,34 +476,38 @@ function VerticalTimelineView({
         </div>
       </Panel>
 
-      {/* Resize Handle */}
-      <PanelResizeHandle className="w-1.5 bg-slate-200 transition-colors hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600" />
+      {showPreviewPanel ? (
+        <>
+          {/* Resize Handle */}
+          <PanelResizeHandle className="w-1.5 bg-slate-200 transition-colors hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600" />
 
-      {/* Right Panel - Live Preview */}
-      <Panel defaultSize={40} minSize={20}>
-        <div className="flex h-full flex-col bg-slate-50 dark:bg-slate-900">
-          {/* Preview Header */}
-          {previewHeader}
+          {/* Right Panel - Live Preview */}
+          <Panel defaultSize={40} minSize={20}>
+            <div className="flex h-full flex-col bg-slate-50 dark:bg-slate-900">
+              {/* Preview Header */}
+              {previewHeader}
 
-        {/* Preview Content */}
-        <div className="flex-1 overflow-hidden">
-          <CallSheetPreview
-            key={previewRefreshNonce}
-            schedule={schedule}
-            entries={sortedEntries}
-            tracks={tracks}
-            columnConfig={columnConfig}
-            zoomLevel={previewZoom}
-            showImages={showPreviewImages}
-            onColumnResize={onColumnResize}
-          />
-        </div>
-        </div>
-      </Panel>
+              {/* Preview Content */}
+              <div className="flex-1 overflow-hidden">
+                <CallSheetPreview
+                  key={previewRefreshNonce}
+                  schedule={schedule}
+                  entries={sortedEntries}
+                  tracks={tracks}
+                  columnConfig={columnConfig}
+                  zoomLevel={previewZoom}
+                  showImages={showPreviewImages}
+                  onColumnResize={onColumnResize}
+                />
+              </div>
+            </div>
+          </Panel>
+        </>
+      ) : null}
     </PanelGroup>
   );
 
-  if (isFullscreen) {
+  if (showPreviewPanel && isFullscreen) {
     return (
       <div className="fixed inset-0 z-50 flex h-screen w-screen flex-col bg-slate-50 dark:bg-slate-900">
         {content}
