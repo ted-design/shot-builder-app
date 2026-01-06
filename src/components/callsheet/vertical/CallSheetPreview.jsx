@@ -1348,19 +1348,19 @@ function CallSheetPreview({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-start justify-between gap-6">
-                    <div className="min-w-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
                       <h3 className="truncate font-semibold text-slate-900 dark:text-slate-100">
                         {schedule?.name || "Call Sheet Preview"}
                       </h3>
                       <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                        <Calendar className="h-3.5 w-3.5" />
-                        <span className="truncate">{scheduleDate}</span>
+                        <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="whitespace-nowrap">{scheduleDate}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                      <Clock className="h-3.5 w-3.5" />
-                      {sortedEntries.length} items
+                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 flex-shrink-0">
+                      <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="whitespace-nowrap">{sortedEntries.length} items</span>
                     </div>
                   </div>
                 )}

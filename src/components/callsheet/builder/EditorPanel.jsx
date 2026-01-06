@@ -223,98 +223,113 @@ export default function EditorPanel({
 
     return (
       <div className="flex h-full flex-col">
-        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant={viewMode === "parallel" ? "default" : "outline"}
-                size="sm"
-                onClick={() => onUpdateSectionConfig?.(activeSection.id, { viewMode: "parallel" })}
-                disabled={readOnly}
-              >
-                Parallel
-              </Button>
-              <Button
-                type="button"
-                variant={viewMode === "stacked" ? "default" : "outline"}
-                size="sm"
-                onClick={() => onUpdateSectionConfig?.(activeSection.id, { viewMode: "stacked" })}
-                disabled={readOnly}
-              >
-                Stacked
-              </Button>
-            </div>
-          </div>
+        {/* Settings row with checkboxes - light gray background for separation */}
+        <div className="flex items-center gap-6 px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
+          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+            <input
+              type="checkbox"
+              checked={scheduleSettings?.showDurations !== false}
+              onChange={onToggleShowDurations}
+              disabled={readOnly || !onToggleShowDurations}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 accent-blue-600"
+            />
+            <span>Show durations</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+            <input
+              type="checkbox"
+              checked={scheduleSettings?.cascadeChanges !== false}
+              onChange={onToggleCascade}
+              disabled={readOnly || !onToggleCascade}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 accent-blue-600"
+            />
+            <span>Cascade changes</span>
+          </label>
+        </div>
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onToggleShowDurations}
-                disabled={readOnly || !onToggleShowDurations}
-              >
-                {scheduleSettings?.showDurations === false ? "Show durations: Off" : "Show durations: On"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onToggleCascade}
-                disabled={readOnly || !onToggleCascade}
-              >
-                {scheduleSettings?.cascadeChanges === false ? "Cascade changes: Off" : "Cascade changes: On"}
-              </Button>
-            </div>
+        {/* View mode tabs (underline style) - white background */}
+        <div className="flex bg-white border-b border-slate-200 dark:bg-slate-900 dark:border-slate-700 px-4">
+          <button
+            type="button"
+            className={[
+              "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
+              viewMode === "parallel"
+                ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
+                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200",
+            ].join(" ")}
+            onClick={() => onUpdateSectionConfig?.(activeSection.id, { viewMode: "parallel" })}
+            disabled={readOnly}
+          >
+            Parallel
+          </button>
+          <button
+            type="button"
+            className={[
+              "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
+              viewMode === "stacked"
+                ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
+                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200",
+            ].join(" ")}
+            onClick={() => onUpdateSectionConfig?.(activeSection.id, { viewMode: "stacked" })}
+            disabled={readOnly}
+          >
+            Stacked
+          </button>
+        </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button type="button" size="sm" onClick={onAddScene} disabled={readOnly || !onAddScene}>
-                + Add Scene
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onAddBanner}
-                disabled={readOnly || !onAddBanner}
-              >
-                + Add Banner
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onAddMove}
-                disabled={readOnly || !onAddMove}
-              >
-                + Add Move
-              </Button>
-            </div>
-          </div>
+        {/* Main content area - white background for entries */}
+        <div className="flex-1 min-h-0 overflow-auto bg-white dark:bg-slate-900">{scheduleEditor || null}</div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/40">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Quick add</div>
-            <label className="flex items-center gap-2 text-sm">
-              <span className="text-xs font-medium text-slate-500">Time</span>
-              <input
-                type="time"
-                value={quickTime}
-                onChange={(e) => setQuickTime(e.target.value)}
-                className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-900"
-                disabled={readOnly}
-              />
-            </label>
+        {/* Sticky footer with action buttons */}
+        <div className="sticky bottom-0 flex flex-wrap items-center gap-2 px-4 py-3 bg-white border-t border-slate-200 dark:bg-slate-900 dark:border-slate-700">
+          <Button type="button" size="sm" onClick={onAddScene} disabled={readOnly || !onAddScene}>
+            + Add Scene
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onAddBanner}
+            disabled={readOnly || !onAddBanner}
+          >
+            + Add Banner
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onAddMove}
+            disabled={readOnly || !onAddMove}
+          >
+            + Add Move
+          </Button>
 
+          <div className="flex-1" />
+
+          {/* Quick add section */}
+          <div className="flex items-center gap-2">
+            <input
+              type="time"
+              value={quickTime}
+              onChange={(e) => setQuickTime(e.target.value)}
+              className="h-8 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+              disabled={readOnly}
+            />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled={readOnly || !onAddCustomAtTime}>
-                  Add
-                  <ChevronDown className="h-4 w-4 opacity-60" />
+                <Button type="button" variant="outline" size="sm" className="gap-1" disabled={readOnly || !onAddCustomAtTime}>
+                  Quick Add
+                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onLookupSceneAtTime?.(quickTime)} disabled={!onLookupSceneAtTime}>
+                  Lookup Scene
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onCreateSceneAtTime?.(quickTime)} disabled={!onCreateSceneAtTime}>
+                  Create Scene
+                </DropdownMenuItem>
+                <div className="h-px bg-slate-200 dark:bg-slate-700 my-1" />
                 {addOptions.map((opt) => (
                   <DropdownMenuItem
                     key={opt.category}
@@ -325,31 +340,8 @@ export default function EditorPanel({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-
-            <div className="flex-1" />
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onLookupSceneAtTime?.(quickTime)}
-              disabled={readOnly || !onLookupSceneAtTime}
-            >
-              LOOKUP SCENE
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onCreateSceneAtTime?.(quickTime)}
-              disabled={readOnly || !onCreateSceneAtTime}
-            >
-              CREATE SCENE
-            </Button>
           </div>
         </div>
-
-        <div className="flex-1 min-h-0">{scheduleEditor || null}</div>
       </div>
     );
   }

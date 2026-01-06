@@ -65,15 +65,19 @@ function SortableItem({
     opacity: isDragging ? 0.6 : 1,
   };
 
+  // Get a display-friendly label for the item type
+  const typeLabel = item.type === "variable" ? "VAR" : item.type === "image" ? "IMG" : "TXT";
+  const displayValue = item.type === "image" ? (item.value || "Image URL…") : (item.value || "—");
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="group flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-2 dark:border-slate-700 dark:bg-slate-900"
+      className="group flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 dark:border-slate-700 dark:bg-slate-900"
     >
       <button
         type="button"
-        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-70 group-hover:opacity-100 transition-opacity"
+        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0"
         {...attributes}
         {...listeners}
         aria-label="Drag header item"
@@ -82,51 +86,72 @@ function SortableItem({
         <GripVertical className="h-4 w-4" />
       </button>
 
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {item.type}
-        </div>
-        <div className="truncate text-sm text-slate-800 dark:text-slate-200">
-          {item.type === "image" ? item.value || "Image URL…" : item.value || "—"}
-        </div>
+      {/* Type badge - fixed width */}
+      <span
+        className={[
+          "flex-shrink-0 inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide",
+          item.type === "variable"
+            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+            : item.type === "image"
+              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+              : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+        ].join(" ")}
+      >
+        {typeLabel}
+      </span>
+
+      {/* Value - gets remaining space */}
+      <div className="flex-1 min-w-0">
+        <span
+          className="text-sm text-slate-800 dark:text-slate-200 break-all line-clamp-2"
+          title={displayValue}
+        >
+          {displayValue}
+        </span>
       </div>
 
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+      {/* Visibility indicator when disabled */}
+      {!item.enabled && (
+        <span className="flex-shrink-0 text-[10px] font-medium text-slate-400 uppercase">Hidden</span>
+      )}
+
+      {/* Actions - compact and on hover */}
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0"
+          className="h-7 w-7 p-0"
           onClick={onToggle}
           disabled={disabled}
           aria-label={item.enabled ? "Disable item" : "Enable item"}
           title={item.enabled ? "Disable item" : "Enable item"}
         >
-          {item.enabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          {item.enabled ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
         </Button>
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0"
+          className="h-7 w-7 p-0"
           onClick={onDuplicate}
           disabled={disabled}
           aria-label="Duplicate item"
           title="Duplicate item"
         >
-          <Copy className="h-4 w-4" />
+          <Copy className="h-3.5 w-3.5" />
         </Button>
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0"
+          className="h-7 w-7 p-0"
           onClick={onDelete}
           disabled={disabled}
           aria-label="Delete item"
           title="Delete item"
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>
     </div>

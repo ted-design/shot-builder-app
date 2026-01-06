@@ -2,7 +2,6 @@
 // Main container for the Call Sheet Builder (vertical editor + preview)
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   useSchedule,
   useUpdateScheduleTracks,
@@ -970,94 +969,92 @@ function CallSheetBuilder({
           />
         </div>
       ) : (
-        <PanelGroup direction="horizontal" className="flex-1 min-h-0">
-          <Panel defaultSize={38} minSize={28} className="min-w-[380px]">
-            <WorkingPanel
-              panelView={panelView}
-              setPanelView={setPanelView}
-              sections={orderedSections}
-              orderedSections={orderedSections}
-              activeSectionId={activeSectionId}
-              activeSection={activeSection}
-              canWrite={canWriteProject}
-              onSelectSection={setActiveSectionId}
-              onReorderSections={handleReorderSections}
-              onToggleSection={handleToggleSection}
-              onAddSection={handleAddSection}
-              onDeleteSection={handleDeleteSection}
-              onEditFields={canWriteProject ? () => setIsColumnConfigOpen(true) : undefined}
-              onDone={() => setPanelView({ mode: "outline" })}
-              readOnly={!canWriteProject}
-              editorProps={{
-                clientId,
-                projectId,
-                scheduleId,
-                schedule,
-                scheduleSettings: settings,
-                scheduledTalentIds,
-                onToggleShowDurations: canWriteProject ? handleToggleShowDurations : undefined,
-                onToggleCascade: canWriteProject ? handleToggleCascade : undefined,
-                onOpenScheduleFields: canWriteProject ? () => setIsColumnConfigOpen(true) : undefined,
-                onAddScene: canWriteProject ? () => handleOpenEntryModal("shot") : undefined,
-                onAddBanner: canWriteProject ? () => handleOpenEntryModal("custom", "other") : undefined,
-                onAddMove: canWriteProject ? () => handleOpenEntryModal("custom", "travel") : undefined,
-                onLookupSceneAtTime: canWriteProject
-                  ? (startTime) => handleOpenEntryModalAtTime("shot", null, startTime)
-                  : undefined,
-                onCreateSceneAtTime: canWriteProject
-                  ? (startTime) => handleCreateShotInSchedule(null, startTime)
-                  : undefined,
-                onAddCustomAtTime: canWriteProject
-                  ? (category, startTime) => handleOpenEntryModalAtTime("custom", category, startTime)
-                  : undefined,
-                dayDetails,
-                callSheetConfig,
-                onUpdateCallSheetConfig: applyCallSheetConfigUpdate,
-                layoutV2: layoutV2Local,
-                onUpdateLayoutV2: (nextLayout) => {
-                  setLayoutV2Local(nextLayout);
-                  updateLayoutV2.mutate({ layout: nextLayout });
-                },
-                generalCrewCallTime: dayDetails?.crewCallTime || "",
-                onUpdateSectionConfig: handleUpdateSectionConfig,
-                scheduleEditor: (
-                  <VerticalTimelineView
-                    schedule={schedule}
-                    entries={resolvedEntries}
-                    tracks={tracks}
-                    locations={locationsArray}
-                    settings={settings}
-                    showPreviewPanel={false}
-                    showEditorHeader={false}
-                    columnConfig={effectiveColumns}
-                    onMoveEntry={
-                      canWriteProject ? (entryId, newTime) => moveEntry(entryId, newTime, resolvedEntries) : undefined
-                    }
-                    onResizeEntry={
-                      canWriteProject
-                        ? (entryId, newDuration) => resizeEntry(entryId, newDuration, resolvedEntries)
-                        : undefined
-                    }
-                    onUpdateEntryNotes={canWriteProject ? handleUpdateEntryNotes : undefined}
-                    onUpdateEntryLocation={canWriteProject ? handleUpdateEntryLocation : undefined}
-                    onUpdateEntryFlag={canWriteProject ? handleUpdateEntryFlag : undefined}
-                    onDeleteEntry={canWriteProject ? handleDeleteEntry : undefined}
-                    onReorderEntries={canWriteProject ? handleReorderEntries : undefined}
-                    onMoveEntryToTrack={canWriteProject ? handleMoveEntryToTrack : undefined}
-                    onAddShot={canWriteProject ? handleOpenEntryModal : undefined}
-                    onAddCustomItem={canWriteProject ? (category) => handleOpenEntryModal("custom", category) : undefined}
-                    onOpenColumnConfig={canWriteProject ? () => setIsColumnConfigOpen(true) : undefined}
-                    onEditEntry={canWriteProject ? handleEditCustomEntry : undefined}
-                    onEditShotEntry={canWriteProject ? handleEditShotEntry : undefined}
-                  />
-                ),
-              }}
-            />
-          </Panel>
+        <div className="flex flex-1 min-h-0 gap-4">
+          {/* Left Panel: Animated width outline/editor */}
+          <WorkingPanel
+            panelView={panelView}
+            setPanelView={setPanelView}
+            sections={orderedSections}
+            orderedSections={orderedSections}
+            activeSectionId={activeSectionId}
+            activeSection={activeSection}
+            canWrite={canWriteProject}
+            onSelectSection={setActiveSectionId}
+            onReorderSections={handleReorderSections}
+            onToggleSection={handleToggleSection}
+            onAddSection={handleAddSection}
+            onDeleteSection={handleDeleteSection}
+            onEditFields={canWriteProject ? () => setIsColumnConfigOpen(true) : undefined}
+            onDone={() => setPanelView({ mode: "outline" })}
+            readOnly={!canWriteProject}
+            editorProps={{
+              clientId,
+              projectId,
+              scheduleId,
+              schedule,
+              scheduleSettings: settings,
+              scheduledTalentIds,
+              onToggleShowDurations: canWriteProject ? handleToggleShowDurations : undefined,
+              onToggleCascade: canWriteProject ? handleToggleCascade : undefined,
+              onOpenScheduleFields: canWriteProject ? () => setIsColumnConfigOpen(true) : undefined,
+              onAddScene: canWriteProject ? () => handleOpenEntryModal("shot") : undefined,
+              onAddBanner: canWriteProject ? () => handleOpenEntryModal("custom", "other") : undefined,
+              onAddMove: canWriteProject ? () => handleOpenEntryModal("custom", "travel") : undefined,
+              onLookupSceneAtTime: canWriteProject
+                ? (startTime) => handleOpenEntryModalAtTime("shot", null, startTime)
+                : undefined,
+              onCreateSceneAtTime: canWriteProject
+                ? (startTime) => handleCreateShotInSchedule(null, startTime)
+                : undefined,
+              onAddCustomAtTime: canWriteProject
+                ? (category, startTime) => handleOpenEntryModalAtTime("custom", category, startTime)
+                : undefined,
+              dayDetails,
+              callSheetConfig,
+              onUpdateCallSheetConfig: applyCallSheetConfigUpdate,
+              layoutV2: layoutV2Local,
+              onUpdateLayoutV2: (nextLayout) => {
+                setLayoutV2Local(nextLayout);
+                updateLayoutV2.mutate({ layout: nextLayout });
+              },
+              generalCrewCallTime: dayDetails?.crewCallTime || "",
+              onUpdateSectionConfig: handleUpdateSectionConfig,
+              scheduleEditor: (
+                <VerticalTimelineView
+                  schedule={schedule}
+                  entries={resolvedEntries}
+                  tracks={tracks}
+                  locations={locationsArray}
+                  settings={settings}
+                  showPreviewPanel={false}
+                  showEditorHeader={false}
+                  columnConfig={effectiveColumns}
+                  onMoveEntry={
+                    canWriteProject ? (entryId, newTime) => moveEntry(entryId, newTime, resolvedEntries) : undefined
+                  }
+                  onResizeEntry={
+                    canWriteProject
+                      ? (entryId, newDuration) => resizeEntry(entryId, newDuration, resolvedEntries)
+                      : undefined
+                  }
+                  onUpdateEntryNotes={canWriteProject ? handleUpdateEntryNotes : undefined}
+                  onUpdateEntryLocation={canWriteProject ? handleUpdateEntryLocation : undefined}
+                  onUpdateEntryFlag={canWriteProject ? handleUpdateEntryFlag : undefined}
+                  onDeleteEntry={canWriteProject ? handleDeleteEntry : undefined}
+                  onReorderEntries={canWriteProject ? handleReorderEntries : undefined}
+                  onMoveEntryToTrack={canWriteProject ? handleMoveEntryToTrack : undefined}
+                  onAddShot={canWriteProject ? handleOpenEntryModal : undefined}
+                  onAddCustomItem={canWriteProject ? (category) => handleOpenEntryModal("custom", category) : undefined}
+                  onOpenColumnConfig={canWriteProject ? () => setIsColumnConfigOpen(true) : undefined}
+                  onEditEntry={canWriteProject ? handleEditCustomEntry : undefined}
+                  onEditShotEntry={canWriteProject ? handleEditShotEntry : undefined}
+                />
+              ),
+            }}
+          />
 
-          <PanelResizeHandle className="w-2 bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/60 transition-colors cursor-col-resize" />
-
-          <Panel defaultSize={62} minSize={32} className="min-w-[500px]">
+          {/* Right Panel: Preview (fills remaining space) */}
+          <div className="flex-1 min-w-[500px]">
             <PreviewPanel
               projectId={projectId}
               scheduleId={scheduleId}
@@ -1074,8 +1071,8 @@ function CallSheetBuilder({
               callSheetConfig={callSheetConfig}
               layoutV2={layoutV2Local}
             />
-          </Panel>
-        </PanelGroup>
+          </div>
+        </div>
       )}
 
       {/* Entry Form Modal */}
