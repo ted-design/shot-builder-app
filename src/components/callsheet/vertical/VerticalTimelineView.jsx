@@ -436,9 +436,9 @@ function VerticalTimelineView({
                 items={entryIds}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {Array.from(entriesByTimeSlot.entries()).map(([time, timeEntries]) => (
-                    <div key={time} className="flex flex-wrap gap-3">
+                    <div key={time} className="flex flex-wrap gap-4">
                       {timeEntries.map((entry) => (
                         <div
                           key={entry.id}

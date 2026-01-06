@@ -67,16 +67,17 @@ describe("BuilderPanel", () => {
     const parallel = screen.getByRole("button", { name: "Parallel" });
     const stacked = screen.getByRole("button", { name: "Stacked" });
 
-    expect(parallel).toHaveClass("bg-primary");
-    expect(stacked).toHaveClass("border");
+    // Active tab uses border-blue-600, inactive uses border-transparent
+    expect(parallel).toHaveClass("border-blue-600");
+    expect(stacked).toHaveClass("border-transparent");
 
     fireEvent.click(stacked);
-    expect(stacked).toHaveClass("bg-primary");
-    expect(parallel).toHaveClass("border");
+    expect(stacked).toHaveClass("border-blue-600");
+    expect(parallel).toHaveClass("border-transparent");
 
     fireEvent.click(parallel);
-    expect(parallel).toHaveClass("bg-primary");
-    expect(stacked).toHaveClass("border");
+    expect(parallel).toHaveClass("border-blue-600");
+    expect(stacked).toHaveClass("border-transparent");
   });
 });
 

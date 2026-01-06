@@ -15,7 +15,26 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Eye, EyeOff, Plus, MoreHorizontal, Pencil } from "lucide-react";
+import {
+  GripVertical,
+  Eye,
+  EyeOff,
+  Plus,
+  MoreHorizontal,
+  ChevronRight,
+  LayoutTemplate,
+  Calendar,
+  Bell,
+  ClipboardList,
+  Users,
+  Star,
+  StickyNote,
+  ScrollText,
+  FileText,
+  MessageSquare,
+  Wrench,
+  Quote,
+} from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Modal } from "../../ui/modal";
@@ -26,6 +45,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../ui/dropdown-menu";
+
+const SECTION_ICONS = {
+  header: LayoutTemplate,
+  "day-details": Calendar,
+  reminders: Bell,
+  schedule: ClipboardList,
+  clients: Users,
+  talent: Star,
+  extras: StickyNote,
+  "advanced-schedule": Wrench,
+  "page-break": ScrollText,
+  crew: Users,
+  "notes-contacts": FileText,
+  "custom-banner": MessageSquare,
+  quote: Quote,
+};
 
 function sectionLabel(type) {
   const labels = {
@@ -54,99 +89,250 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.6 : 1,
   };
 
   const visible = section.isVisible !== false;
+  const Icon = SECTION_ICONS[section.type] || ClipboardList;
+  const isPageBreak = section.type === "page-break";
+
+  // Page break has a distinct red-tinted appearance
+  if (isPageBreak) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={[
+          "group relative flex items-center gap-2 rounded-lg px-3 py-2.5 transition-all duration-150 cursor-pointer border",
+          isDragging ? "opacity-60 shadow-lg z-50" : "",
+          isActive
+            ? "bg-rose-600 text-white border-rose-600 shadow-md"
+            : visible
+              ? "bg-rose-50 border-rose-200 hover:bg-rose-100 hover:border-rose-300 dark:bg-rose-950/30 dark:border-rose-800 dark:hover:bg-rose-900/40"
+              : "bg-slate-50 border-slate-200 opacity-50 hover:opacity-75 dark:bg-slate-800/50 dark:border-slate-700",
+        ].join(" ")}
+        onClick={() => onClick(section.id)}
+      >
+        {/* Drag handle */}
+        <button
+          type="button"
+          className={[
+            "cursor-grab active:cursor-grabbing flex-shrink-0 transition-opacity",
+            isActive
+              ? "text-white/60 hover:text-white"
+              : "text-rose-400 hover:text-rose-600 dark:text-rose-500 dark:hover:text-rose-300",
+          ].join(" ")}
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Drag page break"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+
+        {/* Dashed line indicator */}
+        <div className="flex-1 flex items-center gap-2">
+          <div className={[
+            "flex-1 h-px border-t-2 border-dashed",
+            isActive ? "border-white/50" : "border-rose-300 dark:border-rose-600"
+          ].join(" ")} />
+          <span className={[
+            "text-[10px] font-bold uppercase tracking-wider px-1.5",
+            isActive ? "text-white" : "text-rose-500 dark:text-rose-400"
+          ].join(" ")}>
+            Page Break
+          </span>
+          <div className={[
+            "flex-1 h-px border-t-2 border-dashed",
+            isActive ? "border-white/50" : "border-rose-300 dark:border-rose-600"
+          ].join(" ")} />
+        </div>
+
+        {/* Visibility toggle for page break */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle(section.id, !visible);
+          }}
+          className={[
+            "inline-flex h-6 w-6 items-center justify-center rounded transition-all",
+            isActive
+              ? "text-white/70 hover:text-white hover:bg-white/10"
+              : "opacity-0 group-hover:opacity-100 text-rose-500 hover:bg-rose-200 dark:hover:bg-rose-800",
+          ].join(" ")}
+          aria-label={visible ? "Hide page break" : "Show page break"}
+          title={visible ? "Hide page break" : "Show page break"}
+        >
+          {visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+        </button>
+
+        {/* Delete via more menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={[
+                "h-6 w-6 p-0 transition-all",
+                isActive
+                  ? "text-white/70 hover:text-white hover:bg-white/10"
+                  : "opacity-0 group-hover:opacity-100 text-rose-500 hover:bg-rose-200 dark:hover:bg-rose-800",
+              ].join(" ")}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Page break actions"
+            >
+              <MoreHorizontal className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onDelete(section.id)}>
+              Delete page break
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    );
+  }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={[
-        "group flex items-center gap-2 rounded-lg border px-2 py-2 transition-colors",
+        "group relative flex items-center gap-2 rounded-lg px-3 py-2.5 transition-all duration-150 cursor-pointer border",
+        isDragging ? "opacity-60 shadow-lg z-50" : "",
         isActive
-          ? "border-blue-300 bg-blue-50 dark:border-blue-900/50 dark:bg-blue-900/20"
-          : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900",
-        visible ? "" : "opacity-60",
+          ? "bg-gradient-to-r from-blue-700 to-indigo-600 text-white border-transparent shadow-md"
+          : visible
+            ? "bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:hover:border-slate-600"
+            : "bg-slate-50 border-slate-200 opacity-60 hover:opacity-80 dark:bg-slate-800/50 dark:border-slate-700",
       ].join(" ")}
+      onClick={() => onClick(section.id)}
     >
+      {/* Drag handle - always visible but subtle */}
       <button
         type="button"
-        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-70 group-hover:opacity-100 transition-opacity"
+        className={[
+          "cursor-grab active:cursor-grabbing flex-shrink-0 transition-colors",
+          isActive
+            ? "text-white/50 hover:text-white/80"
+            : "text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400",
+        ].join(" ")}
         {...attributes}
         {...listeners}
+        onClick={(e) => e.stopPropagation()}
         aria-label={`Drag ${sectionLabel(section.type)}`}
       >
         <GripVertical className="h-4 w-4" />
       </button>
 
-      <button
-        type="button"
-        onClick={() => onClick(section.id)}
-        className="flex-1 min-w-0 text-left"
+      {/* Section icon - prominent */}
+      <div
+        className={[
+          "flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-lg",
+          isActive
+            ? "bg-white/20 text-white"
+            : visible
+              ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+              : "bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-500",
+        ].join(" ")}
       >
-        <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+        <Icon className="h-4.5 w-4.5" />
+      </div>
+
+      {/* Label - given more space with better layout */}
+      <div className="flex-1 min-w-0 pr-1">
+        <div
+          className={[
+            "text-sm font-medium leading-tight",
+            isActive ? "text-white" : visible ? "text-slate-800 dark:text-slate-100" : "text-slate-500 dark:text-slate-400",
+          ].join(" ")}
+          title={sectionLabel(section.type)}
+        >
           {sectionLabel(section.type)}
         </div>
-        {visible ? null : (
-          <div className="mt-0.5 text-[11px] font-medium text-slate-500">
-            Disabled
+        {!visible && !isActive ? (
+          <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-0.5">
+            Hidden
           </div>
-        )}
-        {section.type === "custom-banner" && section.config?.text ? (
-          <div className="truncate text-xs text-slate-500">{String(section.config.text)}</div>
         ) : null}
-      </button>
-
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-        onClick={() => onClick(section.id)}
-        aria-label="Edit section"
-        title="Edit section"
-      >
-        <Pencil className="h-4 w-4" />
-      </Button>
-
-      <button
-        type="button"
-        onClick={() => onToggle(section.id, !visible)}
-        className="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-800 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-        aria-label={visible ? "Hide section" : "Show section"}
-        title={visible ? "Hide section" : "Show section"}
-      >
-        {visible ? <Eye className="h-4 w-4 text-blue-600" /> : <EyeOff className="h-4 w-4" />}
-      </button>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-            aria-label="Section actions"
+        {section.type === "custom-banner" && section.config?.text ? (
+          <div
+            className={["text-xs leading-tight mt-0.5 truncate", isActive ? "text-white/70" : "text-slate-500 dark:text-slate-400"].join(" ")}
+            title={String(section.config.text)}
           >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onAddBannerBelow?.(section.id)}>
-            Add banner below…
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAddPageBreakBelow?.(section.id)}>
-            Add page break below
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => onDelete(section.id)}
-            disabled={["header", "schedule"].includes(section.type)}
-          >
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            {String(section.config.text)}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Right side actions - more compact */}
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+        {/* Visibility toggle */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle(section.id, !visible);
+          }}
+          className={[
+            "inline-flex h-7 w-7 items-center justify-center rounded-md transition-all",
+            isActive
+              ? "text-white/70 hover:text-white hover:bg-white/10"
+              : "opacity-0 group-hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-700",
+          ].join(" ")}
+          aria-label={visible ? "Hide section" : "Show section"}
+          title={visible ? "Hide section" : "Show section"}
+        >
+          {visible ? (
+            <Eye className={["h-3.5 w-3.5", isActive ? "" : "text-blue-600 dark:text-blue-400"].join(" ")} />
+          ) : (
+            <EyeOff className="h-3.5 w-3.5 text-slate-400" />
+          )}
+        </button>
+
+        {/* More menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={[
+                "h-7 w-7 p-0 transition-all",
+                isActive
+                  ? "text-white/70 hover:text-white hover:bg-white/10"
+                  : "opacity-0 group-hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-700",
+              ].join(" ")}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Section actions"
+            >
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onAddBannerBelow?.(section.id)}>
+              Add banner below…
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAddPageBreakBelow?.(section.id)}>
+              Add page break below
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onDelete(section.id)}
+              disabled={["header", "schedule"].includes(section.type)}
+            >
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Chevron indicator */}
+        <ChevronRight
+          className={[
+            "h-4 w-4 flex-shrink-0 transition-all",
+            isActive ? "text-white/80" : "text-slate-400 opacity-0 group-hover:opacity-100 dark:text-slate-500",
+          ].join(" ")}
+        />
+      </div>
     </div>
   );
 }
@@ -209,18 +395,23 @@ export default function LayoutPanel({
   }, [activeSectionId, hideDisabled, orderedSections]);
 
   return (
-    <div className="flex h-full flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{title}</div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-8" onClick={() => setIsTemplatesOpen(true)}>
+    <div className="flex h-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-slate-50 border-b border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{title}</h3>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2.5 text-xs"
+            onClick={() => setIsTemplatesOpen(true)}
+          >
             Load / Save
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                <Plus className="h-4 w-4" />
-                Add
+              <Button variant="outline" size="sm" className="h-7 w-7 p-0">
+                <Plus className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -246,7 +437,8 @@ export default function LayoutPanel({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-2">
+      {/* Section list */}
+      <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={visibleSections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
             {visibleSections.map((section) => (
@@ -274,21 +466,24 @@ export default function LayoutPanel({
         </DndContext>
       </div>
 
-      <button
-        type="button"
-        className="text-left text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-        onClick={() => {
-          setHideDisabled((prev) => {
-            const next = !prev;
-            try {
-              localStorage.setItem("callSheetOutline.hideDisabled", String(next));
-            } catch {}
-            return next;
-          });
-        }}
-      >
-        {hideDisabled ? "Show disabled sections" : "Hide disabled sections"}
-      </button>
+      {/* Footer */}
+      <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+        <button
+          type="button"
+          className="text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+          onClick={() => {
+            setHideDisabled((prev) => {
+              const next = !prev;
+              try {
+                localStorage.setItem("callSheetOutline.hideDisabled", String(next));
+              } catch {}
+              return next;
+            });
+          }}
+        >
+          {hideDisabled ? "Show hidden sections" : "Hide disabled sections"}
+        </button>
+      </div>
 
       <Modal
         open={Boolean(deleteTarget)}
