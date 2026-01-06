@@ -3,7 +3,8 @@ import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { StatusBadge } from "../ui/StatusBadge";
 import ProgressBar from "../ui/ProgressBar";
-import { Calendar, Camera, User, MapPin } from "lucide-react";
+import Avatar from "../ui/Avatar";
+import { Calendar, Camera, MoreVertical } from "lucide-react";
 
 // Date validation constants
 const MIN_VALID_YEAR = 1900;
@@ -126,6 +127,33 @@ const renderStat = (label, value) => {
   return null;
 };
 
+const ACCENT_COLORS = ["bg-immediate-red", "bg-orange-500", "bg-slate-400"];
+
+function pickAccentColor(projectId) {
+  if (!projectId) return ACCENT_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < projectId.length; i += 1) {
+    hash = projectId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return ACCENT_COLORS[Math.abs(hash) % ACCENT_COLORS.length];
+}
+
+function normaliseProjectStatus(value) {
+  if (!value || typeof value !== "string") return "active";
+  return value.trim().toLowerCase();
+}
+
+function formatStatusLabel(status) {
+  const cleaned = normaliseProjectStatus(status);
+  if (cleaned === "on-hold") return "On-hold";
+  if (cleaned === "in-progress") return "In progress";
+  return cleaned
+    .split(/[\s-]+/g)
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export function ProjectCard({
   project,
   isActive = false,
@@ -134,94 +162,92 @@ export function ProjectCard({
   canManage = false,
 }) {
   const cardClass = isActive
-    ? "border-primary dark:border-indigo-500 bg-primary/5 dark:bg-indigo-900/20 ring-2 ring-primary/20 dark:ring-indigo-500/30 shadow-md"
-    : "border-slate-200 dark:border-slate-700 hover:border-primary/40 dark:hover:border-indigo-500/40";
+    ? "border-primary/40 dark:border-indigo-500/40 ring-2 ring-primary/15 dark:ring-indigo-500/25 shadow-md"
+    : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600";
 
   // Memoize expensive date formatting to avoid recalculation on every render
   const shootDates = useMemo(() => formatShootDates(project?.shootDates), [project?.shootDates]);
   const updatedAt = useMemo(() => formatTimestamp(project?.updatedAt || project?.createdAt), [project?.updatedAt, project?.createdAt]);
 
   const shotCount = project?.shotCount ?? project?.stats?.shots;
-  const talentCount = project?.stats?.talent ?? 0;
-  const locationCount = project?.stats?.locations ?? 0;
+  const memberIds = useMemo(() => Object.keys(project?.members || {}), [project?.members]);
+  const visibleMemberIds = memberIds.slice(0, 4);
+  const extraMembers = Math.max(0, memberIds.length - visibleMemberIds.length);
 
   // Calculate planning progress
   const totalShots = project?.shotCount ?? project?.stats?.shots ?? 0;
   const shotsPlanned = project?.stats?.shotsPlanned ?? 0;
   const planningPercentage = totalShots > 0 ? (shotsPlanned / totalShots) * 100 : 0;
-  const isPlanningStatus = project?.status === "planning";
+  const status = normaliseProjectStatus(project?.status);
+  const isPlanningStatus = status === "planning";
+
+  const statusLabel = formatStatusLabel(project?.status);
+  const accentClass = pickAccentColor(project?.id);
+  const dateLabel = shootDates || updatedAt;
 
   return (
-    <Card className={`${cardClass} transition-all duration-150 hover:border-primary/50 dark:hover:border-indigo-500/50 hover:shadow-md`}>
-      <CardContent className="flex h-full flex-col gap-4 py-5">
+    <Card
+      className={`relative overflow-hidden ${cardClass}`}
+      onClick={() => onSelect?.(project)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect?.(project);
+        }
+      }}
+    >
+      {/* Accent bar */}
+      <div className={`absolute left-0 top-0 h-full w-1.5 ${accentClass}`} aria-hidden="true" />
+
+      <CardContent className="flex h-full flex-col gap-4 py-5 pl-5">
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => onSelect?.(project)}
-              className="text-left flex-1 min-w-0"
-            >
-              <div className="flex items-center gap-2 flex-wrap mb-2">
-                <div className={`text-lg font-semibold ${isActive ? 'text-primary dark:text-indigo-400' : 'text-slate-900 dark:text-slate-100'}`}>
-                  {project?.name || "Untitled project"}
+            <div className="text-left flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div
+                    className={`text-lg font-semibold ${isActive ? "text-slate-900 dark:text-slate-50" : "text-slate-900 dark:text-slate-100"}`}
+                  >
+                    {project?.name || "Untitled project"}
+                  </div>
+                  {project?.notes ? (
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
+                      {project.notes}
+                    </p>
+                  ) : null}
                 </div>
-                <StatusBadge status={project?.status === "archived" ? "archived" : "active"}>
-                  {project?.status === "archived" ? "Archived" : "Active"}
-                </StatusBadge>
               </div>
-              {shootDates && (
-                <div className="flex items-center gap-1.5 text-base font-semibold text-slate-800 dark:text-slate-200 mb-1">
-                  <Calendar className="h-4 w-4 text-slate-500 dark:text-slate-400" aria-hidden="true" />
-                  <span>{shootDates}</span>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2 text-sm text-slate-600 dark:text-slate-400">
-                {typeof shotCount === "number" && (
-                  <span className="flex items-center gap-1.5">
-                    <Camera className="h-4 w-4 text-slate-500 dark:text-slate-400" aria-hidden="true" />
-                    <span>{shotCount} {shotCount === 1 ? "shot" : "shots"}</span>
-                  </span>
-                )}
-                {talentCount > 0 && (
-                  <>
-                    {typeof shotCount === "number" && <span>•</span>}
-                    <span className="flex items-center gap-1.5">
-                      <User className="h-4 w-4 text-slate-500 dark:text-slate-400" aria-hidden="true" />
-                      <span>{talentCount} {talentCount === 1 ? "model" : "models"}</span>
-                    </span>
-                  </>
-                )}
-                {locationCount > 0 && (
-                  <>
-                    {(typeof shotCount === "number" || talentCount > 0) && <span>•</span>}
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4 text-slate-500 dark:text-slate-400" aria-hidden="true" />
-                      <span>{locationCount} {locationCount === 1 ? "location" : "locations"}</span>
-                    </span>
-                  </>
-                )}
-                {updatedAt && (
-                  <>
-                    {(typeof shotCount === "number" || talentCount > 0 || locationCount > 0) && <span>•</span>}
-                    <span className="text-xs text-slate-500 dark:text-slate-400">Updated {updatedAt}</span>
-                  </>
-                )}
-              </div>
-            </button>
+            </div>
             {canManage && (
               <Button
                 type="button"
-                size="sm"
+                size="icon"
                 variant="ghost"
-                onClick={() => onEdit?.(project)}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onEdit?.(project);
+                }}
+                aria-label="Edit project"
               >
-                Edit
+                <MoreVertical className="h-4 w-4" aria-hidden="true" />
               </Button>
             )}
           </div>
-          {project?.notes && (
-            <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">{project.notes}</p>
-          )}
+          <div className="flex items-center justify-between gap-3">
+            <StatusBadge status={status}>{statusLabel}</StatusBadge>
+            {typeof shotCount === "number" ? (
+              <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300">
+                <Camera className="h-4 w-4 text-slate-500 dark:text-slate-400" aria-hidden="true" />
+                <span className="font-medium text-slate-700 dark:text-slate-200">
+                  {shotCount} {shotCount === 1 ? "shot" : "shots"}
+                </span>
+              </div>
+            ) : null}
+          </div>
+
           {isPlanningStatus && totalShots > 0 && (
             <ProgressBar
               label="Planning progress"
@@ -230,21 +256,33 @@ export function ProjectCard({
             />
           )}
         </div>
-        <div className={`mt-auto flex items-center text-sm ${isActive ? 'justify-between' : 'justify-end'}`}>
-          {isActive && (
-            <span className="flex items-center gap-1.5 text-primary dark:text-indigo-400 font-medium">
-              <span className="inline-block w-2 h-2 rounded-full bg-primary dark:bg-indigo-400 animate-pulse"></span>
-              Current project
-            </span>
-          )}
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => onSelect?.(project)}
-            variant={isActive ? "default" : "outline"}
-          >
-            {isActive ? "Open" : "Enter"}
-          </Button>
+
+        <div className="mt-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            {visibleMemberIds.length ? (
+              <div className="flex -space-x-2">
+                {visibleMemberIds.map((memberId) => (
+                  <div key={memberId} className="rounded-full ring-2 ring-white dark:ring-slate-900">
+                    <Avatar name={memberId} size="xs" />
+                  </div>
+                ))}
+                {extraMembers ? (
+                  <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700 ring-2 ring-white dark:bg-slate-700 dark:text-slate-100 dark:ring-slate-900">
+                    +{extraMembers}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="text-xs text-slate-500 dark:text-slate-400">No members</div>
+            )}
+          </div>
+
+          {dateLabel ? (
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+              <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="truncate max-w-[160px]">{dateLabel}</span>
+            </div>
+          ) : null}
         </div>
       </CardContent>
     </Card>

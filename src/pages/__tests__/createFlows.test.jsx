@@ -24,106 +24,136 @@ const authState = {
   ready: true,
 };
 
-const snapshotData = new Map();
-const addDocCalls = [];
-let pendingAddDocError = null;
+const firestoreHarness = vi.hoisted(() => {
+  const snapshotData = new Map();
+  const addDocCalls = [];
+  const state = { pendingAddDocError: null };
 
-const updateDocMock = vi.fn(async () => {});
-const deleteDocMock = vi.fn(async () => {});
-const getDocsMock = vi.fn(async () => createSnapshot("clients/unbound-merino/productFamilies"));
-const arrayUnionMock = vi.fn((value) => ({ __op: "arrayUnion", value }));
-const arrayRemoveMock = vi.fn((value) => ({ __op: "arrayRemove", value }));
+  const pathKey = (segments) => (Array.isArray(segments) ? segments.join("/") : "");
 
-class FakeTimestamp {
-  constructor(date) {
-    this._date = date;
+  function setSnapshot(segments, docs) {
+    snapshotData.set(
+      pathKey(segments),
+      docs.map((entry) => ({ id: entry.id, data: entry.data }))
+    );
   }
 
-  toDate() {
-    return this._date;
+  function getPath(ref) {
+    if (!ref) return [];
+    if (Array.isArray(ref)) return ref;
+    if (ref.__path) return ref.__path;
+    if (ref.__ref) return getPath(ref.__ref);
+    return [];
   }
 
-  static fromDate(date) {
-    return new FakeTimestamp(date);
+  function createSnapshot(path) {
+    const docs = snapshotData.get(path) || [];
+    return {
+      docs: docs.map((doc) => ({
+        id: doc.id,
+        data: () => ({ ...doc.data }),
+      })),
+    };
   }
-}
 
-const pathKey = (segments) => (Array.isArray(segments) ? segments.join("/") : "");
+  const updateDocMock = vi.fn(async () => {});
+  const deleteDocMock = vi.fn(async () => {});
+  const getDocsMock = vi.fn(async () => createSnapshot("clients/unbound-merino/productFamilies"));
+  const arrayUnionMock = vi.fn((value) => ({ __op: "arrayUnion", value }));
+  const arrayRemoveMock = vi.fn((value) => ({ __op: "arrayRemove", value }));
 
-function setSnapshot(segments, docs) {
-  snapshotData.set(
-    pathKey(segments),
-    docs.map((entry) => ({ id: entry.id, data: entry.data }))
-  );
-}
+  class FakeTimestamp {
+    constructor(date) {
+      this._date = date;
+    }
 
-function getPath(ref) {
-  if (!ref) return [];
-  if (Array.isArray(ref)) return ref;
-  if (ref.__path) return ref.__path;
-  if (ref.__ref) return getPath(ref.__ref);
-  return [];
-}
+    toDate() {
+      return this._date;
+    }
 
-function createSnapshot(path) {
-  const docs = snapshotData.get(path) || [];
+    static fromDate(date) {
+      return new FakeTimestamp(date);
+    }
+  }
+
+  const onSnapshotMock = vi.fn((ref, onNext, onError) => {
+    try {
+      const key = pathKey(getPath(ref));
+      if (typeof onNext === "function") {
+        onNext(createSnapshot(key));
+      }
+    } catch (error) {
+      if (typeof onError === "function") {
+        onError(error);
+      }
+    }
+    return () => {};
+  });
+
+  const addDocMock = vi.fn(async (collectionRef, data) => {
+    addDocCalls.push({ path: [...collectionRef.__path], data });
+    if (state.pendingAddDocError) {
+      const err = state.pendingAddDocError;
+      state.pendingAddDocError = null;
+      throw err;
+    }
+    const docId = `doc-${addDocCalls.length}`;
+    return { id: docId, __path: [...collectionRef.__path, docId] };
+  });
+
+  const collapseArgs = (maybeDb, segments) =>
+    segments.length ? segments : Array.isArray(maybeDb) ? maybeDb : [];
+
+  const collectionMock = vi.fn((maybeDb, ...segments) => ({ __path: collapseArgs(maybeDb, segments) }));
+  const docMock = vi.fn((maybeDb, ...segments) => ({ __path: collapseArgs(maybeDb, segments) }));
+  const queryMock = vi.fn((ref, ...clauses) => ({ __path: getPath(ref), __ref: ref, __clauses: clauses }));
+  const orderByMock = vi.fn((...args) => ({ __orderBy: args }));
+  const whereMock = vi.fn((...args) => ({ __where: args }));
+
   return {
-    docs: docs.map((doc) => ({
-      id: doc.id,
-      data: () => ({ ...doc.data }),
-    })),
+    snapshotData,
+    addDocCalls,
+    state,
+    setSnapshot,
+    getPath,
+    createSnapshot,
+    updateDocMock,
+    deleteDocMock,
+    getDocsMock,
+    arrayUnionMock,
+    arrayRemoveMock,
+    FakeTimestamp,
+    onSnapshotMock,
+    addDocMock,
+    collectionMock,
+    docMock,
+    queryMock,
+    orderByMock,
+    whereMock,
   };
-}
-
-const onSnapshotMock = vi.fn((ref, onNext, onError) => {
-  try {
-    const key = pathKey(getPath(ref));
-    if (typeof onNext === "function") {
-      onNext(createSnapshot(key));
-    }
-  } catch (error) {
-    if (typeof onError === "function") {
-      onError(error);
-    }
-  }
-  return () => {};
 });
 
-const addDocMock = vi.fn(async (collectionRef, data) => {
-  addDocCalls.push({ path: [...collectionRef.__path], data });
-  if (pendingAddDocError) {
-    const err = pendingAddDocError;
-    pendingAddDocError = null;
-    throw err;
-  }
-  const docId = `doc-${addDocCalls.length}`;
-  return { id: docId, __path: [...collectionRef.__path, docId] };
-});
-
-const collapseArgs = (maybeDb, segments) => (segments.length ? segments : Array.isArray(maybeDb) ? maybeDb : []);
-
-const collectionMock = vi.fn((maybeDb, ...segments) => ({ __path: collapseArgs(maybeDb, segments) }));
-const docMock = vi.fn((maybeDb, ...segments) => ({ __path: collapseArgs(maybeDb, segments) }));
-const queryMock = vi.fn((ref, ...clauses) => ({ __path: getPath(ref), __ref: ref, __clauses: clauses }));
-const orderByMock = vi.fn((...args) => ({ __orderBy: args }));
-const whereMock = vi.fn((...args) => ({ __where: args }));
+const { snapshotData, addDocCalls, setSnapshot, createSnapshot, getDocsMock } = firestoreHarness;
 
 vi.mock("firebase/firestore", () => ({
-  collection: collectionMock,
-  doc: docMock,
-  query: queryMock,
-  orderBy: orderByMock,
-  where: whereMock,
+  collection: firestoreHarness.collectionMock,
+  doc: firestoreHarness.docMock,
+  query: firestoreHarness.queryMock,
+  orderBy: firestoreHarness.orderByMock,
+  where: firestoreHarness.whereMock,
   limit: vi.fn((n) => ({ __limit: n })),
-  getDocs: getDocsMock,
-  onSnapshot: onSnapshotMock,
-  addDoc: addDocMock,
-  updateDoc: updateDocMock,
-  deleteDoc: deleteDocMock,
+  getDocs: firestoreHarness.getDocsMock,
+  onSnapshot: firestoreHarness.onSnapshotMock,
+  addDoc: firestoreHarness.addDocMock,
+  updateDoc: firestoreHarness.updateDocMock,
+  deleteDoc: firestoreHarness.deleteDocMock,
   serverTimestamp: () => "__server_timestamp__",
-  Timestamp: FakeTimestamp,
-  arrayUnion: (...args) => arrayUnionMock(...args),
-  arrayRemove: (...args) => arrayRemoveMock(...args),
+  Timestamp: firestoreHarness.FakeTimestamp,
+  arrayUnion: (...args) => firestoreHarness.arrayUnionMock(...args),
+  arrayRemove: (...args) => firestoreHarness.arrayRemoveMock(...args),
+  terminate: vi.fn(async () => {}),
+  initializeFirestore: vi.fn(() => ({})),
+  CACHE_SIZE_UNLIMITED: 0,
   writeBatch: vi.fn(() => ({
     set: vi.fn(),
     update: vi.fn(),
@@ -253,7 +283,7 @@ function resetSnapshotData() {
 beforeEach(() => {
   vi.clearAllMocks();
   addDocCalls.length = 0;
-  pendingAddDocError = null;
+  firestoreHarness.state.pendingAddDocError = null;
   resetSnapshotData();
   authState.user = { uid: "test-user" };
   authState.role = "producer";
@@ -313,7 +343,7 @@ describe("Create flows", () => {
       code: "permission-denied",
       message: "Missing or insufficient permissions.",
     });
-    pendingAddDocError = failure;
+    firestoreHarness.state.pendingAddDocError = failure;
     const { default: TalentPage } = await import("../TalentPage.jsx");
     renderWithRouter(<TalentPage />);
 

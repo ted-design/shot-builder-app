@@ -1,5 +1,6 @@
+import React from "react";
 import { FolderOpen } from "lucide-react";
-import { ProjectCard, CreateProjectCard } from "./ProjectCard";
+import { ProjectCard } from "./ProjectCard";
 import { EmptyState } from "../ui/EmptyState";
 import { getStaggerDelay } from "../../lib/animations";
 import { VirtualizedGrid } from "../ui/VirtualizedList";
@@ -61,7 +62,6 @@ export default function ProjectCards({
         className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
         threshold={100}
       />
-      {canManage && <CreateProjectCard onClick={onCreateProject} />}
     </div>
   );
 }

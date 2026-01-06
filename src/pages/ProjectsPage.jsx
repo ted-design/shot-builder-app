@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { addDoc, collection, doc, updateDoc, setDoc, serverTimestamp, deleteField } from "../lib/demoSafeFirestore";
 import { auth, db } from "../lib/firebase";
 import { useProjects } from "../hooks/useFirestoreQuery";
@@ -13,13 +13,20 @@ import ProjectEditModal from "../components/dashboard/ProjectEditModal";
 import { showError, toast } from "../lib/toast";
 import { createProjectSchema, updateProjectSchema } from "../schemas/index.js";
 import { SkeletonCard } from "../components/ui/Skeleton";
-import { Filter, X } from "lucide-react";
-import PageHeader from "../components/ui/PageHeader";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
+import { ChevronDown, ChevronRight, Plus, Search, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 
 export default function ProjectsPage() {
   const { clientId, user: authUser, role: globalRole } = useAuth();
   const navigate = useNavigate();
-  const { currentProjectId, setCurrentProjectId, lastVisitedPath } = useProjectScope();
+  const { currentProjectId, setCurrentProjectId } = useProjectScope();
   const resolvedClientId = clientId || CLIENT_ID;
 
   // TanStack Query hook - cached data with realtime updates
@@ -36,72 +43,49 @@ export default function ProjectsPage() {
   const [updating, setUpdating] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
   const [archivingProject, setArchivingProject] = useState(false);
-  const [showArchivedProjects, setShowArchivedProjects] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const filtersRef = useRef(null);
+  const [projectFilter, setProjectFilter] = useState("all"); // all | archived
+  const [sortMode, setSortMode] = useState("recent"); // recent | shootDate | name
+  const [query, setQuery] = useState("");
+  const searchRef = useRef(null);
 
   // Derive a sorted list based on earliest shoot date so that upcoming shoots
   // appear first.  This computation is memoised to avoid re‑sorting on
   // every render when the list hasn't changed.
   const items = useMemo(() => {
     if (!itemsRaw) return [];
+    const q = query.trim().toLowerCase();
     const list = [...itemsRaw].filter((project) => {
       if (project?.deletedAt) return false;
-      if (showArchivedProjects) return true;
-      return project?.status !== "archived";
+
+      const status = (project?.status || "active").toLowerCase();
+      if (projectFilter === "archived") {
+        if (status !== "archived") return false;
+      } else {
+        if (status === "archived") return false;
+      }
+
+      if (!q) return true;
+      const haystack = `${project?.name || ""} ${project?.notes || ""}`.toLowerCase();
+      return haystack.includes(q);
     });
-    list.sort((a, b) => {
-      const A = (a.shootDates && a.shootDates[0]) || "9999-12-31";
-      const B = (b.shootDates && b.shootDates[0]) || "9999-12-31";
-      return A.localeCompare(B);
-    });
-    return list;
-  }, [itemsRaw, showArchivedProjects]);
 
-  // Calculate active filter count
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (showArchivedProjects) count++;
-    return count;
-  }, [showArchivedProjects]);
-
-  // Clear all filters
-  const clearAllFilters = useCallback(() => {
-    setShowArchivedProjects(false);
-  }, []);
-
-  // Build active filters array for pills
-  const activeFilters = useMemo(() => {
-    const filters = [];
-    if (showArchivedProjects) {
-      filters.push({
-        key: "archived",
-        label: "Show archived",
-        value: "Yes",
+    if (sortMode === "name") {
+      list.sort((a, b) => String(a?.name || "").localeCompare(String(b?.name || "")));
+    } else if (sortMode === "shootDate") {
+      list.sort((a, b) => {
+        const A = (a.shootDates && a.shootDates[0]) || "9999-12-31";
+        const B = (b.shootDates && b.shootDates[0]) || "9999-12-31";
+        return A.localeCompare(B);
+      });
+    } else {
+      list.sort((a, b) => {
+        const aDate = a?.updatedAt?.toDate?.() || a?.createdAt?.toDate?.() || a?.updatedAt || a?.createdAt || new Date(0);
+        const bDate = b?.updatedAt?.toDate?.() || b?.createdAt?.toDate?.() || b?.updatedAt || b?.createdAt || new Date(0);
+        return new Date(bDate).getTime() - new Date(aDate).getTime();
       });
     }
-    return filters;
-  }, [showArchivedProjects]);
-
-  // Remove individual filter
-  const removeFilter = useCallback((filterKey) => {
-    if (filterKey === "archived") {
-      setShowArchivedProjects(false);
-    }
-  }, []);
-
-  // Click-outside handler for filter panel
-  useEffect(() => {
-    if (!filtersOpen) return undefined;
-    function onFiltersClick(event) {
-      if (!filtersRef.current) return;
-      if (!filtersRef.current.contains(event.target)) {
-        setFiltersOpen(false);
-      }
-    }
-    window.addEventListener("mousedown", onFiltersClick);
-    return () => window.removeEventListener("mousedown", onFiltersClick);
-  }, [filtersOpen]);
+    return list;
+  }, [itemsRaw, projectFilter, query, sortMode]);
 
   // Show a toast notification if TanStack Query reports an error
   useEffect(() => {
@@ -204,13 +188,7 @@ export default function ProjectsPage() {
   const handleSelectProject = (project) => {
     if (!project) return;
     setCurrentProjectId(project.id);
-    const lastPath = lastVisitedPath || "/shots";
-    // Support legacy '/planner' by redirecting route which we have defined.
-    if (lastPath === "/planner") {
-      navigate(`/projects/${project.id}/planner`);
-    } else {
-      navigate(`/projects/${project.id}${lastPath}`);
-    }
+    navigate(`/projects/${project.id}/dashboard`);
   };
 
   const handleDeleteProject = async (project) => {
@@ -316,93 +294,88 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-screen-lg space-y-6">
-      {/* PageHeader component with filters and presets */}
-      <PageHeader sticky={true} className="top-14 z-40">
-        <PageHeader.Content>
+    <div className="mx-auto max-w-[1440px] space-y-6">
+      <div className="space-y-4">
+        <nav aria-label="Breadcrumb" className="text-sm text-slate-500 dark:text-slate-400">
+          <ol className="flex items-center gap-2">
+            <li>
+              <Link to="/projects" className="hover:text-slate-900 dark:hover:text-slate-200 transition">
+                Dashboard
+              </Link>
+            </li>
+            <li aria-hidden="true">
+              <ChevronRight className="h-4 w-4" />
+            </li>
+            <li className="text-slate-700 dark:text-slate-200 font-medium" aria-current="page">
+              Projects
+            </li>
+          </ol>
+        </nav>
+
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <PageHeader.Title>
-              Welcome back{authUser?.displayName ? `, ${authUser.displayName}` : ""}
-            </PageHeader.Title>
-            <PageHeader.Description>
-              Pick a project to scope shots, planner lanes, and pull sheets.
-            </PageHeader.Description>
+            <h1 className="heading-page">Projects</h1>
+            <p className="body-text-muted mt-1">Manage and track all your projects in one place</p>
           </div>
-          <PageHeader.Actions>
-            <div className="relative" ref={filtersRef}>
-              <button
-                type="button"
-                onClick={() => setFiltersOpen((prev) => !prev)}
-                className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
-                  activeFilterCount > 0
-                    ? "border-primary/60 dark:border-indigo-500/50 bg-primary/5 dark:bg-indigo-900/20 text-primary dark:text-indigo-400"
-                    : "border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700"
-                }`}
-                aria-haspopup="menu"
-                aria-expanded={filtersOpen}
-              >
-                <Filter className="h-4 w-4" aria-hidden="true" />
-                <span>Filters</span>
-                {activeFilterCount > 0 && (
-                  <span className="ml-1 rounded-full bg-primary dark:bg-indigo-600 px-2 py-0.5 text-xs font-medium text-white">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
 
-              {/* Filter panel */}
-              {filtersOpen && (
-                <div className="absolute right-0 z-20 mt-2 w-64 rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4 shadow-lg animate-slide-in-from-right">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Filter projects</p>
-                      {activeFilterCount > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            clearAllFilters();
-                            setFiltersOpen(false);
-                          }}
-                          className="flex items-center gap-1 text-xs text-primary dark:text-indigo-400 hover:text-primary/80 dark:hover:text-indigo-300"
-                        >
-                          <X className="h-3 w-3" />
-                          Clear all
-                        </button>
-                      )}
-                    </div>
-
-                    <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
-                      <input
-                        type="checkbox"
-                        checked={showArchivedProjects}
-                        onChange={(e) => setShowArchivedProjects(e.target.checked)}
-                        className="h-4 w-4 rounded border-neutral-300 dark:border-neutral-600 dark:bg-neutral-800"
-                      />
-                      Show archived
-                    </label>
-                  </div>
-                </div>
-              )}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <div className="relative w-full sm:w-[420px]" ref={searchRef}>
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search projects..."
+                className="pl-9 bg-slate-100 border-slate-200 dark:bg-slate-800/70 dark:border-slate-700"
+                aria-label="Search projects"
+              />
             </div>
-          </PageHeader.Actions>
-        </PageHeader.Content>
-      </PageHeader>
 
-      {/* Active filter pills */}
-      {activeFilters.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {activeFilters.map((filter) => (
-            <button
-              key={filter.key}
-              onClick={() => removeFilter(filter.key)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 dark:bg-indigo-900/30 text-primary dark:text-indigo-400 border border-primary/20 dark:border-indigo-500/30 px-3 py-1 text-xs font-medium hover:bg-primary/20 dark:hover:bg-indigo-900/40 transition"
-            >
-              <span>{filter.label}: {filter.value}</span>
-              <X className="h-3 w-3" />
-            </button>
-          ))}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <SlidersHorizontal className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                  <span>{projectFilter === "archived" ? "Archived" : "All Projects"}</span>
+                  <ChevronDown className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onSelect={() => setProjectFilter("all")}>All Projects</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setProjectFilter("archived")}>Archived</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <ArrowUpDown className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                  <span>
+                    {sortMode === "name" ? "Name" : sortMode === "shootDate" ? "Shoot Date" : "Most Recent"}
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onSelect={() => setSortMode("recent")}>Most Recent</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setSortMode("shootDate")}>Shoot Date</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setSortMode("name")}>Name</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {canManage ? (
+              <Button variant="dark" onClick={() => setShowCreateModal(true)}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                New Project
+              </Button>
+            ) : null}
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Skeleton loading state */}
       {loadingProjects && items.length === 0 && (

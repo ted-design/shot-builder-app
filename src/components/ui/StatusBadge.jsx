@@ -16,15 +16,16 @@ const STATUS_COLORS = {
   // Active/positive states - emerald
   active: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
   new: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  complete: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  completed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+  complete: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+  completed: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
 
   // Warning/caution states - amber
   discontinued: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
   pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+  "on-hold": "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
 
-  // Informational states - blue
-  planning: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+  // Informational states
+  planning: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
   info: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
 
   // Neutral states - gray

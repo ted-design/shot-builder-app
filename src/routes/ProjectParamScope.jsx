@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { Outlet, useParams } from "react-router-dom";
 import { useProjectScope } from "../context/ProjectScopeContext";
 
@@ -19,4 +19,3 @@ export default function ProjectParamScope() {
 
   return <Outlet />;
 }
-

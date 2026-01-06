@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Modal } from "../ui/modal";
 import { Card, CardHeader, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
