@@ -49,6 +49,8 @@ function coerceCallSheetColors(value: unknown): CallSheetColors {
     accent: "#2563EB",
     text: "#0F172A",
     background: "#FFFFFF",
+    primaryText: "#FFFFFF",
+    rowAlternate: "#F8FAFC",
   };
   if (!isRecord(value)) return fallback;
   return {
@@ -56,6 +58,8 @@ function coerceCallSheetColors(value: unknown): CallSheetColors {
     accent: coerceString(value.accent, fallback.accent),
     text: coerceString(value.text, fallback.text),
     background: coerceString(value.background, fallback.background || "#FFFFFF"),
+    primaryText: coerceString(value.primaryText, fallback.primaryText || "#FFFFFF"),
+    rowAlternate: coerceString(value.rowAlternate, fallback.rowAlternate || "#F8FAFC"),
   };
 }
 

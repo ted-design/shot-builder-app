@@ -966,6 +966,7 @@ function CallSheetBuilder({
             sections={orderedSections}
             callSheetConfig={callSheetConfig}
             layoutV2={layoutV2Local}
+            onUpdateCallSheetConfig={applyCallSheetConfigUpdate}
           />
         </div>
       ) : (
@@ -1053,8 +1054,8 @@ function CallSheetBuilder({
             }}
           />
 
-          {/* Right Panel: Preview (fills remaining space) */}
-          <div className="flex-1 min-w-[500px]">
+          {/* Right Panel: Preview (fills remaining space, lower z-index) */}
+          <div className="flex-1 min-w-[500px] relative z-10">
             <PreviewPanel
               projectId={projectId}
               scheduleId={scheduleId}
@@ -1070,6 +1071,7 @@ function CallSheetBuilder({
               sections={orderedSections}
               callSheetConfig={callSheetConfig}
               layoutV2={layoutV2Local}
+              onUpdateCallSheetConfig={applyCallSheetConfigUpdate}
             />
           </div>
         </div>
