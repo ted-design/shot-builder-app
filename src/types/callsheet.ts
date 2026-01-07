@@ -7,6 +7,8 @@ export interface CallSheetColors {
   accent: string;
   text: string;
   background?: string;
+  primaryText?: string;
+  rowAlternate?: string;
 }
 
 export type HeaderElement =

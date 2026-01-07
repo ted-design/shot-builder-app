@@ -91,7 +91,7 @@ function HeaderToggle({ checked, onChange, label, disabled }) {
 
 /** Width constants for panel modes */
 const OUTLINE_WIDTH = 280;
-const EDITOR_WIDTH = 420;
+const EDITOR_WIDTH = 550;
 
 export default function WorkingPanel({
   panelView,
@@ -138,7 +138,7 @@ export default function WorkingPanel({
 
   return (
     <div
-      className="flex h-full flex-col overflow-hidden transition-[width] duration-250 ease-in-out flex-shrink-0"
+      className="flex h-full flex-col overflow-hidden transition-[width] duration-250 ease-in-out flex-shrink-0 relative z-20"
       style={{ width: panelWidth }}
     >
       {mode === "outline" ? (

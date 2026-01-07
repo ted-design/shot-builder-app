@@ -1,12 +1,23 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
+import { TimePicker } from "../../ui/TimePicker";
 import RichTextEditor from "../../shots/RichTextEditor";
 import { useDayDetails } from "../../../hooks/useDayDetails";
+import { useLocations } from "../../../hooks/useFirestoreQuery";
+import { useAuth } from "../../../context/AuthContext";
+import { canManageLocations, resolveEffectiveRole } from "../../../lib/rbac";
+import { db, uploadImageFile } from "../../../lib/firebase";
+import { writeDoc } from "../../../lib/firestoreWrites";
+import { describeFirebaseError } from "../../../lib/firebaseErrors";
+import LocationCreateModal from "../../locations/LocationCreateModal";
+import ProjectLocationSelect from "../../locations/ProjectLocationSelect";
 import { shiftTimeString } from "../../../lib/callsheet/shiftTimes";
 import { toast } from "../../../lib/toast";
-import { Plus, Trash2, Wand2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Wand2 } from "lucide-react";
+import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { DEFAULT_LOCATION_TYPES } from "../../../constants/defaultLocationTypes";
 import type {
   DayDetails,
   DayDetailsCustomLocation,
@@ -55,17 +66,19 @@ function randomId(): string {
 
 function normalizeLocation(ref: LocationReference | null | undefined) {
   return {
+    locationId: ref?.locationId ? String(ref.locationId) : "",
     label: ref?.label ? String(ref.label) : "",
     notes: ref?.notes ? String(ref.notes) : "",
   };
 }
 
-function buildLocationRef(label: string, notes: string): LocationReference | null {
+function buildLocationRef(locationId: string, label: string, notes: string): LocationReference | null {
+  const locationIdTrimmed = String(locationId || "").trim();
   const trimmed = String(label || "").trim();
   const notesTrimmed = String(notes || "").trim();
-  if (!trimmed && !notesTrimmed) return null;
+  if (!locationIdTrimmed && !trimmed && !notesTrimmed) return null;
   return {
-    locationId: null,
+    locationId: locationIdTrimmed || null,
     label: trimmed || null,
     notes: notesTrimmed || null,
   };
@@ -128,39 +141,77 @@ function buildNotesStyleFromDraft(draft: {
   return null;
 }
 
-function coerceUpdatedAtMs(value: any): number | null {
-  if (!value) return null;
-  if (value instanceof Date) return value.getTime();
-  if (typeof value?.toDate === "function") {
-    const dt = value.toDate();
-    return dt instanceof Date ? dt.getTime() : null;
-  }
-  return null;
-}
+type DayDetailsDraft = {
+  keyPeople: string;
+  setMedic: string;
+  scriptVersion: string;
+  scheduleVersion: string;
+  productionOffice: { locationId: string; label: string; notes: string };
+  nearestHospital: { locationId: string; label: string; notes: string };
+  parking: { locationId: string; label: string; notes: string };
+  basecamp: { locationId: string; label: string; notes: string };
+  customLocations: Array<DayDetailsCustomLocation>;
+  notes: string;
+  notesPlacement: "top" | "bottom";
+  notesColor: string;
+  notesIcon: string;
+  crewCallTime: string;
+  shootingCallTime: string;
+  estimatedWrap: string;
+  breakfastTime: string;
+  firstMealTime: string;
+  secondMealTime: string;
+  weatherSummary: string;
+  lowTemp: string;
+  highTemp: string;
+  sunrise: string;
+  sunset: string;
+};
 
-function buildComparableUpdatesFromDayDetails(dayDetails: DayDetails | null): Partial<Omit<DayDetails, "scheduleId">> {
-  if (!dayDetails) return {};
-  const customLocations = Array.isArray(dayDetails.customLocations) ? dayDetails.customLocations : [];
-  return {
-    keyPeople: dayDetails.keyPeople ?? null,
-    setMedic: dayDetails.setMedic ?? null,
-    scriptVersion: dayDetails.scriptVersion ?? null,
-    scheduleVersion: dayDetails.scheduleVersion ?? null,
-    productionOffice: dayDetails.productionOffice ?? null,
-    nearestHospital: dayDetails.nearestHospital ?? null,
-    parking: dayDetails.parking ?? null,
-    basecamp: dayDetails.basecamp ?? null,
-    customLocations,
-    notes: dayDetails.notes ?? null,
-    notesStyle: dayDetails.notesStyle ?? null,
-    crewCallTime: String(dayDetails.crewCallTime || ""),
-    shootingCallTime: String(dayDetails.shootingCallTime || ""),
-    estimatedWrap: String(dayDetails.estimatedWrap || ""),
-    breakfastTime: dayDetails.breakfastTime ?? null,
-    firstMealTime: dayDetails.firstMealTime ?? null,
-    secondMealTime: dayDetails.secondMealTime ?? null,
-    weather: dayDetails.weather ?? null,
+function buildUpdatesFromDraft(draft: DayDetailsDraft): Partial<Omit<DayDetails, "scheduleId">> {
+  const weather =
+    draft.weatherSummary || draft.lowTemp || draft.highTemp || draft.sunrise || draft.sunset
+      ? {
+          summary: toNullableText(draft.weatherSummary),
+          lowTemp: draft.lowTemp.trim() ? Number(draft.lowTemp) : null,
+          highTemp: draft.highTemp.trim() ? Number(draft.highTemp) : null,
+          sunrise: toNullableText(draft.sunrise),
+          sunset: toNullableText(draft.sunset),
+        }
+      : null;
+
+  const notesStyle = buildNotesStyleFromDraft({
+    notesPlacement: draft.notesPlacement,
+    notesColor: draft.notesColor,
+    notesIcon: draft.notesIcon,
+  });
+
+  const customLocations = (draft.customLocations || [])
+    .map((row) => buildCustomLocationRow(row))
+    .filter(Boolean) as Array<DayDetailsCustomLocation>;
+
+  const next: Partial<Omit<DayDetails, "scheduleId">> = {
+    keyPeople: toNullableText(draft.keyPeople),
+    setMedic: toNullableText(draft.setMedic),
+    scriptVersion: toNullableText(draft.scriptVersion),
+    scheduleVersion: toNullableText(draft.scheduleVersion),
+    productionOffice: buildLocationRef(draft.productionOffice.locationId, draft.productionOffice.label, draft.productionOffice.notes),
+    nearestHospital: buildLocationRef(draft.nearestHospital.locationId, draft.nearestHospital.label, draft.nearestHospital.notes),
+    parking: buildLocationRef(draft.parking.locationId, draft.parking.label, draft.parking.notes),
+    basecamp: buildLocationRef(draft.basecamp.locationId, draft.basecamp.label, draft.basecamp.notes),
+    customLocations: customLocations.length ? customLocations : null,
+    notes: toNullableText(draft.notes),
+    notesStyle,
+    crewCallTime: String(draft.crewCallTime || ""),
+    shootingCallTime: String(draft.shootingCallTime || ""),
+    estimatedWrap: String(draft.estimatedWrap || ""),
+    breakfastTime: toNullableText(draft.breakfastTime),
+    firstMealTime: toNullableText(draft.firstMealTime),
+    secondMealTime: toNullableText(draft.secondMealTime),
+    weather,
   };
+
+  return next;
 }
 
 export default function DayDetailsEditorV2({
@@ -182,18 +233,68 @@ export default function DayDetailsEditorV2({
 
   const [tab, setTab] = useState<TabKey>("people");
   const [shiftMinutes, setShiftMinutes] = useState(15);
-  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
-  const [lastSavedSnapshot, setLastSavedSnapshot] = useState("");
+  const [baselineSnapshot, setBaselineSnapshot] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const autoSaveTimerRef = useRef<number | null>(null);
 
-  const [draft, setDraft] = useState(() => ({
+  const { user, role: globalRole, projectRoles } = useAuth();
+  const effectiveRole = useMemo(
+    () => resolveEffectiveRole(globalRole, projectRoles, projectId),
+    [globalRole, projectId, projectRoles]
+  );
+  const canCreateLocations = useMemo(() => canManageLocations(effectiveRole), [effectiveRole]);
+
+  const { data: projectLocationsRaw = [] } = useLocations(clientId, {
+    enabled: Boolean(clientId && projectId),
+    projectId,
+    scope: "project",
+  } as any);
+
+  const projectLocations = useMemo(() => {
+    return [...(projectLocationsRaw || [])].sort((a: any, b: any) => String(a?.name || "").localeCompare(String(b?.name || "")));
+  }, [projectLocationsRaw]);
+
+  const projectLocationsById = useMemo(() => {
+    return new Map<string, any>((projectLocations || []).map((loc: any) => [String(loc.id), loc]));
+  }, [projectLocations]);
+
+  const formatProjectLocationAddress = useCallback((loc: any) => {
+    const explicit = String(loc?.address || "").trim();
+    if (explicit) return explicit;
+    const line1 = [loc?.street, loc?.unit].filter(Boolean).join(" ").trim();
+    const line2 = [loc?.city, loc?.province].filter(Boolean).join(", ").trim();
+    const parts = [line1, line2, loc?.postal].map((value) => String(value || "").trim()).filter(Boolean);
+    return parts.join(" · ");
+  }, []);
+
+  type FixedLocationKey = "productionOffice" | "nearestHospital" | "parking" | "basecamp";
+
+  type LocationCreateTarget = { kind: "fixed"; key: FixedLocationKey } | { kind: "custom"; id: string };
+
+  const defaultLocationFieldByTypeId = useMemo<Record<string, FixedLocationKey>>(
+    () => ({
+      "production-office": "productionOffice",
+      "nearest-hospital": "nearestHospital",
+      basecamp: "basecamp",
+      parking: "parking",
+    }),
+    []
+  );
+
+  const [createLocationOpen, setCreateLocationOpen] = useState(false);
+  const [createLocationBusy, setCreateLocationBusy] = useState(false);
+  const [createLocationTarget, setCreateLocationTarget] = useState<LocationCreateTarget | null>(null);
+
+  const [draft, setDraft] = useState<DayDetailsDraft>(() => ({
     keyPeople: "",
     setMedic: "",
     scriptVersion: "",
     scheduleVersion: "",
-    productionOffice: { label: "", notes: "" },
-    nearestHospital: { label: "", notes: "" },
-    parking: { label: "", notes: "" },
-    basecamp: { label: "", notes: "" },
+    productionOffice: { locationId: "", label: "", notes: "" },
+    nearestHospital: { locationId: "", label: "", notes: "" },
+    parking: { locationId: "", label: "", notes: "" },
+    basecamp: { locationId: "", label: "", notes: "" },
     customLocations: [] as Array<DayDetailsCustomLocation>,
     notes: "",
     notesPlacement: "bottom" as "top" | "bottom",
@@ -219,11 +320,19 @@ export default function DayDetailsEditorV2({
     ensureDayDetails.mutate();
   }, [ensureDayDetails, hasRemoteDayDetails, readOnly, scheduleId]);
 
+  const updates = useMemo(() => buildUpdatesFromDraft(draft), [draft]);
+
+  const serializedUpdates = useMemo(() => JSON.stringify(updates), [updates]);
+  const isDirty = useMemo(() => Boolean(baselineSnapshot) && serializedUpdates !== baselineSnapshot, [
+    baselineSnapshot,
+    serializedUpdates,
+  ]);
+
   useEffect(() => {
     if (!dayDetails) return;
     const notesStyle = normalizeNotesStyle(dayDetails.notesStyle);
     const customLocations = normalizeCustomLocations(dayDetails.customLocations);
-    setDraft({
+    const nextDraft: DayDetailsDraft = {
       keyPeople: normalizeText(dayDetails.keyPeople),
       setMedic: normalizeText(dayDetails.setMedic),
       scriptVersion: normalizeText(dayDetails.scriptVersion),
@@ -248,82 +357,211 @@ export default function DayDetailsEditorV2({
       highTemp: dayDetails.weather?.highTemp != null ? String(dayDetails.weather.highTemp) : "",
       sunrise: normalizeText(dayDetails.weather?.sunrise),
       sunset: normalizeText(dayDetails.weather?.sunset),
-    });
-    const updatedAtMs = coerceUpdatedAtMs(dayDetails.updatedAt);
-    setLastSavedAt(updatedAtMs);
-    setLastSavedSnapshot(JSON.stringify(buildComparableUpdatesFromDayDetails(dayDetails)));
-  }, [dayDetails]);
-
-  const updates = useMemo(() => {
-    const weather =
-      draft.weatherSummary ||
-      draft.lowTemp ||
-      draft.highTemp ||
-      draft.sunrise ||
-      draft.sunset
-        ? {
-            summary: toNullableText(draft.weatherSummary),
-            lowTemp: draft.lowTemp.trim() ? Number(draft.lowTemp) : null,
-            highTemp: draft.highTemp.trim() ? Number(draft.highTemp) : null,
-            sunrise: toNullableText(draft.sunrise),
-            sunset: toNullableText(draft.sunset),
-          }
-        : null;
-
-    const notesStyle = buildNotesStyleFromDraft({
-      notesPlacement: draft.notesPlacement,
-      notesColor: draft.notesColor,
-      notesIcon: draft.notesIcon,
-    });
-
-    const customLocations = (draft.customLocations || [])
-      .map((row) => buildCustomLocationRow(row))
-      .filter(Boolean) as Array<DayDetailsCustomLocation>;
-
-    const next: Partial<Omit<DayDetails, "scheduleId">> = {
-      keyPeople: toNullableText(draft.keyPeople),
-      setMedic: toNullableText(draft.setMedic),
-      scriptVersion: toNullableText(draft.scriptVersion),
-      scheduleVersion: toNullableText(draft.scheduleVersion),
-      productionOffice: buildLocationRef(draft.productionOffice.label, draft.productionOffice.notes),
-      nearestHospital: buildLocationRef(draft.nearestHospital.label, draft.nearestHospital.notes),
-      parking: buildLocationRef(draft.parking.label, draft.parking.notes),
-      basecamp: buildLocationRef(draft.basecamp.label, draft.basecamp.notes),
-      customLocations: customLocations.length ? customLocations : null,
-      notes: toNullableText(draft.notes),
-      notesStyle,
-      crewCallTime: String(draft.crewCallTime || ""),
-      shootingCallTime: String(draft.shootingCallTime || ""),
-      estimatedWrap: String(draft.estimatedWrap || ""),
-      breakfastTime: toNullableText(draft.breakfastTime),
-      firstMealTime: toNullableText(draft.firstMealTime),
-      secondMealTime: toNullableText(draft.secondMealTime),
-      weather,
     };
+    const nextSnapshot = JSON.stringify(buildUpdatesFromDraft(nextDraft));
 
-    return next;
-  }, [draft]);
+    if (!baselineSnapshot) {
+      setDraft(nextDraft);
+      setBaselineSnapshot(nextSnapshot);
+      return;
+    }
+
+    if (!isDirty && !updateDayDetails.isPending && nextSnapshot !== baselineSnapshot) {
+      setDraft(nextDraft);
+      setBaselineSnapshot(nextSnapshot);
+    }
+  }, [baselineSnapshot, dayDetails, isDirty, updateDayDetails.isPending]);
 
   useEffect(() => {
-    setLastSavedAt(null);
-    setLastSavedSnapshot("");
+    setBaselineSnapshot(null);
+    setJustSaved(false);
+    setSaveError(null);
   }, [scheduleId]);
 
-  const serializedUpdates = useMemo(() => JSON.stringify(updates), [updates]);
-  const isDirty = useMemo(
-    () => Boolean(lastSavedSnapshot) && serializedUpdates !== lastSavedSnapshot,
-    [lastSavedSnapshot, serializedUpdates]
-  );
+  useEffect(() => {
+    if (!justSaved) return;
+    const timer = window.setTimeout(() => setJustSaved(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [justSaved]);
 
-  const handleSave = useCallback(() => {
+  const triggerSave = useCallback((values: Partial<Omit<DayDetails, "scheduleId">>, snapshot: string) => {
     if (readOnly) return;
-    updateDayDetails.mutate(updates, {
+    setSaveError(null);
+    updateDayDetails.mutate(values, {
       onSuccess: () => {
-        setLastSavedAt(Date.now());
-        setLastSavedSnapshot(serializedUpdates);
+        setBaselineSnapshot(snapshot);
+        setJustSaved(true);
+      },
+      onError: (error: any) => {
+        const message = error?.message ? String(error.message) : "Save failed.";
+        setSaveError(message);
       },
     } as any);
-  }, [readOnly, serializedUpdates, updateDayDetails, updates]);
+  }, [readOnly, updateDayDetails]);
+
+  const handleSave = useCallback(() => {
+    triggerSave(updates, serializedUpdates);
+  }, [serializedUpdates, triggerSave, updates]);
+
+  useEffect(() => {
+    if (readOnly) return;
+    if (!baselineSnapshot) return;
+    if (!isDirty) return;
+    if (updateDayDetails.isPending) return;
+
+    if (autoSaveTimerRef.current) {
+      window.clearTimeout(autoSaveTimerRef.current);
+    }
+
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      triggerSave(updates, serializedUpdates);
+      autoSaveTimerRef.current = null;
+    }, 1000);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        window.clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [baselineSnapshot, isDirty, readOnly, serializedUpdates, triggerSave, updateDayDetails.isPending, updates]);
+
+  const handleCreateProjectLocation = useCallback(
+    async ({ name, street, unit, city, province, postal, phone, notes, photoFile }: any) => {
+      if (!clientId) throw new Error("Missing client.");
+      if (!projectId) throw new Error("Missing project.");
+      if (!user) throw new Error("You must be signed in to add locations.");
+      if (!canCreateLocations) throw new Error("You do not have permission to add locations.");
+
+      const trimmedName = String(name || "").trim();
+      if (!trimmedName) throw new Error("Enter a location name.");
+
+      setCreateLocationBusy(true);
+      try {
+        const payload = {
+          name: trimmedName,
+          street: String(street || "").trim(),
+          unit: String(unit || "").trim(),
+          city: String(city || "").trim(),
+          province: String(province || "").trim(),
+          postal: String(postal || "").trim(),
+          phone: String(phone || "").trim(),
+          notes: String(notes || "").trim(),
+          shotIds: [],
+          projectIds: [projectId],
+          photoPath: null,
+          createdAt: serverTimestamp(),
+          createdBy: user?.uid || null,
+        };
+
+        const docRef = await writeDoc("create location", () =>
+          addDoc(collection(db, "clients", clientId, "locations"), payload)
+        );
+
+        if (photoFile) {
+          const { path } = await uploadImageFile(photoFile, { folder: "locations", id: docRef.id });
+          await updateDoc(doc(db, "clients", clientId, "locations", docRef.id), { photoPath: path });
+        }
+
+        const address = formatProjectLocationAddress(payload as any);
+
+        if (createLocationTarget?.kind === "fixed") {
+          const key = createLocationTarget.key;
+          setDraft((prev) => ({
+            ...prev,
+            [key]: {
+              ...prev[key],
+              locationId: docRef.id,
+              label: prev[key].label.trim() ? prev[key].label : payload.name,
+              notes: prev[key].notes.trim() ? prev[key].notes : address,
+            },
+          }));
+        } else if (createLocationTarget?.kind === "custom") {
+          const rowId = createLocationTarget.id;
+          setDraft((prev) => ({
+            ...prev,
+            customLocations: (prev.customLocations || []).map((row) =>
+              row.id !== rowId
+                ? row
+                : {
+                    ...row,
+                    locationId: docRef.id,
+                    label: String(row.label || "").trim() ? row.label : payload.name,
+                    notes: String(row.notes || "").trim() ? row.notes : address,
+                  }
+            ),
+          }));
+        }
+
+        toast.success({ title: `${payload.name} added to project locations` });
+      } catch (error: any) {
+        const { code, message } = describeFirebaseError(error, "Unable to create location.");
+        toast.error({ title: "Unable to create location", description: `${code}: ${message}` });
+        throw new Error(`${code}: ${message}`);
+      } finally {
+        setCreateLocationBusy(false);
+      }
+    },
+    [canCreateLocations, clientId, createLocationTarget, formatProjectLocationAddress, projectId, user]
+  );
+
+  const openCreateLocation = useCallback((target: LocationCreateTarget) => {
+    setCreateLocationTarget(target);
+    setCreateLocationOpen(true);
+  }, []);
+
+  const handleFixedLocationChange = useCallback(
+    (key: FixedLocationKey, nextId: string) => {
+      setDraft((prev) => {
+        const current = (prev as any)[key] || { locationId: "", label: "", notes: "" };
+        const nextLocationId = String(nextId || "");
+        if (!nextLocationId) {
+          return {
+            ...prev,
+            [key]: { ...current, locationId: "" },
+          } as any;
+        }
+
+        const loc = projectLocationsById.get(nextLocationId);
+        const name = String(loc?.name || "").trim();
+        const address = loc ? formatProjectLocationAddress(loc) : "";
+
+        return {
+          ...prev,
+          [key]: {
+            ...current,
+            locationId: nextLocationId,
+            label: String(current.label || "").trim() ? current.label : name,
+            notes: String(current.notes || "").trim() ? current.notes : address,
+          },
+        } as any;
+      });
+    },
+    [formatProjectLocationAddress, projectLocationsById]
+  );
+
+  const handleCustomLocationLibraryChange = useCallback(
+    (rowId: string, nextId: string) => {
+      const nextLocationId = String(nextId || "");
+      setDraft((prev) => ({
+        ...prev,
+        customLocations: (prev.customLocations || []).map((row) => {
+          if (row.id !== rowId) return row;
+          if (!nextLocationId) return { ...row, locationId: null };
+          const loc = projectLocationsById.get(nextLocationId);
+          const name = String(loc?.name || "").trim();
+          const address = loc ? formatProjectLocationAddress(loc) : "";
+          return {
+            ...row,
+            locationId: nextLocationId,
+            label: String(row.label || "").trim() ? row.label : name,
+            notes: String(row.notes || "").trim() ? row.notes : address,
+          };
+        }),
+      }));
+    },
+    [formatProjectLocationAddress, projectLocationsById]
+  );
 
   const handleReset = useCallback(() => {
     if (!dayDetails) return;
@@ -371,34 +609,6 @@ export default function DayDetailsEditorV2({
     }));
   }, [shiftMinutes]);
 
-  useEffect(() => {
-    if (readOnly) return;
-    if (!scheduleId) return;
-    if (updateDayDetails.isPending) return;
-    if (!(hasRemoteDayDetails || ensureDayDetails.isSuccess)) return;
-    if (!isDirty) return;
-
-    const timer = window.setTimeout(() => {
-      updateDayDetails.mutate(updates, {
-        onSuccess: () => {
-          setLastSavedAt(Date.now());
-          setLastSavedSnapshot(serializedUpdates);
-        },
-      } as any);
-    }, 900);
-
-    return () => window.clearTimeout(timer);
-  }, [
-    ensureDayDetails.isSuccess,
-    hasRemoteDayDetails,
-    isDirty,
-    readOnly,
-    scheduleId,
-    serializedUpdates,
-    updateDayDetails,
-    updates,
-  ]);
-
   const addCustomLocation = useCallback(() => {
     setDraft((prev) => ({
       ...prev,
@@ -440,26 +650,28 @@ export default function DayDetailsEditorV2({
             </div>
             <div className="text-xs text-slate-500">Times, locations, notes, and weather.</div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {!readOnly && updateDayDetails.isPending ? (
+              <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Saving…
+              </span>
+            ) : null}
+            {!readOnly && !updateDayDetails.isPending && justSaved ? (
+              <span className="text-xs font-medium text-emerald-600">✓ Saved</span>
+            ) : null}
+            {!readOnly && !updateDayDetails.isPending && !justSaved && saveError ? (
+              <span className="text-xs font-medium text-red-600">Save failed</span>
+            ) : null}
             <Button variant="outline" size="sm" onClick={handleReset} disabled={readOnly}>
               Reset
             </Button>
-            <Button size="sm" onClick={handleSave} disabled={readOnly || updateDayDetails.isPending}>
-              {readOnly ? "Read-only" : updateDayDetails.isPending ? "Saving..." : "Save now"}
-            </Button>
+            {!readOnly && isDirty && !updateDayDetails.isPending ? (
+              <Button size="sm" variant="ghost" onClick={handleSave}>
+                Save
+              </Button>
+            ) : null}
           </div>
-        </div>
-
-        <div className="mt-2 text-xs text-slate-500">
-          {readOnly
-            ? "Read-only"
-            : updateDayDetails.isPending
-            ? "Saving…"
-            : isDirty
-            ? "Unsaved changes"
-            : lastSavedAt
-            ? `Saved ${new Date(lastSavedAt).toLocaleTimeString()}`
-            : null}
         </div>
 
         <div className="mt-3 flex items-center gap-1 border-b border-slate-200 dark:border-slate-700">
@@ -524,17 +736,29 @@ export default function DayDetailsEditorV2({
         {tab === "locations" ? (
           <div className="space-y-4">
             <div className="grid gap-4 lg:grid-cols-2">
-              {(
-                [
-                  ["productionOffice", "Production office"],
-                  ["basecamp", "Basecamp"],
-                  ["parking", "Parking"],
-                  ["nearestHospital", "Nearest hospital"],
-                ] as const
-              ).map(([key, label]) => (
-                <div key={key} className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{label}</div>
+              {DEFAULT_LOCATION_TYPES.map((type) => {
+                const key = defaultLocationFieldByTypeId[type.id];
+                if (!key) return null;
+                return (
+                  <div
+                    key={type.id}
+                    className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+                  >
+                    <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{type.name}</div>
                   <div className="mt-3 grid gap-3">
+                    <label className="grid gap-1 text-sm">
+                      <span className="text-xs font-medium text-slate-500">From library</span>
+                      <ProjectLocationSelect
+                        locations={projectLocations}
+                        value={(draft as any)[key].locationId || ""}
+                        onChange={(value) => handleFixedLocationChange(key, value)}
+                        onCreateNew={
+                          readOnly || !canCreateLocations ? undefined : () => openCreateLocation({ kind: "fixed", key })
+                        }
+                        placeholder="Select location"
+                        isDisabled={readOnly}
+                      />
+                    </label>
                     <label className="grid gap-1 text-sm">
                       <span className="text-xs font-medium text-slate-500">Label</span>
                       <Input
@@ -564,8 +788,9 @@ export default function DayDetailsEditorV2({
                       />
                     </label>
                   </div>
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
@@ -619,6 +844,21 @@ export default function DayDetailsEditorV2({
                             onChange={(e) => updateCustomLocation(row.id, { title: e.target.value })}
                             placeholder="e.g. Production office"
                             disabled={readOnly}
+                          />
+                        </label>
+                        <label className="grid gap-1 text-sm">
+                          <span className="text-xs font-medium text-slate-500">From library</span>
+                          <ProjectLocationSelect
+                            locations={projectLocations}
+                            value={row.locationId ? String(row.locationId) : ""}
+                            onChange={(value) => handleCustomLocationLibraryChange(row.id, value)}
+                            onCreateNew={
+                              readOnly || !canCreateLocations
+                                ? undefined
+                                : () => openCreateLocation({ kind: "custom", id: row.id })
+                            }
+                            placeholder="Select location"
+                            isDisabled={readOnly}
                           />
                         </label>
                         <label className="grid gap-1 text-sm">
@@ -708,63 +948,45 @@ export default function DayDetailsEditorV2({
         {tab === "times" ? (
           <div className="space-y-4">
             <div className="grid gap-3 md:grid-cols-3">
-              <label className="grid gap-1 text-sm">
-                <span className="text-xs font-medium text-slate-500">Crew call</span>
-                <Input
-                  value={draft.crewCallTime}
-                  onChange={(e) => setDraft((prev) => ({ ...prev, crewCallTime: e.target.value }))}
-                  placeholder="06:00"
-                  disabled={readOnly}
-                />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="text-xs font-medium text-slate-500">Shooting call</span>
-                <Input
-                  value={draft.shootingCallTime}
-                  onChange={(e) => setDraft((prev) => ({ ...prev, shootingCallTime: e.target.value }))}
-                  placeholder="07:00"
-                  disabled={readOnly}
-                />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="text-xs font-medium text-slate-500">Est. wrap</span>
-                <Input
-                  value={draft.estimatedWrap}
-                  onChange={(e) => setDraft((prev) => ({ ...prev, estimatedWrap: e.target.value }))}
-                  placeholder="18:00"
-                  disabled={readOnly}
-                />
-              </label>
+              <TimePicker
+                label="Crew Call"
+                value={draft.crewCallTime.trim() ? draft.crewCallTime : null}
+                onChange={(value) => setDraft((prev) => ({ ...prev, crewCallTime: value || "" }))}
+                disabled={readOnly}
+              />
+              <TimePicker
+                label="Shooting Call"
+                value={draft.shootingCallTime.trim() ? draft.shootingCallTime : null}
+                onChange={(value) => setDraft((prev) => ({ ...prev, shootingCallTime: value || "" }))}
+                disabled={readOnly}
+              />
+              <TimePicker
+                label="Est. Wrap"
+                value={draft.estimatedWrap.trim() ? draft.estimatedWrap : null}
+                onChange={(value) => setDraft((prev) => ({ ...prev, estimatedWrap: value || "" }))}
+                disabled={readOnly}
+              />
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              <label className="grid gap-1 text-sm">
-                <span className="text-xs font-medium text-slate-500">Breakfast</span>
-                <Input
-                  value={draft.breakfastTime}
-                  onChange={(e) => setDraft((prev) => ({ ...prev, breakfastTime: e.target.value }))}
-                  placeholder="08:00"
-                  disabled={readOnly}
-                />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="text-xs font-medium text-slate-500">1st meal</span>
-                <Input
-                  value={draft.firstMealTime}
-                  onChange={(e) => setDraft((prev) => ({ ...prev, firstMealTime: e.target.value }))}
-                  placeholder="13:00"
-                  disabled={readOnly}
-                />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="text-xs font-medium text-slate-500">2nd meal</span>
-                <Input
-                  value={draft.secondMealTime}
-                  onChange={(e) => setDraft((prev) => ({ ...prev, secondMealTime: e.target.value }))}
-                  placeholder="—"
-                  disabled={readOnly}
-                />
-              </label>
+              <TimePicker
+                label="Breakfast"
+                value={draft.breakfastTime.trim() ? draft.breakfastTime : null}
+                onChange={(value) => setDraft((prev) => ({ ...prev, breakfastTime: value || "" }))}
+                disabled={readOnly}
+              />
+              <TimePicker
+                label="1st Meal"
+                value={draft.firstMealTime.trim() ? draft.firstMealTime : null}
+                onChange={(value) => setDraft((prev) => ({ ...prev, firstMealTime: value || "" }))}
+                disabled={readOnly}
+              />
+              <TimePicker
+                label="2nd Meal"
+                value={draft.secondMealTime.trim() ? draft.secondMealTime : null}
+                onChange={(value) => setDraft((prev) => ({ ...prev, secondMealTime: value || "" }))}
+                disabled={readOnly}
+              />
             </div>
 
             <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
@@ -860,6 +1082,19 @@ export default function DayDetailsEditorV2({
           </div>
         ) : null}
       </CardContent>
+
+      {canCreateLocations ? (
+        <LocationCreateModal
+          open={createLocationOpen}
+          busy={createLocationBusy}
+          onClose={() => {
+            if (createLocationBusy) return;
+            setCreateLocationOpen(false);
+            setCreateLocationTarget(null);
+          }}
+          onCreate={handleCreateProjectLocation}
+        />
+      ) : null}
     </Card>
   );
 }
