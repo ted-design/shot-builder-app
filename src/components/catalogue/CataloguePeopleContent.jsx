@@ -139,6 +139,10 @@ export default function CataloguePeopleContent({
   loading = false,
   error = null,
   addMenuItems = [],
+  canEditCrew = false,
+  canEditTalent = false,
+  onEditPerson,
+  onRemoveFromProject,
 }) {
   const { clientId } = useAuth();
   // Selection state
@@ -147,6 +151,7 @@ export default function CataloguePeopleContent({
   const [viewMode, setViewMode] = useState("person");
   const [talentLayout, setTalentLayout] = useState("table");
   const [detailTalent, setDetailTalent] = useState(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const isTalentGallery = selectedGroup === "talent" && talentLayout === "gallery";
   const talentGalleryPeople = useMemo(
@@ -178,6 +183,17 @@ export default function CataloguePeopleContent({
 
   const allSelected = people.length > 0 && selectedIds.size === people.length;
   const someSelected = selectedIds.size > 0 && selectedIds.size < people.length;
+  const selectedPeople = useMemo(
+    () => people.filter((person) => selectedIds.has(person.id)),
+    [people, selectedIds]
+  );
+  const selectedCount = selectedPeople.length;
+  const canEditSelection = useMemo(() => {
+    if (!selectedCount) return false;
+    return selectedPeople.every((person) => (person.type === "talent" ? canEditTalent : canEditCrew));
+  }, [canEditCrew, canEditTalent, selectedCount, selectedPeople]);
+
+  const canRemoveSelection = Boolean(onRemoveFromProject) && canEditSelection;
 
   // Get dynamic title based on filter
   const getTitle = () => {
@@ -286,10 +302,10 @@ export default function CataloguePeopleContent({
           </div>
         </div>
 
-        {/* Action Bar */}
-        <div className="flex items-center justify-between gap-4">
-          {/* Primary Actions */}
-          <div className="flex items-center gap-2">
+	        {/* Action Bar */}
+	        <div className="flex items-center justify-between gap-4">
+	          {/* Primary Actions */}
+	          <div className="flex items-center gap-2">
             {hasAddMenu ? (
               // If there's only one enabled menu item, directly trigger it (no dropdown)
               addMenuItems.filter((item) => !item.disabled).length === 1 ? (
@@ -334,11 +350,67 @@ export default function CataloguePeopleContent({
                 Add
               </Button>
             )}
-            <Button variant="outline" className="gap-2 text-slate-600 dark:text-slate-400">
-              <Upload className="h-4 w-4" />
-              Import People
-            </Button>
-          </div>
+	            <Button variant="outline" className="gap-2 text-slate-600 dark:text-slate-400">
+	              <Upload className="h-4 w-4" />
+	              Import People
+	            </Button>
+	            {selectedCount > 0 && (
+	              <div className="ml-3 flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5">
+	                <span className="text-sm text-slate-700 dark:text-slate-200">
+	                  {selectedCount} selected
+	                </span>
+	                <DropdownMenu>
+	                  <DropdownMenuTrigger asChild>
+	                    <Button
+	                      variant="secondary"
+	                      size="sm"
+	                      disabled={bulkBusy}
+	                    >
+	                      Actions
+	                    </Button>
+	                  </DropdownMenuTrigger>
+	                  <DropdownMenuContent align="start" className="w-56">
+	                    <DropdownMenuItem
+	                      disabled={bulkBusy || selectedCount !== 1 || !canEditSelection}
+	                      onSelect={(event) => {
+	                        event.preventDefault();
+	                        if (selectedCount !== 1) return;
+	                        const person = selectedPeople[0];
+	                        onEditPerson?.(person);
+	                      }}
+	                    >
+	                      Edit
+	                    </DropdownMenuItem>
+	                    <DropdownMenuItem
+	                      disabled={bulkBusy || !canRemoveSelection}
+	                      onSelect={async (event) => {
+	                        event.preventDefault();
+	                        if (!canRemoveSelection) return;
+	                        setBulkBusy(true);
+	                        try {
+	                          await onRemoveFromProject?.(selectedPeople);
+	                          setSelectedIds(new Set());
+	                        } finally {
+	                          setBulkBusy(false);
+	                        }
+	                      }}
+	                    >
+	                      Remove from project
+	                    </DropdownMenuItem>
+	                    <DropdownMenuItem
+	                      disabled={bulkBusy}
+	                      onSelect={(event) => {
+	                        event.preventDefault();
+	                        setSelectedIds(new Set());
+	                      }}
+	                    >
+	                      Clear selection
+	                    </DropdownMenuItem>
+	                  </DropdownMenuContent>
+	                </DropdownMenu>
+	              </div>
+	            )}
+	          </div>
 
           {/* Search and Filters */}
           <div className="flex items-center gap-2 flex-1 justify-end">
@@ -427,23 +499,25 @@ export default function CataloguePeopleContent({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {people.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} className="h-24 text-center text-slate-500 dark:text-slate-400">
-                      No results found.
+	                {people.length === 0 ? (
+	                  <tr>
+	                    <td colSpan={11} className="h-24 text-center text-slate-500 dark:text-slate-400">
+	                      No results found.
                     </td>
                   </tr>
                 ) : (
-                  people.map((person) => (
-                    <PersonRow
-                      key={person.id}
-                      person={person}
-                      isSelected={selectedIds.has(person.id)}
-                      onToggleSelection={() => toggleSelection(person.id)}
-                    />
-                  ))
-                )}
-              </tbody>
+	                  people.map((person) => (
+	                    <PersonRow
+	                      key={person.id}
+	                      person={person}
+	                      isSelected={selectedIds.has(person.id)}
+	                      onToggleSelection={() => toggleSelection(person.id)}
+	                      onEdit={() => onEditPerson?.(person)}
+	                      canEdit={person.type === "talent" ? canEditTalent : canEditCrew}
+	                    />
+	                  ))
+	                )}
+	              </tbody>
             </table>
           </div>
         )}
@@ -454,23 +528,27 @@ export default function CataloguePeopleContent({
         </div>
       </div>
 
-      <TalentDetailModal
-        open={Boolean(detailTalent)}
-        talent={normaliseTalentForModal(detailTalent)}
-        clientId={clientId}
-        canEdit={false}
-        onClose={() => setDetailTalent(null)}
-      />
-    </div>
-  );
-}
+	      <TalentDetailModal
+	        open={Boolean(detailTalent)}
+	        talent={normaliseTalentForModal(detailTalent)}
+	        clientId={clientId}
+	        canEdit={canEditTalent}
+	        onClose={() => setDetailTalent(null)}
+	        onEdit={(talentRecord) => {
+	          onEditPerson?.({ id: talentRecord?.id, type: "talent" });
+	          setDetailTalent(null);
+	        }}
+	      />
+	    </div>
+	  );
+	}
 
 /**
  * PersonRow
  *
  * Individual row in the people table.
  */
-function PersonRow({ person, isSelected, onToggleSelection }) {
+function PersonRow({ person, isSelected, onToggleSelection, onEdit, canEdit }) {
   const isTalent = person.type === "talent";
 
   // Get avatar colors based on type
@@ -485,8 +563,8 @@ function PersonRow({ person, isSelected, onToggleSelection }) {
 
   const RoleIcon = isTalent ? Star : Wrench;
 
-  return (
-    <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+	  return (
+	    <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
       <td className="px-3 py-3">
         <Checkbox checked={isSelected} onCheckedChange={onToggleSelection} />
       </td>
@@ -536,15 +614,22 @@ function PersonRow({ person, isSelected, onToggleSelection }) {
           )}
         </span>
       </td>
-      <td className="px-3 py-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
-      </td>
-    </tr>
-  );
-}
+	      <td className="px-3 py-3">
+	        <Button
+	          variant="ghost"
+	          size="icon"
+	          className="h-8 w-8 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+	          onClick={(event) => {
+	            event.preventDefault();
+	            event.stopPropagation();
+	            onEdit?.();
+	          }}
+	          disabled={!canEdit}
+	          aria-label={canEdit ? "Edit person" : "Editing disabled"}
+	        >
+	          <Pencil className="h-4 w-4" />
+	        </Button>
+	      </td>
+	    </tr>
+	  );
+	}

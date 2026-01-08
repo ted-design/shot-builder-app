@@ -1,12 +1,13 @@
 import React, { useState } from "react";
-import { Calendar, ChevronDown, Star, Users, MapPin, ExternalLink } from "lucide-react";
-import { cn } from "../../../lib/utils";
+import { MapPin } from "lucide-react";
 import type { CallSheetColors, CallSheetData } from "../types";
 import type { CallSheetLayoutV2, CallSheetCenterShape } from "../../../types/callsheet";
 import { CallSheetHeader, CallSheetHeaderCompact } from "./CallSheetHeader";
 import { ScheduleTableSection } from "./sections/ScheduleTableSection";
 import { TalentSection } from "./sections/TalentSection";
 import { CrewSection } from "./sections/CrewSection";
+import { DocumentPage } from "./primitives/DocumentPage";
+import { DocSectionHeader } from "./primitives/DocSectionHeader";
 
 interface CallSheetPreviewProps {
   data: CallSheetData;
@@ -55,20 +56,44 @@ export function CallSheetPreview({
       }}
     >
       {/* Page 1 */}
-      <div
-        className={cn(
-          "call-sheet-page bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] mx-auto mb-6",
-          showMobile ? "w-[375px]" : "w-[8.5in]"
-        )}
-        style={{ minHeight: showMobile ? "auto" : "11in" }}
-      >
-        <div className={cn("p-6", showMobile && "p-4")}>
-          {/* Header Section */}
-          <CallSheetHeader
+      <DocumentPage showMobile={showMobile} className="mb-6" contentClassName={showMobile ? "p-4" : undefined}>
+        {/* Header Section */}
+        <CallSheetHeader
+          projectName={data.projectName}
+          version={data.version}
+          groupName={data.groupName}
+          shootDay={data.shootDay}
+          date={data.date}
+          dayNumber={data.dayNumber}
+          totalDays={data.totalDays}
+          crewCallTime={data.crewCallTime}
+          centerShape={centerShape}
+        />
+
+        {/* Info Grid Section */}
+        <InfoGridSection locations={data.locations} notes={data.notes} />
+
+        {/* Today's Schedule Section */}
+        <SectionWrapper title="Today's Schedule" collapsible>
+          <ScheduleTableSection schedule={data.schedule} />
+        </SectionWrapper>
+
+        {/* Talent Section */}
+        <SectionWrapper title="Talent">
+          <TalentSection talent={data.talent} />
+        </SectionWrapper>
+
+        {/* Footer for Page 1 */}
+        <CallSheetFooter />
+      </DocumentPage>
+
+      {/* Page 2 - Crew (only if there's crew data) */}
+      {hasCrew && (
+        <DocumentPage showMobile={showMobile} contentClassName={showMobile ? "p-4" : undefined}>
+          {/* Compact Header for Page 2 */}
+          <CallSheetHeaderCompact
             projectName={data.projectName}
             version={data.version}
-            groupName={data.groupName}
-            shootDay={data.shootDay}
             date={data.date}
             dayNumber={data.dayNumber}
             totalDays={data.totalDays}
@@ -76,56 +101,12 @@ export function CallSheetPreview({
             centerShape={centerShape}
           />
 
-          {/* Info Grid Section */}
-          <InfoGridSection locations={data.locations} notes={data.notes} />
+          {/* Crew Section */}
+          <CrewSection crew={data.crew} />
 
-          {/* Today's Schedule Section */}
-          <SectionWrapper
-            icon={Calendar}
-            title="Today's Schedule"
-            collapsible
-          >
-            <ScheduleTableSection schedule={data.schedule} />
-          </SectionWrapper>
-
-          {/* Talent Section */}
-          <SectionWrapper icon={Star} title="Talent">
-            <TalentSection talent={data.talent} />
-          </SectionWrapper>
-
-          {/* Footer for Page 1 */}
+          {/* Footer for Page 2 */}
           <CallSheetFooter />
-        </div>
-      </div>
-
-      {/* Page 2 - Crew (only if there's crew data) */}
-      {hasCrew && (
-        <div
-          className={cn(
-            "call-sheet-page bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] mx-auto",
-            showMobile ? "w-[375px]" : "w-[8.5in]"
-          )}
-          style={{ minHeight: showMobile ? "auto" : "11in" }}
-        >
-          <div className={cn("p-6", showMobile && "p-4")}>
-            {/* Compact Header for Page 2 */}
-            <CallSheetHeaderCompact
-              projectName={data.projectName}
-              version={data.version}
-              date={data.date}
-              dayNumber={data.dayNumber}
-              totalDays={data.totalDays}
-              crewCallTime={data.crewCallTime}
-              centerShape={centerShape}
-            />
-
-            {/* Crew Section */}
-            <CrewSection crew={data.crew} />
-
-            {/* Footer for Page 2 */}
-            <CallSheetFooter />
-          </div>
-        </div>
+        </DocumentPage>
       )}
     </div>
   );
@@ -143,78 +124,82 @@ function InfoGridSection({ locations, notes }: InfoGridSectionProps) {
   const productionOffice = locations.find((l) => l.type === "Production Office");
   const nearestHospital = locations.find((l) => l.type === "Nearest Hospital");
 
+  // Use consistent doc-ink color for borders (no rounding, no shadows)
+  const borderClass = "border-[var(--color-doc-ink,#111)]";
+
   return (
-    <div className="mb-4">
-      {/* Row 1: Location Cards - SetHero style clean 2-column grid */}
-      <div className="grid grid-cols-2 gap-4 mb-3">
-        {/* Production Office Card */}
-        <div className="border border-[var(--cs-border)] rounded-lg p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <MapPin className="w-4 h-4 text-[var(--cs-primary)]" />
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Production Office
-            </span>
+    <div className="mb-3">
+      {/* Print-style bordered grid - SetHero parity: strict 1px black borders */}
+      <div className={`border ${borderClass}`} style={{ borderRadius: 0 }}>
+        {/* Row 1: Location Info - 2 columns */}
+        <div className={`grid grid-cols-2`}>
+          {/* Production Office Cell */}
+          <div className={`px-1.5 py-1 border-r ${borderClass}`}>
+            <div className="flex items-center gap-1 mb-0.5">
+              <MapPin className="w-3 h-3 text-[var(--cs-primary)]" />
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-500">
+                Production Office
+              </span>
+            </div>
+            {productionOffice ? (
+              <>
+                <p className="text-[11px] font-medium text-[var(--color-doc-ink,#111)] leading-tight">{productionOffice.name}</p>
+                {productionOffice.address && (
+                  <p className="text-[10px] text-gray-600 leading-tight">{productionOffice.address}</p>
+                )}
+              </>
+            ) : (
+              <p className="text-[10px] text-gray-400 italic">Not set</p>
+            )}
           </div>
-          {productionOffice ? (
-            <>
-              <p className="text-sm font-medium text-gray-900">{productionOffice.name}</p>
-              {productionOffice.address && (
-                <p className="text-xs text-gray-500 mt-0.5">{productionOffice.address}</p>
-              )}
-            </>
-          ) : (
-            <p className="text-xs text-[var(--cs-text-muted)] italic">Not set</p>
-          )}
+
+          {/* Nearest Hospital Cell */}
+          <div className="px-1.5 py-1">
+            <div className="flex items-center gap-1 mb-0.5">
+              <MapPin className="w-3 h-3 text-red-500" />
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-500">
+                Nearest Hospital
+              </span>
+            </div>
+            {nearestHospital ? (
+              <>
+                <p className="text-[11px] font-medium text-[var(--color-doc-ink,#111)] leading-tight">{nearestHospital.name}</p>
+                {nearestHospital.address && (
+                  <p className="text-[10px] text-gray-600 leading-tight">{nearestHospital.address}</p>
+                )}
+              </>
+            ) : (
+              <p className="text-[10px] text-gray-400 italic">Not set</p>
+            )}
+          </div>
         </div>
 
-        {/* Nearest Hospital Card */}
-        <div className="border border-[var(--cs-border)] rounded-lg p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <MapPin className="w-4 h-4 text-red-500" />
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Nearest Hospital
-            </span>
+        {/* Row 2: Meta Fields - 4 columns */}
+        <div className={`grid grid-cols-4 border-t ${borderClass}`}>
+          <div className={`px-1.5 py-1 border-r ${borderClass}`}>
+            <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Set Medic</p>
+            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">—</p>
           </div>
-          {nearestHospital ? (
-            <>
-              <p className="text-sm font-medium text-gray-900">{nearestHospital.name}</p>
-              {nearestHospital.address && (
-                <p className="text-xs text-gray-500 mt-0.5">{nearestHospital.address}</p>
-              )}
-            </>
-          ) : (
-            <p className="text-xs text-[var(--cs-text-muted)] italic">Not set</p>
-          )}
+          <div className={`px-1.5 py-1 border-r ${borderClass}`}>
+            <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Script Version</p>
+            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">—</p>
+          </div>
+          <div className={`px-1.5 py-1 border-r ${borderClass}`}>
+            <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Schedule Version</p>
+            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">—</p>
+          </div>
+          <div className="px-1.5 py-1">
+            <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Key People</p>
+            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">—</p>
+          </div>
         </div>
       </div>
 
-      {/* Row 2: Info Grid - SetHero style 4-column layout */}
-      <div className="border border-[var(--cs-border)] rounded-lg">
-        <div className="grid grid-cols-4 divide-x divide-[var(--cs-border)]">
-          <div className="p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Set Medic</p>
-            <p className="text-sm text-gray-700">—</p>
-          </div>
-          <div className="p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Script Version</p>
-            <p className="text-sm text-gray-700">—</p>
-          </div>
-          <div className="p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Schedule Version</p>
-            <p className="text-sm text-gray-700">—</p>
-          </div>
-          <div className="p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Key People</p>
-            <p className="text-sm text-gray-700">—</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Row 3: Notes Section */}
+      {/* Notes Section - Below grid (same border treatment, no bg) */}
       {notes && (
-        <div className="mt-3 border border-[var(--cs-border)] rounded-lg p-3 bg-slate-50">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Notes</p>
-          <p className="text-sm text-gray-700">{notes}</p>
+        <div className={`mt-1 border ${borderClass} px-1.5 py-1`} style={{ borderRadius: 0 }}>
+          <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Notes</p>
+          <p className="text-[10px] text-[var(--color-doc-ink,#111)] leading-tight">{notes}</p>
         </div>
       )}
     </div>
@@ -222,47 +207,27 @@ function InfoGridSection({ locations, notes }: InfoGridSectionProps) {
 }
 
 /* ============================================
-   Section Wrapper - Full-width header bar (SetHero style)
+   Section Wrapper - Print-style label (SetHero parity)
    ============================================ */
 interface SectionWrapperProps {
-  icon: React.ComponentType<{ className?: string }>;
   title: string;
   children: React.ReactNode;
   collapsible?: boolean;
 }
 
-function SectionWrapper({ icon: Icon, title, children, collapsible }: SectionWrapperProps) {
+function SectionWrapper({ title, children, collapsible }: SectionWrapperProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   return (
     <section className="mb-4">
-      <header
-        className={cn(
-          "flex items-center gap-2 px-3 py-2",
-          "bg-white border border-[var(--cs-border)] border-b-0",
-          collapsible ? "cursor-pointer select-none" : ""
-        )}
-        onClick={() => {
-          if (!collapsible) return;
-          setIsExpanded((prev) => !prev);
-        }}
-      >
-        <Icon className="w-4 h-4 text-gray-600" />
-        <span className="text-sm font-semibold text-gray-800">{title}</span>
-        {collapsible && (
-          <ChevronDown
-            className={cn(
-              "w-4 h-4 ml-1 text-gray-500 transition-transform",
-              isExpanded ? "" : "-rotate-90"
-            )}
-          />
-        )}
-      </header>
-      {isExpanded && (
-        <div className="border border-[var(--cs-border)]">
-          {children}
-        </div>
-      )}
+      <DocSectionHeader
+        title={title}
+        variant="inlineLabel"
+        collapsible={Boolean(collapsible)}
+        expanded={isExpanded}
+        onToggle={() => setIsExpanded((prev) => !prev)}
+      />
+      {isExpanded && children}
     </section>
   );
 }
@@ -272,7 +237,7 @@ function SectionWrapper({ icon: Icon, title, children, collapsible }: SectionWra
    ============================================ */
 function CallSheetFooter() {
   return (
-    <footer className="mt-auto pt-6 pb-2">
+    <footer className="mt-auto pt-4 pb-1">
       <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
         <img
           src="/images/brands/immediate-logo-black.png"

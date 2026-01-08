@@ -1,6 +1,7 @@
 import React from "react";
-import { cn } from "../../../../lib/utils";
 import type { CallSheetCrewRow } from "../../types";
+import { DocSectionHeader } from "../primitives/DocSectionHeader";
+import { DocTable } from "../primitives/DocTable";
 
 interface CrewSectionProps {
   crew: CallSheetCrewRow[];
@@ -40,66 +41,71 @@ export function CrewSection({ crew }: CrewSectionProps) {
         return (
           <div key={department}>
             {/* Department Header */}
-            <div className="bg-[#2a3f5f] text-white px-3 py-2">
-              <span className="text-xs font-bold uppercase tracking-wide">
-                {department}
-              </span>
-            </div>
+            <DocSectionHeader title={department} caps variant="boxed" />
 
             {/* Crew Table for this department */}
-            <table className="w-full text-sm border-collapse border border-t-0 border-gray-200">
+            <DocTable>
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-wide border-r border-gray-200 w-32">
+                <tr>
+                  <th className="text-left" style={{ width: "30%" }}>
                     Role
                   </th>
-                  <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-wide border-r border-gray-200">
+                  <th className="text-left">
                     Name
                   </th>
-                  <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-wide border-r border-gray-200 w-32">
-                    Phone
-                  </th>
-                  <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-700 uppercase tracking-wide border-r border-gray-200">
-                    Email
-                  </th>
-                  <th className="px-3 py-2 text-right text-[11px] font-semibold text-gray-700 uppercase tracking-wide w-20">
+                  <th className="text-right" style={{ width: "15%" }}>
                     Call
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {members.map((member, idx) => (
-                  <tr
-                    key={member.id}
-                    className={cn(
-                      "border-b border-gray-200",
-                      idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"
-                    )}
-                  >
-                    <td className="px-3 py-2 text-gray-600 border-r border-gray-200 text-xs">
-                      {/* Role - could be derived from department or stored separately */}
-                      {member.notes || department}
-                    </td>
-                    <td className="px-3 py-2 font-medium text-gray-900 border-r border-gray-200">
-                      {member.name}
-                    </td>
-                    <td className="px-3 py-2 text-gray-700 border-r border-gray-200 text-xs">
-                      {/* Phone - placeholder, would need to be added to data model */}
-                      <a href="#" className="text-blue-600 hover:underline">
-                        —
-                      </a>
-                    </td>
-                    <td className="px-3 py-2 text-gray-700 border-r border-gray-200 text-xs">
-                      {/* Email - placeholder, would need to be added to data model */}
-                      —
-                    </td>
-                    <td className="px-3 py-2 text-right text-gray-700 text-xs">
-                      {member.callTime || "—"}
-                    </td>
-                  </tr>
-                ))}
+                {members.map((member) => {
+                  // Type assertion for future phone/email fields
+                  const phone = (member as { phone?: string }).phone;
+                  const email = (member as { email?: string }).email;
+                  const hasContact = phone || email;
+
+                  return (
+                    <tr key={member.id} style={{ height: "auto", minHeight: "28px" }}>
+                      <td className="align-top">
+                        {member.notes || department}
+                      </td>
+                      <td className="align-top">
+                        {/* Primary: Name */}
+                        <div className="font-medium">{member.name}</div>
+                        {/* Secondary: Contact info (when available) */}
+                        {hasContact && (
+                          <div className="text-[10px] leading-tight">
+                            {phone && (
+                              <a
+                                href={`tel:${phone}`}
+                                className="text-blue-600 hover:underline"
+                              >
+                                {phone}
+                              </a>
+                            )}
+                            {phone && email && (
+                              <span className="text-gray-400 mx-1">·</span>
+                            )}
+                            {email && (
+                              <a
+                                href={`mailto:${email}`}
+                                className="text-blue-600 hover:underline"
+                              >
+                                {email}
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="text-right align-top">
+                        {member.callTime || "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
-            </table>
+            </DocTable>
           </div>
         );
       })}

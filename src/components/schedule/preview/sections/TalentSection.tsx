@@ -1,6 +1,6 @@
 import React from "react";
-import { cn } from "../../../../lib/utils";
 import type { CallSheetTalentRow } from "../../types";
+import { DocTable } from "../primitives/DocTable";
 
 interface TalentSectionProps {
   talent: CallSheetTalentRow[];
@@ -8,37 +8,37 @@ interface TalentSectionProps {
 
 export function TalentSection({ talent }: TalentSectionProps) {
   return (
-    <table className="w-full text-sm border-collapse">
+    <DocTable>
       <thead>
-        <tr className="bg-[#2a3f5f] text-white">
-          <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide border-r border-[#3d5a80]">
+        <tr>
+          <th className="text-left">
             ID
           </th>
-          <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide border-r border-[#3d5a80]">
+          <th className="text-left">
             Talent
           </th>
-          <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide border-r border-[#3d5a80]">
+          <th className="text-left">
             Role
           </th>
-          <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide border-r border-[#3d5a80]">
+          <th className="text-left">
             Status
           </th>
-          <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide border-r border-[#3d5a80]">
+          <th className="text-left">
             Transpo
           </th>
-          <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide border-r border-[#3d5a80]">
+          <th className="text-left">
             Call
           </th>
-          <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide border-r border-[#3d5a80]">
+          <th className="text-left">
             BLK/RHS
           </th>
-          <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide border-r border-[#3d5a80]">
+          <th className="text-left">
             MU/Ward
           </th>
-          <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide border-r border-[#3d5a80]">
+          <th className="text-left">
             Set
           </th>
-          <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide">
+          <th className="text-left">
             Remarks
           </th>
         </tr>
@@ -46,53 +46,47 @@ export function TalentSection({ talent }: TalentSectionProps) {
       <tbody>
         {talent.length === 0 ? (
           <tr>
-            <td colSpan={10} className="px-3 py-4 text-center text-sm text-gray-500 italic">
+            <td colSpan={10} className="py-4 text-center text-sm text-gray-500 italic">
               No talent today!
             </td>
           </tr>
         ) : (
           talent.map((row, idx) => (
-            <tr
-              key={row.id}
-              className={cn(
-                "border-b border-gray-200",
-                idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"
-              )}
-            >
-              <td className="px-3 py-2 text-gray-700 border-r border-gray-200 text-xs">
+            <tr key={row.id}>
+              <td className="text-gray-700 text-xs">
                 {idx + 1}
               </td>
-              <td className="px-3 py-2 font-medium text-gray-900 border-r border-gray-200">
+              <td className="font-medium text-gray-900">
                 {row.name}
               </td>
-              <td className="px-3 py-2 text-gray-700 border-r border-gray-200 text-xs">
+              <td className="text-gray-700 text-xs">
                 {row.role || ""}
               </td>
-              <td className="px-3 py-2 text-gray-700 border-r border-gray-200 text-xs">
+              <td className="text-gray-700 text-xs">
                 {row.status || ""}
               </td>
-              <td className="px-3 py-2 text-gray-700 border-r border-gray-200 text-xs">
+              <td className="text-gray-700 text-xs">
                 {/* Transpo placeholder */}
               </td>
-              <td className="px-3 py-2 text-gray-700 border-r border-gray-200 text-xs">
+              <td className="text-gray-700 text-xs">
                 {row.callTime || ""}
               </td>
-              <td className="px-3 py-2 text-gray-700 border-r border-gray-200 text-xs">
+              <td className="text-gray-700 text-xs">
                 {/* BLK/RHS placeholder */}
               </td>
-              <td className="px-3 py-2 text-gray-700 border-r border-gray-200 text-xs">
+              <td className="text-gray-700 text-xs">
                 {/* MU/Ward placeholder */}
               </td>
-              <td className="px-3 py-2 text-gray-700 border-r border-gray-200 text-xs">
+              <td className="text-gray-700 text-xs">
                 {/* Set placeholder */}
               </td>
-              <td className="px-3 py-2 text-xs text-gray-600">
+              <td className="text-xs text-gray-600">
                 {row.notes || ""}
               </td>
             </tr>
           ))
         )}
       </tbody>
-    </table>
+    </DocTable>
   );
 }
