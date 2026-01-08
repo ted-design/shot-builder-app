@@ -88,6 +88,22 @@ export interface DayDetailsCustomLocation {
   notes?: string | null;
 }
 
+/**
+ * Unified location block for day details.
+ * Used in the modern reorderable locations list.
+ */
+export interface LocationBlock {
+  id: string;
+  /** Display title for this location (e.g. "Production Office", "Nearest Hospital", custom) */
+  title: string;
+  /** Reference to a location from the project library */
+  ref: LocationReference | null;
+  /** Whether to show the location name in the preview */
+  showName: boolean;
+  /** Whether to show the phone number in the preview (if available) */
+  showPhone: boolean;
+}
+
 export type DayDetailsNotesIcon = "note" | "info" | "alert" | null;
 
 export interface DayDetailsNotesStyle {
@@ -112,10 +128,20 @@ export interface DayDetails {
   firstMealTime?: string | null;
   secondMealTime?: string | null;
   estimatedWrap: string;
+  /**
+   * Modern unified locations array (reorderable, expandable).
+   * When present, takes precedence over legacy fixed fields.
+   */
+  locations?: LocationBlock[] | null;
+  /** @deprecated Use locations[] instead. Kept for backward compatibility. */
   productionOffice?: LocationReference | null;
+  /** @deprecated Use locations[] instead. Kept for backward compatibility. */
   nearestHospital?: LocationReference | null;
+  /** @deprecated Use locations[] instead. Kept for backward compatibility. */
   parking?: LocationReference | null;
+  /** @deprecated Use locations[] instead. Kept for backward compatibility. */
   basecamp?: LocationReference | null;
+  /** @deprecated Use locations[] instead. Kept for backward compatibility. */
   customLocations?: DayDetailsCustomLocation[] | null;
   weather?: WeatherData | null;
   keyPeople?: string | null;

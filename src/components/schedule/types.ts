@@ -35,6 +35,10 @@ export interface CallSheetDayDetails {
   firstMealTime?: string | null;
   secondMealTime?: string | null;
   estimatedWrap?: string | null;
+  keyPeople?: string | null;
+  setMedic?: string | null;
+  scriptVersion?: string | null;
+  scheduleVersion?: string | null;
   weather?: {
     lowTemp?: number | null;
     highTemp?: number | null;
@@ -80,4 +84,3 @@ export interface CallSheetData {
   pageBreakAfterHeader?: boolean;
   pageBreakAfterTalent?: boolean;
 }
-

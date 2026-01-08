@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import { MapPin } from "lucide-react";
 import type { CallSheetColors, CallSheetData } from "../types";
-import type { CallSheetLayoutV2, CallSheetCenterShape } from "../../../types/callsheet";
+import type { CallSheetLayoutV2, CallSheetCenterShape, CallSheetSection } from "../../../types/callsheet";
 import { CallSheetHeader, CallSheetHeaderCompact } from "./CallSheetHeader";
 import { ScheduleTableSection } from "./sections/ScheduleTableSection";
 import { TalentSection } from "./sections/TalentSection";
 import { CrewSection } from "./sections/CrewSection";
 import { DocumentPage } from "./primitives/DocumentPage";
 import { DocSectionHeader } from "./primitives/DocSectionHeader";
+import { paginateCallSheetSections } from "./paginateCallSheetSections";
+import { formatNotesForDisplay } from "../../../lib/sanitize";
 
 interface CallSheetPreviewProps {
   data: CallSheetData;
@@ -15,6 +17,7 @@ interface CallSheetPreviewProps {
   showMobile?: boolean;
   zoom?: number;
   layoutV2?: CallSheetLayoutV2 | null;
+  sections?: CallSheetSection[] | null;
 }
 
 const DEFAULT_COLORS: CallSheetColors = {
@@ -30,6 +33,7 @@ export function CallSheetPreview({
   showMobile = false,
   zoom = 100,
   layoutV2,
+  sections,
 }: CallSheetPreviewProps) {
   const cssVars = {
     "--cs-primary": colors.primary,
@@ -41,7 +45,12 @@ export function CallSheetPreview({
     "--cs-text-muted": "#9ca3af",
   } as React.CSSProperties;
 
-  const hasCrew = data.crew && data.crew.length > 0;
+  const pages = React.useMemo(() => paginateCallSheetSections(sections), [sections]);
+  const isHeaderVisible = React.useMemo(() => {
+    const list = Array.isArray(sections) ? sections : [];
+    const header = list.find((section) => section?.type === "header");
+    return header ? header.isVisible !== false : true;
+  }, [sections]);
 
   // Extract centerShape from layoutV2 if available
   const centerShape: CallSheetCenterShape = layoutV2?.header?.centerShape || "circle";
@@ -55,9 +64,78 @@ export function CallSheetPreview({
         transformOrigin: "top center",
       }}
     >
-      {/* Page 1 */}
-      <DocumentPage showMobile={showMobile} className="mb-6" contentClassName={showMobile ? "p-4" : undefined}>
-        {/* Header Section */}
+      {pages.map((pageSections, pageIndex) => {
+        const pageHasHeader = pageSections.some((section) => section.type === "header");
+        const pageChromeHeader =
+          pageIndex > 0 && isHeaderVisible && !pageHasHeader ? (
+            <CallSheetHeaderCompact
+              projectName={data.projectName}
+              version={data.version}
+              date={data.date}
+              dayNumber={data.dayNumber}
+              totalDays={data.totalDays}
+              crewCallTime={data.crewCallTime}
+              centerShape={centerShape}
+            />
+          ) : null;
+
+        return (
+          <DocumentPage
+            key={`page-${pageIndex}`}
+            showMobile={showMobile}
+            className={pageIndex < pages.length - 1 ? "mb-6" : undefined}
+            contentClassName={showMobile ? "p-4" : undefined}
+          >
+            {pageChromeHeader}
+            {pageSections.map((section) => (
+              <React.Fragment key={section.id}>{renderSection(section, data, centerShape, pageIndex)}</React.Fragment>
+            ))}
+            <CallSheetFooter />
+          </DocumentPage>
+        );
+      })}
+    </div>
+  );
+}
+
+function readSectionTitle(section: CallSheetSection, fallback: string) {
+  const raw = (section?.config as Record<string, unknown> | undefined)?.title;
+  const title = typeof raw === "string" ? raw.trim() : "";
+  return title ? title : fallback;
+}
+
+function RemindersSection({ text }: { text: string }) {
+  const items = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (items.length === 0) {
+    return <div className="p-4 text-center text-sm text-gray-500 italic">No reminders.</div>;
+  }
+
+  return (
+    <ul className="list-disc space-y-1 p-4 pl-8 text-sm text-gray-700">
+      {items.map((item, idx) => (
+        <li key={`${idx}-${item}`} className="break-words">
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function renderSection(
+  section: CallSheetSection,
+  data: CallSheetData,
+  centerShape: CallSheetCenterShape,
+  pageIndex: number
+) {
+  if (section.isVisible === false) return null;
+
+  if (section.type === "header") {
+    if (pageIndex === 0) {
+      return (
         <CallSheetHeader
           projectName={data.projectName}
           version={data.version}
@@ -69,47 +147,71 @@ export function CallSheetPreview({
           crewCallTime={data.crewCallTime}
           centerShape={centerShape}
         />
+      );
+    }
+    return (
+      <CallSheetHeaderCompact
+        projectName={data.projectName}
+        version={data.version}
+        date={data.date}
+        dayNumber={data.dayNumber}
+        totalDays={data.totalDays}
+        crewCallTime={data.crewCallTime}
+        centerShape={centerShape}
+      />
+    );
+  }
 
-        {/* Info Grid Section */}
-        <InfoGridSection locations={data.locations} notes={data.notes} />
+  if (section.type === "notes-contacts") {
+    // The modern preview template does not yet have a dedicated Notes/Contacts section
+    // beyond what's already represented in the Day Details info grid.
+    return null;
+  }
 
-        {/* Today's Schedule Section */}
-        <SectionWrapper title="Today's Schedule" collapsible>
-          <ScheduleTableSection schedule={data.schedule} />
-        </SectionWrapper>
+  if (section.type === "schedule") {
+    return (
+      <SectionWrapper title={readSectionTitle(section, "Today's Schedule")} collapsible>
+        <ScheduleTableSection schedule={data.schedule} />
+      </SectionWrapper>
+    );
+  }
 
-        {/* Talent Section */}
-        <SectionWrapper title="Talent">
-          <TalentSection talent={data.talent} />
-        </SectionWrapper>
+  if (section.type === "talent") {
+    return (
+      <SectionWrapper title={readSectionTitle(section, "Talent")}>
+        <TalentSection talent={data.talent} />
+      </SectionWrapper>
+    );
+  }
 
-        {/* Footer for Page 1 */}
-        <CallSheetFooter />
-      </DocumentPage>
+  if (section.type === "crew") {
+    // Match the prior template: crew renders as-is (no extra wrapper), and is omitted
+    // entirely when there is no crew data.
+    if (!data.crew || data.crew.length === 0) return null;
+    return <CrewSection crew={data.crew} />;
+  }
 
-      {/* Page 2 - Crew (only if there's crew data) */}
-      {hasCrew && (
-        <DocumentPage showMobile={showMobile} contentClassName={showMobile ? "p-4" : undefined}>
-          {/* Compact Header for Page 2 */}
-          <CallSheetHeaderCompact
-            projectName={data.projectName}
-            version={data.version}
-            date={data.date}
-            dayNumber={data.dayNumber}
-            totalDays={data.totalDays}
-            crewCallTime={data.crewCallTime}
-            centerShape={centerShape}
-          />
+  if (section.type === "day-details") {
+    // Restore the prior template: the "info grid" block belongs directly under the header.
+    return <InfoGridSection locations={data.locations} notes={data.notes} meta={data.dayDetails} />;
+  }
 
-          {/* Crew Section */}
-          <CrewSection crew={data.crew} />
+  if (section.type === "reminders") {
+    const raw = (section?.config as Record<string, unknown> | undefined)?.text;
+    const text = typeof raw === "string" ? raw : "";
+    if (!text.trim()) return null;
+    return (
+      <SectionWrapper title="Reminders">
+        <RemindersSection text={text} />
+      </SectionWrapper>
+    );
+  }
 
-          {/* Footer for Page 2 */}
-          <CallSheetFooter />
-        </DocumentPage>
-      )}
-    </div>
-  );
+  if (section.type === "page-break") {
+    return null;
+  }
+
+  return null;
 }
 
 /* ============================================
@@ -118,11 +220,25 @@ export function CallSheetPreview({
 interface InfoGridSectionProps {
   locations: CallSheetData["locations"];
   notes?: string;
+  meta?: CallSheetData["dayDetails"] | null;
 }
 
-function InfoGridSection({ locations, notes }: InfoGridSectionProps) {
-  const productionOffice = locations.find((l) => l.type === "Production Office");
-  const nearestHospital = locations.find((l) => l.type === "Nearest Hospital");
+function InfoGridSection({ locations, notes, meta }: InfoGridSectionProps) {
+  const setMedic = meta?.setMedic != null && String(meta.setMedic).trim() ? String(meta.setMedic).trim() : "—";
+  const scriptVersion =
+    meta?.scriptVersion != null && String(meta.scriptVersion).trim() ? String(meta.scriptVersion).trim() : "—";
+  const scheduleVersion =
+    meta?.scheduleVersion != null && String(meta.scheduleVersion).trim() ? String(meta.scheduleVersion).trim() : "—";
+  const keyPeople = meta?.keyPeople != null && String(meta.keyPeople).trim() ? String(meta.keyPeople).trim() : "—";
+
+  const rawNotes = meta?.notes != null ? String(meta.notes) : notes != null ? String(notes) : "";
+  const hasNotes = Boolean(rawNotes.trim());
+  const notesHtml = hasNotes ? formatNotesForDisplay(rawNotes) : "";
+
+  const pairs: [CallSheetData["locations"][number], CallSheetData["locations"][number] | undefined][] = [];
+  for (let i = 0; i < locations.length; i += 2) {
+    pairs.push([locations[i], locations[i + 1]]);
+  }
 
   // Use consistent doc-ink color for borders (no rounding, no shadows)
   const borderClass = "border-[var(--color-doc-ink,#111)]";
@@ -131,75 +247,68 @@ function InfoGridSection({ locations, notes }: InfoGridSectionProps) {
     <div className="mb-3">
       {/* Print-style bordered grid - SetHero parity: strict 1px black borders */}
       <div className={`border ${borderClass}`} style={{ borderRadius: 0 }}>
-        {/* Row 1: Location Info - 2 columns */}
-        <div className={`grid grid-cols-2`}>
-          {/* Production Office Cell */}
-          <div className={`px-1.5 py-1 border-r ${borderClass}`}>
-            <div className="flex items-center gap-1 mb-0.5">
-              <MapPin className="w-3 h-3 text-[var(--cs-primary)]" />
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-500">
-                Production Office
-              </span>
-            </div>
-            {productionOffice ? (
-              <>
-                <p className="text-[11px] font-medium text-[var(--color-doc-ink,#111)] leading-tight">{productionOffice.name}</p>
-                {productionOffice.address && (
-                  <p className="text-[10px] text-gray-600 leading-tight">{productionOffice.address}</p>
-                )}
-              </>
-            ) : (
-              <p className="text-[10px] text-gray-400 italic">Not set</p>
-            )}
-          </div>
+        {/* Locations - variable count */}
+        {pairs.map(([left, right], index) => {
+          const rowBorder = index > 0 ? `border-t ${borderClass}` : "";
 
-          {/* Nearest Hospital Cell */}
-          <div className="px-1.5 py-1">
-            <div className="flex items-center gap-1 mb-0.5">
-              <MapPin className="w-3 h-3 text-red-500" />
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-500">
-                Nearest Hospital
-              </span>
+          const renderLocation = (location: CallSheetData["locations"][number] | undefined, bordered: boolean) => {
+            if (!location) return <div className={bordered ? `px-1.5 py-1 border-r ${borderClass}` : "px-1.5 py-1"} />;
+            const iconClassName = location.type === "Nearest Hospital" ? "text-red-500" : "text-[var(--cs-primary)]";
+            return (
+              <div className={bordered ? `px-1.5 py-1 border-r ${borderClass}` : "px-1.5 py-1"}>
+                <div className="flex items-center gap-1 mb-0.5">
+                  <MapPin className={`w-3 h-3 ${iconClassName}`} />
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-500">
+                    {location.type}
+                  </span>
+                </div>
+                <p className="text-[11px] font-medium text-[var(--color-doc-ink,#111)] leading-tight">
+                  {location.name}
+                </p>
+                {location.address ? (
+                  <p className="text-[10px] text-gray-600 leading-tight">{location.address}</p>
+                ) : null}
+              </div>
+            );
+          };
+
+          return (
+            <div key={`${index}-${left.type}`} className={`grid grid-cols-2 ${rowBorder}`}>
+              {renderLocation(left, true)}
+              {renderLocation(right, false)}
             </div>
-            {nearestHospital ? (
-              <>
-                <p className="text-[11px] font-medium text-[var(--color-doc-ink,#111)] leading-tight">{nearestHospital.name}</p>
-                {nearestHospital.address && (
-                  <p className="text-[10px] text-gray-600 leading-tight">{nearestHospital.address}</p>
-                )}
-              </>
-            ) : (
-              <p className="text-[10px] text-gray-400 italic">Not set</p>
-            )}
-          </div>
-        </div>
+          );
+        })}
 
         {/* Row 2: Meta Fields - 4 columns */}
         <div className={`grid grid-cols-4 border-t ${borderClass}`}>
           <div className={`px-1.5 py-1 border-r ${borderClass}`}>
             <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Set Medic</p>
-            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">—</p>
+            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">{setMedic}</p>
           </div>
           <div className={`px-1.5 py-1 border-r ${borderClass}`}>
             <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Script Version</p>
-            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">—</p>
+            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">{scriptVersion}</p>
           </div>
           <div className={`px-1.5 py-1 border-r ${borderClass}`}>
             <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Schedule Version</p>
-            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">—</p>
+            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">{scheduleVersion}</p>
           </div>
           <div className="px-1.5 py-1">
             <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Key People</p>
-            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">—</p>
+            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">{keyPeople}</p>
           </div>
         </div>
       </div>
 
       {/* Notes Section - Below grid (same border treatment, no bg) */}
-      {notes && (
+      {hasNotes && (
         <div className={`mt-1 border ${borderClass} px-1.5 py-1`} style={{ borderRadius: 0 }}>
-          <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Notes</p>
-          <p className="text-[10px] text-[var(--color-doc-ink,#111)] leading-tight">{notes}</p>
+          <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Main Notes</p>
+          <div
+            className="text-[10px] text-[var(--color-doc-ink,#111)] leading-tight"
+            dangerouslySetInnerHTML={{ __html: notesHtml }}
+          />
         </div>
       )}
     </div>

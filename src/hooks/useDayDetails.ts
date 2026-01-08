@@ -18,6 +18,7 @@ function buildDefaultDayDetails(scheduleId: string): DayDetails {
     breakfastTime: null,
     firstMealTime: null,
     secondMealTime: null,
+    locations: null,
     productionOffice: null,
     nearestHospital: null,
     parking: null,

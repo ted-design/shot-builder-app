@@ -16,6 +16,7 @@ import { toast } from "../../../lib/toast";
 import CallSheetPreviewLegacy from "../vertical/CallSheetPreview";
 import { CallSheetPreview as CallSheetPreviewModern } from "../../schedule/preview/CallSheetPreview";
 import { ColorCustomizer } from "../../schedule/ColorCustomizer";
+import { deriveLocationsFromLegacy, locationBlockHasContent } from "../../../lib/callsheet/deriveLocationsFromLegacy";
 
 function toDate(value) {
   if (!value) return null;
@@ -66,13 +67,6 @@ function buildModernCallSheetData({
   talentRows,
   sections,
 }) {
-  const ordered = Array.isArray(sections) ? [...sections].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : [];
-  const visible = ordered.filter((s) => s && s.isVisible !== false);
-  const headerIdx = visible.findIndex((s) => s.type === "header");
-  const talentIdx = visible.findIndex((s) => s.type === "talent");
-  const pageBreakAfterHeader = headerIdx >= 0 && visible[headerIdx + 1]?.type === "page-break";
-  const pageBreakAfterTalent = talentIdx >= 0 && visible[talentIdx + 1]?.type === "page-break";
-
   const scheduleRows = (entries || []).map((entry) => {
     const isBanner =
       entry?.type === "custom" &&
@@ -97,27 +91,15 @@ function buildModernCallSheetData({
     };
   });
 
-  const locations = [
-    ["Production Office", dayDetails?.productionOffice],
-    ["Nearest Hospital", dayDetails?.nearestHospital],
-    ["Parking", dayDetails?.parking],
-    ["Basecamp", dayDetails?.basecamp],
-  ]
-    .map(([type, ref]) => ({
-      type,
-      name: ref?.label ? String(ref.label) : "",
-      address: ref?.notes ? String(ref.notes) : "",
-    }))
-    .filter((loc) => loc.name || loc.address);
-
-  const customLocations = Array.isArray(dayDetails?.customLocations) ? dayDetails.customLocations : [];
-  customLocations.forEach((row) => {
-    const type = row?.title ? String(row.title) : "Location";
-    const name = row?.label ? String(row.label) : "";
-    const address = row?.notes ? String(row.notes) : "";
-    if (!name && !address) return;
-    locations.push({ type, name, address });
-  });
+  // Use unified locations from deriveLocationsFromLegacy (handles both modern array and legacy fields)
+  const derivedLocations = deriveLocationsFromLegacy(dayDetails);
+  const locations = derivedLocations
+    .filter((block) => locationBlockHasContent(block))
+    .map((block) => ({
+      type: block.title || "Location",
+      name: block.ref?.label ? String(block.ref.label) : "",
+      address: block.ref?.notes ? String(block.ref.notes) : "",
+    }));
 
   const talent = (talentRows || []).map((row) => ({
     id: String(row?.talentId || row?.id || row?.name || Math.random()),
@@ -154,6 +136,10 @@ function buildModernCallSheetData({
       firstMealTime: dayDetails?.firstMealTime ?? null,
       secondMealTime: dayDetails?.secondMealTime ?? null,
       estimatedWrap: dayDetails?.estimatedWrap ?? null,
+      keyPeople: dayDetails?.keyPeople ?? null,
+      setMedic: dayDetails?.setMedic ?? null,
+      scriptVersion: dayDetails?.scriptVersion ?? null,
+      scheduleVersion: dayDetails?.scheduleVersion ?? null,
       weather: dayDetails?.weather ?? null,
       notes: dayDetails?.notes ?? null,
     },
@@ -162,8 +148,6 @@ function buildModernCallSheetData({
     schedule: scheduleRows,
     talent,
     crew,
-    pageBreakAfterHeader,
-    pageBreakAfterTalent,
   };
 }
 
@@ -412,6 +396,7 @@ export default function PreviewPanel({
               showMobile={showMobile}
               zoom={zoomPercent}
               layoutV2={layoutV2}
+              sections={sections}
             />
           </div>
         ) : (
