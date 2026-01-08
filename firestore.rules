@@ -98,9 +98,9 @@ service cloud.firestore {
     //   allow write: if false;
     // }
 
-    match /clients/{clientId}/talent/{docId} {
-      allow read: if clientMatches(clientId);
-      allow create, update, delete: if clientMatches(clientId) && isAuthed();
+	    match /clients/{clientId}/talent/{docId} {
+	      allow read: if clientMatches(clientId);
+	      allow create, update, delete: if clientMatches(clientId) && isAuthed();
 
       // Versions - immutable document snapshots for version history
       match /versions/{versionId} {
@@ -133,12 +133,19 @@ service cloud.firestore {
       match /presence {
         allow read: if clientMatches(clientId);
         allow write: if clientMatches(clientId) && isAuthed();
-      }
-    }
+	      }
+	    }
 
-    match /clients/{clientId}/shots/{docId} {
-      allow read: if clientMatches(clientId);
-      allow create, update, delete: if clientMatches(clientId) && isAuthed();
+	    // Crew - org-level crew directory (used by projects for assignments)
+	    match /clients/{clientId}/crew/{crewMemberId} {
+	      allow read: if clientMatches(clientId) && isAuthed();
+	      allow create, update, delete: if clientMatches(clientId) &&
+	        (isAdmin() || isProducer());
+	    }
+
+	    match /clients/{clientId}/shots/{docId} {
+	      allow read: if clientMatches(clientId);
+	      allow create, update, delete: if clientMatches(clientId) && isAuthed();
 
       // Comments - subcollection of shots for collaboration
       match /comments/{commentId} {
@@ -243,18 +250,33 @@ service cloud.firestore {
       allow delete: if clientMatches(clientId) && isAdmin();
     }
 
-    match /clients/{clientId}/projects/{projectId} {
-      allow read: if clientMatches(clientId) &&
-        (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
-      allow create: if clientMatches(clientId) && (isAdmin() || isProducer());
-      allow update, delete: if clientMatches(clientId) &&
-        (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+	    match /clients/{clientId}/projects/{projectId} {
+	      allow read: if clientMatches(clientId) &&
+	        (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+	      allow create: if clientMatches(clientId) && (isAdmin() || isProducer());
+	      allow update, delete: if clientMatches(clientId) &&
+	        (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
 
-      // Pulls - project-specific access for authenticated users
-      // Public sharing is handled by the top-level wildcard rule
-      match /pulls/{pullId} {
-        // Authenticated users with proper role
-        allow read, write: if clientMatches(clientId) &&
+	      // Project departments and positions (project-scoped role taxonomy)
+	      match /departments/{departmentId} {
+	        allow read: if clientMatches(clientId) &&
+	          (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+	        allow create, update, delete: if clientMatches(clientId) &&
+	          (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+
+	        match /positions/{positionId} {
+	          allow read: if clientMatches(clientId) &&
+	            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
+	          allow create, update, delete: if clientMatches(clientId) &&
+	            (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+	        }
+	      }
+
+	      // Pulls - project-specific access for authenticated users
+	      // Public sharing is handled by the top-level wildcard rule
+	      match /pulls/{pullId} {
+	        // Authenticated users with proper role
+	        allow read, write: if clientMatches(clientId) &&
           (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
       }
 

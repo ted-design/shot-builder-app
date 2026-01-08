@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/button";
 import { Modal } from "../ui/modal";
 import { Switch } from "../ui/switch";
-import { Badge } from "../ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -103,21 +102,19 @@ function CrewMemberRow({
   const hasPrecall = !!draft.trim();
 
   return (
-    <div className="group flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+    <div className="group flex items-center gap-2 px-3 py-1.5 min-h-[40px] border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
       {/* Drag handle */}
       <GripVertical className="h-4 w-4 text-slate-300 dark:text-slate-600 cursor-grab flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
 
-      {/* Role badge */}
-      {positionName ? (
-        <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 flex-shrink-0">
-          {positionName}
-        </Badge>
-      ) : null}
-
-      {/* Name */}
-      <span className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate min-w-0 flex-1">
-        {name}
-      </span>
+      {/* Role + Name stacked */}
+      <div className="min-w-0 flex-1">
+        <div className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate">
+          {positionName || "Crew"}
+        </div>
+        <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+          {name}
+        </div>
+      </div>
 
       {/* Contact icons */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -376,19 +373,34 @@ export default function CrewCallsCard({
     return map;
   }, [departments, projectDepartments]);
 
-  // Build position name lookup
+  // Build position lookup from departments
+  const positionById = useMemo(() => {
+    const map = new Map();
+    departments.forEach((dept) => {
+      (dept.positions || []).forEach((pos) => {
+        map.set(pos.id, pos.title);
+      });
+    });
+    projectDepartments.forEach((dept) => {
+      (dept.positions || []).forEach((pos) => {
+        map.set(pos.id, pos.title);
+      });
+    });
+    return map;
+  }, [departments, projectDepartments]);
+
+  // Build position name lookup for crew members
   const positionNameByCrewMemberId = useMemo(() => {
     const map = new Map();
-    assignedCrew.forEach(({ assignment }) => {
-      // For now, just use a placeholder - would need position data from hooks
-      // In a real implementation, you'd fetch positions and map them
-      if (assignment.positionId) {
-        // This would need the position name from a positions hook
-        map.set(assignment.crewMemberId, null);
+    assignedCrew.forEach(({ assignment, member }) => {
+      // Check assignment first, then fall back to member's positionId
+      const posId = assignment.positionId || member?.positionId;
+      if (posId && positionById.has(posId)) {
+        map.set(assignment.crewMemberId, positionById.get(posId));
       }
     });
     return map;
-  }, [assignedCrew]);
+  }, [assignedCrew, positionById]);
 
   // Initialize all departments as expanded
   useEffect(() => {

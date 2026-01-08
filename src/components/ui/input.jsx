@@ -26,10 +26,37 @@ export const Input = React.forwardRef(BaseInput);
  * Checkbox component with consistent styling. Uses the primary colour for the
  * checked state.
  */
-export const Checkbox = ({ className = "", ...props }) => (
-  <input
-    type="checkbox"
-    className={`h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary dark:text-indigo-500 focus:ring-primary dark:focus:ring-indigo-500 dark:bg-slate-800 ${className}`.trim()}
-    {...props}
-  />
+export const Checkbox = React.forwardRef(
+  ({ className = "", indeterminate = false, onCheckedChange, onChange, ...props }, forwardedRef) => {
+    const localRef = React.useRef(null);
+
+    const setRef = React.useCallback(
+      (node) => {
+        localRef.current = node;
+        if (typeof forwardedRef === "function") forwardedRef(node);
+        else if (forwardedRef) forwardedRef.current = node;
+      },
+      [forwardedRef]
+    );
+
+    React.useEffect(() => {
+      if (!localRef.current) return;
+      localRef.current.indeterminate = Boolean(indeterminate);
+    }, [indeterminate]);
+
+    const handleChange = (event) => {
+      onChange?.(event);
+      onCheckedChange?.(event.target.checked);
+    };
+
+    return (
+      <input
+        ref={setRef}
+        type="checkbox"
+        className={`h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary dark:text-indigo-500 focus:ring-primary dark:focus:ring-indigo-500 dark:bg-slate-800 ${className}`.trim()}
+        onChange={handleChange}
+        {...props}
+      />
+    );
+  }
 );

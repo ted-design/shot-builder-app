@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Plus, Search } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { toast } from "../../lib/toast";
 
 /**
  * RoleSelector - SetHero-style two-column role picker
@@ -245,6 +246,7 @@ export default function RoleSelector({
       setNewPositionTitle("");
     } catch (err) {
       console.error("Failed to create position:", err);
+      toast.error({ title: "Failed to create position", description: err?.message || String(err) });
     }
   };
 

@@ -102,7 +102,7 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
         ref={setNodeRef}
         style={style}
         className={[
-          "group relative flex items-center gap-2 rounded-lg px-3 py-2.5 transition-all duration-150 cursor-pointer border",
+          "group relative flex items-center gap-2 rounded-lg px-3 py-2.5 min-h-11 transition-all duration-150 cursor-pointer border",
           isDragging ? "opacity-60 shadow-lg z-50" : "",
           isActive
             ? "bg-rose-600 text-white border-rose-600 shadow-md"
@@ -199,7 +199,7 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
       ref={setNodeRef}
       style={style}
       className={[
-        "group relative flex items-center gap-2 rounded-lg px-3 py-2.5 transition-all duration-150 cursor-pointer border",
+        "group relative flex items-center gap-2 rounded-lg px-3 py-2.5 min-h-11 transition-all duration-150 cursor-pointer border",
         isDragging ? "opacity-60 shadow-lg z-50" : "",
         isActive
           ? "bg-gradient-to-r from-blue-700 to-indigo-600 text-white border-transparent shadow-md"
@@ -410,7 +410,7 @@ export default function LayoutPanel({
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 w-7 p-0">
+              <Button variant="outline" size="icon" className="h-7 w-7">
                 <Plus className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>

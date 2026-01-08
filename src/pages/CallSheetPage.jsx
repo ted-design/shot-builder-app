@@ -16,7 +16,6 @@ import { FLAGS } from "../lib/flags";
 import { shotsPath, talentPath, locationsPath, productFamiliesPath } from "../lib/paths";
 import { useFirestoreCollection } from "../hooks/useFirestoreCollection";
 import { useSchedules, useCreateSchedule } from "../hooks/useSchedule";
-import PageHeader from "../components/ui/PageHeader";
 import { Button } from "../components/ui/button";
 import {
   DropdownMenu,
@@ -232,11 +231,15 @@ function CallSheetPage() {
       {!isPreviewMode ? (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <PageHeader
-              title="Call Sheet"
-              icon={<Calendar className="h-5 w-5" />}
-              subtitle={activeProject?.name}
-            />
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-slate-500" />
+              <div>
+                <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Call Sheet</h1>
+                {activeProject?.name && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{activeProject.name}</p>
+                )}
+              </div>
+            </div>
 
             {schedules.length > 0 && (
               <DropdownMenu>

@@ -1,0 +1,480 @@
+/**
+ * Design Tokens for SetHero UI Parity
+ *
+ * These tokens are extracted from SetHero's "Editing Call Sheet" screen
+ * and adapted for use with Tailwind CSS.
+ *
+ * Usage:
+ * 1. Import this file in your main CSS (e.g., src/index.css)
+ * 2. Reference tokens using var(--token-name)
+ * 3. Extend Tailwind config to use these tokens where needed
+ *
+ * @see ui-parity-spec.md for full comparison and implementation notes
+ */
+
+:root {
+  /* ============================================
+   * TYPOGRAPHY
+   * ============================================ */
+
+  /* Font Families */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: 'Lora', Georgia, Cambria, 'Times New Roman', serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* SetHero uses Lato - uncomment to match exactly */
+  /* --font-sans: 'Lato', sans-serif; */
+
+  /* Font Sizes (SetHero scale) */
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.8125rem;  /* 13px - SetHero base for tables */
+  --text-base: 0.875rem; /* 14px - SetHero body */
+  --text-lg: 1rem;       /* 16px */
+  --text-xl: 1.125rem;   /* 18px */
+  --text-2xl: 1.5rem;    /* 24px */
+  --text-3xl: 1.75rem;   /* 28px - SetHero project title */
+  --text-4xl: 2rem;      /* 32px */
+
+  /* Font Weights */
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Line Heights */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.43;  /* SetHero default */
+  --leading-relaxed: 1.5;
+  --leading-loose: 1.75;
+
+  /* Letter Spacing */
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+
+  /* ============================================
+   * COLORS
+   * ============================================ */
+
+  /* --- Surfaces --- */
+  --color-bg: #f8fafc;              /* App background (slate-50) */
+  --color-surface: #ffffff;          /* Cards, panels */
+  --color-surface-muted: #e0e4eb;    /* Layout panel background (SetHero) */
+  --color-surface-subtle: #f1f5f9;   /* Subtle backgrounds (slate-100) */
+
+  /* --- Sidebar --- */
+  --color-sidebar: #0f172a;          /* slate-900 (darker than SetHero's #1a2b3d) */
+  --color-sidebar-hover: #1e293b;    /* slate-800 */
+  --color-sidebar-active: #152332;   /* SetHero active state */
+  --color-sidebar-text: #94a3b8;     /* slate-400 */
+  --color-sidebar-text-active: #ffffff;
+
+  /* --- Text --- */
+  --color-text: #0f172a;             /* Primary text (slate-900) */
+  --color-text-secondary: #475569;   /* Secondary (slate-600) */
+  --color-text-muted: #64748b;       /* Muted (slate-500) */
+  --color-text-subtle: #94a3b8;      /* Subtle (slate-400) */
+  --color-text-inverted: #ffffff;    /* On dark backgrounds */
+
+  /* --- Print / Document --- */
+  --color-doc-ink: #111111;          /* Near-black for print tables */
+  --color-doc-header-fill: #f2f2f2;  /* Light grey header fill */
+
+  /* --- Borders --- */
+  --color-border: #e2e8f0;           /* Default border (slate-200) */
+  --color-border-muted: #f1f5f9;     /* Subtle border (slate-100) */
+  --color-border-strong: #cbd5e1;    /* Strong border (slate-300) */
+
+  /* --- Primary Action (Current: Indigo) --- */
+  --color-primary: #6366f1;          /* indigo-500 */
+  --color-primary-hover: #4f46e5;    /* indigo-600 */
+  --color-primary-active: #4338ca;   /* indigo-700 */
+  --color-primary-light: #e0e7ff;    /* indigo-100 */
+  --color-primary-text: #ffffff;
+
+  /* --- SetHero Blue (Alternative Primary) --- */
+  --color-sethero-blue: #1f66d9;
+  --color-sethero-blue-hover: #1a56b8;
+  --color-sethero-blue-light: #b1c0d9;
+
+  /* --- Status Colors --- */
+  --color-success: #10b981;          /* emerald-500 */
+  --color-warning: #f59e0b;          /* amber-500 */
+  --color-error: #ef4444;            /* red-500 */
+  --color-info: #3b82f6;             /* blue-500 */
+
+  /* --- Table Specific --- */
+  --color-table-header-bg: transparent;
+  --color-table-header-border: #dadada;
+  --color-table-row-border: rgba(214, 214, 214, 0.44);
+  --color-table-row-hover: #f8fafc;
+  --color-table-row-alt: #fafafa;    /* Zebra striping (if used) */
+
+  /* ============================================
+   * SPACING
+   * ============================================ */
+
+  /* Base Spacing Scale */
+  --space-0: 0;
+  --space-px: 1px;
+  --space-0-5: 0.125rem;  /* 2px */
+  --space-1: 0.25rem;     /* 4px */
+  --space-1-5: 0.375rem;  /* 6px */
+  --space-2: 0.5rem;      /* 8px */
+  --space-2-5: 0.625rem;  /* 10px */
+  --space-3: 0.75rem;     /* 12px */
+  --space-3-5: 0.875rem;  /* 14px */
+  --space-4: 1rem;        /* 16px */
+  --space-5: 1.25rem;     /* 20px */
+  --space-6: 1.5rem;      /* 24px */
+  --space-7: 1.75rem;     /* 28px */
+  --space-8: 2rem;        /* 32px */
+  --space-9: 2.25rem;     /* 36px */
+  --space-10: 2.5rem;     /* 40px */
+  --space-12: 3rem;       /* 48px */
+  --space-14: 3.5rem;     /* 56px */
+  --space-16: 4rem;       /* 64px */
+
+  /* ============================================
+   * LAYOUT DIMENSIONS
+   * ============================================ */
+
+  /* Sidebar */
+  --sidebar-width: 64px;             /* Icon rail (my app) */
+  --sidebar-width-expanded: 220px;   /* Full sidebar (SetHero style) */
+
+  /* Layout Panel */
+  --layout-panel-width: 320px;       /* Increased from 280px */
+  --layout-panel-padding-x: 16px;
+  --layout-panel-padding-y: 0;
+
+  /* Top Bar / Header */
+  --topbar-height: 52px;             /* Reduced from 65px */
+  --action-bar-height: 44px;
+
+  /* Preview Area */
+  --preview-padding: 24px;
+
+  /* ============================================
+   * BORDERS & RADIUS
+   * ============================================ */
+
+  --border-width: 1px;
+  --border-width-thick: 2px;
+
+  --radius-none: 0;
+  --radius-sm: 0.25rem;   /* 4px */
+  --radius-md: 0.375rem;  /* 6px - buttons, inputs */
+  --radius-lg: 0.5rem;    /* 8px - cards */
+  --radius-xl: 0.75rem;   /* 12px */
+  --radius-2xl: 1rem;     /* 16px */
+  --radius-full: 9999px;  /* Circular */
+
+  /* ============================================
+   * SHADOWS
+   * ============================================ */
+
+  --shadow-none: none;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+  /* ============================================
+   * BUTTONS
+   * ============================================ */
+
+  --btn-height-sm: 32px;
+  --btn-height-md: 40px;
+  --btn-height-lg: 46px;
+
+  --btn-padding-x-sm: 12px;
+  --btn-padding-x-md: 20px;
+  --btn-padding-x-lg: 24px;
+
+  --btn-font-size: var(--text-base);  /* 14px */
+  --btn-font-weight: var(--weight-medium);
+  --btn-radius: var(--radius-md);
+
+  /* ============================================
+   * TABLES
+   * ============================================ */
+
+  --table-header-height: 40px;
+  --table-row-height: 44px;
+  --table-row-height-compact: 36px;
+
+  --table-cell-padding-x: 12px;
+  --table-cell-padding-y: 8px;
+
+  --table-header-font-size: var(--text-sm);  /* 13px */
+  --table-header-font-weight: var(--weight-normal);
+  --table-header-text-transform: uppercase;
+  --table-header-letter-spacing: var(--tracking-wide);
+
+  /* SetHero table border style */
+  --table-section-border: 1px dashed var(--color-table-header-border);
+  --table-cell-border: 1px solid var(--color-table-row-border);
+
+  /* ============================================
+   * CALL SHEET DOCUMENT (Preview Canvas)
+   * ============================================ */
+
+  --doc-canvas-bg: var(--color-surface-muted);
+  --doc-page-bg: var(--color-surface);
+  --doc-page-border: 1px solid var(--color-border);
+  --doc-page-radius: var(--radius-none);
+  --doc-page-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --doc-page-padding: var(--space-5);
+
+  --doc-section-font-size: var(--text-sm);
+  --doc-section-font-weight: var(--weight-normal);
+  --doc-section-letter-spacing: var(--tracking-wide);
+
+  --doc-table-font-size: 11px;
+  --doc-table-header-font-size: 9px;
+  --doc-table-header-font-weight: var(--weight-semibold);
+  --doc-table-header-color: #ffffff;
+  --doc-table-text-color: var(--color-doc-ink);
+  --doc-table-border: 1px solid var(--color-doc-ink);
+  --doc-table-header-fill: #000000;
+  --doc-table-row-height: 20px;
+  --doc-table-cell-padding-x: 5px;
+  --doc-table-cell-padding-y: 2px;
+  --doc-table-line-height: 1.15;
+
+  /* Section label tokens (separate from table header) */
+  --doc-section-label-bg: #f2f2f2;
+  --doc-section-label-color: #111111;
+
+  /* Section band tokens (full-width high-contrast headers) */
+  --doc-section-band-bg: #111111;
+  --doc-section-band-text: #ffffff;
+
+  /* ============================================
+   * FORM INPUTS
+   * ============================================ */
+
+  --input-height: 40px;
+  --input-padding-x: 12px;
+  --input-padding-y: 8px;
+  --input-radius: var(--radius-md);
+  --input-border: var(--border-width) solid var(--color-border);
+  --input-bg: var(--color-surface);
+  --input-focus-ring: 2px solid var(--color-primary);
+
+  /* ============================================
+   * TRANSITIONS
+   * ============================================ */
+
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+
+  /* ============================================
+   * Z-INDEX SCALE
+   * ============================================ */
+
+  --z-dropdown: 50;
+  --z-sticky: 100;
+  --z-fixed: 200;
+  --z-modal-backdrop: 300;
+  --z-modal: 400;
+  --z-popover: 500;
+  --z-tooltip: 600;
+}
+
+/* ============================================
+ * DARK MODE OVERRIDES (Optional)
+ * ============================================ */
+
+/* Uncomment to enable dark mode support
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0f172a;
+    --color-surface: #1e293b;
+    --color-surface-muted: #334155;
+    --color-text: #f1f5f9;
+    --color-text-secondary: #cbd5e1;
+    --color-text-muted: #94a3b8;
+    --color-border: #334155;
+  }
+}
+*/
+
+/* ============================================
+ * UTILITY CLASSES
+ * ============================================ */
+
+/* Layout Panel Background (SetHero style) */
+.bg-layout-panel {
+  background-color: var(--color-surface-muted);
+}
+
+/* Table Section Header (SetHero style) */
+.table-section-header {
+  font-size: var(--table-header-font-size);
+  font-weight: var(--table-header-font-weight);
+  text-transform: var(--table-header-text-transform);
+  letter-spacing: var(--table-header-letter-spacing);
+  border-top: var(--table-section-border);
+  padding: var(--space-2) var(--space-3);
+}
+
+.doc-canvas {
+  background-color: var(--doc-canvas-bg);
+}
+
+.doc-page {
+  background-color: var(--doc-page-bg);
+  border: var(--doc-page-border);
+  border-radius: var(--doc-page-radius);
+  box-shadow: var(--doc-page-shadow);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--color-doc-ink);
+}
+
+.doc-page-content {
+  padding: var(--doc-page-padding);
+}
+
+.doc-section-header {
+  border-top: var(--table-section-border);
+  padding: var(--space-1-5) var(--space-2-5);
+  font-size: var(--doc-section-font-size);
+  font-weight: var(--doc-section-font-weight);
+  color: var(--doc-table-text-color);
+}
+
+.doc-section-header--caps {
+  text-transform: uppercase;
+  letter-spacing: var(--doc-section-letter-spacing);
+}
+
+.doc-section-header--boxed {
+  border: var(--doc-table-border);
+  border-bottom: 0;
+  background: var(--doc-section-label-bg);
+  color: var(--doc-section-label-color);
+  padding: var(--doc-table-cell-padding-y) var(--doc-table-cell-padding-x);
+  margin-bottom: -1px;
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+}
+
+.doc-section-header--boxed.doc-section-header--caps {
+  letter-spacing: var(--tracking-wider);
+}
+
+/* Label variant - SetHero style: dark text label ABOVE table (not part of table) */
+.doc-section-header--label {
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  color: var(--doc-section-label-color);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  border: 0;
+  background: transparent;
+  padding: 0 0 4px 0;
+  margin-bottom: 0;
+  line-height: var(--leading-tight);
+  display: block;
+}
+
+.doc-section-header--label.doc-section-header--caps {
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+}
+
+/* Band variant - SetHero style: full-width dark band with white text */
+.doc-section-header--band {
+  background: var(--doc-section-band-bg);
+  color: var(--doc-section-band-text);
+  font-size: 11px;
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  border: 0;
+  padding: 6px 8px;
+  margin: 0 calc(-1 * var(--doc-page-padding, 20px));
+  width: calc(100% + 2 * var(--doc-page-padding, 20px));
+  line-height: var(--leading-tight);
+  display: block;
+}
+
+/* Inline label variant - small pill/label above table (not edge-to-edge) */
+.doc-section-header--inline-label {
+  display: inline-flex;
+  width: fit-content;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--doc-section-label-color);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  margin-bottom: 6px;
+  line-height: var(--leading-tight);
+}
+
+.doc-divider-dashed {
+  border-top: var(--table-section-border);
+}
+
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--doc-table-font-size);
+  line-height: var(--doc-table-line-height, 1.15);
+  color: var(--doc-table-text-color);
+  border: var(--doc-table-border);
+}
+
+.doc-table th,
+.doc-table td {
+  padding: var(--doc-table-cell-padding-y) var(--doc-table-cell-padding-x);
+  vertical-align: middle;
+  border: var(--doc-table-border);
+  line-height: var(--doc-table-line-height, 1.15);
+}
+
+.doc-table thead th {
+  font-size: var(--doc-table-header-font-size);
+  font-weight: var(--doc-table-header-font-weight);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--doc-table-header-color);
+  background: var(--doc-table-header-fill);
+  white-space: nowrap;
+}
+
+.doc-table tbody tr {
+  height: var(--doc-table-row-height);
+}
+
+.doc-table tbody td {
+  font-size: var(--doc-table-font-size);
+}
+
+/* Button SetHero Style */
+.btn-sethero {
+  height: var(--btn-height-lg);
+  padding: var(--space-1-5) var(--btn-padding-x-lg);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  border-radius: var(--btn-radius);
+  background-color: var(--color-sethero-blue);
+  color: var(--color-text-inverted);
+  transition: background-color var(--transition-fast);
+}
+
+.btn-sethero:hover {
+  background-color: var(--color-sethero-blue-hover);
+}

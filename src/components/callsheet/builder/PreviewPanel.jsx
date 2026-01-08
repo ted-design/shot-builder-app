@@ -405,7 +405,7 @@ export default function PreviewPanel({
 
       <div className="flex-1 overflow-hidden bg-slate-50 dark:bg-slate-900">
         {previewDesign === "modern" ? (
-          <div className="h-full overflow-auto p-6">
+          <div className="doc-canvas h-full overflow-auto p-6">
             <CallSheetPreviewModern
               data={modernData}
               colors={modernColors}

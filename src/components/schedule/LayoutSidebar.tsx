@@ -75,7 +75,7 @@ function SortableRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 p-2 rounded-md border",
+        "flex items-center gap-2 p-2 rounded-md border min-h-11",
         active ? "bg-blue-50 border-blue-200" : "bg-white border-slate-200",
         section.enabled ? "" : "opacity-60",
         isDragging ? "shadow-md" : ""
