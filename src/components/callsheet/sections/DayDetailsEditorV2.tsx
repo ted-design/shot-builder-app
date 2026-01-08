@@ -15,15 +15,10 @@ import LocationCreateModal from "../../locations/LocationCreateModal";
 import ProjectLocationSelect from "../../locations/ProjectLocationSelect";
 import { shiftTimeString } from "../../../lib/callsheet/shiftTimes";
 import { toast } from "../../../lib/toast";
-import { Loader2, Plus, Trash2, Wand2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Wand2, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore";
-import { DEFAULT_LOCATION_TYPES } from "../../../constants/defaultLocationTypes";
-import type {
-  DayDetails,
-  DayDetailsCustomLocation,
-  DayDetailsNotesStyle,
-  LocationReference,
-} from "../../../types/callsheet";
+import { deriveLocationsFromLegacy, getDefaultLocationBlocks } from "../../../lib/callsheet/deriveLocationsFromLegacy";
+import type { DayDetails, DayDetailsNotesStyle, LocationBlock } from "../../../types/callsheet";
 
 type TabKey = "people" | "locations" | "times";
 
@@ -64,57 +59,46 @@ function randomId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-function normalizeLocation(ref: LocationReference | null | undefined) {
+interface LocationBlockDraft {
+  id: string;
+  title: string;
+  locationId: string;
+  label: string;
+  notes: string;
+  showName: boolean;
+  showPhone: boolean;
+}
+
+function normalizeLocationBlock(block: LocationBlock): LocationBlockDraft {
   return {
-    locationId: ref?.locationId ? String(ref.locationId) : "",
-    label: ref?.label ? String(ref.label) : "",
-    notes: ref?.notes ? String(ref.notes) : "",
+    id: block.id || randomId(),
+    title: block.title || "",
+    locationId: block.ref?.locationId ? String(block.ref.locationId) : "",
+    label: block.ref?.label ? String(block.ref.label) : "",
+    notes: block.ref?.notes ? String(block.ref.notes) : "",
+    showName: block.showName !== false,
+    showPhone: block.showPhone === true,
   };
 }
 
-function buildLocationRef(locationId: string, label: string, notes: string): LocationReference | null {
-  const locationIdTrimmed = String(locationId || "").trim();
-  const trimmed = String(label || "").trim();
-  const notesTrimmed = String(notes || "").trim();
-  if (!locationIdTrimmed && !trimmed && !notesTrimmed) return null;
-  return {
-    locationId: locationIdTrimmed || null,
-    label: trimmed || null,
-    notes: notesTrimmed || null,
-  };
-}
+function buildLocationBlock(draft: LocationBlockDraft): LocationBlock {
+  const locationIdTrimmed = String(draft.locationId || "").trim();
+  const labelTrimmed = String(draft.label || "").trim();
+  const notesTrimmed = String(draft.notes || "").trim();
+  const hasContent = locationIdTrimmed || labelTrimmed || notesTrimmed;
 
-function normalizeCustomLocations(rows: unknown): Array<DayDetailsCustomLocation> {
-  if (!Array.isArray(rows)) return [];
-  return rows
-    .map((row) => {
-      const obj = row && typeof row === "object" ? (row as any) : {};
-      const id = obj.id ? String(obj.id) : randomId();
-      const title = obj.title != null ? String(obj.title) : "";
-      const label = obj.label != null ? String(obj.label) : "";
-      const notes = obj.notes != null ? String(obj.notes) : "";
-      return {
-        id,
-        title,
-        locationId: obj.locationId ?? null,
-        label,
-        notes,
-      } as DayDetailsCustomLocation;
-    })
-    .filter((row) => row.id);
-}
-
-function buildCustomLocationRow(row: DayDetailsCustomLocation): DayDetailsCustomLocation | null {
-  const title = String(row.title || "").trim();
-  const label = String(row.label || "").trim();
-  const notes = String(row.notes || "").trim();
-  if (!title && !label && !notes) return null;
   return {
-    id: row.id || randomId(),
-    title: title || null,
-    locationId: row.locationId ?? null,
-    label: label || null,
-    notes: notes || null,
+    id: draft.id || randomId(),
+    title: String(draft.title || "").trim() || "Location",
+    ref: hasContent
+      ? {
+          locationId: locationIdTrimmed || null,
+          label: labelTrimmed || null,
+          notes: notesTrimmed || null,
+        }
+      : null,
+    showName: draft.showName !== false,
+    showPhone: draft.showPhone === true,
   };
 }
 
@@ -146,11 +130,7 @@ type DayDetailsDraft = {
   setMedic: string;
   scriptVersion: string;
   scheduleVersion: string;
-  productionOffice: { locationId: string; label: string; notes: string };
-  nearestHospital: { locationId: string; label: string; notes: string };
-  parking: { locationId: string; label: string; notes: string };
-  basecamp: { locationId: string; label: string; notes: string };
-  customLocations: Array<DayDetailsCustomLocation>;
+  locations: LocationBlockDraft[];
   notes: string;
   notesPlacement: "top" | "bottom";
   notesColor: string;
@@ -186,20 +166,21 @@ function buildUpdatesFromDraft(draft: DayDetailsDraft): Partial<Omit<DayDetails,
     notesIcon: draft.notesIcon,
   });
 
-  const customLocations = (draft.customLocations || [])
-    .map((row) => buildCustomLocationRow(row))
-    .filter(Boolean) as Array<DayDetailsCustomLocation>;
+  // Build the modern locations array from drafts
+  const locations = (draft.locations || []).map((loc) => buildLocationBlock(loc));
 
   const next: Partial<Omit<DayDetails, "scheduleId">> = {
     keyPeople: toNullableText(draft.keyPeople),
     setMedic: toNullableText(draft.setMedic),
     scriptVersion: toNullableText(draft.scriptVersion),
     scheduleVersion: toNullableText(draft.scheduleVersion),
-    productionOffice: buildLocationRef(draft.productionOffice.locationId, draft.productionOffice.label, draft.productionOffice.notes),
-    nearestHospital: buildLocationRef(draft.nearestHospital.locationId, draft.nearestHospital.label, draft.nearestHospital.notes),
-    parking: buildLocationRef(draft.parking.locationId, draft.parking.label, draft.parking.notes),
-    basecamp: buildLocationRef(draft.basecamp.locationId, draft.basecamp.label, draft.basecamp.notes),
-    customLocations: customLocations.length ? customLocations : null,
+    locations: locations.length > 0 ? locations : null,
+    // Clear legacy fields when using modern locations array
+    productionOffice: null,
+    nearestHospital: null,
+    parking: null,
+    basecamp: null,
+    customLocations: null,
     notes: toNullableText(draft.notes),
     notesStyle,
     crewCallTime: String(draft.crewCallTime || ""),
@@ -268,34 +249,17 @@ export default function DayDetailsEditorV2({
     return parts.join(" · ");
   }, []);
 
-  type FixedLocationKey = "productionOffice" | "nearestHospital" | "parking" | "basecamp";
-
-  type LocationCreateTarget = { kind: "fixed"; key: FixedLocationKey } | { kind: "custom"; id: string };
-
-  const defaultLocationFieldByTypeId = useMemo<Record<string, FixedLocationKey>>(
-    () => ({
-      "production-office": "productionOffice",
-      "nearest-hospital": "nearestHospital",
-      basecamp: "basecamp",
-      parking: "parking",
-    }),
-    []
-  );
-
+  // Target location block ID when creating a new project location
   const [createLocationOpen, setCreateLocationOpen] = useState(false);
   const [createLocationBusy, setCreateLocationBusy] = useState(false);
-  const [createLocationTarget, setCreateLocationTarget] = useState<LocationCreateTarget | null>(null);
+  const [createLocationTargetId, setCreateLocationTargetId] = useState<string | null>(null);
 
   const [draft, setDraft] = useState<DayDetailsDraft>(() => ({
     keyPeople: "",
     setMedic: "",
     scriptVersion: "",
     scheduleVersion: "",
-    productionOffice: { locationId: "", label: "", notes: "" },
-    nearestHospital: { locationId: "", label: "", notes: "" },
-    parking: { locationId: "", label: "", notes: "" },
-    basecamp: { locationId: "", label: "", notes: "" },
-    customLocations: [] as Array<DayDetailsCustomLocation>,
+    locations: getDefaultLocationBlocks().map((block) => normalizeLocationBlock(block)),
     notes: "",
     notesPlacement: "bottom" as "top" | "bottom",
     notesColor: "",
@@ -331,17 +295,16 @@ export default function DayDetailsEditorV2({
   useEffect(() => {
     if (!dayDetails) return;
     const notesStyle = normalizeNotesStyle(dayDetails.notesStyle);
-    const customLocations = normalizeCustomLocations(dayDetails.customLocations);
+    // Derive locations from either modern array or legacy fields
+    const derivedLocations = deriveLocationsFromLegacy(dayDetails);
+    const locationDrafts = derivedLocations.map((block) => normalizeLocationBlock(block));
+
     const nextDraft: DayDetailsDraft = {
       keyPeople: normalizeText(dayDetails.keyPeople),
       setMedic: normalizeText(dayDetails.setMedic),
       scriptVersion: normalizeText(dayDetails.scriptVersion),
       scheduleVersion: normalizeText(dayDetails.scheduleVersion),
-      productionOffice: normalizeLocation(dayDetails.productionOffice),
-      nearestHospital: normalizeLocation(dayDetails.nearestHospital),
-      parking: normalizeLocation(dayDetails.parking),
-      basecamp: normalizeLocation(dayDetails.basecamp),
-      customLocations,
+      locations: locationDrafts.length > 0 ? locationDrafts : getDefaultLocationBlocks().map((b) => normalizeLocationBlock(b)),
       notes: normalizeText(dayDetails.notes),
       notesPlacement: notesStyle.placement,
       notesColor: notesStyle.color,
@@ -465,29 +428,18 @@ export default function DayDetailsEditorV2({
 
         const address = formatProjectLocationAddress(payload as any);
 
-        if (createLocationTarget?.kind === "fixed") {
-          const key = createLocationTarget.key;
+        // Update the target location block with the new location
+        if (createLocationTargetId) {
           setDraft((prev) => ({
             ...prev,
-            [key]: {
-              ...prev[key],
-              locationId: docRef.id,
-              label: prev[key].label.trim() ? prev[key].label : payload.name,
-              notes: prev[key].notes.trim() ? prev[key].notes : address,
-            },
-          }));
-        } else if (createLocationTarget?.kind === "custom") {
-          const rowId = createLocationTarget.id;
-          setDraft((prev) => ({
-            ...prev,
-            customLocations: (prev.customLocations || []).map((row) =>
-              row.id !== rowId
-                ? row
+            locations: prev.locations.map((loc) =>
+              loc.id !== createLocationTargetId
+                ? loc
                 : {
-                    ...row,
+                    ...loc,
                     locationId: docRef.id,
-                    label: String(row.label || "").trim() ? row.label : payload.name,
-                    notes: String(row.notes || "").trim() ? row.notes : address,
+                    label: loc.label.trim() ? loc.label : payload.name,
+                    notes: loc.notes.trim() ? loc.notes : address,
                   }
             ),
           }));
@@ -502,60 +454,30 @@ export default function DayDetailsEditorV2({
         setCreateLocationBusy(false);
       }
     },
-    [canCreateLocations, clientId, createLocationTarget, formatProjectLocationAddress, projectId, user]
+    [canCreateLocations, clientId, createLocationTargetId, formatProjectLocationAddress, projectId, user]
   );
 
-  const openCreateLocation = useCallback((target: LocationCreateTarget) => {
-    setCreateLocationTarget(target);
+  const openCreateLocation = useCallback((blockId: string) => {
+    setCreateLocationTargetId(blockId);
     setCreateLocationOpen(true);
   }, []);
 
-  const handleFixedLocationChange = useCallback(
-    (key: FixedLocationKey, nextId: string) => {
-      setDraft((prev) => {
-        const current = (prev as any)[key] || { locationId: "", label: "", notes: "" };
-        const nextLocationId = String(nextId || "");
-        if (!nextLocationId) {
-          return {
-            ...prev,
-            [key]: { ...current, locationId: "" },
-          } as any;
-        }
-
-        const loc = projectLocationsById.get(nextLocationId);
-        const name = String(loc?.name || "").trim();
-        const address = loc ? formatProjectLocationAddress(loc) : "";
-
-        return {
-          ...prev,
-          [key]: {
-            ...current,
-            locationId: nextLocationId,
-            label: String(current.label || "").trim() ? current.label : name,
-            notes: String(current.notes || "").trim() ? current.notes : address,
-          },
-        } as any;
-      });
-    },
-    [formatProjectLocationAddress, projectLocationsById]
-  );
-
-  const handleCustomLocationLibraryChange = useCallback(
-    (rowId: string, nextId: string) => {
+  const handleLocationLibraryChange = useCallback(
+    (blockId: string, nextId: string) => {
       const nextLocationId = String(nextId || "");
       setDraft((prev) => ({
         ...prev,
-        customLocations: (prev.customLocations || []).map((row) => {
-          if (row.id !== rowId) return row;
-          if (!nextLocationId) return { ...row, locationId: null };
-          const loc = projectLocationsById.get(nextLocationId);
-          const name = String(loc?.name || "").trim();
-          const address = loc ? formatProjectLocationAddress(loc) : "";
+        locations: prev.locations.map((loc) => {
+          if (loc.id !== blockId) return loc;
+          if (!nextLocationId) return { ...loc, locationId: "" };
+          const libLoc = projectLocationsById.get(nextLocationId);
+          const name = String(libLoc?.name || "").trim();
+          const address = libLoc ? formatProjectLocationAddress(libLoc) : "";
           return {
-            ...row,
+            ...loc,
             locationId: nextLocationId,
-            label: String(row.label || "").trim() ? row.label : name,
-            notes: String(row.notes || "").trim() ? row.notes : address,
+            label: loc.label.trim() ? loc.label : name,
+            notes: loc.notes.trim() ? loc.notes : address,
           };
         }),
       }));
@@ -566,17 +488,15 @@ export default function DayDetailsEditorV2({
   const handleReset = useCallback(() => {
     if (!dayDetails) return;
     const notesStyle = normalizeNotesStyle(dayDetails.notesStyle);
-    const customLocations = normalizeCustomLocations(dayDetails.customLocations);
+    const derivedLocations = deriveLocationsFromLegacy(dayDetails);
+    const locationDrafts = derivedLocations.map((block) => normalizeLocationBlock(block));
+
     setDraft({
       keyPeople: normalizeText(dayDetails.keyPeople),
       setMedic: normalizeText(dayDetails.setMedic),
       scriptVersion: normalizeText(dayDetails.scriptVersion),
       scheduleVersion: normalizeText(dayDetails.scheduleVersion),
-      productionOffice: normalizeLocation(dayDetails.productionOffice),
-      nearestHospital: normalizeLocation(dayDetails.nearestHospital),
-      parking: normalizeLocation(dayDetails.parking),
-      basecamp: normalizeLocation(dayDetails.basecamp),
-      customLocations,
+      locations: locationDrafts.length > 0 ? locationDrafts : getDefaultLocationBlocks().map((b) => normalizeLocationBlock(b)),
       notes: normalizeText(dayDetails.notes),
       notesPlacement: notesStyle.placement,
       notesColor: notesStyle.color,
@@ -609,28 +529,49 @@ export default function DayDetailsEditorV2({
     }));
   }, [shiftMinutes]);
 
-  const addCustomLocation = useCallback(() => {
+  // Location list manipulation
+  const addLocation = useCallback(() => {
     setDraft((prev) => ({
       ...prev,
-      customLocations: [
-        ...(prev.customLocations || []),
-        { id: randomId(), title: "", locationId: null, label: "", notes: "" },
+      locations: [
+        ...prev.locations,
+        { id: randomId(), title: "", locationId: "", label: "", notes: "", showName: true, showPhone: false },
       ],
     }));
   }, []);
 
-  const removeCustomLocation = useCallback((id: string) => {
+  const removeLocation = useCallback((id: string) => {
     setDraft((prev) => ({
       ...prev,
-      customLocations: (prev.customLocations || []).filter((row) => row.id !== id),
+      locations: prev.locations.filter((loc) => loc.id !== id),
     }));
   }, []);
 
-  const updateCustomLocation = useCallback((id: string, updates: Partial<DayDetailsCustomLocation>) => {
+  const updateLocation = useCallback((id: string, updates: Partial<LocationBlockDraft>) => {
     setDraft((prev) => ({
       ...prev,
-      customLocations: (prev.customLocations || []).map((row) => (row.id === id ? { ...row, ...updates } : row)),
+      locations: prev.locations.map((loc) => (loc.id === id ? { ...loc, ...updates } : loc)),
     }));
+  }, []);
+
+  const moveLocationUp = useCallback((id: string) => {
+    setDraft((prev) => {
+      const index = prev.locations.findIndex((loc) => loc.id === id);
+      if (index <= 0) return prev;
+      const newLocations = [...prev.locations];
+      [newLocations[index - 1], newLocations[index]] = [newLocations[index], newLocations[index - 1]];
+      return { ...prev, locations: newLocations };
+    });
+  }, []);
+
+  const moveLocationDown = useCallback((id: string) => {
+    setDraft((prev) => {
+      const index = prev.locations.findIndex((loc) => loc.id === id);
+      if (index < 0 || index >= prev.locations.length - 1) return prev;
+      const newLocations = [...prev.locations];
+      [newLocations[index], newLocations[index + 1]] = [newLocations[index + 1], newLocations[index]];
+      return { ...prev, locations: newLocations };
+    });
   }, []);
 
   const handleAutoFillWeather = useCallback(() => {
@@ -735,114 +676,84 @@ export default function DayDetailsEditorV2({
 
         {tab === "locations" ? (
           <div className="space-y-4">
-            <div className="grid gap-4 lg:grid-cols-2">
-              {DEFAULT_LOCATION_TYPES.map((type) => {
-                const key = defaultLocationFieldByTypeId[type.id];
-                if (!key) return null;
-                return (
-                  <div
-                    key={type.id}
-                    className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
-                  >
-                    <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{type.name}</div>
-                  <div className="mt-3 grid gap-3">
-                    <label className="grid gap-1 text-sm">
-                      <span className="text-xs font-medium text-slate-500">From library</span>
-                      <ProjectLocationSelect
-                        locations={projectLocations}
-                        value={(draft as any)[key].locationId || ""}
-                        onChange={(value) => handleFixedLocationChange(key, value)}
-                        onCreateNew={
-                          readOnly || !canCreateLocations ? undefined : () => openCreateLocation({ kind: "fixed", key })
-                        }
-                        placeholder="Select location"
-                        isDisabled={readOnly}
-                      />
-                    </label>
-                    <label className="grid gap-1 text-sm">
-                      <span className="text-xs font-medium text-slate-500">Label</span>
-                      <Input
-                        value={(draft as any)[key].label}
-                        onChange={(e) =>
-                          setDraft((prev) => ({
-                            ...prev,
-                            [key]: { ...(prev as any)[key], label: e.target.value },
-                          }))
-                        }
-                        placeholder="Address / name"
-                        disabled={readOnly}
-                      />
-                    </label>
-                    <label className="grid gap-1 text-sm">
-                      <span className="text-xs font-medium text-slate-500">Notes</span>
-                      <Input
-                        value={(draft as any)[key].notes}
-                        onChange={(e) =>
-                          setDraft((prev) => ({
-                            ...prev,
-                            [key]: { ...(prev as any)[key], notes: e.target.value },
-                          }))
-                        }
-                        placeholder="Optional notes"
-                        disabled={readOnly}
-                      />
-                    </label>
-                  </div>
-                  </div>
-                );
-              })}
-            </div>
-
+            {/* Unified reorderable locations list */}
             <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3 mb-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Additional locations</div>
-                  <div className="text-xs text-slate-500">Add extra location cards for this day.</div>
+                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Locations</div>
+                  <div className="text-xs text-slate-500">Add, remove, and reorder locations for this day.</div>
                 </div>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="gap-1.5"
-                  onClick={addCustomLocation}
+                  onClick={addLocation}
                   disabled={readOnly}
                 >
                   <Plus className="h-4 w-4" />
-                  Add New Row
+                  Add Location
                 </Button>
               </div>
 
-              {draft.customLocations?.length ? (
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  {draft.customLocations.map((row) => (
+              {draft.locations.length > 0 ? (
+                <div className="space-y-3">
+                  {draft.locations.map((loc, index) => (
                     <div
-                      key={row.id}
-                      className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+                      key={loc.id}
+                      className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                          {row.title?.trim() ? row.title : "Custom location"}
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <GripVertical className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                          <div className="min-w-0 text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
+                            {loc.title.trim() || "Location"}
+                          </div>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => removeCustomLocation(row.id)}
-                          disabled={readOnly}
-                          aria-label="Remove location row"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => moveLocationUp(loc.id)}
+                            disabled={readOnly || index === 0}
+                            aria-label="Move up"
+                          >
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => moveLocationDown(loc.id)}
+                            disabled={readOnly || index === draft.locations.length - 1}
+                            aria-label="Move down"
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            onClick={() => removeLocation(loc.id)}
+                            disabled={readOnly}
+                            aria-label="Remove location"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
 
-                      <div className="mt-3 grid gap-3">
+                      <div className="grid gap-3 md:grid-cols-2">
                         <label className="grid gap-1 text-sm">
                           <span className="text-xs font-medium text-slate-500">Title</span>
                           <Input
-                            value={row.title || ""}
-                            onChange={(e) => updateCustomLocation(row.id, { title: e.target.value })}
-                            placeholder="e.g. Production office"
+                            value={loc.title}
+                            onChange={(e) => updateLocation(loc.id, { title: e.target.value })}
+                            placeholder="e.g. Production Office"
                             disabled={readOnly}
                           />
                         </label>
@@ -850,31 +761,31 @@ export default function DayDetailsEditorV2({
                           <span className="text-xs font-medium text-slate-500">From library</span>
                           <ProjectLocationSelect
                             locations={projectLocations}
-                            value={row.locationId ? String(row.locationId) : ""}
-                            onChange={(value) => handleCustomLocationLibraryChange(row.id, value)}
+                            value={loc.locationId}
+                            onChange={(value) => handleLocationLibraryChange(loc.id, value)}
                             onCreateNew={
                               readOnly || !canCreateLocations
                                 ? undefined
-                                : () => openCreateLocation({ kind: "custom", id: row.id })
+                                : () => openCreateLocation(loc.id)
                             }
                             placeholder="Select location"
                             isDisabled={readOnly}
                           />
                         </label>
                         <label className="grid gap-1 text-sm">
-                          <span className="text-xs font-medium text-slate-500">Label</span>
+                          <span className="text-xs font-medium text-slate-500">Label / Address</span>
                           <Input
-                            value={row.label || ""}
-                            onChange={(e) => updateCustomLocation(row.id, { label: e.target.value })}
-                            placeholder="Address / name"
+                            value={loc.label}
+                            onChange={(e) => updateLocation(loc.id, { label: e.target.value })}
+                            placeholder="Display name or address"
                             disabled={readOnly}
                           />
                         </label>
                         <label className="grid gap-1 text-sm">
                           <span className="text-xs font-medium text-slate-500">Notes</span>
                           <Input
-                            value={row.notes || ""}
-                            onChange={(e) => updateCustomLocation(row.id, { notes: e.target.value })}
+                            value={loc.notes}
+                            onChange={(e) => updateLocation(loc.id, { notes: e.target.value })}
                             placeholder="Optional notes"
                             disabled={readOnly}
                           />
@@ -884,7 +795,17 @@ export default function DayDetailsEditorV2({
                   ))}
                 </div>
               ) : (
-                <div className="mt-3 text-xs text-slate-500">No custom locations.</div>
+                <div className="text-center py-8 text-sm text-slate-500">
+                  No locations added yet.{" "}
+                  <button
+                    type="button"
+                    onClick={addLocation}
+                    className="text-blue-600 hover:underline"
+                    disabled={readOnly}
+                  >
+                    Add your first location
+                  </button>
+                </div>
               )}
             </div>
 
@@ -1090,7 +1011,7 @@ export default function DayDetailsEditorV2({
           onClose={() => {
             if (createLocationBusy) return;
             setCreateLocationOpen(false);
-            setCreateLocationTarget(null);
+            setCreateLocationTargetId(null);
           }}
           onCreate={handleCreateProjectLocation}
         />
