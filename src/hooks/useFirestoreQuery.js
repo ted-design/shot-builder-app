@@ -11,7 +11,7 @@
  * - Optimistic updates for mutations
  */
 
-import { useMemo, useEffect, useCallback } from "react";
+import { useMemo, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   collection,
@@ -191,6 +191,9 @@ export function useShots(clientId, projectId, options = {}) {
 /**
  * Hook for fetching projects with realtime updates
  *
+ * Uses onSnapshot as the ONLY data source to prevent race conditions
+ * that cause UI flicker. TanStack Query provides caching and state management.
+ *
  * @param {string} clientId - Client ID
  * @param {object} options - Query options
  * @returns {object} Query result with data, loading, error states
@@ -204,6 +207,10 @@ export function useProjects(clientId, options = {}) {
   const { enabled: enabledOverride, ...restOptions } = options;
   const isEnabled = Boolean((enabledOverride ?? true) && clientId);
 
+  // Ref to resolve/reject the initial queryFn promise when first snapshot arrives
+  // Structure: { resolve, reject } or null if no pending promise
+  const resolverRef = useRef(null);
+
   const mapSnapshot = useCallback((snapshot) => {
     return snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
@@ -213,20 +220,11 @@ export function useProjects(clientId, options = {}) {
   const projectsQuery = useMemo(() => {
     if (!clientId) return null;
     const projectsRef = collection(db, "clients", clientId, "projects");
-    return query(projectsRef, orderBy("createdAt", "desc"));
+    // Order by updatedAt to match default client-side sort ("recent" mode)
+    return query(projectsRef, orderBy("updatedAt", "desc"));
   }, [clientId]);
 
-  const result = useQuery({
-    queryKey,
-    queryFn: async () => {
-      if (!isEnabled || !projectsQuery) return [];
-      const snapshot = await getDocs(projectsQuery);
-      return mapSnapshot(snapshot);
-    },
-    enabled: isEnabled,
-    ...restOptions,
-  });
-
+  // onSnapshot is the ONLY source of truth - no getDocs race condition
   useEffect(() => {
     if (!isEnabled || !projectsQuery) return undefined;
 
@@ -235,14 +233,61 @@ export function useProjects(clientId, options = {}) {
         projectsQuery,
         (snapshot) => {
           const projects = mapSnapshot(snapshot);
+
+          // Resolve pending queryFn promise on first snapshot
+          if (resolverRef.current) {
+            resolverRef.current.resolve(projects);
+            resolverRef.current = null;
+          }
+
+          // Update cache for this and subsequent snapshots
           queryClient.setQueryData(queryKey, projects);
         },
         (error) => {
           console.error("[useProjects] Subscription error:", error);
+          // Reject pending queryFn promise if first snapshot failed
+          if (resolverRef.current) {
+            resolverRef.current.reject(error);
+            resolverRef.current = null;
+          }
         }
       )
     );
   }, [isEnabled, queryClient, queryKey, projectsQuery, mapSnapshot]);
+
+  const result = useQuery({
+    queryKey,
+    queryFn: ({ signal }) => {
+      // Return cached data immediately if available
+      const cached = queryClient.getQueryData(queryKey);
+      if (cached !== undefined) {
+        return Promise.resolve(cached);
+      }
+
+      // Handle already-aborted signal
+      if (signal?.aborted) {
+        return Promise.reject(new Error("Query aborted"));
+      }
+
+      // Wait for onSnapshot to deliver initial data
+      return new Promise((resolve, reject) => {
+        resolverRef.current = { resolve, reject };
+
+        // Handle TanStack Query cancellation (e.g., component unmount)
+        const handleAbort = () => {
+          if (resolverRef.current) {
+            resolverRef.current.reject(new Error("Query aborted"));
+            resolverRef.current = null;
+          }
+        };
+
+        signal?.addEventListener("abort", handleAbort, { once: true });
+      });
+    },
+    enabled: isEnabled,
+    staleTime: Infinity, // Never refetch via queryFn - onSnapshot handles updates
+    ...restOptions,
+  });
 
   return result;
 }

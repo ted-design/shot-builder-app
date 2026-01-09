@@ -34,9 +34,10 @@ import PullShareModal from "../components/pulls/PullShareModal";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 
 export default function PullEditorPage() {
-  const { pullId } = useParams();
+  const { projectId: urlProjectId, pullId } = useParams();
   const navigate = useNavigate();
-  const { currentProjectId: projectId } = useProjectScope();
+  const { currentProjectId } = useProjectScope();
+  const projectId = urlProjectId ?? currentProjectId;
   const { clientId, role } = useAuth();
   const canManage = canManagePulls(role);
   const canFulfill = canFulfillPulls(role);

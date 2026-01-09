@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate, useMatch } from "react-router-dom";
 import { SidebarProvider, useSidebar } from '../../context/SidebarContext';
 import { useAuth } from '../../context/AuthContext';
 import { useProjectScope } from '../../context/ProjectScopeContext';
@@ -27,6 +27,11 @@ function SidebarLayoutContent() {
   const { clientId } = useAuth();
   const { currentProjectId, setCurrentProjectId } = useProjectScope();
 
+  // Extract projectId from route to make breadcrumbs route-authoritative
+  const projectMatch = useMatch("/projects/:projectId/*");
+  const routeProjectId = projectMatch?.params?.projectId;
+  const effectiveProjectId = routeProjectId ?? currentProjectId;
+
   const sidebarWidth = isExpanded ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED;
 
   const resolvedClientId = clientId || CLIENT_ID;
@@ -35,9 +40,9 @@ function SidebarLayoutContent() {
   });
 
   const currentProject = useMemo(() => {
-    if (!currentProjectId) return null;
-    return projects.find((project) => project.id === currentProjectId) || null;
-  }, [projects, currentProjectId]);
+    if (!effectiveProjectId) return null;
+    return projects.find((project) => project.id === effectiveProjectId) || null;
+  }, [projects, effectiveProjectId]);
 
   const projectMenuItems = useMemo(() => {
     if (!currentProjectId || !projects.length) return undefined;
@@ -58,17 +63,17 @@ function SidebarLayoutContent() {
     ];
   }, [currentProjectId, projects, navigate, setCurrentProjectId]);
 
-  // Generate breadcrumbs
+  // Generate breadcrumbs (route-authoritative when projectId is in URL)
   const breadcrumbItems = useMemo(() => {
-    const context = currentProjectId
+    const context = effectiveProjectId
       ? {
           projectName: currentProject?.name || "Project",
-          projectId: currentProjectId,
+          projectId: effectiveProjectId,
           projectMenuItems,
         }
       : {};
     return generateBreadcrumbs(location.pathname, context, location.search);
-  }, [location.pathname, location.search, currentProjectId, currentProject, projectMenuItems]);
+  }, [location.pathname, location.search, effectiveProjectId, currentProject, projectMenuItems]);
 
   const showBreadcrumbs = shouldShowBreadcrumbs(location.pathname);
 

@@ -46,16 +46,15 @@ describe("deriveLocationsFromLegacy", () => {
 
     const result = deriveLocationsFromLegacy(dayDetails);
 
-    expect(result).toHaveLength(4); // All 4 default slots
+    // Only legacy fields with content are included (basecamp is empty/null)
+    expect(result).toHaveLength(3);
     expect(result[0].title).toBe("Production Office");
     expect(result[0].ref?.label).toBe("Production HQ");
     expect(result[0].ref?.notes).toBe("456 Studio Blvd");
     expect(result[1].title).toBe("Nearest Hospital");
     expect(result[1].ref?.label).toBe("City Hospital");
-    expect(result[2].title).toBe("Basecamp");
-    expect(result[2].ref).toBeNull(); // Empty legacy field
-    expect(result[3].title).toBe("Parking");
-    expect(result[3].ref?.label).toBe("Lot A");
+    expect(result[2].title).toBe("Parking");
+    expect(result[2].ref?.label).toBe("Lot A");
   });
 
   it("appends custom locations from legacy format", () => {
@@ -77,11 +76,12 @@ describe("deriveLocationsFromLegacy", () => {
 
     const result = deriveLocationsFromLegacy(dayDetails);
 
-    expect(result).toHaveLength(6); // 4 default + 2 custom
-    expect(result[4].title).toBe("Catering");
-    expect(result[4].ref?.label).toBe("Food Truck Area");
-    expect(result[5].title).toBe("Talent Holding");
-    expect(result[5].ref?.label).toBe("Green Room");
+    // Only custom locations with content (empty legacy fields are skipped)
+    expect(result).toHaveLength(2);
+    expect(result[0].title).toBe("Catering");
+    expect(result[0].ref?.label).toBe("Food Truck Area");
+    expect(result[1].title).toBe("Talent Holding");
+    expect(result[1].ref?.label).toBe("Green Room");
   });
 
   it("returns empty array for null dayDetails", () => {
@@ -91,6 +91,43 @@ describe("deriveLocationsFromLegacy", () => {
 
   it("returns empty array for undefined dayDetails", () => {
     const result = deriveLocationsFromLegacy(undefined);
+    expect(result).toEqual([]);
+  });
+
+  it("returns empty array when dayDetails exists but has no legacy fields with content and no modern locations", () => {
+    const dayDetails = {
+      scheduleId: "sched-1",
+      crewCallTime: "09:00",
+      shootingCallTime: "10:00",
+      estimatedWrap: "18:00",
+      locations: null,
+      productionOffice: null,
+      nearestHospital: null,
+      parking: null,
+      basecamp: null,
+      customLocations: null,
+    } as DayDetails;
+
+    const result = deriveLocationsFromLegacy(dayDetails);
+
+    expect(result).toEqual([]);
+  });
+
+  it("returns empty array when legacy fields have empty content", () => {
+    const dayDetails = {
+      scheduleId: "sched-1",
+      crewCallTime: "",
+      shootingCallTime: "",
+      estimatedWrap: "",
+      locations: null,
+      productionOffice: { label: "", notes: "" },
+      nearestHospital: { label: "  ", notes: "  " }, // whitespace only
+      parking: null,
+      basecamp: null,
+    } as DayDetails;
+
+    const result = deriveLocationsFromLegacy(dayDetails);
+
     expect(result).toEqual([]);
   });
 });

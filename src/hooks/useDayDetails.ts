@@ -47,22 +47,28 @@ export function useDayDetails(
   const [details, setDetails] = useState<DayDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  // Explicit Firestore existence signal: null = not checked yet, true/false = snapshot.exists() result
+  const [exists, setExists] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!clientId || !projectId || !scheduleId) {
       setDetails(null);
+      setExists(null);
       setLoading(false);
       return;
     }
 
     setLoading(true);
     setError(null);
+    setExists(null);
 
     const ref = doc(db, ...scheduleDayDetailPath(projectId, scheduleId, detailId, clientId));
     const unsub = onSnapshot(
       ref,
       (snap) => {
-        if (!snap.exists()) {
+        const docExists = snap.exists();
+        setExists(docExists);
+        if (!docExists) {
           setDetails(null);
           setLoading(false);
           return;
@@ -93,10 +99,13 @@ export function useDayDetails(
       if (!clientId || !projectId || !scheduleId) throw new Error("Missing clientId/projectId/scheduleId");
       if (isDemoModeActive()) return { id: detailId };
       const ref = doc(db, ...scheduleDayDetailPath(projectId, scheduleId, detailId, clientId));
+      // IMPORTANT: Only write non-destructive metadata fields.
+      // Do NOT spread buildDefaultDayDetails() here - it would overwrite
+      // user-entered locations (and other fields) with null via merge:true.
       await setDoc(
         ref,
         {
-          ...buildDefaultDayDetails(scheduleId),
+          scheduleId,
           createdBy: user?.uid ?? null,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -133,7 +142,10 @@ export function useDayDetails(
 
   return {
     dayDetails: resolved,
-    hasRemoteDayDetails: Boolean(details),
+    // Explicit Firestore doc existence: true = doc exists, false = checked and doesn't exist, null = not checked yet
+    exists,
+    // Backward-compatible alias: true only when we've confirmed the doc exists in Firestore
+    hasRemoteDayDetails: exists === true,
     loading,
     error,
     ensureDayDetails,
