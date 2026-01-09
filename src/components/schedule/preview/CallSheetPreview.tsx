@@ -11,6 +11,11 @@ import { DocSectionHeader } from "./primitives/DocSectionHeader";
 import { paginateCallSheetSections } from "./paginateCallSheetSections";
 import { formatNotesForDisplay } from "../../../lib/sanitize";
 
+interface CrewDisplayOptions {
+  showEmails?: boolean;
+  showPhones?: boolean;
+}
+
 interface CallSheetPreviewProps {
   data: CallSheetData;
   colors?: CallSheetColors;
@@ -18,6 +23,7 @@ interface CallSheetPreviewProps {
   zoom?: number;
   layoutV2?: CallSheetLayoutV2 | null;
   sections?: CallSheetSection[] | null;
+  crewDisplayOptions?: CrewDisplayOptions;
 }
 
 const DEFAULT_COLORS: CallSheetColors = {
@@ -34,6 +40,7 @@ export function CallSheetPreview({
   zoom = 100,
   layoutV2,
   sections,
+  crewDisplayOptions,
 }: CallSheetPreviewProps) {
   const cssVars = {
     "--cs-primary": colors.primary,
@@ -88,7 +95,7 @@ export function CallSheetPreview({
           >
             {pageChromeHeader}
             {pageSections.map((section) => (
-              <React.Fragment key={section.id}>{renderSection(section, data, centerShape, pageIndex)}</React.Fragment>
+              <React.Fragment key={section.id}>{renderSection(section, data, centerShape, pageIndex, crewDisplayOptions)}</React.Fragment>
             ))}
             <CallSheetFooter />
           </DocumentPage>
@@ -129,7 +136,8 @@ function renderSection(
   section: CallSheetSection,
   data: CallSheetData,
   centerShape: CallSheetCenterShape,
-  pageIndex: number
+  pageIndex: number,
+  crewDisplayOptions?: CrewDisplayOptions
 ) {
   if (section.isVisible === false) return null;
 
@@ -188,7 +196,7 @@ function renderSection(
     // Match the prior template: crew renders as-is (no extra wrapper), and is omitted
     // entirely when there is no crew data.
     if (!data.crew || data.crew.length === 0) return null;
-    return <CrewSection crew={data.crew} />;
+    return <CrewSection crew={data.crew} displayOptions={crewDisplayOptions} />;
   }
 
   if (section.type === "day-details") {

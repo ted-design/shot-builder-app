@@ -292,10 +292,14 @@ export default function CrewCallsCard({
   const [expandedDepts, setExpandedDepts] = useState(new Set());
   const [showLayoutOptions, setShowLayoutOptions] = useState(false);
 
-  // Persisted display preferences
+  // Persisted display preferences (scoped to schedule to avoid cross-callsheet bleed)
+  const keyEmails = scheduleId ? `callSheetCrew.showEmails:${scheduleId}` : null;
+  const keyPhones = scheduleId ? `callSheetCrew.showPhones:${scheduleId}` : null;
+
   const [showEmails, setShowEmails] = useState(() => {
+    if (!keyEmails) return false;
     try {
-      const stored = localStorage.getItem("callSheetCrew.showEmails");
+      const stored = localStorage.getItem(keyEmails);
       if (stored == null) return false;
       return stored === "true";
     } catch {
@@ -303,8 +307,9 @@ export default function CrewCallsCard({
     }
   });
   const [showPhones, setShowPhones] = useState(() => {
+    if (!keyPhones) return false;
     try {
-      const stored = localStorage.getItem("callSheetCrew.showPhones");
+      const stored = localStorage.getItem(keyPhones);
       if (stored == null) return false;
       return stored === "true";
     } catch {
@@ -314,17 +319,23 @@ export default function CrewCallsCard({
 
   const toggleShowEmails = useCallback((checked) => {
     setShowEmails(checked);
+    if (!keyEmails) return;
     try {
-      localStorage.setItem("callSheetCrew.showEmails", String(checked));
+      localStorage.setItem(keyEmails, String(checked));
+      // Dispatch custom event for same-page listeners (PreviewPanel)
+      window.dispatchEvent(new CustomEvent("crewDisplayOptionsChange"));
     } catch {}
-  }, []);
+  }, [keyEmails]);
 
   const toggleShowPhones = useCallback((checked) => {
     setShowPhones(checked);
+    if (!keyPhones) return;
     try {
-      localStorage.setItem("callSheetCrew.showPhones", String(checked));
+      localStorage.setItem(keyPhones, String(checked));
+      // Dispatch custom event for same-page listeners (PreviewPanel)
+      window.dispatchEvent(new CustomEvent("crewDisplayOptionsChange"));
     } catch {}
-  }, []);
+  }, [keyPhones]);
 
   const assignedCrew = useMemo(() => {
     return assignments

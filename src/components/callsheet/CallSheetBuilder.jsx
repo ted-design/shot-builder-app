@@ -443,6 +443,8 @@ function CallSheetBuilder({
           callText,
           defaultCall,
           notes,
+          phone: member?.phone || null,
+          email: member?.email || null,
         };
       })
       .sort((a, b) => {

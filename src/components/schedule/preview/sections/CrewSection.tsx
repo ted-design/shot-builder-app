@@ -3,8 +3,14 @@ import type { CallSheetCrewRow } from "../../types";
 import { DocSectionHeader } from "../primitives/DocSectionHeader";
 import { DocTable } from "../primitives/DocTable";
 
+interface DisplayOptions {
+  showEmails?: boolean;
+  showPhones?: boolean;
+}
+
 interface CrewSectionProps {
   crew: CallSheetCrewRow[];
+  displayOptions?: DisplayOptions;
 }
 
 // Group crew by department
@@ -22,7 +28,7 @@ function groupByDepartment(crew: CallSheetCrewRow[]): Map<string, CallSheetCrewR
   return groups;
 }
 
-export function CrewSection({ crew }: CrewSectionProps) {
+export function CrewSection({ crew, displayOptions }: CrewSectionProps) {
   if (!crew.length) {
     return (
       <div className="p-4 text-center text-sm text-gray-500 italic">
@@ -33,6 +39,8 @@ export function CrewSection({ crew }: CrewSectionProps) {
 
   const groupedCrew = groupByDepartment(crew);
   const departments = Array.from(groupedCrew.keys());
+  const showPhones = displayOptions?.showPhones ?? false;
+  const showEmails = displayOptions?.showEmails ?? false;
 
   return (
     <div className="space-y-4">
@@ -60,10 +68,13 @@ export function CrewSection({ crew }: CrewSectionProps) {
               </thead>
               <tbody>
                 {members.map((member) => {
-                  // Type assertion for future phone/email fields
+                  // Read phone/email from member data
                   const phone = (member as { phone?: string }).phone;
                   const email = (member as { email?: string }).email;
-                  const hasContact = phone || email;
+                  // Only show contact info if enabled via displayOptions AND data exists
+                  const visiblePhone = showPhones && phone;
+                  const visibleEmail = showEmails && email;
+                  const hasVisibleContact = visiblePhone || visibleEmail;
 
                   return (
                     <tr key={member.id} style={{ height: "auto", minHeight: "28px" }}>
@@ -73,10 +84,10 @@ export function CrewSection({ crew }: CrewSectionProps) {
                       <td className="align-top">
                         {/* Primary: Name */}
                         <div className="font-medium">{member.name}</div>
-                        {/* Secondary: Contact info (when available) */}
-                        {hasContact && (
+                        {/* Secondary: Contact info (when enabled and available) */}
+                        {hasVisibleContact && (
                           <div className="text-[10px] leading-tight">
-                            {phone && (
+                            {visiblePhone && (
                               <a
                                 href={`tel:${phone}`}
                                 className="text-blue-600 hover:underline"
@@ -84,10 +95,10 @@ export function CrewSection({ crew }: CrewSectionProps) {
                                 {phone}
                               </a>
                             )}
-                            {phone && email && (
+                            {visiblePhone && visibleEmail && (
                               <span className="text-gray-400 mx-1">·</span>
                             )}
-                            {email && (
+                            {visibleEmail && (
                               <a
                                 href={`mailto:${email}`}
                                 className="text-blue-600 hover:underline"

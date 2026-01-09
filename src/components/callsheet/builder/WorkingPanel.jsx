@@ -56,7 +56,7 @@ function sectionIcon(type) {
   return icons[type] || ClipboardList;
 }
 
-/** Toggle switch component for header (styled for dark background) */
+/** Toggle switch component for header (styled for light background) */
 function HeaderToggle({ checked, onChange, label, disabled }) {
   return (
     <button
@@ -74,17 +74,17 @@ function HeaderToggle({ checked, onChange, label, disabled }) {
       <span
         className={[
           "h-4 w-7 rounded-full transition-colors",
-          checked ? "bg-white" : "bg-white/30",
+          checked ? "bg-blue-600" : "bg-slate-300",
         ].join(" ")}
       >
         <span
           className={[
-            "block h-4 w-4 rounded-full shadow transition-transform",
-            checked ? "translate-x-3 bg-blue-600" : "translate-x-0 bg-white",
+            "block h-4 w-4 rounded-full bg-white shadow transition-transform",
+            checked ? "translate-x-3" : "translate-x-0",
           ].join(" ")}
         />
       </span>
-      <span className="text-white/90">{checked ? "Visible" : "Hidden"}</span>
+      <span className="text-slate-600 dark:text-slate-300">{checked ? "Visible" : "Hidden"}</span>
     </button>
   );
 }
@@ -154,25 +154,25 @@ export default function WorkingPanel({
         />
       ) : (
         <div className="flex h-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          {/* Dark header bar with blue/indigo gradient */}
-          <div className="bg-gradient-to-r from-blue-800 to-indigo-700 px-3 py-2.5 rounded-t-lg dark:from-blue-900 dark:to-indigo-800">
+          {/* Light header bar with subtle border */}
+          <div className="bg-slate-50 border-b border-slate-200 px-3 py-2.5 rounded-t-lg dark:bg-slate-800 dark:border-slate-700">
             {/* Two-row layout for better space distribution */}
             <div className="flex items-center justify-between gap-2 mb-2">
               {/* Left: Back button + Icon + Title (gets full width) */}
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <button
                   type="button"
-                  className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                  className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                   onClick={onDone}
                   title="Back to outline"
                   aria-label="Back to outline"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
-                <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-md bg-white/20">
-                  <Icon className="h-3.5 w-3.5 text-white" />
+                <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-md bg-slate-200/70 dark:bg-slate-700">
+                  <Icon className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
                 </div>
-                <h2 className="text-sm font-semibold text-white truncate" title={title}>{title}</h2>
+                <h2 className="text-sm font-semibold text-slate-900 truncate dark:text-slate-100" title={title}>{title}</h2>
               </div>
 
               {/* Right: Toggle switch (compact) */}
@@ -193,7 +193,7 @@ export default function WorkingPanel({
               {showEditFields ? (
                 <button
                   type="button"
-                  className="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-white/30 bg-transparent px-2.5 text-xs font-medium text-white hover:bg-white/10 hover:border-white/50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                  className="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:pointer-events-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                   onClick={onEditFields}
                   disabled={readOnly}
                 >
@@ -202,7 +202,7 @@ export default function WorkingPanel({
               ) : null}
               <button
                 type="button"
-                className="h-7 whitespace-nowrap rounded-md bg-white px-3 text-xs font-semibold text-blue-800 hover:bg-white/90 transition-colors"
+                className="h-7 whitespace-nowrap rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary-dark transition-colors"
                 onClick={onDone}
               >
                 Done

@@ -116,6 +116,8 @@ function buildModernCallSheetData({
     name: row?.name ? String(row.name) : "—",
     callTime: row?.callTime ? String(row.callTime) : row?.callText ? String(row.callText) : row?.defaultCall ? String(row.defaultCall) : "",
     notes: row?.notes ? String(row.notes) : "",
+    phone: row?.phone || null,
+    email: row?.email || null,
   }));
 
   const scheduleDate = formatDateLong(schedule?.date);
@@ -193,6 +195,35 @@ export default function PreviewPanel({
     }
   });
   const [isThemeOpen, setIsThemeOpen] = useState(false);
+
+  // Read crew display options from localStorage (scoped to schedule to match CrewCallsCard)
+  const keyEmails = scheduleId ? `callSheetCrew.showEmails:${scheduleId}` : null;
+  const keyPhones = scheduleId ? `callSheetCrew.showPhones:${scheduleId}` : null;
+
+  const [crewDisplayOptions, setCrewDisplayOptions] = useState(() => {
+    if (!keyEmails || !keyPhones) return { showEmails: false, showPhones: false };
+    try {
+      return {
+        showEmails: localStorage.getItem(keyEmails) === "true",
+        showPhones: localStorage.getItem(keyPhones) === "true",
+      };
+    } catch {
+      return { showEmails: false, showPhones: false };
+    }
+  });
+
+  // Sync display options when toggled (from CrewCallsCard)
+  useEffect(() => {
+    const handleDisplayOptionsChange = () => {
+      if (!keyEmails || !keyPhones) return;
+      setCrewDisplayOptions({
+        showEmails: localStorage.getItem(keyEmails) === "true",
+        showPhones: localStorage.getItem(keyPhones) === "true",
+      });
+    };
+    window.addEventListener("crewDisplayOptionsChange", handleDisplayOptionsChange);
+    return () => window.removeEventListener("crewDisplayOptionsChange", handleDisplayOptionsChange);
+  }, [keyEmails, keyPhones]);
 
   const zoom = useMemo(() => zoomPercent / 100, [zoomPercent]);
   const minZoom = 50;
@@ -397,6 +428,7 @@ export default function PreviewPanel({
               zoom={zoomPercent}
               layoutV2={layoutV2}
               sections={sections}
+              crewDisplayOptions={crewDisplayOptions}
             />
           </div>
         ) : (
