@@ -17,7 +17,7 @@ import { shiftTimeString } from "../../../lib/callsheet/shiftTimes";
 import { toast } from "../../../lib/toast";
 import { Loader2, Plus, Trash2, Wand2, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore";
-import { deriveLocationsFromLegacy, getDefaultLocationBlocks } from "../../../lib/callsheet/deriveLocationsFromLegacy";
+import { deriveLocationsFromLegacy } from "../../../lib/callsheet/deriveLocationsFromLegacy";
 import type { DayDetails, DayDetailsNotesStyle, LocationBlock } from "../../../types/callsheet";
 
 type TabKey = "people" | "locations" | "times";
@@ -175,12 +175,8 @@ function buildUpdatesFromDraft(draft: DayDetailsDraft): Partial<Omit<DayDetails,
     scriptVersion: toNullableText(draft.scriptVersion),
     scheduleVersion: toNullableText(draft.scheduleVersion),
     locations: locations.length > 0 ? locations : null,
-    // Clear legacy fields when using modern locations array
-    productionOffice: null,
-    nearestHospital: null,
-    parking: null,
-    basecamp: null,
-    customLocations: null,
+    // Preserve legacy fields - do not clear them here to avoid data loss
+    // Legacy fields (productionOffice, nearestHospital, etc.) are read via deriveLocationsFromLegacy
     notes: toNullableText(draft.notes),
     notesStyle,
     crewCallTime: String(draft.crewCallTime || ""),
@@ -206,7 +202,7 @@ export default function DayDetailsEditorV2({
   scheduleId: string | null;
   readOnly?: boolean;
 }) {
-  const { dayDetails, hasRemoteDayDetails, ensureDayDetails, updateDayDetails } = useDayDetails(
+  const { dayDetails, hasRemoteDayDetails, loading: dayDetailsLoading, ensureDayDetails, updateDayDetails } = useDayDetails(
     clientId,
     projectId,
     scheduleId
@@ -259,7 +255,7 @@ export default function DayDetailsEditorV2({
     setMedic: "",
     scriptVersion: "",
     scheduleVersion: "",
-    locations: getDefaultLocationBlocks().map((block) => normalizeLocationBlock(block)),
+    locations: [], // Start empty - user explicitly adds locations via "Add Location"
     notes: "",
     notesPlacement: "bottom" as "top" | "bottom",
     notesColor: "",
@@ -279,10 +275,14 @@ export default function DayDetailsEditorV2({
 
   useEffect(() => {
     if (!scheduleId) return;
+    // Wait for initial Firestore load before deciding to create default document.
+    // Without this check, ensureDayDetails would fire before the subscription returns,
+    // writing `locations: null` with merge:true and overwriting existing location data.
+    if (dayDetailsLoading) return;
     if (hasRemoteDayDetails) return;
     if (readOnly) return;
     ensureDayDetails.mutate();
-  }, [ensureDayDetails, hasRemoteDayDetails, readOnly, scheduleId]);
+  }, [dayDetailsLoading, ensureDayDetails, hasRemoteDayDetails, readOnly, scheduleId]);
 
   const updates = useMemo(() => buildUpdatesFromDraft(draft), [draft]);
 
@@ -304,7 +304,7 @@ export default function DayDetailsEditorV2({
       setMedic: normalizeText(dayDetails.setMedic),
       scriptVersion: normalizeText(dayDetails.scriptVersion),
       scheduleVersion: normalizeText(dayDetails.scheduleVersion),
-      locations: locationDrafts.length > 0 ? locationDrafts : getDefaultLocationBlocks().map((b) => normalizeLocationBlock(b)),
+      locations: locationDrafts, // Use derived locations as-is; empty if none exist
       notes: normalizeText(dayDetails.notes),
       notesPlacement: notesStyle.placement,
       notesColor: notesStyle.color,
@@ -496,7 +496,7 @@ export default function DayDetailsEditorV2({
       setMedic: normalizeText(dayDetails.setMedic),
       scriptVersion: normalizeText(dayDetails.scriptVersion),
       scheduleVersion: normalizeText(dayDetails.scheduleVersion),
-      locations: locationDrafts.length > 0 ? locationDrafts : getDefaultLocationBlocks().map((b) => normalizeLocationBlock(b)),
+      locations: locationDrafts, // Use derived locations as-is; empty if none exist
       notes: normalizeText(dayDetails.notes),
       notesPlacement: notesStyle.placement,
       notesColor: notesStyle.color,

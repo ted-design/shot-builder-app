@@ -24,12 +24,12 @@ export default function SidebarNavItem({
   inactiveClassName = "",
 }) {
   const baseClasses = `
-    w-full flex items-center rounded-md py-2.5 text-sm font-medium
-    transition-colors duration-150
+    w-full flex items-center rounded-md py-2 text-sm font-medium
+    transition-colors duration-150 border-l-[3px] border-transparent
     ${isExpanded ? 'px-3 gap-3' : 'px-0 justify-center'}
   `;
 
-  const activeClasses = `bg-sidebar-active text-white ${activeClassName}`.trim();
+  const activeClasses = `border-l-primary-500 bg-white/10 text-white ${activeClassName}`.trim();
   const computedInactiveClasses =
     variant === "back"
       ? "text-neutral-200 bg-sidebar-hover/25 border border-sidebar-border hover:bg-sidebar-hover/40 hover:text-white"
@@ -40,7 +40,7 @@ export default function SidebarNavItem({
   const content = (
     <>
       <span className="sidebar-icon shrink-0">
-        <Icon className="h-5 w-5" />
+        <Icon className="h-4 w-4" />
       </span>
       {isExpanded && (
         <span className="sidebar-text truncate sidebar-text-visible">

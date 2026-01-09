@@ -42,21 +42,23 @@ export function deriveLocationsFromLegacy(dayDetails: DayDetails | null | undefi
 
   const result: LocationBlock[] = [];
 
-  // Convert legacy fixed fields
+  // Convert legacy fixed fields - only include blocks that have content
   for (const { key, title, showName, showPhone } of LEGACY_LOCATION_KEYS) {
     const ref = dayDetails[key] as LocationReference | null | undefined;
-    // Include even if empty - keeps the 4 default slots visible in editor
-    result.push({
-      id: `legacy-${key}`,
-      title,
-      ref: ref && hasContent(ref) ? {
-        locationId: ref.locationId ?? null,
-        label: ref.label ?? null,
-        notes: ref.notes ?? null,
-      } : null,
-      showName,
-      showPhone,
-    });
+    // Only include if the legacy field has content
+    if (ref && hasContent(ref)) {
+      result.push({
+        id: `legacy-${key}`,
+        title,
+        ref: {
+          locationId: ref.locationId ?? null,
+          label: ref.label ?? null,
+          notes: ref.notes ?? null,
+        },
+        showName,
+        showPhone,
+      });
+    }
   }
 
   // Append custom locations

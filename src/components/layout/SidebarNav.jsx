@@ -18,6 +18,7 @@ import {
   Wrench,
   Star,
   Shield,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ROLE } from '../../lib/rbac';
@@ -182,6 +183,8 @@ export default function SidebarNav({ isExpanded }) {
             </div>
 
             <SidebarNavItem to="/products" icon={Package} label="Products" isExpanded={isExpanded} />
+
+            <SidebarNavItem to="/pulls" icon={ClipboardList} label="Pulls" isExpanded={isExpanded} />
 
             <SidebarNavGroup icon={Library} label="Library" items={libraryItems} isExpanded={isExpanded} />
 
