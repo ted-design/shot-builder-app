@@ -24,6 +24,7 @@ export default {
         primary: {
           DEFAULT: "#6366f1", // indigo-500
           dark: "#4f46e5",    // indigo-600
+          foreground: "#ffffff",
         },
         secondary: {
           DEFAULT: "#10b981", // emerald-500

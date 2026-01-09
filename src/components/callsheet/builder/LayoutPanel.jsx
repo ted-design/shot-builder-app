@@ -22,6 +22,7 @@ import {
   Plus,
   MoreHorizontal,
   ChevronRight,
+  Pencil,
   LayoutTemplate,
   Calendar,
   Bell,
@@ -102,10 +103,10 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
         ref={setNodeRef}
         style={style}
         className={[
-          "group relative flex items-center gap-2 rounded-lg px-3 py-2.5 min-h-11 transition-all duration-150 cursor-pointer border",
+          "group relative flex items-center gap-2 rounded-lg px-3 py-2 min-h-11 transition-all duration-150 cursor-pointer border border-l-4 border-l-transparent",
           isDragging ? "opacity-60 shadow-lg z-50" : "",
           isActive
-            ? "bg-rose-600 text-white border-rose-600 shadow-md"
+            ? "bg-rose-600 text-white border-rose-600 !border-l-rose-400 shadow-md"
             : visible
               ? "bg-rose-50 border-rose-200 hover:bg-rose-100 hover:border-rose-300 dark:bg-rose-950/30 dark:border-rose-800 dark:hover:bg-rose-900/40"
               : "bg-slate-50 border-slate-200 opacity-50 hover:opacity-75 dark:bg-slate-800/50 dark:border-slate-700",
@@ -116,7 +117,8 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
         <button
           type="button"
           className={[
-            "cursor-grab active:cursor-grabbing flex-shrink-0 transition-opacity",
+            "cursor-grab active:cursor-grabbing flex-shrink-0 transition-opacity duration-150",
+            "opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto",
             isActive
               ? "text-white/60 hover:text-white"
               : "text-rose-400 hover:text-rose-600 dark:text-rose-500 dark:hover:text-rose-300",
@@ -147,24 +149,21 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
           ].join(" ")} />
         </div>
 
-        {/* Visibility toggle for page break */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle(section.id, !visible);
-          }}
-          className={[
-            "inline-flex h-6 w-6 items-center justify-center rounded transition-all",
-            isActive
-              ? "text-white/70 hover:text-white hover:bg-white/10"
-              : "opacity-0 group-hover:opacity-100 text-rose-500 hover:bg-rose-200 dark:hover:bg-rose-800",
-          ].join(" ")}
-          aria-label={visible ? "Hide page break" : "Show page break"}
-          title={visible ? "Hide page break" : "Show page break"}
-        >
-          {visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-        </button>
+        {/* Visibility toggle for page break - hidden on active row */}
+        {!isActive && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle(section.id, !visible);
+            }}
+            className="inline-flex h-6 w-6 items-center justify-center rounded transition-all opacity-0 group-hover:opacity-100 text-rose-500 hover:bg-rose-200 dark:hover:bg-rose-800"
+            aria-label={visible ? "Hide page break" : "Show page break"}
+            title={visible ? "Hide page break" : "Show page break"}
+          >
+            {visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+          </button>
+        )}
 
         {/* Delete via more menu */}
         <DropdownMenu>
@@ -199,23 +198,24 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
       ref={setNodeRef}
       style={style}
       className={[
-        "group relative flex items-center gap-2 rounded-lg px-3 py-2.5 min-h-11 transition-all duration-150 cursor-pointer border",
+        "group relative flex items-center gap-2 rounded-lg px-3 py-2 min-h-11 transition-all duration-150 cursor-pointer border border-l-4 border-l-transparent",
         isDragging ? "opacity-60 shadow-lg z-50" : "",
         isActive
-          ? "bg-gradient-to-r from-blue-700 to-indigo-600 text-white border-transparent shadow-md"
+          ? "bg-gradient-to-r from-primary-dark to-primary text-primary-foreground border-transparent !border-l-primary shadow-md"
           : visible
             ? "bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:hover:border-slate-600"
             : "bg-slate-50 border-slate-200 opacity-60 hover:opacity-80 dark:bg-slate-800/50 dark:border-slate-700",
       ].join(" ")}
       onClick={() => onClick(section.id)}
     >
-      {/* Drag handle - always visible but subtle */}
+      {/* Drag handle - hidden until row hover */}
       <button
         type="button"
         className={[
-          "cursor-grab active:cursor-grabbing flex-shrink-0 transition-colors",
+          "cursor-grab active:cursor-grabbing flex-shrink-0 transition-opacity duration-150",
+          "opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto",
           isActive
-            ? "text-white/50 hover:text-white/80"
+            ? "group-hover:opacity-0"
             : "text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400",
         ].join(" ")}
         {...attributes}
@@ -231,7 +231,7 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
         className={[
           "flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-lg",
           isActive
-            ? "bg-white/20 text-white"
+            ? "bg-white/20"
             : visible
               ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
               : "bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-500",
@@ -245,7 +245,7 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
         <div
           className={[
             "text-sm font-medium leading-tight",
-            isActive ? "text-white" : visible ? "text-slate-800 dark:text-slate-100" : "text-slate-500 dark:text-slate-400",
+            isActive ? "" : visible ? "text-slate-800 dark:text-slate-100" : "text-slate-500 dark:text-slate-400",
           ].join(" ")}
           title={sectionLabel(section.type)}
         >
@@ -258,7 +258,7 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
         ) : null}
         {section.type === "custom-banner" && section.config?.text ? (
           <div
-            className={["text-xs leading-tight mt-0.5 truncate", isActive ? "text-white/70" : "text-slate-500 dark:text-slate-400"].join(" ")}
+            className={["text-xs leading-tight mt-0.5 truncate", isActive ? "opacity-70" : "text-slate-500 dark:text-slate-400"].join(" ")}
             title={String(section.config.text)}
           >
             {String(section.config.text)}
@@ -268,28 +268,25 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
 
       {/* Right side actions - more compact */}
       <div className="flex items-center gap-0.5 flex-shrink-0">
-        {/* Visibility toggle */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle(section.id, !visible);
-          }}
-          className={[
-            "inline-flex h-7 w-7 items-center justify-center rounded-md transition-all",
-            isActive
-              ? "text-white/70 hover:text-white hover:bg-white/10"
-              : "opacity-0 group-hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-700",
-          ].join(" ")}
-          aria-label={visible ? "Hide section" : "Show section"}
-          title={visible ? "Hide section" : "Show section"}
-        >
-          {visible ? (
-            <Eye className={["h-3.5 w-3.5", isActive ? "" : "text-blue-600 dark:text-blue-400"].join(" ")} />
-          ) : (
-            <EyeOff className="h-3.5 w-3.5 text-slate-400" />
-          )}
-        </button>
+        {/* Visibility toggle - hidden on active row */}
+        {!isActive && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle(section.id, !visible);
+            }}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md transition-all opacity-0 group-hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-700"
+            aria-label={visible ? "Hide section" : "Show section"}
+            title={visible ? "Hide section" : "Show section"}
+          >
+            {visible ? (
+              <Eye className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            ) : (
+              <EyeOff className="h-3.5 w-3.5 text-slate-400" />
+            )}
+          </button>
+        )}
 
         {/* More menu */}
         <DropdownMenu>
@@ -300,7 +297,7 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
               className={[
                 "h-7 w-7 p-0 transition-all",
                 isActive
-                  ? "text-white/70 hover:text-white hover:bg-white/10"
+                  ? "opacity-70 hover:opacity-100 hover:bg-white/10"
                   : "opacity-0 group-hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-700",
               ].join(" ")}
               onClick={(e) => e.stopPropagation()}
@@ -325,13 +322,12 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Chevron indicator */}
-        <ChevronRight
-          className={[
-            "h-4 w-4 flex-shrink-0 transition-all",
-            isActive ? "text-white/80" : "text-slate-400 opacity-0 group-hover:opacity-100 dark:text-slate-500",
-          ].join(" ")}
-        />
+        {/* Row indicator - Pencil when active, Chevron on hover for inactive */}
+        {isActive ? (
+          <Pencil className="h-3.5 w-3.5 flex-shrink-0 opacity-80" />
+        ) : (
+          <ChevronRight className="h-4 w-4 flex-shrink-0 text-slate-400 opacity-0 group-hover:opacity-100 dark:text-slate-500 transition-all" />
+        )}
       </div>
     </div>
   );
