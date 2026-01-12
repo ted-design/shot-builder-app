@@ -142,10 +142,12 @@ function renderSection(
   if (section.isVisible === false) return null;
 
   if (section.type === "header") {
+    // Honor user-configured title from section config, fall back to data.projectName
+    const headerTitle = readSectionTitle(section, data.projectName);
     if (pageIndex === 0) {
       return (
         <CallSheetHeader
-          projectName={data.projectName}
+          projectName={headerTitle}
           version={data.version}
           groupName={data.groupName}
           shootDay={data.shootDay}
@@ -159,7 +161,7 @@ function renderSection(
     }
     return (
       <CallSheetHeaderCompact
-        projectName={data.projectName}
+        projectName={headerTitle}
         version={data.version}
         date={data.date}
         dayNumber={data.dayNumber}
@@ -193,10 +195,11 @@ function renderSection(
   }
 
   if (section.type === "crew") {
-    // Match the prior template: crew renders as-is (no extra wrapper), and is omitted
-    // entirely when there is no crew data.
-    if (!data.crew || data.crew.length === 0) return null;
-    return <CrewSection crew={data.crew} displayOptions={crewDisplayOptions} />;
+    return (
+      <SectionWrapper title={readSectionTitle(section, "Crew")}>
+        <CrewSection crew={data.crew || []} displayOptions={crewDisplayOptions} />
+      </SectionWrapper>
+    );
   }
 
   if (section.type === "day-details") {
@@ -207,9 +210,8 @@ function renderSection(
   if (section.type === "reminders") {
     const raw = (section?.config as Record<string, unknown> | undefined)?.text;
     const text = typeof raw === "string" ? raw : "";
-    if (!text.trim()) return null;
     return (
-      <SectionWrapper title="Reminders">
+      <SectionWrapper title={readSectionTitle(section, "Reminders")}>
         <RemindersSection text={text} />
       </SectionWrapper>
     );
