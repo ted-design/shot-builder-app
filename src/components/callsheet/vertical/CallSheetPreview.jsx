@@ -673,6 +673,8 @@ function CallSheetPreview({
 
   const renderHeaderItem = (item, idx, columnKey) => {
     if (!item || item.enabled === false) return null;
+    // Deprecation: @companyName is hidden and should not render
+    if (item.type === "variable" && item.value === "@companyName") return null;
     const align =
       item.style?.align ||
       (columnKey === "right" ? "right" : columnKey === "center" ? "center" : "left");
