@@ -290,7 +290,7 @@ export default function CrewCallsCard({
   const [deptPrecallTarget, setDeptPrecallTarget] = useState(null);
   const [deptPrecallTime, setDeptPrecallTime] = useState("");
   const [expandedDepts, setExpandedDepts] = useState(new Set());
-  const [showLayoutOptions, setShowLayoutOptions] = useState(false);
+  const [showLayoutOptions, setShowLayoutOptions] = useState(true);
 
   // Persisted display preferences (scoped to schedule to avoid cross-callsheet bleed)
   const keyEmails = scheduleId ? `callSheetCrew.showEmails:${scheduleId}` : null;
@@ -300,7 +300,7 @@ export default function CrewCallsCard({
     if (!keyEmails) return false;
     try {
       const stored = localStorage.getItem(keyEmails);
-      if (stored == null) return false;
+      if (stored == null) return false; // SetHero default: emails OFF when unset
       return stored === "true";
     } catch {
       return false;
@@ -310,7 +310,7 @@ export default function CrewCallsCard({
     if (!keyPhones) return false;
     try {
       const stored = localStorage.getItem(keyPhones);
-      if (stored == null) return false;
+      if (stored == null) return true;
       return stored === "true";
     } catch {
       return false;

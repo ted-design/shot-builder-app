@@ -201,24 +201,42 @@ export default function PreviewPanel({
   const keyPhones = scheduleId ? `callSheetCrew.showPhones:${scheduleId}` : null;
 
   const [crewDisplayOptions, setCrewDisplayOptions] = useState(() => {
-    if (!keyEmails || !keyPhones) return { showEmails: false, showPhones: false };
+    // SetHero defaults: showEmails OFF, showPhones ON when unset
+    if (!keyEmails || !keyPhones) return { showEmails: false, showPhones: true };
     try {
       return {
-        showEmails: localStorage.getItem(keyEmails) === "true",
-        showPhones: localStorage.getItem(keyPhones) === "true",
+        showEmails: localStorage.getItem(keyEmails) === "true", // Only true if explicitly "true"
+        showPhones: localStorage.getItem(keyPhones) !== "false", // True unless explicitly "false"
       };
     } catch {
-      return { showEmails: false, showPhones: false };
+      return { showEmails: false, showPhones: true };
     }
   });
+
+  // Re-read localStorage when schedule changes (keys change)
+  useEffect(() => {
+    // SetHero defaults: showEmails OFF, showPhones ON when unset
+    if (!keyEmails || !keyPhones) {
+      setCrewDisplayOptions({ showEmails: false, showPhones: true });
+      return;
+    }
+    try {
+      setCrewDisplayOptions({
+        showEmails: localStorage.getItem(keyEmails) === "true", // Only true if explicitly "true"
+        showPhones: localStorage.getItem(keyPhones) !== "false", // True unless explicitly "false"
+      });
+    } catch {
+      setCrewDisplayOptions({ showEmails: false, showPhones: true });
+    }
+  }, [keyEmails, keyPhones]);
 
   // Sync display options when toggled (from CrewCallsCard)
   useEffect(() => {
     const handleDisplayOptionsChange = () => {
       if (!keyEmails || !keyPhones) return;
       setCrewDisplayOptions({
-        showEmails: localStorage.getItem(keyEmails) === "true",
-        showPhones: localStorage.getItem(keyPhones) === "true",
+        showEmails: localStorage.getItem(keyEmails) === "true", // Only true if explicitly "true"
+        showPhones: localStorage.getItem(keyPhones) !== "false", // True unless explicitly "false"
       });
     };
     window.addEventListener("crewDisplayOptionsChange", handleDisplayOptionsChange);

@@ -96,6 +96,16 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
   const Icon = SECTION_ICONS[section.type] || ClipboardList;
   const isPageBreak = section.type === "page-break";
 
+  // Reminders item count (derived from config.text lines)
+  const remindersCount = section.type === "reminders"
+    ? String(section.config?.text ?? "").split(/\r?\n/).filter((l) => l.trim()).length
+    : 0;
+
+  // Extras item count (derived from config.rows array)
+  const extrasCount = section.type === "extras"
+    ? (Array.isArray(section.config?.rows) ? section.config.rows.length : 0)
+    : 0;
+
   // Page break has a distinct red-tinted appearance
   if (isPageBreak) {
     return (
@@ -212,7 +222,7 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
       <button
         type="button"
         className={[
-          "cursor-grab active:cursor-grabbing flex-shrink-0 transition-opacity duration-150",
+          "cursor-grab active:cursor-grabbing flex-shrink-0 flex w-7 h-7 items-center justify-center transition-opacity duration-150",
           "opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto",
           isActive
             ? "group-hover:opacity-0"
@@ -262,6 +272,16 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
             title={String(section.config.text)}
           >
             {String(section.config.text)}
+          </div>
+        ) : null}
+        {section.type === "reminders" && visible && remindersCount > 0 ? (
+          <div className={["text-[10px] leading-tight mt-0.5", isActive ? "opacity-60" : "text-slate-400 dark:text-slate-500"].join(" ")}>
+            {remindersCount} item{remindersCount === 1 ? "" : "s"}
+          </div>
+        ) : null}
+        {section.type === "extras" && visible && extrasCount > 0 ? (
+          <div className={["text-[10px] leading-tight mt-0.5", isActive ? "opacity-60" : "text-slate-400 dark:text-slate-500"].join(" ")}>
+            {extrasCount} item{extrasCount === 1 ? "" : "s"}
           </div>
         ) : null}
       </div>
@@ -434,7 +454,7 @@ export default function LayoutPanel({
       </div>
 
       {/* Section list */}
-      <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5">
+      <div className="flex-1 overflow-y-auto p-2.5 space-y-1">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={visibleSections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
             {visibleSections.map((section) => (
