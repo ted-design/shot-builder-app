@@ -46,6 +46,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../ui/dropdown-menu";
+import { readSectionTitle } from "../../../lib/callsheet/readSectionTitle";
 
 const SECTION_ICONS = {
   header: LayoutTemplate,
@@ -257,9 +258,9 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
             "text-sm font-medium leading-tight",
             isActive ? "" : visible ? "text-slate-800 dark:text-slate-100" : "text-slate-500 dark:text-slate-400",
           ].join(" ")}
-          title={sectionLabel(section.type)}
+          title={readSectionTitle(section, sectionLabel(section.type))}
         >
-          {sectionLabel(section.type)}
+          {readSectionTitle(section, sectionLabel(section.type))}
         </div>
         {!visible && !isActive ? (
           <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-0.5">
@@ -282,6 +283,14 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
         {section.type === "extras" && visible && extrasCount > 0 ? (
           <div className={["text-[10px] leading-tight mt-0.5", isActive ? "opacity-60" : "text-slate-400 dark:text-slate-500"].join(" ")}>
             {extrasCount} item{extrasCount === 1 ? "" : "s"}
+          </div>
+        ) : null}
+        {section.type === "quote" && visible && String(section.config?.author ?? "").trim() ? (
+          <div
+            className={["text-xs leading-tight mt-0.5 truncate", isActive ? "opacity-70" : "text-slate-500 dark:text-slate-400"].join(" ")}
+            title={String(section.config.author).trim()}
+          >
+            {String(section.config.author).trim()}
           </div>
         ) : null}
       </div>

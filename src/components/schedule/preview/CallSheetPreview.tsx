@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { MapPin } from "lucide-react";
 import type { CallSheetColors, CallSheetData } from "../types";
-import type { CallSheetLayoutV2, CallSheetCenterShape, CallSheetSection } from "../../../types/callsheet";
+import type { CallSheetLayoutV2, CallSheetCenterShape, CallSheetSection, CallSheetHeaderItem } from "../../../types/callsheet";
 import { CallSheetHeader, CallSheetHeaderCompact } from "./CallSheetHeader";
 import { ScheduleTableSection } from "./sections/ScheduleTableSection";
 import { TalentSection } from "./sections/TalentSection";
@@ -10,6 +10,8 @@ import { DocumentPage } from "./primitives/DocumentPage";
 import { DocSectionHeader } from "./primitives/DocSectionHeader";
 import { paginateCallSheetSections } from "./paginateCallSheetSections";
 import { formatNotesForDisplay } from "../../../lib/sanitize";
+import { readSectionTitle } from "../../../lib/callsheet/readSectionTitle";
+import { buildCallSheetVariableContext } from "../../../lib/callsheet/variables";
 
 interface CrewDisplayOptions {
   showEmails?: boolean;
@@ -62,6 +64,33 @@ export function CallSheetPreview({
   // Extract centerShape from layoutV2 if available
   const centerShape: CallSheetCenterShape = layoutV2?.header?.centerShape || "circle";
 
+  // Build variable context for header items
+  // projectTitle uses the real project name if provided, falling back to schedule name
+  const variableContext = React.useMemo(() => {
+    return buildCallSheetVariableContext({
+      schedule: { name: data.projectName, date: data.date },
+      dayDetails: data.dayDetails,
+      projectTitle: data.projectTitle ?? data.projectName,
+      companyName: data.groupName,
+      totalDays: data.totalDays,
+      dayNumber: data.dayNumber,
+    });
+  }, [data.projectName, data.projectTitle, data.date, data.dayDetails, data.groupName, data.totalDays, data.dayNumber]);
+
+  // Extract header items from layoutV2 if available
+  const headerItems = React.useMemo(() => {
+    const header = layoutV2?.header;
+    if (!header) return null;
+    const items = {
+      left: header.left?.items || [],
+      center: header.center?.items || [],
+      right: header.right?.items || [],
+    };
+    // Only use if at least one enabled item exists
+    const hasEnabledItems = [...items.left, ...items.center, ...items.right].some((item) => item.enabled);
+    return hasEnabledItems ? items : null;
+  }, [layoutV2?.header]);
+
   return (
     <div
       className="call-sheet-document-wrapper"
@@ -95,7 +124,7 @@ export function CallSheetPreview({
           >
             {pageChromeHeader}
             {pageSections.map((section) => (
-              <React.Fragment key={section.id}>{renderSection(section, data, centerShape, pageIndex, crewDisplayOptions)}</React.Fragment>
+              <React.Fragment key={section.id}>{renderSection(section, data, centerShape, pageIndex, crewDisplayOptions, headerItems, variableContext)}</React.Fragment>
             ))}
             <CallSheetFooter />
           </DocumentPage>
@@ -103,12 +132,6 @@ export function CallSheetPreview({
       })}
     </div>
   );
-}
-
-function readSectionTitle(section: CallSheetSection, fallback: string) {
-  const raw = (section?.config as Record<string, unknown> | undefined)?.title;
-  const title = typeof raw === "string" ? raw.trim() : "";
-  return title ? title : fallback;
 }
 
 function RemindersSection({ text }: { text: string }) {
@@ -137,7 +160,9 @@ function renderSection(
   data: CallSheetData,
   centerShape: CallSheetCenterShape,
   pageIndex: number,
-  crewDisplayOptions?: CrewDisplayOptions
+  crewDisplayOptions?: CrewDisplayOptions,
+  headerItems?: { left: CallSheetHeaderItem[]; center: CallSheetHeaderItem[]; right: CallSheetHeaderItem[] } | null,
+  variableContext?: Record<string, string>
 ) {
   if (section.isVisible === false) return null;
 
@@ -156,6 +181,8 @@ function renderSection(
           totalDays={data.totalDays}
           crewCallTime={data.crewCallTime}
           centerShape={centerShape}
+          headerItems={headerItems ?? undefined}
+          variableContext={variableContext}
         />
       );
     }

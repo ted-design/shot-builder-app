@@ -138,7 +138,7 @@ export default function WorkingPanel({
 
   return (
     <div
-      className="flex h-full flex-col overflow-hidden transition-[width] duration-250 ease-in-out flex-shrink-0 relative z-20"
+      className="flex h-full flex-col overflow-hidden transition-[width] duration-250 ease-in-out flex-shrink-0 relative z-10"
       style={{ width: panelWidth }}
     >
       {mode === "outline" ? (

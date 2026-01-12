@@ -71,6 +71,37 @@ textarea:focus-visible {
   }
 }
 
+/* Call sheet header rich text: neutralize block margins to maintain header density */
+.header-richtext p {
+  margin: 0;
+}
+.header-richtext a {
+  text-decoration: underline;
+}
+.header-richtext strong,
+.header-richtext b {
+  font-weight: 600;
+}
+.header-richtext em,
+.header-richtext i {
+  font-style: italic;
+}
+.header-richtext u {
+  text-decoration: underline;
+}
+
+/* Header rich text editor: compact styling for inline editing */
+.header-richtext-editor .rich-text-editor-wrapper {
+  min-height: auto;
+}
+.header-richtext-editor .ProseMirror {
+  padding: 0.5rem;
+  min-height: 2rem;
+}
+.header-richtext-editor .ProseMirror p {
+  margin: 0;
+}
+
 /* Call sheet print mode: print the preview paper only */
 @media print {
   @page {

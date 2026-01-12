@@ -10,7 +10,7 @@ import { useProjectScope } from "../../context/ProjectScopeContext";
 import { FLAGS } from "../../lib/flags";
 import { talentPath, locationsPath, productFamiliesPath } from "../../lib/paths";
 import { useFirestoreCollection } from "../../hooks/useFirestoreCollection";
-import { useShots } from "../../hooks/useFirestoreQuery";
+import { useShots, useProjects } from "../../hooks/useFirestoreQuery";
 import {
   useSchedules,
   useCreateSchedule,
@@ -47,9 +47,11 @@ const CallSheetBuilder = lazy(() => import("./CallSheetBuilder"));
 function CallSheetEmbed() {
   const { projectId: urlProjectId } = useParams();
   const { user, clientId } = useAuth();
-  const { activeProject } = useProjectScope();
+  const { currentProjectId } = useProjectScope();
   // Prefer URL param, fall back to context
-  const projectId = urlProjectId || activeProject?.id;
+  const projectId = urlProjectId || currentProjectId;
+  const { data: projects = [] } = useProjects(clientId);
+  const activeProject = useMemo(() => projects.find((p) => p.id === projectId) || null, [projects, projectId]);
 
   // Feature flag check
   if (!FLAGS.callSheetBuilder) {
@@ -349,6 +351,7 @@ function CallSheetEmbedContent({ clientId, projectId }) {
             clientId={clientId}
             projectId={projectId}
             scheduleId={activeScheduleId}
+            projectTitle={activeProject?.name ?? ""}
             shots={shots}
             shotsLoading={shotsLoading}
             shotsMap={shotsMap}

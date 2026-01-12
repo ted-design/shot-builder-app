@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import PropTypes from "prop-types";
-import DOMPurify from "dompurify";
 import ReactTiptapEditor from "reactjs-tiptap-editor";
+import { sanitizeHtml } from "../../lib/sanitizeHtml";
 import { BaseKit } from "reactjs-tiptap-editor";
 import { Mention } from "reactjs-tiptap-editor/mention";
 import { Bold } from "reactjs-tiptap-editor/bold";
@@ -127,49 +127,8 @@ export default function RichTextEditor({
   // Handle content changes with HTML sanitization
   const handleChange = (content) => {
     if (onChange && !disabled) {
-      // Sanitize HTML to prevent XSS attacks
-      // Allow comprehensive HTML tags for rich text editing
-      const sanitized = DOMPurify.sanitize(content, {
-        ALLOWED_TAGS: [
-          'p', 'br', 'span', 'div', 'strong', 'em', 'b', 'i', 'u', 's', 'code', 'pre',
-          'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-          'ul', 'ol', 'li',
-          'blockquote',
-          'a', 'img',
-          'table', 'thead', 'tbody', 'tr', 'th', 'td',
-          'hr',
-          'sub', 'sup'
-        ],
-        ALLOWED_ATTR: {
-          'span': ['class', 'style', 'data-*'],
-          'p': ['class', 'style'],
-          'div': ['class', 'style'],
-          'h1': ['class', 'style'],
-          'h2': ['class', 'style'],
-          'h3': ['class', 'style'],
-          'h4': ['class', 'style'],
-          'h5': ['class', 'style'],
-          'h6': ['class', 'style'],
-          'strong': ['class', 'style'],
-          'em': ['class', 'style'],
-          'b': ['class', 'style'],
-          'i': ['class', 'style'],
-          'u': ['class', 'style'],
-          's': ['class', 'style'],
-          'code': ['class', 'style'],
-          'pre': ['class', 'style'],
-          'blockquote': ['class', 'style'],
-          'li': ['class', 'style'],
-          'ul': ['class', 'style'],
-          'ol': ['class', 'style'],
-          'a': ['href', 'target', 'rel', 'class', 'style'],
-          'img': ['src', 'alt', 'width', 'height', 'class'],
-          'td': ['colspan', 'rowspan', 'class', 'style'],
-          'th': ['colspan', 'rowspan', 'class', 'style'],
-        },
-        ALLOW_DATA_ATTR: true, // For mentions and other data attributes
-        KEEP_CONTENT: true,
-      });
+      // Use shared sanitization utility
+      const sanitized = sanitizeHtml(content);
       onChange(sanitized);
     }
   };

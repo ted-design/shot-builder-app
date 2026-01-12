@@ -29,6 +29,7 @@ import { minutesToTime12h, parseTimeToMinutes } from "../../../lib/timeUtils";
 import AppImage from "../../common/AppImage";
 import { buildCallSheetVariableContext, resolveCallSheetVariable } from "../../../lib/callsheet/variables";
 import { formatNotesForDisplay } from "../../../lib/sanitize";
+import { sanitizeHtml, hasRichContent } from "../../../lib/sanitizeHtml";
 import { DEFAULT_CLIENT_ROSTER_COLUMNS, DEFAULT_TALENT_ROSTER_COLUMNS, normalizeRosterColumns } from "../../../lib/callsheet/peopleColumns";
 
 // Width options for inline column resize
@@ -719,6 +720,20 @@ function CallSheetPreview({
       );
     }
 
+    // Check for rich text content first (for text items)
+    if (item.type === "text" && hasRichContent(item.richText)) {
+      const sanitized = sanitizeHtml(item.richText);
+      return (
+        <div
+          key={`header-${columnKey}-txt-${idx}`}
+          style={style}
+          className="my-0.5 header-richtext"
+          dangerouslySetInnerHTML={{ __html: sanitized }}
+        />
+      );
+    }
+
+    // Fall back to plain text rendering
     const text = renderHeaderText(item);
     if (!text) return null;
     return (
