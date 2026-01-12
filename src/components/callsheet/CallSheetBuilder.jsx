@@ -74,6 +74,7 @@ function CallSheetBuilder({
   projectId,
   scheduleId,
   viewMode = "builder",
+  projectTitle = "",
   shots = [],
   shotsLoading = false,
   shotsMap = new Map(),
@@ -255,6 +256,7 @@ function CallSheetBuilder({
   const {
     layoutDoc,
     hasRemoteLayout,
+    loading: layoutLoading,
     ensureLayout: ensureLayoutV2,
     updateLayout: updateLayoutV2,
   } = useCallSheetLayoutV2(clientId, projectId, scheduleId);
@@ -285,10 +287,13 @@ function CallSheetBuilder({
 
   useEffect(() => {
     if (!callSheetConfig || !schedule) return;
+    // Wait for layout loading to complete before deciding to create new layout
+    // This prevents race condition where layout is created before remote data loads
+    if (layoutLoading) return;
     if (hasRemoteLayout) return;
     if (layoutInitAttemptedRef.current) return;
     ensureLayoutV2FromConfig(callSheetConfig);
-  }, [callSheetConfig, hasRemoteLayout, schedule, ensureLayoutV2FromConfig]);
+  }, [callSheetConfig, hasRemoteLayout, layoutLoading, schedule, ensureLayoutV2FromConfig]);
 
   const applyCallSheetConfigUpdate = useCallback(
     (updates) => {
@@ -957,6 +962,7 @@ function CallSheetBuilder({
             projectId={projectId}
             scheduleId={scheduleId}
             schedule={schedule}
+            projectTitle={projectTitle}
             entries={resolvedEntries}
             tracks={tracks}
             columnConfig={effectiveColumns}
@@ -1062,6 +1068,7 @@ function CallSheetBuilder({
               projectId={projectId}
               scheduleId={scheduleId}
               schedule={schedule}
+              projectTitle={projectTitle}
               entries={resolvedEntries}
               tracks={tracks}
               columnConfig={effectiveColumns}

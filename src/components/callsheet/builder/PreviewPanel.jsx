@@ -66,6 +66,7 @@ function buildModernCallSheetData({
   crewRows,
   talentRows,
   sections,
+  projectTitle,
 }) {
   const scheduleRows = (entries || []).map((entry) => {
     const isBanner =
@@ -124,6 +125,7 @@ function buildModernCallSheetData({
 
   return {
     projectName: schedule?.name || "Call Sheet",
+    projectTitle: projectTitle || undefined,
     version: dayDetails?.scheduleVersion ? `Schedule v${dayDetails.scheduleVersion}` : dayDetails?.scriptVersion ? `Script v${dayDetails.scriptVersion}` : "",
     groupName: "Call Sheet",
     shootDay: schedule?.name || "Shoot Day",
@@ -157,6 +159,7 @@ export default function PreviewPanel({
   projectId,
   scheduleId,
   schedule,
+  projectTitle = "",
   entries,
   tracks,
   columnConfig,
@@ -323,8 +326,9 @@ export default function PreviewPanel({
         crewRows,
         talentRows,
         sections,
+        projectTitle,
       }),
-    [crewRows, dayDetails, entries, schedule, sections, talentRows]
+    [crewRows, dayDetails, entries, projectTitle, schedule, sections, talentRows]
   );
 
   const handleUpdateModernColors = useCallback(

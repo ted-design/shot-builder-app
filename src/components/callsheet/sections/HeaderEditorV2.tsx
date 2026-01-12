@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
+import RichTextEditor from "../../shots/RichTextEditor";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -442,6 +443,9 @@ const LINE_HEIGHT_PRESETS = [
   { value: 2.0, label: "Extra Loose" },
 ];
 
+// Variables hidden from the "Add Variable" picker (may still exist in older layouts)
+const HIDDEN_VARIABLE_OPTIONS = ["@companyName"];
+
 function getLineHeightLabel(value: number): string {
   const preset = LINE_HEIGHT_PRESETS.find((p) => Math.abs(p.value - value) < 0.05);
   return preset?.label || "Normal";
@@ -682,24 +686,31 @@ function SortableHeaderItem({
             onChange={(e) => onUpdate({ value: e.target.value })}
             disabled={disabled}
           >
-            {Object.keys(ctx).map((key) => (
-              <option key={key} value={key}>
-                {key}
-              </option>
-            ))}
+            {Object.keys(ctx)
+              .filter((key) => !HIDDEN_VARIABLE_OPTIONS.includes(key))
+              .map((key) => (
+                <option key={key} value={key}>
+                  {key}
+                </option>
+              ))}
           </select>
         </div>
       )}
 
-      {/* Text input (inline for text type) */}
+      {/* Rich text editor (inline for text type) */}
       {item.type === "text" && (
-        <div className="px-3 py-2 border-t border-slate-100 dark:border-slate-800">
-          <Input
-            value={item.value}
-            onChange={(e) => onUpdate({ value: e.target.value })}
+        <div className="px-3 py-2 border-t border-slate-100 dark:border-slate-800 header-richtext-editor">
+          <RichTextEditor
+            value={item.richText ?? item.value ?? ""}
+            onChange={(html) => onUpdate({ richText: html, value: item.value })}
             placeholder="Enter text..."
             disabled={disabled}
-            className="h-8 text-sm"
+            hideToolbar={true}
+            hideBubble={false}
+            minHeight="40px"
+            maxHeight="120px"
+            characterLimit={500}
+            className="header-text-editor"
           />
         </div>
       )}

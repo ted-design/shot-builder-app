@@ -675,22 +675,27 @@ function CallSheetExportModal({
                 ) : (
                   <Printer className="h-4 w-4" />
                 )}
-                Print / Save as PDF (matches preview)
+                Print to PDF (full formatting)
               </Button>
 
-              <Button
-                variant="outline"
-                onClick={handleDownload}
-                disabled={isGenerating}
-                className="w-full gap-2"
-              >
-                {isGenerating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                Download PDF (legacy)
-              </Button>
+              <div className="space-y-1">
+                <Button
+                  variant="outline"
+                  onClick={handleDownload}
+                  disabled={isGenerating}
+                  className="w-full gap-2"
+                >
+                  {isGenerating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  Download PDF (simple)
+                </Button>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Simple PDF does not include inline rich text formatting (colors, links, and selection-based styling).
+                </p>
+              </div>
 
               <Button
                 variant="outline"

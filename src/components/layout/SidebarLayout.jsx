@@ -77,11 +77,13 @@ function SidebarLayoutContent() {
 
   const showBreadcrumbs = shouldShowBreadcrumbs(location.pathname);
 
-  // Full-bleed routes don't get max-width constraint (e.g., catalogue pages with secondary sidebars)
-  const isFullBleedRoute = location.pathname.includes('/catalogue');
+  // Full-bleed routes don't get max-width constraint (e.g., catalogue pages with secondary sidebars, schedule builder)
+  const isProjectScheduleBuilder =
+    location.pathname.startsWith('/projects/') && location.pathname.endsWith('/schedule');
+  const isFullBleedRoute = location.pathname.includes('/catalogue') || isProjectScheduleBuilder;
 
   return (
-    <div className="flex min-h-screen bg-neutral-50 dark:bg-neutral-900">
+    <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-900">
       {/* Desktop sidebar */}
       <div className="hidden md:block">
         <Sidebar />

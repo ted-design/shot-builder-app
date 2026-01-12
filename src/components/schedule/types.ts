@@ -68,6 +68,8 @@ export interface CallSheetCrewRow {
 
 export interface CallSheetData {
   projectName: string;
+  /** Real project title (e.g., "UM • Q4-2025"). Falls back to projectName if not provided. */
+  projectTitle?: string;
   version: string;
   groupName: string;
   shootDay: string;

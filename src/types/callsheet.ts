@@ -242,6 +242,8 @@ export type CallSheetHeaderVariable =
 export interface CallSheetHeaderItem {
   type: "variable" | "text" | "image";
   value: string;
+  /** Rich text HTML content for text items (optional). Falls back to value if empty. */
+  richText?: string | null;
   style?: CallSheetTextStyle | null;
   enabled: boolean;
 }

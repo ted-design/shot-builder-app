@@ -11,10 +11,10 @@ import {
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
-import { useProjectScope } from "../context/ProjectScopeContext";
 import { FLAGS } from "../lib/flags";
 import { shotsPath, talentPath, locationsPath, productFamiliesPath } from "../lib/paths";
 import { useFirestoreCollection } from "../hooks/useFirestoreCollection";
+import { useProjects } from "../hooks/useFirestoreQuery";
 import { useSchedules, useCreateSchedule } from "../hooks/useSchedule";
 import { Button } from "../components/ui/button";
 import {
@@ -45,7 +45,8 @@ function CallSheetPage() {
   const { projectId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, clientId } = useAuth();
-  const { activeProject } = useProjectScope();
+  const { data: projects = [] } = useProjects(clientId);
+  const activeProject = useMemo(() => projects.find((p) => p.id === projectId) || null, [projects, projectId]);
   const isPreviewMode = searchParams.get("preview") === "1";
 
   const isEnabled = FLAGS.callSheetBuilder;
@@ -334,6 +335,7 @@ function CallSheetPage() {
             projectId={projectId}
             scheduleId={activeScheduleId}
             viewMode={isPreviewMode ? "preview" : "builder"}
+            projectTitle={activeProject?.name ?? ""}
             shots={shots}
             shotsLoading={shotsLoading}
             shotsMap={shotsMap}

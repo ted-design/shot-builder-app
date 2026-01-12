@@ -1,6 +1,15 @@
 import React from "react";
+import type { CallSheetHeaderItem, CallSheetTextStyle } from "../../../types/callsheet";
+import { resolveCallSheetVariable } from "../../../lib/callsheet/variables";
+import { sanitizeHtml, hasRichContent } from "../../../lib/sanitizeHtml";
 
 type CenterShape = "none" | "circle" | "rectangle";
+
+interface HeaderItemsLayout {
+  left: CallSheetHeaderItem[];
+  center: CallSheetHeaderItem[];
+  right: CallSheetHeaderItem[];
+}
 
 interface CallSheetHeaderProps {
   projectName: string;
@@ -12,6 +21,8 @@ interface CallSheetHeaderProps {
   totalDays: number;
   crewCallTime: string | null;
   centerShape?: CenterShape;
+  headerItems?: HeaderItemsLayout;
+  variableContext?: Record<string, string>;
 }
 
 interface CallSheetHeaderCompactProps {
@@ -68,7 +79,109 @@ function getCompactShapeClasses(shape: CenterShape = "circle"): string {
 }
 
 /**
+ * Build inline styles from CallSheetTextStyle
+ */
+function buildItemStyle(style?: CallSheetTextStyle | null): React.CSSProperties {
+  if (!style) return {};
+  const css: React.CSSProperties = {};
+  if (style.fontSize != null) css.fontSize = `${style.fontSize}px`;
+  if (style.color) css.color = style.color;
+  if (style.align) css.textAlign = style.align;
+  if (style.lineHeight != null) css.lineHeight = style.lineHeight;
+  if (style.marginTop != null) css.marginTop = `${style.marginTop}px`;
+  if (style.marginBottom != null) css.marginBottom = `${style.marginBottom}px`;
+  if (style.marginLeft != null) css.marginLeft = `${style.marginLeft}px`;
+  if (style.marginRight != null) css.marginRight = `${style.marginRight}px`;
+  if (style.wrap === "nowrap") css.whiteSpace = "nowrap";
+  else if (style.wrap === "wrap") css.whiteSpace = "normal";
+  return css;
+}
+
+/**
+ * Render a single header item (text, variable, or image)
+ */
+function renderHeaderItem(
+  item: CallSheetHeaderItem,
+  variableContext: Record<string, string>,
+  index: number
+) {
+  if (!item.enabled) return null;
+
+  const style = buildItemStyle(item.style);
+
+  if (item.type === "variable") {
+    // Resolve variable using context - fallback to raw variable token if not found
+    const resolvedText = resolveCallSheetVariable(item.value, variableContext as Parameters<typeof resolveCallSheetVariable>[1]);
+    return (
+      <div key={`item-${index}`} style={style} className="leading-tight">
+        {resolvedText || item.value}
+      </div>
+    );
+  }
+
+  if (item.type === "text") {
+    // Check for rich text content first, fall back to plain value
+    if (hasRichContent(item.richText)) {
+      const sanitized = sanitizeHtml(item.richText!);
+      return (
+        <div
+          key={`item-${index}`}
+          style={style}
+          className="leading-tight header-richtext"
+          dangerouslySetInnerHTML={{ __html: sanitized }}
+        />
+      );
+    }
+    return (
+      <div key={`item-${index}`} style={style} className="leading-tight">
+        {item.value}
+      </div>
+    );
+  }
+
+  if (item.type === "image") {
+    // Image value is the URL/path
+    return (
+      <img
+        key={`item-${index}`}
+        src={item.value}
+        alt=""
+        style={{ ...style, maxHeight: style.fontSize ? undefined : "64px", objectFit: "contain" }}
+        className="max-w-full"
+        onError={(e) => {
+          (e.target as HTMLImageElement).style.display = "none";
+        }}
+      />
+    );
+  }
+
+  return null;
+}
+
+/**
+ * Render a column of header items
+ */
+function renderHeaderColumn(
+  items: CallSheetHeaderItem[],
+  variableContext: Record<string, string>,
+  align: "left" | "center" | "right"
+) {
+  const enabledItems = items.filter((item) => item.enabled);
+  if (enabledItems.length === 0) return null;
+
+  const alignClass = align === "left" ? "items-start text-left" : align === "right" ? "items-end text-right" : "items-center text-center";
+
+  return (
+    <div className={`flex flex-col gap-1 ${alignClass}`}>
+      {enabledItems.map((item, index) => renderHeaderItem(item, variableContext, index))}
+    </div>
+  );
+}
+
+/**
  * Full header for Page 1 - SetHero style with 3-column layout
+ * When headerItems is provided with enabled items, renders the custom layout.
+ * Otherwise, falls back to the hardcoded default layout.
  */
 export function CallSheetHeader({
   projectName,
@@ -79,9 +192,55 @@ export function CallSheetHeader({
   totalDays,
   crewCallTime,
   centerShape = "circle",
+  headerItems,
+  variableContext,
 }: CallSheetHeaderProps) {
   const { time, period } = formatCrewCall(crewCallTime);
 
+  // Check if we have custom header items to render
+  const hasCustomItems = headerItems && variableContext && (
+    headerItems.left.some((item) => item.enabled) ||
+    headerItems.center.some((item) => item.enabled) ||
+    headerItems.right.some((item) => item.enabled)
+  );
+
+  // Render custom layout when headerItems are provided
+  if (hasCustomItems && headerItems && variableContext) {
+    return (
+      <header className="mb-6">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-4">
+          {/* Left Column - Custom Items */}
+          <div className="min-w-0">
+            {renderHeaderColumn(headerItems.left, variableContext, "left")}
+          </div>
+
+          {/* Center Column - Custom Items + Crew Call Badge */}
+          <div className="flex flex-col items-center justify-self-center">
+            {renderHeaderColumn(headerItems.center, variableContext, "center")}
+            {/* Crew Call Badge - always rendered in center */}
+            <div className="flex flex-col items-center mt-2">
+              <span className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
+                Crew Call
+              </span>
+              <div className={`${getShapeClasses(centerShape)} flex flex-col items-center justify-center`}>
+                <span className="text-3xl font-light text-gray-400 leading-none">
+                  {time}
+                </span>
+                <span className="text-lg font-normal text-gray-400">{period}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Custom Items */}
+          <div className="min-w-0">
+            {renderHeaderColumn(headerItems.right, variableContext, "right")}
+          </div>
+        </div>
+      </header>
+    );
+  }
+
+  // Fallback: Render hardcoded default layout
   return (
     <header className="mb-6">
       {/* Use CSS Grid for proper centering of center column */}
