@@ -71,6 +71,7 @@ function VerticalTimelineView({
   onUpdateEntryNotes,
   onUpdateEntryLocation,
   onUpdateEntryFlag,
+  onUpdateEntryMarker,
   onDeleteEntry,
   onReorderEntries,
   onMoveEntryToTrack,
@@ -207,6 +208,16 @@ function VerticalTimelineView({
       }
     },
     [onUpdateEntryFlag]
+  );
+
+  // Handle marker change (visual markers, separate from flag tags)
+  const handleMarkerChange = useCallback(
+    (entryId, marker) => {
+      if (onUpdateEntryMarker) {
+        onUpdateEntryMarker(entryId, marker);
+      }
+    },
+    [onUpdateEntryMarker]
   );
 
   // Handle track change
@@ -460,6 +471,7 @@ function VerticalTimelineView({
                             onLocationChange={handleLocationChange}
                             onTrackChange={handleTrackChange}
                             onFlagChange={handleFlagChange}
+                            onMarkerChange={handleMarkerChange}
                             onEditShot={onEditShotEntry}
                             onEditCustom={onEditEntry}
                             onDelete={handleDelete}

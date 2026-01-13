@@ -110,6 +110,9 @@ function renderHeaderItem(
   const style = buildItemStyle(item.style);
 
   if (item.type === "variable") {
+    // Deprecation: @companyName is hidden and should not render
+    if (item.value === "@companyName") return null;
+
     // Resolve variable using context - fallback to raw variable token if not found
     const resolvedText = resolveCallSheetVariable(item.value, variableContext as Parameters<typeof resolveCallSheetVariable>[1]);
     return (

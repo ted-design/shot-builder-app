@@ -1,7 +1,7 @@
 // src/components/callsheet/entries/CustomEntryForm.jsx
 // Form for creating/editing custom schedule entries (non-shot items)
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Wrench,
   Coffee,
@@ -93,6 +93,12 @@ function CustomEntryForm({
     return new Set(laneTracks.map((t) => t.id));
   });
 
+  // Ref for autofocus on mount
+  const titleInputRef = useRef(null);
+  useEffect(() => {
+    titleInputRef.current?.focus();
+  }, []);
+
   // Get current track
   const selectedTrack = tracks.find((t) => t.id === trackId) || tracks[0];
   const selectedTrackScope = selectedTrack?.scope || (selectedTrack?.id === "shared" ? "shared" : "lane");
@@ -160,7 +166,10 @@ function CustomEntryForm({
               <button
                 key={key}
                 type="button"
-                onClick={() => setCategory(key)}
+                onClick={() => {
+                  setCategory(key);
+                  if (!title.trim()) setTitle(label);
+                }}
                 className={`flex flex-col items-center gap-1 rounded-lg border p-3 transition-colors ${
                   isSelected
                     ? "border-slate-900 bg-slate-50 dark:border-slate-100 dark:bg-slate-800"
@@ -184,13 +193,13 @@ function CustomEntryForm({
           Title
         </label>
         <Input
+          ref={titleInputRef}
           id="entry-title"
           type="text"
           placeholder={`e.g., ${categoryLabel}`}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
-          autoFocus
         />
       </div>
 

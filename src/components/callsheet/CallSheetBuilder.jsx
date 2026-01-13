@@ -653,6 +653,13 @@ function CallSheetBuilder({
     [updateEntry]
   );
 
+  const handleUpdateEntryMarker = useCallback(
+    (entryId, marker) => {
+      updateEntry({ entryId, updates: { marker: marker || null } });
+    },
+    [updateEntry]
+  );
+
   const handleToggleShowDurations = useCallback(() => {
     if (!schedule?.settings) return;
     updateSettings({ showDurations: !(schedule.settings.showDurations ?? true) }, schedule.settings);
@@ -1049,6 +1056,7 @@ function CallSheetBuilder({
                   onUpdateEntryNotes={canWriteProject ? handleUpdateEntryNotes : undefined}
                   onUpdateEntryLocation={canWriteProject ? handleUpdateEntryLocation : undefined}
                   onUpdateEntryFlag={canWriteProject ? handleUpdateEntryFlag : undefined}
+                  onUpdateEntryMarker={canWriteProject ? handleUpdateEntryMarker : undefined}
                   onDeleteEntry={canWriteProject ? handleDeleteEntry : undefined}
                   onReorderEntries={canWriteProject ? handleReorderEntries : undefined}
                   onMoveEntryToTrack={canWriteProject ? handleMoveEntryToTrack : undefined}
