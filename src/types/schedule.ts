@@ -68,16 +68,17 @@ export interface ColumnConfig {
 
 /**
  * Default column configuration for new schedules.
+ * Note: "duration" is intentionally excluded - it is controlled by the
+ * schedule-level showDurations setting and displayed inline in the Time cell.
  */
 export const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: "time", label: "Time", width: "md", visible: true, order: 0 },
-  { key: "duration", label: "Duration", width: "sm", visible: true, order: 1 },
-  { key: "shot", label: "Shot", width: "sm", visible: true, order: 2 },
-  { key: "description", label: "Description", width: "xl", visible: true, order: 3 },
-  { key: "talent", label: "Talent", width: "md", visible: true, order: 4 },
-  { key: "products", label: "Products", width: "md", visible: true, order: 5 },
-  { key: "location", label: "Location", width: "lg", visible: true, order: 6 },
-  { key: "notes", label: "Notes", width: "lg", visible: false, order: 7 },
+  { key: "shot", label: "Shot", width: "sm", visible: true, order: 1 },
+  { key: "description", label: "Description", width: "xl", visible: true, order: 2 },
+  { key: "talent", label: "Talent", width: "md", visible: true, order: 3 },
+  { key: "products", label: "Products", width: "md", visible: true, order: 4 },
+  { key: "location", label: "Location", width: "lg", visible: true, order: 5 },
+  { key: "notes", label: "Notes", width: "lg", visible: false, order: 6 },
 ];
 
 // =============================================================================
@@ -149,6 +150,45 @@ export type ScheduleInput = Omit<Schedule, "id" | "createdAt" | "updatedAt">;
  * Entry types distinguish between shots from the library and custom items.
  */
 export type EntryType = "shot" | "custom";
+
+/**
+ * Visual marker for quick identification of entries in the schedule.
+ * Separate from the flag system (which uses tags in the footer).
+ */
+export interface EntryMarker {
+  /** Icon identifier from the marker picker (e.g., "star", "alert", "clock") */
+  icon: string;
+  /** Color for the marker background (e.g., "#EF4444" for red) */
+  color: string;
+}
+
+/**
+ * Available marker icons and their display properties.
+ */
+export const MARKER_ICONS = [
+  { id: "star", label: "Star" },
+  { id: "alert", label: "Alert" },
+  { id: "clock", label: "Clock" },
+  { id: "camera", label: "Camera" },
+  { id: "user", label: "Person" },
+  { id: "zap", label: "Priority" },
+  { id: "heart", label: "Heart" },
+  { id: "flag", label: "Flag" },
+] as const;
+
+/**
+ * Available marker colors.
+ */
+export const MARKER_COLORS = [
+  { id: "red", value: "#EF4444", label: "Red" },
+  { id: "orange", value: "#F97316", label: "Orange" },
+  { id: "amber", value: "#F59E0B", label: "Amber" },
+  { id: "green", value: "#22C55E", label: "Green" },
+  { id: "blue", value: "#3B82F6", label: "Blue" },
+  { id: "purple", value: "#8B5CF6", label: "Purple" },
+  { id: "pink", value: "#EC4899", label: "Pink" },
+  { id: "slate", value: "#64748B", label: "Slate" },
+] as const;
 
 /**
  * Categories for custom entries (non-shot items like breaks, setup, etc.).
@@ -238,6 +278,9 @@ export interface ScheduleEntry {
 
   /** Optional schedule-specific flag (e.g., "Important", "Wardrobe") */
   flag?: string | null;
+
+  /** Optional visual marker for quick scanning (separate from flag tags) */
+  marker?: EntryMarker | null;
 
   /** Optional subset of tracks this custom item applies to */
   appliesToTrackIds?: string[] | null;

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { MapPin } from "lucide-react";
 import type { CallSheetColors, CallSheetData } from "../types";
 import type { CallSheetLayoutV2, CallSheetCenterShape, CallSheetSection, CallSheetHeaderItem } from "../../../types/callsheet";
+import type { ColumnConfig } from "../../../types/schedule";
 import { CallSheetHeader, CallSheetHeaderCompact } from "./CallSheetHeader";
 import { ScheduleTableSection } from "./sections/ScheduleTableSection";
 import { TalentSection } from "./sections/TalentSection";
@@ -26,6 +27,7 @@ interface CallSheetPreviewProps {
   layoutV2?: CallSheetLayoutV2 | null;
   sections?: CallSheetSection[] | null;
   crewDisplayOptions?: CrewDisplayOptions;
+  columnConfig?: ColumnConfig[];
 }
 
 const DEFAULT_COLORS: CallSheetColors = {
@@ -43,6 +45,7 @@ export function CallSheetPreview({
   layoutV2,
   sections,
   crewDisplayOptions,
+  columnConfig,
 }: CallSheetPreviewProps) {
   const cssVars = {
     "--cs-primary": colors.primary,
@@ -124,7 +127,7 @@ export function CallSheetPreview({
           >
             {pageChromeHeader}
             {pageSections.map((section) => (
-              <React.Fragment key={section.id}>{renderSection(section, data, centerShape, pageIndex, crewDisplayOptions, headerItems, variableContext)}</React.Fragment>
+              <React.Fragment key={section.id}>{renderSection(section, data, centerShape, pageIndex, crewDisplayOptions, headerItems, variableContext, columnConfig)}</React.Fragment>
             ))}
             <CallSheetFooter />
           </DocumentPage>
@@ -162,7 +165,8 @@ function renderSection(
   pageIndex: number,
   crewDisplayOptions?: CrewDisplayOptions,
   headerItems?: { left: CallSheetHeaderItem[]; center: CallSheetHeaderItem[]; right: CallSheetHeaderItem[] } | null,
-  variableContext?: Record<string, string>
+  variableContext?: Record<string, string>,
+  columnConfig?: ColumnConfig[]
 ) {
   if (section.isVisible === false) return null;
 
@@ -208,7 +212,7 @@ function renderSection(
   if (section.type === "schedule") {
     return (
       <SectionWrapper title={readSectionTitle(section, "Today's Schedule")} collapsible>
-        <ScheduleTableSection schedule={data.schedule} />
+        <ScheduleTableSection schedule={data.schedule} columnConfig={columnConfig} />
       </SectionWrapper>
     );
   }

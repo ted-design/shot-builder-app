@@ -283,7 +283,7 @@ export default function EditorPanel({
         {/* Sticky footer with action buttons */}
         <div className="sticky bottom-0 flex flex-wrap items-center gap-2 px-4 py-3 bg-white border-t border-slate-200 dark:bg-slate-900 dark:border-slate-700">
           <Button type="button" size="sm" onClick={onAddScene} disabled={readOnly || !onAddScene}>
-            + Add Scene
+            + Add Shots
           </Button>
           <Button
             type="button"

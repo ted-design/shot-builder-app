@@ -50,8 +50,8 @@ function CallSheetPage() {
   const isPreviewMode = searchParams.get("preview") === "1";
 
   const isEnabled = FLAGS.callSheetBuilder;
-  const effectiveClientId = isEnabled ? clientId : null;
-  const effectiveProjectId = isEnabled ? projectId : null;
+  const effectiveClientId = clientId;
+  const effectiveProjectId = projectId;
 
   // Active schedule ID (from URL or first available)
   const [activeScheduleId, setActiveScheduleId] = useState(null);
@@ -85,7 +85,7 @@ function CallSheetPage() {
     return [
       where("projectId", "==", effectiveProjectId),
       where("deleted", "==", false),
-      orderBy("shotNumber", "asc"),
+      orderBy("date", "asc"),
     ];
   }, [effectiveProjectId]);
 

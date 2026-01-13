@@ -17,6 +17,12 @@ export interface CallSheetScheduleLocation {
   address: string;
 }
 
+/** Visual marker for schedule entries (icon + color) */
+export interface ScheduleEntryMarker {
+  icon: string;
+  color: string;
+}
+
 export interface CallSheetScheduleItem {
   id: string;
   time: string;
@@ -26,6 +32,8 @@ export interface CallSheetScheduleItem {
   notes: string;
   location: CallSheetScheduleLocation | null;
   isBanner?: boolean;
+  /** Optional visual marker for quick identification */
+  marker?: ScheduleEntryMarker | null;
 }
 
 export interface CallSheetDayDetails {

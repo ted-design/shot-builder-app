@@ -89,6 +89,7 @@ function buildModernCallSheetData({
       notes: notes || "—",
       location: locationName ? { name: locationName, address: "" } : null,
       isBanner,
+      marker: entry?.marker || null,
     };
   });
 
@@ -451,6 +452,7 @@ export default function PreviewPanel({
               layoutV2={layoutV2}
               sections={sections}
               crewDisplayOptions={crewDisplayOptions}
+              columnConfig={columnConfig}
             />
           </div>
         ) : (

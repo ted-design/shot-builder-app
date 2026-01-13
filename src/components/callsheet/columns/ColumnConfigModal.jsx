@@ -20,6 +20,20 @@ import {
 } from "../../ui/dropdown-menu";
 import { DEFAULT_COLUMNS } from "../../../types/schedule";
 
+// Keys that should not be configurable in this modal (controlled elsewhere)
+const EXCLUDED_COLUMN_KEYS = ["duration"];
+
+/**
+ * Filter out columns that are controlled by other settings (e.g., duration is
+ * controlled by the schedule-level showDurations toggle, not per-column config).
+ * Also re-numbers order values to maintain contiguous sequence.
+ */
+function sanitizeColumns(columns) {
+  return columns
+    .filter((col) => !EXCLUDED_COLUMN_KEYS.includes(col.key))
+    .map((col, idx) => ({ ...col, order: idx }));
+}
+
 // Width options with labels
 const WIDTH_OPTIONS = [
   { value: "xs", label: "X-Small" },
@@ -47,16 +61,16 @@ function ColumnConfigModal({
   onSectionTitleChange,
   onSave,
 }) {
-  // Local state for editing
+  // Local state for editing (sanitized to remove excluded columns like duration)
   const [editedColumns, setEditedColumns] = useState(() =>
-    [...columns].sort((a, b) => a.order - b.order)
+    sanitizeColumns([...columns]).sort((a, b) => a.order - b.order)
   );
   const [draggedIndex, setDraggedIndex] = useState(null);
 
-  // Reset to match props when modal opens
+  // Reset to match props when modal opens (sanitize to handle legacy configs)
   React.useEffect(() => {
     if (isOpen) {
-      setEditedColumns([...columns].sort((a, b) => a.order - b.order));
+      setEditedColumns(sanitizeColumns([...columns]).sort((a, b) => a.order - b.order));
     }
   }, [isOpen, columns]);
 
