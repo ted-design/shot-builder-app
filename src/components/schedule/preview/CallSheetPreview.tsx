@@ -127,7 +127,7 @@ export function CallSheetPreview({
           >
             {pageChromeHeader}
             {pageSections.map((section) => (
-              <React.Fragment key={section.id}>{renderSection(section, data, centerShape, pageIndex, crewDisplayOptions, headerItems, variableContext, columnConfig)}</React.Fragment>
+              <React.Fragment key={section.id}>{renderSection(section, data, centerShape, pageIndex, crewDisplayOptions, headerItems, variableContext, columnConfig, data.tracks)}</React.Fragment>
             ))}
             <CallSheetFooter />
           </DocumentPage>
@@ -166,7 +166,8 @@ function renderSection(
   crewDisplayOptions?: CrewDisplayOptions,
   headerItems?: { left: CallSheetHeaderItem[]; center: CallSheetHeaderItem[]; right: CallSheetHeaderItem[] } | null,
   variableContext?: Record<string, string>,
-  columnConfig?: ColumnConfig[]
+  columnConfig?: ColumnConfig[],
+  tracks?: CallSheetData["tracks"]
 ) {
   if (section.isVisible === false) return null;
 
@@ -212,7 +213,7 @@ function renderSection(
   if (section.type === "schedule") {
     return (
       <SectionWrapper title={readSectionTitle(section, "Today's Schedule")} collapsible>
-        <ScheduleTableSection schedule={data.schedule} columnConfig={columnConfig} />
+        <ScheduleTableSection schedule={data.schedule} columnConfig={columnConfig} tracks={tracks} />
       </SectionWrapper>
     );
   }

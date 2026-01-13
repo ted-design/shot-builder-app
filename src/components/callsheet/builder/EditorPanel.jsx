@@ -29,6 +29,8 @@ export default function EditorPanel({
   schedule,
   scheduleSettings,
   scheduledTalentIds,
+  trackFocusId = "all",
+  onTrackFocusChange,
   onToggleShowDurations,
   onToggleCascade,
   onOpenScheduleFields,
@@ -245,6 +247,25 @@ export default function EditorPanel({
             />
             <span>Cascade changes</span>
           </label>
+
+          {/* Track Focus Mode dropdown */}
+          {Array.isArray(schedule?.tracks) && schedule.tracks.length > 0 && (
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-sm text-slate-600 dark:text-slate-400">Track</span>
+              <select
+                value={trackFocusId}
+                onChange={(e) => onTrackFocusChange?.(e.target.value)}
+                className="h-8 w-[120px] rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+              >
+                <option value="all">All</option>
+                {schedule.tracks.map((track) => (
+                  <option key={track.id} value={track.id}>
+                    {track.name || track.id}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* View mode tabs (underline style) - white background */}

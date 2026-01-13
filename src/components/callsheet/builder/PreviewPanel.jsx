@@ -67,6 +67,7 @@ function buildModernCallSheetData({
   talentRows,
   sections,
   projectTitle,
+  tracks,
 }) {
   const scheduleRows = (entries || []).map((entry) => {
     const isBanner =
@@ -90,6 +91,7 @@ function buildModernCallSheetData({
       location: locationName ? { name: locationName, address: "" } : null,
       isBanner,
       marker: entry?.marker || null,
+      trackId: entry?.trackId || null,
     };
   });
 
@@ -124,6 +126,11 @@ function buildModernCallSheetData({
 
   const scheduleDate = formatDateLong(schedule?.date);
 
+  // Build simple track list (id + name only) for schedule display
+  const trackList = Array.isArray(tracks)
+    ? tracks.map((t) => ({ id: t.id, name: t.name }))
+    : [];
+
   return {
     projectName: schedule?.name || "Call Sheet",
     projectTitle: projectTitle || undefined,
@@ -153,6 +160,7 @@ function buildModernCallSheetData({
     schedule: scheduleRows,
     talent,
     crew,
+    tracks: trackList,
   };
 }
 
@@ -328,8 +336,9 @@ export default function PreviewPanel({
         talentRows,
         sections,
         projectTitle,
+        tracks,
       }),
-    [crewRows, dayDetails, entries, projectTitle, schedule, sections, talentRows]
+    [crewRows, dayDetails, entries, projectTitle, schedule, sections, talentRows, tracks]
   );
 
   const handleUpdateModernColors = useCallback(

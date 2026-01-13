@@ -34,6 +34,8 @@ export interface CallSheetScheduleItem {
   isBanner?: boolean;
   /** Optional visual marker for quick identification */
   marker?: ScheduleEntryMarker | null;
+  /** Track ID this entry belongs to (for multi-track schedules) */
+  trackId?: string | null;
 }
 
 export interface CallSheetDayDetails {
@@ -74,6 +76,12 @@ export interface CallSheetCrewRow {
   notes?: string;
 }
 
+/** Track reference for schedule display */
+export interface CallSheetTrack {
+  id: string;
+  name: string;
+}
+
 export interface CallSheetData {
   projectName: string;
   /** Real project title (e.g., "UM • Q4-2025"). Falls back to projectName if not provided. */
@@ -91,6 +99,8 @@ export interface CallSheetData {
   schedule: CallSheetScheduleItem[];
   talent: CallSheetTalentRow[];
   crew: CallSheetCrewRow[];
+  /** Tracks for multi-track schedule display (optional for backward compatibility) */
+  tracks?: CallSheetTrack[];
   pageBreakAfterHeader?: boolean;
   pageBreakAfterTalent?: boolean;
 }

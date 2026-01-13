@@ -26,13 +26,62 @@ export interface Track {
 }
 
 /**
- * Default track templates for new schedules.
+ * Primary track constant - the default track for new schedules.
+ * This is the minimal track configuration for single-stream schedules.
  */
-export const DEFAULT_TRACKS: Track[] = [
+export const PRIMARY_TRACK: Track = {
+  id: "primary",
+  name: "Primary",
+  color: "#64748B", // Neutral slate
+  order: 0,
+  scope: "lane",
+};
+
+/**
+ * Default track templates for new schedules.
+ * v0.1: Single "Primary" track for multi-stream groundwork.
+ * Existing schedules with photo/video/shared tracks remain backward compatible.
+ */
+export const DEFAULT_TRACKS: Track[] = [PRIMARY_TRACK];
+
+/**
+ * Legacy default tracks (for reference - kept for backward compatibility).
+ * Existing schedules may have these tracks defined.
+ */
+export const LEGACY_DEFAULT_TRACKS: Track[] = [
   { id: "shared", name: "Shared", color: "#64748B", order: 0, scope: "shared" },
   { id: "photo", name: "Photo", color: "#F59E0B", order: 1, scope: "lane" },
   { id: "video", name: "Video", color: "#8B5CF6", order: 2, scope: "lane" },
 ];
+
+/**
+ * Default track ID for entries when trackId is missing or invalid.
+ */
+export const DEFAULT_TRACK_ID = "primary";
+
+/**
+ * Resolves a trackId to a valid track from the available tracks.
+ * Returns the first track if trackId is invalid or not found.
+ */
+export function resolveTrack(trackId: string | null | undefined, tracks: Track[]): Track {
+  if (!tracks || tracks.length === 0) {
+    return PRIMARY_TRACK;
+  }
+  if (!trackId) {
+    // Return first track as default
+    return tracks[0];
+  }
+  const found = tracks.find((t) => t.id === trackId);
+  return found || tracks[0];
+}
+
+/**
+ * Resolves a trackId to a valid track ID string.
+ * Returns the first track's ID if trackId is invalid or not found.
+ */
+export function resolveTrackId(trackId: string | null | undefined, tracks: Track[]): string {
+  return resolveTrack(trackId, tracks).id;
+}
 
 // =============================================================================
 // Column Configuration Types
