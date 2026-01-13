@@ -104,6 +104,9 @@ function CallSheetBuilder({
   // Track focus mode - session-only state for dimming entries from other tracks
   const [trackFocusId, setTrackFocusId] = useState("all");
 
+  // Schedule view mode - controls which view component is rendered (list, byTrack, timeline)
+  const [scheduleViewMode, setScheduleViewMode] = useState("list");
+
   // Schedule data
   const { schedule, loading: scheduleLoading, error: scheduleError } = useSchedule(
     clientId,
@@ -1015,6 +1018,9 @@ function CallSheetBuilder({
               scheduledTalentIds,
               trackFocusId,
               onTrackFocusChange: setTrackFocusId,
+              scheduleViewMode,
+              onScheduleViewModeChange: setScheduleViewMode,
+              resolvedEntries,
               onToggleShowDurations: canWriteProject ? handleToggleShowDurations : undefined,
               onToggleCascade: canWriteProject ? handleToggleCascade : undefined,
               onOpenScheduleFields: canWriteProject ? () => setIsColumnConfigOpen(true) : undefined,
@@ -1040,6 +1046,8 @@ function CallSheetBuilder({
               },
               generalCrewCallTime: dayDetails?.crewCallTime || "",
               onUpdateSectionConfig: handleUpdateSectionConfig,
+              onEditEntry: canWriteProject ? handleEditCustomEntry : undefined,
+              onEditShotEntry: canWriteProject ? handleEditShotEntry : undefined,
               scheduleEditor: (
                 <VerticalTimelineView
                   schedule={schedule}
