@@ -48,9 +48,11 @@ const DEFAULT_VISIBLE_COLUMNS: ColumnConfig[] = [
   { key: "location", label: "Location", width: "lg", visible: true, order: 4 },
 ];
 
-// Columns controlled by other settings (not column config)
-// Duration is controlled by schedule-level showDurations toggle
-const EXCLUDED_COLUMN_KEYS = ["duration"];
+// Columns controlled by other settings or not available in schedule data
+// - duration: controlled by schedule-level showDurations toggle (shown inline in time cell)
+// - shot: shot number is embedded in description, not a separate field
+// - products: not currently available in schedule item data
+const EXCLUDED_COLUMN_KEYS = ["duration", "shot", "products"];
 
 export function ScheduleTableSection({ schedule, columnConfig }: ScheduleTableSectionProps) {
   // Get visible columns sorted by order (filter out excluded columns for backward compat)
@@ -98,16 +100,10 @@ export function ScheduleTableSection({ schedule, columnConfig }: ScheduleTableSe
           </div>
         );
       }
-      case "shot":
-        // Shot number is embedded in description; show placeholder or extract if available
-        return "";
       case "description":
         return <span className="text-gray-800">{item.description}</span>;
       case "talent":
         return <span className="text-gray-700">{item.cast !== "—" ? item.cast : ""}</span>;
-      case "products":
-        // Products not currently in schedule item data
-        return "";
       case "notes":
         return <span className="text-xs text-gray-600">{item.notes !== "—" ? item.notes : ""}</span>;
       case "location":
@@ -149,13 +145,17 @@ export function ScheduleTableSection({ schedule, columnConfig }: ScheduleTableSe
         {schedule.map((item) => (
           <tr key={item.id}>
             {item.isBanner ? (
-              // Banner row spans all columns
+              // Banner row respects column config - render time if visible, then span rest for description
               (() => {
                 const BannerMarkerIcon = item.marker?.icon ? MARKER_ICON_MAP[item.marker.icon] : null;
-                return (
-                  <>
-                    <td>
-                      <div className="flex items-center gap-1.5">
+                const timeColumnIndex = visibleColumns.findIndex((col) => col.key === "time");
+                const hasTimeColumn = timeColumnIndex !== -1;
+
+                // If no time column, span all columns for the banner
+                if (!hasTimeColumn) {
+                  return (
+                    <td colSpan={visibleColumns.length}>
+                      <div className="flex items-center gap-2 font-medium text-gray-800">
                         {item.marker && BannerMarkerIcon && (
                           <span
                             className="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full print:h-3.5 print:w-3.5"
@@ -165,17 +165,51 @@ export function ScheduleTableSection({ schedule, columnConfig }: ScheduleTableSe
                             <BannerMarkerIcon className="h-2.5 w-2.5 text-white print:h-2 print:w-2" />
                           </span>
                         )}
-                        <div className="font-semibold text-gray-900">{item.time}</div>
-                      </div>
-                    </td>
-                    <td colSpan={visibleColumns.length - 1}>
-                      <div className="flex items-center gap-2 font-medium text-gray-800">
                         <Flag className="w-4 h-4 text-red-500" />
                         {item.description}
                       </div>
                     </td>
-                  </>
-                );
+                  );
+                }
+
+                // Time column is visible - render cells in proper order
+                const cells: React.ReactNode[] = [];
+
+                for (let i = 0; i < visibleColumns.length; i++) {
+                  if (i === timeColumnIndex) {
+                    // Render time cell
+                    cells.push(
+                      <td key="time">
+                        <div className="flex items-center gap-1.5">
+                          {item.marker && BannerMarkerIcon && (
+                            <span
+                              className="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full print:h-3.5 print:w-3.5"
+                              style={{ backgroundColor: item.marker.color }}
+                              title={item.marker.icon}
+                            >
+                              <BannerMarkerIcon className="h-2.5 w-2.5 text-white print:h-2 print:w-2" />
+                            </span>
+                          )}
+                          <div className="font-semibold text-gray-900">{item.time}</div>
+                        </div>
+                      </td>
+                    );
+                  } else if (i === (timeColumnIndex === 0 ? 1 : 0)) {
+                    // First non-time cell spans the remaining columns
+                    const remainingCols = visibleColumns.length - 1;
+                    cells.push(
+                      <td key="description" colSpan={remainingCols}>
+                        <div className="flex items-center gap-2 font-medium text-gray-800">
+                          <Flag className="w-4 h-4 text-red-500" />
+                          {item.description}
+                        </div>
+                      </td>
+                    );
+                    break; // colspan handles the rest
+                  }
+                }
+
+                return <>{cells}</>;
               })()
             ) : (
               // Regular row with dynamic columns
