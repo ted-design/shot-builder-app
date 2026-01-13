@@ -317,33 +317,26 @@ function VerticalEntryCard({
           </span>
         </div>
 
-        {/* Track selector dropdown */}
-        {tracks.length > 1 ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="ml-auto flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-              >
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: track?.color || "#64748B" }}
-                />
-                <span className="max-w-[80px] truncate">{track?.name || "Track"}</span>
-                <ChevronDown className="h-3 w-3 opacity-50" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+        {/* Track chip - always visible, subtle slate styling */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="ml-auto inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:focus:ring-slate-600"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="max-w-[80px] truncate">{track?.name || "Primary"}</span>
+              {tracks.length > 1 && <ChevronDown className="h-3 w-3 opacity-50" />}
+            </button>
+          </DropdownMenuTrigger>
+          {tracks.length > 1 && (
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
               {tracks.map((t) => (
                 <DropdownMenuItem
                   key={t.id}
                   onClick={() => onTrackChange?.(entry.id, t.id)}
                   className="gap-2"
                 >
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: t.color }}
-                  />
                   {t.name}
                   {t.id === entry.trackId && (
                     <Check className="ml-auto h-4 w-4 text-amber-600" />
@@ -351,14 +344,8 @@ function VerticalEntryCard({
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <div
-            className="ml-auto h-3 w-3 rounded-full"
-            style={{ backgroundColor: track?.color || "#64748B" }}
-            title={track?.name || "Track"}
-          />
-        )}
+          )}
+        </DropdownMenu>
       </div>
 
       {/* Body: Title, Description, Image - white background with compact padding */}

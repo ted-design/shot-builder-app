@@ -66,6 +66,7 @@ function VerticalTimelineView({
   settings = {},
   showPreviewPanel = true,
   showEditorHeader = true,
+  trackFocusId = "all",
   onMoveEntry,
   onResizeEntry,
   onUpdateEntryNotes,
@@ -450,10 +451,16 @@ function VerticalTimelineView({
                 <div className="space-y-4">
                   {Array.from(entriesByTimeSlot.entries()).map(([time, timeEntries]) => (
                     <div key={time} className="flex flex-wrap gap-4">
-                      {timeEntries.map((entry) => (
+                      {timeEntries.map((entry) => {
+                        // Track focus dimming: dim entries that don't match the focused track
+                        const isDimmed = trackFocusId !== "all" && entry.trackId !== trackFocusId;
+                        return (
                         <div
                           key={entry.id}
-                          className={timeEntries.length > 1 ? "flex-1 min-w-[300px]" : "w-full"}
+                          className={[
+                            timeEntries.length > 1 ? "flex-1 min-w-[300px]" : "w-full",
+                            isDimmed ? "opacity-40 transition-opacity" : "transition-opacity",
+                          ].join(" ")}
                         >
                           <VerticalEntryCard
                             entry={entry}
@@ -477,7 +484,8 @@ function VerticalTimelineView({
                             onDelete={handleDelete}
                           />
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ))}
                 </div>

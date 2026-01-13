@@ -26,13 +26,21 @@ import {
   DEFAULT_TRACKS,
   DEFAULT_COLUMNS,
   DEFAULT_SCHEDULE_SETTINGS,
+  PRIMARY_TRACK,
 } from "../types/schedule";
 
+/**
+ * Normalize tracks array ensuring backward compatibility.
+ * - Empty/missing tracks default to [PRIMARY_TRACK]
+ * - Existing tracks (e.g., photo/video/shared) are preserved
+ * - Ensures scope field is set for all tracks
+ */
 function normalizeTracks(tracks) {
   if (!Array.isArray(tracks) || tracks.length === 0) {
     return DEFAULT_TRACKS;
   }
   return tracks.map((track) => {
+    // Determine scope: explicit scope, or infer from id for legacy "shared" track
     const scope = track.scope || (track.id === "shared" ? "shared" : "lane");
     return { ...track, scope };
   });

@@ -101,6 +101,9 @@ function CallSheetBuilder({
   const [isShotEditorOpen, setIsShotEditorOpen] = useState(false);
   const [shotEditorShot, setShotEditorShot] = useState(null);
 
+  // Track focus mode - session-only state for dimming entries from other tracks
+  const [trackFocusId, setTrackFocusId] = useState("all");
+
   // Schedule data
   const { schedule, loading: scheduleLoading, error: scheduleError } = useSchedule(
     clientId,
@@ -1010,6 +1013,8 @@ function CallSheetBuilder({
               schedule,
               scheduleSettings: settings,
               scheduledTalentIds,
+              trackFocusId,
+              onTrackFocusChange: setTrackFocusId,
               onToggleShowDurations: canWriteProject ? handleToggleShowDurations : undefined,
               onToggleCascade: canWriteProject ? handleToggleCascade : undefined,
               onOpenScheduleFields: canWriteProject ? () => setIsColumnConfigOpen(true) : undefined,
@@ -1045,6 +1050,7 @@ function CallSheetBuilder({
                   showPreviewPanel={false}
                   showEditorHeader={false}
                   columnConfig={effectiveColumns}
+                  trackFocusId={trackFocusId}
                   onMoveEntry={
                     canWriteProject ? (entryId, newTime) => moveEntry(entryId, newTime, resolvedEntries) : undefined
                   }
