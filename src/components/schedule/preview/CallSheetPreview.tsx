@@ -17,6 +17,7 @@ import { buildCallSheetVariableContext } from "../../../lib/callsheet/variables"
 interface CrewDisplayOptions {
   showEmails?: boolean;
   showPhones?: boolean;
+  departmentOrder?: string[] | null;
 }
 
 interface CallSheetPreviewProps {

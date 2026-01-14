@@ -24,10 +24,15 @@ import {
   Plus,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Copy,
   Settings2,
   X,
   Clock,
+  Columns,
+  ArrowUp,
+  ArrowDown,
+  List,
 } from "lucide-react";
 
 function isTimeString(value) {
@@ -295,6 +300,8 @@ export default function CrewCallsCard({
   // Persisted display preferences (scoped to schedule to avoid cross-callsheet bleed)
   const keyEmails = scheduleId ? `callSheetCrew.showEmails:${scheduleId}` : null;
   const keyPhones = scheduleId ? `callSheetCrew.showPhones:${scheduleId}` : null;
+  const keyColumnCount = scheduleId ? `callSheetCrew.columnCount:${scheduleId}` : null;
+  const keyDepartmentOrder = scheduleId ? `callSheetCrew.departmentOrder:${scheduleId}` : null;
 
   const [showEmails, setShowEmails] = useState(() => {
     if (!keyEmails) return false;
@@ -317,6 +324,31 @@ export default function CrewCallsCard({
     }
   });
 
+  // Column count: "auto" | "1" | "2" | "3"
+  const [columnCount, setColumnCount] = useState(() => {
+    if (!keyColumnCount) return "auto";
+    try {
+      const stored = localStorage.getItem(keyColumnCount);
+      if (stored === "1" || stored === "2" || stored === "3") return stored;
+      return "auto"; // Default to auto when unset or invalid
+    } catch {
+      return "auto";
+    }
+  });
+
+  // Department order: array of normalized department names (uppercase)
+  const [departmentOrder, setDepartmentOrder] = useState(() => {
+    if (!keyDepartmentOrder) return null;
+    try {
+      const stored = localStorage.getItem(keyDepartmentOrder);
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  });
+
   const toggleShowEmails = useCallback((checked) => {
     setShowEmails(checked);
     if (!keyEmails) return;
@@ -336,6 +368,31 @@ export default function CrewCallsCard({
       window.dispatchEvent(new CustomEvent("crewDisplayOptionsChange"));
     } catch {}
   }, [keyPhones]);
+
+  const handleColumnCountChange = useCallback((value) => {
+    setColumnCount(value);
+    if (!keyColumnCount) return;
+    try {
+      localStorage.setItem(keyColumnCount, value);
+      // Dispatch custom event for same-page listeners (PreviewPanel)
+      window.dispatchEvent(new CustomEvent("crewDisplayOptionsChange"));
+    } catch {}
+  }, [keyColumnCount]);
+
+  // Save department order to localStorage and dispatch event
+  const saveDepartmentOrder = useCallback((order) => {
+    setDepartmentOrder(order);
+    if (!keyDepartmentOrder) return;
+    try {
+      if (order && order.length > 0) {
+        localStorage.setItem(keyDepartmentOrder, JSON.stringify(order));
+      } else {
+        localStorage.removeItem(keyDepartmentOrder);
+      }
+      // Dispatch custom event for same-page listeners (PreviewPanel)
+      window.dispatchEvent(new CustomEvent("crewDisplayOptionsChange"));
+    } catch {}
+  }, [keyDepartmentOrder]);
 
   const assignedCrew = useMemo(() => {
     return assignments
@@ -383,6 +440,30 @@ export default function CrewCallsCard({
     projectDepartments.forEach((d) => map.set(`project:${d.id}`, d.name));
     return map;
   }, [departments, projectDepartments]);
+
+  // Move a department up or down in the order
+  const moveDepartment = useCallback((deptName, direction) => {
+    // Get current departments from the grouped data
+    const currentDepts = orderedGroupIds
+      .map((id) => departmentNameById.get(id) || (id === "__unassigned__" ? "Unassigned" : "Unknown"))
+      .map((name) => name.toUpperCase());
+
+    // Use stored order if available, otherwise use current order
+    const workingOrder = departmentOrder && departmentOrder.length > 0
+      ? [...departmentOrder]
+      : [...currentDepts];
+
+    const normalizedName = deptName.toUpperCase();
+    const currentIndex = workingOrder.indexOf(normalizedName);
+    if (currentIndex === -1) return;
+
+    const newIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex < 0 || newIndex >= workingOrder.length) return;
+
+    // Swap positions
+    [workingOrder[currentIndex], workingOrder[newIndex]] = [workingOrder[newIndex], workingOrder[currentIndex]];
+    saveDepartmentOrder(workingOrder);
+  }, [departmentOrder, orderedGroupIds, departmentNameById, saveDepartmentOrder]);
 
   // Build position lookup from departments
   const positionById = useMemo(() => {
@@ -592,6 +673,21 @@ export default function CrewCallsCard({
               <Switch checked={showPhones} onCheckedChange={toggleShowPhones} />
               <span className="text-sm text-slate-700 dark:text-slate-300">Show phone numbers</span>
             </label>
+
+            {/* Column count */}
+            <div className="flex items-center gap-2">
+              <Columns className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+              <span className="text-sm text-slate-700 dark:text-slate-300">Columns</span>
+              <select
+                value={columnCount}
+                onChange={(e) => handleColumnCountChange(e.target.value)}
+                className="h-8 px-2 text-sm rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="auto">Auto</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+              </select>
+            </div>
           </div>
 
           {/* Expand/Collapse controls */}
@@ -603,6 +699,74 @@ export default function CrewCallsCard({
               Collapse All
             </Button>
           </div>
+
+          {/* Department Order */}
+          {orderedGroupIds.length > 1 ? (
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2 mb-2">
+                <List className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Department Order
+                </span>
+              </div>
+              <div className="space-y-1">
+                {(() => {
+                  // Build ordered list for display - use stored order if available
+                  const currentDeptNames = orderedGroupIds.map((id) =>
+                    departmentNameById.get(id) || (id === "__unassigned__" ? "Unassigned" : "Unknown")
+                  );
+                  const normalizedCurrent = currentDeptNames.map((n) => n.toUpperCase());
+
+                  // If we have a stored order, use it (filtering to only include current departments)
+                  let displayOrder;
+                  if (departmentOrder && departmentOrder.length > 0) {
+                    // Start with stored order items that exist in current data
+                    const orderedItems = departmentOrder.filter((name) =>
+                      normalizedCurrent.includes(name.toUpperCase())
+                    );
+                    // Add any new departments not in stored order
+                    const newItems = normalizedCurrent.filter(
+                      (name) => !departmentOrder.map((d) => d.toUpperCase()).includes(name)
+                    );
+                    displayOrder = [...orderedItems, ...newItems];
+                  } else {
+                    displayOrder = normalizedCurrent;
+                  }
+
+                  return displayOrder.map((deptName, index) => (
+                    <div
+                      key={deptName}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                    >
+                      <span className="flex-1 text-sm text-slate-700 dark:text-slate-300 truncate">
+                        {deptName}
+                      </span>
+                      <div className="flex gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => moveDepartment(deptName, "up")}
+                          disabled={index === 0}
+                          className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          title="Move up"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveDepartment(deptName, "down")}
+                          disabled={index === displayOrder.length - 1}
+                          className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          title="Move down"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

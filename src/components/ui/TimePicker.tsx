@@ -12,6 +12,10 @@ interface TimePickerProps {
   label: string;
   className?: string;
   disabled?: boolean;
+  /** Controlled open state (optional). If provided, component is controlled. */
+  open?: boolean;
+  /** Callback when open state changes (optional). Required for controlled mode. */
+  onOpenChange?: (open: boolean) => void;
 }
 
 function parseTime(value: string | null | undefined): { hour: number; minute: number; period: Period } {
@@ -34,9 +38,47 @@ function formatTime(hour: number, minute: number, period: Period): string {
   return `${hour24.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
 }
 
-export function TimePicker({ value, onChange, label, className, disabled = false }: TimePickerProps) {
-  const [isOpen, setIsOpen] = useState(false);
+// Unique instance ID for debugging
+let instanceCounter = 0;
+
+export function TimePicker({ value, onChange, label, className, disabled = false, open, onOpenChange }: TimePickerProps) {
+  // Internal state for uncontrolled mode
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  // Determine if controlled mode
+  const isControlled = open !== undefined && onOpenChange !== undefined;
+  const isOpen = isControlled ? open : internalOpen;
+
+  // Unified setter that works in both modes
+  const setIsOpen = (nextOpen: boolean) => {
+    if (isControlled) {
+      onOpenChange(nextOpen);
+    } else {
+      setInternalOpen(nextOpen);
+    }
+  };
+
   const containerRef = useRef<HTMLDivElement>(null);
+  const instanceId = useRef(++instanceCounter);
+
+  // DEV-only: Track mount/unmount
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log(`[TimePicker #${instanceId.current}] MOUNT label="${label}"`);
+    }
+    return () => {
+      if (import.meta.env.DEV) {
+        console.log(`[TimePicker #${instanceId.current}] UNMOUNT label="${label}"`);
+      }
+    };
+  }, [label]);
+
+  // DEV-only: Track isOpen changes
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log(`[TimePicker #${instanceId.current}] isOpen changed: ${isOpen} label="${label}"`);
+    }
+  }, [isOpen, label]);
 
   const parsed = useMemo(() => parseTime(value), [value]);
   const hour = parsed.hour;
@@ -62,19 +104,23 @@ export function TimePicker({ value, onChange, label, className, disabled = false
   };
 
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        if (import.meta.env.DEV) {
+          console.log(`[TimePicker #${instanceId.current}] close triggered: clickOutside target=`, event.target);
+        }
         setIsOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [isOpen]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setIsOpen(false);
+      if (event.key === "Escape") setIsOpen(false);
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
@@ -108,7 +154,7 @@ export function TimePicker({ value, onChange, label, className, disabled = false
           disabled && "cursor-not-allowed opacity-70"
         )}
       >
-        <span className={cn("font-medium", value ? "text-slate-900 dark:text-slate-100" : "text-slate-400")}>
+        <span className={cn("font-medium whitespace-nowrap", value ? "text-slate-900 dark:text-slate-100" : "text-slate-400")}>
           {display}
         </span>
         <span className="flex items-center gap-2">
@@ -127,6 +173,7 @@ export function TimePicker({ value, onChange, label, className, disabled = false
           className="absolute top-full left-0 mt-1 z-50 flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-900"
           role="dialog"
           aria-label={`${label} picker`}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <div className="flex flex-col items-center">
             <button
