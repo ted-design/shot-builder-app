@@ -144,7 +144,7 @@ export function TimePicker({ value, onChange, label, className, disabled = false
 
       <button
         type="button"
-        onClick={() => !disabled && setIsOpen(true)}
+        onClick={() => !disabled && !isOpen && setIsOpen(true)}
         aria-label={label}
         aria-expanded={isOpen}
         className={cn(

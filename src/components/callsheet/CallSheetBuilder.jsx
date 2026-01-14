@@ -714,6 +714,19 @@ function CallSheetBuilder({
       const clampedNewIndex = Math.max(0, Math.min(sortedEntries.length - 1, newIndex));
       if (clampedOldIndex === clampedNewIndex) return;
 
+      const cascadeChanges = schedule?.settings?.cascadeChanges ?? true;
+
+      // When cascade is OFF, only update the moved entry's time to the target position
+      if (!cascadeChanges) {
+        // Get the entry currently at the target position to determine new start time
+        const targetEntry = sortedEntries[clampedNewIndex];
+        if (targetEntry && targetEntry.startTime !== movedEntry.startTime) {
+          batchUpdateEntries({ updates: [{ entryId, startTime: targetEntry.startTime }] });
+        }
+        return;
+      }
+
+      // Cascade ON: recalculate all times gaplessly
       const reorderedGlobal = [...sortedEntries];
       const [removed] = reorderedGlobal.splice(clampedOldIndex, 1);
       reorderedGlobal.splice(clampedNewIndex, 0, removed);
@@ -732,7 +745,7 @@ function CallSheetBuilder({
 
       if (updates.length > 0) batchUpdateEntries({ updates });
     },
-    [resolvedEntries, batchUpdateEntries]
+    [resolvedEntries, batchUpdateEntries, schedule?.settings?.cascadeChanges]
   );
 
   const handleMoveEntryToTrack = useCallback(

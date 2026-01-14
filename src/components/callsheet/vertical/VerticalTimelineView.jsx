@@ -14,7 +14,7 @@ import {
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import {
   Plus,
@@ -263,6 +263,13 @@ function VerticalTimelineView({
   // Entry IDs for sortable context
   const entryIds = useMemo(() => sortedEntries.map((e) => e.id), [sortedEntries]);
 
+  // Auto-clear openTimePickerForId when the referenced entry is no longer rendered
+  useEffect(() => {
+    if (openTimePickerForId != null && !entryIds.includes(openTimePickerForId)) {
+      setOpenTimePickerForId(null);
+    }
+  }, [openTimePickerForId, entryIds]);
+
   // Group entries by time-slot for side-by-side display of concurrent entries
   const entriesByTimeSlot = useMemo(() => {
     const grouped = new Map();
@@ -448,7 +455,7 @@ function VerticalTimelineView({
             >
               <SortableContext
                 items={entryIds}
-                strategy={verticalListSortingStrategy}
+                strategy={rectSortingStrategy}
               >
                 <div className="space-y-4">
                   {Array.from(entriesByTimeSlot.entries()).map(([time, timeEntries]) => (
