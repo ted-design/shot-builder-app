@@ -20,6 +20,7 @@ import {
 import HeaderEditorV2 from "../sections/HeaderEditorV2";
 import DayDetailsEditorV2 from "../sections/DayDetailsEditorV2";
 import TimelineView from "../timeline/TimelineView";
+import SyncIntervalGridView from "../timeline/SyncIntervalGridView";
 import { ChevronDown, List, Layers, Calendar } from "lucide-react";
 
 export default function EditorPanel({
@@ -249,15 +250,13 @@ export default function EditorPanel({
 
       if (scheduleViewMode === "byTrack") {
         return (
-          <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-            <Layers className="h-12 w-12 text-slate-300 mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
-              By Track View
-            </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md">
-              Coming soon: View entries grouped by track with separate lanes for each track.
-            </p>
-          </div>
+          <SyncIntervalGridView
+            entries={resolvedEntries}
+            tracks={tracks}
+            settings={scheduleSettings}
+            onEditEntry={onEditEntry}
+            onEditShotEntry={onEditShotEntry}
+          />
         );
       }
 
