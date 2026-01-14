@@ -338,13 +338,19 @@ export function buildSyncIntervalGrid(entries, tracks) {
   // Build lane ID set
   const laneIds = new Set(lanes.map((l) => l.id));
 
-  // Map entries with missing/null trackId to "shared" lane
+  // Map entries with missing/null trackId to appropriate lane
+  // Priority: 1) shared lane (if exists), 2) primary (first) lane track
   const normalizedEntries = entries.map((entry) => {
     if (!entry.trackId || !laneIds.has(entry.trackId)) {
-      // Check if this is a shared entry (no trackId or trackId not in lanes)
+      // Check if shared lane exists first
       const sharedLane = lanes.find((l) => l.id === "shared");
       if (sharedLane) {
         return { ...entry, trackId: "shared" };
+      }
+      // Fallback to primary (first) lane track to avoid dropping entries
+      const primaryLane = lanes[0];
+      if (primaryLane) {
+        return { ...entry, trackId: primaryLane.id };
       }
     }
     return entry;
