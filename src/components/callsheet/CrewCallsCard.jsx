@@ -449,9 +449,20 @@ export default function CrewCallsCard({
       .map((name) => name.toUpperCase());
 
     // Use stored order if available, otherwise use current order
-    const workingOrder = departmentOrder && departmentOrder.length > 0
-      ? [...departmentOrder]
-      : [...currentDepts];
+    // Merge with currentDepts to include any newly added departments
+    let workingOrder;
+    if (departmentOrder && departmentOrder.length > 0) {
+      // Start with stored order, then append any new departments not in the order
+      workingOrder = [...departmentOrder];
+      const orderSet = new Set(workingOrder);
+      for (const dept of currentDepts) {
+        if (!orderSet.has(dept)) {
+          workingOrder.push(dept);
+        }
+      }
+    } else {
+      workingOrder = [...currentDepts];
+    }
 
     const normalizedName = deptName.toUpperCase();
     const currentIndex = workingOrder.indexOf(normalizedName);
