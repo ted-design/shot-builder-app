@@ -59,6 +59,128 @@ function getModernColors(callSheetConfig) {
   };
 }
 
+/**
+ * DEV-ONLY: Expand crew to include multiple department blocks for column layout testing.
+ * Enable via URL param: ?mockCrew=1
+ * Creates 4-6 distinct departments with 2-4 crew members each.
+ */
+function expandCrewForDensityTest(crewArray) {
+  // Only in DEV mode
+  if (!import.meta.env.DEV) return crewArray;
+
+  // Check for ?mockCrew=1 query param
+  if (typeof window === "undefined") return crewArray;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("mockCrew") !== "1") return crewArray;
+
+  if (crewArray.length === 0) return crewArray;
+
+  // Mock department definitions with roles
+  const mockDepartments = [
+    {
+      name: "CAMERA",
+      roles: [
+        { role: "Director of Photography", name: "Alex Chen" },
+        { role: "1st AC", name: "Jordan Williams" },
+        { role: "2nd AC", name: "Taylor Brooks" },
+      ],
+    },
+    {
+      name: "GRIP & ELECTRIC",
+      roles: [
+        { role: "Gaffer", name: "Sam Martinez" },
+        { role: "Key Grip", name: "Casey Johnson" },
+        { role: "Best Boy Electric", name: "Morgan Lee" },
+        { role: "Grip", name: "Riley Cooper" },
+      ],
+    },
+    {
+      name: "WARDROBE",
+      roles: [
+        { role: "Costume Designer", name: "Jamie Taylor" },
+        { role: "Wardrobe Assistant", name: "Drew Wilson" },
+      ],
+    },
+    {
+      name: "HAIR & MAKEUP",
+      roles: [
+        { role: "Key Hair", name: "Avery Jones" },
+        { role: "Key Makeup", name: "Quinn Davis" },
+        { role: "Hair/Makeup Assistant", name: "Blake Miller" },
+      ],
+    },
+    {
+      name: "ART DEPARTMENT",
+      roles: [
+        { role: "Production Designer", name: "Charlie Brown" },
+        { role: "Art Director", name: "Skyler Anderson" },
+        { role: "Set Dresser", name: "Reese Thomas" },
+      ],
+    },
+    {
+      name: "SOUND",
+      roles: [
+        { role: "Sound Mixer", name: "Emery White" },
+        { role: "Boom Operator", name: "Finley Garcia" },
+      ],
+    },
+  ];
+
+  // Get base call time from first crew member or use default
+  const baseCallTime = crewArray[0]?.callTime || "07:00";
+
+  // Build expanded crew array with multiple departments
+  const expanded = [];
+  let idCounter = 1;
+
+  // Keep original crew (first department)
+  for (const row of crewArray) {
+    expanded.push(row);
+  }
+
+  // Get existing department names to avoid duplicates
+  const existingDepts = new Set(crewArray.map((r) => r.department?.toUpperCase()).filter(Boolean));
+
+  // Add mock departments (skip any that match existing)
+  for (const dept of mockDepartments) {
+    if (existingDepts.has(dept.name)) continue;
+    // Stop if we have 5+ total departments
+    const currentDeptCount = new Set(expanded.map((r) => r.department?.toUpperCase()).filter(Boolean)).size;
+    if (currentDeptCount >= 5) break;
+
+    for (const member of dept.roles) {
+      expanded.push({
+        id: `mock-${idCounter++}`,
+        department: dept.name,
+        role: member.role,
+        name: member.name,
+        callTime: offsetCallTime(baseCallTime, (idCounter % 4) * 15), // Vary by 0-45 min
+        notes: "",
+        phone: `555-${String(1000 + idCounter).slice(-4)}`,
+        email: `${member.name.toLowerCase().replace(/\s+/g, ".")}@example.com`,
+      });
+    }
+  }
+
+  return expanded;
+}
+
+/**
+ * Offset a HH:MM time string by minutes (for mock data variation).
+ */
+function offsetCallTime(timeStr, minutesOffset) {
+  if (!timeStr || typeof timeStr !== "string") return timeStr;
+  const [hRaw, mRaw] = timeStr.split(":");
+  const h = Number(hRaw);
+  const m = Number(mRaw);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return timeStr;
+
+  const totalMinutes = h * 60 + m + minutesOffset;
+  const newH = Math.floor(totalMinutes / 60) % 24;
+  const newM = totalMinutes % 60;
+  return `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
+}
+
 function buildModernCallSheetData({
   schedule,
   dayDetails,
@@ -114,15 +236,19 @@ function buildModernCallSheetData({
     notes: row?.remarks ? String(row.remarks) : "",
   }));
 
-  const crew = (crewRows || []).map((row) => ({
+  const crewMapped = (crewRows || []).map((row) => ({
     id: String(row?.crewMemberId || row?.id || row?.name || Math.random()),
     department: row?.department ? String(row.department) : "",
+    role: row?.role ? String(row.role) : "",
     name: row?.name ? String(row.name) : "—",
     callTime: row?.callTime ? String(row.callTime) : row?.callText ? String(row.callText) : row?.defaultCall ? String(row.defaultCall) : "",
     notes: row?.notes ? String(row.notes) : "",
     phone: row?.phone || null,
     email: row?.email || null,
   }));
+
+  // DEV-ONLY: expand crew for density testing when ?mockCrew=1
+  const crew = expandCrewForDensityTest(crewMapped);
 
   const scheduleDate = formatDateLong(schedule?.date);
 
@@ -211,49 +337,101 @@ export default function PreviewPanel({
   // Read crew display options from localStorage (scoped to schedule to match CrewCallsCard)
   const keyEmails = scheduleId ? `callSheetCrew.showEmails:${scheduleId}` : null;
   const keyPhones = scheduleId ? `callSheetCrew.showPhones:${scheduleId}` : null;
+  const keyColumnCount = scheduleId ? `callSheetCrew.columnCount:${scheduleId}` : null;
+  const keyDepartmentOrder = scheduleId ? `callSheetCrew.departmentOrder:${scheduleId}` : null;
 
   const [crewDisplayOptions, setCrewDisplayOptions] = useState(() => {
-    // SetHero defaults: showEmails OFF, showPhones ON when unset
-    if (!keyEmails || !keyPhones) return { showEmails: false, showPhones: true };
+    // SetHero defaults: showEmails OFF, showPhones ON, columnCount auto when unset
+    if (!keyEmails || !keyPhones || !keyColumnCount) {
+      return { showEmails: false, showPhones: true, columnCount: "auto", departmentOrder: null };
+    }
     try {
+      const storedColumnCount = localStorage.getItem(keyColumnCount);
+      // Coerce "3" → "2" since 3-column layout is disabled
+      const coercedColumnCount = storedColumnCount === "3" ? "2" : storedColumnCount;
+      // Read department order
+      let departmentOrder = null;
+      if (keyDepartmentOrder) {
+        try {
+          const storedOrder = localStorage.getItem(keyDepartmentOrder);
+          if (storedOrder) {
+            const parsed = JSON.parse(storedOrder);
+            departmentOrder = Array.isArray(parsed) ? parsed : null;
+          }
+        } catch {}
+      }
       return {
         showEmails: localStorage.getItem(keyEmails) === "true", // Only true if explicitly "true"
         showPhones: localStorage.getItem(keyPhones) !== "false", // True unless explicitly "false"
+        columnCount: ["1", "2"].includes(coercedColumnCount) ? coercedColumnCount : "auto",
+        departmentOrder,
       };
     } catch {
-      return { showEmails: false, showPhones: true };
+      return { showEmails: false, showPhones: true, columnCount: "auto", departmentOrder: null };
     }
   });
 
   // Re-read localStorage when schedule changes (keys change)
   useEffect(() => {
-    // SetHero defaults: showEmails OFF, showPhones ON when unset
-    if (!keyEmails || !keyPhones) {
-      setCrewDisplayOptions({ showEmails: false, showPhones: true });
+    // SetHero defaults: showEmails OFF, showPhones ON, columnCount auto when unset
+    if (!keyEmails || !keyPhones || !keyColumnCount) {
+      setCrewDisplayOptions({ showEmails: false, showPhones: true, columnCount: "auto", departmentOrder: null });
       return;
     }
     try {
+      const storedColumnCount = localStorage.getItem(keyColumnCount);
+      // Coerce "3" → "2" since 3-column layout is disabled
+      const coercedColumnCount = storedColumnCount === "3" ? "2" : storedColumnCount;
+      // Read department order
+      let departmentOrder = null;
+      if (keyDepartmentOrder) {
+        try {
+          const storedOrder = localStorage.getItem(keyDepartmentOrder);
+          if (storedOrder) {
+            const parsed = JSON.parse(storedOrder);
+            departmentOrder = Array.isArray(parsed) ? parsed : null;
+          }
+        } catch {}
+      }
       setCrewDisplayOptions({
         showEmails: localStorage.getItem(keyEmails) === "true", // Only true if explicitly "true"
         showPhones: localStorage.getItem(keyPhones) !== "false", // True unless explicitly "false"
+        columnCount: ["1", "2"].includes(coercedColumnCount) ? coercedColumnCount : "auto",
+        departmentOrder,
       });
     } catch {
-      setCrewDisplayOptions({ showEmails: false, showPhones: true });
+      setCrewDisplayOptions({ showEmails: false, showPhones: true, columnCount: "auto", departmentOrder: null });
     }
-  }, [keyEmails, keyPhones]);
+  }, [keyEmails, keyPhones, keyColumnCount, keyDepartmentOrder]);
 
   // Sync display options when toggled (from CrewCallsCard)
   useEffect(() => {
     const handleDisplayOptionsChange = () => {
-      if (!keyEmails || !keyPhones) return;
+      if (!keyEmails || !keyPhones || !keyColumnCount) return;
+      const storedColumnCount = localStorage.getItem(keyColumnCount);
+      // Coerce "3" → "2" since 3-column layout is disabled
+      const coercedColumnCount = storedColumnCount === "3" ? "2" : storedColumnCount;
+      // Read department order
+      let departmentOrder = null;
+      if (keyDepartmentOrder) {
+        try {
+          const storedOrder = localStorage.getItem(keyDepartmentOrder);
+          if (storedOrder) {
+            const parsed = JSON.parse(storedOrder);
+            departmentOrder = Array.isArray(parsed) ? parsed : null;
+          }
+        } catch {}
+      }
       setCrewDisplayOptions({
         showEmails: localStorage.getItem(keyEmails) === "true", // Only true if explicitly "true"
         showPhones: localStorage.getItem(keyPhones) !== "false", // True unless explicitly "false"
+        columnCount: ["1", "2"].includes(coercedColumnCount) ? coercedColumnCount : "auto",
+        departmentOrder,
       });
     };
     window.addEventListener("crewDisplayOptionsChange", handleDisplayOptionsChange);
     return () => window.removeEventListener("crewDisplayOptionsChange", handleDisplayOptionsChange);
-  }, [keyEmails, keyPhones]);
+  }, [keyEmails, keyPhones, keyColumnCount, keyDepartmentOrder]);
 
   const zoom = useMemo(() => zoomPercent / 100, [zoomPercent]);
   const minZoom = 50;

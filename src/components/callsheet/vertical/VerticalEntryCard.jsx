@@ -101,6 +101,9 @@ function VerticalEntryCard({
   onEditShot,
   onEditCustom,
   onDelete,
+  // Controlled TimePicker props (lifted from parent for cross-group stability)
+  timePickerOpen = false,
+  onTimePickerOpenChange,
 }) {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [isDurationMenuOpen, setIsDurationMenuOpen] = useState(false);
@@ -234,6 +237,8 @@ function VerticalEntryCard({
               }
             }}
             className="w-28"
+            open={timePickerOpen}
+            onOpenChange={onTimePickerOpenChange}
           />
 
           {/* Duration beneath time */}

@@ -2,6 +2,20 @@ import React from "react";
 import type { CallSheetTalentRow } from "../../types";
 import { DocTable } from "../primitives/DocTable";
 
+/**
+ * Format time string from HH:MM (24h) to h:mm AM/PM format.
+ */
+function formatTime12h(value: string | null | undefined): string {
+  if (!value || typeof value !== "string") return "";
+  const [hRaw, mRaw] = value.split(":");
+  const h = Number(hRaw);
+  const m = Number(mRaw);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return value;
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${hour12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
 interface TalentSectionProps {
   talent: CallSheetTalentRow[];
 }
@@ -68,8 +82,8 @@ export function TalentSection({ talent }: TalentSectionProps) {
               <td className="text-gray-700 text-xs">
                 {/* Transpo placeholder */}
               </td>
-              <td className="text-gray-700 text-xs">
-                {row.callTime || ""}
+              <td className="text-gray-700 text-xs whitespace-nowrap">
+                {formatTime12h(row.callTime) || ""}
               </td>
               <td className="text-gray-700 text-xs">
                 {/* BLK/RHS placeholder */}

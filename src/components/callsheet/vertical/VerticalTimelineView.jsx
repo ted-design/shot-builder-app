@@ -86,6 +86,8 @@ function VerticalTimelineView({
 }) {
   const [activeEntryId, setActiveEntryId] = useState(null);
   const [checkedEntryIds, setCheckedEntryIds] = useState(() => new Set());
+  // Track which entry's TimePicker is open (by stable entry.id) to survive group remounting
+  const [openTimePickerForId, setOpenTimePickerForId] = useState(null);
   const [previewZoomPercent, setPreviewZoomPercent] = useState(100);
   const [previewRefreshNonce, setPreviewRefreshNonce] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -482,6 +484,10 @@ function VerticalTimelineView({
                             onEditShot={onEditShotEntry}
                             onEditCustom={onEditEntry}
                             onDelete={handleDelete}
+                            timePickerOpen={openTimePickerForId === entry.id}
+                            onTimePickerOpenChange={(nextOpen) =>
+                              setOpenTimePickerForId(nextOpen ? entry.id : null)
+                            }
                           />
                         </div>
                         );

@@ -71,6 +71,7 @@ export interface CallSheetTalentRow {
 export interface CallSheetCrewRow {
   id: string;
   department?: string;
+  role?: string;
   name: string;
   callTime?: string | null;
   notes?: string;

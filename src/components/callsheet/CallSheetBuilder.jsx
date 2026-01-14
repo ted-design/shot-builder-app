@@ -425,6 +425,19 @@ function CallSheetBuilder({
     orgDepartments.forEach((d) => departmentNameByKey.set(`org:${d.id}`, d.name));
     projectDepartments.forEach((d) => departmentNameByKey.set(`project:${d.id}`, d.name));
 
+    // Build position lookup from departments
+    const positionById = new Map();
+    orgDepartments.forEach((dept) => {
+      (dept.positions || []).forEach((pos) => {
+        positionById.set(pos.id, pos.title);
+      });
+    });
+    projectDepartments.forEach((dept) => {
+      (dept.positions || []).forEach((pos) => {
+        positionById.set(pos.id, pos.title);
+      });
+    });
+
     return (crewAssignments || [])
       .map((assignment) => {
         const member = crewById.get(assignment.crewMemberId) || null;
@@ -440,6 +453,10 @@ function CallSheetBuilder({
             ? "Unassigned"
             : departmentNameByKey.get(deptKey) || "Unknown department";
 
+        // Resolve position (role) - check assignment first, then fall back to member's positionId
+        const posId = assignment.positionId || member?.positionId || null;
+        const role = posId && positionById.has(posId) ? positionById.get(posId) : "";
+
         const call = callsByCrewMemberId?.get(assignment.crewMemberId) || null;
         const defaultCall = dayDetails?.crewCallTime ? String(dayDetails.crewCallTime).trim() : "";
         const callTime = call?.callTime ? String(call.callTime).trim() : "";
@@ -449,6 +466,7 @@ function CallSheetBuilder({
         return {
           crewMemberId: assignment.crewMemberId,
           department,
+          role,
           name,
           callTime,
           callText,
