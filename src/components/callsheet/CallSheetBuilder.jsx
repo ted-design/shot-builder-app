@@ -716,12 +716,27 @@ function CallSheetBuilder({
 
       const cascadeChanges = schedule?.settings?.cascadeChanges ?? true;
 
-      // When cascade is OFF, only update the moved entry's time to the target position
+      // When cascade is OFF, only update the moved entry's time/order to the target position
       if (!cascadeChanges) {
-        // Get the entry currently at the target position to determine new start time
         const targetEntry = sortedEntries[clampedNewIndex];
-        if (targetEntry && targetEntry.startTime !== movedEntry.startTime) {
+        if (!targetEntry) return;
+
+        // If times differ, update the moved entry's start time
+        if (targetEntry.startTime !== movedEntry.startTime) {
           batchUpdateEntries({ updates: [{ entryId, startTime: targetEntry.startTime }] });
+          return;
+        }
+
+        // Same start time: swap order values to reorder within the time slot
+        const movedOrder = movedEntry.order ?? 0;
+        const targetOrder = targetEntry.order ?? 0;
+        if (movedOrder !== targetOrder) {
+          batchUpdateEntries({
+            updates: [
+              { entryId, order: targetOrder },
+              { entryId: targetEntry.id, order: movedOrder },
+            ],
+          });
         }
         return;
       }
