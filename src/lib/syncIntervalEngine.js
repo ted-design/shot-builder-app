@@ -47,7 +47,9 @@ import { parseTimeToMinutes, minutesToTimeString, minutesToTime12h } from "./tim
  * @property {Map<string, Object>} entryMetadata - Map of entryId -> { startIntervalIndex, endIntervalIndex, laneId }
  * @property {string[]} conflictWarnings - Array of conflict warning messages (legacy)
  * @property {Conflict[]} conflicts - Structured conflict data for rendering
- * @property {Map<string, number>} conflictCountByLane - Map of laneId -> conflict count
+ * @property {Map<string, number>} conflictCountByLane - Map of laneId -> conflict count (interval-based, for cell highlights)
+ * @property {Map<string, number>} conflictPairCountByLane - Map of laneId -> unique overlapping entry pair count
+ * @property {number} totalConflictPairCount - Total unique overlapping entry pairs across all lanes
  */
 
 /**
@@ -169,7 +171,7 @@ export function deriveLanes(tracks, entries = []) {
  * @param {SyncInterval[]} intervals - Time intervals
  * @param {Lane[]} lanes - Lane definitions
  * @param {Array} entries - Schedule entries with trackId, startTime, duration
- * @returns {{ occupancy: Map, entryMetadata: Map, conflictWarnings: string[], conflicts: Conflict[], conflictCountByLane: Map }}
+ * @returns {{ occupancy: Map, entryMetadata: Map, conflictWarnings: string[], conflicts: Conflict[], conflictCountByLane: Map, conflictPairCountByLane: Map, totalConflictPairCount: number }}
  */
 export function buildOccupancyMap(intervals, lanes, entries) {
   // Map of intervalIndex -> Map of laneId -> OccupancyCell
@@ -180,10 +182,12 @@ export function buildOccupancyMap(intervals, lanes, entries) {
   const conflictWarnings = [];
   // Structured conflicts for rendering
   const conflicts = [];
-  // Track conflicts by lane for header badges
+  // Track conflicts by lane for header badges (interval-based, for cell highlights)
   const conflictCountByLane = new Map();
   // Track which interval+lane combos already have conflicts (to avoid duplicates)
   const conflictKeys = new Set();
+  // Track unique conflict pairs per lane: Map<laneId, Set<pairKey>>
+  const conflictPairsByLane = new Map();
 
   // Initialize occupancy map with null cells
   for (let i = 0; i < intervals.length; i++) {
@@ -295,14 +299,39 @@ export function buildOccupancyMap(intervals, lanes, entries) {
           intervalLabel: `${interval.label} - ${minutesToTime12h(interval.endMin)}`,
         });
 
-        // Increment lane conflict count
+        // Increment lane conflict count (interval-based for cell highlights)
         const currentCount = conflictCountByLane.get(laneId) || 0;
         conflictCountByLane.set(laneId, currentCount + 1);
+      }
+
+      // Track unique entry pairs for this lane
+      // Generate all pairs from entryIds and add to lane's pair set
+      if (!conflictPairsByLane.has(laneId)) {
+        conflictPairsByLane.set(laneId, new Set());
+      }
+      const pairSet = conflictPairsByLane.get(laneId);
+      for (let i = 0; i < entryIds.length; i++) {
+        for (let j = i + 1; j < entryIds.length; j++) {
+          // Create stable pair key using sorted IDs
+          const [minId, maxId] = entryIds[i] < entryIds[j]
+            ? [entryIds[i], entryIds[j]]
+            : [entryIds[j], entryIds[i]];
+          pairSet.add(`${minId}::${maxId}`);
+        }
       }
     }
   }
 
-  return { occupancy, entryMetadata, conflictWarnings, conflicts, conflictCountByLane };
+  // Compute conflict pair counts per lane
+  const conflictPairCountByLane = new Map();
+  let totalConflictPairCount = 0;
+  for (const [laneId, pairSet] of conflictPairsByLane) {
+    const count = pairSet.size;
+    conflictPairCountByLane.set(laneId, count);
+    totalConflictPairCount += count;
+  }
+
+  return { occupancy, entryMetadata, conflictWarnings, conflicts, conflictCountByLane, conflictPairCountByLane, totalConflictPairCount };
 }
 
 /**
@@ -332,6 +361,8 @@ export function buildSyncIntervalGrid(entries, tracks) {
       conflictWarnings: [],
       conflicts: [],
       conflictCountByLane: new Map(),
+      conflictPairCountByLane: new Map(),
+      totalConflictPairCount: 0,
     };
   }
 
@@ -368,6 +399,8 @@ export function buildSyncIntervalGrid(entries, tracks) {
       conflictWarnings: [],
       conflicts: [],
       conflictCountByLane: new Map(),
+      conflictPairCountByLane: new Map(),
+      totalConflictPairCount: 0,
     };
   }
 
@@ -378,7 +411,7 @@ export function buildSyncIntervalGrid(entries, tracks) {
   const intervals = boundariesToIntervals(boundaries);
 
   // Step 4: Build occupancy map
-  const { occupancy, entryMetadata, conflictWarnings, conflicts, conflictCountByLane } = buildOccupancyMap(
+  const { occupancy, entryMetadata, conflictWarnings, conflicts, conflictCountByLane, conflictPairCountByLane, totalConflictPairCount } = buildOccupancyMap(
     intervals,
     lanes,
     laneEntries
@@ -392,6 +425,8 @@ export function buildSyncIntervalGrid(entries, tracks) {
     conflictWarnings,
     conflicts,
     conflictCountByLane,
+    conflictPairCountByLane,
+    totalConflictPairCount,
   };
 }
 

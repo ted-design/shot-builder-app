@@ -203,6 +203,10 @@ function buildModernCallSheetData({
     const notes = entry?.resolvedNotes || entry?.description || "";
     const locationName = entry?.resolvedLocation || "";
 
+    // Canonical values for conflict detection (matches editor syncIntervalEngine)
+    const startTimeCanonical = entry?.startTime || null; // Already HH:MM in source
+    const durationMinutes = typeof entry?.duration === "number" ? entry.duration : null;
+
     return {
       id: String(entry?.id || `${entry?.startTime || "time"}-${Math.random()}`),
       time: formatTime12h(entry?.startTime || ""),
@@ -214,6 +218,9 @@ function buildModernCallSheetData({
       isBanner,
       marker: entry?.marker || null,
       trackId: entry?.trackId || null,
+      // Canonical fields for conflict detection
+      startTimeCanonical,
+      durationMinutes,
     };
   });
 
