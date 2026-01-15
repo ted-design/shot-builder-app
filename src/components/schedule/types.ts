@@ -25,7 +25,9 @@ export interface ScheduleEntryMarker {
 
 export interface CallSheetScheduleItem {
   id: string;
+  /** Display-formatted time (e.g., "7:00 AM") */
   time: string;
+  /** Display-formatted duration (e.g., "30m") */
   duration: string;
   description: string;
   cast: string;
@@ -36,6 +38,10 @@ export interface CallSheetScheduleItem {
   marker?: ScheduleEntryMarker | null;
   /** Track ID this entry belongs to (for multi-track schedules) */
   trackId?: string | null;
+  /** Canonical start time in HH:MM format (e.g., "07:00") for conflict detection */
+  startTimeCanonical?: string | null;
+  /** Canonical duration in minutes (e.g., 30) for conflict detection */
+  durationMinutes?: number | null;
 }
 
 export interface CallSheetDayDetails {
