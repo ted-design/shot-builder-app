@@ -126,7 +126,7 @@ interface NormalizedScheduleItem {
  */
 interface SkippedItemInfo {
   id: string;
-  failedField: "time" | "duration";
+  failedField: "time" | "duration" | "lane";
   rawTime: string | undefined | null;
   rawDuration: string | number | undefined | null;
   canonicalTime: string | undefined | null;
@@ -162,13 +162,13 @@ interface ConflictDetectionResult {
  * Adjacency (otherStart === currentEnd) is NOT a conflict.
  *
  * Canonical field priority (matches editor syncIntervalEngine):
- * 1. startTimeCanonical (HH:MM string) -> fallback to time (display string)
- * 2. durationMinutes (number) -> fallback to duration (display string)
- *    - If both fail, item is SKIPPED (no fabricated defaults)
+ * 1. startTimeCanonical (HH:MM string) -> fallback to time (display string) -> fallback to "00:00"
+ * 2. durationMinutes (number) -> fallback to duration (display string) -> fallback to 15
+ *    - This matches editor syncIntervalEngine defaults (lines 212-214)
  *
  * Lane validation:
- * - trackId must exist in validLaneIds Set, otherwise -> "shared"
- * - This matches editor syncIntervalEngine behavior
+ * - trackId must exist in validLaneIds Set, otherwise entry is EXCLUDED
+ * - This matches editor syncIntervalEngine behavior (line 205: filter to valid lanes)
  *
  * @param schedule - Array of schedule items to analyze
  * @param validLaneIds - Set of valid track/lane IDs from the editor's tracks config
@@ -191,6 +191,7 @@ function detectScheduleConflictsPairBased(
 
     // Parse start time - CANONICAL FIRST (startTimeCanonical is HH:MM)
     // Then fallback to display string (time is "7:00 AM")
+    // If both fail, use default "00:00" (matches editor syncIntervalEngine:212)
     let startMin: number | null = null;
     if (item.startTimeCanonical) {
       startMin = parseTimeToMinutes(item.startTimeCanonical);
@@ -199,21 +200,13 @@ function detectScheduleConflictsPairBased(
       startMin = parseTimeToMinutes(item.time);
     }
     if (startMin === null) {
-      skippedCount++;
-      skippedItems.push({
-        id: item.id,
-        failedField: "time",
-        rawTime: item.time,
-        rawDuration: item.duration,
-        canonicalTime: item.startTimeCanonical,
-        canonicalDuration: item.durationMinutes,
-      });
-      continue;
+      // Use default 00:00 (midnight) - matches editor behavior
+      startMin = 0;
     }
 
     // Parse duration - CANONICAL FIRST (durationMinutes is number)
     // Then fallback to display string (duration is "30m")
-    // If BOTH fail -> SKIP the item (no fabricated defaults)
+    // If both fail, use default 15 minutes (matches editor syncIntervalEngine:213)
     let durationMin: number | null = null;
     if (typeof item.durationMinutes === "number" && isFinite(item.durationMinutes) && item.durationMinutes > 0) {
       durationMin = item.durationMinutes;
@@ -222,11 +215,21 @@ function detectScheduleConflictsPairBased(
       durationMin = parseDurationToMinutes(item.duration);
     }
     if (durationMin === null) {
-      // Duration is invalid - SKIP this item (do not fabricate a default)
+      // Use default 15 minutes - matches editor behavior
+      durationMin = 15;
+    }
+
+    // Compute end time: currentEnd = currentStart + currentDuration
+    const endMin = startMin + durationMin;
+
+    // Lane validation: trackId must exist in validLaneIds, otherwise EXCLUDE entry
+    // This matches editor syncIntervalEngine behavior (line 205: filter to valid lanes)
+    if (!item.trackId || !validLaneIds.has(item.trackId)) {
+      // Entry doesn't have a valid lane - exclude from conflict detection
       skippedCount++;
       skippedItems.push({
         id: item.id,
-        failedField: "duration",
+        failedField: "lane",
         rawTime: item.time,
         rawDuration: item.duration,
         canonicalTime: item.startTimeCanonical,
@@ -234,13 +237,7 @@ function detectScheduleConflictsPairBased(
       });
       continue;
     }
-
-    // Compute end time: currentEnd = currentStart + currentDuration
-    const endMin = startMin + durationMin;
-
-    // Lane validation: trackId must exist in validLaneIds, otherwise -> "shared"
-    // This matches editor syncIntervalEngine behavior
-    const laneId = (item.trackId && validLaneIds.has(item.trackId)) ? item.trackId : "shared";
+    const laneId = item.trackId;
 
     normalizedItems.push({
       id: item.id,
