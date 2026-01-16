@@ -27,9 +27,13 @@ import {
   buildGaplessReorderUpdates,
   getTrackAnchorStartMinutes,
 } from "../../lib/gaplessSchedule";
+import {
+  deriveOrderFromEntries,
+  buildCascadeReorderUpdates,
+  getTrackAnchorMinutes,
+} from "../../lib/orderBasedSchedule";
 import { DEFAULT_TRACKS, DEFAULT_SCHEDULE_SETTINGS, DEFAULT_COLUMNS } from "../../types/schedule";
 import CallSheetToolbar from "./CallSheetToolbar";
-import VerticalTimelineView from "./vertical/VerticalTimelineView";
 import WorkingPanel from "./builder/WorkingPanel";
 import PreviewPanel from "./builder/PreviewPanel";
 import { buildCallSheetLayoutV2 } from "../../lib/callsheet/layoutV2";
@@ -92,6 +96,7 @@ function CallSheetBuilder({
   // Modal state
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [entryModalMode, setEntryModalMode] = useState("select"); // 'shot' | 'custom' | 'select'
+  const [entryModalTrackId, setEntryModalTrackId] = useState(null);
   const [entryModalCategory, setEntryModalCategory] = useState(null);
   const [entryModalStartTime, setEntryModalStartTime] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
@@ -103,9 +108,6 @@ function CallSheetBuilder({
 
   // Track focus mode - session-only state for dimming entries from other tracks
   const [trackFocusId, setTrackFocusId] = useState("all");
-
-  // Schedule view mode - controls which view component is rendered (list, byTrack, timeline)
-  const [scheduleViewMode, setScheduleViewMode] = useState("list");
 
   // Schedule data
   const { schedule, loading: scheduleLoading, error: scheduleError } = useSchedule(
@@ -558,9 +560,10 @@ function CallSheetBuilder({
   );
 
   // Modal handlers
-  const handleOpenEntryModal = useCallback((type, category = null) => {
+  const handleOpenEntryModal = useCallback((type, category = null, trackId = null) => {
     setEntryModalMode(type === "shot" ? "shot" : type === "custom" ? "custom" : "select");
     setEntryModalCategory(category);
+    setEntryModalTrackId(trackId);
     setEntryModalStartTime(null);
     setEditingEntry(null);
     setIsEntryModalOpen(true);
@@ -578,6 +581,7 @@ function CallSheetBuilder({
     setIsEntryModalOpen(false);
     setEntryModalMode("select");
     setEntryModalCategory(null);
+    setEntryModalTrackId(null);
     setEntryModalStartTime(null);
     setEditingEntry(null);
   }, []);
@@ -592,6 +596,13 @@ function CallSheetBuilder({
       }
     },
     [addShot, addShotAtEnd, resolvedEntries, settings.defaultEntryDuration]
+  );
+
+  const handleUpdateEntryGeneric = useCallback(
+    (entryId, updates) => {
+      updateEntry({ entryId, updates });
+    },
+    [updateEntry]
   );
 
   const handleAddCustomItem = useCallback(
@@ -706,19 +717,35 @@ function CallSheetBuilder({
     (entryId, oldIndex, newIndex) => {
       if (oldIndex === newIndex) return;
 
-      const sortedEntries = sortEntriesByTime(resolvedEntries);
-      const movedEntry = sortedEntries.find((entry) => entry.id === entryId);
+      // Find the moved entry to get its trackId
+      const movedEntry = resolvedEntries.find((entry) => entry.id === entryId);
       if (!movedEntry) return;
 
-      const clampedOldIndex = Math.max(0, Math.min(sortedEntries.length - 1, oldIndex));
-      const clampedNewIndex = Math.max(0, Math.min(sortedEntries.length - 1, newIndex));
+      const trackId = movedEntry.trackId;
+
+      // Get track-local entries sorted by order (matching SyncIntervalGridView's sorting)
+      // This ensures indices from SyncIntervalGridView match our sorting here
+      const trackEntries = resolvedEntries
+        .filter((entry) => entry.trackId === trackId)
+        .sort((a, b) => {
+          const aOrder = a.order ?? Number.MAX_SAFE_INTEGER;
+          const bOrder = b.order ?? Number.MAX_SAFE_INTEGER;
+          if (aOrder !== bOrder) return aOrder - bOrder;
+          // Fallback: startTime
+          const aTime = parseTimeToMinutes(a.startTime || "00:00");
+          const bTime = parseTimeToMinutes(b.startTime || "00:00");
+          return aTime - bTime;
+        });
+
+      const clampedOldIndex = Math.max(0, Math.min(trackEntries.length - 1, oldIndex));
+      const clampedNewIndex = Math.max(0, Math.min(trackEntries.length - 1, newIndex));
       if (clampedOldIndex === clampedNewIndex) return;
 
       const cascadeChanges = schedule?.settings?.cascadeChanges ?? true;
 
       // When cascade is OFF, only update the moved entry's time/order to the target position
       if (!cascadeChanges) {
-        const targetEntry = sortedEntries[clampedNewIndex];
+        const targetEntry = trackEntries[clampedNewIndex];
         if (!targetEntry) return;
 
         // If times differ, update the moved entry's start time
@@ -741,20 +768,18 @@ function CallSheetBuilder({
         return;
       }
 
-      // Cascade ON: recalculate all times gaplessly
-      const reorderedGlobal = [...sortedEntries];
-      const [removed] = reorderedGlobal.splice(clampedOldIndex, 1);
-      reorderedGlobal.splice(clampedNewIndex, 0, removed);
+      // Cascade ON: reorder within track using the provided track-local indices
+      // Build new ordered ID list by splicing within the track entries
+      const reorderedTrack = [...trackEntries];
+      const [removed] = reorderedTrack.splice(clampedOldIndex, 1);
+      reorderedTrack.splice(clampedNewIndex, 0, removed);
 
-      const trackId = movedEntry.trackId;
-      const trackEntries = resolvedEntries.filter((entry) => entry.trackId === trackId);
-      const anchorStartMinutes = getTrackAnchorStartMinutes(trackEntries);
+      const newOrderedTrackIds = reorderedTrack.map((entry) => entry.id);
 
-      const orderedTrackIds = reorderedGlobal
-        .filter((entry) => entry.trackId === trackId)
-        .map((entry) => entry.id);
+      const anchorStartMinutes = getTrackAnchorMinutes(trackEntries);
 
-      const updates = buildGaplessReorderUpdates(resolvedEntries, trackId, orderedTrackIds, {
+      // Use order-based updates: updates both order and derived startTime
+      const updates = buildCascadeReorderUpdates(resolvedEntries, trackId, newOrderedTrackIds, {
         anchorStartMinutes,
       });
 
@@ -764,29 +789,57 @@ function CallSheetBuilder({
   );
 
   const handleMoveEntryToTrack = useCallback(
-    (entryId, newTrackId) => {
+    (entryId, newTrackId, insertIndex) => {
       const entry = resolvedEntries.find((candidate) => candidate.id === entryId);
       if (!entry || !newTrackId || entry.trackId === newTrackId) return;
 
       const sourceTrackId = entry.trackId;
+
+      // Get source track entries sorted by order (excluding the moved entry)
+      const sourceEntriesBefore = resolvedEntries
+        .filter((candidate) => candidate.trackId === sourceTrackId && candidate.id !== entryId)
+        .sort((a, b) => {
+          const aOrder = a.order ?? Number.MAX_SAFE_INTEGER;
+          const bOrder = b.order ?? Number.MAX_SAFE_INTEGER;
+          if (aOrder !== bOrder) return aOrder - bOrder;
+          const aTime = parseTimeToMinutes(a.startTime || "00:00");
+          const bTime = parseTimeToMinutes(b.startTime || "00:00");
+          return aTime - bTime;
+        });
+
+      // Get destination track entries sorted by order (excluding the moved entry in case of re-call)
+      const destEntriesBefore = resolvedEntries
+        .filter((candidate) => candidate.trackId === newTrackId && candidate.id !== entryId)
+        .sort((a, b) => {
+          const aOrder = a.order ?? Number.MAX_SAFE_INTEGER;
+          const bOrder = b.order ?? Number.MAX_SAFE_INTEGER;
+          if (aOrder !== bOrder) return aOrder - bOrder;
+          const aTime = parseTimeToMinutes(a.startTime || "00:00");
+          const bTime = parseTimeToMinutes(b.startTime || "00:00");
+          return aTime - bTime;
+        });
+
+      // Build source ordered IDs (entry removed)
+      const sourceOrderIds = sourceEntriesBefore.map((candidate) => candidate.id);
+
+      // Build destination ordered IDs with the moved entry inserted at the specified position
+      const destOrderIds = destEntriesBefore.map((candidate) => candidate.id);
+      const clampedInsertIndex =
+        typeof insertIndex === "number"
+          ? Math.max(0, Math.min(destOrderIds.length, insertIndex))
+          : destOrderIds.length; // Default: append to end
+      destOrderIds.splice(clampedInsertIndex, 0, entryId);
+
+      // Create updated entries array with trackId changed
       const nextEntries = resolvedEntries.map((candidate) =>
         candidate.id === entryId ? { ...candidate, trackId: newTrackId } : candidate
       );
 
-      const globalSorted = sortEntriesByTime(nextEntries);
-
-      const sourceEntriesBefore = resolvedEntries.filter((candidate) => candidate.trackId === sourceTrackId);
-      const destEntriesBefore = resolvedEntries.filter((candidate) => candidate.trackId === newTrackId);
-
-      const sourceAnchor = getTrackAnchorStartMinutes(sourceEntriesBefore);
+      // Compute anchors
+      const sourceAnchor = getTrackAnchorStartMinutes(
+        resolvedEntries.filter((candidate) => candidate.trackId === sourceTrackId)
+      );
       const destAnchor = getTrackAnchorStartMinutes(destEntriesBefore) ?? parseTimeToMinutes(entry.startTime);
-
-      const sourceOrderIds = globalSorted
-        .filter((candidate) => candidate.trackId === sourceTrackId)
-        .map((candidate) => candidate.id);
-      const destOrderIds = globalSorted
-        .filter((candidate) => candidate.trackId === newTrackId)
-        .map((candidate) => candidate.id);
 
       const updates = [];
       updates.push({ entryId, trackId: newTrackId });
@@ -813,6 +866,24 @@ function CallSheetBuilder({
     },
     [resolvedEntries, batchUpdateEntries]
   );
+
+  // One-time order migration per schedule: derive order values for entries without valid orders.
+  // This runs before normalization to ensure canonical order is established first.
+  const orderMigratedScheduleRef = useRef(null);
+  useEffect(() => {
+    if (!scheduleId) return;
+    if (entriesLoading) return;
+    if (orderMigratedScheduleRef.current === scheduleId) return;
+    if (!Array.isArray(resolvedEntries) || resolvedEntries.length === 0) return;
+
+    const orderUpdates = deriveOrderFromEntries(resolvedEntries);
+    if (orderUpdates.length > 0) {
+      console.info("[CallSheetBuilder] Migrating order values for", orderUpdates.length, "entries");
+      batchUpdateEntries({ updates: orderUpdates });
+    }
+
+    orderMigratedScheduleRef.current = scheduleId;
+  }, [scheduleId, entriesLoading, resolvedEntries, batchUpdateEntries]);
 
   // One-time normalization per schedule to remove overlaps/gaps in each lane track.
   // This also fixes single-track "shared" banners (appliesToTrackIds length 1) by packing them with that lane.
@@ -1064,24 +1135,11 @@ function CallSheetBuilder({
               scheduledTalentIds,
               trackFocusId,
               onTrackFocusChange: setTrackFocusId,
-              scheduleViewMode,
-              onScheduleViewModeChange: setScheduleViewMode,
               resolvedEntries,
               onToggleShowDurations: canWriteProject ? handleToggleShowDurations : undefined,
               onToggleCascade: canWriteProject ? handleToggleCascade : undefined,
-              onOpenScheduleFields: canWriteProject ? () => setIsColumnConfigOpen(true) : undefined,
-              onAddScene: canWriteProject ? () => handleOpenEntryModal("shot") : undefined,
+              onAddScene: canWriteProject ? (trackId) => handleOpenEntryModal("shot", null, trackId) : undefined,
               onAddBanner: canWriteProject ? () => handleOpenEntryModal("custom", "other") : undefined,
-              onAddMove: canWriteProject ? () => handleOpenEntryModal("custom", "travel") : undefined,
-              onLookupSceneAtTime: canWriteProject
-                ? (startTime) => handleOpenEntryModalAtTime("shot", null, startTime)
-                : undefined,
-              onCreateSceneAtTime: canWriteProject
-                ? (startTime) => handleCreateShotInSchedule(null, startTime)
-                : undefined,
-              onAddCustomAtTime: canWriteProject
-                ? (category, startTime) => handleOpenEntryModalAtTime("custom", category, startTime)
-                : undefined,
               dayDetails,
               callSheetConfig,
               onUpdateCallSheetConfig: applyCallSheetConfigUpdate,
@@ -1093,40 +1151,10 @@ function CallSheetBuilder({
               generalCrewCallTime: dayDetails?.crewCallTime || "",
               onUpdateSectionConfig: handleUpdateSectionConfig,
               onEditEntry: canWriteProject ? handleEditCustomEntry : undefined,
-              onEditShotEntry: canWriteProject ? handleEditShotEntry : undefined,
-              scheduleEditor: (
-                <VerticalTimelineView
-                  schedule={schedule}
-                  entries={resolvedEntries}
-                  tracks={tracks}
-                  locations={locationsArray}
-                  settings={settings}
-                  showPreviewPanel={false}
-                  showEditorHeader={false}
-                  columnConfig={effectiveColumns}
-                  trackFocusId={trackFocusId}
-                  onMoveEntry={
-                    canWriteProject ? (entryId, newTime) => moveEntry(entryId, newTime, resolvedEntries) : undefined
-                  }
-                  onResizeEntry={
-                    canWriteProject
-                      ? (entryId, newDuration) => resizeEntry(entryId, newDuration, resolvedEntries)
-                      : undefined
-                  }
-                  onUpdateEntryNotes={canWriteProject ? handleUpdateEntryNotes : undefined}
-                  onUpdateEntryLocation={canWriteProject ? handleUpdateEntryLocation : undefined}
-                  onUpdateEntryFlag={canWriteProject ? handleUpdateEntryFlag : undefined}
-                  onUpdateEntryMarker={canWriteProject ? handleUpdateEntryMarker : undefined}
-                  onDeleteEntry={canWriteProject ? handleDeleteEntry : undefined}
-                  onReorderEntries={canWriteProject ? handleReorderEntries : undefined}
-                  onMoveEntryToTrack={canWriteProject ? handleMoveEntryToTrack : undefined}
-                  onAddShot={canWriteProject ? handleOpenEntryModal : undefined}
-                  onAddCustomItem={canWriteProject ? (category) => handleOpenEntryModal("custom", category) : undefined}
-                  onOpenColumnConfig={canWriteProject ? () => setIsColumnConfigOpen(true) : undefined}
-                  onEditEntry={canWriteProject ? handleEditCustomEntry : undefined}
-                  onEditShotEntry={canWriteProject ? handleEditShotEntry : undefined}
-                />
-              ),
+              onReorderEntries: canWriteProject ? handleReorderEntries : undefined,
+              onMoveEntryToTrack: canWriteProject ? handleMoveEntryToTrack : undefined,
+              onUpdateEntry: canWriteProject ? handleUpdateEntryGeneric : undefined,
+              tracks,
             }}
           />
 
@@ -1161,6 +1189,7 @@ function CallSheetBuilder({
           onClose={handleCloseEntryModal}
           mode={entryModalMode}
           initialCategory={entryModalCategory}
+          initialTrackId={entryModalTrackId}
           defaultStartTime={entryModalStartTime}
           shots={shots}
           shotsLoading={shotsLoading}

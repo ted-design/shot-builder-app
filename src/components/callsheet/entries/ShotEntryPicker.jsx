@@ -49,28 +49,32 @@ function ShotEntryPicker({
   talentMap = new Map(),
   productsMap = new Map(),
   onSelectShot,
+  initialTrackId = null,
   defaultStartTime = null,
   onCreateShot,
   onClose,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
-  const initialTrackId = useMemo(() => {
+  const defaultTrackId = useMemo(() => {
+    if (initialTrackId && tracks.some(t => t.id === initialTrackId)) {
+      return initialTrackId;
+    }
     return (
       tracks.find((t) => t.scope !== "shared" && t.id !== "shared")?.id ||
       tracks[0]?.id ||
       "shared"
     );
-  }, [tracks]);
-  const [selectedTrackId, setSelectedTrackId] = useState(initialTrackId);
+  }, [tracks, initialTrackId]);
+  const [selectedTrackId, setSelectedTrackId] = useState(defaultTrackId);
   const [selectedShotIds, setSelectedShotIds] = useState(new Set());
   const [isAdding, setIsAdding] = useState(false);
   const singleSelect = Boolean(defaultStartTime);
 
   useEffect(() => {
     if (!tracks.some((t) => t.id === selectedTrackId)) {
-      setSelectedTrackId(initialTrackId);
+      setSelectedTrackId(defaultTrackId);
     }
-  }, [tracks, selectedTrackId, initialTrackId]);
+  }, [tracks, selectedTrackId, defaultTrackId]);
 
   // Filter state
   const [talentFilter, setTalentFilter] = useState(null);
@@ -359,35 +363,35 @@ function ShotEntryPicker({
           )}
         </div>
 
-	        {/* Selection actions */}
-	        <div className="flex items-center gap-2">
-	          {!singleSelect && (
-	            <Button
-	              variant="ghost"
-	              size="sm"
-	              onClick={allSelected ? handleClearSelection : handleSelectAll}
-	              disabled={availableShots.length === 0}
-	              className="gap-1.5 text-sm"
-	            >
-	              {allSelected ? (
-	                <>
-	                  <Square className="h-4 w-4" />
-	                  Clear All
-	                </>
-	              ) : (
-	                <>
-	                  <CheckSquare className="h-4 w-4" />
-	                  Select All
-	                </>
-	              )}
-	            </Button>
-	          )}
-	          {selectedShotIds.size > 0 && (
-	            <span className="text-sm text-slate-500 dark:text-slate-400">
-	              {selectedShotIds.size} selected
-	            </span>
-	          )}
-	        </div>
+        {/* Selection actions */}
+        <div className="flex items-center gap-2">
+          {!singleSelect && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={allSelected ? handleClearSelection : handleSelectAll}
+              disabled={availableShots.length === 0}
+              className="gap-1.5 text-sm"
+            >
+              {allSelected ? (
+                <>
+                  <Square className="h-4 w-4" />
+                  Clear All
+                </>
+              ) : (
+                <>
+                  <CheckSquare className="h-4 w-4" />
+                  Select All
+                </>
+              )}
+            </Button>
+          )}
+          {selectedShotIds.size > 0 && (
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {selectedShotIds.size} selected
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Shot list */}
@@ -473,26 +477,26 @@ function ShotEntryPicker({
               Create Shot
             </Button>
           )}
-	          <Button
-	            onClick={handleAddSelected}
-	            disabled={selectedShotIds.size === 0 || isAdding}
-	            className="gap-2"
-	          >
-	            {isAdding ? (
-	              <>
-	                <Loader2 className="h-4 w-4 animate-spin" />
-	                Adding...
-	              </>
-	            ) : (
-	              <>
-	                {singleSelect && defaultStartTime
-	                  ? `Add at ${defaultStartTime}`
-	                  : `Add ${selectedShotIds.size > 0 ? selectedShotIds.size : ""} Shot${selectedShotIds.size !== 1 ? "s" : ""}`}
-	              </>
-	            )}
-	          </Button>
-	        </div>
-	      </div>
+          <Button
+            onClick={handleAddSelected}
+            disabled={selectedShotIds.size === 0 || isAdding}
+            className="gap-2"
+          >
+            {isAdding ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>
+                {singleSelect && defaultStartTime
+                  ? `Add at ${defaultStartTime}`
+                  : `Add ${selectedShotIds.size > 0 ? selectedShotIds.size : ""} Shot${selectedShotIds.size !== 1 ? "s" : ""}`}
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

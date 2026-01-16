@@ -17,6 +17,7 @@ import CallSheetPreviewLegacy from "../vertical/CallSheetPreview";
 import { CallSheetPreview as CallSheetPreviewModern } from "../../schedule/preview/CallSheetPreview";
 import { ColorCustomizer } from "../../schedule/ColorCustomizer";
 import { deriveLocationsFromLegacy, locationBlockHasContent } from "../../../lib/callsheet/deriveLocationsFromLegacy";
+import { buildScheduleProjection } from "../../../lib/callsheet/buildScheduleProjection";
 
 function toDate(value) {
   if (!value) return null;
@@ -191,38 +192,23 @@ function buildModernCallSheetData({
   projectTitle,
   tracks,
 }) {
-  const scheduleRows = (entries || []).map((entry) => {
-    const isBanner =
-      entry?.type === "custom" &&
-      (entry?.trackId === "shared" || (Array.isArray(entry?.appliesToTrackIds) && entry.appliesToTrackIds.length > 0));
-    const titleParts = [];
-    if (entry?.shotNumber) titleParts.push(entry.shotNumber);
-    if (entry?.resolvedTitle) titleParts.push(entry.resolvedTitle);
-    const description = titleParts.length > 0 ? titleParts.join(" — ") : entry?.resolvedTitle || "—";
-    const cast = Array.isArray(entry?.resolvedTalent) ? entry.resolvedTalent.filter(Boolean).join(", ") : "";
-    const notes = entry?.resolvedNotes || entry?.description || "";
-    const locationName = entry?.resolvedLocation || "";
-
-    // Canonical values for conflict detection (matches editor syncIntervalEngine)
-    const startTimeCanonical = entry?.startTime || null; // Already HH:MM in source
-    const durationMinutes = typeof entry?.duration === "number" ? entry.duration : null;
-
-    return {
-      id: String(entry?.id || `${entry?.startTime || "time"}-${Math.random()}`),
-      time: formatTime12h(entry?.startTime || ""),
-      duration: typeof entry?.duration === "number" ? `${entry.duration}m` : "",
-      description,
-      cast: cast || "—",
-      notes: notes || "—",
-      location: locationName ? { name: locationName, address: "" } : null,
-      isBanner,
-      marker: entry?.marker || null,
-      trackId: entry?.trackId || null,
-      // Canonical fields for conflict detection
-      startTimeCanonical,
-      durationMinutes,
-    };
+  // Use canonical projection for schedule rows - SINGLE source of truth
+  // This ensures PDF/Preview cannot independently sort/group entries
+  // mode="time" ensures table rows are chronologically sorted for the PDF schedule
+  const projection = buildScheduleProjection({
+    entries: entries || [],
+    tracks: tracks || [],
+    options: {
+      mode: "time", // Chronological order for PDF/Preview schedule table
+      fallbackStartMin: 420, // 7:00 AM default if no explicit start time
+      defaultDurationMin: 15, // 15 min default duration
+      formatTime12h: formatTime12h,
+      context: "PreviewPanel",
+    },
   });
+
+  // Use projection's tableRows directly - already in canonical order
+  const scheduleRows = projection.tableRows;
 
   // Use unified locations from deriveLocationsFromLegacy (handles both modern array and legacy fields)
   const derivedLocations = deriveLocationsFromLegacy(dayDetails);

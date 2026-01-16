@@ -1,3 +1,5 @@
+import type { EntryMarker } from "../../types/schedule";
+
 export interface CallSheetColors {
   primary: string;
   primaryText: string;
@@ -17,12 +19,6 @@ export interface CallSheetScheduleLocation {
   address: string;
 }
 
-/** Visual marker for schedule entries (icon + color) */
-export interface ScheduleEntryMarker {
-  icon: string;
-  color: string;
-}
-
 export interface CallSheetScheduleItem {
   id: string;
   /** Display-formatted time (e.g., "7:00 AM") */
@@ -35,13 +31,19 @@ export interface CallSheetScheduleItem {
   location: CallSheetScheduleLocation | null;
   isBanner?: boolean;
   /** Optional visual marker for quick identification */
-  marker?: ScheduleEntryMarker | null;
+  marker?: EntryMarker | null;
   /** Track ID this entry belongs to (for multi-track schedules) */
   trackId?: string | null;
   /** Canonical start time in HH:MM format (e.g., "07:00") for conflict detection */
   startTimeCanonical?: string | null;
   /** Canonical duration in minutes (e.g., 30) for conflict detection */
   durationMinutes?: number | null;
+  /** Optional subset of track IDs this entry applies to (for shared/banner entries) */
+  appliesToTrackIds?: string[] | null;
+  /** Applicability classification from projection ("all" | "subset" | "single" | "none") */
+  applicabilityKind?: "all" | "subset" | "single" | "none";
+  /** Pre-computed conflict status from projection */
+  hasConflict?: boolean;
 }
 
 export interface CallSheetDayDetails {
