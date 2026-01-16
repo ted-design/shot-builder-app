@@ -12,6 +12,15 @@ import {
 import type { CallSheetScheduleItem, CallSheetTrack } from "../../types";
 import type { ColumnConfig } from "../../../../types/schedule";
 import { DocTable } from "../primitives/DocTable";
+import {
+  detectConflictsPairwise,
+  getTotalConflictPairCount,
+  getEntryIdsInConflicts,
+} from "../../../../lib/callsheet/detectConflictsPairwise";
+import {
+  getApplicableTrackIds,
+  getApplicabilityLabel,
+} from "../../../../lib/callsheet/getApplicableTrackIds";
 
 // Icon component mapping for markers (matches MarkerPicker)
 const MARKER_ICON_MAP: Record<string, React.ElementType> = {
@@ -112,217 +121,10 @@ function parseDurationToMinutes(
 }
 
 /**
- * Normalized schedule item for conflict detection.
+ * Track type extended with scope for canonical conflict detection.
  */
-interface NormalizedScheduleItem {
-  id: string;
-  laneId: string;
-  startMin: number;
-  endMin: number;
-}
-
-/**
- * Info about a skipped item for DEV logging.
- */
-interface SkippedItemInfo {
-  id: string;
-  failedField: "time" | "duration" | "lane";
-  rawTime: string | undefined | null;
-  rawDuration: string | number | undefined | null;
-  canonicalTime: string | undefined | null;
-  canonicalDuration: number | undefined | null;
-}
-
-/**
- * Pair-based conflict detection result (matches editor's syncIntervalEngine).
- */
-interface ConflictDetectionResult {
-  /** Map of laneId -> Set of unique pair keys (format: "minId::maxId") */
-  conflictPairsByLane: Map<string, Set<string>>;
-  /** Map of laneId -> count of unique conflict pairs in that lane */
-  conflictPairCountByLane: Map<string, number>;
-  /** Total unique conflict pairs across all lanes */
-  totalConflictPairCount: number;
-  /** Set of entry IDs that are involved in any conflict */
-  entryIdsInConflicts: Set<string>;
-  /** Number of items skipped due to invalid time/duration data */
-  skippedCount: number;
-  /** Info about skipped items for debugging */
-  skippedItems: SkippedItemInfo[];
-}
-
-/**
- * Detect schedule conflicts using pair-based counting (matches editor By Track view).
- *
- * A conflict "pair" = two entries in the same lane whose time ranges overlap:
- *   currentEnd = currentStart + currentDuration
- *   overlap if: otherStart < currentEnd (strict inequality)
- *
- * Each unique pair is counted ONCE per lane, regardless of overlap duration.
- * Adjacency (otherStart === currentEnd) is NOT a conflict.
- *
- * Canonical field priority (matches editor syncIntervalEngine):
- * 1. startTimeCanonical (HH:MM string) -> fallback to time (display string) -> fallback to "00:00"
- * 2. durationMinutes (number) -> fallback to duration (display string) -> fallback to 15
- *    - This matches editor syncIntervalEngine defaults (lines 212-214)
- *
- * Lane validation:
- * - trackId must exist in validLaneIds Set, otherwise entry is EXCLUDED
- * - This matches editor syncIntervalEngine behavior (line 205: filter to valid lanes)
- *
- * @param schedule - Array of schedule items to analyze
- * @param validLaneIds - Set of valid track/lane IDs from the editor's tracks config
- */
-function detectScheduleConflictsPairBased(
-  schedule: CallSheetScheduleItem[],
-  validLaneIds: Set<string>
-): ConflictDetectionResult {
-  const conflictPairsByLane = new Map<string, Set<string>>();
-  const entryIdsInConflicts = new Set<string>();
-  let skippedCount = 0;
-  const skippedItems: SkippedItemInfo[] = [];
-
-  // Normalize items: prefer canonical fields, fallback to display strings
-  const normalizedItems: NormalizedScheduleItem[] = [];
-
-  for (const item of schedule) {
-    // Skip banners - they don't participate in conflict detection
-    if (item.isBanner) continue;
-
-    // Parse start time - CANONICAL FIRST (startTimeCanonical is HH:MM)
-    // Then fallback to display string (time is "7:00 AM")
-    // If both fail, use default "00:00" (matches editor syncIntervalEngine:212)
-    let startMin: number | null = null;
-    if (item.startTimeCanonical) {
-      startMin = parseTimeToMinutes(item.startTimeCanonical);
-    }
-    if (startMin === null) {
-      startMin = parseTimeToMinutes(item.time);
-    }
-    if (startMin === null) {
-      // Use default 00:00 (midnight) - matches editor behavior
-      startMin = 0;
-    }
-
-    // Parse duration - CANONICAL FIRST (durationMinutes is number)
-    // Then fallback to display string (duration is "30m")
-    // If both fail, use default 15 minutes (matches editor syncIntervalEngine:213)
-    let durationMin: number | null = null;
-    if (typeof item.durationMinutes === "number" && isFinite(item.durationMinutes) && item.durationMinutes > 0) {
-      durationMin = item.durationMinutes;
-    }
-    if (durationMin === null) {
-      durationMin = parseDurationToMinutes(item.duration);
-    }
-    if (durationMin === null) {
-      // Use default 15 minutes - matches editor behavior
-      durationMin = 15;
-    }
-
-    // Compute end time: currentEnd = currentStart + currentDuration
-    const endMin = startMin + durationMin;
-
-    // Lane validation: trackId must exist in validLaneIds, otherwise EXCLUDE entry
-    // This matches editor syncIntervalEngine behavior (line 205: filter to valid lanes)
-    if (!item.trackId || !validLaneIds.has(item.trackId)) {
-      // Entry doesn't have a valid lane - exclude from conflict detection
-      skippedCount++;
-      skippedItems.push({
-        id: item.id,
-        failedField: "lane",
-        rawTime: item.time,
-        rawDuration: item.duration,
-        canonicalTime: item.startTimeCanonical,
-        canonicalDuration: item.durationMinutes,
-      });
-      continue;
-    }
-    const laneId = item.trackId;
-
-    normalizedItems.push({
-      id: item.id,
-      laneId,
-      startMin,
-      endMin,
-    });
-  }
-
-  // Group items by lane
-  const itemsByLane = new Map<string, NormalizedScheduleItem[]>();
-  for (const item of normalizedItems) {
-    if (!itemsByLane.has(item.laneId)) {
-      itemsByLane.set(item.laneId, []);
-    }
-    itemsByLane.get(item.laneId)!.push(item);
-  }
-
-  // Detect overlaps within each lane using sweep algorithm
-  for (const [laneId, items] of itemsByLane) {
-    // Sort by start time for efficient overlap detection
-    items.sort((a, b) => a.startMin - b.startMin);
-
-    // Sweep through pairs
-    for (let i = 0; i < items.length; i++) {
-      const current = items[i];
-      // currentEnd = currentStart + currentDuration (computed earlier)
-
-      // Compare with subsequent items (j > i)
-      for (let j = i + 1; j < items.length; j++) {
-        const other = items[j];
-
-        // Overlap math (explicit):
-        //   currentEnd = current.startMin + currentDuration (stored in current.endMin)
-        //   overlap if: other.startMin < currentEnd (STRICT inequality)
-        //   adjacency (other.startMin === currentEnd) is NOT a conflict
-        //
-        // Since array is sorted by startMin, other.startMin >= current.startMin.
-        // If other starts at or after current ends, no overlap with current or later items.
-        if (other.startMin >= current.endMin) {
-          break; // No further items can overlap with current
-        }
-
-        // Overlap detected: other.startMin < current.endMin
-        // (and implicitly current.startMin < other.endMin since we're sorted)
-
-        // Create stable pair key using sorted IDs
-        const [minId, maxId] = current.id < other.id
-          ? [current.id, other.id]
-          : [other.id, current.id];
-        const pairKey = `${minId}::${maxId}`;
-
-        // Initialize lane's pair set if needed
-        if (!conflictPairsByLane.has(laneId)) {
-          conflictPairsByLane.set(laneId, new Set());
-        }
-
-        // Add pair (Set ensures uniqueness)
-        conflictPairsByLane.get(laneId)!.add(pairKey);
-
-        // Track which entries are involved in conflicts
-        entryIdsInConflicts.add(current.id);
-        entryIdsInConflicts.add(other.id);
-      }
-    }
-  }
-
-  // Compute conflict pair counts per lane
-  const conflictPairCountByLane = new Map<string, number>();
-  let totalConflictPairCount = 0;
-
-  for (const [laneId, pairSet] of conflictPairsByLane) {
-    const count = pairSet.size;
-    conflictPairCountByLane.set(laneId, count);
-    totalConflictPairCount += count;
-  }
-
-  return {
-    conflictPairsByLane,
-    conflictPairCountByLane,
-    totalConflictPairCount,
-    entryIdsInConflicts,
-    skippedCount,
-    skippedItems,
-  };
+interface TrackWithScope extends CallSheetTrack {
+  scope?: "lane" | "shared";
 }
 
 interface ScheduleTableSectionProps {
@@ -356,18 +158,17 @@ const DEFAULT_VISIBLE_COLUMNS: ColumnConfig[] = [
 const EXCLUDED_COLUMN_KEYS = ["duration", "shot", "products"];
 
 export function ScheduleTableSection({ schedule, columnConfig, tracks }: ScheduleTableSectionProps) {
-  // Build Set of valid lane IDs from tracks config (for conflict detection validation)
-  // Also build trackId -> name map for display purposes
-  const { validLaneIds, trackNameMap } = useMemo(() => {
-    const ids = new Set<string>();
+  // Build tracksById map for conflict detection and trackId -> name map for display
+  const { tracksById, trackNameMap } = useMemo(() => {
+    const byId = new Map<string, TrackWithScope>();
     const map: Record<string, string> = {};
     if (Array.isArray(tracks)) {
       for (const track of tracks) {
-        ids.add(track.id);
+        byId.set(track.id, track as TrackWithScope);
         map[track.id] = track.name;
       }
     }
-    return { validLaneIds: ids, trackNameMap: map };
+    return { tracksById: byId, trackNameMap: map };
   }, [tracks]);
 
   // Get visible columns sorted by order (filter out excluded columns for backward compat)
@@ -380,88 +181,60 @@ export function ScheduleTableSection({ schedule, columnConfig, tracks }: Schedul
       .sort((a, b) => a.order - b.order);
   }, [columnConfig]);
 
-  // Detect schedule conflicts using pair-based counting (matches editor)
-  // Pass validLaneIds to ensure trackId validation matches editor behavior
-  const conflictData = useMemo(
-    () => detectScheduleConflictsPairBased(schedule, validLaneIds),
-    [schedule, validLaneIds]
+  // Check if schedule items have pre-computed conflict data from projection
+  // If hasConflict is pre-computed, skip redundant conflict detection
+  const hasPrecomputedConflicts = schedule.length > 0 && typeof schedule[0].hasConflict === "boolean";
+
+  // Detect schedule conflicts using canonical pair-based detection (only if not pre-computed)
+  // Handles shared entries and appliesToTrackIds properly
+  const conflictResult = useMemo(
+    () => hasPrecomputedConflicts ? { pairs: [], byEntryId: new Map() } : detectConflictsPairwise(schedule, tracksById),
+    [schedule, tracksById, hasPrecomputedConflicts]
   );
 
-  // Destructure for convenience
-  const { totalConflictPairCount, entryIdsInConflicts, skippedCount, skippedItems, conflictPairsByLane, conflictPairCountByLane } = conflictData;
+  // Extract conflict data for rendering
+  // If pre-computed, derive from schedule items; otherwise from conflictResult
+  const { totalConflictPairCount, entryIdsInConflicts } = useMemo(() => {
+    if (hasPrecomputedConflicts) {
+      // Derive from pre-computed hasConflict flags
+      const idsWithConflicts = new Set<string>();
+      for (const item of schedule) {
+        if (item.hasConflict) {
+          idsWithConflicts.add(item.id);
+        }
+      }
+      // Pair count is not available from pre-computed data, estimate as half the conflict count
+      // (each conflict involves 2 entries, so pairs ~ entryCount / 2)
+      const estimatedPairs = Math.ceil(idsWithConflicts.size / 2);
+      return { totalConflictPairCount: estimatedPairs, entryIdsInConflicts: idsWithConflicts };
+    }
+    return {
+      totalConflictPairCount: getTotalConflictPairCount(conflictResult),
+      entryIdsInConflicts: getEntryIdsInConflicts(conflictResult),
+    };
+  }, [hasPrecomputedConflicts, schedule, conflictResult]);
 
-  // DEV-only: Refs to track last emitted hashes (prevents log spam on re-renders)
-  const lastSkippedHashRef = useRef<string>("");
+  // DEV-only: Ref to track last emitted hash (prevents log spam on re-renders)
   const lastConflictHashRef = useRef<string>("");
 
-  // DEV-only: Emit diagnostic logs only when payload meaningfully changes
-  // CAPPED: sample sizes limited to prevent huge payloads on large schedules
+  // DEV-only: Emit diagnostic logs only when conflicts change
   useEffect(() => {
     if (process.env.NODE_ENV !== "development") return;
 
-    const SAMPLE_CAP = 5; // Max samples in hash/log to keep payload small
-
-    // Hash for skipped items: count|sortedParts (deterministic order by id)
-    // Counts are FULL; samples are CAPPED for hash stability + perf
-    if (skippedCount > 0) {
-      const skippedSamplesSorted = skippedItems
-        .slice(0, SAMPLE_CAP)
-        .sort((a, b) => a.id.localeCompare(b.id));
-      const skippedParts = skippedSamplesSorted.map((s) => `${s.failedField}:${s.id}`);
-      const skippedHash = `${skippedCount}|${skippedParts.join(",")}`;
-
-      if (skippedHash !== lastSkippedHashRef.current) {
-        lastSkippedHashRef.current = skippedHash;
-        const skippedSamples = skippedItems.slice(0, SAMPLE_CAP).map((s) => ({
-          id: s.id,
-          failed: s.failedField,
-          rawTime: s.rawTime,
-          rawDuration: s.rawDuration,
-          canonicalTime: s.canonicalTime,
-          canonicalDuration: s.canonicalDuration,
-        }));
-        console.warn(
-          `[ScheduleTableSection] ${skippedCount} item(s) skipped due to invalid data:`,
-          skippedSamples
-        );
-      }
-    }
-
-    // Hash for conflicts: count|entriesCount|laneKeys|pairSamples (deterministic, lane-sensitive)
-    // Counts are FULL (laneKeyParts includes ALL lanes); pair samples are CAPPED
     if (totalConflictPairCount > 0) {
-      // Build deterministic lane key parts: sorted by laneId, format "laneId:count"
-      // FULL count - includes ALL lanes for accurate deduplication
-      const laneKeyParts = Array.from(conflictPairCountByLane.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([laneId, count]) => `${laneId}:${count}`);
-
-      // Build deterministic pair samples: sorted by laneId, each lane's pairs sorted
-      // CAPPED: first 5 lanes, first 5 pairs per lane (for hash + perf)
-      const sortedLaneEntries = Array.from(conflictPairsByLane.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .slice(0, SAMPLE_CAP);
-      const pairSamplesByLane = sortedLaneEntries.map(([laneId, pairSet]) => {
-        const sortedPairs = Array.from(pairSet).sort().slice(0, SAMPLE_CAP);
-        return `${laneId}=[${sortedPairs.join(";")}]`;
-      });
-
-      const conflictHash = `${totalConflictPairCount}|${entryIdsInConflicts.size}|${laneKeyParts.join(",")}|${pairSamplesByLane.join(",")}`;
+      // Build deterministic hash from pairs
+      const pairKeys = conflictResult.pairs.map((p) => `${p.aId}::${p.bId}`);
+      const conflictHash = `${totalConflictPairCount}|${entryIdsInConflicts.size}|${pairKeys.slice(0, 5).join(",")}`;
 
       if (conflictHash !== lastConflictHashRef.current) {
         lastConflictHashRef.current = conflictHash;
-        // Log: FULL laneKeyParts + CAPPED pair samples
-        const pairSamples: Record<string, string[]> = {};
-        for (const [laneId, pairSet] of sortedLaneEntries) {
-          pairSamples[laneId] = Array.from(pairSet).sort().slice(0, SAMPLE_CAP);
-        }
         console.info(
-          `[ScheduleTableSection] ${totalConflictPairCount} conflict pair(s), ${entryIdsInConflicts.size} entries involved, lanes: [${laneKeyParts.join(", ")}]`,
-          pairSamples
+          `[ScheduleTableSection] ${totalConflictPairCount} conflict pair(s), ${entryIdsInConflicts.size} entries involved`,
+          { pairs: conflictResult.pairs.slice(0, 5) }
         );
       }
     }
-  }, [skippedCount, skippedItems, totalConflictPairCount, entryIdsInConflicts, conflictPairsByLane, conflictPairCountByLane]);
+  }, [totalConflictPairCount, entryIdsInConflicts, conflictResult.pairs]);
 
   if (!schedule.length) {
     return (
@@ -477,12 +250,27 @@ export function ScheduleTableSection({ schedule, columnConfig, tracks }: Schedul
       case "time": {
         // Duration is shown inline below time when available (controlled by showDurations setting)
         // Marker is shown to the left of the time when present
-        // Track chip is shown for non-primary tracks
+        // Track chip or applicability label shown based on entry type
         // Conflict indicator is shown for items with overlaps
         const MarkerIcon = item.marker?.icon ? MARKER_ICON_MAP[item.marker.icon] : null;
-        const showTrackChip = item.trackId && item.trackId !== "primary" && trackNameMap[item.trackId];
+
+        // Use pre-computed hasConflict if available, else check entryIdsInConflicts
+        const hasConflict = typeof item.hasConflict === "boolean"
+          ? item.hasConflict
+          : entryIdsInConflicts.has(item.id);
+
+        // Get applicability - prefer pre-computed applicabilityKind, else compute
+        const applicabilityKind = item.applicabilityKind || getApplicableTrackIds(item, tracksById).kind;
+        const applicability = item.applicabilityKind
+          ? { kind: item.applicabilityKind, trackIds: [], reason: "pre-computed" }
+          : getApplicableTrackIds(item, tracksById);
+        const applicabilityLabel = getApplicabilityLabel(applicability, tracksById);
+
+        // For single lane entries, show track chip (unless primary track)
+        const showTrackChip = applicabilityKind === "single" &&
+          item.trackId && item.trackId !== "primary" && trackNameMap[item.trackId];
         const trackName = showTrackChip ? trackNameMap[item.trackId!] : null;
-        const hasConflict = entryIdsInConflicts.has(item.id);
+
         return (
           <div className="flex items-start gap-1.5">
             {/* Conflict indicator - print-friendly subtle warning */}
@@ -504,11 +292,23 @@ export function ScheduleTableSection({ schedule, columnConfig, tracks }: Schedul
               </span>
             )}
             <div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="font-semibold text-gray-900">{item.time}</span>
+                {/* Show track chip for single lane entries */}
                 {trackName && (
                   <span className="inline-flex items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-xs leading-none font-medium text-slate-600 whitespace-nowrap print:bg-slate-50 print:text-slate-500">
                     {trackName}
+                  </span>
+                )}
+                {/* Show applicability label for all/subset entries */}
+                {applicabilityLabel && (
+                  <span className={[
+                    "inline-flex items-center rounded-full px-1.5 py-0.5 text-xs leading-none font-medium whitespace-nowrap",
+                    applicabilityKind === "all"
+                      ? "bg-slate-200 text-slate-600 print:bg-slate-100 print:text-slate-500"
+                      : "bg-blue-100 text-blue-700 print:bg-blue-50 print:text-blue-600"
+                  ].join(" ")}>
+                    {applicabilityLabel}
                   </span>
                 )}
               </div>

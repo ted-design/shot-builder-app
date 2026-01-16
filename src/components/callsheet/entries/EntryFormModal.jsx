@@ -39,6 +39,7 @@ function EntryFormModal({
   onClose,
   mode = "select",
   initialCategory = null,
+  initialTrackId = null,
   defaultStartTime = null,
   shots = [],
   shotsLoading = false,
@@ -136,6 +137,7 @@ function EntryFormModal({
               loading={shotsLoading}
               existingEntries={existingEntries}
               tracks={tracks}
+              initialTrackId={initialTrackId}
               talentMap={talentMap}
               productsMap={productsMap}
               onSelectShot={handleSelectShot}
@@ -155,13 +157,13 @@ function EntryFormModal({
   const customInitialData =
     editingEntry?.type === "custom"
       ? {
-          title: editingEntry.customData?.title || "",
-          category: editingEntry.customData?.category || initialCategory || "other",
-          duration: typeof editingEntry.duration === "number" ? editingEntry.duration : 30,
-          notes: editingEntry.notes || editingEntry.customData?.notes || "",
-          trackId: editingEntry.trackId || null,
-          appliesToTrackIds: editingEntry.appliesToTrackIds || null,
-        }
+        title: editingEntry.customData?.title || "",
+        category: editingEntry.customData?.category || initialCategory || "other",
+        duration: typeof editingEntry.duration === "number" ? editingEntry.duration : 30,
+        notes: editingEntry.notes || editingEntry.customData?.notes || "",
+        trackId: editingEntry.trackId || null,
+        appliesToTrackIds: editingEntry.appliesToTrackIds || null,
+      }
       : null;
 
   return (

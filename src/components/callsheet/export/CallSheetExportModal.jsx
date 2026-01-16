@@ -13,6 +13,7 @@ import {
 import { X, Download, Loader2, Eye, Clock, Users, Printer } from "lucide-react";
 import { Button } from "../../ui/button";
 import { minutesToTime12h, formatDuration, parseTimeToMinutes } from "../../../lib/timeUtils";
+import { sortEntriesCanonical } from "../../../lib/callsheet/sortEntriesCanonical";
 import {
   CUSTOM_ENTRY_CATEGORY_LABELS,
   CUSTOM_ENTRY_CATEGORY_COLORS,
@@ -342,13 +343,10 @@ function renderEntryBlocks(entries, trackColor) {
  * PDF Document component for call sheet
  */
 const CallSheetPdfDocument = ({ schedule, entries, tracks }) => {
+  // Sort entries canonically by order (not time) for deterministic rendering
+  // Matches PreviewPanel and editor behavior
   const sortedEntries = useMemo(() => {
-    return [...(entries || [])].sort((a, b) => {
-      const am = parseTimeToMinutes(a.startTime);
-      const bm = parseTimeToMinutes(b.startTime);
-      if (am !== bm) return am - bm;
-      return (a.order ?? 0) - (b.order ?? 0);
-    });
+    return sortEntriesCanonical(entries || [], { context: "CallSheetPdfDocument" });
   }, [entries]);
 
   const columns = useMemo(() => getEffectiveColumns(schedule), [schedule]);

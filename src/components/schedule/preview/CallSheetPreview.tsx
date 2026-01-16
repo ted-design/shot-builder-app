@@ -5,14 +5,20 @@ import type { CallSheetLayoutV2, CallSheetCenterShape, CallSheetSection, CallShe
 import type { ColumnConfig } from "../../../types/schedule";
 import { CallSheetHeader, CallSheetHeaderCompact } from "./CallSheetHeader";
 import { ScheduleTableSection } from "./sections/ScheduleTableSection";
+import { ScheduleBlockSection } from "./sections/ScheduleBlockSection";
 import { TalentSection } from "./sections/TalentSection";
 import { CrewSection } from "./sections/CrewSection";
 import { DocumentPage } from "./primitives/DocumentPage";
 import { DocSectionHeader } from "./primitives/DocSectionHeader";
 import { paginateCallSheetSections } from "./paginateCallSheetSections";
+
 import { formatNotesForDisplay } from "../../../lib/sanitize";
 import { readSectionTitle } from "../../../lib/callsheet/readSectionTitle";
 import { buildCallSheetVariableContext } from "../../../lib/callsheet/variables";
+
+// Feature flag: Use block preview v1 for schedule section
+// Set to false to revert to table view
+const USE_SCHEDULE_BLOCK_PREVIEW = true;
 
 interface CrewDisplayOptions {
   showEmails?: boolean;
@@ -214,7 +220,11 @@ function renderSection(
   if (section.type === "schedule") {
     return (
       <SectionWrapper title={readSectionTitle(section, "Today's Schedule")} collapsible>
-        <ScheduleTableSection schedule={data.schedule} columnConfig={columnConfig} tracks={tracks} />
+        {USE_SCHEDULE_BLOCK_PREVIEW ? (
+          <ScheduleBlockSection schedule={data.schedule} tracks={tracks} />
+        ) : (
+          <ScheduleTableSection schedule={data.schedule} columnConfig={columnConfig} tracks={tracks} />
+        )}
       </SectionWrapper>
     );
   }

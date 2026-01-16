@@ -24,7 +24,7 @@ import {
   DEFAULT_COLUMNS,
   CUSTOM_ENTRY_CATEGORY_COLORS,
 } from "../../../types/schedule";
-import { sortEntriesByTime } from "../../../lib/cascadeEngine";
+import { sortEntriesCanonical } from "../../../lib/callsheet/sortEntriesCanonical";
 import { minutesToTime12h, parseTimeToMinutes } from "../../../lib/timeUtils";
 import AppImage from "../../common/AppImage";
 import { buildCallSheetVariableContext, resolveCallSheetVariable } from "../../../lib/callsheet/variables";
@@ -307,9 +307,10 @@ function CallSheetPreview({
       window.removeEventListener("afterprint", handleAfter);
     };
   }, []);
-  // Sort entries by start time
+  // Sort entries canonically by order (not time) for deterministic rendering
+  // Matches PreviewPanel and editor behavior
   const sortedEntries = useMemo(() => {
-    return sortEntriesByTime(entries);
+    return sortEntriesCanonical(entries || [], { context: "CallSheetPreviewLegacy" });
   }, [entries]);
 
   const columns = useMemo(() => {

@@ -1,83 +1,83 @@
-import { describe, it, expect } from "vitest";
-import React, { useCallback, useState } from "react";
+import { describe, it, expect, vi } from "vitest";
+import React, { useState } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import BuilderPanel from "../BuilderPanel";
+import EditorPanel from "../EditorPanel";
 
-function Harness() {
-  const [activeSectionId, setActiveSectionId] = useState("section-schedule");
-  const [sections, setSections] = useState([
-    {
-      id: "section-schedule",
-      type: "schedule",
-      isVisible: true,
-      order: 0,
-      config: { viewMode: "parallel" },
-    },
-  ]);
-
-  const handleUpdateSectionConfig = useCallback((sectionId, updates) => {
-    setSections((prev) =>
-      prev.map((section) => {
-        if (section.id !== sectionId) return section;
-        return { ...section, config: { ...(section.config || {}), ...(updates || {}) } };
-      })
-    );
-  }, []);
+function EditorPanelHarness({ initialSettings = {} }) {
+  const [scheduleSettings, setScheduleSettings] = useState({
+    showDurations: true,
+    cascadeChanges: true,
+    ...initialSettings,
+  });
 
   return (
-    <div style={{ height: 900 }}>
-      <BuilderPanel
-        sections={sections}
-        activeSectionId={activeSectionId}
-        onSelectSection={setActiveSectionId}
-        onReorderSections={() => {}}
-        onToggleSection={() => {}}
-        onAddSection={() => {}}
-        onDeleteSection={() => {}}
-        clientId="client"
-        projectId="project"
-        scheduleId="schedule"
-        scheduleEditor={<div>EDITOR</div>}
-        generalCrewCallTime=""
-        onUpdateSectionConfig={handleUpdateSectionConfig}
-        config={{
-          id: "callSheetConfig",
-          scheduleId: "schedule",
-          projectId: "project",
-          headerLayout: "classic",
-          headerElements: [],
-          sections,
-          pageSize: "auto",
-          spacing: "normal",
-          timeFormat: "12h",
-          temperatureFormat: "fahrenheit",
-          showFooterLogo: false,
-          colors: { primary: "#000", accent: "#000", text: "#000", background: "#fff" },
-        }}
-        onUpdateConfig={() => {}}
-      />
-    </div>
+    <EditorPanel
+      activeSection={{ id: "section-schedule", type: "schedule", isVisible: true }}
+      clientId="client"
+      projectId="project"
+      scheduleId="schedule"
+      schedule={{ tracks: [] }}
+      scheduleSettings={scheduleSettings}
+      onToggleShowDurations={() =>
+        setScheduleSettings((s) => ({ ...s, showDurations: !s.showDurations }))
+      }
+      onToggleCascade={() =>
+        setScheduleSettings((s) => ({ ...s, cascadeChanges: !s.cascadeChanges }))
+      }
+      resolvedEntries={[]}
+    />
   );
 }
 
-describe("BuilderPanel", () => {
-  it("toggles schedule view mode buttons", () => {
-    render(<Harness />);
+describe("EditorPanel - Schedule Section", () => {
+  it("renders schedule settings checkboxes", () => {
+    render(<EditorPanelHarness />);
 
-    const parallel = screen.getByRole("button", { name: "Parallel" });
-    const stacked = screen.getByRole("button", { name: "Stacked" });
+    // The schedule section should show duration and cascade checkboxes
+    const showDurations = screen.getByRole("checkbox", { name: /show durations/i });
+    const cascadeChanges = screen.getByRole("checkbox", { name: /cascade changes/i });
 
-    // Active tab uses border-blue-600, inactive uses border-transparent
-    expect(parallel).toHaveClass("border-blue-600");
-    expect(stacked).toHaveClass("border-transparent");
+    expect(showDurations).toBeInTheDocument();
+    expect(cascadeChanges).toBeInTheDocument();
+    expect(showDurations).toBeChecked();
+    expect(cascadeChanges).toBeChecked();
+  });
 
-    fireEvent.click(stacked);
-    expect(stacked).toHaveClass("border-blue-600");
-    expect(parallel).toHaveClass("border-transparent");
+  it("toggles schedule settings checkboxes", () => {
+    render(<EditorPanelHarness />);
 
-    fireEvent.click(parallel);
-    expect(parallel).toHaveClass("border-blue-600");
-    expect(stacked).toHaveClass("border-transparent");
+    const showDurations = screen.getByRole("checkbox", { name: /show durations/i });
+    const cascadeChanges = screen.getByRole("checkbox", { name: /cascade changes/i });
+
+    // Both should start checked
+    expect(showDurations).toBeChecked();
+    expect(cascadeChanges).toBeChecked();
+
+    // Toggle show durations
+    fireEvent.click(showDurations);
+    expect(showDurations).not.toBeChecked();
+
+    // Toggle cascade changes
+    fireEvent.click(cascadeChanges);
+    expect(cascadeChanges).not.toBeChecked();
+
+    // Toggle back
+    fireEvent.click(showDurations);
+    fireEvent.click(cascadeChanges);
+    expect(showDurations).toBeChecked();
+    expect(cascadeChanges).toBeChecked();
+  });
+
+  it("renders with initial settings unchecked", () => {
+    render(
+      <EditorPanelHarness initialSettings={{ showDurations: false, cascadeChanges: false }} />
+    );
+
+    const showDurations = screen.getByRole("checkbox", { name: /show durations/i });
+    const cascadeChanges = screen.getByRole("checkbox", { name: /cascade changes/i });
+
+    expect(showDurations).not.toBeChecked();
+    expect(cascadeChanges).not.toBeChecked();
   });
 });
 
