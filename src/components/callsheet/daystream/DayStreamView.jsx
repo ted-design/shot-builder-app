@@ -11,10 +11,11 @@ import {
 import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { Plus, Camera, Flag, ChevronDown } from "lucide-react";
+import { Plus, Camera, Flag, ChevronDown, Clock } from "lucide-react";
 import DayStreamBanner from "./DayStreamBanner";
 import DayStreamSwimlane from "./DayStreamSwimlane";
 import DayStreamBlock from "./DayStreamBlock"; // For overlay
+import UnscheduledTray from "./UnscheduledTray";
 import { parseTimeToMinutes } from "../../../lib/timeUtils";
 import { Button } from "../../ui/button";
 import {
@@ -57,11 +58,55 @@ export default function DayStreamView({
     return tracks.filter(t => t.id !== "shared" && t.scope !== "shared");
   }, [tracks]);
 
-  // --- Segmentation Logic ---
-  const dayNodes = useMemo(() => {
-    if (!resolvedEntries.length) return [];
+  // Build set of valid track IDs for quick lookup
+  const visibleTrackIds = useMemo(() => {
+    return new Set(visibleTracks.map(t => t.id));
+  }, [visibleTracks]);
 
-    const sorted = [...resolvedEntries].sort((a, b) => {
+  // --- Unscheduled Entries ---
+  // Entries are "unscheduled" if:
+  //   1. trackId is null or undefined
+  //   2. trackId doesn't match any visible track (orphaned entries)
+  //   3. NOT a banner type (banners with no trackId span all tracks)
+  const unscheduledEntries = useMemo(() => {
+    return resolvedEntries.filter(entry => {
+      // Banners are never "unscheduled" - they're meant to span all tracks
+      if (entry.type === "custom" && (entry.role === "banner" || entry.trackId === "all")) {
+        return false;
+      }
+      // No trackId = unscheduled
+      if (!entry.trackId) {
+        return true;
+      }
+      // trackId doesn't match any visible track = orphaned/unscheduled
+      if (!visibleTrackIds.has(entry.trackId)) {
+        return true;
+      }
+      return false;
+    });
+  }, [resolvedEntries, visibleTrackIds]);
+
+  // --- Scheduled entries (for timeline) ---
+  const scheduledEntries = useMemo(() => {
+    return resolvedEntries.filter(entry => {
+      // Include banners
+      if (entry.type === "custom" && (entry.role === "banner" || !entry.trackId || entry.trackId === "all")) {
+        return true;
+      }
+      // Include entries with a valid trackId
+      if (entry.trackId && visibleTrackIds.has(entry.trackId)) {
+        return true;
+      }
+      return false;
+    });
+  }, [resolvedEntries, visibleTrackIds]);
+
+  // --- Segmentation Logic ---
+  // Use scheduledEntries (excludes unscheduled) for the timeline
+  const dayNodes = useMemo(() => {
+    if (!scheduledEntries.length) return [];
+
+    const sorted = [...scheduledEntries].sort((a, b) => {
       const timeA = parseTimeToMinutes(a.startTime);
       const timeB = parseTimeToMinutes(b.startTime);
       if (timeA !== timeB) return timeA - timeB;
@@ -87,7 +132,7 @@ export default function DayStreamView({
 
     if (currentSegment.entries.length > 0) nodes.push(currentSegment);
     return nodes;
-  }, [resolvedEntries]);
+  }, [scheduledEntries]);
 
   // --- Drag Handlers ---
   const handleDragStart = (event) => {
@@ -103,6 +148,16 @@ export default function DayStreamView({
     // Find dragged entry
     const activeEntry = resolvedEntries.find(e => e.id === active.id);
     if (!activeEntry) return;
+
+    // Check if dropping back to unscheduled tray (move OUT of timeline)
+    if (over.id === "__unscheduled__") {
+      // If entry was in a track and is being moved to unscheduled,
+      // clear its trackId via onMoveEntryToTrack with null
+      if (activeEntry.trackId && onMoveEntryToTrack) {
+        onMoveEntryToTrack(active.id, null, 0);
+      }
+      return;
+    }
 
     let targetTrackId = null;
     let targetIndex = 0;
@@ -141,8 +196,11 @@ export default function DayStreamView({
 
     if (!targetTrackId) return;
 
-    // Case 1: Move between tracks
-    if (activeEntry.trackId !== targetTrackId) {
+    // Check if entry was unscheduled (no trackId) - this is a "schedule" action
+    const wasUnscheduled = !activeEntry.trackId || !visibleTrackIds.has(activeEntry.trackId);
+
+    // Case 1: Move from unscheduled or between tracks
+    if (wasUnscheduled || activeEntry.trackId !== targetTrackId) {
       if (onMoveEntryToTrack) {
         onMoveEntryToTrack(active.id, targetTrackId, targetIndex);
       }
@@ -187,6 +245,13 @@ export default function DayStreamView({
     }
   };
 
+  // Add unscheduled shot (no trackId assigned yet)
+  const handleAddUnscheduled = () => {
+    if (onAddEntry) {
+      onAddEntry(null); // null trackId = unscheduled
+    }
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -226,6 +291,14 @@ export default function DayStreamView({
                     <span className="ml-auto text-xs text-slate-400">Lane block</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
+                    onClick={handleAddUnscheduled}
+                    className="gap-2"
+                  >
+                    <Clock className="h-4 w-4 text-slate-400" />
+                    <span>Unscheduled</span>
+                    <span className="ml-auto text-xs text-slate-400">Draft</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={handleAddBanner}
                     className="gap-2"
                   >
@@ -238,6 +311,14 @@ export default function DayStreamView({
             )}
           </div>
         </div>
+
+        {/* Unscheduled Tray - shown when there are unscheduled entries */}
+        {unscheduledEntries.length > 0 && (
+          <UnscheduledTray
+            entries={unscheduledEntries}
+            onEditEntry={onEditEntry}
+          />
+        )}
 
         <div className="flex flex-col gap-6 relative">
           {dayNodes.map((node, index) => {

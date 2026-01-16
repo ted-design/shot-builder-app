@@ -23,6 +23,48 @@ const MARKER_ICON_MAP: Record<string, React.ElementType> = {
   flag: Flag,
 };
 
+/**
+ * Format minutes from midnight to 12h display format.
+ * @param minutes - Minutes from midnight (e.g., 480 = 8:00 AM)
+ * @returns Formatted time string (e.g., "8:00 AM")
+ */
+function formatMinutesTo12h(minutes: number | null | undefined): string {
+  if (minutes == null || !Number.isFinite(minutes)) return "";
+  const totalMins = Math.max(0, Math.floor(minutes));
+  const h = Math.floor(totalMins / 60) % 24;
+  const m = totalMins % 60;
+  const ampm = h >= 12 ? "PM" : "AM";
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${hour12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+/**
+ * Compute time range string from projection fields.
+ * Returns "start–end" format (e.g., "6:00 AM–7:00 AM").
+ * Falls back to item.time if startMin unavailable.
+ */
+function getTimeRangeDisplay(item: CallSheetScheduleItem): string {
+  const { startMin, durationMinutes, time } = item;
+
+  // If we have startMin, compute the range
+  if (startMin != null && Number.isFinite(startMin)) {
+    const startStr = formatMinutesTo12h(startMin);
+
+    // Compute endMin if we have duration
+    if (durationMinutes != null && Number.isFinite(durationMinutes) && durationMinutes > 0) {
+      const endMin = startMin + durationMinutes;
+      const endStr = formatMinutesTo12h(endMin);
+      return `${startStr}–${endStr}`;
+    }
+
+    // No duration: just show start time
+    return startStr;
+  }
+
+  // Fallback to legacy time field
+  return time || "";
+}
+
 interface ScheduleBlockSectionProps {
   schedule: CallSheetScheduleItem[];
   tracks?: CallSheetTrack[];
@@ -35,7 +77,8 @@ interface ScheduleBlockSectionProps {
  * Consumes buildScheduleProjection output (mode="time") directly.
  *
  * Features:
- * - Time range display (start time + duration)
+ * - Time range display (e.g., "6:00 AM–7:00 AM") computed from startMin/durationMinutes
+ * - Subtle timeSource indicator "(est)" for derived times (not user-set)
  * - Title / description
  * - Applicability badge: "All Tracks" for kind="all", track names for subset
  * - Category badge for setup/lunch/wrap entries
@@ -57,6 +100,32 @@ export function ScheduleBlockSection({ schedule, tracks }: ScheduleBlockSectionP
   // Count conflicts for summary
   const conflictCount = useMemo(() => {
     return schedule.filter((item) => item.hasConflict).length;
+  }, [schedule]);
+
+  // DEV-ONLY: Log projection sanity data to console for debugging
+  // This outputs the EXACT rows being rendered, not a parallel computation
+  useMemo(() => {
+    if (import.meta.env.DEV && schedule.length > 0) {
+      const debugRows = schedule.map((item, index) => ({
+        idx: index,
+        id: item.id?.slice(0, 8) || "—",
+        description: item.description?.slice(0, 30) || "—",
+        startMin: item.startMin ?? "—",
+        endMin:
+          item.startMin != null && item.durationMinutes != null
+            ? item.startMin + item.durationMinutes
+            : "—",
+        timeSource: item.timeSource || "—",
+        trackId: item.trackId?.slice(0, 8) || "—",
+        applicabilityKind: item.applicabilityKind || "—",
+      }));
+      console.groupCollapsed(
+        `%c[Schedule Projection Sanity] ${schedule.length} rows`,
+        "color: #6366f1; font-weight: bold"
+      );
+      console.table(debugRows);
+      console.groupEnd();
+    }
   }, [schedule]);
 
   if (!schedule.length) {
@@ -177,6 +246,8 @@ interface BlockProps {
  */
 function BannerBlock({ item, MarkerIcon, applicability, category }: BlockProps) {
   const categoryStyles = getCategoryStyles(category);
+  const timeRange = getTimeRangeDisplay(item);
+  const isDerived = item.timeSource === "derived";
 
   return (
     <div
@@ -204,13 +275,18 @@ function BannerBlock({ item, MarkerIcon, applicability, category }: BlockProps) 
         </span>
       )}
 
-      {/* Time */}
-      <div className="flex-shrink-0">
+      {/* Time range with timeSource indicator */}
+      <div className="flex-shrink-0 flex items-center gap-1">
         <span className={`text-sm font-bold ${categoryStyles.text}`}>
-          {item.time}
+          {timeRange}
         </span>
-        {item.duration && (
-          <span className="text-xs text-gray-400 ml-1">({item.duration})</span>
+        {isDerived && (
+          <span
+            className="text-[9px] text-gray-400 italic print:text-gray-500"
+            title="Time derived from schedule order"
+          >
+            (est)
+          </span>
         )}
       </div>
 
@@ -244,6 +320,8 @@ interface RegularBlockProps extends BlockProps {
  */
 function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap }: RegularBlockProps) {
   const trackName = item.trackId && trackNameMap[item.trackId] ? trackNameMap[item.trackId] : null;
+  const timeRange = getTimeRangeDisplay(item);
+  const isDerived = item.timeSource === "derived";
 
   return (
     <div
@@ -253,7 +331,7 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap 
         print:shadow-none print:border-gray-300
       `}
     >
-      {/* Header row: Time + Track/Applicability + Duration */}
+      {/* Header row: Time range + Track/Applicability */}
       <div className="flex items-center justify-between gap-2 mb-1">
         <div className="flex items-center gap-2">
           {/* Conflict indicator */}
@@ -274,8 +352,16 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap 
             </span>
           )}
 
-          {/* Time */}
-          <span className="text-sm font-semibold text-gray-900">{item.time}</span>
+          {/* Time range with timeSource indicator */}
+          <span className="text-sm font-semibold text-gray-900">{timeRange}</span>
+          {isDerived && (
+            <span
+              className="text-[9px] text-gray-400 italic print:text-gray-500"
+              title="Time derived from schedule order"
+            >
+              (est)
+            </span>
+          )}
 
           {/* Track chip for single-track entries */}
           {trackName && (
@@ -296,11 +382,6 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap 
             <CategoryBadge category={category} />
           )}
         </div>
-
-        {/* Duration */}
-        {item.duration && (
-          <span className="text-[11px] text-gray-400 font-mono">{item.duration}</span>
-        )}
       </div>
 
       {/* Title / Description */}

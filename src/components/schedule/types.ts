@@ -44,6 +44,12 @@ export interface CallSheetScheduleItem {
   applicabilityKind?: "all" | "subset" | "single" | "none";
   /** Pre-computed conflict status from projection */
   hasConflict?: boolean;
+  /** Start time in minutes from midnight (from projection) */
+  startMin?: number | null;
+  /** How time was determined: "explicit" (user-set), "derived" (computed), or "none" */
+  timeSource?: "explicit" | "derived" | "none";
+  /** Original entry order (for debugging/reference) */
+  order?: number;
 }
 
 export interface CallSheetDayDetails {
