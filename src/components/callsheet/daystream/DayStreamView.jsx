@@ -113,9 +113,9 @@ export default function DayStreamView({
   const warnedMissingIdsRef = useRef(new Set());
 
   // --- Three-bucket classification ---
-  // A) scheduledEntries: row exists AND row.timeSource !== "none" OR banners
-  // B) unscheduledEntries: row exists AND row.timeSource === "none" AND not banner
-  // C) needsAttentionEntries: row is missing from rowsById for entry.id (DEV-only surface)
+  // A) scheduledEntries: entry has explicit start time (hasExplicitStartTime) OR is a banner
+  // B) unscheduledEntries: entry has NO explicit start time AND is not a banner
+  // C) needsAttentionEntries: entry is missing from projection rowsById (DEV-only surface)
 
   // --- Needs Attention Entries (DEV-only) ---
   // Entries missing from projection rowsById - couldn't be projected
@@ -154,41 +154,47 @@ export default function DayStreamView({
   }, [resolvedEntries, rowsById]);
 
   // --- Unscheduled Entries ---
-  // An entry is "unscheduled" iff it has a row AND row.timeSource === "none".
+  // An entry is "unscheduled" if it has NO explicit start time (user hasn't set a time).
+  // Note: buildScheduleProjection derives times for ALL entries via getSequenceMinutes,
+  // so timeSource is always "explicit" or "derived", never "none".
+  // We use hasExplicitStartTime() to check if the USER set a time vs system-derived.
   // Entries missing from projection go to needsAttention, NOT here.
-  // Banners with explicit times are never unscheduled.
+  // Banners are never unscheduled.
   const unscheduledEntries = useMemo(() => {
     return resolvedEntries.filter(entry => {
       // Banners are never "unscheduled" - they span all tracks
       if (entry.type === "custom" && (entry.role === "banner" || entry.trackId === "all")) {
         return false;
       }
-      // Use projection's row as the single source of truth
+      // Check if entry is in projection (sanity check)
       const row = rowsById.get(entry.id);
       if (!row) {
         // Entry missing from projection - goes to needsAttention, NOT unscheduled
         return false;
       }
-      return row.timeSource === "none";
+      // Unscheduled = no explicit start time set by user
+      return !hasExplicitStartTime(entry);
     });
   }, [resolvedEntries, rowsById]);
 
   // --- Scheduled entries (for timeline) ---
-  // Entries are scheduled if they have a row AND row.timeSource !== "none"
+  // Entries are scheduled if they have an EXPLICIT start time (user set a time).
   // Entries missing from projection go to needsAttention, NOT here.
+  // Banners always appear in the timeline.
   const scheduledEntries = useMemo(() => {
     return resolvedEntries.filter(entry => {
       // Banners always appear in the timeline
       if (entry.type === "custom" && (entry.role === "banner" || entry.trackId === "all")) {
         return true;
       }
-      // Use projection's row as the single source of truth
+      // Check if entry is in projection (sanity check)
       const row = rowsById.get(entry.id);
       if (!row) {
         // Entry missing from projection - goes to needsAttention, NOT scheduled
         return false;
       }
-      return row.timeSource !== "none";
+      // Scheduled = has explicit start time set by user
+      return hasExplicitStartTime(entry);
     });
   }, [resolvedEntries, rowsById]);
 
