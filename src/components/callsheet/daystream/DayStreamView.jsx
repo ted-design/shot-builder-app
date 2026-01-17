@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import {
   DndContext,
   closestCenter,
@@ -16,7 +16,11 @@ import DayStreamBanner from "./DayStreamBanner";
 import DayStreamSwimlane from "./DayStreamSwimlane";
 import DayStreamBlock from "./DayStreamBlock"; // For overlay
 import UnscheduledTray from "./UnscheduledTray";
+import NeedsAttentionTray from "./NeedsAttentionTray";
 import { parseTimeToMinutes } from "../../../lib/timeUtils";
+import { buildScheduleProjection } from "../../../lib/callsheet/buildScheduleProjection";
+import { hasExplicitStartTime, parseTimeToMinutes as parseEntryTime } from "../../../lib/callsheet/getEntryMinutes";
+
 import { Button } from "../../ui/button";
 import {
   DropdownMenu,
@@ -24,6 +28,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../ui/dropdown-menu";
+
+/**
+ * Get the time source field name for an entry (for diagnostic logging).
+ * Returns which field provided the explicit time, or "none" if no valid time.
+ */
+function getTimeSourceField(entry) {
+  if (entry.startTimeCanonical && parseEntryTime(entry.startTimeCanonical) !== null) {
+    return "startTimeCanonical";
+  }
+  if (entry.startTime && parseEntryTime(entry.startTime) !== null) {
+    return "startTime";
+  }
+  if (entry.time && parseEntryTime(entry.time) !== null) {
+    return "time";
+  }
+  return "none";
+}
 
 /**
  * DayStreamView (V2)
@@ -63,43 +84,113 @@ export default function DayStreamView({
     return new Set(visibleTracks.map(t => t.id));
   }, [visibleTracks]);
 
+  // --- Use canonical projection as single source of truth for time placement ---
+  // This ensures unscheduled definition matches preview: entries with no time placement
+  const projection = useMemo(() => {
+    return buildScheduleProjection({
+      entries: resolvedEntries || [],
+      tracks: tracks || [],
+      options: {
+        mode: "time",
+        fallbackStartMin: 420, // 7:00 AM default
+        defaultDurationMin: 15,
+        context: "DayStreamView",
+      },
+    });
+  }, [resolvedEntries, tracks]);
+
+  // Build a map of entry ID -> projection row for deterministic O(1) lookup
+  // Stores full row to allow access to timeSource, startMin, durationMinutes
+  const rowsById = useMemo(() => {
+    const map = new Map();
+    for (const row of projection.tableRows) {
+      map.set(row.id, row);
+    }
+    return map;
+  }, [projection.tableRows]);
+
+  // Track warned IDs to dedupe dev warnings (persists across renders)
+  const warnedMissingIdsRef = useRef(new Set());
+
+  // --- Three-bucket classification ---
+  // A) scheduledEntries: row exists AND row.timeSource !== "none" OR banners
+  // B) unscheduledEntries: row exists AND row.timeSource === "none" AND not banner
+  // C) needsAttentionEntries: row is missing from rowsById for entry.id (DEV-only surface)
+
+  // --- Needs Attention Entries (DEV-only) ---
+  // Entries missing from projection rowsById - couldn't be projected
+  const { needsAttentionEntries, needsAttentionDiagnostics } = useMemo(() => {
+    const entries = [];
+    const diagnostics = new Map();
+
+    for (const entry of resolvedEntries) {
+      // Banners never go to needsAttention
+      if (entry.type === "custom" && (entry.role === "banner" || entry.trackId === "all")) {
+        continue;
+      }
+      const row = rowsById.get(entry.id);
+      if (!row) {
+        // Entry missing from projection
+        const hasTime = hasExplicitStartTime(entry);
+        const timeSourceField = getTimeSourceField(entry);
+
+        entries.push(entry);
+        diagnostics.set(entry.id, {
+          timeField: timeSourceField,
+          hasExplicitTime: hasTime,
+        });
+
+        // Warn once per ID (dev only) with detailed info
+        if (import.meta.env.DEV && !warnedMissingIdsRef.current.has(entry.id)) {
+          console.warn(
+            `[DayStreamView] Entry missing from projection | id="${entry.id}" | hasExplicitTime=${hasTime} | timeField="${timeSourceField}"`
+          );
+          warnedMissingIdsRef.current.add(entry.id);
+        }
+      }
+    }
+
+    return { needsAttentionEntries: entries, needsAttentionDiagnostics: diagnostics };
+  }, [resolvedEntries, rowsById]);
+
   // --- Unscheduled Entries ---
-  // Entries are "unscheduled" if:
-  //   1. trackId is null or undefined
-  //   2. trackId doesn't match any visible track (orphaned entries)
-  //   3. NOT a banner type (banners with no trackId span all tracks)
+  // An entry is "unscheduled" iff it has a row AND row.timeSource === "none".
+  // Entries missing from projection go to needsAttention, NOT here.
+  // Banners with explicit times are never unscheduled.
   const unscheduledEntries = useMemo(() => {
     return resolvedEntries.filter(entry => {
-      // Banners are never "unscheduled" - they're meant to span all tracks
+      // Banners are never "unscheduled" - they span all tracks
       if (entry.type === "custom" && (entry.role === "banner" || entry.trackId === "all")) {
         return false;
       }
-      // No trackId = unscheduled
-      if (!entry.trackId) {
-        return true;
+      // Use projection's row as the single source of truth
+      const row = rowsById.get(entry.id);
+      if (!row) {
+        // Entry missing from projection - goes to needsAttention, NOT unscheduled
+        return false;
       }
-      // trackId doesn't match any visible track = orphaned/unscheduled
-      if (!visibleTrackIds.has(entry.trackId)) {
-        return true;
-      }
-      return false;
+      return row.timeSource === "none";
     });
-  }, [resolvedEntries, visibleTrackIds]);
+  }, [resolvedEntries, rowsById]);
 
   // --- Scheduled entries (for timeline) ---
+  // Entries are scheduled if they have a row AND row.timeSource !== "none"
+  // Entries missing from projection go to needsAttention, NOT here.
   const scheduledEntries = useMemo(() => {
     return resolvedEntries.filter(entry => {
-      // Include banners
-      if (entry.type === "custom" && (entry.role === "banner" || !entry.trackId || entry.trackId === "all")) {
+      // Banners always appear in the timeline
+      if (entry.type === "custom" && (entry.role === "banner" || entry.trackId === "all")) {
         return true;
       }
-      // Include entries with a valid trackId
-      if (entry.trackId && visibleTrackIds.has(entry.trackId)) {
-        return true;
+      // Use projection's row as the single source of truth
+      const row = rowsById.get(entry.id);
+      if (!row) {
+        // Entry missing from projection - goes to needsAttention, NOT scheduled
+        return false;
       }
-      return false;
+      return row.timeSource !== "none";
     });
-  }, [resolvedEntries, visibleTrackIds]);
+  }, [resolvedEntries, rowsById]);
 
   // --- Segmentation Logic ---
   // Use scheduledEntries (excludes unscheduled) for the timeline
@@ -311,6 +402,15 @@ export default function DayStreamView({
             )}
           </div>
         </div>
+
+        {/* Needs Attention Tray (DEV-only) - shown when entries are missing from projection */}
+        {import.meta.env.DEV && needsAttentionEntries.length > 0 && (
+          <NeedsAttentionTray
+            entries={needsAttentionEntries}
+            diagnosticInfoMap={needsAttentionDiagnostics}
+            onEditEntry={onEditEntry}
+          />
+        )}
 
         {/* Unscheduled Tray - shown when there are unscheduled entries */}
         {unscheduledEntries.length > 0 && (
