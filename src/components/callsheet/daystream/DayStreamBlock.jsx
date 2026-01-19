@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link2, MapPin, Users, Clock, X } from "lucide-react";
+import { ExternalLink, MapPin, Users, Clock, X } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { parseTimeToMinutes, minutesToTimeString } from "../../../lib/timeUtils";
 
@@ -203,6 +203,9 @@ export default function DayStreamBlock({
     const displayDuration = isResizing ? editDuration : (entry.duration || 15);
     const height = Math.max(56, displayDuration * 2.5);
 
+    // Determine if this is a shot entry (has shotRef) vs custom/banner entry
+    const isShot = Boolean(entry.shotRef);
+
     if (isEditing) {
         return (
             <div
@@ -214,19 +217,43 @@ export default function DayStreamBlock({
                 onClick={(e) => e.stopPropagation()} // Prevent drag start
                 onKeyDown={handleKeyDown}
             >
-                {/* Row 1: Title */}
-                <input
-                    ref={inputRef}
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    className="w-full text-xs font-semibold border border-slate-200 rounded px-1.5 py-0.5 focus:border-blue-400 outline-none"
-                    placeholder="Title"
-                />
+                {/* Row 1: Title - editable for custom, read-only for shots */}
+                {isShot ? (
+                    <div className="flex items-center justify-between gap-2">
+                        <span
+                            className="text-xs font-semibold text-slate-800 truncate flex-1"
+                            title={entry.resolvedTitle}
+                        >
+                            {entry.resolvedTitle || "Untitled Shot"}
+                        </span>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsEditing(false);
+                                onEdit?.();
+                            }}
+                            className="flex items-center gap-0.5 text-[10px] text-blue-600 hover:text-blue-800 whitespace-nowrap shrink-0"
+                            title="Edit shot details"
+                        >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Open shot</span>
+                        </button>
+                    </div>
+                ) : (
+                    <input
+                        ref={inputRef}
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        className="w-full text-xs font-semibold border border-slate-200 rounded px-1.5 py-0.5 focus:border-blue-400 outline-none"
+                        placeholder="Title"
+                    />
+                )}
                 {/* Row 2: Start Time & Duration */}
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-2 items-center flex-wrap">
                     <div className="flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-slate-400" />
+                        <Clock className="w-3 h-3 text-slate-400 shrink-0" />
                         <input
+                            ref={isShot ? inputRef : null}
                             type="time"
                             value={editStartTime}
                             onChange={(e) => setEditStartTime(e.target.value)}
@@ -268,7 +295,6 @@ export default function DayStreamBlock({
 
     return (
         <div
-            onClick={onEdit}
             onDoubleClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
