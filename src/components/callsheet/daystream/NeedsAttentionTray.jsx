@@ -32,7 +32,7 @@ function NeedsAttentionItem({ entry, diagnosticInfo, onEdit }) {
 
       {/* Entry type badge */}
       <span className="text-[9px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded">
-        {entry.type || "entry"}
+        {diagnosticInfo.isBanner ? "banner" : (entry.type || "entry")}
       </span>
     </div>
   );
