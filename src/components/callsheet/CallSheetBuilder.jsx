@@ -703,6 +703,20 @@ function CallSheetBuilder({
     [shotsMap]
   );
 
+  // Combined handler that routes to shot editor for shots, custom entry modal for banners
+  const handleEditEntry = useCallback(
+    (entry) => {
+      if (!entry) return;
+      // Shot entries have shotRef
+      if (entry.shotRef) {
+        handleEditShotEntry(entry);
+      } else if (entry.type === "custom") {
+        handleEditCustomEntry(entry);
+      }
+    },
+    [handleEditShotEntry, handleEditCustomEntry]
+  );
+
   const handleUpdateEntryFlag = useCallback(
     (entryId, flag) => {
       updateEntry({ entryId, updates: { flag: flag || null } });
@@ -1173,7 +1187,7 @@ function CallSheetBuilder({
               },
               generalCrewCallTime: dayDetails?.crewCallTime || "",
               onUpdateSectionConfig: handleUpdateSectionConfig,
-              onEditEntry: canWriteProject ? handleEditCustomEntry : undefined,
+              onEditEntry: canWriteProject ? handleEditEntry : undefined,
               onReorderEntries: canWriteProject ? handleReorderEntries : undefined,
               onMoveEntryToTrack: canWriteProject ? handleMoveEntryToTrack : undefined,
               onUpdateEntry: canWriteProject ? handleUpdateEntryGeneric : undefined,
