@@ -95,15 +95,15 @@ function isVideoTrack(
 }
 
 /**
- * Sort items within a column by order ASC, then ID (stable tiebreaker).
- * No duration sorting - preserves user-defined order.
+ * Sort items within a column by startMin ASC, then ID (stable tiebreaker).
+ * Used for stacked column layout in overlap bands.
  */
 function sortColumnItems(items: CallSheetScheduleItem[]): CallSheetScheduleItem[] {
   return [...items].sort((a, b) => {
-    // 1. Order ASC (if available)
-    const orderA = a.order ?? Number.MAX_SAFE_INTEGER;
-    const orderB = b.order ?? Number.MAX_SAFE_INTEGER;
-    if (orderA !== orderB) return orderA - orderB;
+    // 1. startMin ASC (items starting earlier appear first)
+    const startA = a.startMin ?? Number.MAX_SAFE_INTEGER;
+    const startB = b.startMin ?? Number.MAX_SAFE_INTEGER;
+    if (startA !== startB) return startA - startB;
 
     // 2. ID string (stable tiebreaker)
     return (a.id ?? "").localeCompare(b.id ?? "");
@@ -158,6 +158,84 @@ function partitionSimultaneousItems(
  * - Subtle conflict indicator (amber icon) when hasConflict=true
  * - Banner-style blocks for shared/all-track entries
  */
+// Threshold for showing "Starts X:XX" pre-label in overlap bands
+const STARTS_LABEL_THRESHOLD_MIN = 10; // Minimum delta to show "Starts X:XX" label
+
+// Duration rail constants (proportional height within overlap bands)
+const RAIL_MIN_PX = 10;
+const RAIL_MAX_PX = 44;
+
+/**
+ * Compute rail height for an item within a band.
+ * The rail height is proportional to the item's span within the band.
+ * @param itemStartMin - The item's start time in minutes
+ * @param itemDurationMinutes - The item's duration in minutes
+ * @param bandStart - The band's start time in minutes
+ * @param bandEnd - The band's end time in minutes
+ * @returns Rail height in pixels
+ */
+function computeRailHeight(
+  itemStartMin: number | null | undefined,
+  itemDurationMinutes: number | null | undefined,
+  bandStart: number,
+  bandEnd: number
+): number {
+  const bandSpanMin = Math.max(1, bandEnd - bandStart);
+
+  // Compute item's span within the band (clamped to band boundaries)
+  let itemSpanWithinBand = 0;
+  if (
+    itemStartMin != null &&
+    Number.isFinite(itemStartMin) &&
+    itemDurationMinutes != null &&
+    Number.isFinite(itemDurationMinutes)
+  ) {
+    const itemEnd = itemStartMin + itemDurationMinutes;
+    const clampedStart = Math.max(itemStartMin, bandStart);
+    const clampedEnd = Math.min(itemEnd, bandEnd);
+    itemSpanWithinBand = Math.max(0, clampedEnd - clampedStart);
+  } else if (itemDurationMinutes != null && Number.isFinite(itemDurationMinutes)) {
+    // Fallback to raw duration if time bounds unavailable
+    itemSpanWithinBand = itemDurationMinutes;
+  }
+
+  // If span is 0, return minimum rail height
+  if (itemSpanWithinBand <= 0) return RAIL_MIN_PX;
+
+  // Scale proportionally within the band
+  const raw = (itemSpanWithinBand / bandSpanMin) * RAIL_MAX_PX;
+  return Math.max(RAIL_MIN_PX, Math.min(RAIL_MAX_PX, Math.round(raw)));
+}
+
+/**
+ * Compute rail height for a single (non-banded) item.
+ * Uses a fixed scale based on duration.
+ * @param durationMinutes - The item's duration in minutes
+ * @returns Rail height in pixels
+ */
+function computeSingleRailHeight(durationMinutes: number | null | undefined): number {
+  if (durationMinutes == null || !Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+    return RAIL_MIN_PX;
+  }
+  // Scale: 0.5px per minute, clamped to [RAIL_MIN_PX, RAIL_MAX_PX]
+  const raw = durationMinutes * 0.5;
+  return Math.max(RAIL_MIN_PX, Math.min(RAIL_MAX_PX, Math.round(raw)));
+}
+
+/**
+ * Compute the "Starts HH:MM" label for items within a band.
+ * Returns null if the item starts at band start or within threshold.
+ * @param itemStartMin - The item's start time in minutes from midnight
+ * @param bandStartMin - The band's start time in minutes from midnight
+ * @returns Label string like "Starts 11:30 AM" or null
+ */
+function getStartsLabel(itemStartMin: number | null | undefined, bandStartMin: number): string | null {
+  if (itemStartMin == null || !Number.isFinite(itemStartMin)) return null;
+  const deltaMin = itemStartMin - bandStartMin;
+  if (deltaMin < STARTS_LABEL_THRESHOLD_MIN) return null;
+  return `Starts ${formatMinutesTo12h(itemStartMin)}`;
+}
+
 export function ScheduleBlockSection({ schedule, tracks }: ScheduleBlockSectionProps) {
   // Build trackId -> name map for display
   const trackNameMap = useMemo(() => {
@@ -202,75 +280,126 @@ export function ScheduleBlockSection({ schedule, tracks }: ScheduleBlockSectionP
   }, [schedule]);
 
   /**
-   * Group schedule items for side-by-side rendering of simultaneous events.
+   * Compute endMin from startMin + durationMinutes.
+   * Returns null if either is missing/invalid.
+   */
+  function getEndMin(item: CallSheetScheduleItem): number | null {
+    const { startMin, durationMinutes } = item;
+    if (startMin == null || !Number.isFinite(startMin)) return null;
+    if (durationMinutes == null || !Number.isFinite(durationMinutes)) return null;
+    return startMin + durationMinutes;
+  }
+
+  /**
+   * Check if an item has valid time bounds for banding.
+   */
+  function hasValidTimeBounds(item: CallSheetScheduleItem): boolean {
+    return (
+      item.startMin != null &&
+      Number.isFinite(item.startMin) &&
+      getEndMin(item) != null
+    );
+  }
+
+  /**
+   * Group schedule items for side-by-side rendering using OVERLAP BANDS.
    *
-   * Rules:
-   * - Banners (isBanner=true or applicabilityKind="all") are always rendered full-width
-   * - Non-banner items with the same startMin are grouped together
-   * - Items with null/undefined startMin are rendered individually (ungrouped)
-   * - Groups are ordered by startMin ascending
-   * - Within a group, original order is preserved
+   * Banding rules:
+   * - Banners (isBanner=true or applicabilityKind="all") are ALWAYS full-width
+   *   and ALWAYS break bands (flush current band before/after banner)
+   * - Non-banner items are grouped into overlap bands:
+   *   1. Sort bandable items by (startMin ASC, endMin ASC, id ASC)
+   *   2. Sweep algorithm:
+   *      - Start new band with first item, track bandEnd = max(endMin)
+   *      - Next item joins current band if item.startMin < bandEnd (strict overlap)
+   *      - Update bandEnd = max(bandEnd, item.endMin)
+   *      - Else flush band and start new one
+   * - Items with missing startMin/endMin are rendered as ungrouped singletons
+   * - Within a band, original sort order is preserved
    */
   type RenderGroup =
     | { type: "banner"; item: CallSheetScheduleItem }
     | { type: "single"; item: CallSheetScheduleItem }
-    | { type: "simultaneous"; items: CallSheetScheduleItem[]; startMin: number };
+    | { type: "band"; items: CallSheetScheduleItem[]; bandStart: number; bandEnd: number };
 
   const renderGroups = useMemo((): RenderGroup[] => {
     if (!schedule.length) return [];
 
     const groups: RenderGroup[] = [];
-    const startMinMap = new Map<number, CallSheetScheduleItem[]>();
 
-    // First pass: separate banners and group non-banners by startMin
+    // Pending band items (to be flushed on banner or end)
+    let pendingBandItems: CallSheetScheduleItem[] = [];
+    let bandEnd: number | null = null;
+
+    /**
+     * Flush the current pending band to groups.
+     */
+    function flushBand() {
+      if (pendingBandItems.length === 0) return;
+
+      // Sort band items by (startMin ASC, endMin ASC, id ASC) for stable ordering
+      const sorted = [...pendingBandItems].sort((a, b) => {
+        const startA = a.startMin ?? 0;
+        const startB = b.startMin ?? 0;
+        if (startA !== startB) return startA - startB;
+
+        const endA = getEndMin(a) ?? 0;
+        const endB = getEndMin(b) ?? 0;
+        if (endA !== endB) return endA - endB;
+
+        return (a.id ?? "").localeCompare(b.id ?? "");
+      });
+
+      if (sorted.length === 1) {
+        groups.push({ type: "single", item: sorted[0] });
+      } else {
+        // Compute band boundaries for the key
+        const bandStart = Math.min(...sorted.map((i) => i.startMin ?? Infinity));
+        const computedBandEnd = Math.max(...sorted.map((i) => getEndMin(i) ?? 0));
+        groups.push({ type: "band", items: sorted, bandStart, bandEnd: computedBandEnd });
+      }
+
+      pendingBandItems = [];
+      bandEnd = null;
+    }
+
+    // Process items in order (schedule is already sorted by projection)
     for (const item of schedule) {
       const isBanner = item.isBanner || item.applicabilityKind === "all";
 
       if (isBanner) {
-        // Flush any pending startMin groups before this banner (preserve order)
-        for (const [startMin, items] of startMinMap) {
-          if (items.length === 1) {
-            groups.push({ type: "single", item: items[0] });
-          } else {
-            groups.push({ type: "simultaneous", items, startMin });
-          }
-        }
-        startMinMap.clear();
-
-        // Add banner
+        // Banner always breaks bands - flush first
+        flushBand();
         groups.push({ type: "banner", item });
-      } else if (item.startMin == null || !Number.isFinite(item.startMin)) {
-        // No startMin: render as single (ungrouped)
-        // Flush any pending groups first
-        for (const [startMin, items] of startMinMap) {
-          if (items.length === 1) {
-            groups.push({ type: "single", item: items[0] });
-          } else {
-            groups.push({ type: "simultaneous", items, startMin });
-          }
-        }
-        startMinMap.clear();
+        continue;
+      }
 
+      // Check if item has valid time bounds for banding
+      if (!hasValidTimeBounds(item)) {
+        // No valid time bounds: flush band and render as singleton
+        flushBand();
         groups.push({ type: "single", item });
+        continue;
+      }
+
+      const itemStart = item.startMin!;
+      const itemEnd = getEndMin(item)!;
+
+      // Check if item overlaps with current band
+      if (bandEnd !== null && itemStart < bandEnd) {
+        // Item overlaps with current band - add to band
+        pendingBandItems.push(item);
+        bandEnd = Math.max(bandEnd, itemEnd);
       } else {
-        // Group by startMin
-        const existing = startMinMap.get(item.startMin);
-        if (existing) {
-          existing.push(item);
-        } else {
-          startMinMap.set(item.startMin, [item]);
-        }
+        // No overlap - flush current band and start new one
+        flushBand();
+        pendingBandItems = [item];
+        bandEnd = itemEnd;
       }
     }
 
-    // Flush remaining groups
-    for (const [startMin, items] of startMinMap) {
-      if (items.length === 1) {
-        groups.push({ type: "single", item: items[0] });
-      } else {
-        groups.push({ type: "simultaneous", items, startMin });
-      }
-    }
+    // Flush any remaining band
+    flushBand();
 
     return groups;
   }, [schedule]);
@@ -367,60 +496,93 @@ export function ScheduleBlockSection({ schedule, tracks }: ScheduleBlockSectionP
             const MarkerIcon = item.marker?.icon ? MARKER_ICON_MAP[item.marker.icon] : null;
             const applicability = getApplicabilityDisplay(item);
             const category = detectCategory(item.description);
+            const railHeightPx = computeSingleRailHeight(item.durationMinutes);
             return (
-              <RegularBlock
-                key={item.id}
-                item={item}
-                MarkerIcon={MarkerIcon}
-                applicability={applicability}
-                category={category}
-                trackNameMap={trackNameMap}
-              />
+              <DurationRailWrapper key={item.id} railHeightPx={railHeightPx}>
+                <RegularBlock
+                  item={item}
+                  MarkerIcon={MarkerIcon}
+                  applicability={applicability}
+                  category={category}
+                  trackNameMap={trackNameMap}
+                />
+              </DurationRailWrapper>
             );
           }
 
-          // Simultaneous events: render fixed 2-column layout (Photo left, Video right)
-          // Items are bucketed by track type, stacked vertically within each column
-          // Items that don't match Photo/Video render full-width below
+          // Overlap band: compact stacked-column layout
+          // Photo items in left column, Video items in right column
+          // Items are stacked vertically with optional "Starts HH:MM" pre-labels
           const { photoItems, videoItems, otherItems } = partitionSimultaneousItems(
             group.items,
             trackNameMap
           );
 
-          // Helper to render a single card
-          const renderCard = (item: CallSheetScheduleItem) => {
+          // Combine any "other" items into whichever column has fewer items
+          // to keep the layout balanced
+          const photoWithOther = photoItems.length <= videoItems.length
+            ? [...photoItems, ...otherItems]
+            : photoItems;
+          const videoWithOther = photoItems.length > videoItems.length
+            ? [...videoItems, ...otherItems]
+            : videoItems;
+
+          // Re-sort after merging to maintain startMin order
+          const sortedPhotoItems = sortColumnItems(photoWithOther);
+          const sortedVideoItems = sortColumnItems(videoWithOther);
+
+          // Helper to render a stacked card with optional pre-label and duration rail
+          const renderStackedCardWithLabel = (item: CallSheetScheduleItem) => {
             const MarkerIcon = item.marker?.icon ? MARKER_ICON_MAP[item.marker.icon] : null;
             const applicability = getApplicabilityDisplay(item);
             const category = detectCategory(item.description);
+            const startsLabel = getStartsLabel(item.startMin, group.bandStart);
+            const railHeightPx = computeRailHeight(
+              item.startMin,
+              item.durationMinutes,
+              group.bandStart,
+              group.bandEnd
+            );
+
             return (
-              <RegularBlock
-                key={item.id}
-                item={item}
-                MarkerIcon={MarkerIcon}
-                applicability={applicability}
-                category={category}
-                trackNameMap={trackNameMap}
-              />
+              <div key={item.id}>
+                {/* Pre-label for items starting after band start */}
+                {startsLabel && (
+                  <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-0.5 ml-3">
+                    <span className="inline-block h-1 w-1 rounded-full bg-gray-300/70" />
+                    <span>{startsLabel}</span>
+                  </div>
+                )}
+                <DurationRailWrapper railHeightPx={railHeightPx}>
+                  <RegularBlock
+                    item={item}
+                    MarkerIcon={MarkerIcon}
+                    applicability={applicability}
+                    category={category}
+                    trackNameMap={trackNameMap}
+                  />
+                </DurationRailWrapper>
+              </div>
             );
           };
 
+          const hasItems = sortedPhotoItems.length > 0 || sortedVideoItems.length > 0;
+
           return (
-            <div key={`group-${group.startMin}-${groupIndex}`} className="space-y-1.5">
-              {/* Two-column layout for Photo (left) and Video (right) */}
-              {(photoItems.length > 0 || videoItems.length > 0) && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {/* Photo column (left) - stack items vertically */}
-                  <div className="space-y-1.5">
-                    {photoItems.map(renderCard)}
+            <div key={`band-${group.bandStart}-${group.bandEnd}-${groupIndex}`}>
+              {/* Compact 2-column stacked layout for Photo (left) and Video (right) */}
+              {hasItems && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-1.5 gap-y-1.5">
+                  {/* Photo column (left) - stacked flex container */}
+                  <div className="flex flex-col gap-1.5">
+                    {sortedPhotoItems.map(renderStackedCardWithLabel)}
                   </div>
-                  {/* Video column (right) - stack items vertically */}
-                  <div className="space-y-1.5">
-                    {videoItems.map(renderCard)}
+                  {/* Video column (right) - stacked flex container */}
+                  <div className="flex flex-col gap-1.5">
+                    {sortedVideoItems.map(renderStackedCardWithLabel)}
                   </div>
                 </div>
               )}
-              {/* Other items render full-width below the 2-col row */}
-              {otherItems.map(renderCard)}
             </div>
           );
         })}
@@ -434,6 +596,29 @@ interface BlockProps {
   MarkerIcon: React.ElementType | null;
   applicability: { label: string | null; kind: string };
   category: string | null;
+}
+
+/**
+ * DurationRailWrapper - Wraps a card with a proportional duration rail on the left.
+ */
+function DurationRailWrapper({
+  railHeightPx,
+  children,
+}: {
+  railHeightPx: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex gap-2">
+      <div className="w-1 flex items-start justify-center pt-2">
+        <div
+          className="w-[2px] rounded-full bg-gray-200"
+          style={{ height: railHeightPx }}
+        />
+      </div>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
+  );
 }
 
 /**
