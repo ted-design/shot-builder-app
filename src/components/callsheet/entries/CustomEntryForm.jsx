@@ -56,6 +56,7 @@ const DURATION_PRESETS = [
  * @param {object} props.initialData - Initial form data for editing
  * @param {string} props.initialCategory - Pre-selected category (from quick add)
  * @param {Array} props.tracks - Available tracks
+ * @param {string} props.defaultStartTime - Default start time (HH:MM) for new entries
  * @param {Function} props.onSubmit - Callback when form is submitted
  * @param {Function} props.onCancel - Callback to cancel/close
  * @param {boolean} props.isSubmitting - Whether the form is submitting
@@ -64,6 +65,7 @@ function CustomEntryForm({
   initialData = null,
   initialCategory = null,
   tracks = [],
+  defaultStartTime = null,
   onSubmit,
   onCancel,
   isSubmitting = false,
@@ -79,6 +81,7 @@ function CustomEntryForm({
   const [duration, setDuration] = useState(initialData?.duration || 30);
   const [customDuration, setCustomDuration] = useState("");
   const [notes, setNotes] = useState(initialData?.notes || "");
+  const [startTime, setStartTime] = useState(initialData?.startTime || defaultStartTime || "");
   const defaultTrackId =
     initialData?.trackId ||
     tracks.find((t) => t.scope === "shared" || t.id === "shared")?.id ||
@@ -146,7 +149,7 @@ function CustomEntryForm({
       }
     }
 
-    onSubmit({ customData, trackId, duration, appliesToTrackIds: appliesTo });
+    onSubmit({ customData, trackId, duration, appliesToTrackIds: appliesTo, startTime: startTime || null });
   };
 
   return (
@@ -202,6 +205,40 @@ function CustomEntryForm({
           required
         />
       </div>
+
+      {/* Start Time input (for editing or when creating with explicit time) */}
+      {(isEditing || defaultStartTime) && (
+        <div>
+          <label
+            htmlFor="entry-start-time"
+            className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Start Time
+          </label>
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-slate-400" />
+            <Input
+              id="entry-start-time"
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-32"
+            />
+            {startTime && (
+              <button
+                type="button"
+                onClick={() => setStartTime("")}
+                className="text-xs text-slate-500 hover:text-slate-700"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            Leave empty to auto-schedule based on sequence
+          </p>
+        </div>
+      )}
 
       {/* Duration selector */}
       <div>

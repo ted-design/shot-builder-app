@@ -621,6 +621,19 @@ function CallSheetBuilder({
     [addCustomItem, addCustomItemAtEnd, resolvedEntries]
   );
 
+  // Quick banner creation - creates a banner with default values directly (no modal)
+  const handleAddQuickBanner = useCallback(async () => {
+    // Default banner: "New Banner" at schedule start or 6:00 AM, 60 min duration
+    const defaultStartTime = settings?.dayStartTime || "06:00";
+    const customData = {
+      title: "New Banner",
+      category: "other",
+    };
+    // trackId="all" creates a banner that spans all tracks
+    await addCustomItem(customData, "all", defaultStartTime, 60, null);
+    toast.success({ title: "Banner added" });
+  }, [addCustomItem, settings?.dayStartTime]);
+
   const handleEditCustomEntry = useCallback((entry) => {
     if (!entry || entry.type !== "custom") return;
     setEditingEntry(entry);
@@ -630,7 +643,7 @@ function CallSheetBuilder({
   }, []);
 
   const handleUpdateCustomItem = useCallback(
-    async (entryId, { customData, trackId, duration, appliesToTrackIds }) => {
+    async (entryId, { customData, trackId, duration, appliesToTrackIds, startTime }) => {
       if (!entryId) return;
       const updates = {
         customData,
@@ -639,6 +652,10 @@ function CallSheetBuilder({
         appliesToTrackIds: appliesToTrackIds ?? null,
         notes: customData?.notes ? String(customData.notes) : null,
       };
+      // Include startTime if provided (can be empty string to clear)
+      if (startTime !== undefined) {
+        updates.startTime = startTime || "";
+      }
       updateEntry({ entryId, updates });
       toast.success({ title: "Banner updated" });
       handleCloseEntryModal();
@@ -1145,6 +1162,7 @@ function CallSheetBuilder({
               onToggleCascade: canWriteProject ? handleToggleCascade : undefined,
               onAddScene: canWriteProject ? (trackId) => handleOpenEntryModal("shot", null, trackId) : undefined,
               onAddBanner: canWriteProject ? () => handleOpenEntryModal("custom", "other") : undefined,
+              onAddQuickBanner: canWriteProject ? handleAddQuickBanner : undefined,
               dayDetails,
               callSheetConfig,
               onUpdateCallSheetConfig: applyCallSheetConfigUpdate,
@@ -1159,6 +1177,7 @@ function CallSheetBuilder({
               onReorderEntries: canWriteProject ? handleReorderEntries : undefined,
               onMoveEntryToTrack: canWriteProject ? handleMoveEntryToTrack : undefined,
               onUpdateEntry: canWriteProject ? handleUpdateEntryGeneric : undefined,
+              onDeleteEntry: canWriteProject ? handleDeleteEntry : undefined,
               tracks,
             }}
           />

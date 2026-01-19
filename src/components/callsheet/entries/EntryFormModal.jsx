@@ -163,6 +163,7 @@ function EntryFormModal({
         notes: editingEntry.notes || editingEntry.customData?.notes || "",
         trackId: editingEntry.trackId || null,
         appliesToTrackIds: editingEntry.appliesToTrackIds || null,
+        startTime: editingEntry.startTime || "",
       }
       : null;
 

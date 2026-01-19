@@ -58,8 +58,10 @@ export function classifyEntry(entry, tracksById) {
     return { isValid: false, isShared: false, laneTrackId: null, reason: "missing" };
   }
 
-  // Rule 2: Explicit "shared" trackId
-  if (entry.trackId === "shared") {
+  // Rule 2: Explicit "shared" or "all" trackId (both indicate banner/shared behavior)
+  // "shared" is used by modal banner creation
+  // "all" is used by quick banner creation
+  if (entry.trackId === "shared" || entry.trackId === "all") {
     return { isValid: true, isShared: true, laneTrackId: null };
   }
 

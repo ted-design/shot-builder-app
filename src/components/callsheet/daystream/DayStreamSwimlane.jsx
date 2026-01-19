@@ -15,7 +15,8 @@ export default function DayStreamSwimlane({
     entries = [],
     onEditEntry,
     onAddEntry,
-    onUpdateEntry
+    onUpdateEntry,
+    onDeleteEntry,
 }) {
     // Use track ID as the droppable container ID
     const { setNodeRef, isOver } = useDroppable({
@@ -49,6 +50,7 @@ export default function DayStreamSwimlane({
                             tracks={[track]}
                             onEdit={() => onEditEntry(entry)}
                             onUpdateEntry={onUpdateEntry}
+                            onDeleteEntry={onDeleteEntry}
                         />
                     ))}
 

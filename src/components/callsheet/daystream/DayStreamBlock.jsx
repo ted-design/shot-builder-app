@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link2, MapPin, Users, Clock } from "lucide-react";
+import { Link2, MapPin, Users, Clock, X } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { parseTimeToMinutes, minutesToTimeString } from "../../../lib/timeUtils";
 
@@ -14,10 +14,19 @@ export default function DayStreamBlock({
     entry,
     tracks = [],
     onEdit,
-    onUpdateEntry
+    onUpdateEntry,
+    onDeleteEntry,
 }) {
     const track = tracks.find(t => t.id === entry.trackId);
     const trackColor = track?.color || "slate";
+
+    // Handler for removing entry from schedule
+    const handleRemoveClick = (e) => {
+        e.stopPropagation();
+        if (onDeleteEntry) {
+            onDeleteEntry(entry.id);
+        }
+    };
 
     const [isEditing, setIsEditing] = useState(false);
     const [editTitle, setEditTitle] = useState(entry.resolvedTitle || "");
@@ -315,12 +324,23 @@ export default function DayStreamBlock({
                 </div>
             )}
 
-            {/* Inline Edit Hint on Hover (only if not resizing) */}
-            {onUpdateEntry && !isResizing && (
-                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="bg-white/80 backdrop-blur rounded p-0.5 text-[9px] text-slate-400 border border-slate-200">
-                        Double-click to edit
-                    </div>
+            {/* Actions on Hover (only if not resizing) */}
+            {(onUpdateEntry || onDeleteEntry) && !isResizing && (
+                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                    {onDeleteEntry && (
+                        <button
+                            onClick={handleRemoveClick}
+                            className="p-0.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                            title="Remove from schedule"
+                        >
+                            <X className="w-3 h-3" />
+                        </button>
+                    )}
+                    {onUpdateEntry && (
+                        <div className="bg-white/80 backdrop-blur rounded p-0.5 text-[9px] text-slate-400 border border-slate-200">
+                            Double-click to edit
+                        </div>
+                    )}
                 </div>
             )}
 
