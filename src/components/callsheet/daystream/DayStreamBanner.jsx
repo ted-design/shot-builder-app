@@ -146,61 +146,52 @@ export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDelete
         return (
             <div
                 className={cn(
-                    "relative flex items-center py-3 px-4 my-2 rounded-lg transition-colors",
+                    "relative flex flex-col gap-3 py-3 px-4 my-2 rounded-lg transition-colors w-full",
                     "bg-blue-50 border-2 border-blue-400 ring-2 ring-blue-100"
                 )}
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={handleKeyDown}
             >
-                {/* Time Input */}
-                <div className="flex items-center gap-2 mr-4">
-                    <Clock className="w-4 h-4 text-slate-400" />
-                    <input
-                        type="time"
-                        value={editStartTime}
-                        onChange={(e) => setEditStartTime(e.target.value)}
-                        className="text-xs font-mono border border-slate-300 rounded px-2 py-1 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none w-24"
-                    />
-                </div>
-
-                {/* Horizontal Line Connector */}
-                <div className="h-px bg-blue-200 flex-1" />
-
-                {/* Title Input */}
-                <div className="px-4">
+                {/* Row 1: Title Input (Full Width) */}
+                <div className="w-full">
                     <input
                         ref={titleInputRef}
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
-                        className="text-sm font-bold uppercase tracking-wide border border-slate-300 rounded px-2 py-1 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none w-40"
+                        className="w-full text-sm font-bold uppercase tracking-wide border border-slate-300 rounded px-2 py-1.5 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none"
                         placeholder="Banner title"
                     />
                 </div>
 
-                {/* Right Connector */}
-                <div className="h-px bg-blue-200 flex-[0.2]" />
+                {/* Row 2: Time & Duration (Side by side) */}
+                <div className="flex items-center gap-4">
+                    {/* Time Input */}
+                    <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+                        <input
+                            type="time"
+                            value={editStartTime}
+                            onChange={(e) => setEditStartTime(e.target.value)}
+                            className="text-xs font-mono border border-slate-300 rounded px-2 py-1.5 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none w-28"
+                        />
+                    </div>
 
-                {/* Duration Input */}
-                <div className="flex items-center gap-1 mx-3">
-                    <input
-                        type="number"
-                        value={editDuration}
-                        onChange={(e) => setEditDuration(e.target.value)}
-                        className="w-14 text-xs font-mono border border-slate-300 rounded px-2 py-1 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none text-center"
-                        min={5}
-                        step={5}
-                    />
-                    <span className="text-xs text-slate-500">min</span>
+                    {/* Duration Input */}
+                    <div className="flex items-center gap-1">
+                        <input
+                            type="number"
+                            value={editDuration}
+                            onChange={(e) => setEditDuration(e.target.value)}
+                            className="w-16 text-xs font-mono border border-slate-300 rounded px-2 py-1.5 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none text-center"
+                            min={5}
+                            step={5}
+                        />
+                        <span className="text-xs text-slate-500 whitespace-nowrap">min</span>
+                    </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2 ml-2">
-                    <button
-                        onClick={handleSave}
-                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors"
-                    >
-                        Save
-                    </button>
+                {/* Row 3: Actions (Right Aligned) */}
+                <div className="flex justify-end gap-2 pt-1">
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
@@ -209,9 +200,15 @@ export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDelete
                             setEditStartTime(entry.startTime || "");
                             setEditDuration(entry.duration || 30);
                         }}
-                        className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
+                        className="text-xs px-3 py-1.5 font-medium text-slate-600 hover:text-slate-800 hover:bg-black/5 rounded transition-colors"
                     >
                         Cancel
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        className="text-xs px-4 py-1.5 font-medium bg-blue-600 text-white rounded hover:bg-blue-700 shadow-sm transition-colors"
+                    >
+                        Save
                     </button>
                 </div>
             </div>
