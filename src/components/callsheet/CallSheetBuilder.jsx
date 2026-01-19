@@ -600,9 +600,14 @@ function CallSheetBuilder({
 
   const handleUpdateEntryGeneric = useCallback(
     (entryId, updates) => {
-      updateEntry({ entryId, updates });
+      // If updating only duration, use resizeEntry for proper cascade handling
+      if ("duration" in updates && Object.keys(updates).length === 1) {
+        resizeEntry(entryId, updates.duration, resolvedEntries);
+      } else {
+        updateEntry({ entryId, updates });
+      }
     },
-    [updateEntry]
+    [updateEntry, resizeEntry, resolvedEntries]
   );
 
   const handleAddCustomItem = useCallback(

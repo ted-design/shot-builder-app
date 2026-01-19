@@ -71,6 +71,79 @@ interface ScheduleBlockSectionProps {
 }
 
 /**
+ * Check if a track is a "Photo" track based on trackId or trackName.
+ */
+function isPhotoTrack(
+  trackId: string | null | undefined,
+  trackNameMap: Record<string, string>
+): boolean {
+  if (!trackId) return false;
+  const trackName = trackNameMap[trackId]?.toLowerCase() ?? "";
+  return trackName.includes("photo") || trackName.includes("still");
+}
+
+/**
+ * Check if a track is a "Video" track based on trackId or trackName.
+ */
+function isVideoTrack(
+  trackId: string | null | undefined,
+  trackNameMap: Record<string, string>
+): boolean {
+  if (!trackId) return false;
+  const trackName = trackNameMap[trackId]?.toLowerCase() ?? "";
+  return trackName.includes("video") || trackName.includes("motion");
+}
+
+/**
+ * Sort items within a column by order ASC, then ID (stable tiebreaker).
+ * No duration sorting - preserves user-defined order.
+ */
+function sortColumnItems(items: CallSheetScheduleItem[]): CallSheetScheduleItem[] {
+  return [...items].sort((a, b) => {
+    // 1. Order ASC (if available)
+    const orderA = a.order ?? Number.MAX_SAFE_INTEGER;
+    const orderB = b.order ?? Number.MAX_SAFE_INTEGER;
+    if (orderA !== orderB) return orderA - orderB;
+
+    // 2. ID string (stable tiebreaker)
+    return (a.id ?? "").localeCompare(b.id ?? "");
+  });
+}
+
+/**
+ * Partition simultaneous items into Photo, Video, and Other buckets.
+ * Returns sorted arrays for each column.
+ */
+function partitionSimultaneousItems(
+  items: CallSheetScheduleItem[],
+  trackNameMap: Record<string, string>
+): {
+  photoItems: CallSheetScheduleItem[];
+  videoItems: CallSheetScheduleItem[];
+  otherItems: CallSheetScheduleItem[];
+} {
+  const photoItems: CallSheetScheduleItem[] = [];
+  const videoItems: CallSheetScheduleItem[] = [];
+  const otherItems: CallSheetScheduleItem[] = [];
+
+  for (const item of items) {
+    if (isPhotoTrack(item.trackId, trackNameMap)) {
+      photoItems.push(item);
+    } else if (isVideoTrack(item.trackId, trackNameMap)) {
+      videoItems.push(item);
+    } else {
+      otherItems.push(item);
+    }
+  }
+
+  return {
+    photoItems: sortColumnItems(photoItems),
+    videoItems: sortColumnItems(videoItems),
+    otherItems: sortColumnItems(otherItems),
+  };
+}
+
+/**
  * ScheduleBlockSection - Block Preview v1
  *
  * Renders schedule entries as blocks/cards instead of a table.
@@ -126,6 +199,80 @@ export function ScheduleBlockSection({ schedule, tracks }: ScheduleBlockSectionP
       console.table(debugRows);
       console.groupEnd();
     }
+  }, [schedule]);
+
+  /**
+   * Group schedule items for side-by-side rendering of simultaneous events.
+   *
+   * Rules:
+   * - Banners (isBanner=true or applicabilityKind="all") are always rendered full-width
+   * - Non-banner items with the same startMin are grouped together
+   * - Items with null/undefined startMin are rendered individually (ungrouped)
+   * - Groups are ordered by startMin ascending
+   * - Within a group, original order is preserved
+   */
+  type RenderGroup =
+    | { type: "banner"; item: CallSheetScheduleItem }
+    | { type: "single"; item: CallSheetScheduleItem }
+    | { type: "simultaneous"; items: CallSheetScheduleItem[]; startMin: number };
+
+  const renderGroups = useMemo((): RenderGroup[] => {
+    if (!schedule.length) return [];
+
+    const groups: RenderGroup[] = [];
+    const startMinMap = new Map<number, CallSheetScheduleItem[]>();
+
+    // First pass: separate banners and group non-banners by startMin
+    for (const item of schedule) {
+      const isBanner = item.isBanner || item.applicabilityKind === "all";
+
+      if (isBanner) {
+        // Flush any pending startMin groups before this banner (preserve order)
+        for (const [startMin, items] of startMinMap) {
+          if (items.length === 1) {
+            groups.push({ type: "single", item: items[0] });
+          } else {
+            groups.push({ type: "simultaneous", items, startMin });
+          }
+        }
+        startMinMap.clear();
+
+        // Add banner
+        groups.push({ type: "banner", item });
+      } else if (item.startMin == null || !Number.isFinite(item.startMin)) {
+        // No startMin: render as single (ungrouped)
+        // Flush any pending groups first
+        for (const [startMin, items] of startMinMap) {
+          if (items.length === 1) {
+            groups.push({ type: "single", item: items[0] });
+          } else {
+            groups.push({ type: "simultaneous", items, startMin });
+          }
+        }
+        startMinMap.clear();
+
+        groups.push({ type: "single", item });
+      } else {
+        // Group by startMin
+        const existing = startMinMap.get(item.startMin);
+        if (existing) {
+          existing.push(item);
+        } else {
+          startMinMap.set(item.startMin, [item]);
+        }
+      }
+    }
+
+    // Flush remaining groups
+    for (const [startMin, items] of startMinMap) {
+      if (items.length === 1) {
+        groups.push({ type: "single", item: items[0] });
+      } else {
+        groups.push({ type: "simultaneous", items, startMin });
+      }
+    }
+
+    return groups;
   }, [schedule]);
 
   if (!schedule.length) {
@@ -198,14 +345,12 @@ export function ScheduleBlockSection({ schedule, tracks }: ScheduleBlockSectionP
 
       {/* Schedule blocks */}
       <div className="space-y-1.5">
-        {schedule.map((item) => {
-          const MarkerIcon = item.marker?.icon ? MARKER_ICON_MAP[item.marker.icon] : null;
-          const applicability = getApplicabilityDisplay(item);
-          const category = detectCategory(item.description);
-          const isBanner = item.isBanner || applicability.kind === "all";
-
-          // Banner block styling for shared entries
-          if (isBanner) {
+        {renderGroups.map((group, groupIndex) => {
+          if (group.type === "banner") {
+            const item = group.item;
+            const MarkerIcon = item.marker?.icon ? MARKER_ICON_MAP[item.marker.icon] : null;
+            const applicability = getApplicabilityDisplay(item);
+            const category = detectCategory(item.description);
             return (
               <BannerBlock
                 key={item.id}
@@ -217,16 +362,66 @@ export function ScheduleBlockSection({ schedule, tracks }: ScheduleBlockSectionP
             );
           }
 
-          // Regular block
+          if (group.type === "single") {
+            const item = group.item;
+            const MarkerIcon = item.marker?.icon ? MARKER_ICON_MAP[item.marker.icon] : null;
+            const applicability = getApplicabilityDisplay(item);
+            const category = detectCategory(item.description);
+            return (
+              <RegularBlock
+                key={item.id}
+                item={item}
+                MarkerIcon={MarkerIcon}
+                applicability={applicability}
+                category={category}
+                trackNameMap={trackNameMap}
+              />
+            );
+          }
+
+          // Simultaneous events: render fixed 2-column layout (Photo left, Video right)
+          // Items are bucketed by track type, stacked vertically within each column
+          // Items that don't match Photo/Video render full-width below
+          const { photoItems, videoItems, otherItems } = partitionSimultaneousItems(
+            group.items,
+            trackNameMap
+          );
+
+          // Helper to render a single card
+          const renderCard = (item: CallSheetScheduleItem) => {
+            const MarkerIcon = item.marker?.icon ? MARKER_ICON_MAP[item.marker.icon] : null;
+            const applicability = getApplicabilityDisplay(item);
+            const category = detectCategory(item.description);
+            return (
+              <RegularBlock
+                key={item.id}
+                item={item}
+                MarkerIcon={MarkerIcon}
+                applicability={applicability}
+                category={category}
+                trackNameMap={trackNameMap}
+              />
+            );
+          };
+
           return (
-            <RegularBlock
-              key={item.id}
-              item={item}
-              MarkerIcon={MarkerIcon}
-              applicability={applicability}
-              category={category}
-              trackNameMap={trackNameMap}
-            />
+            <div key={`group-${group.startMin}-${groupIndex}`} className="space-y-1.5">
+              {/* Two-column layout for Photo (left) and Video (right) */}
+              {(photoItems.length > 0 || videoItems.length > 0) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {/* Photo column (left) - stack items vertically */}
+                  <div className="space-y-1.5">
+                    {photoItems.map(renderCard)}
+                  </div>
+                  {/* Video column (right) - stack items vertically */}
+                  <div className="space-y-1.5">
+                    {videoItems.map(renderCard)}
+                  </div>
+                </div>
+              )}
+              {/* Other items render full-width below the 2-col row */}
+              {otherItems.map(renderCard)}
+            </div>
           );
         })}
       </div>

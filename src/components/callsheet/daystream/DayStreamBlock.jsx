@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link2, MapPin, Users } from "lucide-react";
+import { Link2, MapPin, Users, Clock } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { parseTimeToMinutes, minutesToTimeString } from "../../../lib/timeUtils";
 
 /**
  * DayStreamBlock
@@ -21,12 +22,14 @@ export default function DayStreamBlock({
     const [isEditing, setIsEditing] = useState(false);
     const [editTitle, setEditTitle] = useState(entry.resolvedTitle || "");
     const [editDuration, setEditDuration] = useState(entry.duration || 15);
+    const [editStartTime, setEditStartTime] = useState(entry.startTime || "");
     const inputRef = useRef(null);
 
     useEffect(() => {
         setEditTitle(entry.resolvedTitle || "");
         setEditDuration(entry.duration || 15);
-    }, [entry.resolvedTitle, entry.duration]);
+        setEditStartTime(entry.startTime || "");
+    }, [entry.resolvedTitle, entry.duration, entry.startTime]);
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -43,18 +46,18 @@ export default function DayStreamBlock({
         const updates = {};
         if (editTitle !== entry.resolvedTitle) {
             // For custom entries, update customData.title
-            // For shots, we might just update description or notes if title is locked, 
-            // but let's assume we can update the 'customTitle' override if supported, 
+            // For shots, we might just update description or notes if title is locked,
+            // but let's assume we can update the 'customTitle' override if supported,
             // or just ignore title updates for shots if they are strictly derived.
             // However, user asked for "inline editing of shot details".
             // If it's a "custom" entry, we definitely update customData.
             if (entry.type === "custom") {
                 updates.customData = { ...entry.customData, title: editTitle };
             } else {
-                // For shots, maybe store a title override or update notes? 
+                // For shots, maybe store a title override or update notes?
                 // Let's assume we can't easily update Shot Name via this generic Entry update yet
                 // without a specific 'shot update' mutation.
-                // So we'll skip title update for shots for now to avoid complexity/errors, 
+                // So we'll skip title update for shots for now to avoid complexity/errors,
                 // or maybe just update 'notes' if that was intended?
                 // Let's actually NOT update title for shots here to be safe.
             }
@@ -62,7 +65,23 @@ export default function DayStreamBlock({
 
         if (parseInt(editDuration) !== entry.duration) {
             updates.duration = parseInt(editDuration) || 15;
-            // Also update end time if needed? Backend usually handles derived end time or start time.
+        }
+
+        // Handle start time updates
+        // Convert from native time input format (HH:MM) to canonical format
+        const normalizedEditTime = editStartTime.trim();
+        const normalizedEntryTime = (entry.startTime || "").trim();
+        if (normalizedEditTime !== normalizedEntryTime) {
+            // If user cleared the time, set to empty string (will be derived)
+            // Otherwise, ensure it's in HH:MM format
+            if (normalizedEditTime) {
+                // Validate and normalize the time format
+                const minutes = parseTimeToMinutes(normalizedEditTime);
+                updates.startTime = minutesToTimeString(minutes);
+            } else {
+                // Clear explicit time - entry will use derived time
+                updates.startTime = "";
+            }
         }
 
         if (Object.keys(updates).length > 0) {
@@ -78,6 +97,7 @@ export default function DayStreamBlock({
             setIsEditing(false);
             setEditTitle(entry.resolvedTitle || "");
             setEditDuration(entry.duration || 15);
+            setEditStartTime(entry.startTime || "");
             e.stopPropagation();
         }
     };
@@ -179,31 +199,43 @@ export default function DayStreamBlock({
             <div
                 style={{ height: `${height}px` }}
                 className={cn(
-                    "relative p-2 rounded-md border bg-white shadow-lg z-50 flex flex-col gap-2",
+                    "relative p-2 rounded-md border bg-white shadow-lg z-50 flex flex-col gap-1.5",
                     "border-blue-400 ring-2 ring-blue-100",
                 )}
                 onClick={(e) => e.stopPropagation()} // Prevent drag start
                 onKeyDown={handleKeyDown}
             >
-                <div className="flex gap-2">
-                    <input
-                        ref={inputRef}
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        className="flex-1 text-xs font-semibold border border-slate-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none"
-                        placeholder="Title"
-                    />
-                    <div className="flex items-center gap-1 w-16">
+                {/* Row 1: Title */}
+                <input
+                    ref={inputRef}
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full text-xs font-semibold border border-slate-200 rounded px-1.5 py-0.5 focus:border-blue-400 outline-none"
+                    placeholder="Title"
+                />
+                {/* Row 2: Start Time & Duration */}
+                <div className="flex gap-2 items-center">
+                    <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-slate-400" />
+                        <input
+                            type="time"
+                            value={editStartTime}
+                            onChange={(e) => setEditStartTime(e.target.value)}
+                            className="text-[10px] font-mono border border-slate-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none w-[70px]"
+                        />
+                    </div>
+                    <div className="flex items-center gap-1">
                         <input
                             type="number"
                             value={editDuration}
                             onChange={(e) => setEditDuration(e.target.value)}
-                            className="w-full text-[10px] font-mono border border-slate-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none text-right"
+                            className="w-12 text-[10px] font-mono border border-slate-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none text-right"
                             min={1}
                         />
-                        <span className="text-[10px] text-slate-400">m</span>
+                        <span className="text-[10px] text-slate-400">min</span>
                     </div>
                 </div>
+                {/* Row 3: Actions */}
                 <div className="flex justify-end gap-2 mt-auto">
                     <button
                         onClick={handleSave}
