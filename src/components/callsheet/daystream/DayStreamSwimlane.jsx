@@ -42,7 +42,7 @@ export default function DayStreamSwimlane({
                 items={entries.map(e => e.id)}
                 strategy={verticalListSortingStrategy}
             >
-                <div className="flex flex-col gap-2 p-2 min-h-[100px]">
+                <div className="flex flex-col gap-1.5 p-2 min-h-[100px]">
                     {entries.map((entry) => (
                         <SortableDayStreamBlock
                             key={entry.id}

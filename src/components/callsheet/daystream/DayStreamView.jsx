@@ -458,7 +458,7 @@ export default function DayStreamView({
     >
       <div className="w-full max-w-6xl mx-auto p-8 space-y-4">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-2">
           <div className="text-sm font-medium text-slate-400 uppercase tracking-wider">
             Day Stream
           </div>
@@ -527,7 +527,7 @@ export default function DayStreamView({
         )}
 
         {/* Day Stream Timeline - banners appear inline as full-width shared rows */}
-        <div className="flex flex-col gap-6 relative">
+        <div className="flex flex-col gap-3 relative">
           {dayNodes.map((node, index) => {
             if (node.type === "banner") {
               return (

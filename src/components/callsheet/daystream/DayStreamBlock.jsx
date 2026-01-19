@@ -295,7 +295,7 @@ export default function DayStreamBlock({
             </div>
 
             {/* Title */}
-            <h4 className="font-semibold text-xs text-slate-800 leading-tight line-clamp-2 shrink-0" title={entry.resolvedTitle}>
+            <h4 className="font-semibold text-xs text-slate-800 leading-tight line-clamp-2 shrink-0 pr-6" title={entry.resolvedTitle}>
                 {entry.resolvedTitle || "Untitled Event"}
             </h4>
 
@@ -326,20 +326,15 @@ export default function DayStreamBlock({
 
             {/* Actions on Hover (only if not resizing) */}
             {(onUpdateEntry || onDeleteEntry) && !isResizing && (
-                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                     {onDeleteEntry && (
                         <button
                             onClick={handleRemoveClick}
-                            className="p-0.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
                             title="Remove from schedule"
                         >
-                            <X className="w-3 h-3" />
+                            <X className="w-4 h-4" />
                         </button>
-                    )}
-                    {onUpdateEntry && (
-                        <div className="bg-white/80 backdrop-blur rounded p-0.5 text-[9px] text-slate-400 border border-slate-200">
-                            Double-click to edit
-                        </div>
                     )}
                 </div>
             )}

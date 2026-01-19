@@ -225,7 +225,7 @@ export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDelete
         <div
             onDoubleClick={handleDoubleClick}
             className={cn(
-                "relative flex items-center py-4 my-2 cursor-pointer group rounded-lg transition-colors",
+                "relative flex items-center py-3 my-1 cursor-pointer group rounded-lg transition-colors",
                 "hover:bg-slate-50"
             )}
         >
@@ -280,20 +280,15 @@ export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDelete
 
             {/* Actions on Hover */}
             {(onUpdateEntry || onDeleteEntry) && !isConfirmingDelete && (
-                <div className="absolute top-1 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                     {onDeleteEntry && (
                         <button
                             onClick={handleDeleteClick}
-                            className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
                             title="Delete banner"
                         >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                         </button>
-                    )}
-                    {onUpdateEntry && (
-                        <div className="bg-white/90 backdrop-blur rounded px-1.5 py-0.5 text-[9px] text-slate-400 border border-slate-200 shadow-sm">
-                            Double-click to edit
-                        </div>
                     )}
                 </div>
             )}
