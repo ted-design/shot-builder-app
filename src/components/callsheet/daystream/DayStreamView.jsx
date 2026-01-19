@@ -20,6 +20,7 @@ import NeedsAttentionTray from "./NeedsAttentionTray";
 import { parseTimeToMinutes, minutesToTimeString } from "../../../lib/timeUtils";
 import { buildScheduleProjection } from "../../../lib/callsheet/buildScheduleProjection";
 import { hasExplicitStartTime, parseTimeToMinutes as parseEntryTime } from "../../../lib/callsheet/getEntryMinutes";
+import { isBannerEntry } from "../../../lib/callsheet/isBannerEntry";
 
 import { Button } from "../../ui/button";
 import {
@@ -60,6 +61,7 @@ export default function DayStreamView({
   onMoveEntryToTrack, // (entryId, newTrackId, newIndex)
   onAddEntry,
   onUpdateEntry,
+  onDeleteEntry,
   readOnly = false,
 }) {
   const [activeDragId, setActiveDragId] = useState(null);
@@ -164,17 +166,17 @@ export default function DayStreamView({
         // Entry missing from projection
         const hasTime = hasExplicitStartTime(entry);
         const timeSourceField = getTimeSourceField(entry);
-        const isBanner = entry.type === "custom" && (entry.role === "banner" || entry.trackId === "all");
 
         entries.push(entry);
         diagnostics.set(entry.id, {
           timeField: timeSourceField,
           hasExplicitTime: hasTime,
-          isBanner,
+          isBanner: isBannerEntry(entry),
         });
 
         // Warn once per ID (dev only) with detailed info
         if (import.meta.env.DEV && !warnedMissingIdsRef.current.has(entry.id)) {
+          const isBanner = isBannerEntry(entry);
           console.warn(
             `[DayStreamView] Entry missing from projection | id="${entry.id}" | hasExplicitTime=${hasTime} | timeField="${timeSourceField}" | isBanner=${isBanner}`
           );
@@ -196,7 +198,7 @@ export default function DayStreamView({
   const unscheduledEntries = useMemo(() => {
     return resolvedEntries.filter(entry => {
       // Banners are never "unscheduled" - they span all tracks
-      if (entry.type === "custom" && (entry.role === "banner" || entry.trackId === "all")) {
+      if (isBannerEntry(entry)) {
         return false;
       }
       // Check if entry is in projection (sanity check)
@@ -210,15 +212,15 @@ export default function DayStreamView({
     });
   }, [resolvedEntries, rowsById]);
 
-  // --- Scheduled entries (for timeline) ---
+  // --- Scheduled entries (for lane cards only) ---
   // Entries are scheduled if they have an EXPLICIT start time (user set a time).
   // Entries missing from projection go to needsAttention, NOT here.
-  // Banners always appear in the timeline.
+  // Banners are EXCLUDED - they render as full-width shared rows, not lane cards.
   const scheduledEntries = useMemo(() => {
     return resolvedEntries.filter(entry => {
-      // Banners always appear in the timeline
-      if (entry.type === "custom" && (entry.role === "banner" || entry.trackId === "all")) {
-        return true;
+      // Banners render as full-width shared rows, not in lane columns
+      if (isBannerEntry(entry)) {
+        return false;
       }
       // Check if entry is in projection (sanity check)
       const row = rowsById.get(entry.id);
@@ -231,12 +233,35 @@ export default function DayStreamView({
     });
   }, [resolvedEntries, rowsById]);
 
-  // --- Segmentation Logic ---
-  // Use scheduledEntries (excludes unscheduled) for the timeline
-  const dayNodes = useMemo(() => {
-    if (!scheduledEntries.length) return [];
+  // --- Banner entries (sorted by start time) ---
+  const bannerEntries = useMemo(() => {
+    return resolvedEntries
+      .filter(entry => isBannerEntry(entry))
+      .sort((a, b) => {
+        const timeA = parseTimeToMinutes(a.startTime);
+        const timeB = parseTimeToMinutes(b.startTime);
+        if (timeA !== timeB) return timeA - timeB;
+        return (a.order || 0) - (b.order || 0);
+      });
+  }, [resolvedEntries]);
 
-    const sorted = [...scheduledEntries].sort((a, b) => {
+  // --- Timeline entries (scheduled + banners for chronological rendering) ---
+  // This combines scheduled lane entries with banners for the day stream timeline.
+  // Banners appear as full-width shared rows, lane entries appear in swimlane segments.
+  const timelineEntries = useMemo(() => {
+    // Include both scheduled entries (lane cards) and banners (shared rows)
+    const entries = [...scheduledEntries, ...bannerEntries];
+    return entries;
+  }, [scheduledEntries, bannerEntries]);
+
+  // --- Segmentation Logic ---
+  // Use timelineEntries (scheduled + banners) for chronological timeline rendering.
+  // Banners create visual breaks as full-width shared rows.
+  // Lane entries are grouped into segments between banners.
+  const dayNodes = useMemo(() => {
+    if (!timelineEntries.length) return [];
+
+    const sorted = [...timelineEntries].sort((a, b) => {
       const timeA = parseTimeToMinutes(a.startTime);
       const timeB = parseTimeToMinutes(b.startTime);
       if (timeA !== timeB) return timeA - timeB;
@@ -247,11 +272,7 @@ export default function DayStreamView({
     let currentSegment = { type: "segment", entries: [] };
 
     sorted.forEach((entry) => {
-      const isBanner =
-        entry.type === "custom" &&
-        (entry.role === "banner" || !entry.trackId || entry.trackId === "all");
-
-      if (isBanner) {
+      if (isBannerEntry(entry)) {
         if (currentSegment.entries.length > 0) nodes.push(currentSegment);
         nodes.push({ type: "banner", entry });
         currentSegment = { type: "segment", entries: [] };
@@ -262,7 +283,7 @@ export default function DayStreamView({
 
     if (currentSegment.entries.length > 0) nodes.push(currentSegment);
     return nodes;
-  }, [scheduledEntries]);
+  }, [timelineEntries]);
 
   // --- Drag Handlers ---
   const handleDragStart = (event) => {
@@ -412,6 +433,15 @@ export default function DayStreamView({
     }
   };
 
+  // Quick add banner with default values (no modal)
+  const handleAddQuickBanner = () => {
+    if (onAddEntry) {
+      // Pass "banner" to signal quick banner creation with defaults
+      // This will be handled by CallSheetBuilder to create a banner entry directly
+      onAddEntry("banner");
+    }
+  };
+
   // Add unscheduled shot (no trackId assigned yet)
   const handleAddUnscheduled = () => {
     if (onAddEntry) {
@@ -496,6 +526,7 @@ export default function DayStreamView({
           />
         )}
 
+        {/* Day Stream Timeline - banners appear inline as full-width shared rows */}
         <div className="flex flex-col gap-6 relative">
           {dayNodes.map((node, index) => {
             if (node.type === "banner") {
@@ -503,7 +534,9 @@ export default function DayStreamView({
                 <DayStreamBanner
                   key={node.entry.id}
                   entry={node.entry}
-                  onEdit={() => onEditEntry && onEditEntry(node.entry)}
+                  onEdit={readOnly ? null : () => onEditEntry && onEditEntry(node.entry)}
+                  onUpdateEntry={readOnly ? null : onUpdateEntry}
+                  onDeleteEntry={readOnly ? null : onDeleteEntry}
                 />
               );
             }
@@ -518,6 +551,7 @@ export default function DayStreamView({
                       entries={node.entries.filter(e => e.trackId === track.id)}
                       onEditEntry={onEditEntry}
                       onUpdateEntry={onUpdateEntry}
+                      onDeleteEntry={readOnly ? null : onDeleteEntry}
                       onAddEntry={onAddEntry}
                     />
                   );

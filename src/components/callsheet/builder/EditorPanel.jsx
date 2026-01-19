@@ -29,6 +29,7 @@ export default function EditorPanel({
   onToggleCascade,
   onAddScene,
   onAddBanner,
+  onAddQuickBanner,
   dayDetails,
   callSheetConfig,
   onUpdateCallSheetConfig,
@@ -40,6 +41,7 @@ export default function EditorPanel({
   onReorderEntries,
   onMoveEntryToTrack,
   onUpdateEntry,
+  onDeleteEntry,
   tracks = [],
   readOnly = false,
 }) {
@@ -252,9 +254,13 @@ export default function EditorPanel({
             onReorderEntry={onReorderEntries}
             onMoveEntryToTrack={onMoveEntryToTrack}
             onUpdateEntry={onUpdateEntry}
+            onDeleteEntry={onDeleteEntry}
             onAddEntry={(trackIdOrType) => {
               if (trackIdOrType === "custom") {
                 onAddBanner?.();
+              } else if (trackIdOrType === "banner") {
+                // Quick banner creation - no modal
+                onAddQuickBanner?.();
               } else {
                 // trackId passed, open shot modal with pre-selected track
                 onAddScene?.(trackIdOrType);
