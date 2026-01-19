@@ -17,7 +17,7 @@ import DayStreamSwimlane from "./DayStreamSwimlane";
 import DayStreamBlock from "./DayStreamBlock"; // For overlay
 import UnscheduledTray from "./UnscheduledTray";
 import NeedsAttentionTray from "./NeedsAttentionTray";
-import { parseTimeToMinutes } from "../../../lib/timeUtils";
+import { parseTimeToMinutes, minutesToTimeString } from "../../../lib/timeUtils";
 import { buildScheduleProjection } from "../../../lib/callsheet/buildScheduleProjection";
 import { hasExplicitStartTime, parseTimeToMinutes as parseEntryTime } from "../../../lib/callsheet/getEntryMinutes";
 
@@ -99,6 +99,18 @@ export default function DayStreamView({
     });
   }, [resolvedEntries, tracks]);
 
+  // DEV-ONLY: Log entry IDs for easier debugging (one-time)
+  const loggedEntryIdsRef = useRef(false);
+  if (import.meta.env.DEV && !loggedEntryIdsRef.current && projection.tableRows.length > 0) {
+    const ids = projection.tableRows.map(r => r.id);
+    console.log("[DayStreamView] Entry IDs for debug:", ids.join(", "));
+    console.log("[DayStreamView] First entry ID prefix (use for debugMissingProjectionRow):", ids[0]?.substring(0, 8));
+    loggedEntryIdsRef.current = true;
+  }
+
+  // Track whether we've logged the debug forcing message (dedupe)
+  const debugForcedLogRef = useRef(false);
+
   // Build a map of entry ID -> projection row for deterministic O(1) lookup
   // Stores full row to allow access to timeSource, startMin, durationMinutes
   const rowsById = useMemo(() => {
@@ -106,6 +118,28 @@ export default function DayStreamView({
     for (const row of projection.tableRows) {
       map.set(row.id, row);
     }
+
+    // DEV-ONLY: Force missing projection row for testing NeedsAttentionTray
+    // Usage: ?debugMissingProjectionRow=<prefix>
+    // Will delete the first row whose id starts with the prefix
+    if (import.meta.env.DEV) {
+      const params = new URLSearchParams(window.location.search);
+      const debugPrefix = params.get("debugMissingProjectionRow");
+      if (debugPrefix) {
+        for (const [id] of map) {
+          if (id.startsWith(debugPrefix)) {
+            map.delete(id);
+            // Log once per session (deduped)
+            if (!debugForcedLogRef.current) {
+              console.log(`[DayStreamView] DEBUG forcing missing projection row for id=${id}`);
+              debugForcedLogRef.current = true;
+            }
+            break; // Only delete first match
+          }
+        }
+      }
+    }
+
     return map;
   }, [projection.tableRows]);
 
@@ -119,31 +153,30 @@ export default function DayStreamView({
 
   // --- Needs Attention Entries (DEV-only) ---
   // Entries missing from projection rowsById - couldn't be projected
+  // Note: Missing is missing - show ALL missing entries including banners (just labeled accordingly)
   const { needsAttentionEntries, needsAttentionDiagnostics } = useMemo(() => {
     const entries = [];
     const diagnostics = new Map();
 
     for (const entry of resolvedEntries) {
-      // Banners never go to needsAttention
-      if (entry.type === "custom" && (entry.role === "banner" || entry.trackId === "all")) {
-        continue;
-      }
       const row = rowsById.get(entry.id);
       if (!row) {
         // Entry missing from projection
         const hasTime = hasExplicitStartTime(entry);
         const timeSourceField = getTimeSourceField(entry);
+        const isBanner = entry.type === "custom" && (entry.role === "banner" || entry.trackId === "all");
 
         entries.push(entry);
         diagnostics.set(entry.id, {
           timeField: timeSourceField,
           hasExplicitTime: hasTime,
+          isBanner,
         });
 
         // Warn once per ID (dev only) with detailed info
         if (import.meta.env.DEV && !warnedMissingIdsRef.current.has(entry.id)) {
           console.warn(
-            `[DayStreamView] Entry missing from projection | id="${entry.id}" | hasExplicitTime=${hasTime} | timeField="${timeSourceField}"`
+            `[DayStreamView] Entry missing from projection | id="${entry.id}" | hasExplicitTime=${hasTime} | timeField="${timeSourceField}" | isBanner=${isBanner}`
           );
           warnedMissingIdsRef.current.add(entry.id);
         }
@@ -296,8 +329,45 @@ export default function DayStreamView({
     // Check if entry was unscheduled (no trackId) - this is a "schedule" action
     const wasUnscheduled = !activeEntry.trackId || !visibleTrackIds.has(activeEntry.trackId);
 
-    // Case 1: Move from unscheduled or between tracks
-    if (wasUnscheduled || activeEntry.trackId !== targetTrackId) {
+    // Case 1a: Move from UNSCHEDULED to a track - must set explicit start time
+    if (wasUnscheduled) {
+      // Compute explicit start time based on target track's scheduled entries
+      // Find max endMin among scheduled entries in the target track
+      const fallbackStartMin = 420; // 7:00 AM default (matches projection options)
+
+      // Get entries in target track with explicit times
+      const targetTrackScheduledRows = projection.tableRows.filter(
+        (row) => row.trackId === targetTrackId && row.timeSource === "explicit"
+      );
+
+      let explicitStartMin;
+      if (targetTrackScheduledRows.length > 0) {
+        // Place after the last scheduled entry in this track
+        const maxEndMin = targetTrackScheduledRows.reduce((max, row) => {
+          const endMin = (row.startMin ?? 0) + (row.durationMinutes ?? 15);
+          return Math.max(max, endMin);
+        }, 0);
+        explicitStartMin = maxEndMin;
+      } else {
+        // No scheduled entries in track - use day start fallback
+        explicitStartMin = fallbackStartMin;
+      }
+
+      const explicitStartTime = minutesToTimeString(explicitStartMin);
+
+      // Use onUpdateEntry to set BOTH trackId AND explicit startTime atomically
+      // This ensures the entry becomes "scheduled" (hasExplicitStartTime will return true)
+      if (onUpdateEntry) {
+        onUpdateEntry(active.id, {
+          trackId: targetTrackId,
+          startTime: explicitStartTime
+        });
+      }
+      return;
+    }
+
+    // Case 1b: Move between tracks (already scheduled entry)
+    if (activeEntry.trackId !== targetTrackId) {
       if (onMoveEntryToTrack) {
         onMoveEntryToTrack(active.id, targetTrackId, targetIndex);
       }
