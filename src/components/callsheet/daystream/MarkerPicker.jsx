@@ -1,38 +1,14 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import {
-  Star,
-  AlertTriangle,
-  Clock,
-  Camera,
-  User,
-  Zap,
-  Heart,
-  Flag,
-  X,
-  ChevronDown,
-} from "lucide-react";
+import { X, ChevronDown } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { MARKER_ICONS, MARKER_COLORS } from "../../../types/schedule";
+import { MARKER_ICON_MAP } from "../../../lib/markerIcons";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "../../ui/popover";
-
-/**
- * Icon component mapping (matches MARKER_ICONS from schedule types)
- */
-const ICON_COMPONENTS = {
-  star: Star,
-  alert: AlertTriangle,
-  clock: Clock,
-  camera: Camera,
-  user: User,
-  zap: Zap,
-  heart: Heart,
-  flag: Flag,
-};
 
 /**
  * MarkerPicker
@@ -49,7 +25,7 @@ export default function MarkerPicker({ value = null, onChange, className = "" })
   );
 
   // Get current icon component
-  const CurrentIcon = value?.icon ? ICON_COMPONENTS[value.icon] : null;
+  const CurrentIcon = value?.icon ? MARKER_ICON_MAP[value.icon] : null;
 
   const handleIconSelect = (iconId) => {
     setSelectedIcon(iconId);
@@ -125,7 +101,7 @@ export default function MarkerPicker({ value = null, onChange, className = "" })
             <div className="text-[10px] text-slate-400 mb-1.5">Icon</div>
             <div className="grid grid-cols-4 gap-1.5">
               {MARKER_ICONS.map((iconDef) => {
-                const IconComp = ICON_COMPONENTS[iconDef.id];
+                const IconComp = MARKER_ICON_MAP[iconDef.id];
                 const isSelected = (value?.icon || selectedIcon) === iconDef.id;
                 return (
                   <button

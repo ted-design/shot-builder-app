@@ -57,7 +57,7 @@ function buildDefaultConfig(projectId: string, scheduleId: string): Omit<CallShe
  *
  * This ensures user-edited visibility toggles and section arrays are NEVER overwritten.
  */
-function computeSafeBackfillPatch(
+export function computeSafeBackfillPatch(
   existing: Record<string, unknown>,
   defaults: Record<string, unknown>
 ): Record<string, unknown> {

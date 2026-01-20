@@ -1,29 +1,8 @@
 import React, { useMemo } from "react";
-import {
-  Flag,
-  Star,
-  AlertTriangle,
-  Clock,
-  Camera,
-  User,
-  Zap,
-  Heart,
-} from "lucide-react";
 import type { CallSheetScheduleItem, CallSheetTrack } from "../../types";
 import type { ScheduleBlockFields } from "../../../../types/callsheet";
 import { getColorTag } from "../../../../types/schedule";
-
-// Icon component mapping for markers (matches MarkerPicker)
-const MARKER_ICON_MAP: Record<string, React.ElementType> = {
-  star: Star,
-  alert: AlertTriangle,
-  clock: Clock,
-  camera: Camera,
-  user: User,
-  zap: Zap,
-  heart: Heart,
-  flag: Flag,
-};
+import { MARKER_ICON_MAP } from "../../../../lib/markerIcons";
 
 /**
  * Format minutes from midnight to 12h display format.

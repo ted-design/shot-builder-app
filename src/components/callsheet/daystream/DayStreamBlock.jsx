@@ -5,33 +5,13 @@ import {
   Users,
   Clock,
   X,
-  Star,
-  AlertTriangle,
-  Camera,
-  User,
-  Zap,
-  Heart,
-  Flag,
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { parseTimeToMinutes, minutesToTimeString } from "../../../lib/timeUtils";
 import { getColorTag } from "../../../types/schedule";
+import { MARKER_ICON_MAP } from "../../../lib/markerIcons";
 import ColorTagPicker from "./ColorTagPicker";
 import MarkerPicker from "./MarkerPicker";
-
-/**
- * Icon component mapping for markers
- */
-const MARKER_ICON_MAP = {
-  star: Star,
-  alert: AlertTriangle,
-  clock: Clock,
-  camera: Camera,
-  user: User,
-  zap: Zap,
-  heart: Heart,
-  flag: Flag,
-};
 
 /**
  * DayStreamBlock
