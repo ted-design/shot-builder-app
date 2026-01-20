@@ -5,14 +5,12 @@ import React, { useState } from "react";
 import {
   Plus,
   Settings,
-  Clock,
-  Link2,
-  Unlink2,
   Download,
   MoreHorizontal,
   Pencil,
   Copy,
   Trash2,
+  Clock,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -24,12 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuLabel,
 } from "../ui/dropdown-menu";
-import { useUpdateScheduleSettings } from "../../hooks/useSchedule";
 
 /**
  * CallSheetToolbar - Toolbar for the call sheet builder
@@ -41,7 +34,7 @@ import { useUpdateScheduleSettings } from "../../hooks/useSchedule";
  * @param {string} props.clientId - Client ID
  * @param {string} props.projectId - Project ID
  * @param {string} props.scheduleId - Schedule ID
- * @param {Function} props.onSetDayStartTime - Callback to set schedule day start time (and shift entries)
+ * @param {Function} props.onOpenDayStartModal - Callback to open day start time modal
  * @param {Function} props.onEditColumns - Callback to open column config
  * @param {Function} props.onEditTracks - Callback to open track manager
  * @param {Function} props.onExport - Callback to open export modal
@@ -56,7 +49,7 @@ function CallSheetToolbar({
   clientId,
   projectId,
   scheduleId,
-  onSetDayStartTime,
+  onOpenDayStartModal,
   onEditColumns,
   onEditTracks,
   onExport,
@@ -65,37 +58,8 @@ function CallSheetToolbar({
   onDuplicateSchedule,
 }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isDayStartModalOpen, setIsDayStartModalOpen] = useState(false);
-  const [dayStartDraft, setDayStartDraft] = useState(settings.dayStartTime || "06:00");
-
-  const { updateSettings } = useUpdateScheduleSettings(
-    clientId,
-    projectId,
-    scheduleId
-  );
-
-  const handleToggleCascade = () => {
-    updateSettings(
-      { cascadeChanges: !settings.cascadeChanges },
-      settings
-    );
-  };
-
-  const handleToggleDurations = () => {
-    updateSettings(
-      { showDurations: !settings.showDurations },
-      settings
-    );
-  };
-
-  const handleTimeIncrementChange = (increment) => {
-    updateSettings({ timeIncrement: increment }, settings);
-  };
-
-  React.useEffect(() => {
-    if (!isDayStartModalOpen) return;
-    setDayStartDraft(settings.dayStartTime || "06:00");
-  }, [isDayStartModalOpen, settings.dayStartTime]);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   return (
     <>
@@ -149,32 +113,6 @@ function CallSheetToolbar({
 
       {/* Right: Zoom & Settings */}
       <div className="flex items-center gap-2">
-        {/* Cascade Toggle */}
-        <Button
-          type="button"
-          variant={settings.cascadeChanges ? "secondary" : "ghost"}
-          size="sm"
-          onClick={handleToggleCascade}
-          className="h-8 gap-1.5 px-2"
-          title={
-            settings.cascadeChanges
-              ? "Auto-adjust times when moving entries"
-              : "Move entries independently"
-          }
-        >
-          {settings.cascadeChanges ? (
-            <Link2 className="h-4 w-4" />
-          ) : (
-            <Unlink2 className="h-4 w-4" />
-          )}
-          <span className="hidden sm:inline">
-            {settings.cascadeChanges ? "Cascade On" : "Cascade Off"}
-          </span>
-        </Button>
-
-        {/* Divider */}
-        <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
-
         {/* Settings Dropdown */}
         <DropdownMenu open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
           <DropdownMenuTrigger asChild>
@@ -183,59 +121,38 @@ function CallSheetToolbar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Display Settings</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-
-            <DropdownMenuCheckboxItem
-              checked={settings.showDurations}
-              onCheckedChange={handleToggleDurations}
-            >
-              Show Durations
-            </DropdownMenuCheckboxItem>
-
-            <DropdownMenuCheckboxItem
-              checked={settings.cascadeChanges}
-              onCheckedChange={handleToggleCascade}
-            >
-              Auto-cascade Times
-            </DropdownMenuCheckboxItem>
-
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Time Increment</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={String(settings.timeIncrement || 15)}
-              onValueChange={(value) => handleTimeIncrementChange(Number(value))}
-            >
-              <DropdownMenuRadioItem value="5">5 minutes</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="15">15 minutes</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="30">30 minutes</DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                setIsDayStartModalOpen(true);
-              }}
-            >
-              <Clock className="mr-2 h-4 w-4" />
-              Set Day Start Time
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onExport}>
-              <Download className="mr-2 h-4 w-4" />
-              Export Call Sheet
-            </DropdownMenuItem>
+            {onOpenDayStartModal ? (
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setIsSettingsOpen(false);
+                  onOpenDayStartModal();
+                }}
+              >
+                <Clock className="mr-2 h-4 w-4" />
+                Set Day Start Time
+              </DropdownMenuItem>
+            ) : (
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                No settings available
+              </div>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* More Actions */}
+        {/* Schedule Actions Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button type="button" variant="ghost" size="sm" className="h-8 px-2" title="More options">
+            <Button type="button" variant="ghost" size="sm" className="h-8 px-2" title="Schedule actions">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Export Call Sheet
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onEditSchedule}>
               <Pencil className="mr-2 h-4 w-4" />
               Edit Schedule
@@ -245,12 +162,9 @@ function CallSheetToolbar({
               Duplicate Schedule
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onEditTracks}>Edit Tracks</DropdownMenuItem>
-            <DropdownMenuItem onClick={onEditColumns}>Edit Columns</DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-red-600 dark:text-red-400"
-              onClick={onDeleteSchedule}
+              onClick={() => setIsDeleteConfirmOpen(true)}
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete Schedule
@@ -260,45 +174,68 @@ function CallSheetToolbar({
       </div>
     </div>
 
+      {/* Delete Schedule Confirmation Modal */}
       <Modal
-        open={isDayStartModalOpen}
-        onClose={() => setIsDayStartModalOpen(false)}
-        labelledBy="callsheet-day-start-title"
+        open={isDeleteConfirmOpen}
+        onClose={() => {
+          setIsDeleteConfirmOpen(false);
+          setDeleteConfirmText("");
+        }}
+        labelledBy="delete-schedule-title"
         contentClassName="max-w-md"
       >
         <Card className="border-0 shadow-none">
           <CardHeader>
-            <h2 id="callsheet-day-start-title" className="text-lg font-semibold">
-              Set Day Start Time
+            <h2 id="delete-schedule-title" className="text-lg font-semibold text-red-600 dark:text-red-400">
+              Delete Schedule
             </h2>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              Shifts the earliest entry and updates everything that follows.
+              This action cannot be undone. All schedule entries and settings will be permanently deleted.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="callsheet-day-start-input">
-                Start time
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950">
+              <p className="text-sm text-red-800 dark:text-red-200">
+                You are about to delete <strong>{schedule?.name || "this schedule"}</strong>.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="delete-confirm-input">
+                Type <span className="font-mono font-bold text-red-600 dark:text-red-400">DELETE</span> to confirm
               </label>
               <Input
-                id="callsheet-day-start-input"
-                type="time"
-                value={dayStartDraft}
-                onChange={(event) => setDayStartDraft(event.target.value)}
+                id="delete-confirm-input"
+                type="text"
+                value={deleteConfirmText}
+                onChange={(event) => setDeleteConfirmText(event.target.value)}
+                placeholder="Type DELETE"
+                className="font-mono"
+                autoComplete="off"
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" type="button" onClick={() => setIsDayStartModalOpen(false)}>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => {
+                  setIsDeleteConfirmOpen(false);
+                  setDeleteConfirmText("");
+                }}
+              >
                 Cancel
               </Button>
               <Button
                 type="button"
+                variant="destructive"
+                disabled={deleteConfirmText !== "DELETE"}
                 onClick={() => {
-                  onSetDayStartTime?.(dayStartDraft);
-                  setIsDayStartModalOpen(false);
+                  onDeleteSchedule?.();
+                  setIsDeleteConfirmOpen(false);
+                  setDeleteConfirmText("");
                 }}
               >
-                Apply
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Schedule
               </Button>
             </div>
           </CardContent>

@@ -52,7 +52,11 @@ import ColumnConfigModal from "./columns/ColumnConfigModal";
 import TrackManager from "./tracks/TrackManager";
 import CallSheetExportModal from "./export/CallSheetExportModal";
 import { toast } from "../../lib/toast";
-import { Loader2, Calendar } from "lucide-react";
+import { Loader2, Calendar, Clock } from "lucide-react";
+import { Modal } from "../ui/modal";
+import { Card, CardHeader, CardContent } from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 import { parseDateToTimestamp } from "../../lib/shotDraft";
 import { minutesToTimeString, parseTimeToMinutes } from "../../lib/timeUtils";
 
@@ -105,6 +109,8 @@ function CallSheetBuilder({
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isShotEditorOpen, setIsShotEditorOpen] = useState(false);
   const [shotEditorShot, setShotEditorShot] = useState(null);
+  const [isDayStartModalOpen, setIsDayStartModalOpen] = useState(false);
+  const [dayStartDraft, setDayStartDraft] = useState("06:00");
 
   // Track focus mode - session-only state for dimming entries from other tracks
   const [trackFocusId, setTrackFocusId] = useState("all");
@@ -260,6 +266,12 @@ function CallSheetBuilder({
   useEffect(() => {
     setPanelView({ mode: "outline" });
   }, [scheduleId]);
+
+  // Sync day start draft when modal opens or settings change
+  useEffect(() => {
+    if (!isDayStartModalOpen) return;
+    setDayStartDraft(settings.dayStartTime || "06:00");
+  }, [isDayStartModalOpen, settings.dayStartTime]);
 
   const {
     layoutDoc,
@@ -741,6 +753,13 @@ function CallSheetBuilder({
     toggleCascade(schedule.settings);
   }, [schedule?.settings, toggleCascade]);
 
+  const handleTimeIncrementChange = useCallback(
+    (increment) => {
+      updateSettings({ timeIncrement: increment }, settings);
+    },
+    [settings, updateSettings]
+  );
+
   const handleDeleteEntry = useCallback(
     (entryId) => {
       // TODO: Add confirmation dialog
@@ -1016,6 +1035,19 @@ function CallSheetBuilder({
     [resolvedEntries, batchUpdateEntries, setDayStartTime, settings]
   );
 
+  // Format time for display (e.g., "6:00 AM")
+  const formatTimeForDisplay = (time24) => {
+    if (!time24) return "6:00 AM";
+    const [hours, minutes] = time24.split(":").map(Number);
+    const period = hours >= 12 ? "PM" : "AM";
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
+  };
+
+  const handleOpenDayStartModal = useCallback(() => {
+    setIsDayStartModalOpen(true);
+  }, []);
+
   const handleCreateShotInSchedule = useCallback(
     async (trackId, startTime = null) => {
       if (!clientId || !projectId) return;
@@ -1104,7 +1136,7 @@ function CallSheetBuilder({
           clientId={clientId}
           projectId={projectId}
           scheduleId={scheduleId}
-          onSetDayStartTime={handleSetDayStartTime}
+          onOpenDayStartModal={canWriteProject ? handleOpenDayStartModal : undefined}
           onEditColumns={() => setIsColumnConfigOpen(true)}
           onEditTracks={() => setIsTrackManagerOpen(true)}
           onExport={() => setIsExportModalOpen(true)}
@@ -1174,6 +1206,7 @@ function CallSheetBuilder({
               resolvedEntries,
               onToggleShowDurations: canWriteProject ? handleToggleShowDurations : undefined,
               onToggleCascade: canWriteProject ? handleToggleCascade : undefined,
+              onTimeIncrementChange: canWriteProject ? handleTimeIncrementChange : undefined,
               onAddScene: canWriteProject ? (trackId) => handleOpenEntryModal("shot", null, trackId) : undefined,
               onAddBanner: canWriteProject ? () => handleOpenEntryModal("custom", "other") : undefined,
               onAddQuickBanner: canWriteProject ? handleAddQuickBanner : undefined,
@@ -1193,6 +1226,9 @@ function CallSheetBuilder({
               onUpdateEntry: canWriteProject ? handleUpdateEntryGeneric : undefined,
               onDeleteEntry: canWriteProject ? handleDeleteEntry : undefined,
               tracks,
+              onEditTracks: canWriteProject ? () => setIsTrackManagerOpen(true) : undefined,
+              onOpenDayStartModal: canWriteProject ? handleOpenDayStartModal : undefined,
+              dayStartTimeFormatted: formatTimeForDisplay(settings.dayStartTime),
             }}
           />
 
@@ -1283,6 +1319,52 @@ function CallSheetBuilder({
             entries={resolvedEntries}
             tracks={tracks}
           />
+
+          {/* Day Start Time Modal */}
+          <Modal
+            open={isDayStartModalOpen}
+            onClose={() => setIsDayStartModalOpen(false)}
+            labelledBy="day-start-title"
+            contentClassName="max-w-md"
+          >
+            <Card className="border-0 shadow-none">
+              <CardHeader>
+                <h2 id="day-start-title" className="text-lg font-semibold">
+                  Set Day Start Time
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Shifts the earliest entry and updates everything that follows.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="day-start-input">
+                    Start time
+                  </label>
+                  <Input
+                    id="day-start-input"
+                    type="time"
+                    value={dayStartDraft}
+                    onChange={(event) => setDayStartDraft(event.target.value)}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" type="button" onClick={() => setIsDayStartModalOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      handleSetDayStartTime(dayStartDraft);
+                      setIsDayStartModalOpen(false);
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </Modal>
         </>
       ) : null}
     </div>

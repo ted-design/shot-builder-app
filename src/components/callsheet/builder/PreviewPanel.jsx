@@ -7,15 +7,12 @@ import {
   Minimize2,
   ExternalLink,
   Smartphone,
-  Palette,
 } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Checkbox } from "../../ui/input";
-import { Modal } from "../../ui/modal";
 import { toast } from "../../../lib/toast";
 import CallSheetPreviewLegacy from "../vertical/CallSheetPreview";
 import { CallSheetPreview as CallSheetPreviewModern } from "../../schedule/preview/CallSheetPreview";
-import { ColorCustomizer } from "../../schedule/ColorCustomizer";
 import { deriveLocationsFromLegacy, locationBlockHasContent } from "../../../lib/callsheet/deriveLocationsFromLegacy";
 import { buildScheduleProjection } from "../../../lib/callsheet/buildScheduleProjection";
 
@@ -325,7 +322,6 @@ export default function PreviewPanel({
       return "modern";
     }
   });
-  const [isThemeOpen, setIsThemeOpen] = useState(false);
 
   // Read crew display options from localStorage (scoped to schedule to match CrewCallsCard)
   const keyEmails = scheduleId ? `callSheetCrew.showEmails:${scheduleId}` : null;
@@ -512,23 +508,6 @@ export default function PreviewPanel({
     [crewRows, dayDetails, entries, projectTitle, schedule, sections, talentRows, tracks]
   );
 
-  const handleUpdateModernColors = useCallback(
-    (nextColors) => {
-      if (!onUpdateCallSheetConfig) return;
-      const existing = callSheetConfig?.colors && typeof callSheetConfig.colors === "object" ? callSheetConfig.colors : {};
-      onUpdateCallSheetConfig({
-        colors: {
-          ...existing,
-          primary: nextColors.primary,
-          accent: nextColors.accent,
-          primaryText: nextColors.primaryText,
-          rowAlternate: nextColors.rowAlternate,
-        },
-      });
-    },
-    [callSheetConfig?.colors, onUpdateCallSheetConfig]
-  );
-
   return (
     <div
       ref={panelRef}
@@ -587,16 +566,6 @@ export default function PreviewPanel({
             title="Refresh preview"
           >
             <RefreshCw className="h-4 w-4" />
-          </button>
-
-          {/* Theme button */}
-          <button
-            onClick={() => setIsThemeOpen(true)}
-            className="p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 disabled:opacity-50"
-            title="Customize theme"
-            disabled={!onUpdateCallSheetConfig}
-          >
-            <Palette className="h-4 w-4" />
           </button>
 
           {/* Full Screen button */}
@@ -658,23 +627,6 @@ export default function PreviewPanel({
           />
         )}
       </div>
-
-      <Modal open={isThemeOpen} onClose={() => setIsThemeOpen(false)} labelledBy="preview-theme-title">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
-          <div id="preview-theme-title" className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            Preview Theme
-          </div>
-          <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setIsThemeOpen(false)}>
-            Close
-          </Button>
-        </div>
-        <div className="space-y-4 p-4">
-          <div className="text-sm text-slate-600 dark:text-slate-300">
-            Theme applies to the Immediate (Modern) preview.
-          </div>
-          <ColorCustomizer colors={modernColors} onChange={handleUpdateModernColors} />
-        </div>
-      </Modal>
     </div>
   );
 }

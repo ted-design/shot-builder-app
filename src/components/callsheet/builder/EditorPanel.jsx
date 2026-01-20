@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React from "react";
+import { Clock } from "lucide-react";
 import DayDetailsEditorCard from "../DayDetailsEditorCard";
 import CrewCallsCard from "../CrewCallsCard";
 import TalentCallsCard from "../TalentCallsCard";
@@ -27,6 +28,7 @@ export default function EditorPanel({
   resolvedEntries = [],
   onToggleShowDurations,
   onToggleCascade,
+  onTimeIncrementChange,
   onAddScene,
   onAddBanner,
   onAddQuickBanner,
@@ -44,6 +46,9 @@ export default function EditorPanel({
   onDeleteEntry,
   tracks = [],
   readOnly = false,
+  onEditTracks,
+  onOpenDayStartModal,
+  dayStartTimeFormatted,
 }) {
   const activeType = activeSection?.type || "schedule";
 
@@ -245,24 +250,74 @@ export default function EditorPanel({
             <span>Cascade changes</span>
           </label>
 
-          {/* Track Focus Mode dropdown */}
-          {Array.isArray(schedule?.tracks) && schedule.tracks.length > 0 && (
-            <div className="flex items-center gap-2 ml-auto">
-              <span className="text-sm text-slate-600 dark:text-slate-400">Track</span>
-              <select
-                value={trackFocusId}
-                onChange={(e) => onTrackFocusChange?.(e.target.value)}
-                className="h-8 w-[120px] rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-              >
-                <option value="all">All</option>
-                {schedule.tracks.map((track) => (
-                  <option key={track.id} value={track.id}>
-                    {track.name || track.id}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Day Start Time button */}
+          {onOpenDayStartModal && (
+            <button
+              type="button"
+              onClick={onOpenDayStartModal}
+              disabled={readOnly}
+              className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
+              title="Set day start time"
+            >
+              <Clock className="h-3.5 w-3.5" />
+              <span>Day start: {dayStartTimeFormatted || "6:00 AM"}</span>
+            </button>
           )}
+
+          {/* Time Increment selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-600 dark:text-slate-400">Increment</span>
+            <div className="inline-flex rounded-md border border-slate-300 dark:border-slate-600 overflow-hidden">
+              {[5, 15, 30].map((minutes) => {
+                const isActive = (scheduleSettings?.timeIncrement || 15) === minutes;
+                return (
+                  <button
+                    key={minutes}
+                    type="button"
+                    onClick={() => onTimeIncrementChange?.(minutes)}
+                    disabled={readOnly || !onTimeIncrementChange}
+                    className={`px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+                      isActive
+                        ? "bg-blue-600 text-white"
+                        : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    } ${minutes !== 5 ? "border-l border-slate-300 dark:border-slate-600" : ""}`}
+                  >
+                    {minutes}m
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Track Focus Mode dropdown + Edit Tracks button */}
+          <div className="flex items-center gap-2 ml-auto">
+            {Array.isArray(schedule?.tracks) && schedule.tracks.length > 0 && (
+              <>
+                <span className="text-sm text-slate-600 dark:text-slate-400">Track</span>
+                <select
+                  value={trackFocusId}
+                  onChange={(e) => onTrackFocusChange?.(e.target.value)}
+                  className="h-8 w-[120px] rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                >
+                  <option value="all">All</option>
+                  {schedule.tracks.map((track) => (
+                    <option key={track.id} value={track.id}>
+                      {track.name || track.id}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            {onEditTracks && (
+              <button
+                type="button"
+                onClick={onEditTracks}
+                className="text-xs text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                Edit Tracks
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Preview Fields - toggles for which fields appear in schedule blocks */}
