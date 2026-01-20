@@ -1371,6 +1371,7 @@ export function ShotsWorkspace() {
       const shotData = {
         name: validation.data.name,
         description: shortDescription, // Short description (canonical field)
+        type: shortDescription,        // Legacy field (keep in sync with description)
         notes: notesHtml, // Rich text notes
         shotNumber: validation.data.shotNumber || "",
         date: parseDateToTimestamp(validation.data.date) || null,
@@ -2149,9 +2150,10 @@ export function ShotsWorkspace() {
     if (diffMap.basics) {
       patch.name = draft.name;
       patch.status = draft.status ?? DEFAULT_SHOT_STATUS;
-      // Write short description to both 'description' (new) and 'type' (legacy) for backward compat
-      patch.description = draft.description || draft.type || "";
-      patch.type = draft.type || "";
+      // Always keep description and type in sync (canonical value from either field)
+      const canonicalDescription = draft.description || draft.type || "";
+      patch.description = canonicalDescription;
+      patch.type = canonicalDescription;
       patch.shotNumber = draft.shotNumber || "";
       patch.date = draft.date || "";
       patch.locationId = draft.locationId || "";

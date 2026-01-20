@@ -117,8 +117,8 @@ export const imageAttachmentSchema = z.object({
 export const shotSchema = z.object({
   id: docIdSchema.optional(),
   name: z.string().min(1, "Shot name is required").max(200),
-  description: z.string().max(1000).nullable().optional(),
-  type: z.string().max(100).nullable().optional(),
+  description: z.string().max(200).nullable().optional(), // Aligned with shotDraftSchema
+  type: z.string().max(200).nullable().optional(),        // Aligned with shotDraftSchema
   status: shotStatusSchema,
   date: timestampSchema,
   locationId: optionalDocIdSchema,
