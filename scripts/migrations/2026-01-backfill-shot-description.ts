@@ -189,6 +189,9 @@ async function backfillDescriptionFromType(db: Firestore, clientId: string): Pro
         // Firestore batches are atomic - if commit fails, ALL operations in the batch are rolled back.
         // Therefore, counting all batchSize operations as errors is correct.
         stats.errors += batchSize;
+        // Halt migration on failure - don't continue processing subsequent batches
+        // The migration is idempotent, so it can be safely re-run after investigating the failure
+        throw new Error(`Migration halted after batch failure (${batchSize} shots in failed batch). Please investigate and re-run.`);
       }
       batch = db.batch();
       batchSize = 0;
@@ -204,6 +207,8 @@ async function backfillDescriptionFromType(db: Firestore, clientId: string): Pro
       console.error("[migration] Final batch commit failed:", error);
       // Firestore batches are atomic - if commit fails, ALL operations are rolled back
       stats.errors += batchSize;
+      // Halt migration on failure - re-run after investigating
+      throw new Error(`Migration halted after final batch failure (${batchSize} shots in failed batch). Please investigate and re-run.`);
     }
   }
 
