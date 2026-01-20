@@ -209,9 +209,9 @@ export default function DayStreamBlock({
     if (isEditing) {
         return (
             <div
-                style={{ height: `${height}px` }}
+                style={{ minHeight: `${height}px` }}
                 className={cn(
-                    "relative p-2 rounded-md border bg-white shadow-lg z-50 flex flex-col gap-1.5",
+                    "relative p-2 rounded-md border bg-white shadow-lg z-50 flex flex-col gap-1.5 h-auto",
                     "border-blue-400 ring-2 ring-blue-100",
                 )}
                 onClick={(e) => e.stopPropagation()} // Prevent drag start
@@ -221,7 +221,7 @@ export default function DayStreamBlock({
                 {isShot ? (
                     <div className="flex items-center justify-between gap-2">
                         <span
-                            className="text-xs font-semibold text-slate-800 truncate flex-1"
+                            className="text-xs font-semibold text-slate-800 truncate flex-1 pr-2"
                             title={entry.resolvedTitle}
                         >
                             {entry.resolvedTitle || "Untitled Shot"}
@@ -248,46 +248,54 @@ export default function DayStreamBlock({
                         placeholder="Title"
                     />
                 )}
-                {/* Row 2: Start Time & Duration */}
-                <div className="flex gap-2 items-center flex-wrap">
-                    <div className="flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                        <input
-                            ref={isShot ? inputRef : null}
-                            type="time"
-                            value={editStartTime}
-                            onChange={(e) => setEditStartTime(e.target.value)}
-                            className="text-[10px] font-mono border border-slate-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none w-[70px]"
-                        />
+
+                {/* Row 2: Controls (Time, Duration, Actions) - Flex Wrap for responsiveness */}
+                <div className="flex flex-wrap items-center gap-2 mt-auto w-full">
+                    {/* Time & Duration Group */}
+                    <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                            <input
+                                ref={isShot ? inputRef : null}
+                                type="time"
+                                value={editStartTime}
+                                onChange={(e) => setEditStartTime(e.target.value)}
+                                className="text-[10px] font-mono border border-slate-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none w-[70px]"
+                            />
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <input
+                                type="number"
+                                value={editDuration}
+                                onChange={(e) => setEditDuration(e.target.value)}
+                                className="w-12 text-[10px] font-mono border border-slate-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none text-right"
+                                min={1}
+                            />
+                            <span className="text-[10px] text-slate-400">min</span>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                        <input
-                            type="number"
-                            value={editDuration}
-                            onChange={(e) => setEditDuration(e.target.value)}
-                            className="w-12 text-[10px] font-mono border border-slate-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none text-right"
-                            min={1}
-                        />
-                        <span className="text-[10px] text-slate-400">min</span>
+
+                    {/* Spacer - pushes actions to right when on same line, or fills space when wrapped */}
+                    <div className="flex-grow min-w-[10px]" />
+
+                    {/* Actions Group */}
+                    <div className="flex items-center gap-2 shrink-0">
+                        <button
+                            onClick={handleSave}
+                            className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 font-medium transition-colors"
+                        >
+                            Save
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsEditing(false);
+                            }}
+                            className="text-[10px] text-slate-500 hover:text-slate-700 px-2 py-1"
+                        >
+                            Cancel
+                        </button>
                     </div>
-                </div>
-                {/* Row 3: Actions */}
-                <div className="flex justify-end gap-2 mt-auto">
-                    <button
-                        onClick={handleSave}
-                        className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded hover:bg-blue-700"
-                    >
-                        Save
-                    </button>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setIsEditing(false);
-                        }}
-                        className="text-[10px] text-slate-500 hover:text-slate-700"
-                    >
-                        Cancel
-                    </button>
                 </div>
             </div>
         );
