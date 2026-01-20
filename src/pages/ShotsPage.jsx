@@ -2803,7 +2803,8 @@ export function ShotsWorkspace() {
         const shotDocRef = docRef(...currentShotsPath, shot.id);
 
         batch.update(shotDocRef, {
-          description: typeValue || "",
+          description: typeValue || "",  // Canonical field
+          type: typeValue || "",         // Legacy field for backward compat
           updatedAt: serverTimestamp()
         });
         updateCount++;
@@ -2932,7 +2933,8 @@ export function ShotsWorkspace() {
 
         const duplicatePayload = {
           name: duplicateName,
-          description: shot?.description || "",
+          description: shot?.description || shot?.type || "",  // Canonical with legacy fallback
+          type: shot?.type || shot?.description || "",         // Legacy with canonical fallback
           notes: shot?.notes || "",
           status: normaliseShotStatus(shot?.status || DEFAULT_SHOT_STATUS),
           date: shot?.date || null,
@@ -2940,10 +2942,9 @@ export function ShotsWorkspace() {
           locationName: shot?.locationName || null,
           projectId,
           laneId: typeof shot?.laneId === "string" ? shot.laneId : shot?.laneId ?? null,
-          shotNumber:
-            typeof shot?.shotNumber === "string" && shot.shotNumber.trim()
-              ? shot.shotNumber
-              : null,
+          // Intentionally NOT copying shotNumber - shot numbers are unique identifiers
+          // and duplicates should get new numbers assigned by the user
+          shotNumber: "",
           products: productsForWrite,
           productIds,
           talent: talentForWrite,
