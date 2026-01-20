@@ -377,8 +377,8 @@ export default function ShotEditModal({
                       </label>
                       <Input
                         id={`${uniquePrefix}-description-field`}
-                        value={draft.type}
-                        onChange={(event) => handleFieldChange({ type: event.target.value })}
+                        value={draft.description ?? draft.type ?? ""}
+                        onChange={(event) => handleFieldChange({ description: event.target.value })}
                         disabled={navigationDisabled}
                       />
                     </div>
@@ -439,8 +439,8 @@ export default function ShotEditModal({
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
                     <RichTextEditor
-                      value={draft.description}
-                      onChange={(next) => handleFieldChange({ description: next })}
+                      value={draft.notes ?? ""}
+                      onChange={(next) => handleFieldChange({ notes: next })}
                       disabled={navigationDisabled}
                       placeholder="Add detailed notes with rich formatting, @mentions, links, and more…"
                       characterLimit={50000}

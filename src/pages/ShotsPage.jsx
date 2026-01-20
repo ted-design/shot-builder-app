@@ -1346,7 +1346,10 @@ export function ShotsWorkspace() {
         ? locations.find((location) => location.id === locationId)?.name || null
         : null;
 
-      const notesHtml = sanitizeNotesHtml(validation.data.description || "");
+      // Short description from the Description field (or fallback to legacy type)
+      const shortDescription = validation.data.description || validation.data.type || "";
+      // Rich notes from the Notes field
+      const notesHtml = sanitizeNotesHtml(validation.data.notes || "");
       const resolvedStatus = normaliseShotStatus(validation.data.status);
 
       // Handle reference image upload if provided
@@ -1367,9 +1370,9 @@ export function ShotsWorkspace() {
 
       const shotData = {
         name: validation.data.name,
-        description: notesHtml,
-        notes: notesHtml,
-        type: validation.data.type || "",
+        description: shortDescription, // Short description (canonical field)
+        notes: notesHtml, // Rich text notes
+        shotNumber: validation.data.shotNumber || "",
         date: parseDateToTimestamp(validation.data.date) || null,
         locationId,
         locationName,
@@ -1895,6 +1898,7 @@ export function ShotsWorkspace() {
           name: shot.name || "",
           description: shot.description || "",
           type: shot.type || "",
+          notes: shot.notes || "",
           date: toDateInputValue(shot.date),
           locationId: shot.locationId || "",
           status: normaliseShotStatus(shot.status || DEFAULT_SHOT_STATUS),
@@ -1905,6 +1909,7 @@ export function ShotsWorkspace() {
           referenceImagePath: shot.referenceImagePath || "",
           referenceImageCrop: shot.referenceImageCrop || null,
           referenceImageFile: null,
+          shotNumber: shot.shotNumber || "",
         };
         setEditingShot({
           shot,
@@ -2144,22 +2149,14 @@ export function ShotsWorkspace() {
     if (diffMap.basics) {
       patch.name = draft.name;
       patch.status = draft.status ?? DEFAULT_SHOT_STATUS;
+      // Write short description to both 'description' (new) and 'type' (legacy) for backward compat
+      patch.description = draft.description || draft.type || "";
       patch.type = draft.type || "";
+      patch.shotNumber = draft.shotNumber || "";
       patch.date = draft.date || "";
       patch.locationId = draft.locationId || "";
-    }
 
-    if (diffMap.logistics) {
-      patch.products = Array.isArray(draft.products) ? draft.products.map((product) => ({ ...product })) : [];
-      patch.talent = Array.isArray(draft.talent) ? draft.talent.map((entry) => ({ ...entry })) : [];
-      patch.tags = Array.isArray(draft.tags) ? draft.tags.map((tag) => ({ ...tag })) : [];
-    }
-
-    if (diffMap.creative) {
-      patch.description = draft.description || "";
-    }
-
-    if (diffMap.attachments) {
+      // Attachments are part of basics section
       let referenceImagePath = draft.referenceImagePath || null;
       const referenceImageCrop = draft.referenceImageCrop || null;
       if (draft.referenceImageFile) {
@@ -2187,6 +2184,15 @@ export function ShotsWorkspace() {
       patch.attachments = draft.attachments || [];
     }
 
+    if (diffMap["creative-logistics"]) {
+      // Rich notes field
+      patch.notes = draft.notes || "";
+      // Products, talent, and tags
+      patch.products = Array.isArray(draft.products) ? draft.products.map((product) => ({ ...product })) : [];
+      patch.talent = Array.isArray(draft.talent) ? draft.talent.map((entry) => ({ ...entry })) : [];
+      patch.tags = Array.isArray(draft.tags) ? draft.tags.map((tag) => ({ ...tag })) : [];
+    }
+
     if (!Object.keys(patch).length) {
       autoSaveInflightRef.current = false;
       return;
@@ -2197,7 +2203,8 @@ export function ShotsWorkspace() {
       const timestamp = Date.now();
       const draftUpdate = {
         ...draft,
-        ...(diffMap.attachments
+        // Update attachment fields if basics section was saved (attachments are in basics)
+        ...(diffMap.basics
           ? {
               referenceImagePath: patch.referenceImagePath || null,
               referenceImageCrop: patch.referenceImageCrop || null,
@@ -2221,12 +2228,18 @@ export function ShotsWorkspace() {
         if (diffMap.basics) {
           shotUpdate.name = draftUpdate.name;
           shotUpdate.status = normaliseShotStatus(draftUpdate.status ?? DEFAULT_SHOT_STATUS);
+          shotUpdate.description = draftUpdate.description || draftUpdate.type || "";
           shotUpdate.type = draftUpdate.type || "";
+          shotUpdate.shotNumber = draftUpdate.shotNumber || "";
           shotUpdate.date = draftUpdate.date || "";
           shotUpdate.locationId = draftUpdate.locationId || null;
+          shotUpdate.referenceImagePath = draftUpdate.referenceImagePath || null;
+          shotUpdate.referenceImageCrop = draftUpdate.referenceImageCrop || null;
+          shotUpdate.attachments = draftUpdate.attachments || [];
         }
 
-        if (diffMap.logistics) {
+        if (diffMap["creative-logistics"]) {
+          shotUpdate.notes = draftUpdate.notes || "";
           shotUpdate.products = Array.isArray(draftUpdate.products)
             ? draftUpdate.products.map((product) => ({ ...product }))
             : [];
@@ -2236,17 +2249,6 @@ export function ShotsWorkspace() {
           shotUpdate.tags = Array.isArray(draftUpdate.tags)
             ? draftUpdate.tags.map((tag) => ({ ...tag }))
             : [];
-        }
-
-        if (diffMap.creative) {
-          shotUpdate.description = draftUpdate.description || "";
-          shotUpdate.notes = draftUpdate.description || "";
-        }
-
-        if (diffMap.attachments) {
-          shotUpdate.referenceImagePath = draftUpdate.referenceImagePath || null;
-          shotUpdate.referenceImageCrop = draftUpdate.referenceImageCrop || null;
-          shotUpdate.attachments = draftUpdate.attachments || [];
         }
 
         return {
@@ -2306,7 +2308,6 @@ export function ShotsWorkspace() {
       await updateShot(editingShot.shot, {
         name: parsed.name,
         description: parsed.description || "",
-        type: parsed.type || "",
         date: parsed.date || "",
         locationId: parsed.locationId || null,
         talent: parsed.talent,
@@ -2441,7 +2442,6 @@ export function ShotsWorkspace() {
       const shotCopy = {
         name: shotData.name,
         description: shotData.description || "",
-        type: shotData.type || "",
         date: shotData.date || "",
         locationId: shotData.locationId || null,
         projectId: targetProjectId,
@@ -2803,7 +2803,7 @@ export function ShotsWorkspace() {
         const shotDocRef = docRef(...currentShotsPath, shot.id);
 
         batch.update(shotDocRef, {
-          type: typeValue || "",
+          description: typeValue || "",
           updatedAt: serverTimestamp()
         });
         updateCount++;
@@ -2932,9 +2932,8 @@ export function ShotsWorkspace() {
 
         const duplicatePayload = {
           name: duplicateName,
-          description: shot?.description || shot?.notes || "",
-          notes: shot?.notes || shot?.description || "",
-          type: shot?.type || "",
+          description: shot?.description || "",
+          notes: shot?.notes || "",
           status: normaliseShotStatus(shot?.status || DEFAULT_SHOT_STATUS),
           date: shot?.date || null,
           locationId: shot?.locationId || null,
@@ -3118,7 +3117,6 @@ export function ShotsWorkspace() {
         const shotData = {
           name: shot.name,
           description: shot.description || "",
-          type: shot.type || "",
           date: shot.date || null,
           locationId: shot.locationId || null,
           locationName: shot.locationName || null,

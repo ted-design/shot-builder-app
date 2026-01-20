@@ -278,7 +278,8 @@ export function useResolvedScheduleEntries(
 
           const entryNotes = entry.notes ? stripHtml(entry.notes) : "";
           const shotNotes = shot.notes ? stripHtml(shot.notes) : "";
-          const shotDescription = shot.description ? stripHtml(shot.description) : "";
+          // Description field: read from shot.type (the "Description" field in the shot modal)
+          const shotDescription = shot.type ? stripHtml(String(shot.type)) : "";
           // Notes field: prioritize entry notes, then shot notes (not description)
           const resolvedNotes = entryNotes || shotNotes;
           // Description field: separate from notes for granular toggle control

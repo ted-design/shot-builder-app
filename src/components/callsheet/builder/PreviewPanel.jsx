@@ -532,10 +532,10 @@ export default function PreviewPanel({
   return (
     <div
       ref={panelRef}
-      className="flex h-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+      className="isolate flex h-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
     >
-      {/* SetHero-style toolbar */}
-      <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-800">
+      {/* SetHero-style toolbar - z-10 ensures it stays above scaled preview content */}
+      <div className="relative z-10 flex items-center justify-between gap-2 border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-800">
         {/* Left: Live preview label with external link */}
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Live preview:</span>
@@ -621,7 +621,8 @@ export default function PreviewPanel({
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden bg-slate-50 dark:bg-slate-900">
+      {/* Content area - relative z-0 creates stacking context for scaled preview content */}
+      <div className="relative z-0 flex-1 overflow-hidden bg-slate-50 dark:bg-slate-900">
         {previewDesign === "modern" ? (
           <div className="doc-canvas h-full overflow-auto p-6">
             <CallSheetPreviewModern

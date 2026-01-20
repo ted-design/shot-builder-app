@@ -5,6 +5,7 @@ import {
   Users,
   Clock,
   X,
+  Check,
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { parseTimeToMinutes, minutesToTimeString } from "../../../lib/timeUtils";
@@ -12,6 +13,12 @@ import { getColorTag } from "../../../types/schedule";
 import { MARKER_ICON_MAP } from "../../../lib/markerIcons";
 import ColorTagPicker from "./ColorTagPicker";
 import MarkerPicker from "./MarkerPicker";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../ui/dropdown-menu";
 
 /**
  * DayStreamBlock
@@ -30,6 +37,9 @@ export default function DayStreamBlock({
     const track = tracks.find(t => t.id === entry.trackId);
     const trackColor = track?.color || "slate";
 
+    // Filter to lane tracks only (exclude shared scope tracks)
+    const laneTracks = tracks.filter(t => t.scope !== "shared" && t.id !== "shared");
+
     // Handler for removing entry from schedule
     const handleRemoveClick = (e) => {
         e.stopPropagation();
@@ -44,10 +54,17 @@ export default function DayStreamBlock({
     const [editStartTime, setEditStartTime] = useState(entry.startTime || "");
     const [editColorKey, setEditColorKey] = useState(entry.colorKey || null);
     const [editMarker, setEditMarker] = useState(entry.marker || null);
+    // Track selection: "all" means All Tracks, otherwise specific track ID
+    const [editTrackId, setEditTrackId] = useState(
+        entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
+    );
     const inputRef = useRef(null);
 
     // Get the color tag for styling
     const colorTag = getColorTag(entry.colorKey);
+
+    // Track selection helper for the dropdown display
+    const selectedTrack = editTrackId === "all" ? null : laneTracks.find(t => t.id === editTrackId);
 
     useEffect(() => {
         setEditTitle(entry.resolvedTitle || "");
@@ -55,7 +72,10 @@ export default function DayStreamBlock({
         setEditStartTime(entry.startTime || "");
         setEditColorKey(entry.colorKey || null);
         setEditMarker(entry.marker || null);
-    }, [entry.resolvedTitle, entry.duration, entry.startTime, entry.colorKey, entry.marker]);
+        setEditTrackId(
+            entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
+        );
+    }, [entry.resolvedTitle, entry.duration, entry.startTime, entry.colorKey, entry.marker, entry.trackId]);
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -126,6 +146,14 @@ export default function DayStreamBlock({
             updates.marker = newMarker;
         }
 
+        // Handle track assignment updates (for custom entries only)
+        const currentTrackId = entry.trackId === "shared" || entry.trackId === "all" ? "all" : entry.trackId;
+        if (editTrackId !== currentTrackId) {
+            updates.trackId = editTrackId;
+            // Always clear appliesToTrackIds when track assignment changes to avoid stale state
+            updates.appliesToTrackIds = null;
+        }
+
         if (Object.keys(updates).length > 0) {
             onUpdateEntry(entry.id, updates);
         }
@@ -142,6 +170,9 @@ export default function DayStreamBlock({
             setEditStartTime(entry.startTime || "");
             setEditColorKey(entry.colorKey || null);
             setEditMarker(entry.marker || null);
+            setEditTrackId(
+                entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
+            );
             e.stopPropagation();
         }
     };
@@ -320,6 +351,53 @@ export default function DayStreamBlock({
                         <MarkerPicker value={editMarker} onChange={setEditMarker} />
                     </div>
 
+                    {/* Track Selector - Only for custom entries (not shots) */}
+                    {!isShot && laneTracks.length > 0 && (
+                        <div className="flex items-center gap-1 shrink-0 border-l border-slate-200 pl-2">
+                            <span className="text-[10px] text-slate-500">Track:</span>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button className="flex items-center gap-1 text-[10px] border border-slate-200 rounded px-1.5 py-0.5 hover:bg-slate-50 min-w-[80px]">
+                                        {editTrackId === "all" ? (
+                                            <span className="text-slate-700">All Tracks</span>
+                                        ) : (
+                                            <>
+                                                <span
+                                                    className="w-2 h-2 rounded-full shrink-0"
+                                                    style={{ backgroundColor: selectedTrack?.color || "#64748B" }}
+                                                />
+                                                <span className="text-slate-700 truncate">{selectedTrack?.name || "Unknown"}</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="min-w-[120px]">
+                                    <DropdownMenuItem
+                                        onClick={() => setEditTrackId("all")}
+                                        className="text-xs flex items-center justify-between"
+                                    >
+                                        All Tracks
+                                        {editTrackId === "all" && <Check className="ml-auto h-3 w-3" />}
+                                    </DropdownMenuItem>
+                                    {laneTracks.map((laneTrack) => (
+                                        <DropdownMenuItem
+                                            key={laneTrack.id}
+                                            onClick={() => setEditTrackId(laneTrack.id)}
+                                            className="text-xs flex items-center gap-2"
+                                        >
+                                            <span
+                                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                                style={{ backgroundColor: laneTrack.color }}
+                                            />
+                                            <span className="truncate">{laneTrack.name}</span>
+                                            {editTrackId === laneTrack.id && <Check className="ml-auto h-3 w-3" />}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    )}
+
                     {/* Spacer - pushes actions to right when on same line, or fills space when wrapped */}
                     <div className="flex-grow min-w-[10px]" />
 
@@ -336,6 +414,9 @@ export default function DayStreamBlock({
                                 e.stopPropagation();
                                 setIsEditing(false);
                                 setEditColorKey(entry.colorKey || null);
+                                setEditTrackId(
+                                    entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
+                                );
                             }}
                             className="text-[10px] text-slate-500 hover:text-slate-700 px-2 py-1"
                         >
