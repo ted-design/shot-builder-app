@@ -50,6 +50,8 @@ export interface CallSheetScheduleItem {
   timeSource?: "explicit" | "derived" | "none";
   /** Original entry order (for debugging/reference) */
   order?: number;
+  /** Optional color tag key for visual grouping (SetHero-style) */
+  colorKey?: string | null;
 }
 
 export interface CallSheetDayDetails {

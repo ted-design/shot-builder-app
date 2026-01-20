@@ -232,6 +232,7 @@ export function buildScheduleProjection({ entries, tracks, options }) {
       location,
       isBanner,
       marker: entry.marker || null,
+      colorKey: entry.colorKey || null,
       trackId: entry.trackId || null,
       // Canonical fields for downstream conflict display
       startTimeCanonical,
