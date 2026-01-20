@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { MapPin } from "lucide-react";
 import type { CallSheetColors, CallSheetData } from "../types";
-import type { CallSheetLayoutV2, CallSheetCenterShape, CallSheetSection, CallSheetHeaderItem } from "../../../types/callsheet";
+import type { CallSheetLayoutV2, CallSheetCenterShape, CallSheetSection, CallSheetHeaderItem, ScheduleBlockFields } from "../../../types/callsheet";
 import type { ColumnConfig } from "../../../types/schedule";
 import { CallSheetHeader, CallSheetHeaderCompact } from "./CallSheetHeader";
 import { ScheduleTableSection } from "./sections/ScheduleTableSection";
@@ -35,6 +35,7 @@ interface CallSheetPreviewProps {
   sections?: CallSheetSection[] | null;
   crewDisplayOptions?: CrewDisplayOptions;
   columnConfig?: ColumnConfig[];
+  scheduleBlockFields?: ScheduleBlockFields | null;
 }
 
 const DEFAULT_COLORS: CallSheetColors = {
@@ -53,6 +54,7 @@ export function CallSheetPreview({
   sections,
   crewDisplayOptions,
   columnConfig,
+  scheduleBlockFields,
 }: CallSheetPreviewProps) {
   const cssVars = {
     "--cs-primary": colors.primary,
@@ -134,7 +136,7 @@ export function CallSheetPreview({
           >
             {pageChromeHeader}
             {pageSections.map((section) => (
-              <React.Fragment key={section.id}>{renderSection(section, data, centerShape, pageIndex, crewDisplayOptions, headerItems, variableContext, columnConfig, data.tracks)}</React.Fragment>
+              <React.Fragment key={section.id}>{renderSection(section, data, centerShape, pageIndex, crewDisplayOptions, headerItems, variableContext, columnConfig, data.tracks, scheduleBlockFields)}</React.Fragment>
             ))}
             <CallSheetFooter />
           </DocumentPage>
@@ -174,7 +176,8 @@ function renderSection(
   headerItems?: { left: CallSheetHeaderItem[]; center: CallSheetHeaderItem[]; right: CallSheetHeaderItem[] } | null,
   variableContext?: Record<string, string>,
   columnConfig?: ColumnConfig[],
-  tracks?: CallSheetData["tracks"]
+  tracks?: CallSheetData["tracks"],
+  scheduleBlockFields?: ScheduleBlockFields | null
 ) {
   if (section.isVisible === false) return null;
 
@@ -195,6 +198,7 @@ function renderSection(
           centerShape={centerShape}
           headerItems={headerItems ?? undefined}
           variableContext={variableContext}
+          dayDetails={data.dayDetails}
         />
       );
     }
@@ -221,7 +225,7 @@ function renderSection(
     return (
       <SectionWrapper title={readSectionTitle(section, "Today's Schedule")} collapsible>
         {USE_SCHEDULE_BLOCK_PREVIEW ? (
-          <ScheduleBlockSection schedule={data.schedule} tracks={tracks} />
+          <ScheduleBlockSection schedule={data.schedule} tracks={tracks} blockFields={scheduleBlockFields} />
         ) : (
           <ScheduleTableSection schedule={data.schedule} columnConfig={columnConfig} tracks={tracks} />
         )}
@@ -277,82 +281,125 @@ interface InfoGridSectionProps {
 }
 
 function InfoGridSection({ locations, notes, meta }: InfoGridSectionProps) {
-  const setMedic = meta?.setMedic != null && String(meta.setMedic).trim() ? String(meta.setMedic).trim() : "—";
-  const scriptVersion =
-    meta?.scriptVersion != null && String(meta.scriptVersion).trim() ? String(meta.scriptVersion).trim() : "—";
-  const scheduleVersion =
-    meta?.scheduleVersion != null && String(meta.scheduleVersion).trim() ? String(meta.scheduleVersion).trim() : "—";
-  const keyPeople = meta?.keyPeople != null && String(meta.keyPeople).trim() ? String(meta.keyPeople).trim() : "—";
+  // Helper to check if a value is non-empty (trim strings; treat whitespace as empty)
+  const hasValue = (v: unknown): v is string | number => {
+    if (v == null) return false;
+    if (typeof v === "string") return v.trim().length > 0;
+    return true;
+  };
+
+  // Build array of meta fields that have actual values (filter before rendering)
+  const metaFields: { label: string; value: string }[] = [];
+  if (hasValue(meta?.setMedic)) {
+    metaFields.push({ label: "Set Medic", value: String(meta.setMedic).trim() });
+  }
+  if (hasValue(meta?.scriptVersion)) {
+    metaFields.push({ label: "Script Version", value: String(meta.scriptVersion).trim() });
+  }
+  if (hasValue(meta?.scheduleVersion)) {
+    metaFields.push({ label: "Schedule Version", value: String(meta.scheduleVersion).trim() });
+  }
+  if (hasValue(meta?.keyPeople)) {
+    metaFields.push({ label: "Key People", value: String(meta.keyPeople).trim() });
+  }
 
   const rawNotes = meta?.notes != null ? String(meta.notes) : notes != null ? String(notes) : "";
   const hasNotes = Boolean(rawNotes.trim());
   const notesHtml = hasNotes ? formatNotesForDisplay(rawNotes) : "";
 
+  // Filter locations to only include those with valid names
+  const validLocations = locations.filter((loc) => hasValue(loc.name));
+
+  // For 2+ locations, pair them for the 2-column layout
   const pairs: [CallSheetData["locations"][number], CallSheetData["locations"][number] | undefined][] = [];
-  for (let i = 0; i < locations.length; i += 2) {
-    pairs.push([locations[i], locations[i + 1]]);
+  for (let i = 0; i < validLocations.length; i += 2) {
+    pairs.push([validLocations[i], validLocations[i + 1]]);
   }
 
   // Use consistent doc-ink color for borders (no rounding, no shadows)
   const borderClass = "border-[var(--color-doc-ink,#111)]";
 
+  // Dynamic grid columns based on number of populated meta fields
+  const metaGridCols =
+    metaFields.length === 1
+      ? "grid-cols-1"
+      : metaFields.length === 2
+        ? "grid-cols-2"
+        : metaFields.length === 3
+          ? "grid-cols-3"
+          : "grid-cols-4";
+
+  // Render a single location box (used for both single and multi-location layouts)
+  // When centered=true, content is center-justified (for single-location tile)
+  const renderLocationBox = (location: CallSheetData["locations"][number], bordered: boolean, centered = false) => {
+    const iconClassName = location.type === "Nearest Hospital" ? "text-red-500" : "text-[var(--cs-primary)]";
+    const textAlign = centered ? "text-center" : "";
+    const labelJustify = centered ? "justify-center" : "";
+    return (
+      <div className={bordered ? `px-1.5 py-1 border-r ${borderClass}` : "px-1.5 py-1"}>
+        <div className={`flex items-center gap-1 mb-0.5 ${labelJustify}`}>
+          <MapPin className={`w-3 h-3 ${iconClassName}`} />
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-500">
+            {location.type}
+          </span>
+        </div>
+        <p className={`text-[11px] font-medium text-[var(--color-doc-ink,#111)] leading-tight ${textAlign}`}>
+          {location.name}
+        </p>
+        {location.address ? (
+          <p className={`text-[10px] text-gray-600 leading-tight ${textAlign}`}>{location.address}</p>
+        ) : null}
+      </div>
+    );
+  };
+
+  // Render empty placeholder for 2-column grid
+  const renderEmptyCell = (bordered: boolean) => (
+    <div className={bordered ? `px-1.5 py-1 border-r ${borderClass}` : "px-1.5 py-1"} />
+  );
+
   return (
     <div className="mb-3">
-      {/* Print-style bordered grid - SetHero parity: strict 1px black borders */}
-      <div className={`border ${borderClass}`} style={{ borderRadius: 0 }}>
-        {/* Locations - variable count */}
-        {pairs.map(([left, right], index) => {
-          const rowBorder = index > 0 ? `border-t ${borderClass}` : "";
-
-          const renderLocation = (location: CallSheetData["locations"][number] | undefined, bordered: boolean) => {
-            if (!location) return <div className={bordered ? `px-1.5 py-1 border-r ${borderClass}` : "px-1.5 py-1"} />;
-            const iconClassName = location.type === "Nearest Hospital" ? "text-red-500" : "text-[var(--cs-primary)]";
-            return (
-              <div className={bordered ? `px-1.5 py-1 border-r ${borderClass}` : "px-1.5 py-1"}>
-                <div className="flex items-center gap-1 mb-0.5">
-                  <MapPin className={`w-3 h-3 ${iconClassName}`} />
-                  <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-500">
-                    {location.type}
-                  </span>
-                </div>
-                <p className="text-[11px] font-medium text-[var(--color-doc-ink,#111)] leading-tight">
-                  {location.name}
-                </p>
-                {location.address ? (
-                  <p className="text-[10px] text-gray-600 leading-tight">{location.address}</p>
-                ) : null}
-              </div>
-            );
-          };
-
-          return (
-            <div key={`${index}-${left.type}`} className={`grid grid-cols-2 ${rowBorder}`}>
-              {renderLocation(left, true)}
-              {renderLocation(right, false)}
-            </div>
-          );
-        })}
-
-        {/* Row 2: Meta Fields - 4 columns */}
-        <div className={`grid grid-cols-4 border-t ${borderClass}`}>
-          <div className={`px-1.5 py-1 border-r ${borderClass}`}>
-            <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Set Medic</p>
-            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">{setMedic}</p>
-          </div>
-          <div className={`px-1.5 py-1 border-r ${borderClass}`}>
-            <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Script Version</p>
-            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">{scriptVersion}</p>
-          </div>
-          <div className={`px-1.5 py-1 border-r ${borderClass}`}>
-            <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Schedule Version</p>
-            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">{scheduleVersion}</p>
-          </div>
-          <div className="px-1.5 py-1">
-            <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Key People</p>
-            <p className="text-[10px] text-[var(--color-doc-ink,#111)]">{keyPeople}</p>
+      {/* Single location: render as centered tile with its own border */}
+      {validLocations.length === 1 ? (
+        <div className="flex justify-center mb-1">
+          <div className={`border ${borderClass} w-fit max-w-[360px]`} style={{ borderRadius: 0 }}>
+            {renderLocationBox(validLocations[0], false, true)}
           </div>
         </div>
-      </div>
+      ) : (
+        /* Multiple locations: full-width bordered grid */
+        <div className={`border ${borderClass}`} style={{ borderRadius: 0 }}>
+          {pairs.map(([left, right], index) => {
+            const rowBorder = index > 0 ? `border-t ${borderClass}` : "";
+            return (
+              <div key={`${index}-${left.type}`} className={`grid grid-cols-2 ${rowBorder}`}>
+                {renderLocationBox(left, true)}
+                {right ? renderLocationBox(right, false) : renderEmptyCell(false)}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Meta Fields Row - separate bordered container */}
+      {metaFields.length > 0 && (
+        <div className={`border ${borderClass} ${validLocations.length === 1 ? "" : "border-t-0"}`} style={{ borderRadius: 0 }}>
+          <div className={`grid ${metaGridCols}`}>
+            {metaFields.map((field, idx) => {
+              const isLast = idx === metaFields.length - 1;
+              return (
+                <div key={field.label} className={isLast ? "px-1.5 py-1" : `px-1.5 py-1 border-r ${borderClass}`}>
+                  <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">
+                    {field.label}
+                  </p>
+                  <p className="text-[10px] text-[var(--color-doc-ink,#111)]">{field.value}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Notes Section - Below grid (same border treatment, no bg) */}
       {hasNotes && (

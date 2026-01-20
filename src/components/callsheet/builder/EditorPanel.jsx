@@ -199,6 +199,27 @@ export default function EditorPanel({
     // Tracks from schedule for DayStreamView
     const scheduleTracks = schedule?.tracks || [];
 
+    // Schedule block field visibility settings
+    const blockFields = callSheetConfig?.scheduleBlockFields || {
+      showShotNumber: true,
+      showShotName: true,
+      showDescription: true,
+      showTalent: true,
+      showLocation: true,
+      showTags: true,
+      showNotes: true,
+    };
+
+    const handleBlockFieldToggle = (fieldKey) => {
+      if (readOnly || !onUpdateCallSheetConfig) return;
+      onUpdateCallSheetConfig({
+        scheduleBlockFields: {
+          ...blockFields,
+          [fieldKey]: !blockFields[fieldKey],
+        },
+      });
+    };
+
     return (
       <div className="flex h-full flex-col">
         {/* Settings row with checkboxes */}
@@ -242,6 +263,85 @@ export default function EditorPanel({
               </select>
             </div>
           )}
+        </div>
+
+        {/* Preview Fields - toggles for which fields appear in schedule blocks */}
+        <div className="px-4 py-2.5 bg-slate-50/50 border-b border-slate-200 dark:bg-slate-800/30 dark:border-slate-700">
+          <div className="flex items-center gap-1 mb-2">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Preview Fields</span>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+            <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+              <input
+                type="checkbox"
+                checked={blockFields.showShotNumber !== false}
+                onChange={() => handleBlockFieldToggle("showShotNumber")}
+                disabled={readOnly}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 accent-blue-600"
+              />
+              <span>Shot #</span>
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+              <input
+                type="checkbox"
+                checked={blockFields.showShotName !== false}
+                onChange={() => handleBlockFieldToggle("showShotName")}
+                disabled={readOnly}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 accent-blue-600"
+              />
+              <span>Shot Name</span>
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+              <input
+                type="checkbox"
+                checked={blockFields.showDescription !== false}
+                onChange={() => handleBlockFieldToggle("showDescription")}
+                disabled={readOnly}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 accent-blue-600"
+              />
+              <span>Description</span>
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+              <input
+                type="checkbox"
+                checked={blockFields.showTalent !== false}
+                onChange={() => handleBlockFieldToggle("showTalent")}
+                disabled={readOnly}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 accent-blue-600"
+              />
+              <span>Talent</span>
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+              <input
+                type="checkbox"
+                checked={blockFields.showLocation !== false}
+                onChange={() => handleBlockFieldToggle("showLocation")}
+                disabled={readOnly}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 accent-blue-600"
+              />
+              <span>Location</span>
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+              <input
+                type="checkbox"
+                checked={blockFields.showTags !== false}
+                onChange={() => handleBlockFieldToggle("showTags")}
+                disabled={readOnly}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 accent-blue-600"
+              />
+              <span>Tags</span>
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+              <input
+                type="checkbox"
+                checked={blockFields.showNotes !== false}
+                onChange={() => handleBlockFieldToggle("showNotes")}
+                disabled={readOnly}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 accent-blue-600"
+              />
+              <span>Notes</span>
+            </label>
+          </div>
         </div>
 
         {/* Main content area - Day Stream View */}

@@ -56,10 +56,50 @@ export type CallSheetSpacing = "compact" | "normal" | "relaxed";
 export type CallSheetTimeFormat = "12h" | "24h";
 export type CallSheetTemperatureFormat = "celsius" | "fahrenheit";
 
+/** Current schema version for CallSheetConfig documents. Increment when making breaking changes. */
+export const CALL_SHEET_CONFIG_SCHEMA_VERSION = 1 as const;
+
+/**
+ * Field visibility settings for schedule blocks in the call sheet preview.
+ * Controls which shot-derived fields appear in schedule entry blocks.
+ */
+export interface ScheduleBlockFields {
+  /** Show shot number prefix (e.g., "A001") */
+  showShotNumber: boolean;
+  /** Show shot name/title */
+  showShotName: boolean;
+  /** Show shot description text (from shot.description) */
+  showDescription: boolean;
+  /** Show talent/cast */
+  showTalent: boolean;
+  /** Show location */
+  showLocation: boolean;
+  /** Show tags (color-coded labels from shot) */
+  showTags: boolean;
+  /** Show notes (from shot.notes or entry.notes) */
+  showNotes: boolean;
+}
+
+/**
+ * Default values for schedule block field visibility.
+ * All fields visible by default to match current behavior.
+ */
+export const DEFAULT_SCHEDULE_BLOCK_FIELDS: ScheduleBlockFields = {
+  showShotNumber: true,
+  showShotName: true,
+  showDescription: true,
+  showTalent: true,
+  showLocation: true,
+  showTags: true,
+  showNotes: true,
+};
+
 export interface CallSheetConfig {
   id: string;
   projectId: string;
   scheduleId: string;
+  /** Schema version for migration/backfill purposes. */
+  schemaVersion?: number;
   headerLayout: HeaderLayout;
   headerElements: HeaderElement[];
   sections: CallSheetSection[];
@@ -69,6 +109,8 @@ export interface CallSheetConfig {
   temperatureFormat: CallSheetTemperatureFormat;
   showFooterLogo: boolean;
   colors: CallSheetColors;
+  /** Field visibility settings for schedule blocks in preview. */
+  scheduleBlockFields?: ScheduleBlockFields;
   createdAt?: Timestamp | Date | null;
   updatedAt?: Timestamp | Date | null;
   createdBy?: string | null;

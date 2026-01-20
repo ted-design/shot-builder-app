@@ -633,6 +633,7 @@ export default function PreviewPanel({
               sections={sections}
               crewDisplayOptions={crewDisplayOptions}
               columnConfig={columnConfig}
+              scheduleBlockFields={callSheetConfig?.scheduleBlockFields}
             />
           </div>
         ) : (

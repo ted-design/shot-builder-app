@@ -173,7 +173,8 @@ export function buildScheduleProjection({ entries, tracks, options }) {
     // But we still include them in tableRows with a warning state
     const isBanner = classification.isShared;
 
-    // Build description from available fields
+    // Build description from available fields (for backward compatibility)
+    // IMPORTANT: This is only used for display when specific fields are hidden
     const titleParts = [];
     if (entry.shotNumber) titleParts.push(entry.shotNumber);
     if (entry.resolvedTitle) titleParts.push(entry.resolvedTitle);
@@ -186,8 +187,14 @@ export function buildScheduleProjection({ entries, tracks, options }) {
       ? entry.resolvedTalent.filter(Boolean).join(", ")
       : "";
 
-    // Notes
-    const notes = entry.resolvedNotes || entry.description || "";
+    // Notes (separate from description for toggle control)
+    const notes = entry.resolvedNotes || "";
+
+    // Description text (from shot.description, separate from notes)
+    const shotDescription = entry.resolvedDescription || "";
+
+    // Tags (array of {id, label, color} from shot)
+    const tags = Array.isArray(entry.resolvedTags) ? entry.resolvedTags : [];
 
     // Location
     const locationName = entry.resolvedLocation || "";
@@ -227,8 +234,15 @@ export function buildScheduleProjection({ entries, tracks, options }) {
       time: displayTime,
       duration: displayDuration,
       description,
+      // Individual fields for conditional rendering
+      shotNumber: entry.shotNumber || null,
+      shotTitle: entry.resolvedTitle || entry.customData?.title || null,
+      // Separate description field from shot.description (for toggle control)
+      shotDescription: shotDescription || null,
       cast: cast || "—",
       notes: notes || "—",
+      // Tags from shot (array of {id, label, color})
+      tags: tags,
       location,
       isBanner,
       marker: entry.marker || null,

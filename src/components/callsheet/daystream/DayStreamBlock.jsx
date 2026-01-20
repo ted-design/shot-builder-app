@@ -1,9 +1,37 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ExternalLink, MapPin, Users, Clock, X } from "lucide-react";
+import {
+  ExternalLink,
+  MapPin,
+  Users,
+  Clock,
+  X,
+  Star,
+  AlertTriangle,
+  Camera,
+  User,
+  Zap,
+  Heart,
+  Flag,
+} from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { parseTimeToMinutes, minutesToTimeString } from "../../../lib/timeUtils";
 import { getColorTag } from "../../../types/schedule";
 import ColorTagPicker from "./ColorTagPicker";
+import MarkerPicker from "./MarkerPicker";
+
+/**
+ * Icon component mapping for markers
+ */
+const MARKER_ICON_MAP = {
+  star: Star,
+  alert: AlertTriangle,
+  clock: Clock,
+  camera: Camera,
+  user: User,
+  zap: Zap,
+  heart: Heart,
+  flag: Flag,
+};
 
 /**
  * DayStreamBlock
@@ -35,6 +63,7 @@ export default function DayStreamBlock({
     const [editDuration, setEditDuration] = useState(entry.duration || 15);
     const [editStartTime, setEditStartTime] = useState(entry.startTime || "");
     const [editColorKey, setEditColorKey] = useState(entry.colorKey || null);
+    const [editMarker, setEditMarker] = useState(entry.marker || null);
     const inputRef = useRef(null);
 
     // Get the color tag for styling
@@ -45,7 +74,8 @@ export default function DayStreamBlock({
         setEditDuration(entry.duration || 15);
         setEditStartTime(entry.startTime || "");
         setEditColorKey(entry.colorKey || null);
-    }, [entry.resolvedTitle, entry.duration, entry.startTime, entry.colorKey]);
+        setEditMarker(entry.marker || null);
+    }, [entry.resolvedTitle, entry.duration, entry.startTime, entry.colorKey, entry.marker]);
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -105,6 +135,17 @@ export default function DayStreamBlock({
             updates.colorKey = editColorKey;
         }
 
+        // Handle marker updates
+        const currentMarker = entry.marker || null;
+        const newMarker = editMarker || null;
+        const markerChanged =
+            (currentMarker === null && newMarker !== null) ||
+            (currentMarker !== null && newMarker === null) ||
+            (currentMarker && newMarker && (currentMarker.icon !== newMarker.icon || currentMarker.color !== newMarker.color));
+        if (markerChanged) {
+            updates.marker = newMarker;
+        }
+
         if (Object.keys(updates).length > 0) {
             onUpdateEntry(entry.id, updates);
         }
@@ -120,6 +161,7 @@ export default function DayStreamBlock({
             setEditDuration(entry.duration || 15);
             setEditStartTime(entry.startTime || "");
             setEditColorKey(entry.colorKey || null);
+            setEditMarker(entry.marker || null);
             e.stopPropagation();
         }
     };
@@ -293,6 +335,11 @@ export default function DayStreamBlock({
                         <ColorTagPicker value={editColorKey} onChange={setEditColorKey} />
                     </div>
 
+                    {/* Marker Picker */}
+                    <div className="flex items-center shrink-0 border-l border-slate-200 pl-2">
+                        <MarkerPicker value={editMarker} onChange={setEditMarker} />
+                    </div>
+
                     {/* Spacer - pushes actions to right when on same line, or fills space when wrapped */}
                     <div className="flex-grow min-w-[10px]" />
 
@@ -339,11 +386,26 @@ export default function DayStreamBlock({
                 colorTag?.bgClass
             )}
         >
-            {/* Header: Track & Duration */}
+            {/* Header: Track, Marker & Duration */}
             <div className="flex justify-between items-center mb-1 shrink-0">
-                <span className={cn("text-[9px] uppercase font-bold px-1 py-0.5 rounded leading-none", badgeBg)}>
-                    {track?.name || "Event"}
-                </span>
+                <div className="flex items-center gap-1">
+                    <span className={cn("text-[9px] uppercase font-bold px-1 py-0.5 rounded leading-none", badgeBg)}>
+                        {track?.name || "Event"}
+                    </span>
+                    {/* Marker indicator */}
+                    {entry.marker && (() => {
+                        const MarkerIcon = MARKER_ICON_MAP[entry.marker.icon];
+                        return MarkerIcon ? (
+                            <div
+                                className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
+                                style={{ backgroundColor: entry.marker.color }}
+                                title={`Marker: ${entry.marker.icon}`}
+                            >
+                                <MarkerIcon className="w-2.5 h-2.5 text-white" />
+                            </div>
+                        ) : null;
+                    })()}
+                </div>
                 <div className="text-[10px] text-slate-400 font-mono flex items-center gap-0.5">
                     {entry.startTime}
                     <span className="opacity-50">•</span>
