@@ -755,10 +755,9 @@ function CallSheetBuilder({
 
   const handleTimeIncrementChange = useCallback(
     (increment) => {
-      if (!schedule?.settings) return;
-      updateSettings({ timeIncrement: increment }, schedule.settings);
+      updateSettings({ timeIncrement: increment }, settings);
     },
-    [schedule?.settings, updateSettings]
+    [settings, updateSettings]
   );
 
   const handleDeleteEntry = useCallback(
