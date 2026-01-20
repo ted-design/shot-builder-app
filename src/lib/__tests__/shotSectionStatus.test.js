@@ -10,8 +10,10 @@ import { DEFAULT_SHOT_STATUS } from "../shotStatus";
 
 const buildBaselineDraft = () => ({
   name: "Hero shot",
-  description: "Rich copy",
-  type: "lifestyle",
+  description: "lifestyle",  // Short description (canonical field)
+  type: "lifestyle",         // Legacy short description field (for backward compat)
+  notes: "Rich copy",        // Rich text notes
+  shotNumber: "001",
   status: DEFAULT_SHOT_STATUS,
   date: "2024-10-12",
   locationId: "loc-1",

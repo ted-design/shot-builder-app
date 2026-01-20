@@ -89,9 +89,10 @@ function HeaderToggle({ checked, onChange, label, disabled }) {
   );
 }
 
-/** Width constants for panel modes */
-const OUTLINE_WIDTH = 280;
-const EDITOR_WIDTH = 550;
+/** Width constants for panel modes (CSS strings for type consistency) */
+const OUTLINE_WIDTH = "280px";
+// Responsive editor width: min 550px, scales with viewport (42vw), max 740px
+const EDITOR_WIDTH = "clamp(550px, 42vw, 740px)";
 
 export default function WorkingPanel({
   panelView,

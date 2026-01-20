@@ -56,8 +56,10 @@ export const shotTagSchema = z.object({
  */
 export const shotDraftSchema = z.object({
   name: z.string().trim().min(1, "Shot name is required").max(200),
-  description: z.string().trim().max(1000).optional().default(""),
-  type: z.string().trim().max(100).optional().default(""),
+  description: z.string().trim().max(200).optional().default(""), // Short description
+  type: z.string().trim().max(200).optional().default(""), // Legacy short description field (aligned with description)
+  notes: z.string().max(50000).optional().default(""), // Rich text notes
+  shotNumber: z.string().trim().max(20).optional().default(""), // Shot number (e.g., "12A")
   status: shotStatusSchema,
   date: z
     .string()
@@ -115,8 +117,8 @@ export const imageAttachmentSchema = z.object({
 export const shotSchema = z.object({
   id: docIdSchema.optional(),
   name: z.string().min(1, "Shot name is required").max(200),
-  description: z.string().max(1000).nullable().optional(),
-  type: z.string().max(100).nullable().optional(),
+  description: z.string().max(200).nullable().optional(), // Aligned with shotDraftSchema
+  type: z.string().max(200).nullable().optional(),        // Aligned with shotDraftSchema
   status: shotStatusSchema,
   date: timestampSchema,
   locationId: optionalDocIdSchema,
@@ -146,8 +148,10 @@ export const updateShotSchema = shotDraftSchema.partial();
 export const shotProductPayloadSchema = shotProductSchema;
 export const initialShotDraft = {
   name: "",
-  description: "",
-  type: "",
+  description: "", // Short description
+  type: "", // Legacy short description field
+  notes: "", // Rich text notes
+  shotNumber: "",
   status: "todo",
   date: "",
   locationId: "",

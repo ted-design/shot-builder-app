@@ -84,9 +84,13 @@ const hasBasicsChanges = (draft = {}, baseline = {}) => {
   const baselineStatus = normaliseShotStatus(baseline.status ?? DEFAULT_SHOT_STATUS);
   if (draftStatus !== baselineStatus) return true;
   if (normaliseStringValue(draft.name) !== normaliseStringValue(baseline.name)) return true;
-  if (normaliseStringValue(draft.type) !== normaliseStringValue(baseline.type)) return true;
+  // Compare canonical description value (from either field) - they should be kept in sync
+  const draftDesc = normaliseStringValue(draft.description || draft.type);
+  const baselineDesc = normaliseStringValue(baseline.description || baseline.type);
+  if (draftDesc !== baselineDesc) return true;
   if (normaliseDateValue(draft.date) !== normaliseDateValue(baseline.date)) return true;
   if (normaliseStringValue(draft.locationId) !== normaliseStringValue(baseline.locationId)) return true;
+  if (normaliseStringValue(draft.shotNumber) !== normaliseStringValue(baseline.shotNumber)) return true;
 
   // Include attachments in basics section
   if (Boolean(draft.referenceImageFile) !== Boolean(baseline.referenceImageFile)) return true;
@@ -103,8 +107,8 @@ const hasBasicsChanges = (draft = {}, baseline = {}) => {
 };
 
 const hasCreativeLogisticsChanges = (draft = {}, baseline = {}) => {
-  // Check creative changes (notes/description)
-  if (normaliseStringValue(draft.description) !== normaliseStringValue(baseline.description)) {
+  // Check creative changes (rich notes field)
+  if (normaliseStringValue(draft.notes) !== normaliseStringValue(baseline.notes)) {
     return true;
   }
 

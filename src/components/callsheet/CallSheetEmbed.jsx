@@ -76,13 +76,13 @@ function CallSheetEmbed() {
     );
   }
 
-  return <CallSheetEmbedContent clientId={clientId} projectId={projectId} />;
+  return <CallSheetEmbedContent clientId={clientId} projectId={projectId} activeProject={activeProject} />;
 }
 
 /**
  * Inner content component with data fetching
  */
-function CallSheetEmbedContent({ clientId, projectId }) {
+function CallSheetEmbedContent({ clientId, projectId, activeProject }) {
   // Active schedule ID
   const [activeScheduleId, setActiveScheduleId] = useState(null);
 
