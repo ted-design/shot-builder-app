@@ -499,58 +499,29 @@ export function ScheduleBlockSection({ schedule, tracks }: ScheduleBlockSectionP
             const category = detectCategory(item.description);
             const railHeightPx = computeSingleRailHeight(item.durationMinutes);
 
-            // Check if this is a Photo or Video lane item
+            // Check if this is a Photo or Video lane item for lane positioning
             const isPhoto = isPhotoTrack(item.trackId, trackNameMap);
             const isVideo = isVideoTrack(item.trackId, trackNameMap);
 
-            // If this is a lane item (Photo or Video), render in 2-column grid
-            // to maintain lane positioning even when no overlap exists
-            if (isPhoto || isVideo) {
-              return (
-                <div key={item.id} className="grid grid-cols-1 sm:grid-cols-2 gap-x-1.5 gap-y-1.5">
-                  {/* Photo column (left) */}
-                  <div className="flex flex-col gap-1.5">
-                    {isPhoto && (
-                      <DurationRailWrapper railHeightPx={railHeightPx}>
-                        <RegularBlock
-                          item={item}
-                          MarkerIcon={MarkerIcon}
-                          applicability={applicability}
-                          category={category}
-                          trackNameMap={trackNameMap}
-                        />
-                      </DurationRailWrapper>
-                    )}
-                  </div>
-                  {/* Video column (right) */}
-                  <div className="flex flex-col gap-1.5">
-                    {isVideo && (
-                      <DurationRailWrapper railHeightPx={railHeightPx}>
-                        <RegularBlock
-                          item={item}
-                          MarkerIcon={MarkerIcon}
-                          applicability={applicability}
-                          category={category}
-                          trackNameMap={trackNameMap}
-                        />
-                      </DurationRailWrapper>
-                    )}
-                  </div>
-                </div>
-              );
-            }
+            // Lane items render half-width with positioning, non-lane items render full-width
+            const laneClass = isPhoto
+              ? "sm:w-[calc(50%-3px)] sm:mr-auto" // Photo: left half
+              : isVideo
+                ? "sm:w-[calc(50%-3px)] sm:ml-auto" // Video: right half
+                : ""; // Full width
 
-            // Non-lane items render full-width as before
             return (
-              <DurationRailWrapper key={item.id} railHeightPx={railHeightPx}>
-                <RegularBlock
-                  item={item}
-                  MarkerIcon={MarkerIcon}
-                  applicability={applicability}
-                  category={category}
-                  trackNameMap={trackNameMap}
-                />
-              </DurationRailWrapper>
+              <div key={item.id} className={laneClass}>
+                <DurationRailWrapper railHeightPx={railHeightPx}>
+                  <RegularBlock
+                    item={item}
+                    MarkerIcon={MarkerIcon}
+                    applicability={applicability}
+                    category={category}
+                    trackNameMap={trackNameMap}
+                  />
+                </DurationRailWrapper>
+              </div>
             );
           }
 

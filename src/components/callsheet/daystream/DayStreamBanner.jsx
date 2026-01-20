@@ -147,10 +147,8 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
         const currentTrackId = entry.trackId === "shared" || entry.trackId === "all" ? "all" : entry.trackId;
         if (editTrackId !== currentTrackId) {
             updates.trackId = editTrackId;
-            // When assigning to a specific track, clear appliesToTrackIds to avoid confusion
-            if (editTrackId !== "all") {
-                updates.appliesToTrackIds = null;
-            }
+            // Always clear appliesToTrackIds when track assignment changes to avoid stale state
+            updates.appliesToTrackIds = null;
         }
 
         // Handle color tag updates

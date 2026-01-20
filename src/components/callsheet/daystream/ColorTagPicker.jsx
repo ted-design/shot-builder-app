@@ -1,4 +1,5 @@
 import React from "react";
+import PropTypes from "prop-types";
 import { X } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { COLOR_TAGS } from "../../../types/schedule";
@@ -10,7 +11,7 @@ import { COLOR_TAGS } from "../../../types/schedule";
  * Displays 8 color options + a clear option.
  * Used in DayStreamBlock and DayStreamBanner edit modes.
  */
-export default function ColorTagPicker({ value, onChange, className }) {
+export default function ColorTagPicker({ value = null, onChange, className = "" }) {
   return (
     <div className={cn("grid grid-cols-5 gap-1 w-fit", className)}>
       {/* Clear button - shown first */}
@@ -52,3 +53,12 @@ export default function ColorTagPicker({ value, onChange, className }) {
     </div>
   );
 }
+
+ColorTagPicker.propTypes = {
+  /** Currently selected color tag ID (e.g., "red", "blue") or null */
+  value: PropTypes.string,
+  /** Callback when color selection changes, receives color ID or null */
+  onChange: PropTypes.func.isRequired,
+  /** Additional CSS classes for the container */
+  className: PropTypes.string,
+};
