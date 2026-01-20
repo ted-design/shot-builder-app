@@ -1897,7 +1897,8 @@ export function ShotsWorkspace() {
 
         const draft = {
           name: shot.name || "",
-          description: shot.description || "",
+          // Initialize description with fallback to type for legacy shots
+          description: shot.description || shot.type || "",
           type: shot.type || "",
           notes: shot.notes || "",
           date: toDateInputValue(shot.date),
