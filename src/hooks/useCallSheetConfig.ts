@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { callSheetConfigPath } from "../lib/paths";
 import type { CallSheetConfig } from "../types/callsheet";
@@ -107,18 +107,21 @@ export function useCallSheetConfig(
       if (!clientId || !projectId || !scheduleId) throw new Error("Missing clientId/projectId/scheduleId");
       if (isDemoModeActive()) return { id: "default" };
       const ref = doc(db, ...callSheetConfigPath(projectId, scheduleId, clientId));
-      // Only create the document if it doesn't exist - avoid overwriting existing sections
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        return { id: snap.id };
-      }
-      await setDoc(ref, {
-        ...buildDefaultConfig(projectId, scheduleId),
-        createdBy: user?.uid ?? null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      // Use transaction to atomically check-and-create, avoiding race conditions
+      // where concurrent calls could both pass existence check and duplicate writes
+      return await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(ref);
+        if (snap.exists()) {
+          return { id: snap.id };
+        }
+        transaction.set(ref, {
+          ...buildDefaultConfig(projectId, scheduleId),
+          createdBy: user?.uid ?? null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        return { id: "default" };
       });
-      return { id: "default" };
     },
     onError: (err) => {
       const { code, message } = describeFirebaseError(err, "Failed to initialize call sheet config");
