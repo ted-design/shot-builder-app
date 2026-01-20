@@ -279,7 +279,7 @@ export default function DayStreamBlock({
                     <div className="flex-grow min-w-[10px]" />
 
                     {/* Actions Group */}
-                    <div className="flex items-center gap-2 shrink-0 ml-auto">
+                    <div className="flex items-center gap-2 shrink-0">
                         <button
                             onClick={handleSave}
                             className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 font-medium transition-colors"
@@ -291,7 +291,7 @@ export default function DayStreamBlock({
                                 e.stopPropagation();
                                 setIsEditing(false);
                             }}
-                            className="text-[10px] text-slate-500 hover:text-slate-700 px-1"
+                            className="text-[10px] text-slate-500 hover:text-slate-700 px-2 py-1"
                         >
                             Cancel
                         </button>
