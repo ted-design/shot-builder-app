@@ -84,9 +84,10 @@ const hasBasicsChanges = (draft = {}, baseline = {}) => {
   const baselineStatus = normaliseShotStatus(baseline.status ?? DEFAULT_SHOT_STATUS);
   if (draftStatus !== baselineStatus) return true;
   if (normaliseStringValue(draft.name) !== normaliseStringValue(baseline.name)) return true;
-  // Check both 'type' (legacy) and 'description' (new) for the short description field
-  if (normaliseStringValue(draft.type) !== normaliseStringValue(baseline.type)) return true;
-  if (normaliseStringValue(draft.description) !== normaliseStringValue(baseline.description)) return true;
+  // Compare canonical description value (from either field) - they should be kept in sync
+  const draftDesc = normaliseStringValue(draft.description || draft.type);
+  const baselineDesc = normaliseStringValue(baseline.description || baseline.type);
+  if (draftDesc !== baselineDesc) return true;
   if (normaliseDateValue(draft.date) !== normaliseDateValue(baseline.date)) return true;
   if (normaliseStringValue(draft.locationId) !== normaliseStringValue(baseline.locationId)) return true;
   if (normaliseStringValue(draft.shotNumber) !== normaliseStringValue(baseline.shotNumber)) return true;

@@ -2445,7 +2445,10 @@ export function ShotsWorkspace() {
       // Create a copy without the id and with updated metadata
       const shotCopy = {
         name: shotData.name,
-        description: shotData.description || "",
+        description: shotData.description || shotData.type || "",
+        type: shotData.type || shotData.description || "",  // Keep in sync for backward compat
+        notes: shotData.notes || "",
+        shotNumber: "",  // Intentionally blank - shot numbers are unique
         date: shotData.date || "",
         locationId: shotData.locationId || null,
         projectId: targetProjectId,
@@ -2453,6 +2456,7 @@ export function ShotsWorkspace() {
         status: shotData.status || "todo",
         products: shotData.products || [],
         talent: shotData.talent || [],
+        tags: shotData.tags || [],
         referenceImagePath: shotData.referenceImagePath || null,
         referenceImageCrop: shotData.referenceImageCrop || null,
         deleted: false,
@@ -3121,7 +3125,10 @@ export function ShotsWorkspace() {
         // Copy all properties except id and timestamps
         const shotData = {
           name: shot.name,
-          description: shot.description || "",
+          description: shot.description || shot.type || "",
+          type: shot.type || shot.description || "",  // Keep in sync for backward compat
+          notes: shot.notes || "",
+          shotNumber: "",  // Intentionally blank - shot numbers are unique
           date: shot.date || null,
           locationId: shot.locationId || null,
           locationName: shot.locationName || null,
@@ -3133,7 +3140,6 @@ export function ShotsWorkspace() {
           talent: Array.isArray(shot.talent) ? shot.talent : [],
           talentIds: Array.isArray(shot.talentIds) ? shot.talentIds : [],
           tags: Array.isArray(shot.tags) ? shot.tags : [],
-          notes: shot.notes || "",
           thumbPath: shot.thumbPath || null, // Copy reference to same image
           createdAt: serverTimestamp(),
           createdBy: user?.uid || null,
