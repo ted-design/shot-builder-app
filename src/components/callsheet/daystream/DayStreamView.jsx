@@ -534,6 +534,7 @@ export default function DayStreamView({
                 <DayStreamBanner
                   key={node.entry.id}
                   entry={node.entry}
+                  tracks={tracks}
                   onEdit={readOnly ? null : () => onEditEntry && onEditEntry(node.entry)}
                   onUpdateEntry={readOnly ? null : onUpdateEntry}
                   onDeleteEntry={readOnly ? null : onDeleteEntry}

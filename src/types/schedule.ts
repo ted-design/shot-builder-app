@@ -239,6 +239,50 @@ export const MARKER_COLORS = [
   { id: "slate", value: "#64748B", label: "Slate" },
 ] as const;
 
+// =============================================================================
+// Color Tag Types (SetHero-style entry coloring)
+// =============================================================================
+
+/**
+ * Color tag definition for schedule entries.
+ * Used for visual grouping/categorization in the schedule editor.
+ */
+export interface ColorTag {
+  /** Unique key identifier */
+  id: string;
+  /** Hex color for the tag indicator */
+  value: string;
+  /** Human-readable label */
+  label: string;
+  /** Tailwind classes for left border in display mode */
+  borderClass: string;
+  /** Tailwind classes for subtle background tint */
+  bgClass: string;
+}
+
+/**
+ * Available color tags for schedule entries (SetHero-style palette).
+ * 8 distinct colors for visual grouping.
+ */
+export const COLOR_TAGS: ColorTag[] = [
+  { id: "red", value: "#EF4444", label: "Red", borderClass: "border-l-red-400", bgClass: "bg-red-50/50" },
+  { id: "orange", value: "#F97316", label: "Orange", borderClass: "border-l-orange-400", bgClass: "bg-orange-50/50" },
+  { id: "amber", value: "#F59E0B", label: "Amber", borderClass: "border-l-amber-400", bgClass: "bg-amber-50/50" },
+  { id: "green", value: "#22C55E", label: "Green", borderClass: "border-l-green-400", bgClass: "bg-green-50/50" },
+  { id: "teal", value: "#14B8A6", label: "Teal", borderClass: "border-l-teal-400", bgClass: "bg-teal-50/50" },
+  { id: "blue", value: "#3B82F6", label: "Blue", borderClass: "border-l-blue-400", bgClass: "bg-blue-50/50" },
+  { id: "purple", value: "#8B5CF6", label: "Purple", borderClass: "border-l-purple-400", bgClass: "bg-purple-50/50" },
+  { id: "pink", value: "#EC4899", label: "Pink", borderClass: "border-l-pink-400", bgClass: "bg-pink-50/50" },
+] as const;
+
+/**
+ * Get a color tag by its ID.
+ */
+export function getColorTag(colorKey: string | null | undefined): ColorTag | null {
+  if (!colorKey) return null;
+  return COLOR_TAGS.find((c) => c.id === colorKey) || null;
+}
+
 /**
  * Categories for custom entries (non-shot items like breaks, setup, etc.).
  */
@@ -330,6 +374,9 @@ export interface ScheduleEntry {
 
   /** Optional visual marker for quick scanning (separate from flag tags) */
   marker?: EntryMarker | null;
+
+  /** Optional color tag key for visual grouping (SetHero-style) */
+  colorKey?: string | null;
 
   /** Optional subset of tracks this custom item applies to */
   appliesToTrackIds?: string[] | null;

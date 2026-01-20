@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { ExternalLink, MapPin, Users, Clock, X } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { parseTimeToMinutes, minutesToTimeString } from "../../../lib/timeUtils";
+import { getColorTag } from "../../../types/schedule";
+import ColorTagPicker from "./ColorTagPicker";
 
 /**
  * DayStreamBlock
@@ -32,13 +34,18 @@ export default function DayStreamBlock({
     const [editTitle, setEditTitle] = useState(entry.resolvedTitle || "");
     const [editDuration, setEditDuration] = useState(entry.duration || 15);
     const [editStartTime, setEditStartTime] = useState(entry.startTime || "");
+    const [editColorKey, setEditColorKey] = useState(entry.colorKey || null);
     const inputRef = useRef(null);
+
+    // Get the color tag for styling
+    const colorTag = getColorTag(entry.colorKey);
 
     useEffect(() => {
         setEditTitle(entry.resolvedTitle || "");
         setEditDuration(entry.duration || 15);
         setEditStartTime(entry.startTime || "");
-    }, [entry.resolvedTitle, entry.duration, entry.startTime]);
+        setEditColorKey(entry.colorKey || null);
+    }, [entry.resolvedTitle, entry.duration, entry.startTime, entry.colorKey]);
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -93,6 +100,11 @@ export default function DayStreamBlock({
             }
         }
 
+        // Handle color tag updates
+        if (editColorKey !== (entry.colorKey || null)) {
+            updates.colorKey = editColorKey;
+        }
+
         if (Object.keys(updates).length > 0) {
             onUpdateEntry(entry.id, updates);
         }
@@ -107,6 +119,7 @@ export default function DayStreamBlock({
             setEditTitle(entry.resolvedTitle || "");
             setEditDuration(entry.duration || 15);
             setEditStartTime(entry.startTime || "");
+            setEditColorKey(entry.colorKey || null);
             e.stopPropagation();
         }
     };
@@ -249,7 +262,7 @@ export default function DayStreamBlock({
                     />
                 )}
 
-                {/* Row 2: Controls (Time, Duration, Actions) - Flex Wrap for responsiveness */}
+                {/* Row 2: Controls (Time, Duration, Color, Actions) - Flex Wrap for responsiveness */}
                 <div className="flex flex-wrap items-center gap-2 mt-auto w-full">
                     {/* Time & Duration Group */}
                     <div className="flex items-center gap-2 shrink-0">
@@ -275,6 +288,11 @@ export default function DayStreamBlock({
                         </div>
                     </div>
 
+                    {/* Color Tag Picker */}
+                    <div className="flex items-center gap-1.5 shrink-0 border-l border-slate-200 pl-2">
+                        <ColorTagPicker value={editColorKey} onChange={setEditColorKey} />
+                    </div>
+
                     {/* Spacer - pushes actions to right when on same line, or fills space when wrapped */}
                     <div className="flex-grow min-w-[10px]" />
 
@@ -290,6 +308,7 @@ export default function DayStreamBlock({
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setIsEditing(false);
+                                setEditColorKey(entry.colorKey || null);
                             }}
                             className="text-[10px] text-slate-500 hover:text-slate-700 px-2 py-1"
                         >
@@ -313,7 +332,11 @@ export default function DayStreamBlock({
                 "relative p-2 rounded-md border bg-white shadow-sm transition-all cursor-pointer overflow-hidden group select-none flex flex-col",
                 "hover:shadow-md hover:z-10",
                 borderColor,
-                isResizing && "ring-2 ring-blue-200 z-50 shadow-lg"
+                isResizing && "ring-2 ring-blue-200 z-50 shadow-lg",
+                // Color tag styling: left border + subtle background tint
+                colorTag && "border-l-4",
+                colorTag?.borderClass,
+                colorTag?.bgClass
             )}
         >
             {/* Header: Track & Duration */}

@@ -1,7 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Clock, Trash2 } from "lucide-react";
+import { Clock, Trash2, ChevronDown, Check } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { parseTimeToMinutes, minutesToTimeString } from "../../../lib/timeUtils";
+import { getColorTag } from "../../../types/schedule";
+import ColorTagPicker from "./ColorTagPicker";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../ui/dropdown-menu";
 
 /**
  * Format time range as "6:00 AM–7:00 AM"
@@ -35,8 +43,14 @@ function formatTimeRange(startTime, duration) {
  * Represents a shared event that applies to the whole day (Call, Lunch, Wrap).
  * Acts as a visual section break with full-width strip appearance.
  * Supports inline editing via double-click.
+ *
+ * Banners can be assigned to:
+ * - "All Tracks" (trackId = "all" or "shared") - renders as full-width banner
+ * - A specific track (trackId = track.id) - will re-render in that track's lane
  */
-export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDeleteEntry }) {
+export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEntry, onDeleteEntry }) {
+    // Filter to lane tracks only (exclude shared scope tracks)
+    const laneTracks = tracks.filter(t => t.scope !== "shared" && t.id !== "shared");
     const isWrap = entry.resolvedTitle?.toLowerCase().includes("wrap");
     const isMeal = entry.resolvedTitle?.toLowerCase().includes("lunch") || entry.resolvedTitle?.toLowerCase().includes("break");
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -64,14 +78,29 @@ export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDelete
     const [editTitle, setEditTitle] = useState(entry.customData?.title || entry.resolvedTitle || "");
     const [editStartTime, setEditStartTime] = useState(entry.startTime || "");
     const [editDuration, setEditDuration] = useState(entry.duration || 30);
+    const [editColorKey, setEditColorKey] = useState(entry.colorKey || null);
+    // Track selection: "all" means All Tracks, otherwise specific track ID
+    const [editTrackId, setEditTrackId] = useState(
+        entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
+    );
     const titleInputRef = useRef(null);
+
+    // Get the color tag for styling
+    const colorTag = getColorTag(entry.colorKey);
 
     // Sync state when entry changes
     useEffect(() => {
         setEditTitle(entry.customData?.title || entry.resolvedTitle || "");
         setEditStartTime(entry.startTime || "");
         setEditDuration(entry.duration || 30);
-    }, [entry.customData?.title, entry.resolvedTitle, entry.startTime, entry.duration]);
+        setEditColorKey(entry.colorKey || null);
+        setEditTrackId(
+            entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
+        );
+    }, [entry.customData?.title, entry.resolvedTitle, entry.startTime, entry.duration, entry.colorKey, entry.trackId]);
+
+    // Get the selected track for display
+    const selectedTrack = editTrackId === "all" ? null : laneTracks.find(t => t.id === editTrackId);
 
     // Focus title input when entering edit mode
     useEffect(() => {
@@ -112,6 +141,21 @@ export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDelete
             }
         }
 
+        // Update track assignment
+        // "all" becomes "all" in storage (isBannerEntry checks for "all" or "shared")
+        // specific track ID is stored directly
+        const currentTrackId = entry.trackId === "shared" || entry.trackId === "all" ? "all" : entry.trackId;
+        if (editTrackId !== currentTrackId) {
+            updates.trackId = editTrackId;
+            // Always clear appliesToTrackIds when track assignment changes to avoid stale state
+            updates.appliesToTrackIds = null;
+        }
+
+        // Handle color tag updates
+        if (editColorKey !== (entry.colorKey || null)) {
+            updates.colorKey = editColorKey;
+        }
+
         if (Object.keys(updates).length > 0) {
             onUpdateEntry(entry.id, updates);
         }
@@ -126,6 +170,10 @@ export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDelete
             setEditTitle(entry.customData?.title || entry.resolvedTitle || "");
             setEditStartTime(entry.startTime || "");
             setEditDuration(entry.duration || 30);
+            setEditColorKey(entry.colorKey || null);
+            setEditTrackId(
+                entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
+            );
             e.stopPropagation();
         }
     };
@@ -163,8 +211,8 @@ export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDelete
                     />
                 </div>
 
-                {/* Row 2: Time & Duration (Side by side) */}
-                <div className="flex items-center gap-4">
+                {/* Row 2: Time, Duration & Track (Side by side) */}
+                <div className="flex items-center gap-4 flex-wrap">
                     {/* Time Input */}
                     <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-slate-400 shrink-0" />
@@ -188,6 +236,64 @@ export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDelete
                         />
                         <span className="text-xs text-slate-500 whitespace-nowrap">min</span>
                     </div>
+
+                    {/* Track Selector */}
+                    {laneTracks.length > 0 && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">Track:</span>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button
+                                        type="button"
+                                        className="flex items-center gap-1.5 text-xs border border-slate-300 rounded px-2 py-1.5 bg-white hover:bg-slate-50 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none"
+                                    >
+                                        {editTrackId === "all" ? (
+                                            <span className="text-slate-700">All Tracks</span>
+                                        ) : (
+                                            <>
+                                                <span
+                                                    className="w-2 h-2 rounded-full shrink-0"
+                                                    style={{ backgroundColor: selectedTrack?.color || "#64748B" }}
+                                                />
+                                                <span className="text-slate-700">{selectedTrack?.name || "Unknown"}</span>
+                                            </>
+                                        )}
+                                        <ChevronDown className="w-3 h-3 text-slate-400" />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-40">
+                                    <DropdownMenuItem
+                                        onClick={() => setEditTrackId("all")}
+                                        className="gap-2"
+                                    >
+                                        <span className="w-2 h-2 rounded-full bg-slate-400" />
+                                        All Tracks
+                                        {editTrackId === "all" && <Check className="ml-auto h-4 w-4" />}
+                                    </DropdownMenuItem>
+                                    {laneTracks.map((track) => (
+                                        <DropdownMenuItem
+                                            key={track.id}
+                                            onClick={() => setEditTrackId(track.id)}
+                                            className="gap-2"
+                                        >
+                                            <span
+                                                className="w-2 h-2 rounded-full shrink-0"
+                                                style={{ backgroundColor: track.color }}
+                                            />
+                                            {track.name}
+                                            {editTrackId === track.id && <Check className="ml-auto h-4 w-4" />}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    )}
+
+                    {/* Color Tag Picker */}
+                    <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
+                        <span className="text-xs text-slate-500">Color:</span>
+                        <ColorTagPicker value={editColorKey} onChange={setEditColorKey} />
+                    </div>
                 </div>
 
                 {/* Row 3: Actions (Right Aligned) */}
@@ -199,6 +305,10 @@ export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDelete
                             setEditTitle(entry.customData?.title || entry.resolvedTitle || "");
                             setEditStartTime(entry.startTime || "");
                             setEditDuration(entry.duration || 30);
+                            setEditColorKey(entry.colorKey || null);
+                            setEditTrackId(
+                                entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
+                            );
                         }}
                         className="text-xs px-3 py-1.5 font-medium text-slate-600 hover:text-slate-800 hover:bg-black/5 rounded transition-colors"
                     >
@@ -223,7 +333,11 @@ export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDelete
             onDoubleClick={handleDoubleClick}
             className={cn(
                 "relative flex items-center py-4 my-2 cursor-pointer group rounded-lg transition-colors",
-                "hover:bg-slate-50"
+                "hover:bg-slate-50",
+                // Color tag styling: left border + subtle background tint
+                colorTag && "border-l-4",
+                colorTag?.borderClass,
+                colorTag?.bgClass
             )}
         >
             {/* Time Range Pill */}
@@ -239,7 +353,13 @@ export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDelete
             </div>
 
             {/* Horizontal Line Connector */}
-            <div className="h-px bg-slate-200 flex-1 relative top-px group-hover:bg-slate-300 transition-colors" />
+            <div
+                className={cn(
+                    "h-px flex-1 relative top-px transition-colors",
+                    !colorTag && "bg-slate-200 group-hover:bg-slate-300"
+                )}
+                style={colorTag ? { backgroundColor: colorTag.value, opacity: 0.5 } : undefined}
+            />
 
             {/* Title */}
             <div className="px-4 text-sm font-bold uppercase tracking-wide text-slate-700 whitespace-nowrap">
@@ -247,7 +367,13 @@ export default function DayStreamBanner({ entry, onEdit, onUpdateEntry, onDelete
             </div>
 
             {/* Right Connector */}
-            <div className="h-px bg-slate-200 flex-[0.2] relative top-px group-hover:bg-slate-300 transition-colors" />
+            <div
+                className={cn(
+                    "h-px flex-[0.2] relative top-px transition-colors",
+                    !colorTag && "bg-slate-200 group-hover:bg-slate-300"
+                )}
+                style={colorTag ? { backgroundColor: colorTag.value, opacity: 0.5 } : undefined}
+            />
 
             {/* Duration Label */}
             <div className="pl-3 text-xs text-slate-400 font-medium whitespace-nowrap">

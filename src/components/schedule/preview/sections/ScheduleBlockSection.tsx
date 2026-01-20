@@ -10,6 +10,7 @@ import {
   Heart,
 } from "lucide-react";
 import type { CallSheetScheduleItem, CallSheetTrack } from "../../types";
+import { getColorTag } from "../../../../types/schedule";
 
 // Icon component mapping for markers (matches MarkerPicker)
 const MARKER_ICON_MAP: Record<string, React.ElementType> = {
@@ -497,16 +498,30 @@ export function ScheduleBlockSection({ schedule, tracks }: ScheduleBlockSectionP
             const applicability = getApplicabilityDisplay(item);
             const category = detectCategory(item.description);
             const railHeightPx = computeSingleRailHeight(item.durationMinutes);
+
+            // Check if this is a Photo or Video lane item for lane positioning
+            const isPhoto = isPhotoTrack(item.trackId, trackNameMap);
+            const isVideo = isVideoTrack(item.trackId, trackNameMap);
+
+            // Lane items render half-width with positioning, non-lane items render full-width
+            const laneClass = isPhoto
+              ? "sm:w-[calc(50%-3px)] sm:mr-auto" // Photo: left half
+              : isVideo
+                ? "sm:w-[calc(50%-3px)] sm:ml-auto" // Video: right half
+                : ""; // Full width
+
             return (
-              <DurationRailWrapper key={item.id} railHeightPx={railHeightPx}>
-                <RegularBlock
-                  item={item}
-                  MarkerIcon={MarkerIcon}
-                  applicability={applicability}
-                  category={category}
-                  trackNameMap={trackNameMap}
-                />
-              </DurationRailWrapper>
+              <div key={item.id} className={laneClass}>
+                <DurationRailWrapper railHeightPx={railHeightPx}>
+                  <RegularBlock
+                    item={item}
+                    MarkerIcon={MarkerIcon}
+                    applicability={applicability}
+                    category={category}
+                    trackNameMap={trackNameMap}
+                  />
+                </DurationRailWrapper>
+              </div>
             );
           }
 
@@ -629,13 +644,18 @@ function BannerBlock({ item, MarkerIcon, applicability, category }: BlockProps) 
   const timeRange = getTimeRangeDisplay(item);
   const isDerived = item.timeSource === "derived";
 
+  // Get color tag for accent styling
+  const colorTag = getColorTag(item.colorKey);
+
   return (
     <div
       className={`
         relative flex items-center gap-3 px-3 py-2.5 rounded-md border
         ${categoryStyles.border} ${categoryStyles.bg}
         print:border-gray-300 print:bg-gray-50
+        ${colorTag ? "border-l-[3px]" : ""}
       `}
+      style={colorTag ? { borderLeftColor: colorTag.value } : undefined}
     >
       {/* Conflict indicator */}
       {item.hasConflict && (
@@ -681,10 +701,18 @@ function BannerBlock({ item, MarkerIcon, applicability, category }: BlockProps) 
       {/* Separator line */}
       <div className={`flex-[0.3] h-px ${categoryStyles.line}`} />
 
-      {/* Applicability badge */}
+      {/* Applicability badge with color dot */}
       {applicability.label && (
-        <span className="flex-shrink-0 inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600 print:bg-slate-100">
-          {applicability.label}
+        <span className="flex-shrink-0 inline-flex items-center gap-1.5">
+          {colorTag && (
+            <span
+              className="inline-block h-2 w-2 rounded-full flex-shrink-0 print:print-color-adjust-exact"
+              style={{ backgroundColor: colorTag.value }}
+            />
+          )}
+          <span className="inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600 print:bg-slate-100">
+            {applicability.label}
+          </span>
         </span>
       )}
     </div>
@@ -703,13 +731,18 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap 
   const timeRange = getTimeRangeDisplay(item);
   const isDerived = item.timeSource === "derived";
 
+  // Get color tag for accent styling
+  const colorTag = getColorTag(item.colorKey);
+
   return (
     <div
       className={`
         relative px-3 py-2 rounded-md border bg-white shadow-sm
         border-slate-200 hover:border-slate-300
         print:shadow-none print:border-gray-300
+        ${colorTag ? "border-l-[3px]" : ""}
       `}
+      style={colorTag ? { borderLeftColor: colorTag.value } : undefined}
     >
       {/* Header row: Time range + Track/Applicability */}
       <div className="flex items-center justify-between gap-2 mb-1">
@@ -743,17 +776,33 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap 
             </span>
           )}
 
-          {/* Track chip for single-track entries */}
+          {/* Track chip for single-track entries with color dot */}
           {trackName && (
-            <span className="inline-flex items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
-              {trackName}
+            <span className="inline-flex items-center gap-1">
+              {colorTag && (
+                <span
+                  className="inline-block h-2 w-2 rounded-full flex-shrink-0 print:print-color-adjust-exact"
+                  style={{ backgroundColor: colorTag.value }}
+                />
+              )}
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
+                {trackName}
+              </span>
             </span>
           )}
 
-          {/* Applicability badge for subset entries */}
+          {/* Applicability badge for subset entries with color dot */}
           {applicability.label && applicability.kind === "subset" && (
-            <span className="inline-flex items-center rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 print:bg-blue-50">
-              {applicability.label}
+            <span className="inline-flex items-center gap-1">
+              {!trackName && colorTag && (
+                <span
+                  className="inline-block h-2 w-2 rounded-full flex-shrink-0 print:print-color-adjust-exact"
+                  style={{ backgroundColor: colorTag.value }}
+                />
+              )}
+              <span className="inline-flex items-center rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 print:bg-blue-50">
+                {applicability.label}
+              </span>
             </span>
           )}
 
