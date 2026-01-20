@@ -167,7 +167,12 @@ async function backfillDescriptionFromType(db: Firestore, clientId: string): Pro
       continue;
     }
 
-    // Use original type value (not trimmed) for the migration
+    // Use original type value (not trimmed) for the migration.
+    // NOTE: We intentionally only update `description`, not `type`. This is because:
+    // 1. `type` still has the original value and old code continues to work
+    // 2. `description` now has the same value as `type` (the canonical field)
+    // 3. New code reads from `description` with fallback to `type`
+    // 4. Going forward, writes update both fields to keep them in sync
     batch.update(doc.ref, {
       description: data.type,
       updatedAt: FieldValue.serverTimestamp(),
@@ -181,6 +186,8 @@ async function backfillDescriptionFromType(db: Firestore, clientId: string): Pro
         console.info("[migration] Committed batch of %d updates", batchSize);
       } catch (error) {
         console.error("[migration] Batch commit failed:", error);
+        // Firestore batches are atomic - if commit fails, ALL operations in the batch are rolled back.
+        // Therefore, counting all batchSize operations as errors is correct.
         stats.errors += batchSize;
       }
       batch = db.batch();
@@ -195,6 +202,7 @@ async function backfillDescriptionFromType(db: Firestore, clientId: string): Pro
       console.info("[migration] Committed final batch of %d updates", batchSize);
     } catch (error) {
       console.error("[migration] Final batch commit failed:", error);
+      // Firestore batches are atomic - if commit fails, ALL operations are rolled back
       stats.errors += batchSize;
     }
   }

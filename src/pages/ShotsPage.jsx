@@ -2310,6 +2310,7 @@ export function ShotsWorkspace() {
       await updateShot(editingShot.shot, {
         name: parsed.name,
         description: parsed.description || "",
+        type: parsed.description || "",  // Keep in sync with description for backward compat
         date: parsed.date || "",
         locationId: parsed.locationId || null,
         talent: parsed.talent,
