@@ -1,5 +1,6 @@
 import React from "react";
 import type { CallSheetHeaderItem, CallSheetTextStyle } from "../../../types/callsheet";
+import type { CallSheetDayDetails } from "../types";
 import { resolveCallSheetVariable } from "../../../lib/callsheet/variables";
 import { sanitizeHtml, hasRichContent } from "../../../lib/sanitizeHtml";
 
@@ -23,6 +24,7 @@ interface CallSheetHeaderProps {
   centerShape?: CenterShape;
   headerItems?: HeaderItemsLayout;
   variableContext?: Record<string, string>;
+  dayDetails?: CallSheetDayDetails | null;
 }
 
 interface CallSheetHeaderCompactProps {
@@ -47,6 +49,75 @@ function formatCrewCall(time: string | null) {
     time: `${hour12}:${m.toString().padStart(2, "0")}`,
     period,
   };
+}
+
+/**
+ * Format time from HH:MM to 12h display format with AM/PM.
+ */
+function formatTime12h(time: string | null | undefined): string {
+  if (!time) return "";
+  const [hRaw, mRaw] = time.split(":");
+  const h = Number(hRaw);
+  const m = Number(mRaw);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return time;
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${hour12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+/**
+ * CallTimesBox - SetHero-style call times box for header right column.
+ * Only renders rows that have values. Renders nothing if no rows have values.
+ */
+interface CallTimeRow {
+  label: string;
+  time: string;
+}
+
+function CallTimesBox({ dayDetails }: { dayDetails: CallSheetDayDetails | null | undefined }) {
+  if (!dayDetails) return null;
+
+  // Build array of call time rows - only include those with values
+  const rows: CallTimeRow[] = [];
+
+  if (dayDetails.crewCallTime) {
+    rows.push({ label: "Crew Call", time: formatTime12h(dayDetails.crewCallTime) });
+  }
+  if (dayDetails.breakfastTime) {
+    rows.push({ label: "Breakfast", time: formatTime12h(dayDetails.breakfastTime) });
+  }
+  if (dayDetails.shootingCallTime) {
+    rows.push({ label: "Shooting Call", time: formatTime12h(dayDetails.shootingCallTime) });
+  }
+  if (dayDetails.firstMealTime) {
+    rows.push({ label: "Lunch", time: formatTime12h(dayDetails.firstMealTime) });
+  }
+  if (dayDetails.secondMealTime) {
+    rows.push({ label: "2nd Meal", time: formatTime12h(dayDetails.secondMealTime) });
+  }
+  if (dayDetails.estimatedWrap) {
+    rows.push({ label: "Est. Wrap", time: formatTime12h(dayDetails.estimatedWrap) });
+  }
+
+  // If no rows have values, render nothing
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="mt-2">
+      {rows.map((row, idx) => (
+        <div
+          key={row.label}
+          className="flex items-center justify-end gap-3 py-0.5 text-[11px]"
+        >
+          <span className="text-gray-600 font-medium">{row.label}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full border border-gray-400" />
+            <span className="text-gray-800 font-medium tabular-nums">{row.time}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -197,6 +268,7 @@ export function CallSheetHeader({
   centerShape = "circle",
   headerItems,
   variableContext,
+  dayDetails,
 }: CallSheetHeaderProps) {
   const { time, period } = formatCrewCall(crewCallTime);
 
@@ -234,9 +306,10 @@ export function CallSheetHeader({
             </div>
           </div>
 
-          {/* Right Column - Custom Items */}
+          {/* Right Column - Custom Items + Call Times */}
           <div className="min-w-0">
             {renderHeaderColumn(headerItems.right, variableContext, "right")}
+            <CallTimesBox dayDetails={dayDetails} />
           </div>
         </div>
       </header>
@@ -272,12 +345,13 @@ export function CallSheetHeader({
           </div>
         </div>
 
-        {/* Right Column - Date and Day */}
+        {/* Right Column - Date, Day, and Call Times */}
         <div className="text-right">
           <p className="text-lg font-medium text-gray-700">{date}</p>
           <p className="text-xl font-semibold text-gray-900">
             Day {dayNumber} of {totalDays}
           </p>
+          <CallTimesBox dayDetails={dayDetails} />
         </div>
       </div>
     </header>

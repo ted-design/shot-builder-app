@@ -208,7 +208,9 @@ export function useResolvedScheduleEntries(
         resolvedLocation: "",
         resolvedImage: null,
         resolvedImagePosition: undefined,
+        resolvedDescription: "",
         resolvedNotes: "",
+        resolvedTags: [],
         hasOverlap: false,
         overlapsWith: [],
       };
@@ -276,8 +278,13 @@ export function useResolvedScheduleEntries(
 
           const entryNotes = entry.notes ? stripHtml(entry.notes) : "";
           const shotNotes = shot.notes ? stripHtml(shot.notes) : "";
-          const shotDescriptionNotes = shot.description ? stripHtml(shot.description) : "";
-          const resolvedNotes = entryNotes || shotDescriptionNotes || shotNotes;
+          const shotDescription = shot.description ? stripHtml(shot.description) : "";
+          // Notes field: prioritize entry notes, then shot notes (not description)
+          const resolvedNotes = entryNotes || shotNotes;
+          // Description field: separate from notes for granular toggle control
+          const resolvedDescription = shotDescription;
+          // Tags: pass through from shot (array of {id, label, color})
+          const resolvedTags = Array.isArray(shot.tags) ? shot.tags : [];
 
           const shotImage = getPrimaryAttachmentWithStyle(shot);
           return {
@@ -294,7 +301,9 @@ export function useResolvedScheduleEntries(
               getShotImagePath(shot),
             resolvedImagePosition: shotImage?.objectPosition,
             description: "",
+            resolvedDescription,
             resolvedNotes,
+            resolvedTags,
           };
         }
       } else if (entry.type === "custom" && entry.customData) {

@@ -1,28 +1,8 @@
 import React, { useMemo } from "react";
-import {
-  Flag,
-  Star,
-  AlertTriangle,
-  Clock,
-  Camera,
-  User,
-  Zap,
-  Heart,
-} from "lucide-react";
 import type { CallSheetScheduleItem, CallSheetTrack } from "../../types";
+import type { ScheduleBlockFields } from "../../../../types/callsheet";
 import { getColorTag } from "../../../../types/schedule";
-
-// Icon component mapping for markers (matches MarkerPicker)
-const MARKER_ICON_MAP: Record<string, React.ElementType> = {
-  star: Star,
-  alert: AlertTriangle,
-  clock: Clock,
-  camera: Camera,
-  user: User,
-  zap: Zap,
-  heart: Heart,
-  flag: Flag,
-};
+import { MARKER_ICON_MAP } from "../../../../lib/markerIcons";
 
 /**
  * Format minutes from midnight to 12h display format.
@@ -69,6 +49,7 @@ function getTimeRangeDisplay(item: CallSheetScheduleItem): string {
 interface ScheduleBlockSectionProps {
   schedule: CallSheetScheduleItem[];
   tracks?: CallSheetTrack[];
+  blockFields?: ScheduleBlockFields | null;
 }
 
 /**
@@ -237,7 +218,17 @@ function getStartsLabel(itemStartMin: number | null | undefined, bandStartMin: n
   return `Starts ${formatMinutesTo12h(itemStartMin)}`;
 }
 
-export function ScheduleBlockSection({ schedule, tracks }: ScheduleBlockSectionProps) {
+export function ScheduleBlockSection({ schedule, tracks, blockFields }: ScheduleBlockSectionProps) {
+  // Default field visibility (all visible) if not provided
+  const fields = blockFields ?? {
+    showShotNumber: true,
+    showShotName: true,
+    showDescription: true,
+    showTalent: true,
+    showLocation: true,
+    showTags: true,
+    showNotes: true,
+  };
   // Build trackId -> name map for display
   const trackNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -488,6 +479,7 @@ export function ScheduleBlockSection({ schedule, tracks }: ScheduleBlockSectionP
                 MarkerIcon={MarkerIcon}
                 applicability={applicability}
                 category={category}
+                fields={fields}
               />
             );
           }
@@ -519,6 +511,7 @@ export function ScheduleBlockSection({ schedule, tracks }: ScheduleBlockSectionP
                     applicability={applicability}
                     category={category}
                     trackNameMap={trackNameMap}
+                    fields={fields}
                   />
                 </DurationRailWrapper>
               </div>
@@ -575,6 +568,7 @@ export function ScheduleBlockSection({ schedule, tracks }: ScheduleBlockSectionP
                     applicability={applicability}
                     category={category}
                     trackNameMap={trackNameMap}
+                    fields={fields}
                   />
                 </DurationRailWrapper>
               </div>
@@ -611,6 +605,7 @@ interface BlockProps {
   MarkerIcon: React.ElementType | null;
   applicability: { label: string | null; kind: string };
   category: string | null;
+  fields: ScheduleBlockFields;
 }
 
 /**
@@ -639,13 +634,18 @@ function DurationRailWrapper({
 /**
  * BannerBlock - Full-width banner for shared/all-track entries
  */
-function BannerBlock({ item, MarkerIcon, applicability, category }: BlockProps) {
+function BannerBlock({ item, MarkerIcon, applicability, category, fields }: BlockProps) {
   const categoryStyles = getCategoryStyles(category);
   const timeRange = getTimeRangeDisplay(item);
   const isDerived = item.timeSource === "derived";
 
   // Get color tag for accent styling
   const colorTag = getColorTag(item.colorKey);
+
+  // Banner display title - NOT affected by shot field toggles per requirements
+  // Banners/custom entries must always show their title regardless of shot toggles
+  // They use item.description which contains customData.title for custom entries
+  const displayTitle = item.description || null;
 
   return (
     <div
@@ -693,10 +693,12 @@ function BannerBlock({ item, MarkerIcon, applicability, category }: BlockProps) 
       {/* Separator line */}
       <div className={`flex-1 h-px ${categoryStyles.line}`} />
 
-      {/* Description */}
-      <div className="flex-shrink-0 text-sm font-semibold uppercase tracking-wide text-gray-700">
-        {item.description}
-      </div>
+      {/* Description (conditional based on fields, but banners usually always show title) */}
+      {displayTitle && (
+        <div className="flex-shrink-0 text-sm font-semibold uppercase tracking-wide text-gray-700">
+          {displayTitle}
+        </div>
+      )}
 
       {/* Separator line */}
       <div className={`flex-[0.3] h-px ${categoryStyles.line}`} />
@@ -726,13 +728,39 @@ interface RegularBlockProps extends BlockProps {
 /**
  * RegularBlock - Standard block for lane/single-track entries
  */
-function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap }: RegularBlockProps) {
+function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap, fields }: RegularBlockProps) {
   const trackName = item.trackId && trackNameMap[item.trackId] ? trackNameMap[item.trackId] : null;
   const timeRange = getTimeRangeDisplay(item);
   const isDerived = item.timeSource === "derived";
 
   // Get color tag for accent styling
   const colorTag = getColorTag(item.colorKey);
+
+  // Build display title based on field visibility
+  // Use separate fields (shotNumber, shotTitle) for fine-grained control
+  // IMPORTANT: Do NOT fall back to item.description - toggles must be authoritative
+  const displayTitle = (() => {
+    const parts: string[] = [];
+    if (fields.showShotNumber && item.shotNumber) {
+      parts.push(item.shotNumber);
+    }
+    if (fields.showShotName && item.shotTitle) {
+      parts.push(item.shotTitle);
+    }
+    // Return joined parts or null if both are hidden
+    // Never fall back to item.description - that would override toggle state
+    return parts.length > 0 ? parts.join(" — ") : null;
+  })();
+
+  // Check if we have any content to show
+  const showTalent = fields.showTalent && item.cast && item.cast !== "—";
+  // Notes uses showNotes toggle (not showDescription)
+  const showNotes = fields.showNotes && item.notes && item.notes !== "—";
+  // Description from shot.description (separate from notes)
+  const showDescription = fields.showDescription && item.shotDescription;
+  const showLocation = fields.showLocation && item.location;
+  // Tags from shot (array of {id, label, color})
+  const showTags = fields.showTags && Array.isArray(item.tags) && item.tags.length > 0;
 
   return (
     <div
@@ -813,27 +841,59 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap 
         </div>
       </div>
 
-      {/* Title / Description */}
-      <h4 className="text-sm font-medium text-gray-800 leading-snug">
-        {item.description}
-      </h4>
+      {/* Title row (conditional based on fields) */}
+      {displayTitle && (
+        <h4 className="text-sm font-medium text-gray-800 leading-snug">
+          {displayTitle}
+        </h4>
+      )}
 
-      {/* Optional: Cast & Notes */}
-      {(item.cast !== "—" || item.notes !== "—") && (
+      {/* Description from shot.description (conditional based on showDescription toggle) */}
+      {showDescription && (
+        <p className="mt-1 text-xs text-gray-600 leading-relaxed">
+          {item.shotDescription}
+        </p>
+      )}
+
+      {/* Tags from shot (conditional based on showTags toggle) */}
+      {showTags && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {item.tags!.map((tag) => (
+            <span
+              key={tag.id}
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium print:print-color-adjust-exact"
+              style={{
+                backgroundColor: `${tag.color}20`,
+                color: tag.color,
+                border: `1px solid ${tag.color}40`,
+              }}
+            >
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: tag.color }}
+              />
+              {tag.label}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Cast & Notes (conditional based on fields) */}
+      {(showTalent || showNotes) && (
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500">
-          {item.cast && item.cast !== "—" && (
+          {showTalent && (
             <span>Cast: {item.cast}</span>
           )}
-          {item.notes && item.notes !== "—" && (
+          {showNotes && (
             <span className="truncate max-w-[200px]" title={item.notes}>
-              {item.notes}
+              Notes: {item.notes}
             </span>
           )}
         </div>
       )}
 
-      {/* Location */}
-      {item.location && (
+      {/* Location (conditional based on fields) */}
+      {showLocation && item.location && (
         <div className="mt-1 text-[11px] text-gray-500">
           <span className="font-medium">{item.location.name}</span>
           {item.location.address && (

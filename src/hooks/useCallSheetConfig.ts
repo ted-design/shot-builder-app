@@ -4,6 +4,7 @@ import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from "fireba
 import { db } from "../lib/firebase";
 import { callSheetConfigPath } from "../lib/paths";
 import type { CallSheetConfig } from "../types/callsheet";
+import { CALL_SHEET_CONFIG_SCHEMA_VERSION, DEFAULT_SCHEDULE_BLOCK_FIELDS } from "../types/callsheet";
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { toast } from "../lib/toast";
 import { isDemoModeActive } from "../lib/flags";
@@ -13,6 +14,7 @@ function buildDefaultConfig(projectId: string, scheduleId: string): Omit<CallShe
   return {
     projectId,
     scheduleId,
+    schemaVersion: CALL_SHEET_CONFIG_SCHEMA_VERSION,
     headerLayout: "classic",
     headerElements: [],
     sections: [
@@ -37,10 +39,83 @@ function buildDefaultConfig(projectId: string, scheduleId: string): Omit<CallShe
       primaryText: "#FFFFFF",
       rowAlternate: "#F8FAFC",
     },
+    scheduleBlockFields: { ...DEFAULT_SCHEDULE_BLOCK_FIELDS },
     createdAt: null,
     updatedAt: null,
     createdBy: null,
   };
+}
+
+/**
+ * Computes a SAFE backfill patch for an existing config document.
+ *
+ * RULES (strictly enforced):
+ * 1. NEVER touch arrays at any depth (sections, headerElements, etc.)
+ * 2. NEVER overwrite existing keys - only add missing ones
+ * 3. For nested objects (like colors), backfill missing scalar keys ONE level deep
+ * 4. Returns empty object if nothing needs backfilling
+ *
+ * This ensures user-edited visibility toggles and section arrays are NEVER overwritten.
+ */
+export function computeSafeBackfillPatch(
+  existing: Record<string, unknown>,
+  defaults: Record<string, unknown>
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {};
+
+  for (const key of Object.keys(defaults)) {
+    const defaultValue = defaults[key];
+    const existingValue = existing[key];
+
+    // RULE: Never touch arrays
+    if (Array.isArray(defaultValue)) {
+      continue;
+    }
+
+    // If key is completely missing or null/undefined in existing doc
+    if (existingValue === undefined || existingValue === null) {
+      // Only backfill non-array values
+      patch[key] = defaultValue;
+      continue;
+    }
+
+    // Handle nested objects (one level deep only)
+    if (
+      typeof defaultValue === "object" &&
+      defaultValue !== null &&
+      typeof existingValue === "object" &&
+      existingValue !== null &&
+      !Array.isArray(existingValue)
+    ) {
+      const nestedPatch: Record<string, unknown> = {};
+      const existingObj = existingValue as Record<string, unknown>;
+      const defaultObj = defaultValue as Record<string, unknown>;
+
+      for (const nestedKey of Object.keys(defaultObj)) {
+        const nestedDefault = defaultObj[nestedKey];
+        const nestedExisting = existingObj[nestedKey];
+
+        // RULE: Never touch arrays, even nested ones
+        if (Array.isArray(nestedDefault)) {
+          continue;
+        }
+
+        // Only add if missing
+        if (nestedExisting === undefined || nestedExisting === null) {
+          nestedPatch[nestedKey] = nestedDefault;
+        }
+      }
+
+      // Only include nested patch if it has keys
+      if (Object.keys(nestedPatch).length > 0) {
+        // Merge with existing nested object
+        patch[key] = { ...existingObj, ...nestedPatch };
+      }
+    }
+    // If existing value exists and is not a nested object, leave it alone
+  }
+
+  return patch;
 }
 
 export function useCallSheetConfig(
@@ -77,6 +152,7 @@ export function useCallSheetConfig(
           id: snap.id,
           projectId,
           scheduleId,
+          schemaVersion: typeof data.schemaVersion === "number" ? data.schemaVersion : undefined,
           headerLayout: data.headerLayout ?? "classic",
           headerElements: Array.isArray(data.headerElements) ? data.headerElements : [],
           sections: Array.isArray(data.sections) ? data.sections : [],
@@ -86,6 +162,7 @@ export function useCallSheetConfig(
           temperatureFormat: data.temperatureFormat ?? "fahrenheit",
           showFooterLogo: data.showFooterLogo === true,
           colors: data.colors ?? { primary: "#0F172A", accent: "#2563EB", text: "#0F172A" },
+          scheduleBlockFields: data.scheduleBlockFields ?? { ...DEFAULT_SCHEDULE_BLOCK_FIELDS },
           createdAt: data.createdAt ?? null,
           updatedAt: data.updatedAt ?? null,
           createdBy: data.createdBy ?? null,
@@ -107,13 +184,31 @@ export function useCallSheetConfig(
       if (!clientId || !projectId || !scheduleId) throw new Error("Missing clientId/projectId/scheduleId");
       if (isDemoModeActive()) return { id: "default" };
       const ref = doc(db, ...callSheetConfigPath(projectId, scheduleId, clientId));
-      // Use transaction to atomically check-and-create, avoiding race conditions
-      // where concurrent calls could both pass existence check and duplicate writes
+      // Use transaction to atomically check-and-create OR backfill missing keys
       return await runTransaction(db, async (transaction) => {
         const snap = await transaction.get(ref);
+
         if (snap.exists()) {
+          // Doc exists: compute SAFE backfill patch (never touches arrays or existing values)
+          const existingData = snap.data() || {};
+          const defaults = buildDefaultConfig(projectId, scheduleId);
+          const patch = computeSafeBackfillPatch(
+            existingData as Record<string, unknown>,
+            defaults as unknown as Record<string, unknown>
+          );
+
+          // Only write if patch is non-empty
+          if (Object.keys(patch).length > 0) {
+            transaction.update(ref, {
+              ...patch,
+              updatedAt: serverTimestamp(),
+            });
+          }
+
           return { id: snap.id };
         }
+
+        // Doc doesn't exist: create with full defaults
         transaction.set(ref, {
           ...buildDefaultConfig(projectId, scheduleId),
           createdBy: user?.uid ?? null,

@@ -1,9 +1,16 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Clock, Trash2, ChevronDown, Check } from "lucide-react";
+import {
+  Clock,
+  Trash2,
+  ChevronDown,
+  Check,
+} from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { parseTimeToMinutes, minutesToTimeString } from "../../../lib/timeUtils";
 import { getColorTag } from "../../../types/schedule";
+import { MARKER_ICON_MAP } from "../../../lib/markerIcons";
 import ColorTagPicker from "./ColorTagPicker";
+import MarkerPicker from "./MarkerPicker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -79,6 +86,7 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
     const [editStartTime, setEditStartTime] = useState(entry.startTime || "");
     const [editDuration, setEditDuration] = useState(entry.duration || 30);
     const [editColorKey, setEditColorKey] = useState(entry.colorKey || null);
+    const [editMarker, setEditMarker] = useState(entry.marker || null);
     // Track selection: "all" means All Tracks, otherwise specific track ID
     const [editTrackId, setEditTrackId] = useState(
         entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
@@ -94,10 +102,11 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
         setEditStartTime(entry.startTime || "");
         setEditDuration(entry.duration || 30);
         setEditColorKey(entry.colorKey || null);
+        setEditMarker(entry.marker || null);
         setEditTrackId(
             entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
         );
-    }, [entry.customData?.title, entry.resolvedTitle, entry.startTime, entry.duration, entry.colorKey, entry.trackId]);
+    }, [entry.customData?.title, entry.resolvedTitle, entry.startTime, entry.duration, entry.colorKey, entry.marker, entry.trackId]);
 
     // Get the selected track for display
     const selectedTrack = editTrackId === "all" ? null : laneTracks.find(t => t.id === editTrackId);
@@ -156,6 +165,17 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
             updates.colorKey = editColorKey;
         }
 
+        // Handle marker updates
+        const currentMarker = entry.marker || null;
+        const newMarker = editMarker || null;
+        const markerChanged =
+            (currentMarker === null && newMarker !== null) ||
+            (currentMarker !== null && newMarker === null) ||
+            (currentMarker && newMarker && (currentMarker.icon !== newMarker.icon || currentMarker.color !== newMarker.color));
+        if (markerChanged) {
+            updates.marker = newMarker;
+        }
+
         if (Object.keys(updates).length > 0) {
             onUpdateEntry(entry.id, updates);
         }
@@ -171,6 +191,7 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
             setEditStartTime(entry.startTime || "");
             setEditDuration(entry.duration || 30);
             setEditColorKey(entry.colorKey || null);
+            setEditMarker(entry.marker || null);
             setEditTrackId(
                 entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
             );
@@ -294,6 +315,12 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
                         <span className="text-xs text-slate-500">Color:</span>
                         <ColorTagPicker value={editColorKey} onChange={setEditColorKey} />
                     </div>
+
+                    {/* Marker Picker */}
+                    <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
+                        <span className="text-xs text-slate-500">Marker:</span>
+                        <MarkerPicker value={editMarker} onChange={setEditMarker} />
+                    </div>
                 </div>
 
                 {/* Row 3: Actions (Right Aligned) */}
@@ -306,6 +333,7 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
                             setEditStartTime(entry.startTime || "");
                             setEditDuration(entry.duration || 30);
                             setEditColorKey(entry.colorKey || null);
+                            setEditMarker(entry.marker || null);
                             setEditTrackId(
                                 entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
                             );
@@ -361,9 +389,24 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
                 style={colorTag ? { backgroundColor: colorTag.value, opacity: 0.5 } : undefined}
             />
 
-            {/* Title */}
-            <div className="px-4 text-sm font-bold uppercase tracking-wide text-slate-700 whitespace-nowrap">
-                {entry.resolvedTitle}
+            {/* Title + Marker */}
+            <div className="px-4 flex items-center gap-2">
+                <span className="text-sm font-bold uppercase tracking-wide text-slate-700 whitespace-nowrap">
+                    {entry.resolvedTitle}
+                </span>
+                {/* Marker indicator */}
+                {entry.marker && (() => {
+                    const MarkerIcon = MARKER_ICON_MAP[entry.marker.icon];
+                    return MarkerIcon ? (
+                        <div
+                            className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: entry.marker.color }}
+                            title={`Marker: ${entry.marker.icon}`}
+                        >
+                            <MarkerIcon className="w-3 h-3 text-white" />
+                        </div>
+                    ) : null;
+                })()}
             </div>
 
             {/* Right Connector */}

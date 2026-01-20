@@ -19,13 +19,29 @@ export interface CallSheetScheduleLocation {
   address: string;
 }
 
+/** Tag object from shot data */
+export interface CallSheetTag {
+  id: string;
+  label: string;
+  color: string;
+}
+
 export interface CallSheetScheduleItem {
   id: string;
   /** Display-formatted time (e.g., "7:00 AM") */
   time: string;
   /** Display-formatted duration (e.g., "30m") */
   duration: string;
+  /** Combined shot number + title (for backward compatibility) */
   description: string;
+  /** Shot number (e.g., "A001") for conditional rendering */
+  shotNumber?: string | null;
+  /** Shot title for conditional rendering */
+  shotTitle?: string | null;
+  /** Shot description text (from shot.description field) */
+  shotDescription?: string | null;
+  /** Tags from shot (color-coded labels) */
+  tags?: CallSheetTag[];
   cast: string;
   notes: string;
   location: CallSheetScheduleLocation | null;
