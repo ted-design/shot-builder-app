@@ -200,6 +200,7 @@ function CallSheetExportModal({
 }) {
   const printPortalRef = useRef(null);
   const printRootRef = useRef(null);
+  const fallbackCleanupTimerRef = useRef(null);
 
   // Build modern data for print portal (mirrors PreviewPanel)
   const modernColors = useMemo(() => getModernColors(callSheetConfig), [callSheetConfig]);
@@ -221,6 +222,10 @@ function CallSheetExportModal({
   // Cleanup print portal on unmount
   useEffect(() => {
     return () => {
+      if (fallbackCleanupTimerRef.current) {
+        clearTimeout(fallbackCleanupTimerRef.current);
+        fallbackCleanupTimerRef.current = null;
+      }
       if (printRootRef.current) {
         printRootRef.current.unmount();
         printRootRef.current = null;
@@ -241,54 +246,87 @@ function CallSheetExportModal({
     const body = document?.body;
     if (!body) return;
 
-    // Create print portal container
-    const portalContainer = document.createElement("div");
-    portalContainer.id = "callsheet-print-portal";
-    portalContainer.setAttribute("data-callsheet-print-portal", "1");
-    body.appendChild(portalContainer);
-    printPortalRef.current = portalContainer;
+    try {
+      // Create print portal container
+      const portalContainer = document.createElement("div");
+      portalContainer.id = "callsheet-print-portal";
+      portalContainer.setAttribute("data-callsheet-print-portal", "1");
+      body.appendChild(portalContainer);
+      printPortalRef.current = portalContainer;
 
-    // Create React root and render CallSheetPreview
-    const root = createRoot(portalContainer);
-    printRootRef.current = root;
+      // Create React root and render CallSheetPreview
+      const root = createRoot(portalContainer);
+      printRootRef.current = root;
 
-    root.render(
-      <CallSheetPreviewModern
-        data={modernData}
-        colors={modernColors}
-        showMobile={false}
-        zoom={100}
-        layoutV2={layoutV2}
-        sections={sections}
-        columnConfig={columnConfig}
-        scheduleBlockFields={callSheetConfig?.scheduleBlockFields}
-      />
-    );
+      root.render(
+        <CallSheetPreviewModern
+          data={modernData}
+          colors={modernColors}
+          showMobile={false}
+          zoom={100}
+          layoutV2={layoutV2}
+          sections={sections}
+          columnConfig={columnConfig}
+          scheduleBlockFields={callSheetConfig?.scheduleBlockFields}
+        />
+      );
 
-    // Cleanup function for after printing
-    const cleanup = () => {
-      body.removeAttribute("data-callsheet-printing");
-      window.removeEventListener("afterprint", cleanup);
+      // Cleanup function for after printing
+      const cleanup = () => {
+        body.removeAttribute("data-callsheet-printing");
+        window.removeEventListener("afterprint", cleanup);
 
-      // Unmount and remove portal after a brief delay to ensure print completes
-      window.setTimeout(() => {
-        if (printRootRef.current) {
+        // Clear fallback timer since afterprint fired
+        if (fallbackCleanupTimerRef.current) {
+          clearTimeout(fallbackCleanupTimerRef.current);
+          fallbackCleanupTimerRef.current = null;
+        }
+
+        // Unmount and remove portal after a brief delay to ensure print completes
+        window.setTimeout(() => {
+          if (printRootRef.current) {
+            printRootRef.current.unmount();
+            printRootRef.current = null;
+          }
+          if (printPortalRef.current) {
+            printPortalRef.current.remove();
+            printPortalRef.current = null;
+          }
+        }, 100);
+      };
+
+      window.addEventListener("afterprint", cleanup);
+      body.setAttribute("data-callsheet-printing", "1");
+      onClose?.();
+
+      // Fallback cleanup timer in case afterprint never fires (e.g., user cancels dialog)
+      // 30 seconds should be enough for any reasonable print operation
+      fallbackCleanupTimerRef.current = window.setTimeout(cleanup, 30000);
+
+      // Wait for React to render using double requestAnimationFrame for robustness
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          window.print();
+        });
+      });
+    } catch (error) {
+      console.error("Print portal creation failed:", error);
+
+      // Cleanup any partial state on error
+      if (printRootRef.current) {
+        try {
           printRootRef.current.unmount();
-          printRootRef.current = null;
+        } catch {
+          // Ignore unmount errors
         }
-        if (printPortalRef.current) {
-          printPortalRef.current.remove();
-          printPortalRef.current = null;
-        }
-      }, 100);
-    };
-
-    window.addEventListener("afterprint", cleanup);
-    body.setAttribute("data-callsheet-printing", "1");
-    onClose?.();
-
-    // Wait for React to render, then print
-    window.setTimeout(() => window.print(), 100);
+        printRootRef.current = null;
+      }
+      if (printPortalRef.current) {
+        printPortalRef.current.remove();
+        printPortalRef.current = null;
+      }
+      body.removeAttribute("data-callsheet-printing");
+    }
   }, [onClose, modernData, modernColors, layoutV2, sections, columnConfig, callSheetConfig?.scheduleBlockFields]);
 
   if (!isOpen) return null;

@@ -708,7 +708,7 @@ function BannerBlock({ item, MarkerIcon, applicability, category, fields }: Bloc
         <span className="flex-shrink-0 inline-flex items-center gap-1.5">
           {colorTag && (
             <span
-              className="inline-block h-2 w-2 rounded-full flex-shrink-0 "
+              className="inline-block h-2 w-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: colorTag.value }}
             />
           )}
@@ -809,7 +809,7 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap,
             <span className="inline-flex items-center gap-1">
               {colorTag && (
                 <span
-                  className="inline-block h-2 w-2 rounded-full flex-shrink-0 "
+                  className="inline-block h-2 w-2 rounded-full flex-shrink-0"
                   style={{ backgroundColor: colorTag.value }}
                 />
               )}
@@ -824,7 +824,7 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap,
             <span className="inline-flex items-center gap-1">
               {!trackName && colorTag && (
                 <span
-                  className="inline-block h-2 w-2 rounded-full flex-shrink-0 "
+                  className="inline-block h-2 w-2 rounded-full flex-shrink-0"
                   style={{ backgroundColor: colorTag.value }}
                 />
               )}
@@ -861,7 +861,7 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap,
           {item.tags!.map((tag) => (
             <span
               key={tag.id}
-              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium "
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
               style={{
                 backgroundColor: `${tag.color}20`,
                 color: tag.color,
