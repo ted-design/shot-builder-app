@@ -15,6 +15,11 @@ import CallSheetPreviewLegacy from "../vertical/CallSheetPreview";
 import { CallSheetPreview as CallSheetPreviewModern } from "../../schedule/preview/CallSheetPreview";
 import { deriveLocationsFromLegacy, locationBlockHasContent } from "../../../lib/callsheet/deriveLocationsFromLegacy";
 import { buildScheduleProjection } from "../../../lib/callsheet/buildScheduleProjection";
+import { parseTimeToMinutes, minutesToTimeString } from "../../../lib/timeUtils";
+import {
+  computeEffectiveCrewCallDisplay,
+  timeStringToMinutes,
+} from "../../../lib/time/crewCallEffective";
 
 function toDate(value) {
   if (!value) return null;
@@ -46,6 +51,7 @@ function formatTime12h(value) {
   const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return `${hour12}:${m.toString().padStart(2, "0")} ${period}`;
 }
+
 
 function getModernColors(callSheetConfig) {
   const raw = callSheetConfig?.colors && typeof callSheetConfig.colors === "object" ? callSheetConfig.colors : {};
@@ -226,16 +232,35 @@ function buildModernCallSheetData({
     notes: row?.remarks ? String(row.remarks) : "",
   }));
 
-  const crewMapped = (crewRows || []).map((row) => ({
-    id: String(row?.crewMemberId || row?.id || row?.name || Math.random()),
-    department: row?.department ? String(row.department) : "",
-    role: row?.role ? String(row.role) : "",
-    name: row?.name ? String(row.name) : "—",
-    callTime: row?.callTime ? String(row.callTime) : row?.callText ? String(row.callText) : row?.defaultCall ? String(row.defaultCall) : "",
-    notes: row?.notes ? String(row.notes) : "",
-    phone: row?.phone || null,
-    email: row?.email || null,
-  }));
+  const crewMapped = (crewRows || []).map((row) => {
+    // Extract values for the shared helper
+    const callText = row?.callText ? String(row.callText).trim() : null;
+    const callTime = row?.callTime ? String(row.callTime).trim() : null;
+    const defaultCall = row?.defaultCall ? String(row.defaultCall).trim() : null;
+    const offsetDirection = row?.callOffsetDirection || null;
+    const offsetMinutes = row?.callOffsetMinutes || null;
+
+    // Use shared helper for effective display with prev-day support
+    const effectiveResult = computeEffectiveCrewCallDisplay({
+      baseMinutes: timeStringToMinutes(defaultCall),
+      absoluteCallMinutes: timeStringToMinutes(callTime),
+      callText,
+      offsetDirection,
+      offsetMinutes,
+    });
+
+    return {
+      id: String(row?.crewMemberId || row?.id || row?.name || Math.random()),
+      department: row?.department ? String(row.department) : "",
+      role: row?.role ? String(row.role) : "",
+      name: row?.name ? String(row.name) : "—",
+      callTime: effectiveResult.display,
+      isPrevDay: effectiveResult.isPrevDay,
+      notes: row?.notes ? String(row.notes) : "",
+      phone: row?.phone || null,
+      email: row?.email || null,
+    };
+  });
 
   // DEV-ONLY: expand crew for density testing when ?mockCrew=1
   const crew = expandCrewForDensityTest(crewMapped);
@@ -297,9 +322,10 @@ export default function PreviewPanel({
   callSheetConfig,
   layoutV2,
   onUpdateCallSheetConfig,
+  isWorkspaceFullscreen = false,
+  onToggleWorkspaceFullscreen,
 }) {
   const panelRef = useRef(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoomPercent, setZoomPercent] = useState(100);
   const [refreshNonce, setRefreshNonce] = useState(0);
   // Note: showImages state kept for legacy preview compatibility
@@ -427,16 +453,6 @@ export default function PreviewPanel({
   const maxZoom = 200;
   const step = 10;
 
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
-    };
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    handleFullscreenChange();
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    };
-  }, []);
 
   const handleZoomOut = useCallback(() => {
     setZoomPercent((prev) => Math.max(minZoom, prev - step));
@@ -475,22 +491,11 @@ export default function PreviewPanel({
     window.open(shareUrl, "_blank", "noopener,noreferrer");
   }, [shareUrl]);
 
-  const handleToggleFullscreen = useCallback(async () => {
-    if (typeof document === "undefined") return;
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-        return;
-      }
-      if (panelRef.current?.requestFullscreen) {
-        await panelRef.current.requestFullscreen();
-        return;
-      }
-      toast.info({ title: "Fullscreen not supported" });
-    } catch {
-      toast.error({ title: "Failed to enter fullscreen" });
+  const handleToggleFullscreen = useCallback(() => {
+    if (typeof onToggleWorkspaceFullscreen === "function") {
+      onToggleWorkspaceFullscreen();
     }
-  }, []);
+  }, [onToggleWorkspaceFullscreen]);
 
   const modernColors = useMemo(() => getModernColors(callSheetConfig), [callSheetConfig]);
   const modernData = useMemo(
@@ -575,7 +580,7 @@ export default function PreviewPanel({
             className="h-8 px-3 text-xs"
             onClick={handleToggleFullscreen}
           >
-            {isFullscreen ? (
+            {isWorkspaceFullscreen ? (
               <>
                 <Minimize2 className="h-3.5 w-3.5 mr-1.5" />
                 Exit

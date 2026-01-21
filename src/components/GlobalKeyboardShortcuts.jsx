@@ -16,7 +16,7 @@
  */
 
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMatch, useNavigate } from 'react-router-dom';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useProjectScope } from '../context/ProjectScopeContext';
 import { useSearchCommand } from '../context/SearchCommandContext';
@@ -29,20 +29,23 @@ import { toast } from '../lib/toast';
 export default function GlobalKeyboardShortcuts() {
   const navigate = useNavigate();
   const { currentProjectId } = useProjectScope();
+  const projectMatch = useMatch('/projects/:projectId/*');
+  const routeProjectId = projectMatch?.params?.projectId || null;
+  const effectiveProjectId = routeProjectId || currentProjectId;
   const { openSearch, openSearchForShortcuts } = useSearchCommand();
 
   // Navigation handlers with context awareness
   const navigateToShots = useCallback(() => {
-    if (!currentProjectId) {
+    if (!effectiveProjectId) {
       toast.info({
         title: 'Please select a project first',
         description: 'Shots require an active project context'
       });
       navigate('/projects');
     } else {
-      navigate(`/projects/${currentProjectId}/shots`);
+      navigate(`/projects/${effectiveProjectId}/shots`);
     }
-  }, [currentProjectId, navigate]);
+  }, [effectiveProjectId, navigate]);
 
   const navigateToDashboard = useCallback(() => {
     navigate('/projects');

@@ -2,7 +2,6 @@ import React, { useMemo, useState, useCallback } from "react";
 import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
-import { useProjectScope } from "../../context/ProjectScopeContext";
 import { useTalent } from "../../hooks/useFirestoreQuery";
 import { canManageTalent } from "../../lib/rbac";
 import { Button } from "../ui/button";
@@ -61,10 +60,17 @@ function Table({ rows, onRemove, disabled = false }) {
   );
 }
 
+/**
+ * ScopedTalentList
+ * Displays talent for a given scope (project or org).
+ *
+ * CRITICAL: Uses scope.projectId as single source of truth.
+ * Does NOT fall back to context - scope prop must be fully specified by parent.
+ */
 export default function ScopedTalentList({ scope }) {
   const { clientId, role: globalRole } = useAuth();
-  const { currentProjectId } = useProjectScope();
-  const projectId = scope?.type === "project" ? scope.projectId : currentProjectId;
+  // Use scope.projectId directly - no fallback to context
+  const projectId = scope?.type === "project" ? scope.projectId : null;
   const canEdit = canManageTalent(globalRole);
 
   const { data: projectTalent = [], isLoading } = useTalent(clientId, {

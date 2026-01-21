@@ -120,15 +120,14 @@ import {
   FilterMenu,
 } from "../components/overview";
 
-const PlannerPage = lazy(() => import("./PlannerPage"));
 const CallSheetEmbed = lazy(() => import("../components/callsheet/CallSheetEmbed"));
 const PlannerExportModal = lazy(() => import("../components/planner/PlannerExportModal"));
 
-// Import export normalization helpers from PlannerPage
+// Import export normalization helpers (extracted from PlannerPage)
 import {
   groupShotsByLane,
   buildPlannerExportLanes,
-} from "./PlannerPage";
+} from "../lib/plannerExportHelpers";
 import { stripHtml } from "../lib/stripHtml";
 import { VirtualizedGrid } from "../components/ui/VirtualizedList";
 import { ButtonGroup } from "../components/ui/ButtonGroup";
@@ -147,6 +146,7 @@ import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import { toast, showConfirm } from "../lib/toast";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
+import { applyShotTextFieldSanitization } from "../lib/shotPatchBuilder";
 import AppImage from "../components/common/AppImage";
 import { z } from "zod";
 import { createProductFamily, createProductColourway } from "../lib/productMutations";
@@ -433,12 +433,9 @@ export function ShotsWorkspace() {
   const focusShotId = overview?.focusShotId ?? null;
   const setFocusShotId = overview?.setFocusShotId ?? (() => {});
   const navigate = useNavigate();
-  const { projectId: urlProjectId } = useParams();
-  const { currentProjectId, ready: scopeReady, setLastVisitedPath } = useProjectScope();
+  const { projectId } = useParams();
+  const { setLastVisitedPath } = useProjectScope();
   const redirectNotifiedRef = useRef(false);
-  // Use URL param as primary source of truth (available immediately on navigation)
-  // Fall back to context for cases where URL param isn't available
-  const projectId = urlProjectId || currentProjectId;
   const { clientId, role: globalRole, projectRoles = {}, user, claims } = useAuth();
 
   // TanStack Query hooks for data fetching with intelligent caching
@@ -507,7 +504,6 @@ export function ShotsWorkspace() {
   }, [setLastVisitedPath]);
 
   useEffect(() => {
-    if (!scopeReady) return;
     if (!projectId) {
       if (!redirectNotifiedRef.current) {
         redirectNotifiedRef.current = true;
@@ -517,7 +513,7 @@ export function ShotsWorkspace() {
       return;
     }
     redirectNotifiedRef.current = false;
-  }, [scopeReady, projectId, navigate]);
+  }, [projectId, navigate]);
 
   const talentOptions = useMemo(
     () =>
@@ -1126,7 +1122,7 @@ export function ShotsWorkspace() {
       sortedShots.map((shot) => {
         const products = normaliseShotProducts(shot);
         const talentSelection = mapShotTalentToSelection(shot);
-        const notesHtml = formatNotesForDisplay(shot.description);
+        const notesHtml = formatNotesForDisplay(shot.notes);
         const locationName =
           shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
 
@@ -1538,21 +1534,8 @@ export function ShotsWorkspace() {
       locationId: shot.locationId || null,
     };
 
-    const docPatch = { ...patch };
-
-    if (Object.prototype.hasOwnProperty.call(patch, "description")) {
-      const html = sanitizeNotesHtml(patch.description || "");
-      docPatch.description = html;
-      docPatch.notes = html;
-    }
-
-    if (Object.prototype.hasOwnProperty.call(patch, "notes")) {
-      const html = sanitizeNotesHtml(patch.notes || "");
-      docPatch.notes = html;
-      if (!Object.prototype.hasOwnProperty.call(docPatch, "description")) {
-        docPatch.description = html;
-      }
-    }
+    // Use tested helper to sanitize notes/description (prevents cross-field coupling)
+    const docPatch = applyShotTextFieldSanitization({ ...patch }, sanitizeNotesHtml);
 
     if (Object.prototype.hasOwnProperty.call(patch, "status")) {
       docPatch.status = normaliseShotStatus(patch.status);
@@ -3475,7 +3458,7 @@ export function ShotsWorkspace() {
                   renderShot={(shot, index) => {
                     const shotProducts = normaliseShotProducts(shot);
                     const shotTalentSelection = mapShotTalentToSelection(shot);
-                    const notesHtml = formatNotesForDisplay(shot.description);
+                    const notesHtml = formatNotesForDisplay(shot.notes);
                     const locationName =
                       shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
                     return (
@@ -3514,7 +3497,7 @@ export function ShotsWorkspace() {
                   renderItem={(shot, index, isVirtualized) => {
                     const shotProducts = normaliseShotProducts(shot);
                     const shotTalentSelection = mapShotTalentToSelection(shot);
-                    const notesHtml = formatNotesForDisplay(shot.description);
+                    const notesHtml = formatNotesForDisplay(shot.notes);
                     const locationName =
                       shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
                     return (
@@ -3555,7 +3538,7 @@ export function ShotsWorkspace() {
                   tableOrderedShots.map((shot) => {
                     const products = normaliseShotProducts(shot);
                     const talentSelection = mapShotTalentToSelection(shot);
-                    const notesHtml = formatNotesForDisplay(shot.description);
+                    const notesHtml = formatNotesForDisplay(shot.notes);
                     const locationName = shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
                     return { shot, products, talent: talentSelection, notesHtml, locationName };
                   })

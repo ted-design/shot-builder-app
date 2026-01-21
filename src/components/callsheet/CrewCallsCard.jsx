@@ -14,7 +14,14 @@ import { useOrganizationCrew } from "../../hooks/useOrganizationCrew";
 import { useProjectCrew } from "../../hooks/useProjectCrew";
 import { useCrewCalls } from "../../hooks/useCrewCalls";
 import { useProjectDepartments } from "../../hooks/useProjectDepartments";
-import { parseTimeToMinutes } from "../../lib/timeUtils";
+import { parseTimeToMinutes, minutesToTimeString } from "../../lib/timeUtils";
+import {
+  isTimeString,
+  isAmbiguousTimeInput,
+  parseTimeInputToMinutes,
+  computeEffectiveCrewCallDisplay,
+  timeStringToMinutes,
+} from "../../lib/time/crewCallEffective";
 import {
   GripVertical,
   Eye,
@@ -34,11 +41,6 @@ import {
   ArrowDown,
   List,
 } from "lucide-react";
-
-function isTimeString(value) {
-  if (!value) return false;
-  return /^\d{1,2}:\d{2}$/.test(String(value).trim());
-}
 
 function getTimeDeltaMinutes(baseTime, overrideTime) {
   if (!isTimeString(baseTime) || !isTimeString(overrideTime)) return null;
@@ -61,6 +63,7 @@ function getDeltaTag(deltaMinutes) {
   if (deltaMinutes < 0) return { label: `EARLY ${Math.abs(deltaMinutes)}m`, tone: "blue" };
   return { label: `DELAY ${Math.abs(deltaMinutes)}m`, tone: "amber" };
 }
+
 
 function DeltaBadge({ deltaMinutes }) {
   const deltaLabel = formatDelta(deltaMinutes);
@@ -97,88 +100,218 @@ function CrewMemberRow({
   onClear,
   readOnly,
   positionName,
+  offsetDirection,
+  offsetMinutes,
+  onOffsetDirectionChange,
+  onOffsetMinutesChange,
+  onApplyOffset,
 }) {
   const name = member
     ? `${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unnamed"
     : `Missing (${assignment.crewMemberId})`;
 
-  const inherited = draft.trim() || (generalCrewCallTime ? String(generalCrewCallTime).trim() : "");
-  const delta = getTimeDeltaMinutes(generalCrewCallTime, inherited);
-  const hasPrecall = !!draft.trim();
+  // Check if there's an absolute override (typed time or text)
+  const hasAbsoluteOverride = !!draft.trim();
+  const isTextOverride = hasAbsoluteOverride && !isTimeString(draft.trim());
+
+  // Check if offset is configured
+  const hasOffset = !!offsetDirection && offsetMinutes > 0;
+
+  // Compute base minutes from generalCrewCallTime
+  const baseMinutes = timeStringToMinutes(generalCrewCallTime);
+
+  // Compute absolute override minutes (if draft is a valid time)
+  const absoluteCallMinutes = hasAbsoluteOverride && isTimeString(draft.trim())
+    ? timeStringToMinutes(draft.trim())
+    : null;
+
+  // Use shared helper for effective display
+  const effectiveResult = computeEffectiveCrewCallDisplay({
+    baseMinutes,
+    absoluteCallMinutes,
+    callText: isTextOverride ? draft.trim() : null,
+    offsetDirection: hasAbsoluteOverride ? null : offsetDirection, // Absolute override clears offset
+    offsetMinutes: hasAbsoluteOverride ? null : offsetMinutes,
+  });
+
+  const displayTime = effectiveResult.display;
+  const delta = effectiveResult.deltaMinutes;
+  const isPrevDay = effectiveResult.isPrevDay;
+
+  const hasPrecall = hasAbsoluteOverride || hasOffset;
 
   return (
-    <div className="group flex items-center gap-2 px-3 py-1.5 min-h-[40px] border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-      {/* Drag handle */}
-      <GripVertical className="h-4 w-4 text-slate-300 dark:text-slate-600 cursor-grab flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+    <div className="group flex flex-col gap-1.5 px-3 py-2 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+      {/* Main row */}
+      <div className="flex items-center gap-2 min-h-[32px]">
+        {/* Drag handle */}
+        <GripVertical className="h-4 w-4 text-slate-300 dark:text-slate-600 cursor-grab flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
 
-      {/* Role + Name stacked */}
-      <div className="min-w-0 flex-1">
-        <div className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate">
-          {positionName || "Crew"}
+        {/* Role + Name stacked */}
+        <div className="min-w-0 flex-1">
+          <div className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate">
+            {positionName || "Crew"}
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+            {name}
+          </div>
         </div>
-        <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-          {name}
+
+        {/* Contact icons */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {showEmails && member?.email ? (
+            <a
+              href={`mailto:${member.email}`}
+              className="text-blue-500 hover:text-blue-600 transition-colors"
+              title={member.email}
+            >
+              <Mail className="h-3.5 w-3.5" />
+            </a>
+          ) : showEmails ? (
+            <Mail className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600" />
+          ) : null}
+
+          {showPhones && member?.phone ? (
+            <a
+              href={`tel:${member.phone}`}
+              className="text-blue-500 hover:text-blue-600 transition-colors"
+              title={member.phone}
+            >
+              <Phone className="h-3.5 w-3.5" />
+            </a>
+          ) : showPhones ? (
+            <Phone className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600" />
+          ) : null}
         </div>
-      </div>
 
-      {/* Contact icons */}
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        {showEmails && member?.email ? (
-          <a
-            href={`mailto:${member.email}`}
-            className="text-blue-500 hover:text-blue-600 transition-colors"
-            title={member.email}
-          >
-            <Mail className="h-3.5 w-3.5" />
-          </a>
-        ) : showEmails ? (
-          <Mail className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600" />
-        ) : null}
+        {/* Delta badge */}
+        <div className="w-20 flex-shrink-0">
+          <DeltaBadge deltaMinutes={delta} />
+        </div>
 
-        {showPhones && member?.phone ? (
-          <a
-            href={`tel:${member.phone}`}
-            className="text-blue-500 hover:text-blue-600 transition-colors"
-            title={member.phone}
-          >
-            <Phone className="h-3.5 w-3.5" />
-          </a>
-        ) : showPhones ? (
-          <Phone className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600" />
-        ) : null}
-      </div>
+        {/* Derived time display (read-only) */}
+        <div className="w-20 text-center flex-shrink-0">
+          <div className="flex flex-col items-center">
+            <span className={[
+              "text-sm font-medium",
+              hasPrecall
+                ? "text-slate-800 dark:text-slate-200"
+                : "text-slate-400 dark:text-slate-500"
+            ].join(" ")}>
+              {displayTime || "—"}
+            </span>
+            {isPrevDay && (
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                Prev day
+              </span>
+            )}
+          </div>
+        </div>
 
-      {/* Delta badge */}
-      <div className="w-20 flex-shrink-0">
-        <DeltaBadge deltaMinutes={delta} />
-      </div>
-
-      {/* Call time input */}
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        <input
-          value={draft}
-          onChange={(e) => onDraftChange(e.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.currentTarget.blur();
-            }
-          }}
-          onBlur={onApply}
-          placeholder={generalCrewCallTime ? generalCrewCallTime : "HH:MM"}
-          disabled={readOnly}
-          className="w-20 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-sm text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-        />
+        {/* Clear button */}
         {hasPrecall ? (
           <button
             type="button"
             onClick={onClear}
             disabled={readOnly}
-            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-50"
+            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-50 flex-shrink-0"
             title="Clear precall"
           >
             <X className="h-3.5 w-3.5" />
           </button>
-        ) : null}
+        ) : (
+          <div className="w-6 flex-shrink-0" />
+        )}
+      </div>
+
+      {/* Offset controls row */}
+      <div className="flex items-center gap-2 ml-6">
+        {/* Offset direction toggle (Early / Delay) */}
+        <div className="flex rounded-md border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => {
+              if (readOnly) return;
+              onOffsetDirectionChange(offsetDirection === "early" ? null : "early");
+            }}
+            disabled={readOnly || hasAbsoluteOverride}
+            className={[
+              "px-2 py-1 text-xs font-medium transition-colors",
+              offsetDirection === "early"
+                ? "bg-blue-500 text-white"
+                : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700",
+              (readOnly || hasAbsoluteOverride) ? "opacity-50 cursor-not-allowed" : "",
+            ].join(" ")}
+            title="Set earlier than crew call"
+          >
+            Early
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (readOnly) return;
+              onOffsetDirectionChange(offsetDirection === "delay" ? null : "delay");
+            }}
+            disabled={readOnly || hasAbsoluteOverride}
+            className={[
+              "px-2 py-1 text-xs font-medium transition-colors border-l border-slate-200 dark:border-slate-700",
+              offsetDirection === "delay"
+                ? "bg-amber-500 text-white"
+                : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700",
+              (readOnly || hasAbsoluteOverride) ? "opacity-50 cursor-not-allowed" : "",
+            ].join(" ")}
+            title="Set later than crew call"
+          >
+            Delay
+          </button>
+        </div>
+
+        {/* Minutes input */}
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            min="0"
+            max="180"
+            step="5"
+            value={offsetMinutes || ""}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              onOffsetMinutesChange(Number.isFinite(val) && val >= 0 ? val : 0);
+            }}
+            onBlur={onApplyOffset}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.currentTarget.blur();
+              }
+            }}
+            placeholder="0"
+            disabled={readOnly || hasAbsoluteOverride || !offsetDirection}
+            className="w-14 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          />
+          <span className="text-xs text-slate-500 dark:text-slate-400">min</span>
+        </div>
+
+        {/* Separator */}
+        <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+
+        {/* Absolute override input */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-slate-500 dark:text-slate-400">or</span>
+          <input
+            value={draft}
+            onChange={(e) => onDraftChange(e.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.currentTarget.blur();
+              }
+            }}
+            onBlur={onApply}
+            placeholder={generalCrewCallTime ? generalCrewCallTime : "6:17 AM"}
+            disabled={readOnly}
+            className="w-20 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            title="Override: type time (6:17 AM) or text (OFF)"
+          />
+        </div>
       </div>
     </div>
   );
@@ -191,12 +324,16 @@ function DepartmentSection({
   isExpanded,
   onToggleExpand,
   draftByCrewMemberId,
+  offsetByCrewMemberId,
   generalCrewCallTime,
   showEmails,
   showPhones,
   onDraftChange,
   onApplyCrewCall,
   onClearCrewCall,
+  onOffsetDirectionChange,
+  onOffsetMinutesChange,
+  onApplyOffset,
   onSetDepartmentPrecall,
   readOnly,
   positionNameByCrewMemberId,
@@ -204,7 +341,9 @@ function DepartmentSection({
   const crewCount = rows.length;
   const precallCount = rows.filter(({ assignment }) => {
     const draft = draftByCrewMemberId[assignment.crewMemberId] || "";
-    return draft.trim().length > 0;
+    const offset = offsetByCrewMemberId[assignment.crewMemberId];
+    const hasOffset = offset && offset.direction && offset.minutes > 0;
+    return draft.trim().length > 0 || hasOffset;
   }).length;
 
   return (
@@ -246,22 +385,30 @@ function DepartmentSection({
       {/* Crew members list */}
       {isExpanded ? (
         <div className="bg-white dark:bg-slate-900">
-          {rows.map(({ assignment, member }) => (
-            <CrewMemberRow
-              key={assignment.crewMemberId}
-              assignment={assignment}
-              member={member}
-              draft={draftByCrewMemberId[assignment.crewMemberId] || ""}
-              generalCrewCallTime={generalCrewCallTime}
-              showEmails={showEmails}
-              showPhones={showPhones}
-              onDraftChange={(value) => onDraftChange(assignment.crewMemberId, value)}
-              onApply={() => onApplyCrewCall(assignment.crewMemberId)}
-              onClear={() => onClearCrewCall(assignment.crewMemberId)}
-              readOnly={readOnly}
-              positionName={positionNameByCrewMemberId.get(assignment.crewMemberId) || null}
-            />
-          ))}
+          {rows.map(({ assignment, member }) => {
+            const offset = offsetByCrewMemberId[assignment.crewMemberId] || { direction: null, minutes: 0 };
+            return (
+              <CrewMemberRow
+                key={assignment.crewMemberId}
+                assignment={assignment}
+                member={member}
+                draft={draftByCrewMemberId[assignment.crewMemberId] || ""}
+                generalCrewCallTime={generalCrewCallTime}
+                showEmails={showEmails}
+                showPhones={showPhones}
+                onDraftChange={(value) => onDraftChange(assignment.crewMemberId, value)}
+                onApply={() => onApplyCrewCall(assignment.crewMemberId)}
+                onClear={() => onClearCrewCall(assignment.crewMemberId)}
+                readOnly={readOnly}
+                positionName={positionNameByCrewMemberId.get(assignment.crewMemberId) || null}
+                offsetDirection={offset.direction}
+                offsetMinutes={offset.minutes}
+                onOffsetDirectionChange={(dir) => onOffsetDirectionChange(assignment.crewMemberId, dir)}
+                onOffsetMinutesChange={(min) => onOffsetMinutesChange(assignment.crewMemberId, min)}
+                onApplyOffset={() => onApplyOffset(assignment.crewMemberId)}
+              />
+            );
+          })}
         </div>
       ) : null}
     </div>
@@ -290,6 +437,8 @@ export default function CrewCallsCard({
   );
 
   const [draftByCrewMemberId, setDraftByCrewMemberId] = useState({});
+  // Offset state: { [crewMemberId]: { direction: "early"|"delay"|null, minutes: number } }
+  const [offsetByCrewMemberId, setOffsetByCrewMemberId] = useState({});
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [isDeptPrecallModalOpen, setIsDeptPrecallModalOpen] = useState(false);
   const [deptPrecallTarget, setDeptPrecallTarget] = useState(null);
@@ -513,13 +662,20 @@ export default function CrewCallsCard({
   }, [orderedGroupIds, expandedDepts.size]);
 
   useEffect(() => {
-    const next = {};
+    const nextDraft = {};
+    const nextOffset = {};
     assignedCrew.forEach(({ assignment }) => {
       const call = callsByCrewMemberId.get(assignment.crewMemberId);
       const value = (call?.callTime || call?.callText || "").trim();
-      next[assignment.crewMemberId] = value;
+      nextDraft[assignment.crewMemberId] = value;
+      // Initialize offset from loaded data
+      nextOffset[assignment.crewMemberId] = {
+        direction: call?.callOffsetDirection || null,
+        minutes: call?.callOffsetMinutes || 0,
+      };
     });
-    setDraftByCrewMemberId(next);
+    setDraftByCrewMemberId(nextDraft);
+    setOffsetByCrewMemberId(nextOffset);
   }, [assignedCrew, callsByCrewMemberId]);
 
   const applyCrewCall = useCallback(
@@ -527,18 +683,92 @@ export default function CrewCallsCard({
       if (readOnly) return;
       const raw = (draftByCrewMemberId[crewMemberId] || "").trim();
       if (!raw) {
-        deleteCrewCall.mutate(crewMemberId);
+        // Only delete if there's no offset set either
+        const offset = offsetByCrewMemberId[crewMemberId];
+        const hasOffset = offset && offset.direction && offset.minutes > 0;
+        if (!hasOffset) {
+          deleteCrewCall.mutate(crewMemberId);
+        }
         return;
       }
 
+      // 0. Reject ambiguous time inputs (e.g., "6:17" without AM/PM)
+      // Must come BEFORE isTimeString check since isTimeString matches these
+      if (isAmbiguousTimeInput(raw)) {
+        // Revert to last persisted value
+        const call = callsByCrewMemberId.get(crewMemberId);
+        const lastValid = (call?.callTime || call?.callText || "").trim();
+        setDraftByCrewMemberId((prev) => ({
+          ...prev,
+          [crewMemberId]: lastValid,
+        }));
+        // Don't save - input was invalid
+        return;
+      }
+
+      // 1. Check if already HH:MM format (unambiguous 24-hour: 0:xx, 13:xx-23:xx)
       if (isTimeString(raw)) {
-        upsertCrewCall.mutate({ crewMemberId, updates: { callTime: raw, callText: null } });
+        upsertCrewCall.mutate({
+          crewMemberId,
+          updates: {
+            callTime: raw,
+            callText: null,
+            callOffsetDirection: null,
+            callOffsetMinutes: null,
+          },
+        });
+        // Clear local offset state
+        setOffsetByCrewMemberId((prev) => ({
+          ...prev,
+          [crewMemberId]: { direction: null, minutes: 0 },
+        }));
         return;
       }
 
-      upsertCrewCall.mutate({ crewMemberId, updates: { callTime: null, callText: raw } });
+      // 2. Try typed time bypass (e.g., "6:17 AM")
+      const parsed = parseTimeInputToMinutes(raw);
+      if (parsed) {
+        // Convert minutes to HH:MM for storage
+        const timeStr = minutesToTimeString(parsed.minutes);
+        upsertCrewCall.mutate({
+          crewMemberId,
+          updates: {
+            callTime: timeStr,
+            callText: null,
+            callOffsetDirection: null,
+            callOffsetMinutes: null,
+          },
+        });
+        // Update draft to normalized HH:MM format
+        setDraftByCrewMemberId((prev) => ({
+          ...prev,
+          [crewMemberId]: timeStr,
+        }));
+        // Clear local offset state
+        setOffsetByCrewMemberId((prev) => ({
+          ...prev,
+          [crewMemberId]: { direction: null, minutes: 0 },
+        }));
+        return;
+      }
+
+      // 3. Treat as text override (OFF/O/C/etc)
+      upsertCrewCall.mutate({
+        crewMemberId,
+        updates: {
+          callTime: null,
+          callText: raw,
+          callOffsetDirection: null,
+          callOffsetMinutes: null,
+        },
+      });
+      // Clear local offset state
+      setOffsetByCrewMemberId((prev) => ({
+        ...prev,
+        [crewMemberId]: { direction: null, minutes: 0 },
+      }));
     },
-    [draftByCrewMemberId, readOnly, deleteCrewCall, upsertCrewCall]
+    [draftByCrewMemberId, offsetByCrewMemberId, callsByCrewMemberId, readOnly, deleteCrewCall, upsertCrewCall]
   );
 
   const clearCrewCall = useCallback(
@@ -547,6 +777,10 @@ export default function CrewCallsCard({
       setDraftByCrewMemberId((prev) => ({
         ...prev,
         [crewMemberId]: "",
+      }));
+      setOffsetByCrewMemberId((prev) => ({
+        ...prev,
+        [crewMemberId]: { direction: null, minutes: 0 },
       }));
       deleteCrewCall.mutate(crewMemberId);
     },
@@ -558,7 +792,74 @@ export default function CrewCallsCard({
       ...prev,
       [crewMemberId]: value,
     }));
+    // If user types an absolute override, clear offset
+    if (value.trim()) {
+      setOffsetByCrewMemberId((prev) => ({
+        ...prev,
+        [crewMemberId]: { direction: null, minutes: 0 },
+      }));
+    }
   }, []);
+
+  const handleOffsetDirectionChange = useCallback((crewMemberId, direction) => {
+    setOffsetByCrewMemberId((prev) => ({
+      ...prev,
+      [crewMemberId]: {
+        ...prev[crewMemberId],
+        direction,
+      },
+    }));
+  }, []);
+
+  const handleOffsetMinutesChange = useCallback((crewMemberId, minutes) => {
+    setOffsetByCrewMemberId((prev) => ({
+      ...prev,
+      [crewMemberId]: {
+        ...prev[crewMemberId],
+        minutes,
+      },
+    }));
+  }, []);
+
+  const applyOffset = useCallback(
+    (crewMemberId) => {
+      if (readOnly) return;
+      const offset = offsetByCrewMemberId[crewMemberId];
+      if (!offset) return;
+
+      const { direction, minutes } = offset;
+
+      // If no offset set (both direction cleared or minutes 0), clear offset fields
+      if (!direction || !minutes || minutes <= 0) {
+        // Clear offset fields but keep any existing callTime/callText
+        upsertCrewCall.mutate({
+          crewMemberId,
+          updates: {
+            callOffsetDirection: null,
+            callOffsetMinutes: null,
+          },
+        });
+        return;
+      }
+
+      // Save offset (also clear absolute override since offset takes precedence for display)
+      upsertCrewCall.mutate({
+        crewMemberId,
+        updates: {
+          callOffsetDirection: direction,
+          callOffsetMinutes: minutes,
+          callTime: null,
+          callText: null,
+        },
+      });
+      // Clear draft since we're using offset now
+      setDraftByCrewMemberId((prev) => ({
+        ...prev,
+        [crewMemberId]: "",
+      }));
+    },
+    [offsetByCrewMemberId, readOnly, upsertCrewCall]
+  );
 
   const toggleDeptExpanded = useCallback((deptId) => {
     setExpandedDepts((prev) => {
@@ -784,8 +1085,8 @@ export default function CrewCallsCard({
       {/* Info banner */}
       <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
         <span className="font-medium">Tip:</span> Leave blank to use general crew call
-        {generalCrewCallTime ? ` (${generalCrewCallTime})` : ""}. Enter a time (HH:MM) or text like
-        "OFF" / "O/C".
+        {generalCrewCallTime ? ` (${generalCrewCallTime})` : ""}. Type exact time (6:17 AM) or text
+        like "OFF" / "O/C".
       </div>
 
       {/* Content */}
@@ -819,12 +1120,16 @@ export default function CrewCallsCard({
                 isExpanded={expandedDepts.has(deptId)}
                 onToggleExpand={() => toggleDeptExpanded(deptId)}
                 draftByCrewMemberId={draftByCrewMemberId}
+                offsetByCrewMemberId={offsetByCrewMemberId}
                 generalCrewCallTime={generalCrewCallTime}
                 showEmails={showEmails}
                 showPhones={showPhones}
                 onDraftChange={handleDraftChange}
                 onApplyCrewCall={applyCrewCall}
                 onClearCrewCall={clearCrewCall}
+                onOffsetDirectionChange={handleOffsetDirectionChange}
+                onOffsetMinutesChange={handleOffsetMinutesChange}
+                onApplyOffset={applyOffset}
                 onSetDepartmentPrecall={handleSetDepartmentPrecall}
                 readOnly={readOnly}
                 positionNameByCrewMemberId={positionNameByCrewMemberId}

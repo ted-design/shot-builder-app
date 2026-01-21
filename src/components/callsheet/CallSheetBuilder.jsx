@@ -77,6 +77,18 @@ import { minutesToTimeString, parseTimeToMinutes } from "../../lib/timeUtils";
  * @param {Function} props.onDeleteSchedule - Callback to delete the schedule
  * @param {Function} props.onDuplicateSchedule - Callback to duplicate the schedule
  */
+
+/**
+ * Derives the effective day start time from Crew Call (primary) or settings (fallback).
+ * Crew Call from Day Details is the single source of truth for when the day starts.
+ * @param {object|null} dayDetails - Day details containing crewCallTime
+ * @param {object|null} settings - Schedule settings containing dayStartTime
+ * @returns {string} Effective day start time in HH:MM format
+ */
+function getEffectiveDayStartTime(dayDetails, settings) {
+  return dayDetails?.crewCallTime || settings?.dayStartTime || "06:00";
+}
+
 function CallSheetBuilder({
   clientId,
   projectId,
@@ -109,8 +121,21 @@ function CallSheetBuilder({
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isShotEditorOpen, setIsShotEditorOpen] = useState(false);
   const [shotEditorShot, setShotEditorShot] = useState(null);
-  const [isDayStartModalOpen, setIsDayStartModalOpen] = useState(false);
-  const [dayStartDraft, setDayStartDraft] = useState("06:00");
+
+  // Workspace fullscreen mode - keeps both editor and preview visible in an overlay
+  const [isWorkspaceFullscreen, setIsWorkspaceFullscreen] = useState(false);
+
+  // ESC key handler for exiting workspace fullscreen
+  useEffect(() => {
+    if (!isWorkspaceFullscreen) return;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsWorkspaceFullscreen(false);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isWorkspaceFullscreen]);
 
   // Track focus mode - session-only state for dimming entries from other tracks
   const [trackFocusId, setTrackFocusId] = useState("all");
@@ -157,7 +182,7 @@ function CallSheetBuilder({
     onSuccess: () => toast.success({ title: "Columns updated" }),
   });
 
-  const { updateSettings, toggleCascade, setDayStartTime } = useUpdateScheduleSettings(clientId, projectId, scheduleId, {
+  const { updateSettings, toggleCascade } = useUpdateScheduleSettings(clientId, projectId, scheduleId, {
     onSuccess: () => toast.success({ title: "Schedule settings updated" }),
   });
 
@@ -266,12 +291,6 @@ function CallSheetBuilder({
   useEffect(() => {
     setPanelView({ mode: "outline" });
   }, [scheduleId]);
-
-  // Sync day start draft when modal opens or settings change
-  useEffect(() => {
-    if (!isDayStartModalOpen) return;
-    setDayStartDraft(settings.dayStartTime || "06:00");
-  }, [isDayStartModalOpen, settings.dayStartTime]);
 
   const {
     layoutDoc,
@@ -475,6 +494,8 @@ function CallSheetBuilder({
         const defaultCall = dayDetails?.crewCallTime ? String(dayDetails.crewCallTime).trim() : "";
         const callTime = call?.callTime ? String(call.callTime).trim() : "";
         const callText = call?.callText ? String(call.callText).trim() : "";
+        const callOffsetDirection = call?.callOffsetDirection || null;
+        const callOffsetMinutes = call?.callOffsetMinutes || null;
         const notes = call?.notes ? String(call.notes) : "";
 
         return {
@@ -484,6 +505,8 @@ function CallSheetBuilder({
           name,
           callTime,
           callText,
+          callOffsetDirection,
+          callOffsetMinutes,
           defaultCall,
           notes,
           phone: member?.phone || null,
@@ -635,8 +658,8 @@ function CallSheetBuilder({
 
   // Quick banner creation - creates a banner with default values directly (no modal)
   const handleAddQuickBanner = useCallback(async () => {
-    // Default banner: "New Banner" at schedule start or 6:00 AM, 60 min duration
-    const defaultStartTime = settings?.dayStartTime || "06:00";
+    // Default banner: "New Banner" at effective day start (derived from Crew Call)
+    const defaultStartTime = getEffectiveDayStartTime(dayDetails, settings);
     const customData = {
       title: "New Banner",
       category: "other",
@@ -644,7 +667,7 @@ function CallSheetBuilder({
     // trackId="all" creates a banner that spans all tracks
     await addCustomItem(customData, "all", defaultStartTime, 60, null);
     toast.success({ title: "Banner added" });
-  }, [addCustomItem, settings?.dayStartTime]);
+  }, [addCustomItem, dayDetails, settings]);
 
   const handleEditCustomEntry = useCallback((entry) => {
     if (!entry || entry.type !== "custom") return;
@@ -752,13 +775,6 @@ function CallSheetBuilder({
     if (!schedule?.settings) return;
     toggleCascade(schedule.settings);
   }, [schedule?.settings, toggleCascade]);
-
-  const handleTimeIncrementChange = useCallback(
-    (increment) => {
-      updateSettings({ timeIncrement: increment }, settings);
-    },
-    [settings, updateSettings]
-  );
 
   const handleDeleteEntry = useCallback(
     (entryId) => {
@@ -975,79 +991,6 @@ function CallSheetBuilder({
   const productFamilies = useMemo(() => Array.from(productsMap.values()), [productsMap]);
   const talentOptions = useMemo(() => Array.from(talentMap.values()), [talentMap]);
 
-  const handleSetDayStartTime = useCallback(
-    (nextDayStartTime) => {
-      const nextValue = typeof nextDayStartTime === "string" ? nextDayStartTime : settings.dayStartTime;
-      if (!nextValue) return;
-
-      if (!Array.isArray(resolvedEntries) || resolvedEntries.length === 0) {
-        setDayStartTime(nextValue, settings);
-        return;
-      }
-
-      let earliestStartMinutes = null;
-      let latestEndMinutes = null;
-      resolvedEntries.forEach((entry) => {
-        const startMinutes = parseTimeToMinutes(entry.startTime || settings.dayStartTime || "00:00");
-        const duration = typeof entry.duration === "number" ? Math.max(0, entry.duration) : 0;
-        const endMinutes = startMinutes + duration;
-        if (earliestStartMinutes == null || startMinutes < earliestStartMinutes) earliestStartMinutes = startMinutes;
-        if (latestEndMinutes == null || endMinutes > latestEndMinutes) latestEndMinutes = endMinutes;
-      });
-
-      if (earliestStartMinutes == null) {
-        setDayStartTime(nextValue, settings);
-        return;
-      }
-
-      const targetStartMinutes = parseTimeToMinutes(nextValue);
-      const delta = targetStartMinutes - earliestStartMinutes;
-
-      if (delta !== 0 && latestEndMinutes != null) {
-        const shiftedStart = earliestStartMinutes + delta;
-        const shiftedEnd = latestEndMinutes + delta;
-        if (shiftedStart < 0 || shiftedEnd > 24 * 60) {
-          toast.error({
-            title: "Start time out of range",
-            description: "Choose a start time that keeps all entries within the day.",
-          });
-          return;
-        }
-      }
-
-      if (delta !== 0) {
-        const updates = resolvedEntries
-          .map((entry) => {
-            const startMinutes = parseTimeToMinutes(entry.startTime || "00:00");
-            const nextStartTime = minutesToTimeString(startMinutes + delta);
-            if (nextStartTime === entry.startTime) return null;
-            return { entryId: entry.id, startTime: nextStartTime };
-          })
-          .filter(Boolean);
-
-        if (updates.length > 0) {
-          batchUpdateEntries({ updates });
-        }
-      }
-
-      setDayStartTime(nextValue, settings);
-    },
-    [resolvedEntries, batchUpdateEntries, setDayStartTime, settings]
-  );
-
-  // Format time for display (e.g., "6:00 AM")
-  const formatTimeForDisplay = (time24) => {
-    if (!time24) return "6:00 AM";
-    const [hours, minutes] = time24.split(":").map(Number);
-    const period = hours >= 12 ? "PM" : "AM";
-    const hours12 = hours % 12 || 12;
-    return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
-  };
-
-  const handleOpenDayStartModal = useCallback(() => {
-    setIsDayStartModalOpen(true);
-  }, []);
-
   const handleCreateShotInSchedule = useCallback(
     async (trackId, startTime = null) => {
       if (!clientId || !projectId) return;
@@ -1126,7 +1069,16 @@ function CallSheetBuilder({
   }
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div
+      className={[
+        "flex h-full flex-col gap-4",
+        isWorkspaceFullscreen
+          ? "fixed inset-0 z-50 bg-slate-100 dark:bg-slate-900 p-4 overflow-hidden"
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       {/* Toolbar */}
       {!isPreviewOnly ? (
         <CallSheetToolbar
@@ -1136,7 +1088,6 @@ function CallSheetBuilder({
           clientId={clientId}
           projectId={projectId}
           scheduleId={scheduleId}
-          onOpenDayStartModal={canWriteProject ? handleOpenDayStartModal : undefined}
           onEditColumns={() => setIsColumnConfigOpen(true)}
           onEditTracks={() => setIsTrackManagerOpen(true)}
           onExport={() => setIsExportModalOpen(true)}
@@ -1173,6 +1124,8 @@ function CallSheetBuilder({
             callSheetConfig={callSheetConfig}
             layoutV2={layoutV2Local}
             onUpdateCallSheetConfig={applyCallSheetConfigUpdate}
+            isWorkspaceFullscreen={isWorkspaceFullscreen}
+            onToggleWorkspaceFullscreen={() => setIsWorkspaceFullscreen((prev) => !prev)}
           />
         </div>
       ) : (
@@ -1206,7 +1159,6 @@ function CallSheetBuilder({
               resolvedEntries,
               onToggleShowDurations: canWriteProject ? handleToggleShowDurations : undefined,
               onToggleCascade: canWriteProject ? handleToggleCascade : undefined,
-              onTimeIncrementChange: canWriteProject ? handleTimeIncrementChange : undefined,
               onAddScene: canWriteProject ? (trackId) => handleOpenEntryModal("shot", null, trackId) : undefined,
               onAddBanner: canWriteProject ? () => handleOpenEntryModal("custom", "other") : undefined,
               onAddQuickBanner: canWriteProject ? handleAddQuickBanner : undefined,
@@ -1227,8 +1179,6 @@ function CallSheetBuilder({
               onDeleteEntry: canWriteProject ? handleDeleteEntry : undefined,
               tracks,
               onEditTracks: canWriteProject ? () => setIsTrackManagerOpen(true) : undefined,
-              onOpenDayStartModal: canWriteProject ? handleOpenDayStartModal : undefined,
-              dayStartTimeFormatted: formatTimeForDisplay(settings.dayStartTime),
             }}
           />
 
@@ -1251,6 +1201,8 @@ function CallSheetBuilder({
               callSheetConfig={callSheetConfig}
               layoutV2={layoutV2Local}
               onUpdateCallSheetConfig={applyCallSheetConfigUpdate}
+              isWorkspaceFullscreen={isWorkspaceFullscreen}
+              onToggleWorkspaceFullscreen={() => setIsWorkspaceFullscreen((prev) => !prev)}
             />
           </div>
         </div>
@@ -1319,52 +1271,6 @@ function CallSheetBuilder({
             entries={resolvedEntries}
             tracks={tracks}
           />
-
-          {/* Day Start Time Modal */}
-          <Modal
-            open={isDayStartModalOpen}
-            onClose={() => setIsDayStartModalOpen(false)}
-            labelledBy="day-start-title"
-            contentClassName="max-w-md"
-          >
-            <Card className="border-0 shadow-none">
-              <CardHeader>
-                <h2 id="day-start-title" className="text-lg font-semibold">
-                  Set Day Start Time
-                </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Shifts the earliest entry and updates everything that follows.
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="day-start-input">
-                    Start time
-                  </label>
-                  <Input
-                    id="day-start-input"
-                    type="time"
-                    value={dayStartDraft}
-                    onChange={(event) => setDayStartDraft(event.target.value)}
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" type="button" onClick={() => setIsDayStartModalOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      handleSetDayStartTime(dayStartDraft);
-                      setIsDayStartModalOpen(false);
-                    }}
-                  >
-                    Apply
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </Modal>
         </>
       ) : null}
     </div>

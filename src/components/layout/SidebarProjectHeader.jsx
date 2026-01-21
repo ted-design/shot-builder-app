@@ -2,7 +2,6 @@ import React, { useMemo } from "react";
 import { useMatch, useNavigate } from "react-router-dom";
 import { ChevronDown, FolderOpen, MoreVertical } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { useProjectScope } from "../../context/ProjectScopeContext";
 import { useProjects } from "../../hooks/useFirestoreQuery";
 import { CLIENT_ID } from "../../lib/paths";
 import {
@@ -19,7 +18,6 @@ export default function SidebarProjectHeader({ isExpanded }) {
   const projectMatch = useMatch("/projects/:projectId/*");
   const projectId = projectMatch?.params?.projectId || null;
   const { clientId } = useAuth();
-  const { setCurrentProjectId } = useProjectScope();
   const resolvedClientId = clientId || CLIENT_ID;
 
   const { data: projects = [], isLoading } = useProjects(resolvedClientId, {
@@ -42,7 +40,6 @@ export default function SidebarProjectHeader({ isExpanded }) {
 
   const switchProject = (nextProjectId) => {
     if (!nextProjectId) return;
-    setCurrentProjectId(nextProjectId);
     navigate(`/projects/${nextProjectId}/dashboard`);
   };
 

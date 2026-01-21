@@ -22,6 +22,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { isProjectLeakDebugEnabled, projectLeakLog } from "../lib/debugProjectLeak";
 
 const listenerRegistry = new Map();
 
@@ -32,6 +33,16 @@ function releaseListener(key) {
   if (!entry) return;
   entry.count -= 1;
   if (entry.count <= 0) {
+    if (isProjectLeakDebugEnabled()) {
+      try {
+        const parsed = JSON.parse(key);
+        if (Array.isArray(parsed) && (parsed[0] === "talent" || parsed[0] === "locations")) {
+          projectLeakLog("subscription.stop", { queryKey: parsed });
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
     try {
       if (typeof entry.unsubscribe === "function") {
         entry.unsubscribe();
@@ -49,7 +60,14 @@ function registerSnapshotListener(queryKey, subscribe) {
   const existing = listenerRegistry.get(key);
   if (existing) {
     existing.count += 1;
+    if (isProjectLeakDebugEnabled() && (queryKey?.[0] === "talent" || queryKey?.[0] === "locations")) {
+      projectLeakLog("subscription.reuse", { queryKey, count: existing.count });
+    }
     return () => releaseListener(key);
+  }
+
+  if (isProjectLeakDebugEnabled() && (queryKey?.[0] === "talent" || queryKey?.[0] === "locations")) {
+    projectLeakLog("subscription.start", { queryKey });
   }
 
   let unsubscribe;

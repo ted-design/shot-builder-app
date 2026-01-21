@@ -6,7 +6,6 @@ import { useParams } from "react-router-dom";
 import { collection } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
-import { useProjectScope } from "../../context/ProjectScopeContext";
 import { FLAGS } from "../../lib/flags";
 import { talentPath, locationsPath, productFamiliesPath } from "../../lib/paths";
 import { useFirestoreCollection } from "../../hooks/useFirestoreCollection";
@@ -45,11 +44,8 @@ const CallSheetBuilder = lazy(() => import("./CallSheetBuilder"));
  * CallSheetEmbed - Embedded version of Call Sheet for ShotsPage tab
  */
 function CallSheetEmbed() {
-  const { projectId: urlProjectId } = useParams();
+  const { projectId } = useParams();
   const { user, clientId } = useAuth();
-  const { currentProjectId } = useProjectScope();
-  // Prefer URL param, fall back to context
-  const projectId = urlProjectId || currentProjectId;
   const { data: projects = [] } = useProjects(clientId);
   const activeProject = useMemo(() => projects.find((p) => p.id === projectId) || null, [projects, projectId]);
 

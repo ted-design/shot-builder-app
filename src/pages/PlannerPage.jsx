@@ -66,6 +66,7 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
+import { applyShotTextFieldSanitization } from "../lib/shotPatchBuilder";
 import { stripHtml } from "../lib/stripHtml";
 import { Button } from "../components/ui/button";
 import { StatusBadge } from "../components/ui/StatusBadge";
@@ -683,7 +684,7 @@ function ShotCard({
       ? shot.shotNumber.trim()
       : null;
   const shotNameLabel = shot.name || (shotNumberLabel ? shotNumberLabel : "Untitled shot");
-  const notesHtml = visibleFields.notes ? formatNotesForDisplay(shot.description) : "";
+  const notesHtml = visibleFields.notes ? formatNotesForDisplay(shot.notes) : "";
   const talentList = Array.isArray(shot.talent)
     ? shot.talent
         .map((entry) => entry?.name)
@@ -1245,12 +1246,9 @@ function PlannerPageContent({ embedded = false }) {
   const groupBy = plannerPrefs.groupBy;
   const sortBy = plannerPrefs.sort;
   const navigate = useNavigate();
-  const { projectId: urlProjectId } = useParams();
-  const { currentProjectId, ready: scopeReady, setLastVisitedPath } = useProjectScope();
+  const { projectId } = useParams();
+  const { setLastVisitedPath } = useProjectScope();
   const redirectNotifiedRef = useRef(false);
-  // Use URL param as primary source of truth (available immediately on navigation)
-  // Fall back to context for cases where URL param isn't available
-  const projectId = urlProjectId || currentProjectId;
   const {
     clientId,
     role: globalRole,
@@ -1393,7 +1391,6 @@ function PlannerPageContent({ embedded = false }) {
   }, [embedded, setLastVisitedPath]);
 
   useEffect(() => {
-    if (!scopeReady) return;
     if (!projectId) {
       if (!redirectNotifiedRef.current) {
         redirectNotifiedRef.current = true;
@@ -1403,7 +1400,7 @@ function PlannerPageContent({ embedded = false }) {
       return;
     }
     redirectNotifiedRef.current = false;
-  }, [scopeReady, projectId, navigate]);
+  }, [projectId, navigate]);
 
   // Fetch current project for header display
   useEffect(() => {
@@ -1609,7 +1606,7 @@ function PlannerPageContent({ embedded = false }) {
   );
 
   useEffect(() => {
-    if (!scopeReady || !authReady) {
+    if (!authReady) {
       return undefined;
     }
 
@@ -1757,7 +1754,6 @@ function PlannerPageContent({ embedded = false }) {
       unassignedUnsubs.forEach((unsubscribe) => unsubscribe());
     };
   }, [
-    scopeReady,
     authReady,
     clientId,
     projectId,
@@ -3097,11 +3093,8 @@ function PlannerPageContent({ embedded = false }) {
         locationId: shot.locationId || null,
       };
 
-      const docPatch = { ...patch };
-
-      if (Object.prototype.hasOwnProperty.call(patch, "description")) {
-        docPatch.description = sanitizeNotesHtml(patch.description || "");
-      }
+      // Use tested helper to sanitize notes/description (prevents cross-field coupling)
+      const docPatch = applyShotTextFieldSanitization({ ...patch }, sanitizeNotesHtml);
 
       if (Object.prototype.hasOwnProperty.call(patch, "products") && patch.products != null) {
         const productsForWrite = patch.products.map((product) => mapProductForWrite(product));

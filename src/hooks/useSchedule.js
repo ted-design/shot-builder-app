@@ -546,26 +546,10 @@ export function useUpdateScheduleSettings(clientId, projectId, scheduleId, optio
     [updateSchedule, scheduleId]
   );
 
-  const setTimeIncrement = useCallback(
-    (timeIncrement, currentSettings) => {
-      return updateSchedule.mutate({
-        scheduleId,
-        updates: {
-          settings: {
-            ...currentSettings,
-            timeIncrement,
-          },
-        },
-      });
-    },
-    [updateSchedule, scheduleId]
-  );
-
   return {
     updateSettings,
     toggleCascade,
     setDayStartTime,
-    setTimeIncrement,
     ...updateSchedule,
   };
 }

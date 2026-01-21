@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
+import { TimePicker } from "../../ui/TimePicker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -209,31 +210,12 @@ function CustomEntryForm({
       {/* Start Time input (for editing or when creating with explicit time) */}
       {(isEditing || defaultStartTime) && (
         <div>
-          <label
-            htmlFor="entry-start-time"
-            className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Start Time
-          </label>
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-slate-400" />
-            <Input
-              id="entry-start-time"
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="w-32"
-            />
-            {startTime && (
-              <button
-                type="button"
-                onClick={() => setStartTime("")}
-                className="text-xs text-slate-500 hover:text-slate-700"
-              >
-                Clear
-              </button>
-            )}
-          </div>
+          <TimePicker
+            label="Start Time"
+            value={startTime || null}
+            onChange={(value) => setStartTime(value || "")}
+            className="w-48"
+          />
           <p className="mt-1 text-xs text-slate-500">
             Leave empty to auto-schedule based on sequence
           </p>

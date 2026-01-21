@@ -104,18 +104,16 @@ function CallTimesBox({ dayDetails }: { dayDetails: CallSheetDayDetails | null |
 
   return (
     <div className="mt-2">
-      {rows.map((row, idx) => (
-        <div
-          key={row.label}
-          className="flex items-center justify-end gap-3 py-0.5 text-[11px]"
-        >
-          <span className="text-gray-600 font-medium">{row.label}</span>
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full border border-gray-400" />
-            <span className="text-gray-800 font-medium tabular-nums">{row.time}</span>
-          </div>
-        </div>
-      ))}
+      {/* 3-column grid: dot (fixed) | label (right-aligned) | time (left-aligned) */}
+      <div className="grid grid-cols-[auto_auto_auto] gap-x-2 gap-y-0.5 justify-end text-[11px]">
+        {rows.map((row) => (
+          <React.Fragment key={row.label}>
+            <span className="w-1.5 h-1.5 rounded-full border border-gray-400 self-center" />
+            <span className="text-gray-600 font-medium text-right">{row.label}</span>
+            <span className="text-gray-800 font-medium tabular-nums text-left">{row.time}</span>
+          </React.Fragment>
+        ))}
+      </div>
     </div>
   );
 }

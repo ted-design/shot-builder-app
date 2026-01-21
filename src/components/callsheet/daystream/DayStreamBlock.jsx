@@ -13,6 +13,7 @@ import { getColorTag } from "../../../types/schedule";
 import { MARKER_ICON_MAP } from "../../../lib/markerIcons";
 import ColorTagPicker from "./ColorTagPicker";
 import MarkerPicker from "./MarkerPicker";
+import { TimePicker } from "../../ui/TimePicker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,22 +61,31 @@ export default function DayStreamBlock({
     );
     const inputRef = useRef(null);
 
+    // Ref to track latest editStartTime value, bypassing React's batching
+    // This ensures handleSave reads the correct value even when blur and click
+    // events fire in rapid succession (React 18 batching race condition)
+    const editStartTimeRef = useRef(entry.startTime || "");
+
     // Get the color tag for styling
     const colorTag = getColorTag(entry.colorKey);
 
     // Track selection helper for the dropdown display
     const selectedTrack = editTrackId === "all" ? null : laneTracks.find(t => t.id === editTrackId);
 
+    // Sync local edit state from entry props ONLY when not actively editing.
+    // This prevents Firestore real-time updates from overwriting user's typed input.
     useEffect(() => {
+        if (isEditing) return; // Don't sync while user is editing
         setEditTitle(entry.resolvedTitle || "");
         setEditDuration(entry.duration || 15);
         setEditStartTime(entry.startTime || "");
+        editStartTimeRef.current = entry.startTime || ""; // Keep ref in sync
         setEditColorKey(entry.colorKey || null);
         setEditMarker(entry.marker || null);
         setEditTrackId(
             entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
         );
-    }, [entry.resolvedTitle, entry.duration, entry.startTime, entry.colorKey, entry.marker, entry.trackId]);
+    }, [isEditing, entry.resolvedTitle, entry.duration, entry.startTime, entry.colorKey, entry.marker, entry.trackId]);
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -86,6 +96,14 @@ export default function DayStreamBlock({
     const handleSave = (e) => {
         if (e) e.stopPropagation();
         setIsEditing(false);
+
+        if (import.meta.env.DEV) {
+            console.log(`[DayStreamBlock] handleSave called:`, {
+                entryId: entry.id,
+                editStartTime,
+                entryStartTime: entry.startTime,
+            });
+        }
 
         if (!onUpdateEntry) return;
 
@@ -115,8 +133,16 @@ export default function DayStreamBlock({
 
         // Handle start time updates
         // Convert from native time input format (HH:MM) to canonical format
-        const normalizedEditTime = editStartTime.trim();
+        // Use ref instead of state to bypass React batching race condition
+        const normalizedEditTime = editStartTimeRef.current.trim();
         const normalizedEntryTime = (entry.startTime || "").trim();
+        if (import.meta.env.DEV) {
+            console.log(`[DayStreamBlock] handleSave: comparing times:`, {
+                refValue: editStartTimeRef.current,
+                stateValue: editStartTime,
+                entryValue: entry.startTime,
+            });
+        }
         if (normalizedEditTime !== normalizedEntryTime) {
             // If user cleared the time, set to empty string (will be derived)
             // Otherwise, ensure it's in HH:MM format
@@ -155,7 +181,24 @@ export default function DayStreamBlock({
         }
 
         if (Object.keys(updates).length > 0) {
+            // DEV-only: Validate startTime format before saving
+            if (import.meta.env.DEV && updates.startTime !== undefined) {
+                const timePattern = /^(?:[01]?\d|2[0-3]):[0-5]\d$/;
+                if (updates.startTime && !timePattern.test(updates.startTime)) {
+                    console.warn(
+                        `[DayStreamBlock] Invalid startTime format detected: "${updates.startTime}". ` +
+                        `Expected HH:MM format. Entry ID: ${entry.id}`
+                    );
+                }
+            }
+            if (import.meta.env.DEV) {
+                console.log(`[DayStreamBlock] handleSave: calling onUpdateEntry with:`, updates);
+            }
             onUpdateEntry(entry.id, updates);
+        } else {
+            if (import.meta.env.DEV) {
+                console.log(`[DayStreamBlock] handleSave: no updates to save`);
+            }
         }
     };
 
@@ -168,6 +211,7 @@ export default function DayStreamBlock({
             setEditTitle(entry.resolvedTitle || "");
             setEditDuration(entry.duration || 15);
             setEditStartTime(entry.startTime || "");
+            editStartTimeRef.current = entry.startTime || ""; // Reset ref too
             setEditColorKey(entry.colorKey || null);
             setEditMarker(entry.marker || null);
             setEditTrackId(
@@ -320,13 +364,20 @@ export default function DayStreamBlock({
                     {/* Time & Duration Group */}
                     <div className="flex items-center gap-2 shrink-0">
                         <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                            <input
-                                ref={isShot ? inputRef : null}
-                                type="time"
-                                value={editStartTime}
-                                onChange={(e) => setEditStartTime(e.target.value)}
-                                className="text-[10px] font-mono border border-slate-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none w-[70px]"
+                            <TimePicker
+                                label="Time"
+                                value={editStartTime || null}
+                                onChange={(value) => {
+                                    const newValue = value || "";
+                                    if (import.meta.env.DEV) {
+                                        console.log(`[DayStreamBlock] TimePicker onChange received:`, newValue, `entry.id=${entry.id}`);
+                                    }
+                                    // Update ref immediately (synchronous) to bypass React batching
+                                    editStartTimeRef.current = newValue;
+                                    // Also update state for re-renders
+                                    setEditStartTime(newValue);
+                                }}
+                                className="w-28"
                             />
                         </div>
                         <div className="flex items-center gap-1">
@@ -413,7 +464,12 @@ export default function DayStreamBlock({
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setIsEditing(false);
+                                setEditTitle(entry.resolvedTitle || "");
+                                setEditDuration(entry.duration || 15);
+                                setEditStartTime(entry.startTime || "");
+                                editStartTimeRef.current = entry.startTime || ""; // Reset ref too
                                 setEditColorKey(entry.colorKey || null);
+                                setEditMarker(entry.marker || null);
                                 setEditTrackId(
                                     entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
                                 );
