@@ -1891,15 +1891,6 @@ export function ShotsWorkspace() {
         const legacyDescription = stripHtml(String(shot.type ?? ""));
         const resolvedDescription = canonicalDescription || legacyDescription || "";
 
-        if (import.meta.env.MODE !== "production") {
-          console.info("[ShotsPage] shot description fallback", {
-            rawDescription: shot.description ?? "",
-            canonicalDescription,
-            legacyDescription,
-            resolvedDescription,
-          });
-        }
-
         // AUTO-MIGRATION: Convert legacy referenceImagePath to attachments array if needed
         let attachments = Array.isArray(shot.attachments) ? shot.attachments : [];
         if (attachments.length === 0 && shot.referenceImagePath) {

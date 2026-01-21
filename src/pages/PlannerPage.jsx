@@ -303,11 +303,11 @@ const formatShotDate = (value) => {
   return "";
 };
 
-	const readStoredPlannerDensity = () => {
-	  const raw = readStorage(PLANNER_DENSITY_STORAGE_KEY);
-	  if (raw === "comfortable") return "comfortable"; // comfy
-	  // Map legacy values (extra, micro, old compact) to new compact
-	  if (raw === "extra" || raw === "micro" || raw === "compact") return "compact";
+const readStoredPlannerDensity = () => {
+  const raw = readStorage(PLANNER_DENSITY_STORAGE_KEY);
+  if (raw === "comfortable") return "comfortable"; // comfy
+  // Map legacy values (extra, micro, old compact) to new compact
+  if (raw === "extra" || raw === "micro" || raw === "compact") return "compact";
   return "compact"; // default to compact (small)
 };
 
