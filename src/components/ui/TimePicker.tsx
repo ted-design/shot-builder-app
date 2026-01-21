@@ -48,9 +48,6 @@ function formatDisplay(value: string | null | undefined): string {
   return `${parsed.hour}:${parsed.minute.toString().padStart(2, "0")} ${parsed.period}`;
 }
 
-// Unique instance ID for debugging
-let instanceCounter = 0;
-
 export function TimePicker({ value, onChange, label, className, disabled = false, open, onOpenChange }: TimePickerProps) {
   // Internal state for uncontrolled mode
   const [internalOpen, setInternalOpen] = useState(false);
@@ -70,7 +67,6 @@ export function TimePicker({ value, onChange, label, className, disabled = false
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const instanceId = useRef(++instanceCounter);
 
   // State for typed input
   const [inputText, setInputText] = useState(() => formatDisplay(value));
@@ -93,24 +89,6 @@ export function TimePicker({ value, onChange, label, className, disabled = false
     }
   }, [isOpen]);
 
-  // DEV-only: Track mount/unmount
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.log(`[TimePicker #${instanceId.current}] MOUNT label="${label}"`);
-    }
-    return () => {
-      if (import.meta.env.DEV) {
-        console.log(`[TimePicker #${instanceId.current}] UNMOUNT label="${label}"`);
-      }
-    };
-  }, [label]);
-
-  // DEV-only: Track isOpen changes
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.log(`[TimePicker #${instanceId.current}] isOpen changed: ${isOpen} label="${label}"`);
-    }
-  }, [isOpen, label]);
 
   const parsed = useMemo(() => parseTime(value), [value]);
   const hour = parsed.hour;
@@ -141,45 +119,24 @@ export function TimePicker({ value, onChange, label, className, disabled = false
   const commitInput = useCallback(() => {
     const trimmed = inputText.trim();
 
-    if (import.meta.env.DEV) {
-      console.log(`[TimePicker #${instanceId.current}] commitInput called:`, {
-        rawInput: inputText,
-        trimmed,
-        currentValue: value,
-        label,
-      });
-    }
-
-    // Empty input: clear the value
+    // Empty input: no change
     if (!trimmed) {
       setHasError(false);
-      if (import.meta.env.DEV) {
-        console.log(`[TimePicker #${instanceId.current}] commitInput: empty input, no change`);
-      }
       return;
     }
 
     const result = parseTypedTimeInput(trimmed);
-    if (import.meta.env.DEV) {
-      console.log(`[TimePicker #${instanceId.current}] parseTypedTimeInput result:`, result);
-    }
 
     if (result) {
       // Valid input - commit the canonical value
-      if (import.meta.env.DEV) {
-        console.log(`[TimePicker #${instanceId.current}] commitInput: calling onChange with:`, result.canonical);
-      }
       onChange(result.canonical);
       setHasError(false);
     } else {
       // Invalid input - revert to last valid value
-      if (import.meta.env.DEV) {
-        console.log(`[TimePicker #${instanceId.current}] commitInput: INVALID input, reverting to:`, formatDisplay(value));
-      }
       setInputText(formatDisplay(value));
       setHasError(false);
     }
-  }, [inputText, value, onChange, label]);
+  }, [inputText, value, onChange]);
 
   const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
@@ -205,9 +162,6 @@ export function TimePicker({ value, onChange, label, className, disabled = false
   };
 
   const handleInputBlur = () => {
-    if (import.meta.env.DEV) {
-      console.log(`[TimePicker #${instanceId.current}] handleInputBlur fired, label="${label}"`);
-    }
     commitInput();
   };
 
@@ -216,9 +170,6 @@ export function TimePicker({ value, onChange, label, className, disabled = false
 
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        if (import.meta.env.DEV) {
-          console.log(`[TimePicker #${instanceId.current}] close triggered: clickOutside target=`, event.target);
-        }
         setIsOpen(false);
       }
     };
