@@ -326,14 +326,16 @@ function AppRoutes() {
                       </Suspense>
                     }
                   />
-                  <Route
-                    path="/products/:productId"
-                    element={
-                      <Suspense fallback={<PageLoadingFallback />}>
-                        <ProductDetailPageV2 />
-                      </Suspense>
-                    }
-                  />
+                  {FLAGS.productsV2 && (
+                    <Route
+                      path="/products/:productId"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <ProductDetailPageV2 />
+                        </Suspense>
+                      }
+                    />
+                  )}
                   <Route
                     path="/import-products"
                     element={

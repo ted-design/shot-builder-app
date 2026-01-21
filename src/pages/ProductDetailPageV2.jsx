@@ -690,6 +690,13 @@ function SamplesWorkspace({ scope, colorwayName, samples = [] }) {
         </button>
       </div>
 
+      {/* Preview mode banner */}
+      <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-900/30">
+        <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+          ✨ Preview mode — Sample tracking is coming soon
+        </p>
+      </div>
+
       {/* Summary chips row */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-50 dark:border-slate-700/50 bg-slate-25 dark:bg-slate-800/30">
         <SampleSummaryChip icon={Box} label="Total" count={summaryStats.total} />
