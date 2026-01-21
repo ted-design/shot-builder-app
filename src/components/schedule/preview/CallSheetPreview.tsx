@@ -20,6 +20,21 @@ import { buildCallSheetVariableContext } from "../../../lib/callsheet/variables"
 // Set to false to revert to table view
 const USE_SCHEDULE_BLOCK_PREVIEW = true;
 
+/**
+ * AUTHORITATIVE EXPORT RENDERER
+ * -----------------------------
+ * This component is the SINGLE source of truth for call sheet rendering.
+ * All export paths (Print to PDF, Download PDF) should route through this renderer
+ * to ensure WYSIWYG parity between preview and export.
+ *
+ * Print support attributes:
+ * - data-callsheet-print-root: CSS @media print targets this to show only the call sheet
+ * - data-callsheet-print-scale: CSS resets transform:scale() for print
+ *
+ * See: src/index.css @media print rules
+ * See: src/components/callsheet/export/CallSheetExportModal.jsx
+ */
+
 interface CrewDisplayOptions {
   showEmails?: boolean;
   showPhones?: boolean;
@@ -106,6 +121,8 @@ export function CallSheetPreview({
   return (
     <div
       className="call-sheet-document-wrapper"
+      data-callsheet-print-root
+      data-callsheet-print-scale
       style={{
         ...cssVars,
         transform: `scale(${zoom / 100})`,
