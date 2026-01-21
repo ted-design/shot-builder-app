@@ -52,7 +52,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { doc, getDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { productFamilyPath, productFamilySkusPath } from "../lib/paths";
@@ -807,54 +807,12 @@ function ColorwayDetailPanel({ sku, family, allSkus, onClose }) {
   // ========================================================================
 
   // Product-scope samples: aggregated across all colorways
-  // Mock data for UI development - will be replaced with Firestore data
-  const productSamples = useMemo(() => {
-    return [
-      {
-        id: "sample-prod-1",
-        label: "PP Sample 1",
-        type: "Pre-production",
-        status: "arrived",
-        sizeRun: ["M", "L"],
-        carrier: "DHL",
-        tracking: "1234567890",
-        eta: null,
-        arrivedAt: "2025-01-15",
-        notes: "Approved for shoot",
-        issues: [],
-      },
-    ];
-  }, []);
+  // Empty until Firestore integration is complete
+  const productSamples = useMemo(() => [], []);
 
   // Colorway-scope samples: keyed by SKU ID
-  // Mock data uses first SKU ID if available
-  const colorwaySamplesBySkuId = useMemo(() => {
-    // If no SKUs loaded yet, return empty map
-    if (!allSkus || allSkus.length === 0) return {};
-
-    // Create mock sample for the first SKU
-    const firstSkuId = allSkus[0]?.id;
-    if (!firstSkuId) return {};
-
-    return {
-      [firstSkuId]: [
-        {
-          id: "sample-cw-1",
-          scopeSkuId: firstSkuId,
-          label: "Shoot Sample A",
-          type: "Shoot sample",
-          status: "in_transit",
-          sizeRun: ["S", "M", "L"],
-          carrier: "FedEx",
-          tracking: "7891011121314",
-          eta: "2025-01-25",
-          arrivedAt: null,
-          notes: "Priority shipment for campaign",
-          issues: [],
-        },
-      ],
-    };
-  }, [allSkus]);
+  // Empty until Firestore integration is complete
+  const colorwaySamplesBySkuId = useMemo(() => ({}), []);
 
   // Get samples for current scope
   const currentSamples = useMemo(() => {
@@ -1124,6 +1082,11 @@ export default function ProductDetailPageV2() {
   const handleCloseDetail = useCallback(() => {
     setSelectedColorwayId(null);
   }, []);
+
+  // Guard: Redirect to products list if no clientId (user not properly authenticated)
+  if (!clientId) {
+    return <Navigate to="/products" replace />;
+  }
 
   // Loading state
   if (loading) {
