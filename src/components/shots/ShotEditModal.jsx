@@ -377,7 +377,7 @@ export default function ShotEditModal({
                       </label>
                       <Input
                         id={`${uniquePrefix}-description-field`}
-                        value={draft.description ?? draft.type ?? ""}
+                        value={draft.description || draft.type || ""}
                         onChange={(event) => handleFieldChange({ description: event.target.value })}
                         disabled={navigationDisabled}
                       />

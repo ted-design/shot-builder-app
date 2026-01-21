@@ -29,7 +29,7 @@ import { isDemoModeActive } from "../lib/flags";
 import { scheduleQueryKeys } from "./useSchedule";
 import { calculateEndTime, parseTimeToMinutes, minutesToTimeString } from "../lib/timeUtils";
 import { getPrimaryAttachmentWithStyle, getShotImagePath } from "../lib/imageHelpers";
-import { stripHtml } from "../pages/PlannerPage";
+import { stripHtml } from "../lib/stripHtml";
 import {
   getNextAvailableTime,
   sortEntriesByTime,
@@ -264,7 +264,13 @@ export function useResolvedScheduleEntries(
           });
 
           const productNames = Array.from(labelByProductId.values());
-          const resolvedDetails = shot.type ? stripHtml(String(shot.type)) : "";
+          const canonicalDescription = stripHtml(String(shot.description ?? ""));
+          const legacyDescription = stripHtml(String(shot.type ?? ""));
+          const resolvedShotDescription = canonicalDescription || legacyDescription || "";
+
+          // Details field: read from shot.description (canonical) with fallback to shot.type (legacy).
+          // Use stripped text so placeholder HTML/whitespace doesn't block the fallback.
+          const resolvedDetails = resolvedShotDescription;
 
           // Resolve location (entry override wins)
           const entryLocation = entry.locationId
@@ -278,14 +284,10 @@ export function useResolvedScheduleEntries(
 
           const entryNotes = entry.notes ? stripHtml(entry.notes) : "";
           const shotNotes = shot.notes ? stripHtml(shot.notes) : "";
-          // Description field: read from shot.description (canonical) with fallback to shot.type (legacy)
-          const shotDescription = shot.description
-            ? stripHtml(String(shot.description))
-            : (shot.type ? stripHtml(String(shot.type)) : "");
           // Notes field: prioritize entry notes, then shot notes (not description)
           const resolvedNotes = entryNotes || shotNotes;
           // Description field: separate from notes for granular toggle control
-          const resolvedDescription = shotDescription;
+          const resolvedDescription = resolvedShotDescription;
           // Tags: pass through from shot (array of {id, label, color})
           const resolvedTags = Array.isArray(shot.tags) ? shot.tags : [];
 
