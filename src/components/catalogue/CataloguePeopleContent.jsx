@@ -27,13 +27,7 @@ import {
 import Thumb from "../Thumb";
 import TalentDetailModal from "../talent/TalentDetailModal";
 import { useAuth } from "../../context/AuthContext";
-
-const stripHtml = (value) => {
-  if (!value || typeof value !== "string") return "";
-  const withNewlines = value.replace(/<br\s*\/?\s*>/gi, "\n").replace(/<\/p>/gi, "\n");
-  const withoutTags = withNewlines.replace(/<[^>]+>/g, " ");
-  return withoutTags.replace(/\s+/g, " ").trim();
-};
+import { stripHtml } from "../../lib/stripHtml";
 
 const getNotesPreview = (notes, maxLength = 140) => {
   const plain = stripHtml(notes || "");

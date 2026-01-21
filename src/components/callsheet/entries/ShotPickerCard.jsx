@@ -3,7 +3,7 @@
 
 import React from "react";
 import { Image as ImageIcon, Check, Tag, Square, CheckSquare } from "lucide-react";
-import { stripHtml } from "../../../pages/PlannerPage";
+import { stripHtml } from "../../../lib/stripHtml";
 import { getShotImagePath } from "../../../lib/imageHelpers";
 import AppImage from "../../common/AppImage";
 
@@ -48,7 +48,9 @@ function ShotPickerCard({
   const shotTitle = shot.name || `Shot ${shot.shotNumber || "—"}`;
 
   // Get description (strip HTML)
-  const description = shot.description ? stripHtml(shot.description) : null;
+  const canonicalDescription = stripHtml(String(shot.description ?? ""));
+  const legacyDescription = stripHtml(String(shot.type ?? ""));
+  const description = (canonicalDescription || legacyDescription || "") || null;
 
   // Get notes preview
   const notes = shot.notes ? stripHtml(shot.notes) : null;

@@ -34,6 +34,7 @@ import { normalizeMeasurementsMap } from "../lib/measurements";
 import { LayoutGrid, Table, User, Upload } from "lucide-react";
 import { readStorage, writeStorage } from "../lib/safeStorage";
 import { nanoid } from "nanoid";
+import { stripHtml } from "../lib/stripHtml";
 
 function buildDisplayName(firstName, lastName) {
   const first = (firstName || "").trim();
@@ -45,15 +46,6 @@ function buildDisplayName(firstName, lastName) {
 function formatContact(info = {}) {
   return [info.phone, info.email].filter(Boolean).join(" • ");
 }
-
-const stripHtml = (value) => {
-  if (!value || typeof value !== "string") return "";
-  const withNewlines = value
-    .replace(/<br\s*\/?\s*>/gi, "\n")
-    .replace(/<\/p>/gi, "\n");
-  const withoutTags = withNewlines.replace(/<[^>]+>/g, " ");
-  return withoutTags.replace(/\s+/g, " ").trim();
-};
 
 const getNotesPreview = (talentRecord, maxLength = 140) => {
   const raw = talentRecord?.notes || talentRecord?.sizing || "";

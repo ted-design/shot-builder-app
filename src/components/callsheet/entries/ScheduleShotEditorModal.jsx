@@ -12,15 +12,20 @@ import {
   parseDateToTimestamp,
   toDateInputValue,
 } from "../../../lib/shotDraft";
+import { stripHtml } from "../../../lib/stripHtml";
 
 function normaliseShotDraft(shot) {
   if (!shot) return null;
+  const canonicalDescription = stripHtml(String(shot.description ?? ""));
+  const legacyDescription = stripHtml(String(shot.type ?? ""));
+  const resolvedDescription = canonicalDescription || legacyDescription || "";
   return {
     ...shot,
     date: toDateInputValue(shot.date),
     shotNumber: shot.shotNumber ? String(shot.shotNumber) : "",
     type: shot.type || "",
-    description: typeof shot.description === "string" ? shot.description : shot.description || "",
+    // Use stripped text so placeholder HTML/whitespace doesn't block fallback to legacy type.
+    description: resolvedDescription,
     locationId: shot.locationId || "",
     products: Array.isArray(shot.products) ? shot.products : [],
     talent: Array.isArray(shot.talent) ? shot.talent : [],

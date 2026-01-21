@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { stripHtml } from "../../lib/stripHtml";
 
 vi.mock("../../lib/firebase", () => ({
   db: {},
@@ -30,7 +31,6 @@ const {
   ShotCard,
   groupShotsByLane,
   UNASSIGNED_LANE_ID,
-  stripHtml,
   normaliseShotTalent,
   buildPlannerExportLanes,
   calculateLaneSummaries,

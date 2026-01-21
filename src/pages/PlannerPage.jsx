@@ -66,6 +66,7 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
+import { stripHtml } from "../lib/stripHtml";
 import { Button } from "../components/ui/button";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { TagList } from "../components/ui/TagBadge";
@@ -300,22 +301,6 @@ const formatShotDate = (value) => {
   }
   if (typeof value === "string") return value.slice(0, 10);
   return "";
-};
-
-const stripHtml = (value) => {
-  if (typeof value !== "string" || !value) return "";
-  const withBreaks = value
-    .replace(/<\s*br\s*\/?\s*>/gi, "\n")
-    .replace(/<\/(p|div|li)>/gi, "\n")
-    .replace(/<li>/gi, "• ");
-  const withoutTags = withBreaks.replace(/<[^>]*>/g, " ");
-  return withoutTags
-    .replace(/&nbsp;/gi, " ")
-    .replace(/\r+/g, "")
-    .replace(/\s*\n\s*/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/[\t ]+/g, " ")
-    .trim();
 };
 
 const readStoredPlannerDensity = () => {

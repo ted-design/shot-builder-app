@@ -129,6 +129,7 @@ import {
   groupShotsByLane,
   buildPlannerExportLanes,
 } from "./PlannerPage";
+import { stripHtml } from "../lib/stripHtml";
 import { VirtualizedGrid } from "../components/ui/VirtualizedList";
 import { ButtonGroup } from "../components/ui/ButtonGroup";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
@@ -1886,6 +1887,10 @@ export function ShotsWorkspace() {
         const products = normaliseShotProducts(shot);
         const talentSelection = mapShotTalentToSelection(shot);
 
+        const canonicalDescription = stripHtml(String(shot.description ?? ""));
+        const legacyDescription = stripHtml(String(shot.type ?? ""));
+        const resolvedDescription = canonicalDescription || legacyDescription || "";
+
         // AUTO-MIGRATION: Convert legacy referenceImagePath to attachments array if needed
         let attachments = Array.isArray(shot.attachments) ? shot.attachments : [];
         if (attachments.length === 0 && shot.referenceImagePath) {
@@ -1897,8 +1902,9 @@ export function ShotsWorkspace() {
 
         const draft = {
           name: shot.name || "",
-          // Initialize description with fallback to type for legacy shots
-          description: shot.description || shot.type || "",
+          // Initialize description with fallback to type for legacy shots.
+          // Use stripped text so placeholder HTML/whitespace doesn't block the fallback.
+          description: resolvedDescription,
           type: shot.type || "",
           notes: shot.notes || "",
           date: toDateInputValue(shot.date),
