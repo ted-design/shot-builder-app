@@ -1,5 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { FLAGS } from "../lib/flags";
 import {
   collection,
   deleteDoc,
@@ -469,6 +471,7 @@ const ProductActionMenu = memo(function ProductActionMenu({
 
 export default function ProductsPage() {
   const { clientId, role: globalRole, user } = useAuth();
+  const navigate = useNavigate();
   const role = globalRole || ROLE.VIEWER;
   const canEdit = canEditProducts(role);
   const canArchive = canArchiveProducts(role);
@@ -1647,6 +1650,11 @@ export default function ProductsPage() {
       ensureFamilySkusLoaded(family.id);
     }
     const openFromCard = () => {
+      // When productsV2 flag is enabled, navigate to detail page instead of edit modal
+      if (FLAGS.productsV2) {
+        navigate(`/products/${family.id}`);
+        return;
+      }
       if (!canEdit || inlineEditing) return;
       loadFamilyForEdit(family);
     };
@@ -2182,6 +2190,11 @@ export default function ProductsPage() {
       sizesLabel,
     } = buildFamilyMeta(family);
     const handleManageColours = () => {
+      // When productsV2 flag is enabled, navigate to detail page instead of edit modal
+      if (FLAGS.productsV2) {
+        navigate(`/products/${family.id}`);
+        return;
+      }
       if (!canEdit || inlineEditing) return;
       loadFamilyForEdit(family);
     };
@@ -2562,6 +2575,7 @@ export default function ProductsPage() {
         familySkus={familySkus}
         ensureFamilySkus={ensureFamilySkusLoaded}
         paletteIndex={paletteIndex}
+        onProductClick={FLAGS.productsV2 ? (family) => navigate(`/products/${family.id}`) : undefined}
       />
     );
   };

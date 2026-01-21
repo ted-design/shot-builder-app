@@ -40,6 +40,7 @@ const statusLabel = (status) => {
  * @param {string} props.clientId - Client ID for Firestore path
  * @param {React.Ref} props.selectAllRef - Ref for select all checkbox
  * @param {Function} props.renderActionMenu - Function to render action menu for a family
+ * @param {Function} props.onProductClick - Optional callback when clicking product name (for navigation)
  */
 export default function ProductsTableView({
   families,
@@ -60,6 +61,7 @@ export default function ProductsTableView({
   familySkus = {},
   ensureFamilySkus,
   paletteIndex = null,
+  onProductClick,
 }) {
   // Inline editing state
   const [editingCell, setEditingCell] = useState(null); // { familyId, field }
@@ -268,16 +270,28 @@ export default function ProductsTableView({
       render: (family) => (
         <div className="space-y-1">
           <div className={`font-semibold text-slate-900 dark:text-slate-100 ${textClass}`}>
-            {renderEditableCell(family, 'styleName', family.styleName)}
+            {onProductClick ? (
+              // When onProductClick is provided, render as a clickable link-style element
+              <button
+                type="button"
+                onClick={() => onProductClick(family)}
+                className="text-left hover:text-primary-600 dark:hover:text-primary-400 hover:underline transition-colors"
+              >
+                {family.styleName}
+              </button>
+            ) : (
+              // Default: inline editable cell
+              renderEditableCell(family, 'styleName', family.styleName)
+            )}
           </div>
           {visibility.styleNumber !== false && (
             <button
               type="button"
-              onClick={() => startEdit(family.id, 'styleNumber', family.styleNumber)}
+              onClick={() => onProductClick ? onProductClick(family) : startEdit(family.id, 'styleNumber', family.styleNumber)}
               className="text-xs text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
-              disabled={!canEdit}
+              disabled={!onProductClick && !canEdit}
             >
-              {family.styleNumber ? `Style #${family.styleNumber}` : "Add style #"}
+              {family.styleNumber ? `Style #${family.styleNumber}` : (onProductClick ? null : "Add style #")}
             </button>
           )}
         </div>
