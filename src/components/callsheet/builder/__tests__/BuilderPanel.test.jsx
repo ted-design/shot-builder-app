@@ -5,7 +5,6 @@ import EditorPanel from "../EditorPanel";
 
 function EditorPanelHarness({ initialSettings = {} }) {
   const [scheduleSettings, setScheduleSettings] = useState({
-    showDurations: true,
     cascadeChanges: true,
     ...initialSettings,
   });
@@ -18,9 +17,6 @@ function EditorPanelHarness({ initialSettings = {} }) {
       scheduleId="schedule"
       schedule={{ tracks: [] }}
       scheduleSettings={scheduleSettings}
-      onToggleShowDurations={() =>
-        setScheduleSettings((s) => ({ ...s, showDurations: !s.showDurations }))
-      }
       onToggleCascade={() =>
         setScheduleSettings((s) => ({ ...s, cascadeChanges: !s.cascadeChanges }))
       }
@@ -33,51 +29,37 @@ describe("EditorPanel - Schedule Section", () => {
   it("renders schedule settings checkboxes", () => {
     render(<EditorPanelHarness />);
 
-    // The schedule section should show duration and cascade checkboxes
-    const showDurations = screen.getByRole("checkbox", { name: /show durations/i });
-    const cascadeChanges = screen.getByRole("checkbox", { name: /cascade changes/i });
+    // The schedule section should show cascade checkbox
+    const cascadeChanges = screen.getByRole("checkbox", { name: /ripple downstream/i });
 
-    expect(showDurations).toBeInTheDocument();
     expect(cascadeChanges).toBeInTheDocument();
-    expect(showDurations).toBeChecked();
     expect(cascadeChanges).toBeChecked();
   });
 
-  it("toggles schedule settings checkboxes", () => {
+  it("toggles cascade changes checkbox", () => {
     render(<EditorPanelHarness />);
 
-    const showDurations = screen.getByRole("checkbox", { name: /show durations/i });
-    const cascadeChanges = screen.getByRole("checkbox", { name: /cascade changes/i });
+    const cascadeChanges = screen.getByRole("checkbox", { name: /ripple downstream/i });
 
-    // Both should start checked
-    expect(showDurations).toBeChecked();
+    // Should start checked
     expect(cascadeChanges).toBeChecked();
-
-    // Toggle show durations
-    fireEvent.click(showDurations);
-    expect(showDurations).not.toBeChecked();
 
     // Toggle cascade changes
     fireEvent.click(cascadeChanges);
     expect(cascadeChanges).not.toBeChecked();
 
     // Toggle back
-    fireEvent.click(showDurations);
     fireEvent.click(cascadeChanges);
-    expect(showDurations).toBeChecked();
     expect(cascadeChanges).toBeChecked();
   });
 
   it("renders with initial settings unchecked", () => {
     render(
-      <EditorPanelHarness initialSettings={{ showDurations: false, cascadeChanges: false }} />
+      <EditorPanelHarness initialSettings={{ cascadeChanges: false }} />
     );
 
-    const showDurations = screen.getByRole("checkbox", { name: /show durations/i });
-    const cascadeChanges = screen.getByRole("checkbox", { name: /cascade changes/i });
+    const cascadeChanges = screen.getByRole("checkbox", { name: /ripple downstream/i });
 
-    expect(showDurations).not.toBeChecked();
     expect(cascadeChanges).not.toBeChecked();
   });
 });
-

@@ -137,9 +137,6 @@ function CallSheetBuilder({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isWorkspaceFullscreen]);
 
-  // Track focus mode - session-only state for dimming entries from other tracks
-  const [trackFocusId, setTrackFocusId] = useState("all");
-
   // Schedule data
   const { schedule, loading: scheduleLoading, error: scheduleError } = useSchedule(
     clientId,
@@ -766,11 +763,6 @@ function CallSheetBuilder({
     [updateEntry]
   );
 
-  const handleToggleShowDurations = useCallback(() => {
-    if (!schedule?.settings) return;
-    updateSettings({ showDurations: !(schedule.settings.showDurations ?? true) }, schedule.settings);
-  }, [schedule?.settings, updateSettings]);
-
   const handleToggleCascade = useCallback(() => {
     if (!schedule?.settings) return;
     toggleCascade(schedule.settings);
@@ -1154,10 +1146,7 @@ function CallSheetBuilder({
               schedule,
               scheduleSettings: settings,
               scheduledTalentIds,
-              trackFocusId,
-              onTrackFocusChange: setTrackFocusId,
               resolvedEntries,
-              onToggleShowDurations: canWriteProject ? handleToggleShowDurations : undefined,
               onToggleCascade: canWriteProject ? handleToggleCascade : undefined,
               onAddScene: canWriteProject ? (trackId) => handleOpenEntryModal("shot", null, trackId) : undefined,
               onAddBanner: canWriteProject ? () => handleOpenEntryModal("custom", "other") : undefined,
@@ -1178,7 +1167,6 @@ function CallSheetBuilder({
               onUpdateEntry: canWriteProject ? handleUpdateEntryGeneric : undefined,
               onDeleteEntry: canWriteProject ? handleDeleteEntry : undefined,
               tracks,
-              onEditTracks: canWriteProject ? () => setIsTrackManagerOpen(true) : undefined,
             }}
           />
 
@@ -1270,6 +1258,14 @@ function CallSheetBuilder({
             schedule={schedule}
             entries={resolvedEntries}
             tracks={tracks}
+            projectTitle={projectTitle}
+            dayDetails={dayDetails}
+            crewRows={crewRows}
+            talentRows={talentRows}
+            sections={orderedSections}
+            callSheetConfig={callSheetConfig}
+            layoutV2={layoutV2Local}
+            columnConfig={effectiveColumns}
           />
         </>
       ) : null}

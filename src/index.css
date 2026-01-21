@@ -102,36 +102,131 @@ textarea:focus-visible {
   margin: 0;
 }
 
-/* Call sheet print mode: print the preview paper only */
+/* Call sheet print mode: print from the dedicated print portal */
 @media print {
   @page {
     size: letter;
-    margin: 0;
+    margin: 12mm;
+  }
+
+  /* Base document reset for print */
+  html, body {
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
   }
 
   body[data-callsheet-printing="1"] {
     background: white !important;
   }
 
-  body[data-callsheet-printing="1"] * {
-    visibility: hidden !important;
+  /* Hide all elements except the print portal */
+  body[data-callsheet-printing="1"] > * {
+    display: none !important;
   }
 
-  body[data-callsheet-printing="1"] [data-callsheet-print-root],
-  body[data-callsheet-printing="1"] [data-callsheet-print-root] * {
+  /* Show only the print portal */
+  body[data-callsheet-printing="1"] > [data-callsheet-print-portal] {
+    display: block !important;
+  }
+
+  /* Make portal and all descendants visible */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal],
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] * {
     visibility: visible !important;
   }
 
-  body[data-callsheet-printing="1"] [data-callsheet-print-scale] {
+  /* Reset transform/scale on the print portal content */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] [data-callsheet-print-scale] {
     transform: none !important;
+    zoom: 1 !important;
   }
 
-  body[data-callsheet-printing="1"] [data-callsheet-print-root] {
+  /* Position and size the print portal for full-page printing */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;
     width: 100% !important;
+    max-width: none !important;
     height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: visible !important;
+    z-index: 9999 !important;
+  }
+
+  /* Ensure call sheet content fills the print area without constraints */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] [data-callsheet-print-root] {
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  /* Reset layout constraints on all content within the print portal */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] *,
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] .call-sheet-document-wrapper,
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] .call-sheet-document-wrapper * {
+    overflow: visible !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
+
+  /* Preserve colors and borders when printing.
+   * NOTE: print-color-adjust is advisory only - browsers still require
+   * "Background graphics" to be enabled in the print dialog for backgrounds
+   * to appear. This cannot be overridden via CSS. */
+  body[data-callsheet-printing="1"],
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal],
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important; /* Legacy property for older browsers */
+  }
+
+  /* ============================================
+   * PDF EXPORT CLEANUP
+   * Remove paper border/shadow and disable interactivity
+   * to prevent hover artifacts in exported PDFs
+   * ============================================ */
+
+  /* Remove doc-page paper border and shadow in print (keeps clean PDF) */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] .doc-page {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  /* Disable all pointer events to prevent PDF annotation hit areas */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] * {
+    pointer-events: none !important;
+    cursor: default !important;
+  }
+
+  /* Neutralize link rendering (no underlines/colors that create PDF annotations) */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] a {
+    pointer-events: none !important;
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  /* Remove focus/hover visuals that might get baked into PDF appearance */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] *:hover,
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] *:focus,
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] *:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Neutralize buttons in print (section toggle buttons, etc.) */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] button {
+    pointer-events: none !important;
+    cursor: default !important;
   }
 }

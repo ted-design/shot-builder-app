@@ -1,5 +1,7 @@
-import React, { useState } from "react";
-import { ChevronDown, Check, Settings } from "lucide-react";
+import React from "react";
+import { HelpCircle } from "lucide-react";
+import Tippy from "@tippyjs/react";
+import "tippy.js/dist/tippy.css";
 import DayDetailsEditorCard from "../DayDetailsEditorCard";
 import CrewCallsCard from "../CrewCallsCard";
 import TalentCallsCard from "../TalentCallsCard";
@@ -14,15 +16,6 @@ import HeaderEditorCard from "../HeaderEditorCard";
 import HeaderEditorV2 from "../sections/HeaderEditorV2";
 import DayDetailsEditorV2 from "../sections/DayDetailsEditorV2";
 import DayStreamView from "../daystream/DayStreamView";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-} from "../../ui/dropdown-menu";
 
 export default function EditorPanel({
   activeSection,
@@ -32,10 +25,7 @@ export default function EditorPanel({
   schedule,
   scheduleSettings,
   scheduledTalentIds,
-  trackFocusId = "all",
-  onTrackFocusChange,
   resolvedEntries = [],
-  onToggleShowDurations,
   onToggleCascade,
   onAddScene,
   onAddBanner,
@@ -54,7 +44,6 @@ export default function EditorPanel({
   onDeleteEntry,
   tracks = [],
   readOnly = false,
-  onEditTracks,
 }) {
   const activeType = activeSection?.type || "schedule";
 
@@ -235,23 +224,7 @@ export default function EditorPanel({
       <div className="flex h-full flex-col">
         {/* Settings row with checkboxes */}
         <div className="flex items-center gap-6 px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
-          <label
-            className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-            title="Shows/hides duration labels in the call sheet preview"
-          >
-            <input
-              type="checkbox"
-              checked={scheduleSettings?.showDurations !== false}
-              onChange={onToggleShowDurations}
-              disabled={readOnly || !onToggleShowDurations}
-              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 accent-blue-600"
-            />
-            <span>Show durations</span>
-          </label>
-          <label
-            className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-            title="When on, moving or resizing an item shifts later items to stay continuous"
-          >
+          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
             <input
               type="checkbox"
               checked={scheduleSettings?.cascadeChanges !== false}
@@ -259,54 +232,21 @@ export default function EditorPanel({
               disabled={readOnly || !onToggleCascade}
               className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 accent-blue-600"
             />
-            <span>Cascade changes</span>
+            <span>Ripple downstream</span>
+            <Tippy
+              content={
+                <div className="text-xs">
+                  <p className="font-medium mb-1">Auto-shift later items</p>
+                  <p className="text-slate-300">When you move or resize an item, all items that come after it shift automatically to keep the schedule continuous.</p>
+                </div>
+              }
+              placement="bottom"
+              delay={[200, 0]}
+              maxWidth={260}
+            >
+              <HelpCircle className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-help" />
+            </Tippy>
           </label>
-
-          {/* Track Focus Mode dropdown with integrated Manage tracks action */}
-          <div className="flex items-center gap-2 ml-auto">
-            <span className="text-sm text-slate-600 dark:text-slate-400">Track</span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex h-8 min-w-[120px] items-center justify-between gap-2 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700 hover:bg-slate-50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                >
-                  <span className="truncate">
-                    {trackFocusId === "all"
-                      ? "All"
-                      : schedule?.tracks?.find((t) => t.id === trackFocusId)?.name || "All"}
-                  </span>
-                  <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[160px]">
-                <DropdownMenuRadioGroup value={trackFocusId} onValueChange={onTrackFocusChange}>
-                  <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
-                  {Array.isArray(schedule?.tracks) &&
-                    schedule.tracks.map((track) => (
-                      <DropdownMenuRadioItem key={track.id} value={track.id}>
-                        <span className="flex items-center gap-2">
-                          <span
-                            className="h-2 w-2 rounded-full shrink-0"
-                            style={{ backgroundColor: track.color || "#64748B" }}
-                          />
-                          <span className="truncate">{track.name || track.id}</span>
-                        </span>
-                      </DropdownMenuRadioItem>
-                    ))}
-                </DropdownMenuRadioGroup>
-                {onEditTracks && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={onEditTracks} className="gap-2">
-                      <Settings className="h-4 w-4" />
-                      Manage tracks…
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         </div>
 
         {/* Preview Fields - toggles for which fields appear in schedule blocks */}
