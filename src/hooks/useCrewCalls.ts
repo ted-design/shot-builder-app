@@ -17,10 +17,21 @@ import { isDemoModeActive } from "../lib/flags";
 import { useAuth } from "../context/AuthContext";
 
 function normalizeCrewCall(crewMemberId: string, raw: any): CrewCallSheet {
+  // Normalize offset direction to valid values or null
+  const rawDirection = raw?.callOffsetDirection;
+  const callOffsetDirection =
+    rawDirection === "early" || rawDirection === "delay" ? rawDirection : null;
+  // Normalize offset minutes to a finite number or null
+  const rawMinutes = raw?.callOffsetMinutes;
+  const callOffsetMinutes =
+    typeof rawMinutes === "number" && Number.isFinite(rawMinutes) ? rawMinutes : null;
+
   return {
     crewMemberId,
     callTime: raw?.callTime ?? null,
     callText: raw?.callText ?? null,
+    callOffsetDirection,
+    callOffsetMinutes,
     wrapTime: raw?.wrapTime ?? null,
     wrapText: raw?.wrapText ?? null,
     notes: raw?.notes ?? null,

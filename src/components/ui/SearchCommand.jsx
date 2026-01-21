@@ -11,7 +11,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMatch, useNavigate } from 'react-router-dom';
 import { Command } from 'cmdk';
 import {
   Search,
@@ -142,6 +142,9 @@ function saveRecentSearch(query) {
 export default function SearchCommand() {
   const { isOpen, showShortcuts, openSearch, closeSearch } = useSearchCommand();
   const { currentProjectId } = useProjectScope();
+  const projectMatch = useMatch('/projects/:projectId/*');
+  const routeProjectId = projectMatch?.params?.projectId || null;
+  const effectiveProjectId = routeProjectId || currentProjectId;
   const [search, setSearch] = useState('');
   const [recentSearches, setRecentSearches] = useState(loadRecentSearches);
   const pageShortcuts = usePageShortcuts();
@@ -155,9 +158,9 @@ export default function SearchCommand() {
 
   // Get cached data
   const cachedShots = useMemo(() => {
-    if (!clientId || !currentProjectId) return [];
-    return queryClient.getQueryData(queryKeys.shots(clientId, currentProjectId)) || [];
-  }, [queryClient, clientId, currentProjectId]);
+    if (!clientId || !effectiveProjectId) return [];
+    return queryClient.getQueryData(queryKeys.shots(clientId, effectiveProjectId)) || [];
+  }, [queryClient, clientId, effectiveProjectId]);
 
   const cachedProducts = useMemo(() => {
     if (!clientId) return [];
@@ -180,8 +183,8 @@ export default function SearchCommand() {
   }, [queryClient, clientId]);
 
   // Load data from TanStack Query
-  const { data: shots = cachedShots } = useShots(clientId, currentProjectId, {
-    enabled: isOpen && !!clientId && !!currentProjectId,
+  const { data: shots = cachedShots } = useShots(clientId, effectiveProjectId, {
+    enabled: isOpen && !!clientId && !!effectiveProjectId,
     placeholderData: cachedShots,
   });
   const { data: products = cachedProducts } = useProducts(clientId, {
@@ -261,19 +264,19 @@ export default function SearchCommand() {
       setRecentSearches(loadRecentSearches());
       closeSearch();
 
-      if (requiresProject && !currentProjectId) {
+      if (requiresProject && !effectiveProjectId) {
         toast.info({ title: 'Please select a project' });
         navigate('/projects');
         return;
       }
 
-      const path = currentProjectId && result.type === 'shot'
-        ? `/projects/${currentProjectId}/shots`
+      const path = effectiveProjectId && result.type === 'shot'
+        ? `/projects/${effectiveProjectId}/shots`
         : config.path;
 
       navigate(path);
     },
-    [search, closeSearch, navigate, currentProjectId]
+    [search, closeSearch, navigate, currentProjectId, effectiveProjectId]
   );
 
   // Handle actions
@@ -282,11 +285,11 @@ export default function SearchCommand() {
 
     switch (action) {
       case 'create-shot':
-        if (!currentProjectId) {
+        if (!effectiveProjectId) {
           toast.info({ title: 'Please select a project first' });
           navigate('/projects');
         } else {
-          navigate(`/projects/${currentProjectId}/shots`);
+          navigate(`/projects/${effectiveProjectId}/shots`);
           // Trigger create modal (would need to be implemented)
         }
         break;
@@ -306,11 +309,11 @@ export default function SearchCommand() {
         navigate('/projects');
         break;
       case 'nav-shots':
-        if (!currentProjectId) {
+        if (!effectiveProjectId) {
           toast.info({ title: 'Please select a project first' });
           navigate('/projects');
         } else {
-          navigate(`/projects/${currentProjectId}/shots`);
+          navigate(`/projects/${effectiveProjectId}/shots`);
         }
         break;
       case 'nav-products':
@@ -334,7 +337,7 @@ export default function SearchCommand() {
       default:
         break;
     }
-  }, [closeSearch, navigate, currentProjectId]);
+  }, [closeSearch, navigate, currentProjectId, effectiveProjectId]);
 
   const handleRecentSearchClick = useCallback(searchQuery => {
     setSearch(searchQuery);

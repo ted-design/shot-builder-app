@@ -215,10 +215,16 @@ export interface TalentCallSheet {
   createdBy?: string | null;
 }
 
+export type CallOffsetDirection = "early" | "delay";
+
 export interface CrewCallSheet {
   crewMemberId: string;
   callTime?: string | null;
   callText?: string | null;
+  /** Offset direction relative to base crew call: "early" (subtract) or "delay" (add) */
+  callOffsetDirection?: CallOffsetDirection | null;
+  /** Offset in minutes from base crew call (used with callOffsetDirection) */
+  callOffsetMinutes?: number | null;
   wrapTime?: string | null;
   wrapText?: string | null;
   notes?: string | null;

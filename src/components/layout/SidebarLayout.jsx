@@ -25,7 +25,7 @@ function SidebarLayoutContent() {
   const navigate = useNavigate();
   const { isExpanded } = useSidebar();
   const { clientId } = useAuth();
-  const { currentProjectId, setCurrentProjectId } = useProjectScope();
+  const { currentProjectId } = useProjectScope();
 
   // Extract projectId from route to make breadcrumbs route-authoritative
   const projectMatch = useMatch("/projects/:projectId/*");
@@ -45,7 +45,7 @@ function SidebarLayoutContent() {
   }, [projects, effectiveProjectId]);
 
   const projectMenuItems = useMemo(() => {
-    if (!currentProjectId || !projects.length) return undefined;
+    if (!effectiveProjectId || !projects.length) return undefined;
     const recent = [...projects]
       .filter((p) => p && p.id && !p.deletedAt && p.status !== "archived")
       .slice(0, 10);
@@ -56,12 +56,11 @@ function SidebarLayoutContent() {
       ...recent.map((project) => ({
         label: project.name || "Untitled Project",
         onSelect: () => {
-          setCurrentProjectId(project.id);
           navigate(`/projects/${project.id}/dashboard`);
         },
       })),
     ];
-  }, [currentProjectId, projects, navigate, setCurrentProjectId]);
+  }, [effectiveProjectId, projects, navigate]);
 
   // Generate breadcrumbs (route-authoritative when projectId is in URL)
   const breadcrumbItems = useMemo(() => {

@@ -4,13 +4,11 @@
 import React, { useState } from "react";
 import {
   Plus,
-  Settings,
   Download,
   MoreHorizontal,
   Pencil,
   Copy,
   Trash2,
-  Clock,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -34,7 +32,6 @@ import {
  * @param {string} props.clientId - Client ID
  * @param {string} props.projectId - Project ID
  * @param {string} props.scheduleId - Schedule ID
- * @param {Function} props.onOpenDayStartModal - Callback to open day start time modal
  * @param {Function} props.onEditColumns - Callback to open column config
  * @param {Function} props.onEditTracks - Callback to open track manager
  * @param {Function} props.onExport - Callback to open export modal
@@ -49,7 +46,6 @@ function CallSheetToolbar({
   clientId,
   projectId,
   scheduleId,
-  onOpenDayStartModal,
   onEditColumns,
   onEditTracks,
   onExport,
@@ -57,7 +53,6 @@ function CallSheetToolbar({
   onDeleteSchedule,
   onDuplicateSchedule,
 }) {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
@@ -111,35 +106,8 @@ function CallSheetToolbar({
         </h2>
       </div>
 
-      {/* Right: Zoom & Settings */}
+      {/* Right: Actions */}
       <div className="flex items-center gap-2">
-        {/* Settings Dropdown */}
-        <DropdownMenu open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="ghost" size="sm" className="h-8 px-2" title="Settings">
-              <Settings className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            {onOpenDayStartModal ? (
-              <DropdownMenuItem
-                onSelect={(event) => {
-                  event.preventDefault();
-                  setIsSettingsOpen(false);
-                  onOpenDayStartModal();
-                }}
-              >
-                <Clock className="mr-2 h-4 w-4" />
-                Set Day Start Time
-              </DropdownMenuItem>
-            ) : (
-              <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                No settings available
-              </div>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
         {/* Schedule Actions Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

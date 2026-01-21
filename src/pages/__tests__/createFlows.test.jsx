@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { ProjectScopeProvider } from "../../context/ProjectScopeContext.jsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "../../context/ThemeContext.jsx";
@@ -300,7 +300,7 @@ afterEach(() => {
   cleanup();
 });
 
-const renderWithRouter = (ui, { route = "/" } = {}) => {
+const renderWithRouter = (ui, { route = "/", path = null } = {}) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -308,11 +308,18 @@ const renderWithRouter = (ui, { route = "/" } = {}) => {
     },
   });
 
+  // If a path pattern is provided, wrap UI in Routes/Route for useParams() support
+  const wrappedUi = path ? (
+    <Routes>
+      <Route path={path} element={ui} />
+    </Routes>
+  ) : ui;
+
   return render(
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <MemoryRouter initialEntries={[route]}>
-          <ProjectScopeProvider>{ui}</ProjectScopeProvider>
+          <ProjectScopeProvider>{wrappedUi}</ProjectScopeProvider>
         </MemoryRouter>
       </ThemeProvider>
     </QueryClientProvider>
@@ -380,7 +387,10 @@ describe("Create flows", () => {
 
   it("creates shot at the client collection with the active project id", async () => {
     const { default: ShotsPage } = await import("../ShotsPage.jsx");
-    renderWithRouter(<ShotsPage />);
+    renderWithRouter(<ShotsPage />, {
+      route: "/projects/default-project/shots",
+      path: "/projects/:projectId/*",
+    });
 
     // Wait for the page to render and toolbar to portal
     await screen.findByRole("heading", { name: "Shots" });

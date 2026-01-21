@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useMatch, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useProjectScope } from "../../context/ProjectScopeContext";
 import { toast } from "../../lib/toast";
@@ -147,6 +147,9 @@ export default function QuickActionsMenu() {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentProjectId } = useProjectScope();
+  const projectMatch = useMatch("/projects/:projectId/*");
+  const routeProjectId = projectMatch?.params?.projectId || null;
+  const effectiveProjectId = routeProjectId || currentProjectId;
   const { role } = useAuth();
 
   // Close menu when clicking outside
@@ -190,7 +193,7 @@ export default function QuickActionsMenu() {
 
   const resolvePath = (action) => {
     if (action.projectScoped) {
-      return currentProjectId ? `/projects/${currentProjectId}${action.path}` : "/projects";
+      return effectiveProjectId ? `/projects/${effectiveProjectId}${action.path}` : "/projects";
     }
     return action.path;
   };
@@ -198,7 +201,7 @@ export default function QuickActionsMenu() {
   const handleActionClick = (action) => {
     const requiresProject = action.projectScoped;
     const target = resolvePath(action);
-    if (requiresProject && !currentProjectId) {
+    if (requiresProject && !effectiveProjectId) {
       setIsOpen(false);
       toast.info({ title: "Please select a project" });
       navigate(target);

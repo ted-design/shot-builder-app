@@ -1,5 +1,5 @@
-import React from "react";
-import { Clock } from "lucide-react";
+import React, { useState } from "react";
+import { ChevronDown, Check, Settings } from "lucide-react";
 import DayDetailsEditorCard from "../DayDetailsEditorCard";
 import CrewCallsCard from "../CrewCallsCard";
 import TalentCallsCard from "../TalentCallsCard";
@@ -14,6 +14,15 @@ import HeaderEditorCard from "../HeaderEditorCard";
 import HeaderEditorV2 from "../sections/HeaderEditorV2";
 import DayDetailsEditorV2 from "../sections/DayDetailsEditorV2";
 import DayStreamView from "../daystream/DayStreamView";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+} from "../../ui/dropdown-menu";
 
 export default function EditorPanel({
   activeSection,
@@ -28,7 +37,6 @@ export default function EditorPanel({
   resolvedEntries = [],
   onToggleShowDurations,
   onToggleCascade,
-  onTimeIncrementChange,
   onAddScene,
   onAddBanner,
   onAddQuickBanner,
@@ -47,8 +55,6 @@ export default function EditorPanel({
   tracks = [],
   readOnly = false,
   onEditTracks,
-  onOpenDayStartModal,
-  dayStartTimeFormatted,
 }) {
   const activeType = activeSection?.type || "schedule";
 
@@ -229,7 +235,10 @@ export default function EditorPanel({
       <div className="flex h-full flex-col">
         {/* Settings row with checkboxes */}
         <div className="flex items-center gap-6 px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
-          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+          <label
+            className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+            title="Shows/hides duration labels in the call sheet preview"
+          >
             <input
               type="checkbox"
               checked={scheduleSettings?.showDurations !== false}
@@ -239,7 +248,10 @@ export default function EditorPanel({
             />
             <span>Show durations</span>
           </label>
-          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+          <label
+            className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+            title="When on, moving or resizing an item shifts later items to stay continuous"
+          >
             <input
               type="checkbox"
               checked={scheduleSettings?.cascadeChanges !== false}
@@ -250,73 +262,50 @@ export default function EditorPanel({
             <span>Cascade changes</span>
           </label>
 
-          {/* Day Start Time button */}
-          {onOpenDayStartModal && (
-            <button
-              type="button"
-              onClick={onOpenDayStartModal}
-              disabled={readOnly}
-              className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
-              title="Set day start time"
-            >
-              <Clock className="h-3.5 w-3.5" />
-              <span>Day start: {dayStartTimeFormatted || "6:00 AM"}</span>
-            </button>
-          )}
-
-          {/* Time Increment selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-600 dark:text-slate-400">Increment</span>
-            <div className="inline-flex rounded-md border border-slate-300 dark:border-slate-600 overflow-hidden">
-              {[5, 15, 30].map((minutes) => {
-                const isActive = (scheduleSettings?.timeIncrement || 15) === minutes;
-                return (
-                  <button
-                    key={minutes}
-                    type="button"
-                    onClick={() => onTimeIncrementChange?.(minutes)}
-                    disabled={readOnly || !onTimeIncrementChange}
-                    className={`px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
-                      isActive
-                        ? "bg-blue-600 text-white"
-                        : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                    } ${minutes !== 5 ? "border-l border-slate-300 dark:border-slate-600" : ""}`}
-                  >
-                    {minutes}m
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Track Focus Mode dropdown + Edit Tracks button */}
+          {/* Track Focus Mode dropdown with integrated Manage tracks action */}
           <div className="flex items-center gap-2 ml-auto">
-            {Array.isArray(schedule?.tracks) && schedule.tracks.length > 0 && (
-              <>
-                <span className="text-sm text-slate-600 dark:text-slate-400">Track</span>
-                <select
-                  value={trackFocusId}
-                  onChange={(e) => onTrackFocusChange?.(e.target.value)}
-                  className="h-8 w-[120px] rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            <span className="text-sm text-slate-600 dark:text-slate-400">Track</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex h-8 min-w-[120px] items-center justify-between gap-2 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-700 hover:bg-slate-50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
-                  <option value="all">All</option>
-                  {schedule.tracks.map((track) => (
-                    <option key={track.id} value={track.id}>
-                      {track.name || track.id}
-                    </option>
-                  ))}
-                </select>
-              </>
-            )}
-            {onEditTracks && (
-              <button
-                type="button"
-                onClick={onEditTracks}
-                className="text-xs text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
-              >
-                Edit Tracks
-              </button>
-            )}
+                  <span className="truncate">
+                    {trackFocusId === "all"
+                      ? "All"
+                      : schedule?.tracks?.find((t) => t.id === trackFocusId)?.name || "All"}
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[160px]">
+                <DropdownMenuRadioGroup value={trackFocusId} onValueChange={onTrackFocusChange}>
+                  <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
+                  {Array.isArray(schedule?.tracks) &&
+                    schedule.tracks.map((track) => (
+                      <DropdownMenuRadioItem key={track.id} value={track.id}>
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="h-2 w-2 rounded-full shrink-0"
+                            style={{ backgroundColor: track.color || "#64748B" }}
+                          />
+                          <span className="truncate">{track.name || track.id}</span>
+                        </span>
+                      </DropdownMenuRadioItem>
+                    ))}
+                </DropdownMenuRadioGroup>
+                {onEditTracks && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={onEditTracks} className="gap-2">
+                      <Settings className="h-4 w-4" />
+                      Manage tracks…
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

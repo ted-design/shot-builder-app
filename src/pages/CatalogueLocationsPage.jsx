@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useParams } from "react-router-dom";
 import { Search, Plus, Pencil, MapPin, LayoutGrid, Table } from "lucide-react";
 import { db, uploadImageFile } from "../lib/firebase";
 import { locationsPath } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
-import { useProjectScope } from "../context/ProjectScopeContext";
 import { useLocations } from "../hooks/useFirestoreQuery";
 import { Button } from "../components/ui/button";
 import { Input, Checkbox } from "../components/ui/input";
@@ -97,7 +97,7 @@ function LocationGalleryCard({ location }) {
  */
 export default function CatalogueLocationsPage() {
   const { clientId, user, role: globalRole } = useAuth();
-  const { currentProjectId } = useProjectScope();
+  const { projectId } = useParams();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -113,9 +113,9 @@ export default function CatalogueLocationsPage() {
     isLoading: loading,
     error,
   } = useLocations(clientId, {
-    projectId: currentProjectId,
+    projectId,
     scope: "project",
-    enabled: Boolean(clientId && currentProjectId),
+    enabled: Boolean(clientId && projectId),
   });
 
   const { data: allLocationsRaw = [] } = useLocations(clientId, {
@@ -139,12 +139,12 @@ export default function CatalogueLocationsPage() {
   }, [allLocationsRaw, projectLocationIds]);
 
   const addExistingLocationsToProject = async (ids) => {
-    if (!clientId || !currentProjectId) return;
+    if (!clientId || !projectId) return;
     try {
       await Promise.all(
         ids.map((id) =>
           updateDoc(doc(db, ...locationsPath(clientId), id), {
-            projectIds: arrayUnion(currentProjectId),
+            projectIds: arrayUnion(projectId),
           })
         )
       );
@@ -156,7 +156,7 @@ export default function CatalogueLocationsPage() {
   };
 
   const createProjectLocation = async ({ name, street, unit, city, province, postal, phone, notes, photoFile }) => {
-    if (!clientId || !currentProjectId) throw new Error("Missing project");
+    if (!clientId || !projectId) throw new Error("Missing project");
     if (!user) throw new Error("You must be signed in to add locations.");
     if (!canManage) throw new Error("You do not have permission to add locations.");
 
@@ -175,7 +175,7 @@ export default function CatalogueLocationsPage() {
         phone: (phone || "").trim(),
         notes: (notes || "").trim(),
         shotIds: [],
-        projectIds: [currentProjectId],
+        projectIds: [projectId],
         photoPath: null,
         createdAt: serverTimestamp(),
         createdBy: user?.uid || null,
@@ -243,7 +243,7 @@ export default function CatalogueLocationsPage() {
     writeStorage(VIEW_STORAGE_KEY, viewMode);
   }, [viewMode]);
 
-  if (!currentProjectId) {
+  if (!projectId) {
     return (
       <div className="flex items-center justify-center min-h-[400px] text-sm text-slate-600 dark:text-slate-400">
         Select a project to view its catalogue.

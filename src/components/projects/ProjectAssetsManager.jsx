@@ -3,13 +3,11 @@ import { collection, doc, updateDoc, arrayUnion, arrayRemove } from "firebase/fi
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useTalent, useLocations } from "../../hooks/useFirestoreQuery";
-import { useProjectScope } from "../../context/ProjectScopeContext";
 import { FLAGS } from "../../lib/flags";
 import { toast } from "../../lib/toast";
 
-export default function ProjectAssetsManager() {
+export default function ProjectAssetsManager({ projectId }) {
   const { clientId } = useAuth();
-  const { currentProjectId } = useProjectScope();
   const [filter, setFilter] = useState("");
 
   const { data: allTalent = [], isLoading: loadingTalent } = useTalent(clientId);
@@ -30,26 +28,26 @@ export default function ProjectAssetsManager() {
   const isInProject = useCallback((entity) => {
     if (!entity) return false;
     const ids = Array.isArray(entity.projectIds) ? entity.projectIds : [];
-    return currentProjectId ? ids.includes(currentProjectId) : false;
-  }, [currentProjectId]);
+    return projectId ? ids.includes(projectId) : false;
+  }, [projectId]);
 
   const toggleMembership = useCallback(async (kind, entity) => {
-    if (!clientId || !currentProjectId) return;
+    if (!clientId || !projectId) return;
     const ref = doc(db, "clients", clientId, kind, entity.id);
     const already = isInProject(entity);
     try {
       if (already) {
-        await updateDoc(ref, { projectIds: arrayRemove(currentProjectId) });
+        await updateDoc(ref, { projectIds: arrayRemove(projectId) });
         toast.success({ title: `Removed from project` });
       } else {
-        await updateDoc(ref, { projectIds: arrayUnion(currentProjectId) });
+        await updateDoc(ref, { projectIds: arrayUnion(projectId) });
         toast.success({ title: `Added to project` });
       }
     } catch (e) {
       console.error("[ProjectAssetsManager] toggle failed", e);
       toast.error({ title: "Failed to update asset", description: e?.message });
     }
-  }, [clientId, currentProjectId, isInProject]);
+  }, [clientId, projectId, isInProject]);
 
   if (!FLAGS.projectScopedAssets) {
     return (
@@ -127,4 +125,3 @@ export default function ProjectAssetsManager() {
     </div>
   );
 }
-

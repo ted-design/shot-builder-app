@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
-  Clock,
   Trash2,
   ChevronDown,
   Check,
@@ -11,6 +10,7 @@ import { getColorTag } from "../../../types/schedule";
 import { MARKER_ICON_MAP } from "../../../lib/markerIcons";
 import ColorTagPicker from "./ColorTagPicker";
 import MarkerPicker from "./MarkerPicker";
+import { TimePicker } from "../../ui/TimePicker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,20 +93,28 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
     );
     const titleInputRef = useRef(null);
 
+    // Ref to track latest editStartTime value, bypassing React's batching
+    // This ensures handleSave reads the correct value even when blur and click
+    // events fire in rapid succession (React 18 batching race condition)
+    const editStartTimeRef = useRef(entry.startTime || "");
+
     // Get the color tag for styling
     const colorTag = getColorTag(entry.colorKey);
 
-    // Sync state when entry changes
+    // Sync local edit state from entry props ONLY when not actively editing.
+    // This prevents Firestore real-time updates from overwriting user's typed input.
     useEffect(() => {
+        if (isEditing) return; // Don't sync while user is editing
         setEditTitle(entry.customData?.title || entry.resolvedTitle || "");
         setEditStartTime(entry.startTime || "");
+        editStartTimeRef.current = entry.startTime || ""; // Keep ref in sync
         setEditDuration(entry.duration || 30);
         setEditColorKey(entry.colorKey || null);
         setEditMarker(entry.marker || null);
         setEditTrackId(
             entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
         );
-    }, [entry.customData?.title, entry.resolvedTitle, entry.startTime, entry.duration, entry.colorKey, entry.marker, entry.trackId]);
+    }, [isEditing, entry.customData?.title, entry.resolvedTitle, entry.startTime, entry.duration, entry.colorKey, entry.marker, entry.trackId]);
 
     // Get the selected track for display
     const selectedTrack = editTrackId === "all" ? null : laneTracks.find(t => t.id === editTrackId);
@@ -122,6 +130,14 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
     const handleSave = (e) => {
         if (e) e.stopPropagation();
         setIsEditing(false);
+
+        if (import.meta.env.DEV) {
+            console.log(`[DayStreamBanner] handleSave called:`, {
+                entryId: entry.id,
+                editStartTime,
+                entryStartTime: entry.startTime,
+            });
+        }
 
         if (!onUpdateEntry) return;
 
@@ -139,8 +155,16 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
         }
 
         // Update start time
-        const normalizedEditTime = editStartTime.trim();
+        // Use ref instead of state to bypass React batching race condition
+        const normalizedEditTime = editStartTimeRef.current.trim();
         const normalizedEntryTime = (entry.startTime || "").trim();
+        if (import.meta.env.DEV) {
+            console.log(`[DayStreamBanner] handleSave: comparing times:`, {
+                refValue: editStartTimeRef.current,
+                stateValue: editStartTime,
+                entryValue: entry.startTime,
+            });
+        }
         if (normalizedEditTime !== normalizedEntryTime) {
             if (normalizedEditTime) {
                 const minutes = parseTimeToMinutes(normalizedEditTime);
@@ -177,7 +201,24 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
         }
 
         if (Object.keys(updates).length > 0) {
+            // DEV-only: Validate startTime format before saving
+            if (import.meta.env.DEV && updates.startTime !== undefined) {
+                const timePattern = /^(?:[01]?\d|2[0-3]):[0-5]\d$/;
+                if (updates.startTime && !timePattern.test(updates.startTime)) {
+                    console.warn(
+                        `[DayStreamBanner] Invalid startTime format detected: "${updates.startTime}". ` +
+                        `Expected HH:MM format. Entry ID: ${entry.id}`
+                    );
+                }
+            }
+            if (import.meta.env.DEV) {
+                console.log(`[DayStreamBanner] handleSave: calling onUpdateEntry with:`, updates);
+            }
             onUpdateEntry(entry.id, updates);
+        } else {
+            if (import.meta.env.DEV) {
+                console.log(`[DayStreamBanner] handleSave: no updates to save`);
+            }
         }
     };
 
@@ -189,6 +230,7 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
             setIsEditing(false);
             setEditTitle(entry.customData?.title || entry.resolvedTitle || "");
             setEditStartTime(entry.startTime || "");
+            editStartTimeRef.current = entry.startTime || ""; // Reset ref too
             setEditDuration(entry.duration || 30);
             setEditColorKey(entry.colorKey || null);
             setEditMarker(entry.marker || null);
@@ -236,12 +278,20 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
                 <div className="flex items-center gap-4 flex-wrap">
                     {/* Time Input */}
                     <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-slate-400 shrink-0" />
-                        <input
-                            type="time"
-                            value={editStartTime}
-                            onChange={(e) => setEditStartTime(e.target.value)}
-                            className="text-xs font-mono border border-slate-300 rounded px-2 py-1.5 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none w-28"
+                        <TimePicker
+                            label="Time"
+                            value={editStartTime || null}
+                            onChange={(value) => {
+                                const newValue = value || "";
+                                if (import.meta.env.DEV) {
+                                    console.log(`[DayStreamBanner] TimePicker onChange received:`, newValue, `entry.id=${entry.id}`);
+                                }
+                                // Update ref immediately (synchronous) to bypass React batching
+                                editStartTimeRef.current = newValue;
+                                // Also update state for re-renders
+                                setEditStartTime(newValue);
+                            }}
+                            className="w-32"
                         />
                     </div>
 
@@ -331,6 +381,7 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
                             setIsEditing(false);
                             setEditTitle(entry.customData?.title || entry.resolvedTitle || "");
                             setEditStartTime(entry.startTime || "");
+                            editStartTimeRef.current = entry.startTime || ""; // Reset ref too
                             setEditDuration(entry.duration || 30);
                             setEditColorKey(entry.colorKey || null);
                             setEditMarker(entry.marker || null);

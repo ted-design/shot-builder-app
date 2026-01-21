@@ -106,6 +106,8 @@ export interface CallSheetCrewRow {
   role?: string;
   name: string;
   callTime?: string | null;
+  /** True if call time is on previous day (offset pushed before midnight) */
+  isPrevDay?: boolean;
   notes?: string;
 }
 

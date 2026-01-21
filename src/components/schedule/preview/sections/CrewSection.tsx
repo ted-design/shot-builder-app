@@ -252,7 +252,14 @@ export function CrewSection({ crew, displayOptions }: CrewSectionProps) {
                   )}
                 </td>
                 <td className="text-right align-top whitespace-nowrap">
-                  {formatTime12h(member.callTime) || "—"}
+                  <div className="flex flex-col items-end">
+                    <span>{formatTime12h(member.callTime) || "—"}</span>
+                    {member.isPrevDay && (
+                      <span className="text-[9px] text-amber-600 font-medium leading-none">
+                        Prev day
+                      </span>
+                    )}
+                  </div>
                 </td>
               </tr>
             );

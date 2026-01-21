@@ -187,7 +187,6 @@ export default function ProjectsPage() {
   };
   const handleSelectProject = (project) => {
     if (!project) return;
-    setCurrentProjectId(project.id);
     navigate(`/projects/${project.id}/dashboard`);
   };
 

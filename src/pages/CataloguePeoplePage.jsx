@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { useProjectScope } from "../context/ProjectScopeContext";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useProjectCataloguePeople } from "../hooks/useProjectCataloguePeople";
 import { useTalent } from "../hooks/useFirestoreQuery";
@@ -34,7 +33,7 @@ import { buildTalentGalleryUpdate, stripHtmlToText } from "../lib/talentGallery"
 export default function CataloguePeoplePage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentProjectId } = useProjectScope();
+  const { projectId } = useParams();
   const { clientId, user, role: globalRole } = useAuth();
 
   // Determine the current filter group from the URL
@@ -52,6 +51,7 @@ export default function CataloguePeoplePage() {
   const { people, counts, loading, error } = useProjectCataloguePeople({
     filterGroup,
     searchQuery,
+    projectId,
   });
 
   const canManageCrew = canManageProjects(globalRole);
@@ -71,15 +71,15 @@ export default function CataloguePeoplePage() {
     createAssignment,
     updateAssignment,
     deleteAssignment,
-  } = useProjectCrew(clientId, currentProjectId);
-  const { departments: projectDepartments, createPosition } = useProjectDepartments(clientId, currentProjectId);
+  } = useProjectCrew(clientId, projectId);
+  const { departments: projectDepartments, createPosition } = useProjectDepartments(clientId, projectId);
 
   const existingCrewIds = useMemo(() => new Set(crewAssignments.map((a) => a.crewMemberId).filter(Boolean)), [crewAssignments]);
 
   const { data: projectTalent = [] } = useTalent(clientId, {
     scope: "project",
-    projectId: currentProjectId,
-    enabled: Boolean(clientId && currentProjectId),
+    projectId,
+    enabled: Boolean(clientId && projectId),
   });
   const { data: allTalent = [] } = useTalent(clientId, { scope: "all", enabled: Boolean(clientId) });
 
@@ -146,7 +146,7 @@ export default function CataloguePeoplePage() {
   }, [canManageCrew, canManageTalentRecords, filterGroup]);
 
   const addCrewToProject = async ({ crewMember, roles, isNew }) => {
-    if (!clientId || !currentProjectId) throw new Error("Missing project");
+    if (!clientId || !projectId) throw new Error("Missing project");
     if (!canManageCrew) throw new Error("You do not have permission to manage crew.");
 
     setCrewAddBusy(true);
@@ -201,7 +201,7 @@ export default function CataloguePeoplePage() {
     gender,
     headshotFile,
   }) => {
-    if (!clientId || !currentProjectId) throw new Error("Missing project");
+    if (!clientId || !projectId) throw new Error("Missing project");
     if (!user) throw new Error("You must be signed in to add talent.");
     if (!canManageTalentRecords) throw new Error("You do not have permission to add talent.");
 
@@ -230,7 +230,7 @@ export default function CataloguePeoplePage() {
           gender: gender || "",
           name,
           shotIds: [],
-          projectIds: [currentProjectId],
+          projectIds: [projectId],
           headshotPath: null,
           galleryImages: [],
           measurements: measurementData,
@@ -259,11 +259,11 @@ export default function CataloguePeoplePage() {
   };
 
   const addExistingTalentToProject = async (ids) => {
-    if (!clientId || !currentProjectId) throw new Error("Missing project");
+    if (!clientId || !projectId) throw new Error("Missing project");
     setTalentAddBusy(true);
     try {
       await Promise.all(
-        ids.map((id) => updateDoc(doc(db, ...talentPath(clientId), id), { projectIds: arrayUnion(currentProjectId) }))
+        ids.map((id) => updateDoc(doc(db, ...talentPath(clientId), id), { projectIds: arrayUnion(projectId) }))
       );
       toast.success({ title: `Added ${ids.length} talent to project` });
     } catch (e) {
@@ -377,7 +377,7 @@ export default function CataloguePeoplePage() {
   };
 
   const handleSaveCrewRoles = async ({ crewMemberId, roles }) => {
-    if (!clientId || !currentProjectId) throw new Error("Missing project");
+    if (!clientId || !projectId) throw new Error("Missing project");
     if (!canManageCrew) throw new Error("You do not have permission to manage crew.");
     if (!crewMemberId) throw new Error("Missing crew member");
 
@@ -448,7 +448,7 @@ export default function CataloguePeoplePage() {
   };
 
   const handleRemoveFromProject = async (selectedPeople = []) => {
-    if (!clientId || !currentProjectId) throw new Error("Missing project");
+    if (!clientId || !projectId) throw new Error("Missing project");
     if (!selectedPeople.length) return;
 
     const crewIds = selectedPeople.filter((p) => p.type === "crew").map((p) => p.id);
@@ -469,7 +469,7 @@ export default function CataloguePeoplePage() {
       if (!canManageTalentRecords) throw new Error("You do not have permission to manage talent.");
       await Promise.all(
         talentIds.map((id) =>
-          updateDoc(doc(db, ...talentPath(clientId), id), { projectIds: arrayRemove(currentProjectId) })
+          updateDoc(doc(db, ...talentPath(clientId), id), { projectIds: arrayRemove(projectId) })
         )
       );
     }
@@ -479,7 +479,7 @@ export default function CataloguePeoplePage() {
 
   // Handle group selection from sidebar
   const handleSelectGroup = (group) => {
-    const basePath = `/projects/${currentProjectId}/catalogue/people`;
+    const basePath = `/projects/${projectId}/catalogue/people`;
     switch (group) {
       case "talent":
         navigate(`${basePath}/talent`);
@@ -493,7 +493,7 @@ export default function CataloguePeoplePage() {
     }
   };
 
-  if (!currentProjectId) {
+  if (!projectId) {
     return (
       <div className="flex items-center justify-center min-h-[400px] text-sm text-slate-600 dark:text-slate-400">
         Select a project to view its catalogue.

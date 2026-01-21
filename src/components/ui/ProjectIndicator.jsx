@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMatch, useNavigate } from "react-router-dom";
 import { collection, query, orderBy } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useProjectScope } from "../../context/ProjectScopeContext";
 import { useFirestoreCollection } from "../../hooks/useFirestoreCollection";
 import { ChevronDown, Clapperboard, FolderOpen, Layout, Settings } from "lucide-react";
+import { projectLeakLog } from "../../lib/debugProjectLeak";
 
 export default function ProjectIndicator() {
   const { clientId } = useAuth();
   const { currentProjectId, setCurrentProjectId } = useProjectScope();
   const navigate = useNavigate();
+  const projectMatch = useMatch("/projects/:projectId/*");
+  const routeProjectId = projectMatch?.params?.projectId || null;
+  const effectiveProjectId = routeProjectId || currentProjectId;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -35,15 +39,15 @@ export default function ProjectIndicator() {
       if (project?.deletedAt) return false;
       // Show archived projects if the current project is archived
       if (project?.status === "archived") {
-        return project.id === currentProjectId;
+        return project.id === effectiveProjectId;
       }
       return true;
     });
-  }, [projectsRaw, currentProjectId]);
+  }, [projectsRaw, effectiveProjectId]);
 
   const currentProject = useMemo(
-    () => projects.find((p) => p.id === currentProjectId),
-    [projects, currentProjectId]
+    () => projects.find((p) => p.id === effectiveProjectId),
+    [projects, effectiveProjectId]
   );
 
   useEffect(() => {
@@ -65,8 +69,14 @@ export default function ProjectIndicator() {
   }, [dropdownOpen]);
 
   const handleSelectProject = (projectId) => {
-    setCurrentProjectId(projectId);
+    if (!projectId) return;
     setDropdownOpen(false);
+    if (routeProjectId) {
+      projectLeakLog("navigate.switchProject", { from: routeProjectId, to: projectId });
+      navigate(`/projects/${projectId}/dashboard`);
+      return;
+    }
+    setCurrentProjectId(projectId);
   };
 
   const handleGoToDashboard = () => {
@@ -76,8 +86,9 @@ export default function ProjectIndicator() {
 
   const handleManageAssets = () => {
     setDropdownOpen(false);
-    if (currentProjectId) {
-      navigate(`/projects/${currentProjectId}/assets`);
+    if (effectiveProjectId) {
+      projectLeakLog("navigate.assets", { projectId: effectiveProjectId });
+      navigate(`/projects/${effectiveProjectId}/assets`);
     } else {
       navigate("/projects");
     }
@@ -85,8 +96,9 @@ export default function ProjectIndicator() {
 
   const handleOpenShotBuilder = () => {
     setDropdownOpen(false);
-    if (currentProjectId) {
-      navigate(`/projects/${currentProjectId}/shots`);
+    if (effectiveProjectId) {
+      projectLeakLog("navigate.shots", { projectId: effectiveProjectId });
+      navigate(`/projects/${effectiveProjectId}/shots`);
     } else {
       navigate("/projects");
     }

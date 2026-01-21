@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Folder } from 'lucide-react';
 import { useProjects } from '../../hooks/useFirestoreQuery';
 import { useAuth } from '../../context/AuthContext';
-import { useProjectScope } from '../../context/ProjectScopeContext';
 import { CLIENT_ID } from '../../lib/paths';
 import '../../styles/sidebar-animations.css';
 
@@ -15,7 +14,6 @@ import '../../styles/sidebar-animations.css';
  */
 export default function SidebarRecentProjects({ isExpanded }) {
   const { clientId } = useAuth();
-  const { setCurrentProjectId } = useProjectScope();
   const resolvedClientId = clientId || CLIENT_ID;
 
   const { data: projects = [], isLoading } = useProjects(resolvedClientId);
@@ -61,7 +59,6 @@ export default function SidebarRecentProjects({ isExpanded }) {
         <Link
           key={project.id}
           to={`/projects/${project.id}/dashboard`}
-          onClick={() => setCurrentProjectId(project.id)}
           className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-neutral-400 hover:bg-sidebar-hover hover:text-white transition-colors duration-150 text-left"
         >
           <Folder className="h-4 w-4 shrink-0" />
