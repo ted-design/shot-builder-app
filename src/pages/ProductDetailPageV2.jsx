@@ -70,7 +70,6 @@ import {
   SheetTitle,
   SheetDescription,
 } from "../components/ui/sheet";
-import { Badge } from "../components/ui/badge";
 import { genderLabel } from "../lib/productMutations";
 import { getCategoryLabel } from "../lib/productCategories";
 
