@@ -15,6 +15,7 @@
  * - variant: "default" | "coming-soon" (grayed out)
  */
 
+import React from "react";
 import { ArrowRight } from "lucide-react";
 
 // Sub-metric pill variants

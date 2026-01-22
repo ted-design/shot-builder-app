@@ -29,8 +29,10 @@ import { doc, getDoc, collection, getDocs, query, orderBy } from "firebase/fires
 import { db } from "../lib/firebase";
 import { productFamilyPath, productFamilySkusPath } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
+import { isDemoModeActive } from "../lib/flags";
 import { Button } from "../components/ui/button";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import ErrorBoundary from "../components/ErrorBoundary";
 import AppImage from "../components/common/AppImage";
 import {
   ArrowLeft,
@@ -218,6 +220,8 @@ export default function ProductDetailPageV3() {
       return;
     }
 
+    let isMounted = true;
+
     const fetchProduct = async () => {
       setLoading(true);
       setError(null);
@@ -225,6 +229,8 @@ export default function ProductDetailPageV3() {
       try {
         const familyRef = doc(db, ...productFamilyPath(productId, clientId));
         const familySnap = await getDoc(familyRef);
+
+        if (!isMounted) return;
 
         if (!familySnap.exists()) {
           setError("Product not found");
@@ -238,23 +244,36 @@ export default function ProductDetailPageV3() {
         const skusRef = collection(db, ...productFamilySkusPath(productId, clientId));
         const skusQuery = query(skusRef, orderBy("colorName", "asc"));
         const skusSnap = await getDocs(skusQuery);
+
+        if (!isMounted) return;
+
         const skusData = skusSnap.docs
           .map((d) => ({ id: d.id, ...d.data() }))
           .filter((sku) => !sku.deleted);
         setSkus(skusData);
       } catch (err) {
+        if (!isMounted) return;
         console.error("[ProductDetailPageV3] Fetch error:", err);
         setError("Failed to load product details");
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchProduct();
+
+    return () => {
+      isMounted = false;
+    };
   }, [clientId, productId]);
 
-  // Mock samples data
-  const mockSamples = useMemo(() => {
+  // Demo samples data - only shown in demo mode to demonstrate the UI
+  // TODO: Replace with real Firestore integration for samples collection
+  const demoSamples = useMemo(() => {
+    // Only provide demo data in demo mode
+    if (!isDemoModeActive()) return [];
     if (skus.length === 0) return [];
     return [
       { id: "sample-001", label: "Shoot Sample A", type: "Shoot sample", sizeRun: ["S", "M", "L"], status: "arrived", carrier: "FedEx", tracking: "7489201234567890", eta: "Jan 15, 2025", arrivedAt: "Jan 14, 2025", notes: "Primary hero colorway for campaign shoot", scopeSkuId: skus[0]?.id },
@@ -281,10 +300,10 @@ export default function ProductDetailPageV3() {
   // Counts for nav badges
   const counts = useMemo(() => ({
     colorways: skus.length,
-    samples: mockSamples.length,
+    samples: demoSamples.length,
     assets: 0,
     activity: 0,
-  }), [skus.length, mockSamples.length]);
+  }), [skus.length, demoSamples.length]);
 
   const handleBack = useCallback(() => {
     navigate("/products");
@@ -425,17 +444,19 @@ export default function ProductDetailPageV3() {
 
           {/* Main content area */}
           <main className="flex-1 overflow-auto bg-white dark:bg-slate-800">
-            {activeSection === "overview" && (
-              <OverviewSection family={family} skus={skus} samples={mockSamples} onNavigate={setActiveSection} />
-            )}
-            {activeSection === "colorways" && (
-              <ColorwaysSection family={family} skus={skus} samples={mockSamples} />
-            )}
-            {activeSection === "samples" && (
-              <SamplesSection family={family} skus={skus} samples={mockSamples} />
-            )}
-            {activeSection === "assets" && <AssetsSection />}
-            {activeSection === "activity" && <ActivitySection />}
+            <ErrorBoundary>
+              {activeSection === "overview" && (
+                <OverviewSection family={family} skus={skus} samples={demoSamples} onNavigate={setActiveSection} />
+              )}
+              {activeSection === "colorways" && (
+                <ColorwaysSection family={family} skus={skus} samples={demoSamples} />
+              )}
+              {activeSection === "samples" && (
+                <SamplesSection family={family} skus={skus} samples={demoSamples} />
+              )}
+              {activeSection === "assets" && <AssetsSection />}
+              {activeSection === "activity" && <ActivitySection />}
+            </ErrorBoundary>
           </main>
         </div>
       </div>
