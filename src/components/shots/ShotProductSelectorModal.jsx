@@ -124,8 +124,10 @@ function ProductSelectorRow({
     // Determine allocation status
     let allocationStatus = "unassigned";
     if (selectedSource) {
-      // Check if source has the selected size (use == null to distinguish from empty string)
-      const sourceHasSize = selectedSize == null ||
+      // Check if source has the selected size
+      const sourceHasSize =
+        selectedSize === null ||
+        selectedSize === undefined ||
         selectedSize === ALL_SIZES_VALUE ||
         (Array.isArray(selectedSource.sizeRun) && selectedSource.sizeRun.includes(selectedSize));
 
