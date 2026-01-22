@@ -31,7 +31,9 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  AlertTriangle,
 } from "lucide-react";
+import SourceAllocationSelector, { generateMockSupplyRecords, AllocationStatusBadge } from "./SourceAllocationSelector";
 
 const ALL_SIZES_VALUE = "__ALL_SIZES__";
 const MAX_VISIBLE_SWATCHES = 4;
@@ -51,6 +53,9 @@ function ProductSelectorRow({
 }) {
   const [selectedSize, setSelectedSize] = useState("");
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
+  const [selectedSourceId, setSelectedSourceId] = useState(null);
+  // Track if user wants specific supply (triggers size requirement)
+  const [wantsSpecificSupply, setWantsSpecificSupply] = useState(false);
   const sizeDropdownRef = useRef(null);
 
   const colours = useMemo(() => {
@@ -63,12 +68,18 @@ function ProductSelectorRow({
   // Get image for current color, fallback to family thumbnail
   const displayImage = currentColor?.imagePath || family.thumbnailImagePath || family.headerImagePath;
 
-  // Get available sizes
+  // Get available sizes (canonical family sizes)
   const sizes = useMemo(() => {
     if (currentColor?.sizes?.length > 0) return currentColor.sizes;
     if (familyDetails?.sizes?.length > 0) return familyDetails.sizes;
-    return family.sizes || [];
+    return family.sizes || family.sizeOptions || [];
   }, [currentColor, familyDetails, family]);
+
+  // Generate mock supply sources for this colorway (for workflow validation)
+  const supplySources = useMemo(() => {
+    if (!currentColor?.id) return [];
+    return generateMockSupplyRecords(currentColor.id, sizes);
+  }, [currentColor?.id, sizes]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -87,18 +98,44 @@ function ProductSelectorRow({
     if (!currentColor) return;
 
     let size = null;
-    let sizeScope = "pending";
-    let status = "pending-size";
+    let sizeScope = "all"; // Default: all sizes (Bulk)
+    let status = "complete";
 
     if (selectedSize === ALL_SIZES_VALUE) {
+      // Explicit "All sizes" selection
       size = null;
       sizeScope = "all";
       status = "complete";
     } else if (selectedSize) {
+      // Specific size selected
       size = selectedSize;
       sizeScope = "single";
       status = "complete";
     }
+    // If no size selected AND Bulk (default), treat as "all sizes" - already set above
+
+    // Build allocation info
+    const selectedSource = selectedSourceId
+      ? supplySources.find((s) => s.id === selectedSourceId)
+      : null;
+
+    // Determine allocation status
+    let allocationStatus = "unassigned";
+    if (selectedSource) {
+      // Check if source has the selected size
+      const sourceHasSize = !selectedSize ||
+        selectedSize === ALL_SIZES_VALUE ||
+        (Array.isArray(selectedSource.sizeRun) && selectedSource.sizeRun.includes(selectedSize));
+
+      allocationStatus = sourceHasSize ? "allocated" : "size-unavailable";
+    }
+
+    const allocation = {
+      sourceSupplyId: selectedSourceId,
+      sourceLabel: selectedSource?.label || null,
+      sourceStatus: selectedSource?.status || null,
+      status: allocationStatus,
+    };
 
     onAdd({
       family,
@@ -106,10 +143,13 @@ function ProductSelectorRow({
       size,
       sizeScope,
       status,
+      allocation,
     });
 
-    // Reset size after adding
+    // Reset selections after adding
     setSelectedSize("");
+    setSelectedSourceId(null);
+    setWantsSpecificSupply(false);
   };
 
   const handleSizeSelect = (size) => {
@@ -118,9 +158,20 @@ function ProductSelectorRow({
   };
 
   const getSizeLabel = () => {
-    if (!selectedSize) return "Size";
-    if (selectedSize === ALL_SIZES_VALUE) return "All";
-    return selectedSize;
+    // If user explicitly selected ALL_SIZES_VALUE
+    if (selectedSize === ALL_SIZES_VALUE) return "All sizes";
+    // If user selected a specific size
+    if (selectedSize) return selectedSize;
+    // Default: show "All sizes" when Bulk (default) - calm, neutral state
+    return "All sizes";
+  };
+
+  // Callback for when user wants specific supply - opens size picker if no size selected
+  const handleRequestSpecificSupply = () => {
+    if (!selectedSize) {
+      setShowSizeDropdown(true);
+    }
+    setWantsSpecificSupply(true);
   };
 
   const isInCart = cartCount > 0;
@@ -128,7 +179,7 @@ function ProductSelectorRow({
   return (
     <div
       className={`
-        grid grid-cols-[40px_1fr_160px_90px_40px] gap-3 px-3 py-2.5 items-center
+        grid grid-cols-[40px_1fr_140px_80px_100px_40px] gap-2 px-3 py-2.5 items-center
         transition-colors
         ${isInCart
           ? "bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500"
@@ -232,7 +283,7 @@ function ProductSelectorRow({
             flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors
             ${selectedSize
               ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"
-              : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+              : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
             }
             hover:bg-slate-200 dark:hover:bg-slate-600
             disabled:opacity-50 disabled:cursor-not-allowed
@@ -245,27 +296,26 @@ function ProductSelectorRow({
         {/* Size Dropdown */}
         {showSizeDropdown && (
           <div className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 z-20 min-w-[100px] max-h-48 overflow-y-auto">
+            {/* All sizes option (default for Bulk) */}
             <button
               type="button"
-              onClick={() => handleSizeSelect("")}
-              className={`w-full px-3 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-slate-700 ${
-                !selectedSize ? "bg-slate-100 dark:bg-slate-700 font-medium" : ""
+              onClick={() => {
+                handleSizeSelect("");
+                setWantsSpecificSupply(false);
+              }}
+              className={`w-full px-3 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-between ${
+                !selectedSize ? "bg-slate-50 dark:bg-slate-700/50" : ""
               }`}
             >
-              Size pending
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSizeSelect(ALL_SIZES_VALUE)}
-              className={`w-full px-3 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-slate-700 ${
-                selectedSize === ALL_SIZES_VALUE ? "bg-slate-100 dark:bg-slate-700 font-medium" : ""
-              }`}
-            >
-              All sizes
+              <span>All sizes</span>
+              {!selectedSize && (
+                <span className="text-slate-400 dark:text-slate-500 text-[10px]">default</span>
+              )}
             </button>
             {sizes.length > 0 && (
               <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
             )}
+            {/* Specific size options */}
             {sizes.map((size) => (
               <button
                 key={size}
@@ -281,6 +331,22 @@ function ProductSelectorRow({
           </div>
         )}
       </div>
+
+      {/* Source Allocation Selector */}
+      <SourceAllocationSelector
+        selectedSize={selectedSize === ALL_SIZES_VALUE ? null : selectedSize}
+        colorwayId={currentColor?.id}
+        supplySources={supplySources}
+        familySizes={sizes}
+        selectedSourceId={selectedSourceId}
+        onSourceChange={(sourceId) => {
+          setSelectedSourceId(sourceId);
+          // Reset wantsSpecificSupply when going back to Bulk
+          if (!sourceId) setWantsSpecificSupply(false);
+        }}
+        onRequestSpecificSupply={handleRequestSpecificSupply}
+        disabled={!currentColor || isLoadingDetails}
+      />
 
       {/* Add Button */}
       <div className="flex justify-end">
@@ -496,7 +562,7 @@ export default function ShotProductSelectorModal({
 
   // Add product to cart
   const handleAddToCart = useCallback((selection) => {
-    const { family, colour, size, sizeScope, status } = selection;
+    const { family, colour, size, sizeScope, status, allocation } = selection;
 
     // Check for duplicate
     const isDuplicate = cart.some(
@@ -523,6 +589,8 @@ export default function ShotProductSelectorModal({
       size,
       sizeScope,
       status,
+      // Allocation info
+      allocation: allocation || { sourceSupplyId: null, status: "unassigned" },
     };
 
     setCart((prev) => [...prev, cartItem]);
@@ -695,11 +763,12 @@ export default function ShotProductSelectorModal({
           </div>
 
           {/* Table Header */}
-          <div className="grid grid-cols-[40px_1fr_160px_90px_40px] gap-3 px-3 py-2 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 shrink-0">
+          <div className="grid grid-cols-[40px_1fr_140px_80px_100px_40px] gap-2 px-3 py-2 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 shrink-0">
             <div></div>
             <div>Product</div>
             <div>Colors</div>
             <div>Size</div>
+            <div>Source</div>
             <div></div>
           </div>
 
@@ -798,6 +867,9 @@ export default function ShotProductSelectorModal({
                             : " · Size pending"}
                         </div>
                       </div>
+
+                      {/* Allocation Status */}
+                      <AllocationStatusBadge allocation={item.allocation} />
 
                       {/* Remove Button */}
                       <button

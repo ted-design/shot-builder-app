@@ -1,6 +1,7 @@
 import { Button } from "../ui/button";
 import AppImage from "../common/AppImage";
 import { Skeleton } from "../ui/Skeleton";
+import { AllocationStatusBadge } from "./SourceAllocationSelector";
 
 const ALL_SIZES_VALUE = "__ALL_SIZES__";
 
@@ -212,6 +213,18 @@ export default function ShotProductCard({
         {product.status === "pending-size" && (
           <div className="inline-flex w-fit items-center rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
             Size pending
+          </div>
+        )}
+
+        {/* Allocation Status Badge */}
+        {product.allocation && (
+          <div className="flex items-center gap-1.5">
+            <AllocationStatusBadge allocation={product.allocation} />
+            {product.allocation.sourceLabel && product.allocation.status === "allocated" && (
+              <span className="text-[9px] text-slate-500 dark:text-slate-400 truncate" title={product.allocation.sourceLabel}>
+                {product.allocation.sourceLabel}
+              </span>
+            )}
           </div>
         )}
 
