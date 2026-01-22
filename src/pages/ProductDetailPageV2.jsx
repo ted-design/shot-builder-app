@@ -62,7 +62,7 @@ import { Button } from "../components/ui/button";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import AppImage from "../components/common/AppImage";
-import { ArrowLeft, Edit3, Package, Palette, Box, FileText, MessageSquare, X, ChevronDown, Plus, Truck, CheckCircle2, AlertTriangle, ExternalLink } from "lucide-react";
+import { ArrowLeft, Edit3, Package, Palette, Box, FileText, MessageSquare, X, ChevronDown, Plus, Truck, CheckCircle2, AlertTriangle, ExternalLink, ArrowUpDown, ArrowUp, ArrowDown, Eye } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -467,21 +467,31 @@ function SampleSummaryChip({ icon: Icon, label, count, variant = "default" }) {
  * SampleDetailDrawer - Right-side drawer for sample details
  *
  * Read-only view of a single sample with sections for:
+ * - Scope breadcrumb (Product • Colorway context)
  * - Title + status badge
  * - Size run chips
  * - Shipping info (carrier, tracking, ETA, arrived)
  * - Notes
  * - Tasks/Activity placeholder
+ * - "View colorway" button (when in PRODUCT scope)
  */
-function SampleDetailDrawer({ sample, open, onOpenChange }) {
+function SampleDetailDrawer({ sample, open, onOpenChange, scope, colorwayName, productName, onJumpToColorway }) {
   if (!sample) return null;
 
   const statusConfig = SAMPLE_STATUSES[sample.status] || SAMPLE_STATUSES.requested;
+  const showJumpToColorway = scope === "product" && sample.scopeSkuId && onJumpToColorway;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[400px] sm:w-[440px] overflow-y-auto">
         <SheetHeader className="pb-4 border-b border-slate-100 dark:border-slate-700">
+          {/* Scope breadcrumb */}
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 mb-2">
+            <span className="font-medium">{productName || "Product"}</span>
+            <span>•</span>
+            <span>{scope === "colorway" ? colorwayName : "All colorways"}</span>
+          </div>
+
           <div className="flex items-center gap-2">
             <SheetTitle className="text-base">{sample.label}</SheetTitle>
             <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${statusConfig.color}`}>
@@ -491,6 +501,18 @@ function SampleDetailDrawer({ sample, open, onOpenChange }) {
           <SheetDescription className="text-xs">
             {sample.type}
           </SheetDescription>
+
+          {/* View colorway button (product scope only) */}
+          {showJumpToColorway && (
+            <button
+              type="button"
+              onClick={() => onJumpToColorway(sample.scopeSkuId)}
+              className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 transition-colors"
+            >
+              <Eye className="w-3 h-3" />
+              View colorway
+            </button>
+          )}
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
@@ -618,17 +640,128 @@ function SampleDetailDrawer({ sample, open, onOpenChange }) {
 }
 
 /**
+ * StatusFilterChip - Clickable filter chip for status filtering
+ */
+function StatusFilterChip({ label, isActive, onClick, count }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1
+        ${isActive
+          ? "bg-slate-700 text-white dark:bg-slate-200 dark:text-slate-900"
+          : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+        }
+      `}
+    >
+      {label}
+      {count !== undefined && (
+        <span className={`tabular-nums ${isActive ? "text-slate-300 dark:text-slate-600" : "text-slate-400 dark:text-slate-500"}`}>
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/**
+ * TypeFilterSegment - Segmented control for sample type filtering
+ */
+function TypeFilterSegment({ value, options, onChange }) {
+  return (
+    <div className="flex items-center gap-0.5 p-0.5 rounded-md bg-slate-100 dark:bg-slate-700/50">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`
+            px-2 py-0.5 rounded text-[10px] font-medium transition-all
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1
+            ${value === opt.value
+              ? "bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-slate-100"
+              : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+            }
+          `}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * SortDropdown - Sort control with direction toggle
+ */
+function SortDropdown({ sortBy, sortDir, onSortChange }) {
+  const sortOptions = [
+    { value: "eta", label: "ETA" },
+    { value: "status", label: "Status" },
+    { value: "label", label: "Sample ID" },
+  ];
+
+  const handleSortByChange = (e) => {
+    onSortChange(e.target.value, sortDir);
+  };
+
+  const toggleDirection = () => {
+    onSortChange(sortBy, sortDir === "asc" ? "desc" : "asc");
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <select
+        value={sortBy}
+        onChange={handleSortByChange}
+        className="text-[10px] font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 border-0 rounded px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-slate-400"
+      >
+        {sortOptions.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={toggleDirection}
+        className="p-0.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700 transition-colors"
+        aria-label={`Sort ${sortDir === "asc" ? "ascending" : "descending"}`}
+      >
+        {sortDir === "asc" ? (
+          <ArrowUp className="w-3 h-3" />
+        ) : (
+          <ArrowDown className="w-3 h-3" />
+        )}
+      </button>
+    </div>
+  );
+}
+
+/**
  * SamplesWorkspace - Sample tracking tab content
  *
  * @param {Object} props
  * @param {string} props.scope - "colorway" or "product"
  * @param {string} props.colorwayName - Name of selected colorway (for colorway scope)
+ * @param {string} props.productName - Name of product (for drawer context)
  * @param {Array} props.samples - Sample data array (empty for scaffold)
+ * @param {Function} props.onJumpToColorway - Callback to jump to a colorway (product scope only)
  */
-function SamplesWorkspace({ scope, colorwayName, samples = [] }) {
+function SamplesWorkspace({ scope, colorwayName, productName, samples = [], onJumpToColorway }) {
   // State for selected sample drawer
   const [selectedSample, setSelectedSample] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Filter state
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+
+  // Sort state
+  const [sortBy, setSortBy] = useState("eta");
+  const [sortDir, setSortDir] = useState("asc");
 
   // Handle row click to open drawer
   const handleRowClick = useCallback((sample) => {
@@ -644,40 +777,98 @@ function SamplesWorkspace({ scope, colorwayName, samples = [] }) {
       setTimeout(() => setSelectedSample(null), 200);
     }
   }, []);
-  // Compute summary counts from samples
-  const summaryStats = useMemo(() => {
-    const stats = {
-      total: samples.length,
-      inTransit: samples.filter((s) => s.status === "in_transit").length,
-      arrived: samples.filter((s) => s.status === "arrived").length,
-      issues: samples.filter((s) => s.status === "issue").length,
-    };
-    return stats;
-  }, [samples]);
+
+  // Handle sort change
+  const handleSortChange = useCallback((newSortBy, newSortDir) => {
+    setSortBy(newSortBy);
+    setSortDir(newSortDir);
+  }, []);
+
+  // Type filter options
+  const typeOptions = [
+    { value: "all", label: "All" },
+    { value: "Shoot sample", label: "Shoot" },
+    { value: "Pre-production", label: "PP" },
+    { value: "Bulk ref", label: "Bulk" },
+  ];
+
+  // Compute status counts for filter chips (from unfiltered samples)
+  const statusCounts = useMemo(() => ({
+    all: samples.length,
+    requested: samples.filter((s) => s.status === "requested").length,
+    in_transit: samples.filter((s) => s.status === "in_transit").length,
+    arrived: samples.filter((s) => s.status === "arrived").length,
+    returned: samples.filter((s) => s.status === "returned").length,
+    issue: samples.filter((s) => s.status === "issue").length,
+  }), [samples]);
+
+  // Filter and sort samples
+  const filteredSortedSamples = useMemo(() => {
+    let result = [...samples];
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      result = result.filter((s) => s.status === statusFilter);
+    }
+
+    // Apply type filter
+    if (typeFilter !== "all") {
+      result = result.filter((s) => s.type === typeFilter);
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      let aVal, bVal;
+
+      switch (sortBy) {
+        case "eta":
+          // Parse dates for comparison, null/undefined dates go last
+          aVal = a.eta || a.arrivedAt || "9999-12-31";
+          bVal = b.eta || b.arrivedAt || "9999-12-31";
+          break;
+        case "status":
+          // Order: issue, in_transit, requested, arrived, returned
+          const statusOrder = { issue: 0, in_transit: 1, requested: 2, arrived: 3, returned: 4 };
+          aVal = statusOrder[a.status] ?? 5;
+          bVal = statusOrder[b.status] ?? 5;
+          break;
+        case "label":
+          aVal = (a.label || "").toLowerCase();
+          bVal = (b.label || "").toLowerCase();
+          break;
+        default:
+          aVal = a[sortBy] || "";
+          bVal = b[sortBy] || "";
+      }
+
+      if (aVal < bVal) return sortDir === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [samples, statusFilter, typeFilter, sortBy, sortDir]);
+
+  // Compute summary counts from FILTERED samples (visible set)
+  const summaryStats = useMemo(() => ({
+    total: filteredSortedSamples.length,
+    inTransit: filteredSortedSamples.filter((s) => s.status === "in_transit").length,
+    arrived: filteredSortedSamples.filter((s) => s.status === "arrived").length,
+    issues: filteredSortedSamples.filter((s) => s.status === "issue").length,
+  }), [filteredSortedSamples]);
 
   // Scope-aware header text
   const headerText = scope === "colorway"
     ? `Samples for ${colorwayName}`
     : "Samples across all colorways";
 
-  const helperText = scope === "product"
-    ? "Select a colorway to manage its specific samples."
-    : null;
-
   return (
     <div className="flex flex-col h-full">
       {/* Header row with title and CTA */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-700">
-        <div>
-          <h4 className="text-xs font-medium text-slate-700 dark:text-slate-300">
-            {headerText}
-          </h4>
-          {helperText && (
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-              {helperText}
-            </p>
-          )}
-        </div>
+        <h4 className="text-xs font-medium text-slate-700 dark:text-slate-300">
+          {headerText}
+        </h4>
         <button
           type="button"
           disabled
@@ -689,123 +880,202 @@ function SamplesWorkspace({ scope, colorwayName, samples = [] }) {
         </button>
       </div>
 
-      {/* Preview mode banner */}
-      <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-900/30">
-        <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
-          ✨ Preview mode — Sample tracking is coming soon
-        </p>
+      {/* Scan Controls Bar - filters + sort + count */}
+      <div className="flex items-center justify-between gap-3 px-3 py-1.5 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Status filter chips */}
+          <div className="flex items-center gap-1">
+            <StatusFilterChip
+              label="All"
+              isActive={statusFilter === "all"}
+              onClick={() => setStatusFilter("all")}
+              count={statusCounts.all}
+            />
+            <StatusFilterChip
+              label="Requested"
+              isActive={statusFilter === "requested"}
+              onClick={() => setStatusFilter("requested")}
+            />
+            <StatusFilterChip
+              label="In transit"
+              isActive={statusFilter === "in_transit"}
+              onClick={() => setStatusFilter("in_transit")}
+            />
+            <StatusFilterChip
+              label="Arrived"
+              isActive={statusFilter === "arrived"}
+              onClick={() => setStatusFilter("arrived")}
+            />
+            <StatusFilterChip
+              label="Returned"
+              isActive={statusFilter === "returned"}
+              onClick={() => setStatusFilter("returned")}
+            />
+            <StatusFilterChip
+              label="Issue"
+              isActive={statusFilter === "issue"}
+              onClick={() => setStatusFilter("issue")}
+            />
+          </div>
+
+          {/* Divider */}
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-600" />
+
+          {/* Type filter */}
+          <TypeFilterSegment
+            value={typeFilter}
+            options={typeOptions}
+            onChange={setTypeFilter}
+          />
+
+          {/* Divider */}
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-600" />
+
+          {/* Sort dropdown */}
+          <SortDropdown
+            sortBy={sortBy}
+            sortDir={sortDir}
+            onSortChange={handleSortChange}
+          />
+        </div>
+
+        {/* Showing count */}
+        <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
+          Showing {filteredSortedSamples.length} of {samples.length}
+        </span>
       </div>
 
-      {/* Summary chips row */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-50 dark:border-slate-700/50 bg-slate-25 dark:bg-slate-800/30">
+      {/* Summary chips row - counts reflect filtered set */}
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-50 dark:border-slate-700/50 bg-slate-25 dark:bg-slate-800/20">
         <SampleSummaryChip icon={Box} label="Total" count={summaryStats.total} />
         <SampleSummaryChip icon={Truck} label="In transit" count={summaryStats.inTransit} variant="transit" />
         <SampleSummaryChip icon={CheckCircle2} label="Arrived" count={summaryStats.arrived} variant="arrived" />
         <SampleSummaryChip icon={AlertTriangle} label="Issues" count={summaryStats.issues} variant="issue" />
       </div>
 
-      {/* Table container */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-[11px]">
-          {/* Table header - sticky */}
-          <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
-            <tr>
-              {SAMPLE_TABLE_COLUMNS.map((col) => (
-                <th
-                  key={col.key}
-                  className={`px-2 py-1.5 text-left font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider ${col.width}`}
-                >
-                  {col.header}
-                </th>
-              ))}
-            </tr>
-          </thead>
+      {/* Table container with fixed height scroll */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full max-h-[320px] overflow-auto">
+          <table className="w-full text-[11px]">
+            {/* Table header - sticky */}
+            <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
+              <tr>
+                {SAMPLE_TABLE_COLUMNS.map((col) => (
+                  <th
+                    key={col.key}
+                    className={`px-2 py-1.5 text-left font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider ${col.width}`}
+                  >
+                    {col.header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
 
-          <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
-            {samples.length > 0 ? (
-              samples.map((sample, idx) => (
-                <tr
-                  key={sample.id || idx}
-                  onClick={() => handleRowClick(sample)}
-                  className="hover:bg-slate-100 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      handleRowClick(sample);
-                    }
-                  }}
-                >
-                  <td className="px-2 py-1.5 font-medium text-slate-700 dark:text-slate-300">
-                    {sample.label || "-"}
-                  </td>
-                  <td className="px-2 py-1.5 text-slate-600 dark:text-slate-400">
-                    {sample.type || "-"}
-                  </td>
-                  <td className="px-2 py-1.5 text-slate-600 dark:text-slate-400">
-                    {Array.isArray(sample.sizeRun) ? sample.sizeRun.join(", ") : sample.sizeRun || "-"}
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <SampleStatusBadge status={sample.status || "requested"} />
-                  </td>
-                  <td className="px-2 py-1.5 text-slate-600 dark:text-slate-400 font-mono text-[10px]">
-                    {sample.carrier && sample.tracking
-                      ? `${sample.carrier} ${sample.tracking}`
-                      : sample.carrier || sample.tracking || "-"}
-                  </td>
-                  <td className="px-2 py-1.5 text-slate-600 dark:text-slate-400">
-                    {sample.eta || sample.arrivedAt || "-"}
-                  </td>
-                  <td className="px-2 py-1.5 text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
-                    {sample.notes || "-"}
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
+              {filteredSortedSamples.length > 0 ? (
+                filteredSortedSamples.map((sample, idx) => (
+                  <tr
+                    key={sample.id || idx}
+                    onClick={() => handleRowClick(sample)}
+                    className="hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer transition-colors"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleRowClick(sample);
+                      }
+                    }}
+                  >
+                    <td className="px-2 py-1.5 font-medium text-slate-700 dark:text-slate-300">
+                      {sample.label || "-"}
+                    </td>
+                    <td className="px-2 py-1.5 text-slate-600 dark:text-slate-400">
+                      {sample.type || "-"}
+                    </td>
+                    <td className="px-2 py-1.5 text-slate-600 dark:text-slate-400">
+                      {Array.isArray(sample.sizeRun) ? sample.sizeRun.join(", ") : sample.sizeRun || "-"}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <SampleStatusBadge status={sample.status || "requested"} />
+                    </td>
+                    <td className="px-2 py-1.5 text-slate-600 dark:text-slate-400 font-mono text-[10px] truncate max-w-[120px]" title={sample.carrier && sample.tracking ? `${sample.carrier} ${sample.tracking}` : undefined}>
+                      {sample.carrier && sample.tracking
+                        ? `${sample.carrier} ${sample.tracking}`
+                        : sample.carrier || sample.tracking || "-"}
+                    </td>
+                    <td className="px-2 py-1.5 text-slate-600 dark:text-slate-400">
+                      {sample.eta || sample.arrivedAt || "-"}
+                    </td>
+                    <td className="px-2 py-1.5 text-slate-500 dark:text-slate-400 truncate max-w-[100px]" title={sample.notes || undefined}>
+                      {sample.notes || "-"}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                // Empty state row
+                <tr>
+                  <td colSpan={SAMPLE_TABLE_COLUMNS.length} className="px-2 py-8">
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-2">
+                        <Box className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+                        {statusFilter !== "all" || typeFilter !== "all"
+                          ? "No samples match filters"
+                          : "No samples tracked yet"
+                        }
+                      </p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                        {statusFilter !== "all" || typeFilter !== "all"
+                          ? "Try adjusting your filters"
+                          : scope === "colorway"
+                            ? "Add a sample to start tracking"
+                            : "Add samples to individual colorways"
+                        }
+                      </p>
+                    </div>
                   </td>
                 </tr>
-              ))
-            ) : (
-              // Empty state row
-              <tr>
-                <td colSpan={SAMPLE_TABLE_COLUMNS.length} className="px-2 py-8">
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-2">
-                      <Box className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">
-                      No samples tracked yet
-                    </p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                      {scope === "colorway"
-                        ? "Add a sample to start tracking"
-                        : "Add samples to individual colorways"}
-                    </p>
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Sample Detail Drawer */}
+      {/* Sample Detail Drawer with scope context */}
       <SampleDetailDrawer
         sample={selectedSample}
         open={drawerOpen}
         onOpenChange={handleDrawerClose}
+        scope={scope}
+        colorwayName={colorwayName}
+        productName={productName}
+        onJumpToColorway={onJumpToColorway}
       />
     </div>
   );
 }
 
-function ColorwayDetailPanel({ sku, family, allSkus, onClose }) {
+function ColorwayDetailPanel({ sku, family, allSkus, onClose, onSelectColorway }) {
   const [activeTab, setActiveTab] = useState("samples");
   const [workspaceScope, setWorkspaceScope] = useState("colorway");
   const hasImage = Boolean(sku.imagePath);
+
+  // Handle "View colorway" navigation from drawer
+  // Switches to colorway scope and force-selects the target colorway
+  const handleJumpToColorway = useCallback((targetSkuId) => {
+    if (onSelectColorway && targetSkuId) {
+      setWorkspaceScope("colorway");
+      onSelectColorway(targetSkuId, true); // forceSelect=true to avoid toggle-off
+    }
+  }, [onSelectColorway]);
 
   // ========================================================================
   // MOCK DATA STRUCTURES (in-memory only, no Firestore)
   // ========================================================================
   // These structures scaffold the data shape for when we wire to Firestore.
-  // Keep them empty for now - the UI renders empty states.
+  // Mock data provided to validate filtering/sorting UI. Keep obviously mock.
   //
   // Future Firestore paths:
   // - Product scope: /clients/{clientId}/productFamilies/{familyId}/samples
@@ -813,12 +1083,123 @@ function ColorwayDetailPanel({ sku, family, allSkus, onClose }) {
   // ========================================================================
 
   // Product-scope samples: aggregated across all colorways
-  // Empty until Firestore integration is complete
-  const productSamples = useMemo(() => [], []);
+  const productSamples = useMemo(() => [
+    {
+      id: "sample-001",
+      label: "Shoot Sample A",
+      type: "Shoot sample",
+      sizeRun: ["S", "M", "L"],
+      status: "arrived",
+      carrier: "FedEx",
+      tracking: "7489201234567890",
+      eta: "Jan 15, 2025",
+      arrivedAt: "Jan 14, 2025",
+      notes: "Primary hero colorway for campaign shoot",
+      scopeSkuId: sku.id, // Tied to current colorway
+    },
+    {
+      id: "sample-002",
+      label: "Shoot Sample B",
+      type: "Shoot sample",
+      sizeRun: ["M"],
+      status: "in_transit",
+      carrier: "UPS",
+      tracking: "1Z999AA10123456784",
+      eta: "Jan 20, 2025",
+      arrivedAt: null,
+      notes: "Backup for flat lay shots",
+      scopeSkuId: sku.id,
+    },
+    {
+      id: "sample-003",
+      label: "PP Sample 1",
+      type: "Pre-production",
+      sizeRun: ["S", "M", "L", "XL"],
+      status: "requested",
+      carrier: null,
+      tracking: null,
+      eta: "Jan 28, 2025",
+      arrivedAt: null,
+      notes: "Initial pre-production run for fit review",
+      scopeSkuId: allSkus[1]?.id || sku.id,
+    },
+    {
+      id: "sample-004",
+      label: "PP Sample 2",
+      type: "Pre-production",
+      sizeRun: ["M", "L"],
+      status: "in_transit",
+      carrier: "DHL",
+      tracking: "1234567890",
+      eta: "Jan 22, 2025",
+      arrivedAt: null,
+      notes: "Second colorway pre-production",
+      scopeSkuId: allSkus[2]?.id || sku.id,
+    },
+    {
+      id: "sample-005",
+      label: "Bulk Ref 1",
+      type: "Bulk ref",
+      sizeRun: ["M"],
+      status: "arrived",
+      carrier: "FedEx",
+      tracking: "7489207777777777",
+      eta: "Jan 10, 2025",
+      arrivedAt: "Jan 9, 2025",
+      notes: "Reference for color matching during bulk production",
+      scopeSkuId: sku.id,
+    },
+    {
+      id: "sample-006",
+      label: "Shoot Sample C",
+      type: "Shoot sample",
+      sizeRun: ["XS", "S"],
+      status: "issue",
+      carrier: "USPS",
+      tracking: "9400111899223100001234",
+      eta: "Jan 12, 2025",
+      arrivedAt: null,
+      notes: "Wrong color shipped - needs replacement",
+      scopeSkuId: allSkus[1]?.id || sku.id,
+    },
+    {
+      id: "sample-007",
+      label: "Bulk Ref 2",
+      type: "Bulk ref",
+      sizeRun: ["L", "XL"],
+      status: "returned",
+      carrier: "UPS",
+      tracking: "1Z999AA10987654321",
+      eta: null,
+      arrivedAt: "Dec 20, 2024",
+      notes: "Returned to factory after review",
+      scopeSkuId: sku.id,
+    },
+    {
+      id: "sample-008",
+      label: "PP Sample 3",
+      type: "Pre-production",
+      sizeRun: ["S"],
+      status: "requested",
+      carrier: null,
+      tracking: null,
+      eta: "Feb 1, 2025",
+      arrivedAt: null,
+      notes: null,
+      scopeSkuId: allSkus[0]?.id || sku.id,
+    },
+  ], [sku.id, allSkus]);
 
-  // Colorway-scope samples: keyed by SKU ID
-  // Empty until Firestore integration is complete
-  const colorwaySamplesBySkuId = useMemo(() => ({}), []);
+  // Colorway-scope samples: filter from productSamples by scopeSkuId
+  const colorwaySamplesBySkuId = useMemo(() => {
+    const bySkuId = {};
+    productSamples.forEach((sample) => {
+      const skuId = sample.scopeSkuId || sku.id;
+      if (!bySkuId[skuId]) bySkuId[skuId] = [];
+      bySkuId[skuId].push(sample);
+    });
+    return bySkuId;
+  }, [productSamples, sku.id]);
 
   // Get samples for current scope
   const currentSamples = useMemo(() => {
@@ -982,7 +1363,9 @@ function ColorwayDetailPanel({ sku, family, allSkus, onClose }) {
                     <SamplesWorkspace
                       scope={workspaceScope}
                       colorwayName={sku.colorName}
+                      productName={family?.styleName}
                       samples={currentSamples}
+                      onJumpToColorway={handleJumpToColorway}
                     />
                   ) : (
                     <WorkspaceEmptyState config={area} scope={workspaceScope} />
@@ -1081,8 +1464,12 @@ export default function ProductDetailPageV2() {
   }, [navigate]);
 
   // Toggle colorway selection - click same to deselect, click different to switch
-  const handleColorwaySelect = useCallback((skuId) => {
-    setSelectedColorwayId((prev) => (prev === skuId ? null : skuId));
+  // When forceSelect is true, always select (used by "View colorway" button)
+  const handleColorwaySelect = useCallback((skuId, forceSelect = false) => {
+    setSelectedColorwayId((prev) => {
+      if (forceSelect) return skuId;
+      return prev === skuId ? null : skuId;
+    });
   }, []);
 
   const handleCloseDetail = useCallback(() => {
@@ -1327,6 +1714,7 @@ export default function ProductDetailPageV2() {
                       family={family}
                       allSkus={skus}
                       onClose={handleCloseDetail}
+                      onSelectColorway={handleColorwaySelect}
                     />
                   )}
                 </>
