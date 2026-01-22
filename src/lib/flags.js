@@ -14,6 +14,7 @@ const PULLS_EDITOR_FLAG_KEY = "flag.pullsEditorV2";
 const DEMO_FLAG_KEY = "flag.demoMode";
 const CALLSHEET_BUILDER_FLAG_KEY = "flag.callSheetBuilder";
 const PRODUCTS_V2_FLAG_KEY = "flag.productsV2";
+const PRODUCTS_V3_FLAG_KEY = "flag.productsV3";
 const PROJECT_ENV_DEFAULT = (() => {
   if (ENV.VITE_FEATURE_PROJECT_SCOPING != null) {
     return readBool(ENV.VITE_FEATURE_PROJECT_SCOPING);
@@ -59,6 +60,7 @@ let PULLS_EDITOR_OVERRIDE = null;
 let DEMO_OVERRIDE = null;
 let CALLSHEET_BUILDER_OVERRIDE = null;
 let PRODUCTS_V2_OVERRIDE = null;
+let PRODUCTS_V3_OVERRIDE = null;
 try {
   if (typeof window !== "undefined") {
     // Allow quick enabling via query param e.g. ?demo=1
@@ -93,6 +95,16 @@ try {
           window.localStorage.setItem(PRODUCTS_V2_FLAG_KEY, readBool(productsV2Param) ? "1" : "0");
         }
       }
+      // Allow quick enabling via query param e.g. ?productsV3=1 or ?ui=products-v3
+      const productsV3Param = params.get("productsV3") ?? (params.get("ui") === "products-v3" ? "1" : null);
+      if (productsV3Param) {
+        const trimmed = productsV3Param.trim().toLowerCase();
+        if (trimmed === "clear" || trimmed === "reset" || trimmed === "off" || trimmed === "0") {
+          window.localStorage.removeItem(PRODUCTS_V3_FLAG_KEY);
+        } else {
+          window.localStorage.setItem(PRODUCTS_V3_FLAG_KEY, readBool(productsV3Param) ? "1" : "0");
+        }
+      }
     } catch {}
 
     AUTH_OVERRIDE = window.localStorage.getItem("flag.newAuthContext");
@@ -102,6 +114,7 @@ try {
     DEMO_OVERRIDE = window.localStorage.getItem(DEMO_FLAG_KEY);
     CALLSHEET_BUILDER_OVERRIDE = window.localStorage.getItem(CALLSHEET_BUILDER_FLAG_KEY);
     PRODUCTS_V2_OVERRIDE = window.localStorage.getItem(PRODUCTS_V2_FLAG_KEY);
+    PRODUCTS_V3_OVERRIDE = window.localStorage.getItem(PRODUCTS_V3_FLAG_KEY);
   }
 } catch {}
 
@@ -126,6 +139,10 @@ export const FLAGS = {
     PRODUCTS_V2_OVERRIDE != null
       ? readBool(PRODUCTS_V2_OVERRIDE)
       : readBool(ENV.VITE_FLAG_PRODUCTS_V2 ?? false),
+  productsV3:
+    PRODUCTS_V3_OVERRIDE != null
+      ? readBool(PRODUCTS_V3_OVERRIDE)
+      : readBool(ENV.VITE_FLAG_PRODUCTS_V3 ?? false),
 };
 
 export const FEATURE_PROJECT_SCOPING = FLAGS.projectScoping;
@@ -192,6 +209,17 @@ export function setProductsV2Override(value) {
       window.localStorage.removeItem(PRODUCTS_V2_FLAG_KEY);
     } else {
       window.localStorage.setItem(PRODUCTS_V2_FLAG_KEY, value ? "1" : "0");
+    }
+  } catch {}
+}
+
+export function setProductsV3Override(value) {
+  try {
+    if (typeof window === "undefined") return;
+    if (value == null) {
+      window.localStorage.removeItem(PRODUCTS_V3_FLAG_KEY);
+    } else {
+      window.localStorage.setItem(PRODUCTS_V3_FLAG_KEY, value ? "1" : "0");
     }
   } catch {}
 }
