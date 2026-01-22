@@ -76,8 +76,10 @@ function ProductSelectorRow({
   }, [currentColor, familyDetails, family]);
 
   // Generate mock supply sources for this colorway (for workflow validation)
+  // Only generate mock data in development mode - production requires real data
   const supplySources = useMemo(() => {
     if (!currentColor?.id) return [];
+    if (!import.meta.env.DEV) return [];
     return generateMockSupplyRecords(currentColor.id, sizes);
   }, [currentColor?.id, sizes]);
 
@@ -122,8 +124,8 @@ function ProductSelectorRow({
     // Determine allocation status
     let allocationStatus = "unassigned";
     if (selectedSource) {
-      // Check if source has the selected size
-      const sourceHasSize = !selectedSize ||
+      // Check if source has the selected size (use == null to distinguish from empty string)
+      const sourceHasSize = selectedSize == null ||
         selectedSize === ALL_SIZES_VALUE ||
         (Array.isArray(selectedSource.sizeRun) && selectedSource.sizeRun.includes(selectedSize));
 
@@ -627,6 +629,7 @@ export default function ShotProductSelectorModal({
         size: item.size,
         sizeScope: item.sizeScope,
         status: item.status,
+        allocation: item.allocation,
       };
     });
 
