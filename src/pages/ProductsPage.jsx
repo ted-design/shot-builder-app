@@ -382,6 +382,7 @@ const CreateProductCard = memo(function CreateProductCard({ onClick }) {
 
 const ProductActionMenu = memo(function ProductActionMenu({
   family,
+  onView,
   onEdit,
   onRename,
   onToggleStatus,
@@ -401,6 +402,19 @@ const ProductActionMenu = memo(function ProductActionMenu({
       className="absolute right-0 top-10 z-50 w-48 rounded-md border border-slate-200 bg-white/95 backdrop-blur-md shadow-lg dark:border-slate-700 dark:bg-slate-800/95"
       onClick={(event) => event.stopPropagation()}
     >
+      {onView && (
+        <button
+          type="button"
+          role="menuitem"
+          className="block w-full px-4 py-2 text-left text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700"
+          onClick={() => {
+            onView(family);
+            onClose();
+          }}
+        >
+          View
+        </button>
+      )}
       <button
         type="button"
         role="menuitem"
@@ -1649,14 +1663,20 @@ export default function ProductsPage() {
     if (resolvedDensityKey === "wide") {
       ensureFamilySkusLoaded(family.id);
     }
-    const openFromCard = () => {
-      // When productsV2 flag is enabled, navigate to detail page instead of edit modal
-      if (FLAGS.productsV2) {
-        navigate(`/products/${family.id}`);
+    const handleCardClick = (event) => {
+      // Prevent card click if clicking on interactive elements (checkbox, buttons, etc.)
+      if (event.target.closest('button, input, [role="button"], [role="checkbox"]')) {
         return;
       }
-      if (!canEdit || inlineEditing) return;
-      loadFamilyForEdit(family);
+
+      // When selection mode is active, toggle selection instead of navigating
+      if (selectionModeActive) {
+        toggleFamilySelection(family.id);
+        return;
+      }
+
+      // Navigate to detail page (always available regardless of feature flags)
+      navigate(`/products/${family.id}`);
     };
     const { displayImagePath, colourList, coloursLabel, sizeList, sizesLabel } = buildFamilyMeta(
       family
@@ -1714,10 +1734,11 @@ export default function ProductsPage() {
     });
     const isSelected = selectedFamilyIds.has(family.id);
     const isCompactCard = resolvedDensityKey === "compact";
-    const cardClasses = `relative flex h-full flex-col overflow-visible ${isSelected ? "ring-2 ring-primary/60" : ""}`.trim();
+    const isCardClickable = true; // Always clickable: selection toggle or navigation
+    const cardClasses = `relative flex h-full flex-col overflow-visible ${isSelected ? "ring-2 ring-primary/60" : ""} ${isCardClickable ? "cursor-pointer" : ""}`.trim();
 
     const renderCompactCard = () => (
-      <Card className={cardClasses}>
+      <Card className={cardClasses} onClick={isCardClickable ? handleCardClick : undefined}>
         <CardContent
           className={`grid grid-cols-[96px,1fr] gap-3 ${densityConfig.cardPadding}`}
           ref={family.id === menuFamilyId ? menuRef : null}
@@ -1790,6 +1811,7 @@ export default function ProductsPage() {
                 </Button>
                 <ProductActionMenu
                   family={family}
+                  onView={() => navigate(`/products/${family.id}`)}
                   onEdit={loadFamilyForEdit}
                   onRename={startRename}
                   onToggleStatus={handleStatusToggle}
@@ -1858,6 +1880,7 @@ export default function ProductsPage() {
     const renderComfyCard = () => (
       <Card
         className={cardClasses}
+        onClick={isCardClickable ? handleCardClick : undefined}
       >
         <CardContent className={`flex h-full flex-col gap-4 ${densityConfig.cardPadding}`}>
           <div
@@ -1894,6 +1917,7 @@ export default function ProductsPage() {
             )}
             <ProductActionMenu
               family={family}
+              onView={() => navigate(`/products/${family.id}`)}
               onEdit={loadFamilyForEdit}
               onRename={startRename}
               onToggleStatus={handleStatusToggle}
@@ -2008,7 +2032,7 @@ export default function ProductsPage() {
       };
 
       return (
-        <Card className={cardClasses}>
+        <Card className={cardClasses} onClick={isCardClickable ? handleCardClick : undefined}>
           <CardContent className={`flex h-full flex-col ${densityConfig.cardPadding}`}>
             {/* Top Row: Image + Details side by side */}
             <div className="flex flex-1 gap-3">
@@ -2122,6 +2146,7 @@ export default function ProductsPage() {
                         </Button>
                         <ProductActionMenu
                           family={family}
+                          onView={() => navigate(`/products/${family.id}`)}
                           onEdit={loadFamilyForEdit}
                           onRename={startRename}
                           onToggleStatus={handleStatusToggle}
@@ -2190,13 +2215,8 @@ export default function ProductsPage() {
       sizesLabel,
     } = buildFamilyMeta(family);
     const handleManageColours = () => {
-      // When productsV2 flag is enabled, navigate to detail page instead of edit modal
-      if (FLAGS.productsV2) {
-        navigate(`/products/${family.id}`);
-        return;
-      }
-      if (!canEdit || inlineEditing) return;
-      loadFamilyForEdit(family);
+      // Always navigate to detail page (regardless of feature flags)
+      navigate(`/products/${family.id}`);
     };
     const joinedColours = colourList.slice(0, 4).join(", ");
     const hasMoreColours = colourList.length > 4;
@@ -2329,6 +2349,7 @@ export default function ProductsPage() {
                 </Button>
             <ProductActionMenu
               family={family}
+              onView={() => navigate(`/products/${family.id}`)}
               onEdit={loadFamilyForEdit}
               onRename={startRename}
               onToggleStatus={handleStatusToggle}
@@ -2537,6 +2558,7 @@ export default function ProductsPage() {
           </Button>
           <ProductActionMenu
             family={family}
+            onView={() => navigate(`/products/${family.id}`)}
             onEdit={loadFamilyForEdit}
             onRename={startRename}
             onToggleStatus={handleStatusToggle}
@@ -2575,7 +2597,7 @@ export default function ProductsPage() {
         familySkus={familySkus}
         ensureFamilySkus={ensureFamilySkusLoaded}
         paletteIndex={paletteIndex}
-        onProductClick={FLAGS.productsV2 ? (family) => navigate(`/products/${family.id}`) : undefined}
+        onProductClick={(family) => navigate(`/products/${family.id}`)}
       />
     );
   };

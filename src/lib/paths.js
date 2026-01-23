@@ -65,6 +65,12 @@ export const projectMemberPath = (projectId, userId, clientId) => [
 // Path to the global shots collection.  Do not pass a project ID here.
 export const shotsPath = (clientId) => ["clients", resolveClientId(clientId), "shots"];
 
+// Path to a specific shot document
+export const shotPath = (shotId, clientId) => [...shotsPath(clientId), shotId];
+
+// Path to shot note versions subcollection (append-only versioning for Shot Notes)
+export const shotNoteVersionsPath = (shotId, clientId) => [...shotPath(shotId, clientId), "noteVersions"];
+
 // Legacy project-scoped shots path retained for backwards compatibility. Older
 // installs stored shots under each project (`projects/{projectId}/shots`).
 // Planner and shot management screens can subscribe to this collection to

@@ -867,21 +867,7 @@ export default function ColorwaysSection({ family, skus, samples = [] }) {
   }, [selectedColorwayId, skus]);
 
   const handleColorwaySelect = useCallback((skuId) => {
-    setSelectedColorwayId((prev) => {
-      const isOpening = prev !== skuId;
-      // Scroll tile into view when opening (not closing)
-      if (isOpening && tileRefs.current[skuId]) {
-        // Small delay to allow state update before scroll
-        setTimeout(() => {
-          tileRefs.current[skuId]?.scrollIntoView({
-            behavior: "smooth",
-            block: "nearest",
-            inline: "nearest",
-          });
-        }, 50);
-      }
-      return prev === skuId ? null : skuId;
-    });
+    setSelectedColorwayId((prev) => (prev === skuId ? null : skuId));
   }, [setSelectedColorwayId]);
 
   const handleCloseDetail = useCallback(() => {
@@ -930,6 +916,74 @@ export default function ColorwaysSection({ family, skus, samples = [] }) {
       cancelAnimationFrame(rafId2);
     };
   }, [selectedColorwayId]);
+
+  // Scroll selected tile into view when selection changes (cockpit must be open)
+  // Centralized handler for both click and keyboard navigation
+  useEffect(() => {
+    if (!selectedColorwayId) return;
+
+    const tileEl = tileRefs.current[selectedColorwayId];
+    if (!tileEl) return;
+
+    // Small delay for DOM stability after state update
+    const timeoutId = setTimeout(() => {
+      tileEl.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
+    }, 50);
+
+    return () => clearTimeout(timeoutId);
+  }, [selectedColorwayId]);
+
+  // Keyboard navigation for colorways when cockpit is open
+  // Arrow keys move selection to prev/next colorway with wrap-around
+  useEffect(() => {
+    // Only active when cockpit is open and there are colorways to navigate
+    if (!selectedColorwayId || skus.length === 0) return;
+
+    const handleKeyDown = (event) => {
+      // Guard: ignore if user is typing in an input, textarea, select, or contenteditable
+      const tag = event.target.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        event.target.isContentEditable
+      ) {
+        return;
+      }
+
+      const isLeft = event.key === "ArrowLeft" || event.key === "ArrowUp";
+      const isRight = event.key === "ArrowRight" || event.key === "ArrowDown";
+
+      if (!isLeft && !isRight) return;
+
+      event.preventDefault();
+
+      const currentIndex = skus.findIndex((s) => s.id === selectedColorwayId);
+      if (currentIndex === -1) return;
+
+      let nextIndex;
+      if (isLeft) {
+        // Previous with wrap: last → first
+        nextIndex = currentIndex === 0 ? skus.length - 1 : currentIndex - 1;
+      } else {
+        // Next with wrap: first → last
+        nextIndex = currentIndex === skus.length - 1 ? 0 : currentIndex + 1;
+      }
+
+      const nextSku = skus[nextIndex];
+      if (nextSku) {
+        setSelectedColorwayId(nextSku.id);
+        // Scroll handled by centralized useEffect watching selectedColorwayId
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectedColorwayId, skus, setSelectedColorwayId]);
 
   return (
     <div className="p-6">

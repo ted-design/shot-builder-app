@@ -7,8 +7,17 @@ import DOMPurify from "dompurify";
 /**
  * Whitelist of allowed CSS properties in style attributes.
  * Only color-related properties are permitted for security.
+ *
+ * SECURITY NOTE: This is a strict whitelist approach. Only properties
+ * that are explicitly safe for user-generated content are allowed.
  */
 const ALLOWED_CSS_PROPERTIES = new Set(["color", "background-color"]);
+
+/**
+ * Maximum style attribute length to prevent DoS via extremely long strings.
+ * 500 chars is plenty for color declarations but prevents abuse.
+ */
+const MAX_STYLE_LENGTH = 500;
 
 /**
  * Regex patterns for valid CSS color values.
@@ -69,9 +78,26 @@ function hasDangerousContent(value: string): boolean {
 /**
  * Filter a style attribute to only allow safe color properties.
  * Returns the filtered style string, or empty string if nothing is safe.
+ *
+ * SECURITY MEASURES:
+ * 1. Length limit to prevent DoS
+ * 2. Dangerous pattern blocklist (url, expression, javascript, etc.)
+ * 3. Whitelist of allowed properties
+ * 4. Strict color value validation with regex
+ * 5. No nested parsing or eval-style constructs
  */
 function filterStyleAttribute(styleValue: string): string {
-  // Reject entirely if it contains dangerous patterns
+  // Guard: reject null/undefined/non-strings
+  if (!styleValue || typeof styleValue !== "string") {
+    return "";
+  }
+
+  // Guard: reject excessively long style strings (DoS prevention)
+  if (styleValue.length > MAX_STYLE_LENGTH) {
+    return "";
+  }
+
+  // Guard: reject entirely if it contains dangerous patterns
   if (hasDangerousContent(styleValue)) {
     return "";
   }
@@ -79,28 +105,33 @@ function filterStyleAttribute(styleValue: string): string {
   const safeDeclarations: string[] = [];
 
   // Parse style declarations (split by semicolon)
+  // Using simple split since we've already validated no dangerous content
   const declarations = styleValue.split(";");
 
   for (const declaration of declarations) {
     const trimmed = declaration.trim();
     if (!trimmed) continue;
 
-    // Split into property and value
+    // Split into property and value at first colon only
     const colonIndex = trimmed.indexOf(":");
     if (colonIndex === -1) continue;
 
     const property = trimmed.slice(0, colonIndex).trim().toLowerCase();
     const value = trimmed.slice(colonIndex + 1).trim();
 
-    // Only allow whitelisted properties
+    // Guard: skip if property or value is empty
+    if (!property || !value) continue;
+
+    // Guard: only allow whitelisted properties
     if (!ALLOWED_CSS_PROPERTIES.has(property)) continue;
 
-    // Validate the value is a legitimate color
+    // Guard: validate the value is a legitimate color
     if (!isValidColorValue(value)) continue;
 
-    // Double-check value doesn't contain dangerous content
+    // Guard: double-check value doesn't contain dangerous content
     if (hasDangerousContent(value)) continue;
 
+    // Reconstruct with normalized whitespace
     safeDeclarations.push(`${property}: ${value}`);
   }
 
@@ -217,4 +248,38 @@ export function hasRichContent(html: string | null | undefined): boolean {
   const hasFormatting =
     /<(strong|em|b|i|u|s|a)\b/i.test(html) || /style\s*=/i.test(html);
   return stripped.length > 0 || hasFormatting;
+}
+
+/**
+ * Check if HTML content is effectively empty (common TipTap/rich-text empty states).
+ * Treats the following as empty:
+ * - null, undefined, empty string
+ * - "<p></p>", "<p><br></p>", "<p> </p>" and similar empty paragraph patterns
+ * - Whitespace-only content
+ * - Content with only empty block tags
+ *
+ * Use this to determine whether to show placeholder copy instead of raw markup.
+ */
+export function isEmptyHtml(html: string | null | undefined): boolean {
+  if (!html || typeof html !== "string") return true;
+
+  // Strip all HTML tags and decode common entities
+  const stripped = html
+    .replace(/<br\s*\/?>/gi, "") // Remove <br> tags
+    .replace(/<[^>]*>/g, "") // Remove all other HTML tags
+    .replace(/&nbsp;/gi, " ") // Decode &nbsp;
+    .replace(/&#160;/gi, " ") // Decode numeric nbsp
+    .trim();
+
+  return stripped.length === 0;
+}
+
+/**
+ * Normalize HTML content for storage/comparison.
+ * Returns empty string if content is effectively empty, otherwise returns sanitized HTML.
+ * Use this when saving rich text to avoid storing empty-looking markup like "<p></p>".
+ */
+export function normalizeHtmlContent(html: string | null | undefined): string {
+  if (isEmptyHtml(html)) return "";
+  return sanitizeHtml(html || "");
 }
