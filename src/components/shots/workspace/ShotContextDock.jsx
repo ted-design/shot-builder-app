@@ -1,0 +1,188 @@
+/**
+ * ShotContextDock - Left-side context dock for shot editor workspace
+ *
+ * Design patterns (matching ProductDetailPageV3 / WorkspaceRail):
+ * - LEFT side positioning (border-r)
+ * - Collapsible icon rail (w-14 collapsed, w-48 expanded)
+ * - Context and orientation focus (not navigation-centric)
+ * - Status, products summary, tags, activity placeholder
+ *
+ * This dock provides contextual information about the shot while
+ * the main canvas remains the primary authoring surface.
+ */
+
+import { useState, useCallback } from "react";
+import {
+  CircleDot,
+  Package,
+  Tags,
+  MessageSquare,
+} from "lucide-react";
+import { StatusBadge } from "../../ui/StatusBadge";
+
+// Context dock sections - orientation + context, not navigation
+const DOCK_SECTIONS = [
+  {
+    id: "status",
+    label: "Status",
+    icon: CircleDot,
+    description: "Shot status and identity",
+  },
+  {
+    id: "products",
+    label: "Products",
+    icon: Package,
+    description: "Assigned products",
+  },
+  {
+    id: "tags",
+    label: "Tags",
+    icon: Tags,
+    description: "Shot tags",
+  },
+  {
+    id: "activity",
+    label: "Activity",
+    icon: MessageSquare,
+    description: "Comments and activity",
+  },
+];
+
+// Status configuration for display
+const STATUS_CONFIGS = {
+  todo: { label: "To Do", variant: "pending" },
+  in_progress: { label: "In Progress", variant: "info" },
+  complete: { label: "Complete", variant: "complete" },
+  on_hold: { label: "On Hold", variant: "on-hold" },
+};
+
+function DockItem({ section, isExpanded, count, children }) {
+  const Icon = section.icon;
+
+  return (
+    <div className="relative">
+      <div
+        className={`
+          flex items-center gap-3 rounded-lg transition-all
+          ${isExpanded ? "h-auto min-h-[40px] px-3 py-2" : "h-10 px-0 justify-center"}
+          text-slate-600 dark:text-slate-400
+        `}
+      >
+        <Icon
+          className="w-4 h-4 flex-shrink-0 text-slate-400 dark:text-slate-500"
+          title={!isExpanded ? section.label : undefined}
+        />
+        {isExpanded && (
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                {section.label}
+              </span>
+              {count !== undefined && count > 0 && (
+                <span className="text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-300">
+                  {count}
+                </span>
+              )}
+            </div>
+            {children && <div className="mt-1">{children}</div>}
+          </div>
+        )}
+        {/* Badge dot when collapsed (shows count exists) */}
+        {!isExpanded && count !== undefined && count > 0 && (
+          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-500" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function ShotContextDock({ shot, counts = {} }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleMouseEnter = useCallback(() => setIsExpanded(true), []);
+  const handleMouseLeave = useCallback(() => setIsExpanded(false), []);
+  const handleFocus = useCallback(() => setIsExpanded(true), []);
+  const handleBlur = useCallback((e) => {
+    // Only collapse if focus leaves the entire dock
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsExpanded(false);
+    }
+  }, []);
+
+  const statusConfig = STATUS_CONFIGS[shot?.status] || STATUS_CONFIGS.todo;
+
+  return (
+    <aside
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      className={`
+        flex-shrink-0 border-r border-slate-200 dark:border-slate-700
+        bg-white dark:bg-slate-800/80
+        transition-all duration-200 ease-out
+        ${isExpanded ? "w-52" : "w-14"}
+      `}
+      aria-label="Shot context"
+    >
+      <div className={`sticky top-20 p-2 space-y-1 ${isExpanded ? "px-3" : "px-2"}`}>
+        {/* Status section */}
+        <DockItem
+          section={DOCK_SECTIONS[0]}
+          isExpanded={isExpanded}
+        >
+          <StatusBadge variant={statusConfig.variant} className="text-[10px]">
+            {statusConfig.label}
+          </StatusBadge>
+        </DockItem>
+
+        {/* Products section */}
+        <DockItem
+          section={DOCK_SECTIONS[1]}
+          isExpanded={isExpanded}
+          count={counts.products}
+        >
+          {counts.products > 0 ? (
+            <span className="text-xs text-slate-600 dark:text-slate-300">
+              {counts.products} assigned
+            </span>
+          ) : (
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              None assigned
+            </span>
+          )}
+        </DockItem>
+
+        {/* Tags section */}
+        <DockItem
+          section={DOCK_SECTIONS[2]}
+          isExpanded={isExpanded}
+          count={counts.tags}
+        >
+          {counts.tags > 0 ? (
+            <span className="text-xs text-slate-600 dark:text-slate-300">
+              {counts.tags} tags
+            </span>
+          ) : (
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              No tags
+            </span>
+          )}
+        </DockItem>
+
+        {/* Divider */}
+        <div className="!my-3 h-px bg-slate-100 dark:bg-slate-700" />
+
+        {/* Activity section - scrollable placeholder */}
+        <DockItem
+          section={DOCK_SECTIONS[3]}
+          isExpanded={isExpanded}
+        >
+          <div className="text-xs text-slate-400 dark:text-slate-500 italic">
+            Activity coming soon
+          </div>
+        </DockItem>
+      </div>
+    </aside>
+  );
+}

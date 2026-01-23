@@ -36,6 +36,7 @@ const queryClient = new QueryClient({
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ProjectsPage = lazy(() => import("./pages/ProjectsPage"));
 const ShotsPage = lazy(() => import("./pages/ShotsPage"));
+const ShotEditorPageV3 = lazy(() => import("./pages/ShotEditorPageV3"));
 const ProductsPage = lazy(() => import("./pages/ProductsPage"));
 const ProductDetailPageV2 = lazy(() => import("./pages/ProductDetailPageV2"));
 const ProductDetailPageV3 = lazy(() => import("./pages/ProductDetailPageV3"));
@@ -259,6 +260,15 @@ function AppRoutes() {
                         </Suspense>
                       }
                     />
+                    {/* Shot Editor V3 - feature-flagged workspace-style editor */}
+                    <Route
+                      path="shots/:shotId/editor"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <ShotEditorPageV3 />
+                        </Suspense>
+                      }
+                    />
                     <Route
                       path="catalogue"
                       element={
@@ -327,7 +337,7 @@ function AppRoutes() {
                       </Suspense>
                     }
                   />
-                  {/* Product detail page - V3 takes priority over V2 */}
+                  {/* Product detail page - V3 takes priority over V2, V3 is default when flags OFF */}
                   {FLAGS.productsV3 && (
                     <Route
                       path="/products/:productId"
@@ -344,6 +354,17 @@ function AppRoutes() {
                       element={
                         <Suspense fallback={<PageLoadingFallback />}>
                           <ProductDetailPageV2 />
+                        </Suspense>
+                      }
+                    />
+                  )}
+                  {/* Default: ProductDetailPageV3 when both flags are OFF */}
+                  {!FLAGS.productsV3 && !FLAGS.productsV2 && (
+                    <Route
+                      path="/products/:productId"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <ProductDetailPageV3 />
                         </Suspense>
                       }
                     />

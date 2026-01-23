@@ -90,6 +90,7 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
   FileDown,
+  ExternalLink,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -4062,6 +4063,20 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit Shot
               </DropdownMenuItem>
+              {FLAGS.shotEditorV3 && shot?.projectId && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.location.href = `/projects/${shot.projectId}/shots/${shot.id}/editor`;
+                  }}
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Open in Editor
+                  <span className="ml-auto text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">
+                    Beta
+                  </span>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={(e) => {

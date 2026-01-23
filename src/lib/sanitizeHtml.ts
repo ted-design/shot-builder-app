@@ -218,3 +218,37 @@ export function hasRichContent(html: string | null | undefined): boolean {
     /<(strong|em|b|i|u|s|a)\b/i.test(html) || /style\s*=/i.test(html);
   return stripped.length > 0 || hasFormatting;
 }
+
+/**
+ * Check if HTML content is effectively empty (common TipTap/rich-text empty states).
+ * Treats the following as empty:
+ * - null, undefined, empty string
+ * - "<p></p>", "<p><br></p>", "<p> </p>" and similar empty paragraph patterns
+ * - Whitespace-only content
+ * - Content with only empty block tags
+ *
+ * Use this to determine whether to show placeholder copy instead of raw markup.
+ */
+export function isEmptyHtml(html: string | null | undefined): boolean {
+  if (!html || typeof html !== "string") return true;
+
+  // Strip all HTML tags and decode common entities
+  const stripped = html
+    .replace(/<br\s*\/?>/gi, "") // Remove <br> tags
+    .replace(/<[^>]*>/g, "") // Remove all other HTML tags
+    .replace(/&nbsp;/gi, " ") // Decode &nbsp;
+    .replace(/&#160;/gi, " ") // Decode numeric nbsp
+    .trim();
+
+  return stripped.length === 0;
+}
+
+/**
+ * Normalize HTML content for storage/comparison.
+ * Returns empty string if content is effectively empty, otherwise returns sanitized HTML.
+ * Use this when saving rich text to avoid storing empty-looking markup like "<p></p>".
+ */
+export function normalizeHtmlContent(html: string | null | undefined): string {
+  if (isEmptyHtml(html)) return "";
+  return sanitizeHtml(html || "");
+}
