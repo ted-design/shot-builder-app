@@ -415,6 +415,9 @@ export default function ShotLooksCanvas({
   const saveTimerRef = useRef(null);
   const savedIndicatorTimerRef = useRef(null);
 
+  // Prevent concurrent save operations (race condition mitigation)
+  const saveInProgressRef = useRef(false);
+
   // ══════════════════════════════════════════════════════════════════════════
   // SYNC EXTERNAL CHANGES
   // ══════════════════════════════════════════════════════════════════════════
@@ -433,6 +436,12 @@ export default function ShotLooksCanvas({
   const saveLooks = useCallback(async (newLooks) => {
     if (!clientId || !shot?.id || readOnly) return;
 
+    // Prevent concurrent saves (race condition mitigation)
+    if (saveInProgressRef.current) {
+      return;
+    }
+
+    saveInProgressRef.current = true;
     setSaveStatus("saving");
 
     try {
@@ -471,6 +480,8 @@ export default function ShotLooksCanvas({
     } catch (error) {
       console.error("[ShotLooksCanvas] Save failed:", error);
       setSaveStatus("error");
+    } finally {
+      saveInProgressRef.current = false;
     }
   }, [clientId, shot?.id, shot?.projectId, shot?.name, user, readOnly]);
 

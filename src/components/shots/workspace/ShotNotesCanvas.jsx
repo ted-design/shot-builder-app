@@ -172,6 +172,9 @@ export default function ShotNotesCanvas({
   const lastPersistedRef = useRef(normalizeHtmlContent(shot?.notes));
   const lastVersionHashRef = useRef(null);
 
+  // Prevent concurrent save operations (race condition mitigation)
+  const saveInProgressRef = useRef(false);
+
   // Timers
   const saveTimerRef = useRef(null);
   const versionTimerRef = useRef(null);
@@ -201,6 +204,11 @@ export default function ShotNotesCanvas({
   const saveNotes = useCallback(async (content) => {
     if (!clientId || !shot?.id || readOnly) return;
 
+    // Prevent concurrent saves (race condition mitigation)
+    if (saveInProgressRef.current) {
+      return;
+    }
+
     const normalized = normalizeHtmlContent(content);
 
     // Skip if content hasn't changed from last persisted value
@@ -208,6 +216,7 @@ export default function ShotNotesCanvas({
       return;
     }
 
+    saveInProgressRef.current = true;
     setSaveStatus("saving");
 
     try {
@@ -259,6 +268,8 @@ export default function ShotNotesCanvas({
     } catch (error) {
       console.error("[ShotNotesCanvas] Save failed:", error);
       setSaveStatus("error");
+    } finally {
+      saveInProgressRef.current = false;
     }
   }, [clientId, shot?.id, shot?.projectId, shot?.name, user, readOnly]);
 

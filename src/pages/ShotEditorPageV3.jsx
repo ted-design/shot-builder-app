@@ -156,6 +156,12 @@ export default function ShotEditorPageV3() {
     [families, clientId]
   );
 
+  // Clear family detail cache when families data changes to prevent memory leak
+  // (cache could grow unbounded if families are added/removed over time)
+  useEffect(() => {
+    familyDetailCacheRef.current.clear();
+  }, [families]);
+
   // Fetch shot data with real-time subscription
   useEffect(() => {
     if (!clientId || !shotId) {

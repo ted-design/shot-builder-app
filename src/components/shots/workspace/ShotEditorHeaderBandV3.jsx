@@ -231,8 +231,7 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
   };
 
   const handleDuplicate = () => {
-    // TODO: Implement shot duplication
-    console.log("Duplicate shot:", shot?.id);
+    // TODO: Implement shot duplication - opens duplicate modal
   };
 
   /**
