@@ -3984,15 +3984,24 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
 }) {
   const navigate = useNavigate();
 
-  // Card click handler: navigate to editor when available
-  // Note: We no longer call onFocus() here because click is a navigation action,
-  // not a selection action. Focus ring is reserved for keyboard focus only.
-  const handleCardClick = useCallback(() => {
-    // Navigate to Shot Editor V3 if enabled and shot has projectId
-    if (FLAGS.shotEditorV3 && shot?.projectId) {
-      navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
-    }
-  }, [navigate, shot]);
+  // Card click handler: navigate to editor when flag is enabled, otherwise fall back to focus
+  const handleCardClick = useCallback(
+    (e) => {
+      // Don't navigate if clicking on interactive elements (checkboxes, buttons, menus)
+      if (e.target.closest('button, [role="menuitem"], input[type="checkbox"], [data-radix-collection-item]')) {
+        return;
+      }
+
+      // Navigate to Shot Editor V3 if enabled and shot has projectId
+      if (FLAGS.shotEditorV3 && shot?.projectId) {
+        navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
+      } else {
+        // Fall back to legacy focus behavior when flag is disabled
+        onFocus?.(shot);
+      }
+    },
+    [navigate, shot?.id, shot?.projectId, onFocus, shot]
+  );
 
   // Collapsible sections state - synced with global state
   const [expandedSections, setExpandedSections] = useState({
@@ -4228,7 +4237,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
         // Allow Enter/Space to trigger navigation like a link
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          handleCardClick();
+          handleCardClick(e);
         }
       }}
     >
