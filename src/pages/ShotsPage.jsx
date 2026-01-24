@@ -3982,6 +3982,27 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   onFocus = null,
   globalSectionsExpanded = true,
 }) {
+  const navigate = useNavigate();
+
+  // Card click handler: navigate to editor when flag is enabled, otherwise fall back to focus
+  const handleCardClick = useCallback(
+    (e) => {
+      // Don't navigate if clicking on interactive elements (checkboxes, buttons, menus)
+      if (e.target.closest('button, [role="menuitem"], input[type="checkbox"], [data-radix-collection-item]')) {
+        return;
+      }
+
+      // Navigate to Shot Editor V3 if enabled and shot has projectId
+      if (FLAGS.shotEditorV3 && shot?.projectId) {
+        navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
+      } else {
+        // Fall back to legacy focus behavior when flag is disabled
+        onFocus?.(shot);
+      }
+    },
+    [navigate, shot, onFocus]
+  );
+
   // Collapsible sections state - synced with global state
   const [expandedSections, setExpandedSections] = useState({
     products: globalSectionsExpanded,
@@ -4207,7 +4228,20 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   ) : null;
 
   return (
-    <Card className={`overflow-hidden border shadow-sm transition ${focusClasses} relative group`} data-shot-card onClick={() => onFocus?.(shot)}>
+    <Card
+      className={`overflow-hidden border shadow-sm transition ${focusClasses} relative group cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 outline-none`}
+      data-shot-card
+      onClick={handleCardClick}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        // Allow Enter/Space to trigger navigation like a link
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          handleCardClick(e);
+        }
+      }}
+    >
       {/* Card Actions Menu (Top Right Corner) - Visible on hover */}
       {canEditShots && (
         <div className="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
