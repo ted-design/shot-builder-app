@@ -399,10 +399,13 @@ describe("Create flows", () => {
     const createButton = screen.getByRole("button", { name: /^(Create shot|New)$/i });
     fireEvent.click(createButton);
 
-    const modal = await screen.findByRole("dialog", { name: /create shot/i });
-    const [nameInput] = within(modal).getAllByRole("textbox");
-    fireEvent.change(nameInput, { target: { value: "Look 1" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create shot" }));
+    // The new ShotCreationPrelude modal has title "New Shot"
+    const modal = await screen.findByRole("dialog", { name: /new shot/i });
+
+    // The prelude auto-generates shot names based on type selection
+    // Default is E-comm type, which creates "E-comm Shot"
+    // Just click the Create Shot button to create with defaults
+    fireEvent.click(within(modal).getByRole("button", { name: /create shot/i }));
 
     // Creating a shot also logs an activity, so we expect 2 addDoc calls
     await waitFor(() => expect(addDocCalls.length).toBeGreaterThanOrEqual(1));
@@ -413,7 +416,8 @@ describe("Create flows", () => {
     expect(shotCall.path).toEqual(["clients", "unbound-merino", "shots"]);
     expect(shotCall.data.projectId).toBe("default-project");
     expect(shotCall.data.createdBy).toBe("test-user");
-    expect(toastMock.success).toHaveBeenCalledWith('Shot "Look 1" created.');
+    // The new prelude auto-generates names based on type (default: "E-comm Shot")
+    expect(shotCall.data.name).toBe("E-comm Shot");
     expect(toastMock.error).not.toHaveBeenCalled();
   });
 });

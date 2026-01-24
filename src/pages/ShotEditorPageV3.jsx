@@ -24,7 +24,7 @@ import { doc, onSnapshot, collection, getDocs, query, orderBy } from "firebase/f
 import { db } from "../lib/firebase";
 import { shotsPath, productFamilySkusPath } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
-import { useProducts } from "../hooks/useFirestoreQuery";
+import { useProducts, useTalent, useLocations } from "../hooks/useFirestoreQuery";
 import { FLAGS } from "../lib/flags";
 import { Button } from "../components/ui/button";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
@@ -75,6 +75,7 @@ function CollapsibleGroup({ icon: Icon, label, children, defaultCollapsed = true
 
 /**
  * LogisticsPlaceholder - Collapsed group content for logistics
+ * Per design-spec.md: "If not ready, hide or label as 'Planned'"
  */
 function LogisticsPlaceholder() {
   return (
@@ -82,15 +83,16 @@ function LogisticsPlaceholder() {
       <p className="text-xs text-slate-500 dark:text-slate-400">
         Location, schedule, and crew notes
       </p>
-      <div className="text-xs text-slate-400 dark:text-slate-500 italic">
-        Coming soon
-      </div>
+      <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+        Planned
+      </span>
     </div>
   );
 }
 
 /**
  * TalentPlaceholder - Collapsed group content for talent
+ * Per design-spec.md: "If not ready, hide or label as 'Planned'"
  */
 function TalentPlaceholder() {
   return (
@@ -98,9 +100,9 @@ function TalentPlaceholder() {
       <p className="text-xs text-slate-500 dark:text-slate-400">
         Cast assignments and wardrobe notes
       </p>
-      <div className="text-xs text-slate-400 dark:text-slate-500 italic">
-        Coming soon
-      </div>
+      <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+        Planned
+      </span>
     </div>
   );
 }
@@ -129,7 +131,39 @@ export default function ShotEditorPageV3() {
   // ══════════════════════════════════════════════════════════════════════════
 
   const { data: families = [] } = useProducts(clientId);
+
+  // Match ShotsPage.jsx pattern: respect FLAGS.projectScopedAssets for talent/location scope
+  const assetQueryOptions = FLAGS.projectScopedAssets
+    ? { projectId, scope: "project" }
+    : {};
+  const { data: talent = [] } = useTalent(clientId, assetQueryOptions);
+  const { data: locations = [], isLoading: locationsLoading } = useLocations(clientId, assetQueryOptions);
+
   const familyDetailCacheRef = useRef(new Map());
+
+  // Transform talent records to options format (same pattern as ShotsPage.jsx)
+  const talentOptions = useMemo(
+    () =>
+      talent.map((entry) => {
+        const name =
+          entry.name ||
+          [entry.firstName, entry.lastName].filter(Boolean).join(" ").trim() ||
+          "Unnamed talent";
+        return { talentId: entry.id, name, headshotPath: entry.headshotPath || entry.photoPath || null };
+      }),
+    [talent]
+  );
+
+  // Transform location records to options format (same shape expected by LocationSelect)
+  const locationOptions = useMemo(
+    () =>
+      locations.map((loc) => ({
+        id: loc.id,
+        name: loc.name || "Unnamed location",
+        photoPath: loc.photoPath || null,
+      })),
+    [locations]
+  );
 
   // Load family details (colours/SKUs) for product selector
   // Pattern reused from ShotsPage.jsx:1217-1235
@@ -196,10 +230,15 @@ export default function ShotEditorPageV3() {
   // Compute counts for context dock
   const counts = useMemo(() => {
     if (!shot) return {};
+    // References are stored per-look in shot.looks[].references[] (F.1 schema)
+    const referencesCount = (shot.looks || []).reduce(
+      (sum, look) => sum + (look.references?.length || 0),
+      0
+    );
     return {
       products: shot.products?.length || 0,
       talent: shot.talent?.length || 0,
-      references: shot.referenceImages?.length || 0,
+      references: referencesCount,
       tags: shot.tags?.length || 0,
     };
   }, [shot]);
@@ -277,7 +316,11 @@ export default function ShotEditorPageV3() {
             Provides orientation and context without acting as navigation.
             Matches Products V3 left rail positioning.
             ────────────────────────────────────────────────────────── */}
-        <ShotContextDock shot={shot} counts={counts} />
+        <ShotContextDock
+          shot={shot}
+          counts={counts}
+          locationOptions={locationOptions}
+        />
 
         {/* ──────────────────────────────────────────────────────────
             SHOT CANVAS

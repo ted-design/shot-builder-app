@@ -91,6 +91,7 @@ import {
   ChevronsUpDown,
   FileDown,
   ExternalLink,
+  Image,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -136,6 +137,7 @@ import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
 import ShotEditModal from "../components/shots/ShotEditModal";
+import ShotCreationPrelude from "../components/shots/ShotCreationPrelude";
 import BulkOperationsToolbar from "../components/shots/BulkOperationsToolbar";
 import ShotTableView from "../components/shots/ShotTableView";
 import BuilderGroupedView from "../components/shots/BuilderGroupedView";
@@ -285,9 +287,14 @@ const PREF_TO_COLUMN_KEY = new Map([
 ]);
 
 const SHOT_VIEW_OPTIONS = [
-  { value: "gallery", label: "Gallery", icon: LayoutGrid, hideLabelOnSmallScreen: true },
+  // G.2: "Gallery" renamed to "Cards" to disambiguate from "Visual" (image-first grid)
+  { value: "gallery", label: "Cards", icon: LayoutGrid, hideLabelOnSmallScreen: true },
+  { value: "visual", label: "Visual", icon: Image, hideLabelOnSmallScreen: true },
   { value: "table", label: "Table", icon: Table, hideLabelOnSmallScreen: true },
 ];
+
+// H.2: Strict allowlist of valid view modes — stale/unknown values fall back to default
+const VALID_SHOT_VIEW_MODES = new Set(SHOT_VIEW_OPTIONS.map((opt) => opt.value));
 
 const SHOT_DENSITY_OPTIONS = [
   { value: "compact", label: "Compact" },
@@ -321,8 +328,10 @@ const SHOT_DENSITY_CONFIG = {
 
 const readStoredShotsView = () => {
   const stored = readStorage(SHOTS_VIEW_STORAGE_KEY);
-  if (stored === "list") return "gallery"; // migrate away from list
-  if (stored === "table") return "table";
+  // Legacy migration: "list" → "gallery"
+  if (stored === "list") return "gallery";
+  // H.2: Validate against strict allowlist — unknown/stale values fall back to default
+  if (VALID_SHOT_VIEW_MODES.has(stored)) return stored;
   return "gallery";
 };
 
@@ -401,6 +410,8 @@ export function ShotsWorkspace() {
   const [editAutoStatus, setEditAutoStatus] = useState(() => createInitialSectionStatuses());
   const [isSavingShot, setIsSavingShot] = useState(false);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+  const [isPreludeOpen, setIsPreludeOpen] = useState(false);
+  const [isCreatingFromPrelude, setIsCreatingFromPrelude] = useState(false);
   const [movingProject, setMovingProject] = useState(false);
   const [copyingProject, setCopyingProject] = useState(false);
   const [localSelectedShotIds, setLocalSelectedShotIds] = useState(() => new Set());
@@ -821,7 +832,7 @@ export function ShotsWorkspace() {
   }, [sortedShots, manualOrder]);
 
   useEffect(() => {
-    if (viewMode === "gallery" || viewMode === "table") {
+    if (viewMode === "gallery" || viewMode === "table" || viewMode === "visual") {
       writeStorage(SHOTS_VIEW_STORAGE_KEY, viewMode);
     }
   }, [viewMode]);
@@ -1456,7 +1467,85 @@ export function ShotsWorkspace() {
     }
   };
 
+  // Open the lightweight shot creation prelude
   const openCreateModal = useCallback(() => {
+    if (!canEditShots) return;
+    if (!projectId) {
+      toast.error("No project selected. Please select a project before creating shots.");
+      return;
+    }
+    setIsPreludeOpen(true);
+  }, [canEditShots, projectId]);
+
+  // Handle prelude submission: create shot(s) and navigate to editor
+  const handlePreludeSubmit = useCallback(
+    async (shots) => {
+      if (!projectId || !user || isCreatingFromPrelude) return;
+
+      setIsCreatingFromPrelude(true);
+      const shotPathSegments = currentShotsPath;
+      const targetPath = `/${shotPathSegments.join("/")}`;
+
+      try {
+        const createdShots = [];
+        for (const shotSpec of shots) {
+          const shotData = {
+            name: shotSpec.name,
+            description: shotSpec.type, // Shot type as description
+            type: shotSpec.type,
+            notes: "",
+            shotNumber: "",
+            date: null,
+            locationId: null,
+            locationName: null,
+            products: [],
+            productIds: [],
+            talent: [],
+            talentIds: [],
+            tags: [],
+            projectId,
+            status: DEFAULT_SHOT_STATUS,
+            createdBy: user.uid,
+            createdAt: serverTimestamp(),
+            referenceImagePath: null,
+            referenceImageCrop: null,
+          };
+
+          // Use TanStack Query mutation
+          const newShot = await new Promise((resolve, reject) => {
+            createShotMutation.mutate(shotData, {
+              onSuccess: (data) => resolve(data),
+              onError: (error) => reject(error),
+            });
+          });
+
+          createdShots.push(newShot);
+        }
+
+        setIsPreludeOpen(false);
+        setIsCreatingFromPrelude(false);
+
+        // Navigate to the first created shot in Editor V3
+        if (createdShots.length > 0) {
+          const firstShot = createdShots[0];
+          navigate(`/projects/${projectId}/shots/${firstShot.id}/editor`);
+          toast.success(
+            createdShots.length > 1
+              ? `Created ${createdShots.length} shots. Editing "${firstShot.name || "Shot"}".`
+              : `Shot "${firstShot.name || "Shot"}" created.`
+          );
+        }
+      } catch (error) {
+        console.error("[Shots] Prelude creation failed:", error);
+        toast.error("Failed to create shot. Please try again.");
+        setIsCreatingFromPrelude(false);
+      }
+    },
+    [projectId, user, isCreatingFromPrelude, currentShotsPath, createShotMutation, navigate]
+  );
+
+  // Legacy: Open full create modal (for fallback or advanced creation)
+  const openLegacyCreateModal = useCallback(() => {
     if (!canEditShots) return;
     if (!projectId) {
       toast.error("No project selected. Please select a project before creating shots.");
@@ -3169,6 +3258,7 @@ export function ShotsWorkspace() {
   const selectPortalTarget =
     typeof window === "undefined" ? undefined : window.document.body;
   const isGalleryView = viewMode === "gallery";
+  const isVisualGalleryView = viewMode === "visual";
   const isTableView = viewMode === "table";
   const talentNoOptionsMessage =
     talentLoadError || (talentOptions.length ? "No matching talent" : "No talent available");
@@ -3449,6 +3539,23 @@ export function ShotsWorkspace() {
                   No shots match the current search or filters.
                 </div>
               )
+            ) : isVisualGalleryView ? (
+              // Visual Gallery — read-only, image-first grid (Phase 3 Delta G.1)
+              // No editing, no drag/drop. Click navigates to Shot Editor V3.
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                {sortedShots.map((shot, index) => {
+                  const shotProducts = normaliseShotProducts(shot);
+                  return (
+                    <div key={shot.id} className="animate-fade-in opacity-0" style={getStaggerDelay(index)}>
+                      <ShotVisualGalleryCard
+                        shot={shot}
+                        products={shotProducts}
+                        projectId={projectId}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             ) : isGalleryView ? (
               groupBy !== "none" ? (
                 <BuilderGroupedView
@@ -3606,6 +3713,17 @@ export function ShotsWorkspace() {
         />
       </div>
 
+      {/* Shot Creation Prelude - lightweight guided creation */}
+      {canEditShots && (
+        <ShotCreationPrelude
+          open={isPreludeOpen}
+          onClose={() => setIsPreludeOpen(false)}
+          onSubmit={handlePreludeSubmit}
+          isLoading={isCreatingFromPrelude}
+        />
+      )}
+
+      {/* Legacy full create modal (kept for backward compatibility) */}
       {canEditShots && isCreateModalOpen && (
         <ShotEditModal
           open
@@ -3713,19 +3831,69 @@ export function ShotsWorkspace() {
 }
 
 
+/**
+ * Select the display image for a shot
+ *
+ * FALLBACK LOGIC (per Delta F.5):
+ * 1. Designated display image (from any look's displayImageId)
+ * 2. Hero product image (from first look with a hero)
+ * 3. First reference image (from first look with references)
+ * 4. Legacy: Primary attachment from multi-image system
+ * 5. Legacy: referenceImagePath
+ * 6. Product images from shot.products[]
+ *
+ * This order ensures:
+ * - User-designated display image takes priority
+ * - Fallback is deterministic and consistent
+ * - Backward compatibility with legacy fields
+ */
 function selectShotImage(shot, products = []) {
-  // Priority 1: Primary attachment from new multi-image system
+  const looks = shot?.looks || [];
+
+  // Priority 1: Designated display image from looks (F.5)
+  // Defensive: if displayImageId points to a missing reference, treat as unset and continue fallback
+  for (const look of looks) {
+    if (look.displayImageId && Array.isArray(look.references)) {
+      const displayRef = look.references.find((ref) => ref.id === look.displayImageId);
+      // Only return if reference actually exists (handles deleted reference edge case)
+      if (displayRef) {
+        if (displayRef.downloadURL) return displayRef.downloadURL;
+        if (displayRef.path) return displayRef.path;
+      }
+      // displayImageId set but reference not found - continue to next look/priority
+    }
+  }
+
+  // Priority 2: Hero product image from first look with a hero
+  for (const look of looks) {
+    if (look.heroProductId && Array.isArray(look.products)) {
+      const heroProduct = look.products.find((p) => p.productId === look.heroProductId);
+      if (heroProduct?.colourImagePath) return heroProduct.colourImagePath;
+      if (heroProduct?.thumbnailImagePath) return heroProduct.thumbnailImagePath;
+    }
+  }
+
+  // Priority 3: First reference image from first look with references
+  for (const look of looks) {
+    if (Array.isArray(look.references) && look.references.length > 0) {
+      const firstRef = look.references[0];
+      if (firstRef?.downloadURL) return firstRef.downloadURL;
+      if (firstRef?.path) return firstRef.path;
+    }
+  }
+
+  // Priority 4: Primary attachment from new multi-image system (legacy)
   if (shot?.attachments && Array.isArray(shot.attachments) && shot.attachments.length > 0) {
     const primary = shot.attachments.find((att) => att.isPrimary) || shot.attachments[0];
     if (primary?.path) return primary.path;
   }
 
-  // Priority 2: Legacy reference/storyboard image
+  // Priority 5: Legacy reference/storyboard image
   if (shot?.referenceImagePath) {
     return shot.referenceImagePath;
   }
 
-  // Priority 3: Product images (fallback)
+  // Priority 6: Product images (fallback from shot.products)
   for (const product of products) {
     if (!product) continue;
     if (product.thumbnailImagePath) return product.thumbnailImagePath;
@@ -4282,6 +4450,119 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
         </div>
       )}
     </Card>
+  );
+});
+
+/**
+ * ShotVisualGalleryCard — Minimal, image-first card for Visual Gallery View
+ *
+ * Design constraints (from Phase 3 Deltas G.1 + G.2):
+ * - Read-only surface (no editing, no drag/drop, no reordering)
+ * - Cards show: Display image, shot name, shot type, status TEXT, context counts
+ * - Click navigates to Shot Editor V3
+ * - No hover-revealed critical actions
+ * - No inline editing or buttons
+ * - Feel: Calm, Visual, Non-demanding
+ *
+ * G.2 additions:
+ * - Status displayed as TEXT (not only dot) for immediate readability
+ * - Compact context line showing references + products counts
+ *
+ * This is an EXPLORATORY surface. It exists to test the question:
+ * "What are we actually making?" and "Does this shoot visually hang together?"
+ */
+const ShotVisualGalleryCard = memo(function ShotVisualGalleryCard({
+  shot,
+  products = [],
+  projectId,
+}) {
+  const navigate = useNavigate();
+  const imagePath = useMemo(() => selectShotImage(shot, products), [shot, products]);
+
+  // Status value and display label
+  const statusValue = normaliseShotStatus(shot?.status);
+  const statusLabel = {
+    todo: "To do",
+    in_progress: "In progress",
+    on_hold: "On hold",
+    complete: "Complete",
+  };
+  const statusDotColor = {
+    in_progress: "bg-blue-500",
+    on_hold: "bg-amber-500",
+    complete: "bg-emerald-500",
+    default: "bg-slate-400",
+  };
+
+  // Context counts (references from looks, products from shot)
+  const refsCount = useMemo(
+    () => (shot.looks || []).reduce((sum, look) => sum + (look.references?.length || 0), 0),
+    [shot.looks]
+  );
+  const productsCount = shot.products?.length || 0;
+
+  const handleClick = useCallback(() => {
+    navigate(`/projects/${projectId}/shots/${shot.id}/editor`);
+  }, [navigate, projectId, shot.id]);
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="group relative w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600"
+      aria-label={`Open ${shot.name || "Untitled shot"} in editor`}
+    >
+      {/* Image container — fixed aspect ratio for visual consistency */}
+      <div className="relative aspect-[4/3] w-full bg-slate-100 dark:bg-slate-900">
+        {imagePath ? (
+          <AppImage
+            src={imagePath}
+            alt={shot.name || "Shot preview"}
+            preferredSize={640}
+            className="absolute inset-0 h-full w-full"
+            imageClassName="h-full w-full object-cover"
+            fallback={
+              <div className="flex h-full w-full items-center justify-center">
+                <Camera className="h-10 w-10 text-slate-300 dark:text-slate-600" />
+              </div>
+            }
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <Camera className="h-10 w-10 text-slate-300 dark:text-slate-600" />
+          </div>
+        )}
+
+        {/* Status badge with text (top-right corner) — G.2: text label, not just dot */}
+        <div className="absolute right-2 top-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-700 shadow-sm backdrop-blur-sm dark:bg-slate-800/90 dark:text-slate-200">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${statusDotColor[statusValue] || statusDotColor.default}`}
+              aria-hidden="true"
+            />
+            {statusLabel[statusValue] || "To do"}
+          </span>
+        </div>
+      </div>
+
+      {/* Info bar with name, type, and context counts */}
+      <div className="px-3 py-2.5 text-left">
+        <h3 className="truncate text-sm font-medium text-slate-900 dark:text-slate-100" title={shot.name}>
+          {shot.name || "Untitled shot"}
+        </h3>
+        {shot.type && (
+          <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400" title={shot.type}>
+            {shot.type}
+          </p>
+        )}
+        {/* G.2: Compact context line — refs + products counts */}
+        <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+          {refsCount > 0 ? `${refsCount} ref${refsCount !== 1 ? "s" : ""}` : "No refs"}
+          {" · "}
+          {productsCount > 0 ? `${productsCount} product${productsCount !== 1 ? "s" : ""}` : "No products"}
+        </p>
+      </div>
+    </button>
   );
 });
 

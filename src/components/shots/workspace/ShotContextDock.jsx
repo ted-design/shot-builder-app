@@ -1,22 +1,34 @@
 /**
  * ShotContextDock - Left-side context dock for shot editor workspace
  *
+ * DESIGN CONTRACT (per design-spec.md)
+ * ====================================
+ * This dock is READ-ONLY. It answers: "What is true about this shot right now?"
+ *
+ * Rules:
+ * - No dropdowns
+ * - No pickers
+ * - No inline editing
+ * - No hover-revealed controls
+ *
+ * Clicking a row may focus the corresponding canvas section (future).
+ * If editing is needed, it happens in the Primary Canvas, not here.
+ *
  * Design patterns (matching ProductDetailPageV3 / WorkspaceRail):
  * - LEFT side positioning (border-r)
  * - Collapsible icon rail (w-14 collapsed, w-48 expanded)
  * - Context and orientation focus (not navigation-centric)
- * - Status, products summary, tags, activity placeholder
- *
- * This dock provides contextual information about the shot while
- * the main canvas remains the primary authoring surface.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   CircleDot,
   Package,
   Tags,
   MessageSquare,
+  Users,
+  MapPin,
+  ImageIcon,
 } from "lucide-react";
 import { StatusBadge } from "../../ui/StatusBadge";
 
@@ -35,10 +47,28 @@ const DOCK_SECTIONS = [
     description: "Assigned products",
   },
   {
+    id: "talent",
+    label: "Talent",
+    icon: Users,
+    description: "Assigned talent",
+  },
+  {
+    id: "location",
+    label: "Location",
+    icon: MapPin,
+    description: "Shooting location",
+  },
+  {
     id: "tags",
     label: "Tags",
     icon: Tags,
     description: "Shot tags",
+  },
+  {
+    id: "references",
+    label: "References",
+    icon: ImageIcon,
+    description: "Reference images",
   },
   {
     id: "activity",
@@ -96,7 +126,11 @@ function DockItem({ section, isExpanded, count, children }) {
   );
 }
 
-export default function ShotContextDock({ shot, counts = {} }) {
+export default function ShotContextDock({
+  shot,
+  counts = {},
+  locationOptions = [],
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleMouseEnter = useCallback(() => setIsExpanded(true), []);
@@ -109,7 +143,23 @@ export default function ShotContextDock({ shot, counts = {} }) {
     }
   }, []);
 
+  // Stable ID-based section lookup - avoids fragile array index coupling
+  const sectionById = useMemo(
+    () => Object.fromEntries(DOCK_SECTIONS.map((s) => [s.id, s])),
+    []
+  );
+
+  // Safe talent count - doesn't rely on counts.talent being passed
+  const talentCount = Array.isArray(shot?.talent) ? shot.talent.length : 0;
+
   const statusConfig = STATUS_CONFIGS[shot?.status] || STATUS_CONFIGS.todo;
+
+  // Derive selected location label for display
+  const selectedLocationLabel = useMemo(() => {
+    if (!shot?.locationId) return null;
+    const match = locationOptions.find((loc) => loc.id === shot.locationId);
+    return match?.name || null;
+  }, [shot?.locationId, locationOptions]);
 
   return (
     <aside
@@ -128,7 +178,7 @@ export default function ShotContextDock({ shot, counts = {} }) {
       <div className={`sticky top-20 p-2 space-y-1 ${isExpanded ? "px-3" : "px-2"}`}>
         {/* Status section */}
         <DockItem
-          section={DOCK_SECTIONS[0]}
+          section={sectionById.status}
           isExpanded={isExpanded}
         >
           <StatusBadge variant={statusConfig.variant} className="text-[10px]">
@@ -138,7 +188,7 @@ export default function ShotContextDock({ shot, counts = {} }) {
 
         {/* Products section */}
         <DockItem
-          section={DOCK_SECTIONS[1]}
+          section={sectionById.products}
           isExpanded={isExpanded}
           count={counts.products}
         >
@@ -153,19 +203,83 @@ export default function ShotContextDock({ shot, counts = {} }) {
           )}
         </DockItem>
 
-        {/* Tags section */}
+        {/* Talent section - read-only summary */}
         <DockItem
-          section={DOCK_SECTIONS[2]}
+          section={sectionById.talent}
+          isExpanded={isExpanded}
+          count={talentCount}
+        >
+          {talentCount > 0 ? (
+            <div className="space-y-0.5">
+              <span className="text-xs text-slate-600 dark:text-slate-300">
+                {talentCount} assigned
+              </span>
+              {shot?.talent?.length > 0 && (
+                <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  {shot.talent.map((t) => t.name).join(", ")}
+                </div>
+              )}
+            </div>
+          ) : (
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              None assigned
+            </span>
+          )}
+        </DockItem>
+
+        {/* Location section - read-only summary */}
+        <DockItem
+          section={sectionById.location}
+          isExpanded={isExpanded}
+        >
+          {selectedLocationLabel ? (
+            <span className="text-xs text-slate-600 dark:text-slate-300 truncate block">
+              {selectedLocationLabel}
+            </span>
+          ) : (
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              None selected
+            </span>
+          )}
+        </DockItem>
+
+        {/* Tags section - read-only summary */}
+        <DockItem
+          section={sectionById.tags}
           isExpanded={isExpanded}
           count={counts.tags}
         >
           {counts.tags > 0 ? (
-            <span className="text-xs text-slate-600 dark:text-slate-300">
-              {counts.tags} tags
-            </span>
+            <div className="space-y-0.5">
+              <span className="text-xs text-slate-600 dark:text-slate-300">
+                {counts.tags} tags
+              </span>
+              {shot?.tags?.length > 0 && (
+                <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                  {shot.tags.join(", ")}
+                </div>
+              )}
+            </div>
           ) : (
             <span className="text-xs text-slate-400 dark:text-slate-500">
               No tags
+            </span>
+          )}
+        </DockItem>
+
+        {/* References section - read-only indicator (F.2) */}
+        <DockItem
+          section={sectionById.references}
+          isExpanded={isExpanded}
+          count={counts.references}
+        >
+          {counts.references > 0 ? (
+            <span className="text-xs text-slate-600 dark:text-slate-300">
+              {counts.references} {counts.references === 1 ? "image" : "images"}
+            </span>
+          ) : (
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              None
             </span>
           )}
         </DockItem>
@@ -175,7 +289,7 @@ export default function ShotContextDock({ shot, counts = {} }) {
 
         {/* Activity section - scrollable placeholder */}
         <DockItem
-          section={DOCK_SECTIONS[3]}
+          section={sectionById.activity}
           isExpanded={isExpanded}
         >
           <div className="text-xs text-slate-400 dark:text-slate-500 italic">

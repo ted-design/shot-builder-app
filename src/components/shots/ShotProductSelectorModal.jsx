@@ -218,16 +218,33 @@ function ProductSelectorRow({
         )}
       </div>
 
-      {/* Product Name & SKU */}
+      {/* Product Name & SKU + Context (Gender/Category) */}
       <div className="min-w-0">
         <div className="font-medium text-sm text-slate-900 dark:text-slate-100 truncate" title={family.styleName}>
           {family.styleName}
         </div>
-        {family.styleNumber && (
-          <div className="text-xs text-slate-500 dark:text-slate-400">
-            #{family.styleNumber}
-          </div>
-        )}
+        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          {family.styleNumber && (
+            <span>#{family.styleNumber}</span>
+          )}
+          {/* Context: Gender & Category - visible BEFORE confirmation per design-spec.md */}
+          {(family.gender || family.productType) && (
+            <>
+              {family.styleNumber && <span className="text-slate-300 dark:text-slate-600">·</span>}
+              <span className="text-slate-400 dark:text-slate-500">
+                {family.gender && (
+                  <span className="capitalize">
+                    {family.gender === "men" ? "Men's" : family.gender === "women" ? "Women's" : family.gender}
+                  </span>
+                )}
+                {family.gender && family.productType && " "}
+                {family.productType && (
+                  <span className="capitalize">{family.productType}</span>
+                )}
+              </span>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Color Swatches */}

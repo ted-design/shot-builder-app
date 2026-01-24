@@ -9,7 +9,7 @@
  * - readOnly: Boolean for read-only mode (optional, default false)
  */
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
@@ -17,6 +17,7 @@ import { shotsPath } from "../../../lib/paths";
 import { useAuth } from "../../../context/AuthContext";
 import { logActivity, createShotUpdatedActivity } from "../../../lib/activityLogger";
 import { shotStatusOptions, normaliseShotStatus } from "../../../lib/shotStatus";
+import { stripHtml } from "../../../lib/stripHtml";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { StatusBadge } from "../../ui/StatusBadge";
@@ -35,6 +36,7 @@ import {
   Sparkles,
   ChevronDown,
   Check,
+  Pencil,
 } from "lucide-react";
 
 export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = false }) {
@@ -44,6 +46,28 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
 
   const [isApplying, setIsApplying] = useState(false);
   const [statusSaveState, setStatusSaveState] = useState("idle"); // idle | saving | saved
+
+  // Shot number editing state
+  const [isEditingShotNumber, setIsEditingShotNumber] = useState(false);
+  const [shotNumberDraft, setShotNumberDraft] = useState("");
+  const [shotNumberSaveState, setShotNumberSaveState] = useState("idle"); // idle | saving | saved | error
+
+  // Description editing state
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [descriptionSaveState, setDescriptionSaveState] = useState("idle"); // idle | saving | saved | error
+  const descriptionTextareaRef = useRef(null);
+
+  // Auto-focus description textarea and place cursor at end when entering edit mode
+  useEffect(() => {
+    if (isEditingDescription && descriptionTextareaRef.current) {
+      const textarea = descriptionTextareaRef.current;
+      textarea.focus();
+      // Place cursor at end of text
+      const length = textarea.value.length;
+      textarea.setSelectionRange(length, length);
+    }
+  }, [isEditingDescription]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // DERIVED VALUES
@@ -356,6 +380,247 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
     }
   }, [clientId, shot?.id, shot?.projectId, suggestedName, isApplying, readOnly, auth?.user]);
 
+  /**
+   * Enter shot number edit mode
+   */
+  const handleStartEditingShotNumber = useCallback(() => {
+    if (readOnly) return;
+    setShotNumberDraft(shot?.shotNumber || "");
+    setIsEditingShotNumber(true);
+  }, [readOnly, shot?.shotNumber]);
+
+  /**
+   * Cancel shot number editing (revert to original)
+   */
+  const handleCancelShotNumberEdit = useCallback(() => {
+    setIsEditingShotNumber(false);
+    setShotNumberDraft("");
+  }, []);
+
+  /**
+   * Commit shot number change
+   *
+   * VALIDATION (per schema src/schemas/shot.js:62):
+   * - Trim whitespace
+   * - Max 20 characters
+   * - Empty string allowed (field is optional)
+   *
+   * AUDIT PATTERN (per src/schemas/common.js:80-85):
+   * - updatedBy: string (user UID only, not object triplet)
+   * - updatedAt: serverTimestamp()
+   */
+  const handleCommitShotNumber = useCallback(async () => {
+    // Trim and validate
+    const newValue = shotNumberDraft.trim().slice(0, 20);
+
+    // Guard: no-op if same value (no write)
+    const oldValue = shot?.shotNumber || "";
+    if (newValue === oldValue) {
+      setIsEditingShotNumber(false);
+      setShotNumberDraft("");
+      return;
+    }
+
+    // Guard: missing required data
+    if (!clientId || !shot?.id) {
+      setIsEditingShotNumber(false);
+      setShotNumberDraft("");
+      return;
+    }
+
+    setShotNumberSaveState("saving");
+
+    try {
+      const shotRef = doc(db, ...shotsPath(clientId), shot.id);
+      const user = auth?.user;
+
+      // Build update payload following schema audit pattern
+      const updatePayload = {
+        shotNumber: newValue,
+        updatedAt: serverTimestamp(),
+      };
+
+      // Only write updatedBy if user exists (never write null)
+      if (user?.uid) {
+        updatePayload.updatedBy = user.uid;
+      }
+
+      await updateDoc(shotRef, updatePayload);
+
+      // Log activity for attribution (non-blocking)
+      if (shot.projectId && user) {
+        logActivity(
+          clientId,
+          shot.projectId,
+          createShotUpdatedActivity(
+            user.uid,
+            user.displayName || user.email || "Unknown",
+            user.photoURL || null,
+            shot.id,
+            shot.name || "Untitled",
+            { shotNumber: newValue || "(cleared)" }
+          )
+        ).catch(() => {
+          // Activity logging failures are non-critical
+        });
+      }
+
+      setShotNumberSaveState("saved");
+      setIsEditingShotNumber(false);
+      setShotNumberDraft("");
+
+      // Reset to idle after brief feedback
+      setTimeout(() => setShotNumberSaveState("idle"), 1500);
+    } catch (error) {
+      console.error("[ShotEditorHeaderBandV3] Failed to update shot number:", error);
+      setShotNumberSaveState("error");
+      // Reset error state after feedback
+      setTimeout(() => setShotNumberSaveState("idle"), 2000);
+    }
+  }, [clientId, shot?.id, shot?.projectId, shot?.shotNumber, shot?.name, shotNumberDraft, auth?.user]);
+
+  /**
+   * Handle keydown in shot number input
+   * - Enter: commit
+   * - Escape: cancel
+   */
+  const handleShotNumberKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleCommitShotNumber();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        handleCancelShotNumberEdit();
+      }
+    },
+    [handleCommitShotNumber, handleCancelShotNumberEdit]
+  );
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DESCRIPTION EDIT HANDLERS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Enter description edit mode
+   */
+  const handleStartEditingDescription = useCallback(() => {
+    if (readOnly) return;
+    // Use description field, with legacy fallback to type field
+    // Strip HTML tags to show clean text in edit mode
+    setDescriptionDraft(stripHtml(shot?.description || shot?.type || ""));
+    setIsEditingDescription(true);
+  }, [readOnly, shot?.description, shot?.type]);
+
+  /**
+   * Cancel description editing (revert to original)
+   */
+  const handleCancelDescriptionEdit = useCallback(() => {
+    setIsEditingDescription(false);
+    setDescriptionDraft("");
+  }, []);
+
+  /**
+   * Commit description change
+   *
+   * VALIDATION (per schema src/schemas/shot.js:59):
+   * - Trim whitespace
+   * - Max 200 characters
+   * - Empty string allowed (field is optional)
+   *
+   * AUDIT PATTERN (per src/schemas/common.js:80-85):
+   * - updatedBy: string (user UID only, not object triplet)
+   * - updatedAt: serverTimestamp()
+   */
+  const handleCommitDescription = useCallback(async () => {
+    // Trim and validate (max 200 chars per schema)
+    const newValue = descriptionDraft.trim().slice(0, 200);
+
+    // Guard: no-op if same value (no write)
+    // Check against both description and legacy type field for comparison
+    const oldValue = shot?.description || shot?.type || "";
+    if (newValue === oldValue) {
+      setIsEditingDescription(false);
+      setDescriptionDraft("");
+      return;
+    }
+
+    // Guard: missing required data
+    if (!clientId || !shot?.id) {
+      setIsEditingDescription(false);
+      setDescriptionDraft("");
+      return;
+    }
+
+    setDescriptionSaveState("saving");
+
+    try {
+      const shotRef = doc(db, ...shotsPath(clientId), shot.id);
+      const user = auth?.user;
+
+      // Build update payload following schema audit pattern
+      const updatePayload = {
+        description: newValue,
+        updatedAt: serverTimestamp(),
+      };
+
+      // Only write updatedBy if user exists (never write null)
+      if (user?.uid) {
+        updatePayload.updatedBy = user.uid;
+      }
+
+      await updateDoc(shotRef, updatePayload);
+
+      // Log activity for attribution (non-blocking)
+      if (shot.projectId && user) {
+        logActivity(
+          clientId,
+          shot.projectId,
+          createShotUpdatedActivity(
+            user.uid,
+            user.displayName || user.email || "Unknown",
+            user.photoURL || null,
+            shot.id,
+            shot.name || "Untitled",
+            { description: newValue || "(cleared)" }
+          )
+        ).catch(() => {
+          // Activity logging failures are non-critical
+        });
+      }
+
+      setDescriptionSaveState("saved");
+      setIsEditingDescription(false);
+      setDescriptionDraft("");
+
+      // Reset to idle after brief feedback
+      setTimeout(() => setDescriptionSaveState("idle"), 1500);
+    } catch (error) {
+      console.error("[ShotEditorHeaderBandV3] Failed to update description:", error);
+      setDescriptionSaveState("error");
+      // Reset error state after feedback
+      setTimeout(() => setDescriptionSaveState("idle"), 2000);
+    }
+  }, [clientId, shot?.id, shot?.projectId, shot?.description, shot?.type, shot?.name, descriptionDraft, auth?.user]);
+
+  /**
+   * Handle keydown in description textarea
+   * - Enter: commit (without shift for single-line feel, but preserving newlines on commit)
+   * - Escape: cancel
+   */
+  const handleDescriptionKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleCommitDescription();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        handleCancelDescriptionEdit();
+      }
+    },
+    [handleCommitDescription, handleCancelDescriptionEdit]
+  );
+
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/95">
       <div className="px-6 py-3">
@@ -384,6 +649,57 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
               <h1 className="text-base font-semibold text-slate-900 dark:text-slate-100 truncate">
                 {shot.name || <span className="text-slate-400 dark:text-slate-500 italic">Untitled</span>}
               </h1>
+
+              {/* Description - editable inline */}
+              {isEditingDescription ? (
+                <div className="mt-0.5 max-w-md">
+                  <textarea
+                    ref={descriptionTextareaRef}
+                    value={descriptionDraft}
+                    onChange={(e) => setDescriptionDraft(e.target.value)}
+                    onKeyDown={handleDescriptionKeyDown}
+                    onBlur={handleCancelDescriptionEdit}
+                    maxLength={200}
+                    rows={2}
+                    className="w-full text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                    placeholder="Add a short description…"
+                  />
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 block">
+                    Enter to save • Esc to cancel
+                  </span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleStartEditingDescription}
+                  disabled={readOnly || descriptionSaveState === "saving"}
+                  className={`group mt-0.5 text-left max-w-md transition-colors ${
+                    readOnly
+                      ? "cursor-default"
+                      : "hover:text-slate-700 dark:hover:text-slate-200"
+                  }`}
+                  title={readOnly ? undefined : "Click to edit description"}
+                >
+                  <span className={`text-xs truncate block ${
+                    descriptionSaveState === "saving" || descriptionSaveState === "saved" || descriptionSaveState === "error"
+                      ? "text-slate-500 dark:text-slate-400"
+                      : stripHtml(shot?.description || shot?.type)
+                        ? "text-slate-600 dark:text-slate-400"
+                        : "text-slate-400 dark:text-slate-500 italic"
+                  }`}>
+                    {descriptionSaveState === "saving"
+                      ? "Saving…"
+                      : descriptionSaveState === "saved"
+                        ? "Saved"
+                        : descriptionSaveState === "error"
+                          ? "Error"
+                          : stripHtml(shot?.description || shot?.type) || "No description"}
+                  </span>
+                  {!readOnly && descriptionSaveState === "idle" && (
+                    <Pencil className="w-3 h-3 inline-block ml-1 opacity-0 group-hover:opacity-50 transition-opacity" />
+                  )}
+                </button>
+              )}
 
               {/* Variant chips row */}
               <div className="flex items-center gap-2 mt-0.5">
@@ -477,11 +793,49 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
               </DropdownMenu>
             )}
 
-            {/* Shot number - quiet secondary */}
-            {shot.shotNumber && (
-              <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-                #{shot.shotNumber}
-              </span>
+            {/* Shot number - editable inline */}
+            {isEditingShotNumber ? (
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-400 dark:text-slate-500">#</span>
+                <input
+                  type="text"
+                  value={shotNumberDraft}
+                  onChange={(e) => setShotNumberDraft(e.target.value)}
+                  onKeyDown={handleShotNumberKeyDown}
+                  onBlur={handleCancelShotNumberEdit}
+                  maxLength={20}
+                  autoFocus
+                  className="w-16 text-xs tabular-nums px-1 py-0.5 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="S-01"
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStartEditingShotNumber}
+                disabled={readOnly || shotNumberSaveState === "saving"}
+                className={`group inline-flex items-center gap-1 text-xs tabular-nums transition-colors ${
+                  readOnly
+                    ? "text-slate-500 dark:text-slate-400 cursor-default"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                }`}
+                title={readOnly ? undefined : "Click to edit shot number"}
+              >
+                <span>
+                  {shotNumberSaveState === "saving"
+                    ? "Saving…"
+                    : shotNumberSaveState === "saved"
+                      ? "Saved"
+                      : shotNumberSaveState === "error"
+                        ? "Error"
+                        : shot.shotNumber
+                          ? `#${shot.shotNumber}`
+                          : "#—"}
+                </span>
+                {!readOnly && shotNumberSaveState === "idle" && (
+                  <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+                )}
+              </button>
             )}
 
             {/* Divider before actions */}
