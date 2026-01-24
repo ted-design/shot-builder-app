@@ -3982,6 +3982,18 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   onFocus = null,
   globalSectionsExpanded = true,
 }) {
+  const navigate = useNavigate();
+
+  // Card click handler: navigate to editor when available
+  // Note: We no longer call onFocus() here because click is a navigation action,
+  // not a selection action. Focus ring is reserved for keyboard focus only.
+  const handleCardClick = useCallback(() => {
+    // Navigate to Shot Editor V3 if enabled and shot has projectId
+    if (FLAGS.shotEditorV3 && shot?.projectId) {
+      navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
+    }
+  }, [navigate, shot]);
+
   // Collapsible sections state - synced with global state
   const [expandedSections, setExpandedSections] = useState({
     products: globalSectionsExpanded,
@@ -4207,7 +4219,19 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   ) : null;
 
   return (
-    <Card className={`overflow-hidden border shadow-sm transition ${focusClasses} relative group`} data-shot-card onClick={() => onFocus?.(shot)}>
+    <Card
+      className={`overflow-hidden border shadow-sm transition ${focusClasses} relative group cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 outline-none`}
+      data-shot-card
+      onClick={handleCardClick}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        // Allow Enter/Space to trigger navigation like a link
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleCardClick();
+        }
+      }}
+    >
       {/* Card Actions Menu (Top Right Corner) - Visible on hover */}
       {canEditShots && (
         <div className="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
