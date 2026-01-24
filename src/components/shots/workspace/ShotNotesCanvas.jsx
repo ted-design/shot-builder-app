@@ -429,13 +429,13 @@ export default function ShotNotesCanvas({
         )}
       </div>
 
-      {/* Notes canvas */}
+      {/* Notes canvas — Primary thinking surface with intentional framing */}
       <div
         className={`
           min-h-[220px] rounded-xl border transition-colors overflow-hidden
           ${readOnly
             ? "bg-slate-50/50 dark:bg-slate-700/20 border-slate-200/40 dark:border-slate-600/30 p-6"
-            : "bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-600/40"
+            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm ring-1 ring-inset ring-slate-100 dark:ring-slate-700/50"
           }
         `}
       >
@@ -443,7 +443,7 @@ export default function ShotNotesCanvas({
           // Read-only display with proper HTML rendering
           <NotesReadOnlyDisplay html={draft} />
         ) : (
-          // Rich text editor with bubble toolbar (no top toolbar for calm experience)
+          // Rich text editor with visible toolbar (primary thinking surface per design-spec.md)
           <RichTextEditor
             value={draft}
             onChange={handleChange}
@@ -454,7 +454,7 @@ Describe the purpose, concept, and creative direction for this shot."
             characterLimit={MAX_NOTES_LENGTH}
             minHeight="180px"
             maxHeight="600px"
-            hideToolbar={true}
+            hideToolbar={false}
             hideBubble={false}
             className="shot-notes-editor"
           />

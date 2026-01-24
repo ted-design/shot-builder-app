@@ -22,20 +22,34 @@
  *   label: "Option A" | "Option B" | "Option C" | ...,
  *   products: ShotProduct[],      // Same shape as shot.products
  *   heroProductId: string | null, // productId of hero product
- *   order: number                 // Display order
+ *   order: number,                // Display order
+ *   references: Array<{           // Reference images (F.1)
+ *     id: string,
+ *     path: string,
+ *     downloadURL: string,
+ *     uploadedAt: number,
+ *     uploadedBy: string
+ *   }>,
+ *   displayImageId: string | null // Reference ID designated as shot's display image (F.5)
  * }>
  *
  * NOTES:
  * - Looks are stored separately from shot.products (coexist without breaking existing usage)
  * - Hero product is used for header colorway/auto-name in future deltas (not this one)
+ * - displayImageId: ONE reference per look can be designated as the shot's display image
+ *   (used in shots table/gallery; inside editor all references remain peers)
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { doc, updateDoc, serverTimestamp, collection, getDocs, query, orderBy } from "firebase/firestore";
-import { db } from "../../../lib/firebase";
+import { useQueryClient } from "@tanstack/react-query";
+import { db, uploadImageFile } from "../../../lib/firebase";
 import { shotsPath, productFamiliesPath, productFamilySkusPath } from "../../../lib/paths";
 import { useAuth } from "../../../context/AuthContext";
 import { logActivity, createShotUpdatedActivity } from "../../../lib/activityLogger";
+import { compressImageFile } from "../../../lib/images";
+import { showConfirm } from "../../../lib/toast";
+import { queryKeys } from "../../../hooks/useFirestoreQuery";
 import ShotProductSelectorModal from "../ShotProductSelectorModal";
 import AppImage from "../../common/AppImage";
 import { Button } from "../../ui/button";
@@ -48,6 +62,9 @@ import {
   Loader2,
   Check,
   AlertCircle,
+  ImageIcon,
+  Upload,
+  X,
 } from "lucide-react";
 
 // ============================================================================
@@ -56,6 +73,21 @@ import {
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
+/**
+ * LOOK LABEL CONFIGURATION
+ * Per design-spec.md: A shot has ONE primary Look and zero or more alternates.
+ * - order === 0 → "Primary"
+ * - order === 1 → "Alt A"
+ * - order === 2 → "Alt B"
+ * - etc.
+ */
+function getLookLabel(order) {
+  if (order === 0) return "Primary";
+  // Alt A, Alt B, Alt C, ...
+  return `Alt ${String.fromCharCode(64 + order)}`;
+}
+
+// Legacy labels (kept for backward compatibility during transition)
 const OPTION_LABELS = ["Option A", "Option B", "Option C", "Option D", "Option E"];
 
 // ============================================================================
@@ -81,6 +113,47 @@ function createEmptyLook(order) {
     heroProductId: null,
     order,
   };
+}
+
+/**
+ * Generate a unique ID for reference images
+ */
+function generateReferenceId() {
+  return `ref_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Recursively removes undefined values from an object or array.
+ * Firestore rejects documents containing undefined values, so we strip them
+ * before saving. This is scoped to this file to handle looks array sanitization.
+ *
+ * - For arrays: recursively processes each item
+ * - For objects: creates a new object excluding keys with undefined values
+ * - Primitives pass through unchanged
+ */
+function sanitizeForFirestore(value) {
+  if (value === undefined) {
+    return null; // Convert top-level undefined to null (shouldn't happen, but safety)
+  }
+  if (value === null) {
+    return null;
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeForFirestore);
+  }
+  if (typeof value === "object" && value !== null) {
+    const result = {};
+    for (const key of Object.keys(value)) {
+      const v = value[key];
+      if (v !== undefined) {
+        result[key] = sanitizeForFirestore(v);
+      }
+      // Omit keys with undefined values entirely
+    }
+    return result;
+  }
+  // Primitives (string, number, boolean) pass through
+  return value;
 }
 
 /**
@@ -135,6 +208,72 @@ function TrustIndicator({ status }) {
     );
   }
   return null;
+}
+
+// ============================================================================
+// LOOK TAB SELECTOR - Segmented control for Look switching
+// Per design-spec.md: "Look tabs or segmented control"
+// ============================================================================
+
+function LookTabSelector({ looks, activeLookId, onSelectLook, onAddLook, readOnly }) {
+  if (looks.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-slate-800">
+      {looks.map((look, index) => {
+        const isActive = look.id === activeLookId;
+        const label = getLookLabel(index);
+        const productCount = look.products?.length || 0;
+
+        return (
+          <button
+            key={look.id}
+            type="button"
+            onClick={() => onSelectLook(look.id)}
+            className={`
+              relative px-3 py-1.5 rounded-md text-sm font-medium transition-all
+              ${isActive
+                ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
+              }
+            `}
+            aria-selected={isActive}
+            role="tab"
+          >
+            <span className="flex items-center gap-1.5">
+              {index === 0 && (
+                <Star className={`w-3 h-3 ${isActive ? "text-amber-500 fill-amber-400" : "text-slate-400"}`} />
+              )}
+              {label}
+              {productCount > 0 && (
+                <span className={`
+                  text-[10px] tabular-nums px-1 py-0.5 rounded-full
+                  ${isActive
+                    ? "bg-slate-100 dark:bg-slate-600 text-slate-600 dark:text-slate-300"
+                    : "bg-slate-200/60 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
+                  }
+                `}>
+                  {productCount}
+                </span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+
+      {/* Add Look button integrated into tab bar */}
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={onAddLook}
+          className="px-2 py-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors"
+          title="Add Look"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
 }
 
 // ============================================================================
@@ -263,6 +402,250 @@ function SupportingProductRow({ product, onSetHero, onRemove, readOnly }) {
 }
 
 // ============================================================================
+// LOOK REFERENCES SECTION - Reference images scoped to the active Look
+// Per design-spec.md: References support creative direction within Looks
+// ============================================================================
+
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+function LookReferencesSection({
+  references = [],
+  displayImageId,
+  onAddReference,
+  onRemoveReference,
+  onSetDisplayImage,
+  readOnly,
+  isUploading,
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [error, setError] = useState("");
+  const fileInputRef = useRef(null);
+  const dragCounterRef = useRef(0);
+
+  const validateFile = useCallback((file) => {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type.toLowerCase())) {
+      return "Invalid file type. Please select JPEG, PNG, WebP, or GIF.";
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+      return `File too large (${sizeMB}MB). Maximum is 50MB.`;
+    }
+    return null;
+  }, []);
+
+  const handleFileSelection = useCallback((file) => {
+    if (!file) return;
+    const validationError = validateFile(file);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setError("");
+    onAddReference(file);
+  }, [validateFile, onAddReference]);
+
+  const handleDragEnter = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (readOnly || isUploading) return;
+    dragCounterRef.current += 1;
+    if (e.dataTransfer.items?.length > 0) {
+      setIsDragging(true);
+    }
+  }, [readOnly, isUploading]);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+    if (readOnly || isUploading) return;
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileSelection(files[0]);
+    }
+  }, [readOnly, isUploading, handleFileSelection]);
+
+  const handleClickBrowse = useCallback(() => {
+    if (readOnly || isUploading) return;
+    fileInputRef.current?.click();
+  }, [readOnly, isUploading]);
+
+  const handleInputChange = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileSelection(file);
+    }
+    e.target.value = "";
+  }, [handleFileSelection]);
+
+  const hasReferences = references.length > 0;
+
+  return (
+    <div className="space-y-3">
+      {/* Section label */}
+      <div className="flex items-center gap-1.5">
+        <ImageIcon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+        <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+          References
+        </span>
+        {hasReferences && (
+          <span className="text-[10px] tabular-nums text-slate-400 dark:text-slate-500">
+            ({references.length})
+          </span>
+        )}
+      </div>
+
+      {/* Thumbnail grid */}
+      {hasReferences && (
+        <div className="grid grid-cols-3 gap-2">
+          {references.map((ref, index) => {
+            const isDisplayImage = ref.id === displayImageId;
+            return (
+              <div
+                key={ref.id}
+                className={`
+                  group relative aspect-square rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-700
+                  border transition-colors
+                  ${isDisplayImage
+                    ? "border-amber-400 dark:border-amber-500 ring-1 ring-amber-400/30"
+                    : "border-slate-200 dark:border-slate-600"
+                  }
+                `}
+              >
+                <AppImage
+                  src={ref.downloadURL || ref.path}
+                  alt={`Reference ${index + 1}`}
+                  preferredSize={160}
+                  className="w-full h-full"
+                  imageClassName="w-full h-full object-cover"
+                  placeholder={
+                    <div className="flex items-center justify-center h-full text-xs text-slate-400">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    </div>
+                  }
+                  fallback={
+                    <div className="flex items-center justify-center h-full text-xs text-slate-400">
+                      —
+                    </div>
+                  }
+                />
+                {/* Display image indicator (always visible when set) */}
+                {isDisplayImage && (
+                  <div className="absolute top-1 left-1 p-1 rounded-full bg-amber-500 text-white shadow-sm">
+                    <Star className="w-2.5 h-2.5 fill-current" />
+                  </div>
+                )}
+                {/* Action buttons overlay (visible on hover) */}
+                {!readOnly && (
+                  <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/30 transition-colors">
+                    {/* Set/clear display image button (bottom-left) */}
+                    <button
+                      type="button"
+                      onClick={() => onSetDisplayImage(isDisplayImage ? null : ref.id)}
+                      className={`
+                        absolute bottom-1 left-1 p-1 rounded-full transition-all
+                        ${isDisplayImage
+                          ? "bg-amber-500 text-white opacity-100 hover:bg-amber-600"
+                          : "bg-slate-900/70 text-white opacity-0 group-hover:opacity-100 hover:bg-amber-500"
+                        }
+                      `}
+                      title={isDisplayImage ? "Remove as display image" : "Set as display image"}
+                    >
+                      <Star className={`w-3 h-3 ${isDisplayImage ? "fill-current" : ""}`} />
+                    </button>
+                    {/* Remove button (top-right) */}
+                    <button
+                      type="button"
+                      onClick={() => onRemoveReference(ref.id)}
+                      className="absolute top-1 right-1 p-1 rounded-full bg-slate-900/70 text-white opacity-0 group-hover:opacity-100 hover:bg-red-600 transition-all"
+                      title="Remove reference"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Upload dropzone (compact) */}
+      {!readOnly && (
+        <div
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={handleClickBrowse}
+          className={`
+            flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed cursor-pointer transition-colors
+            ${isDragging
+              ? "border-primary bg-primary/5 dark:bg-primary/10"
+              : "border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/30"
+            }
+            ${isUploading ? "opacity-50 cursor-wait" : ""}
+          `}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleInputChange}
+            className="hidden"
+            disabled={readOnly || isUploading}
+          />
+          {isUploading ? (
+            <>
+              <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
+              <span className="text-xs text-slate-500 dark:text-slate-400">Uploading...</span>
+            </>
+          ) : (
+            <>
+              <Upload className="w-4 h-4 text-slate-400" />
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {hasReferences ? "Add reference" : "Add reference image"}
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Error message */}
+      {error && (
+        <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-red-50 dark:bg-red-900/20 text-xs text-red-600 dark:text-red-400">
+          <AlertCircle className="w-3 h-3 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // LOOK OPTION PANEL - Decision card for a single look option
 // ============================================================================
 
@@ -272,6 +655,10 @@ function LookOptionPanel({
   onRemoveProduct,
   onSetHero,
   onRemoveLook,
+  onAddReference,
+  onRemoveReference,
+  onSetDisplayImage,
+  isUploadingReference,
   readOnly,
 }) {
   const productCount = look.products?.length || 0;
@@ -380,6 +767,19 @@ function LookOptionPanel({
             Add products
           </button>
         )}
+
+        {/* References section - scoped to this Look */}
+        <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-700/60">
+          <LookReferencesSection
+            references={look.references || []}
+            displayImageId={look.displayImageId || null}
+            onAddReference={(file) => onAddReference(look.id, file)}
+            onRemoveReference={(refId) => onRemoveReference(look.id, refId)}
+            onSetDisplayImage={(refId) => onSetDisplayImage(look.id, refId)}
+            readOnly={readOnly}
+            isUploading={isUploadingReference}
+          />
+        </div>
       </div>
     </div>
   );
@@ -398,6 +798,7 @@ export default function ShotLooksCanvas({
   const auth = useAuth();
   const clientId = auth?.clientId;
   const user = auth?.user;
+  const queryClient = useQueryClient();
 
   // ══════════════════════════════════════════════════════════════════════════
   // LOCAL STATE
@@ -407,9 +808,19 @@ export default function ShotLooksCanvas({
   const [looks, setLooks] = useState(() => shot?.looks || []);
   const [saveStatus, setSaveStatus] = useState("idle");
 
+  // Active Look State (per design-spec.md: "One Look is always active")
+  // Default to first look's id, or null if no looks exist
+  const [activeLookId, setActiveLookId] = useState(() => {
+    const initialLooks = shot?.looks || [];
+    return initialLooks.length > 0 ? initialLooks[0].id : null;
+  });
+
   // Product selector modal state
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [targetLookId, setTargetLookId] = useState(null);
+
+  // Reference image upload state
+  const [isUploadingReference, setIsUploadingReference] = useState(false);
 
   // Refs for debounced save
   const saveTimerRef = useRef(null);
@@ -425,7 +836,16 @@ export default function ShotLooksCanvas({
   useEffect(() => {
     // Sync from shot if not in the middle of a local edit
     if (!saveTimerRef.current) {
-      setLooks(shot?.looks || []);
+      const newLooks = shot?.looks || [];
+      setLooks(newLooks);
+
+      // Ensure activeLookId is valid (still exists in the array)
+      setActiveLookId((prevId) => {
+        const stillExists = newLooks.some((l) => l.id === prevId);
+        if (stillExists) return prevId;
+        // Default to first look if previous was deleted or doesn't exist
+        return newLooks.length > 0 ? newLooks[0].id : null;
+      });
     }
   }, [shot?.looks]);
 
@@ -447,12 +867,28 @@ export default function ShotLooksCanvas({
     try {
       const shotRef = doc(db, ...shotsPath(clientId), shot.id);
 
+      // H.3: Sanitize looks array to remove any undefined values before Firestore write.
+      // Firestore rejects documents containing undefined, which can occur when spreading
+      // look objects that have properties explicitly set to undefined in React state.
+      //
+      // H.4: IMPORTANT - This sanitization is a LAST-MILE GUARD, not a deletion mechanism.
+      // Deletion handlers (handleRemoveReference, handleRemoveProduct) use explicit
+      // .filter() and null assignments BEFORE this point. Sanitization only catches
+      // stray undefined values in nested objects, not structural changes.
+      const sanitizedLooks = sanitizeForFirestore(newLooks);
+
       await updateDoc(shotRef, {
-        looks: newLooks,
+        looks: sanitizedLooks,
         updatedAt: serverTimestamp(),
       });
 
       setSaveStatus("saved");
+
+      // F.6: Invalidate shots cache so ShotsPage shows fresh data on navigation
+      // This fixes the stale preview bug where deleted references still appeared
+      if (shot.projectId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.shots(clientId, shot.projectId) });
+      }
 
       // Clear saved indicator after 2s
       if (savedIndicatorTimerRef.current) {
@@ -483,7 +919,7 @@ export default function ShotLooksCanvas({
     } finally {
       saveInProgressRef.current = false;
     }
-  }, [clientId, shot?.id, shot?.projectId, shot?.name, user, readOnly]);
+  }, [clientId, shot?.id, shot?.projectId, shot?.name, user, readOnly, queryClient]);
 
   const debouncedSave = useCallback((newLooks) => {
     if (saveTimerRef.current) {
@@ -503,14 +939,21 @@ export default function ShotLooksCanvas({
     const newLook = createEmptyLook(looks.length);
     const newLooks = [...looks, newLook];
     setLooks(newLooks);
+    setActiveLookId(newLook.id); // New look becomes active
     debouncedSave(newLooks);
   }, [looks, debouncedSave]);
 
   const handleRemoveLook = useCallback((lookId) => {
     const newLooks = looks.filter((l) => l.id !== lookId);
     setLooks(newLooks);
+
+    // If we removed the active look, switch to first remaining look
+    if (lookId === activeLookId) {
+      setActiveLookId(newLooks.length > 0 ? newLooks[0].id : null);
+    }
+
     debouncedSave(newLooks);
-  }, [looks, debouncedSave]);
+  }, [looks, activeLookId, debouncedSave]);
 
   const handleOpenProductSelector = useCallback((lookId) => {
     setTargetLookId(lookId);
@@ -574,6 +1017,117 @@ export default function ShotLooksCanvas({
   }, [looks, debouncedSave]);
 
   // ══════════════════════════════════════════════════════════════════════════
+  // REFERENCE IMAGE HANDLERS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const handleAddReference = useCallback(async (lookId, file) => {
+    if (!clientId || !shot?.id || readOnly || isUploadingReference) return;
+
+    setIsUploadingReference(true);
+
+    try {
+      // Compress image (reuses existing pattern from MultiImageAttachmentManager)
+      const compressedFile = await compressImageFile(file, {
+        maxDimension: 1600,
+        quality: 0.82,
+      });
+
+      // Upload to Firebase Storage
+      const { downloadURL, path } = await uploadImageFile(compressedFile, {
+        folder: "shots",
+        id: shot.id,
+        filename: `ref_${Date.now()}_${file.name}`,
+        optimize: false, // already compressed above
+      });
+
+      // Create reference object
+      const newReference = {
+        id: generateReferenceId(),
+        path,
+        downloadURL,
+        uploadedAt: Date.now(),
+        uploadedBy: user?.uid || "unknown",
+      };
+
+      // Update looks with new reference
+      const newLooks = looks.map((look) => {
+        if (look.id !== lookId) return look;
+        return {
+          ...look,
+          references: [...(look.references || []), newReference],
+        };
+      });
+
+      setLooks(newLooks);
+      // Save immediately (not debounced) since upload already took time
+      saveLooks(newLooks);
+    } catch (error) {
+      console.error("[ShotLooksCanvas] Reference upload failed:", error);
+      // Error is handled by LookReferencesSection's local error state
+    } finally {
+      setIsUploadingReference(false);
+    }
+  }, [clientId, shot?.id, user?.uid, looks, readOnly, isUploadingReference, saveLooks]);
+
+  const handleRemoveReference = useCallback(async (lookId, referenceId) => {
+    // F.6: Safety confirmation before removing reference image
+    const confirmed = await showConfirm("Remove this reference image?");
+    if (!confirmed) return;
+
+    const newLooks = looks.map((look) => {
+      if (look.id !== lookId) return look;
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // H.4 DELETION SEMANTICS - EXPLICIT, NOT SANITIZATION-DEPENDENT
+      // ═══════════════════════════════════════════════════════════════════════
+      // 1. References removed via explicit .filter() - NOT sanitization
+      // 2. displayImageId fallback is explicit null - NOT undefined stripping
+      // 3. sanitizeForFirestore() in saveLooks() is ONLY a last-mile guard for
+      //    stray undefined in reference objects, NOT the deletion mechanism
+      // ═══════════════════════════════════════════════════════════════════════
+
+      // EXPLICIT DELETION: .filter() creates new array without the deleted reference
+      // This happens BEFORE sanitization - deletion does not rely on undefined stripping
+      const filteredReferences = (look.references || []).filter(
+        (ref) => ref.id !== referenceId
+      );
+
+      // EXPLICIT FALLBACK: If deleted ref was display image, set to null (Firestore-valid)
+      // Uses nullish coalescing to handle legacy looks without displayImageId field
+      const currentDisplayId = look.displayImageId ?? null;
+      const newDisplayImageId = currentDisplayId === referenceId ? null : currentDisplayId;
+
+      return {
+        ...look,
+        references: filteredReferences, // Always array (possibly empty), never undefined
+        displayImageId: newDisplayImageId, // Always null or string, never undefined
+      };
+    });
+
+    setLooks(newLooks);
+    // Save immediately (not debounced) to ensure deletion persists even if user navigates away
+    saveLooks(newLooks);
+  }, [looks, saveLooks]);
+
+  /**
+   * Set or clear the display image for a Look
+   * Per F.5: ONE reference can be designated as the shot's display image
+   * Pass null to clear the designation
+   */
+  const handleSetDisplayImage = useCallback((lookId, referenceId) => {
+    const newLooks = looks.map((look) => {
+      if (look.id !== lookId) return look;
+      return {
+        ...look,
+        displayImageId: referenceId, // null clears, string sets
+      };
+    });
+
+    setLooks(newLooks);
+    debouncedSave(newLooks);
+  }, [looks, debouncedSave]);
+
+  // ══════════════════════════════════════════════════════════════════════════
   // CLEANUP
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -589,6 +1143,10 @@ export default function ShotLooksCanvas({
   // ══════════════════════════════════════════════════════════════════════════
 
   const hasLooks = looks.length > 0;
+
+  // Get the currently active look (per design-spec.md: "One Look is always active")
+  const activeLook = hasLooks ? looks.find((l) => l.id === activeLookId) : null;
+  const activeLookIndex = activeLook ? looks.findIndex((l) => l.id === activeLookId) : -1;
 
   return (
     <section className="space-y-5">
@@ -609,7 +1167,8 @@ export default function ShotLooksCanvas({
 
         <div className="flex items-center gap-3">
           {!readOnly && <TrustIndicator status={saveStatus} />}
-          {!readOnly && (
+          {/* Add Look button moves to tab bar when looks exist */}
+          {!readOnly && !hasLooks && (
             <Button
               type="button"
               variant="outline"
@@ -624,22 +1183,32 @@ export default function ShotLooksCanvas({
         </div>
       </div>
 
-      {/* Options grid - 2 columns on desktop for side-by-side comparison */}
-      {hasLooks ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {looks.map((look) => (
-            <LookOptionPanel
-              key={look.id}
-              look={look}
-              onAddProducts={handleOpenProductSelector}
-              onRemoveProduct={handleRemoveProduct}
-              onSetHero={handleSetHero}
-              onRemoveLook={() => handleRemoveLook(look.id)}
-              readOnly={readOnly}
-            />
-          ))}
-        </div>
-      ) : (
+      {/* Look Tab Selector - per design-spec.md: "Look tabs or segmented control" */}
+      {hasLooks && (
+        <LookTabSelector
+          looks={looks}
+          activeLookId={activeLookId}
+          onSelectLook={setActiveLookId}
+          onAddLook={handleAddOption}
+          readOnly={readOnly}
+        />
+      )}
+
+      {/* Active Look Canvas - Only the active look is editable (per design-spec.md) */}
+      {activeLook ? (
+        <LookOptionPanel
+          look={{ ...activeLook, label: getLookLabel(activeLookIndex) }}
+          onAddProducts={handleOpenProductSelector}
+          onRemoveProduct={handleRemoveProduct}
+          onSetHero={handleSetHero}
+          onRemoveLook={() => handleRemoveLook(activeLook.id)}
+          onAddReference={handleAddReference}
+          onRemoveReference={handleRemoveReference}
+          onSetDisplayImage={handleSetDisplayImage}
+          isUploadingReference={isUploadingReference}
+          readOnly={readOnly}
+        />
+      ) : !hasLooks ? (
         <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 p-10 text-center">
           <Sparkles className="w-8 h-8 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
@@ -649,7 +1218,7 @@ export default function ShotLooksCanvas({
             Create options to explore different product combinations
           </p>
         </div>
-      )}
+      ) : null}
 
       {/* Product selector modal */}
       {selectorOpen && (

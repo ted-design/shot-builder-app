@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import { signOut } from 'firebase/auth';
 import { useSidebar } from '../../context/SidebarContext';
 import { useAuth } from '../../context/AuthContext';
@@ -12,17 +12,88 @@ import '../../styles/sidebar-animations.css';
 const SIDEBAR_WIDTH_EXPANDED = 240;
 const SIDEBAR_WIDTH_COLLAPSED = 64;
 
+// Hover timing configuration (ms)
+const HOVER_OPEN_DELAY = 160;   // Delay before expanding on hover
+const HOVER_CLOSE_DELAY = 140;  // Delay before collapsing on leave
+const MIN_OPEN_DURATION = 300;  // Minimum time sidebar stays open
+
 /**
  * Sidebar
  *
  * Main collapsible sidebar component with navigation and user info.
  * Features smooth animations with motion blur effect on collapse/expand.
+ * Hover expansion uses intentional delays to prevent janky flyover behavior.
  */
 export default function Sidebar() {
   const { isCollapsed, isHovering, setIsHovering, isExpanded } = useSidebar();
   const { user } = useAuth();
 
+  // Refs for timer management
+  const openTimerRef = useRef(null);
+  const closeTimerRef = useRef(null);
+  const openedAtRef = useRef(null);
+
   const currentWidth = isExpanded ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED;
+
+  // Clear all pending timers
+  const clearTimers = useCallback(() => {
+    if (openTimerRef.current) {
+      clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => clearTimers();
+  }, [clearTimers]);
+
+  const handleMouseEnter = useCallback(() => {
+    if (!isCollapsed) return;
+
+    // Cancel any pending close
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+
+    // Already hovering, no-op
+    if (isHovering) return;
+
+    // Schedule open after delay
+    openTimerRef.current = setTimeout(() => {
+      openTimerRef.current = null;
+      openedAtRef.current = Date.now();
+      setIsHovering(true);
+    }, HOVER_OPEN_DELAY);
+  }, [isCollapsed, isHovering, setIsHovering]);
+
+  const handleMouseLeave = useCallback(() => {
+    // Cancel any pending open
+    if (openTimerRef.current) {
+      clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
+
+    // Not hovering, no-op
+    if (!isHovering) return;
+
+    // Calculate remaining min-open time
+    const elapsed = openedAtRef.current ? Date.now() - openedAtRef.current : MIN_OPEN_DURATION;
+    const remainingMinOpen = Math.max(0, MIN_OPEN_DURATION - elapsed);
+    const closeDelay = Math.max(HOVER_CLOSE_DELAY, remainingMinOpen);
+
+    // Schedule close after delay
+    closeTimerRef.current = setTimeout(() => {
+      closeTimerRef.current = null;
+      openedAtRef.current = null;
+      setIsHovering(false);
+    }, closeDelay);
+  }, [isHovering, setIsHovering]);
 
   const handleSignOut = async () => {
     try {
@@ -36,8 +107,8 @@ export default function Sidebar() {
     <aside
       className="fixed inset-y-0 left-0 z-40 flex flex-col bg-sidebar border-r border-sidebar-border sidebar-transition overflow-x-hidden"
       style={{ width: currentWidth }}
-      onMouseEnter={() => isCollapsed && setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <SidebarProjectHeader isExpanded={isExpanded} />
 
