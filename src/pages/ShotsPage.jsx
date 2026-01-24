@@ -4000,7 +4000,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
         onFocus?.(shot);
       }
     },
-    [navigate, shot?.id, shot?.projectId, onFocus, shot]
+    [navigate, shot, onFocus]
   );
 
   // Collapsible sections state - synced with global state
@@ -4237,6 +4237,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
         // Allow Enter/Space to trigger navigation like a link
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
+          e.stopPropagation();
           handleCardClick(e);
         }
       }}
