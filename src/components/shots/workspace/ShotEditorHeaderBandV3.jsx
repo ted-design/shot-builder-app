@@ -17,6 +17,7 @@ import { shotsPath } from "../../../lib/paths";
 import { useAuth } from "../../../context/AuthContext";
 import { logActivity, createShotUpdatedActivity } from "../../../lib/activityLogger";
 import { shotStatusOptions, normaliseShotStatus } from "../../../lib/shotStatus";
+import { stripHtml } from "../../../lib/stripHtml";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { StatusBadge } from "../../ui/StatusBadge";
@@ -37,18 +38,6 @@ import {
   Check,
   Pencil,
 } from "lucide-react";
-
-/**
- * Strip HTML tags from a string for plain text display.
- * Used for description field which may contain rich text HTML from legacy data.
- * Returns empty string if input is falsy or only contains empty HTML tags.
- */
-function stripHtmlTags(html) {
-  if (!html || typeof html !== "string") return "";
-  // Remove HTML tags
-  const stripped = html.replace(/<[^>]*>/g, "").trim();
-  return stripped;
-}
 
 export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = false }) {
   const navigate = useNavigate();
@@ -519,7 +508,7 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
     if (readOnly) return;
     // Use description field, with legacy fallback to type field
     // Strip HTML tags to show clean text in edit mode
-    setDescriptionDraft(stripHtmlTags(shot?.description || shot?.type || ""));
+    setDescriptionDraft(stripHtml(shot?.description || shot?.type || ""));
     setIsEditingDescription(true);
   }, [readOnly, shot?.description, shot?.type]);
 
@@ -694,7 +683,7 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
                   <span className={`text-xs truncate block ${
                     descriptionSaveState === "saving" || descriptionSaveState === "saved" || descriptionSaveState === "error"
                       ? "text-slate-500 dark:text-slate-400"
-                      : stripHtmlTags(shot?.description || shot?.type)
+                      : stripHtml(shot?.description || shot?.type)
                         ? "text-slate-600 dark:text-slate-400"
                         : "text-slate-400 dark:text-slate-500 italic"
                   }`}>
@@ -704,7 +693,7 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
                         ? "Saved"
                         : descriptionSaveState === "error"
                           ? "Error"
-                          : stripHtmlTags(shot?.description || shot?.type) || "No description"}
+                          : stripHtml(shot?.description || shot?.type) || "No description"}
                   </span>
                   {!readOnly && descriptionSaveState === "idle" && (
                     <Pencil className="w-3 h-3 inline-block ml-1 opacity-0 group-hover:opacity-50 transition-opacity" />

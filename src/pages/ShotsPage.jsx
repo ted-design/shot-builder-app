@@ -1506,6 +1506,7 @@ export function ShotsWorkspace() {
             projectId,
             status: DEFAULT_SHOT_STATUS,
             createdBy: user.uid,
+            createdAt: serverTimestamp(),
             referenceImagePath: null,
             referenceImageCrop: null,
           };
