@@ -31,11 +31,11 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import {
   ArrowLeft,
   MapPin,
-  Users,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { ShotEditorHeaderBandV3, ShotContextDock, ShotNotesCanvas, ShotLooksCanvas } from "../components/shots/workspace";
+import { ShotEditorHeaderBandV3, ShotContextDock, ShotNotesCanvas, ShotLooksCanvas, ShotAssetsSection } from "../components/shots/workspace";
+import CommentSection from "../components/comments/CommentSection";
 
 // ============================================================================
 // CANVAS SURFACE COMPONENTS
@@ -90,22 +90,6 @@ function LogisticsPlaceholder() {
   );
 }
 
-/**
- * TalentPlaceholder - Collapsed group content for talent
- * Per design-spec.md: "If not ready, hide or label as 'Planned'"
- */
-function TalentPlaceholder() {
-  return (
-    <div className="space-y-2 py-2">
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        Cast assignments and wardrobe notes
-      </p>
-      <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
-        Planned
-      </span>
-    </div>
-  );
-}
 
 // ============================================================================
 // MAIN PAGE COMPONENT
@@ -214,7 +198,15 @@ export default function ShotEditorPageV3() {
           setLoading(false);
           return;
         }
-        setShot({ id: snapshot.id, ...snapshot.data() });
+        const data = snapshot.data();
+        // Check if shot was soft-deleted (deleted: true)
+        // Deleted shots should not be accessible via direct URL
+        if (data.deleted === true) {
+          setError("This shot was deleted");
+          setLoading(false);
+          return;
+        }
+        setShot({ id: snapshot.id, ...data });
         setLoading(false);
       },
       (err) => {
@@ -247,10 +239,9 @@ export default function ShotEditorPageV3() {
   // GUARDS
   // ══════════════════════════════════════════════════════════════════════════
 
-  // Guard: Redirect if flag disabled
-  if (!FLAGS.shotEditorV3) {
-    return <Navigate to={`/projects/${projectId}/shots`} replace />;
-  }
+  // Note: V3 is now the default editor (Delta I.8 cutover).
+  // The flag guard was removed since FLAGS.shotEditorV3 is always true.
+  // For emergency rollback, use ?legacyShotEditor=1 query param in ShotsPage.
 
   // Guard: No client
   if (!clientId) {
@@ -349,13 +340,22 @@ export default function ShotEditorPageV3() {
               <LogisticsPlaceholder />
             </CollapsibleGroup>
 
-            <CollapsibleGroup
-              icon={Users}
-              label="Talent"
-              defaultCollapsed
-            >
-              <TalentPlaceholder />
-            </CollapsibleGroup>
+            {/* Assets Section - Editable Talent, Location, Tags */}
+            <ShotAssetsSection
+              shot={shot}
+              talentOptions={talentOptions}
+              locationOptions={locationOptions}
+              readOnly={isReadOnly}
+            />
+
+            {/* Comments Section - Collaboration surface */}
+            <section className="border-t border-slate-100 dark:border-slate-700/50 pt-6">
+              <CommentSection
+                clientId={clientId}
+                shotId={shotId}
+                shotName={shot.name}
+              />
+            </section>
 
             {/* Bottom spacer */}
             <div className="h-16" />
