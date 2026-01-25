@@ -377,13 +377,22 @@ const ShotTableView = memo(function ShotTableView({
             <div
               key={shotId}
               role="row"
-              className={`group relative grid cursor-pointer items-start border-b border-slate-200 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/40 ${densityConfig.tableText} ${
+              tabIndex={0}
+              className={`group relative grid cursor-pointer items-start border-b border-slate-200 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/40 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 outline-none ${densityConfig.tableText} ${
                 isSelected ? "bg-primary/5 dark:bg-primary/10" : "bg-transparent"
-              } ${isFocused ? "outline outline-2 outline-primary/60 shadow-sm" : ""}`}
+              } ${isFocused ? "ring-2 ring-primary/60 shadow-sm" : ""}`}
               style={{ gridTemplateColumns: columnTemplate }}
               aria-selected={isSelected}
               data-focused={isFocused ? "true" : undefined}
               onClick={() => onFocusShot?.(shot, { mirrorSelection: false })}
+              onKeyDown={(e) => {
+                // Allow Enter/Space to activate (navigate) like a click
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onFocusShot?.(shot, { mirrorSelection: false });
+                }
+              }}
               onDragOver={(e) => {
                 if (!onRowReorder) return;
                 // Visual insert cue based on mouse position

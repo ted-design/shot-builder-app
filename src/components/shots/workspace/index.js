@@ -6,9 +6,11 @@
  * - ShotContextDock: Left-side context dock (status, products, tags, activity)
  * - ShotNotesCanvas: Primary authoring surface with autosave and versioning
  * - ShotLooksCanvas: Look options with products and hero selection
+ * - ShotAssetsSection: Editable assets section (talent, location, tags)
  */
 
 export { default as ShotEditorHeaderBandV3 } from "./ShotEditorHeaderBandV3";
 export { default as ShotContextDock } from "./ShotContextDock";
 export { default as ShotNotesCanvas } from "./ShotNotesCanvas";
 export { default as ShotLooksCanvas } from "./ShotLooksCanvas";
+export { default as ShotAssetsSection } from "./ShotAssetsSection";

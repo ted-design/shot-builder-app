@@ -156,10 +156,13 @@ export const FLAGS = {
     PRODUCTS_V3_OVERRIDE != null
       ? readBool(PRODUCTS_V3_OVERRIDE)
       : readBool(ENV.VITE_FLAG_PRODUCTS_V3 ?? false),
+  // Shot Editor V3 is now the default editor (cutover completed in Delta I.8)
+  // The flag is always true by default. To force legacy editor for debugging,
+  // use query param ?legacyShotEditor=1 (NOT this flag).
   shotEditorV3:
     SHOT_EDITOR_V3_OVERRIDE != null
       ? readBool(SHOT_EDITOR_V3_OVERRIDE)
-      : readBool(ENV.VITE_FLAG_SHOT_EDITOR_V3 ?? false),
+      : true, // Default ON after cutover (was: readBool(ENV.VITE_FLAG_SHOT_EDITOR_V3 ?? false))
 };
 
 export const FEATURE_PROJECT_SCOPING = FLAGS.projectScoping;

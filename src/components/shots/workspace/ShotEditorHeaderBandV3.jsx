@@ -16,6 +16,7 @@ import { db } from "../../../lib/firebase";
 import { shotsPath } from "../../../lib/paths";
 import { useAuth } from "../../../context/AuthContext";
 import { logActivity, createShotUpdatedActivity } from "../../../lib/activityLogger";
+import { toDateInputValue, parseDateToTimestamp } from "../../../lib/shotDraft";
 import { shotStatusOptions, normaliseShotStatus } from "../../../lib/shotStatus";
 import { stripHtml } from "../../../lib/stripHtml";
 import { Button } from "../../ui/button";
@@ -37,15 +38,29 @@ import {
   ChevronDown,
   Check,
   Pencil,
+  Trash2,
+  Calendar,
 } from "lucide-react";
+import { toast } from "../../../lib/toast";
+import { useDeleteShot } from "../../../hooks/useFirestoreMutations";
+import ConfirmDialog from "../../common/ConfirmDialog";
 
 export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = false }) {
   const navigate = useNavigate();
   const auth = useAuth();
   const clientId = auth?.clientId;
 
+  // Delete shot mutation (uses soft delete - sets deleted: true)
+  const deleteShotMutation = useDeleteShot(clientId, projectId, {
+    shotName: shot?.name || "Untitled",
+  });
+
   const [isApplying, setIsApplying] = useState(false);
   const [statusSaveState, setStatusSaveState] = useState("idle"); // idle | saving | saved
+
+  // Delete confirmation state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Shot number editing state
   const [isEditingShotNumber, setIsEditingShotNumber] = useState(false);
@@ -58,6 +73,36 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
   const [descriptionSaveState, setDescriptionSaveState] = useState("idle"); // idle | saving | saved | error
   const descriptionTextareaRef = useRef(null);
 
+  // Date editing state
+  const [isEditingDate, setIsEditingDate] = useState(false);
+  const [dateDraft, setDateDraft] = useState("");
+  const [dateSaveState, setDateSaveState] = useState("idle"); // idle | saving | saved | error
+  const dateInputRef = useRef(null);
+
+  // Track timeout IDs for cleanup to prevent memory leaks
+  const timeoutsRef = useRef(new Set());
+
+  // Cleanup all timeouts on unmount to prevent state updates on unmounted component
+  useEffect(() => {
+    const timeouts = timeoutsRef.current;
+    return () => {
+      timeouts.forEach((id) => clearTimeout(id));
+      timeouts.clear();
+    };
+  }, []);
+
+  /**
+   * Helper to set a timeout that auto-cleans from tracking set
+   */
+  const setSafeTimeout = useCallback((callback, delay) => {
+    const id = setTimeout(() => {
+      timeoutsRef.current.delete(id);
+      callback();
+    }, delay);
+    timeoutsRef.current.add(id);
+    return id;
+  }, []);
+
   // Auto-focus description textarea and place cursor at end when entering edit mode
   useEffect(() => {
     if (isEditingDescription && descriptionTextareaRef.current) {
@@ -68,6 +113,13 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
       textarea.setSelectionRange(length, length);
     }
   }, [isEditingDescription]);
+
+  // Auto-focus date input when entering edit mode
+  useEffect(() => {
+    if (isEditingDate && dateInputRef.current) {
+      dateInputRef.current.focus();
+    }
+  }, [isEditingDate]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // DERIVED VALUES
@@ -259,6 +311,56 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
   };
 
   /**
+   * Open delete confirmation dialog
+   */
+  const handleOpenDeleteConfirm = () => {
+    if (readOnly) return;
+    setShowDeleteConfirm(true);
+  };
+
+  /**
+   * Close delete confirmation dialog
+   */
+  const handleCloseDeleteConfirm = () => {
+    setShowDeleteConfirm(false);
+  };
+
+  /**
+   * Confirm deletion of the shot
+   *
+   * Uses soft delete (sets deleted: true) via useDeleteShot mutation.
+   * On success, navigates back to the shots list.
+   * No undo/recycle bin - deletion is final from user perspective.
+   */
+  const handleConfirmDelete = useCallback(async () => {
+    if (!shot?.id || !clientId || readOnly) return;
+
+    setIsDeleting(true);
+
+    try {
+      await new Promise((resolve, reject) => {
+        deleteShotMutation.mutate(
+          { shotId: shot.id },
+          {
+            onSuccess: () => resolve(),
+            onError: (error) => reject(error),
+          }
+        );
+      });
+
+      toast.success(`"${shot.name || "Untitled"}" deleted`);
+      setShowDeleteConfirm(false);
+
+      // Navigate back to shots list
+      navigate(`/projects/${projectId}/shots`);
+    } catch (error) {
+      console.error("[ShotEditorHeaderBandV3] Failed to delete shot:", error);
+      toast.error("Failed to delete shot. Please try again.");
+      setIsDeleting(false);
+    }
+  }, [shot?.id, shot?.name, clientId, projectId, readOnly, deleteShotMutation, navigate]);
+
+  /**
    * Change shot status
    *
    * AUDIT PATTERN (per src/schemas/common.js:80-85):
@@ -307,14 +409,14 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
               shot.name || "Untitled",
               { status: statusLabel }
             )
-          ).catch(() => {
-            // Activity logging failures are non-critical
+          ).catch((error) => {
+            console.error("[ShotEditorHeaderBandV3] Activity logging failed for status change:", error);
           });
         }
 
         setStatusSaveState("saved");
         // Reset to idle after brief feedback
-        setTimeout(() => setStatusSaveState("idle"), 1500);
+        setSafeTimeout(() => setStatusSaveState("idle"), 1500);
       } catch (error) {
         console.error("[ShotEditorHeaderBandV3] Failed to update status:", error);
         setStatusSaveState("idle");
@@ -367,9 +469,9 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
             suggestedName, // Use new name for activity
             { name: suggestedName }
           )
-        ).catch(() => {
-          // Activity logging failures are non-critical
-        });
+        ).catch((error) => {
+            console.error("[ShotEditorHeaderBandV3] Activity logging failed for suggested name:", error);
+          });
       }
 
       // onSnapshot will update the shot and hide suggestion automatically
@@ -460,9 +562,9 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
             shot.name || "Untitled",
             { shotNumber: newValue || "(cleared)" }
           )
-        ).catch(() => {
-          // Activity logging failures are non-critical
-        });
+        ).catch((error) => {
+            console.error("[ShotEditorHeaderBandV3] Activity logging failed for shot number:", error);
+          });
       }
 
       setShotNumberSaveState("saved");
@@ -470,12 +572,12 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
       setShotNumberDraft("");
 
       // Reset to idle after brief feedback
-      setTimeout(() => setShotNumberSaveState("idle"), 1500);
+      setSafeTimeout(() => setShotNumberSaveState("idle"), 1500);
     } catch (error) {
       console.error("[ShotEditorHeaderBandV3] Failed to update shot number:", error);
       setShotNumberSaveState("error");
       // Reset error state after feedback
-      setTimeout(() => setShotNumberSaveState("idle"), 2000);
+      setSafeTimeout(() => setShotNumberSaveState("idle"), 2000);
     }
   }, [clientId, shot?.id, shot?.projectId, shot?.shotNumber, shot?.name, shotNumberDraft, auth?.user]);
 
@@ -584,9 +686,9 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
             shot.name || "Untitled",
             { description: newValue || "(cleared)" }
           )
-        ).catch(() => {
-          // Activity logging failures are non-critical
-        });
+        ).catch((error) => {
+            console.error("[ShotEditorHeaderBandV3] Activity logging failed for description:", error);
+          });
       }
 
       setDescriptionSaveState("saved");
@@ -594,12 +696,12 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
       setDescriptionDraft("");
 
       // Reset to idle after brief feedback
-      setTimeout(() => setDescriptionSaveState("idle"), 1500);
+      setSafeTimeout(() => setDescriptionSaveState("idle"), 1500);
     } catch (error) {
       console.error("[ShotEditorHeaderBandV3] Failed to update description:", error);
       setDescriptionSaveState("error");
       // Reset error state after feedback
-      setTimeout(() => setDescriptionSaveState("idle"), 2000);
+      setSafeTimeout(() => setDescriptionSaveState("idle"), 2000);
     }
   }, [clientId, shot?.id, shot?.projectId, shot?.description, shot?.type, shot?.name, descriptionDraft, auth?.user]);
 
@@ -619,6 +721,141 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
       }
     },
     [handleCommitDescription, handleCancelDescriptionEdit]
+  );
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DATE EDIT HANDLERS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Enter date edit mode
+   */
+  const handleStartEditingDate = useCallback(() => {
+    if (readOnly) return;
+    setDateDraft(toDateInputValue(shot?.date) || "");
+    setIsEditingDate(true);
+  }, [readOnly, shot?.date]);
+
+  /**
+   * Cancel date editing (revert to original)
+   */
+  const handleCancelDateEdit = useCallback(() => {
+    setIsEditingDate(false);
+    setDateDraft("");
+  }, []);
+
+  /**
+   * Commit date change
+   *
+   * VALIDATION:
+   * - Empty string allowed (clears the date)
+   * - Valid date string expected in YYYY-MM-DD format (native date input format)
+   *
+   * AUDIT PATTERN (per src/schemas/common.js:80-85):
+   * - updatedBy: string (user UID only, not object triplet)
+   * - updatedAt: serverTimestamp()
+   *
+   * Firestore persists date as Timestamp (via parseDateToTimestamp) or null if cleared.
+   */
+  const handleCommitDate = useCallback(async () => {
+    // Trim the value (though date inputs typically don't have whitespace)
+    const newValue = dateDraft.trim();
+
+    // Guard: no-op if same value (no write)
+    const oldValue = toDateInputValue(shot?.date) || "";
+    if (newValue === oldValue) {
+      setIsEditingDate(false);
+      setDateDraft("");
+      return;
+    }
+
+    // Guard: missing required data
+    if (!clientId || !shot?.id) {
+      setIsEditingDate(false);
+      setDateDraft("");
+      return;
+    }
+
+    setDateSaveState("saving");
+
+    try {
+      const shotRef = doc(db, ...shotsPath(clientId), shot.id);
+      const user = auth?.user;
+
+      // Build update payload following schema audit pattern
+      // Convert date string to Firestore Timestamp, or null if empty
+      let dateTimestamp = null;
+      if (newValue) {
+        try {
+          dateTimestamp = parseDateToTimestamp(newValue);
+        } catch (parseError) {
+          console.error("[ShotEditorHeaderBandV3] Invalid date format:", parseError);
+          setDateSaveState("error");
+          setSafeTimeout(() => setDateSaveState("idle"), 2000);
+          return;
+        }
+      }
+
+      const updatePayload = {
+        date: dateTimestamp,
+        updatedAt: serverTimestamp(),
+      };
+
+      // Only write updatedBy if user exists (never write null)
+      if (user?.uid) {
+        updatePayload.updatedBy = user.uid;
+      }
+
+      await updateDoc(shotRef, updatePayload);
+
+      // Log activity for attribution (non-blocking)
+      if (shot.projectId && user) {
+        logActivity(
+          clientId,
+          shot.projectId,
+          createShotUpdatedActivity(
+            user.uid,
+            user.displayName || user.email || "Unknown",
+            user.photoURL || null,
+            shot.id,
+            shot.name || "Untitled",
+            { date: newValue || "(cleared)" }
+          )
+        ).catch((error) => {
+            console.error("[ShotEditorHeaderBandV3] Activity logging failed for date:", error);
+          });
+      }
+
+      setDateSaveState("saved");
+      setIsEditingDate(false);
+      setDateDraft("");
+
+      // Reset to idle after brief feedback
+      setSafeTimeout(() => setDateSaveState("idle"), 1500);
+    } catch (error) {
+      console.error("[ShotEditorHeaderBandV3] Failed to update date:", error);
+      setDateSaveState("error");
+      // Reset error state after feedback
+      setSafeTimeout(() => setDateSaveState("idle"), 2000);
+    }
+  }, [clientId, shot?.id, shot?.projectId, shot?.date, shot?.name, dateDraft, auth?.user]);
+
+  /**
+   * Handle keydown in date input
+   * - Enter: commit
+   * - Escape: cancel
+   */
+  const handleDateKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleCommitDate();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        handleCancelDateEdit();
+      }
+    },
+    [handleCommitDate, handleCancelDateEdit]
   );
 
   return (
@@ -838,16 +1075,59 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
               </button>
             )}
 
+            {/* Date - editable inline */}
+            {isEditingDate ? (
+              <div className="flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={dateDraft}
+                  onChange={(e) => setDateDraft(e.target.value)}
+                  onKeyDown={handleDateKeyDown}
+                  onBlur={handleCancelDateEdit}
+                  className="w-[120px] text-xs tabular-nums px-1 py-0.5 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStartEditingDate}
+                disabled={readOnly || dateSaveState === "saving"}
+                className={`group inline-flex items-center gap-1 text-xs tabular-nums transition-colors ${
+                  readOnly
+                    ? "text-slate-500 dark:text-slate-400 cursor-default"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                }`}
+                title={readOnly ? undefined : "Click to edit date"}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>
+                  {dateSaveState === "saving"
+                    ? "Saving…"
+                    : dateSaveState === "saved"
+                      ? "Saved"
+                      : dateSaveState === "error"
+                        ? "Error"
+                        : toDateInputValue(shot?.date) || "No date"}
+                </span>
+                {!readOnly && dateSaveState === "idle" && (
+                  <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+                )}
+              </button>
+            )}
+
             {/* Divider before actions */}
             <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
 
-            {/* Duplicate button */}
+            {/* Duplicate button - disabled until feature implemented */}
             <Button
               variant="ghost"
               size="sm"
               onClick={handleDuplicate}
-              className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-              title="Duplicate shot"
+              disabled
+              className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 disabled:opacity-50"
+              title="Duplicate shot (coming soon)"
             >
               <Copy className="w-4 h-4" />
             </Button>
@@ -869,15 +1149,40 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
                   Open legacy editor
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleDuplicate}>
+                <DropdownMenuItem onClick={handleDuplicate} disabled className="opacity-50">
                   <Copy className="w-4 h-4 mr-2" />
-                  Duplicate shot
+                  Duplicate shot (coming soon)
                 </DropdownMenuItem>
+                {!readOnly && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleOpenDeleteConfirm}
+                      className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 focus:bg-red-50 dark:focus:bg-red-900/20"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete shot
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onClose={handleCloseDeleteConfirm}
+        onConfirm={handleConfirmDelete}
+        title="Delete shot"
+        message={`Are you sure you want to delete "${shot?.name || "Untitled"}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        loading={isDeleting}
+      />
     </header>
   );
 }

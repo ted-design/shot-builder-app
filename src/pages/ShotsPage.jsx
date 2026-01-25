@@ -26,6 +26,7 @@ import {
   useLocations,
   useLanes,
 } from "../hooks/useFirestoreQuery";
+import { useUsers } from "../hooks/useComments";
 import {
   useCreateShot,
   useUpdateShot,
@@ -92,6 +93,7 @@ import {
   FileDown,
   ExternalLink,
   Image,
+  Clock,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -136,7 +138,9 @@ import { ButtonGroup } from "../components/ui/ButtonGroup";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
-import ShotEditModal from "../components/shots/ShotEditModal";
+// Delta I.9: Lazy-load legacy modal to reduce default-path bundle size.
+// This component is only loaded when the rollback valve (?legacyShotEditor=1) is active.
+const ShotEditModal = lazy(() => import("../components/shots/ShotEditModal"));
 import ShotCreationPrelude from "../components/shots/ShotCreationPrelude";
 import BulkOperationsToolbar from "../components/shots/BulkOperationsToolbar";
 import ShotTableView from "../components/shots/ShotTableView";
@@ -148,6 +152,7 @@ import { canEditProducts, canManageShots, resolveEffectiveRole } from "../lib/rb
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import { toast, showConfirm } from "../lib/toast";
+import { formatRelativeTime } from "../lib/notifications";
 import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
 import { applyShotTextFieldSanitization } from "../lib/shotPatchBuilder";
 import AppImage from "../components/common/AppImage";
@@ -182,6 +187,23 @@ import { calculateTalentTotals, calculateGroupedShotTotals } from "../lib/insigh
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
+
+/**
+ * Delta I.8/I.9: Safety valve for legacy shot editor.
+ *
+ * Shot Editor V3 is now the default. This helper enables emergency rollback
+ * by checking for `?legacyShotEditor=1` query param. This is NOT a user-facing
+ * feature toggle—it exists only for debugging and emergency rollback scenarios.
+ *
+ * Delta I.9 improvement: The legacy modal is now lazy-loaded, so it won't be
+ * included in the bundle unless this rollback valve is activated.
+ *
+ * Will be removed in a future delta (I.10+) when legacy editor is fully deprecated.
+ */
+function useLegacyShotEditorMode() {
+  const [searchParams] = useSearchParams();
+  return searchParams.get("legacyShotEditor") === "1";
+}
 
 // Firestore batch write limit
 const FIRESTORE_BATCH_LIMIT = 500;
@@ -433,6 +455,8 @@ export function ShotsWorkspace() {
   const [expandedGroups, setExpandedGroups] = useState(() => new Set(["all"]));
   // Global collapse/expand state for gallery card sections
   const [gallerySectionsExpanded, setGallerySectionsExpanded] = useState(true);
+  // H.11: "Recent" filter toggle for Cards view triage (in-memory, 24h window)
+  const [recentFilterEnabled, setRecentFilterEnabled] = useState(false);
   const autoSaveTimerRef = useRef(null);
   const autoSaveInflightRef = useRef(false);
   const editingShotRef = useRef(editingShot);
@@ -450,6 +474,9 @@ export function ShotsWorkspace() {
   const redirectNotifiedRef = useRef(false);
   const { clientId, role: globalRole, projectRoles = {}, user, claims } = useAuth();
 
+  // Delta I.8: Legacy shot editor safety valve (debug/emergency rollback only)
+  const forceLegacyEditor = useLegacyShotEditorMode();
+
   // TanStack Query hooks for data fetching with intelligent caching
   const { data: shots = [], isLoading: shotsLoading } = useShots(clientId, projectId);
   const { data: families = [], isLoading: familiesLoading } = useProducts(clientId);
@@ -459,6 +486,19 @@ export function ShotsWorkspace() {
   const { data: locations = [], isLoading: locationsLoading } = useLocations(clientId, locationOptionsScope);
   const { data: lanes = [] } = useLanes(clientId, projectId);
   const { data: projects = [], isLoading: projectsLoading } = useProjects(clientId);
+
+  // Fetch users for "Updated by …" display (Delta H.10)
+  const { data: usersData = [] } = useUsers(clientId);
+
+  // Build UID → displayName lookup for efficient attribution rendering
+  const userDisplayByUid = useMemo(() => {
+    const map = new Map();
+    usersData.forEach((u) => {
+      const label = u.displayName || u.email?.split("@")[0] || "User";
+      map.set(u.id, label);
+    });
+    return map;
+  }, [usersData]);
 
   // TanStack Query mutation hooks for create/update/delete operations
   const createShotMutation = useCreateShot(clientId, { projectId });
@@ -705,6 +745,18 @@ export function ShotsWorkspace() {
     [filteredShots, viewPrefs.sort]
   );
 
+  // H.11: In-memory "Recent" filter for Cards view triage (24h window)
+  const cardsViewShots = useMemo(() => {
+    if (!recentFilterEnabled) return sortedShots;
+    const now = Date.now();
+    const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+    return sortedShots.filter((shot) => {
+      if (!shot.updatedAt) return false;
+      const updatedMs = shot.updatedAt?.toDate?.()?.getTime() ?? shot.updatedAt;
+      return updatedMs >= twentyFourHoursAgo;
+    });
+  }, [sortedShots, recentFilterEnabled]);
+
   // Insights calculations for sidebar
   const talentLookupByName = useMemo(() => {
     const lookup = {};
@@ -737,10 +789,10 @@ export function ShotsWorkspace() {
     setInsightsSidebarOpen((prev) => !prev);
   }, []);
 
-  // Grouped shots calculation for accordion view
+  // Grouped shots calculation for accordion view (H.11: uses cardsViewShots for Recent filter)
   const groupedShots = useMemo(
-    () => calculateGroupedShotTotals(sortedShots, groupBy),
-    [sortedShots, groupBy]
+    () => calculateGroupedShotTotals(cardsViewShots, groupBy),
+    [cardsViewShots, groupBy]
   );
 
   const toggleGroupExpanded = useCallback((groupKey) => {
@@ -3349,6 +3401,22 @@ export function ShotsWorkspace() {
                   projectShootDates={currentProject?.shootDates || []}
                 />
 
+                {/* H.11: "Recent" filter toggle for Cards view triage (24h window) */}
+                {isGalleryView && (
+                  <Button
+                    type="button"
+                    variant={recentFilterEnabled ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setRecentFilterEnabled((prev) => !prev)}
+                    aria-pressed={recentFilterEnabled}
+                    title={recentFilterEnabled ? "Showing recently updated shots (24h)" : "Show only recently updated shots"}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Clock className="h-4 w-4" />
+                    <span className="hidden sm:inline">Recent</span>
+                  </Button>
+                )}
+
                 <FieldSettingsMenu
                   fields={DETAIL_TOGGLE_OPTIONS.map(({ key, label }) => ({
                     key: PREF_TO_COLUMN_KEY.get(key) || key,
@@ -3591,6 +3659,7 @@ export function ShotsWorkspace() {
                           isFocused={focusShotId === shot.id}
                           onFocus={() => handleFocusShot(shot)}
                           globalSectionsExpanded={gallerySectionsExpanded}
+                          userDisplayByUid={userDisplayByUid}
                         />
                       </div>
                     );
@@ -3598,7 +3667,7 @@ export function ShotsWorkspace() {
                 />
               ) : (
                 <VirtualizedGrid
-                  items={sortedShots}
+                  items={cardsViewShots}
                   itemHeight={galleryItemHeight}
                   threshold={80}
                   className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
@@ -3633,6 +3702,7 @@ export function ShotsWorkspace() {
                           isFocused={focusShotId === shot.id}
                           onFocus={() => handleFocusShot(shot)}
                           globalSectionsExpanded={gallerySectionsExpanded}
+                          userDisplayByUid={userDisplayByUid}
                         />
                       </div>
                     );
@@ -3673,7 +3743,18 @@ export function ShotsWorkspace() {
                 } : null}
                 onChangeStatus={canEditShots ? (shot, value) => updateShot(shot, { status: value }) : null}
                 focusedShotId={focusShotId}
-                onFocusShot={handleFocusShot}
+                onFocusShot={(shot) => {
+                  // Delta I.8: Always navigate to V3 editor (cutover complete)
+                  // Legacy editor only accessible via ?legacyShotEditor=1 query param
+                  if (shot?.projectId && !forceLegacyEditor) {
+                    navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
+                  } else if (forceLegacyEditor) {
+                    // Safety valve: open legacy modal when explicitly requested
+                    handleEditShot(shot);
+                  } else {
+                    handleFocusShot(shot);
+                  }
+                }}
               />
             )}
           </div>
@@ -3723,77 +3804,84 @@ export function ShotsWorkspace() {
         />
       )}
 
-      {/* Legacy full create modal (kept for backward compatibility) */}
-      {canEditShots && isCreateModalOpen && (
-        <ShotEditModal
-          open
-          titleId="create-shot-modal-title"
-          heading="Create shot"
-          shotName={createDraft.name || "New shot"}
-          draft={createDraft}
-          onChange={handleCreateDraftChange}
-          onClose={() => {
-            if (isCreatingShot) return;
-            setCreateModalOpen(false);
-            if (projectId) {
-              setCreateDraft({
-                ...initialShotDraft,
-                projectId: projectId,
-                status: DEFAULT_SHOT_STATUS,
-              });
-            }
-            setCreateAutoStatus(createInitialSectionStatuses());
-          }}
-          onSubmit={handleCreateShot}
-          isSaving={isCreatingShot}
-          submitLabel="Create shot"
-          savingLabel="Creating…"
-          families={families}
-          loadFamilyDetails={loadFamilyDetails}
-          createProduct={buildShotProduct}
-          allowProductCreation={canManageProducts}
-          onCreateProduct={handleCreateProductFamily}
-          onCreateColourway={handleCreateColourway}
-          locations={locations}
-          talentOptions={talentOptions}
-          talentPlaceholder={talentLoadError ? "Talent unavailable" : "Select talent"}
-          talentNoOptionsMessage={talentNoOptionsMessage}
-          talentLoadError={talentLoadError}
-          autoSaveStatus={createAutoStatus}
-        />
-      )}
-      {canEditShots && editingShot && (
-        <ShotEditModal
-          open
-          titleId="edit-shot-modal-title"
-          shotId={editingShot.shot.id}
-          shotName={editingShot.shot.name}
-          draft={editingShot.draft}
-          onChange={updateEditingDraft}
-          onClose={closeShotEditor}
-          onSubmit={handleSaveShot}
-          isSaving={isSavingShot}
-          onDelete={() => removeShot(editingShot.shot)}
-          families={families}
-          loadFamilyDetails={loadFamilyDetails}
-          createProduct={buildShotProduct}
-          allowProductCreation={canManageProducts}
-          onCreateProduct={handleCreateProductFamily}
-          onCreateColourway={handleCreateColourway}
-          locations={locations}
-          talentOptions={talentOptions}
-          talentPlaceholder="Select talent"
-          talentNoOptionsMessage={talentNoOptionsMessage}
-          talentLoadError={talentLoadError}
-          projects={projects}
-          currentProjectId={projectId}
-          onMoveToProject={handleMoveToProject}
-          movingProject={movingProject}
-          onCopyToProject={handleCopyToProject}
-          copyingProject={copyingProject}
-          autoSaveStatus={editAutoStatus}
-        />
-      )}
+      {/* Delta I.9: Legacy modals wrapped in Suspense for lazy loading.
+          These modals are only loaded when needed (rollback valve active or legacy create path).
+          This reduces the default bundle size when V3 editor is used. */}
+      <Suspense fallback={null}>
+        {/* Legacy full create modal (kept for backward compatibility - currently dead code) */}
+        {canEditShots && isCreateModalOpen && (
+          <ShotEditModal
+            open
+            titleId="create-shot-modal-title"
+            heading="Create shot"
+            shotName={createDraft.name || "New shot"}
+            draft={createDraft}
+            onChange={handleCreateDraftChange}
+            onClose={() => {
+              if (isCreatingShot) return;
+              setCreateModalOpen(false);
+              if (projectId) {
+                setCreateDraft({
+                  ...initialShotDraft,
+                  projectId: projectId,
+                  status: DEFAULT_SHOT_STATUS,
+                });
+              }
+              setCreateAutoStatus(createInitialSectionStatuses());
+            }}
+            onSubmit={handleCreateShot}
+            isSaving={isCreatingShot}
+            submitLabel="Create shot"
+            savingLabel="Creating…"
+            families={families}
+            loadFamilyDetails={loadFamilyDetails}
+            createProduct={buildShotProduct}
+            allowProductCreation={canManageProducts}
+            onCreateProduct={handleCreateProductFamily}
+            onCreateColourway={handleCreateColourway}
+            locations={locations}
+            talentOptions={talentOptions}
+            talentPlaceholder={talentLoadError ? "Talent unavailable" : "Select talent"}
+            talentNoOptionsMessage={talentNoOptionsMessage}
+            talentLoadError={talentLoadError}
+            autoSaveStatus={createAutoStatus}
+          />
+        )}
+        {/* Delta I.8/I.9: Legacy edit modal - only rendered when safety valve is active (?legacyShotEditor=1)
+            This is kept for emergency rollback scenarios only. */}
+        {canEditShots && editingShot && forceLegacyEditor && (
+          <ShotEditModal
+            open
+            titleId="edit-shot-modal-title"
+            shotId={editingShot.shot.id}
+            shotName={editingShot.shot.name}
+            draft={editingShot.draft}
+            onChange={updateEditingDraft}
+            onClose={closeShotEditor}
+            onSubmit={handleSaveShot}
+            isSaving={isSavingShot}
+            onDelete={() => removeShot(editingShot.shot)}
+            families={families}
+            loadFamilyDetails={loadFamilyDetails}
+            createProduct={buildShotProduct}
+            allowProductCreation={canManageProducts}
+            onCreateProduct={handleCreateProductFamily}
+            onCreateColourway={handleCreateColourway}
+            locations={locations}
+            talentOptions={talentOptions}
+            talentPlaceholder="Select talent"
+            talentNoOptionsMessage={talentNoOptionsMessage}
+            talentLoadError={talentLoadError}
+            projects={projects}
+            currentProjectId={projectId}
+            onMoveToProject={handleMoveToProject}
+            movingProject={movingProject}
+            onCopyToProject={handleCopyToProject}
+            copyingProject={copyingProject}
+            autoSaveStatus={editAutoStatus}
+          />
+        )}
+      </Suspense>
 
       {/* Project Picker Modal for single-shot copy/move */}
       <ProjectPickerModal
@@ -3981,10 +4069,12 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   isFocused = false,
   onFocus = null,
   globalSectionsExpanded = true,
+  userDisplayByUid = null,
 }) {
   const navigate = useNavigate();
 
-  // Card click handler: navigate to editor when flag is enabled, otherwise fall back to focus
+  // Delta I.8: Always navigate to V3 editor on card click (cutover complete)
+  // The flag check is removed since FLAGS.shotEditorV3 is always true.
   const handleCardClick = useCallback(
     (e) => {
       // Don't navigate if clicking on interactive elements (checkboxes, buttons, menus)
@@ -3992,15 +4082,12 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
         return;
       }
 
-      // Navigate to Shot Editor V3 if enabled and shot has projectId
-      if (FLAGS.shotEditorV3 && shot?.projectId) {
+      // Navigate to Shot Editor V3 (always the default after cutover)
+      if (shot?.projectId) {
         navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
-      } else {
-        // Fall back to legacy focus behavior when flag is disabled
-        onFocus?.(shot);
       }
     },
-    [navigate, shot, onFocus]
+    [navigate, shot]
   );
 
   // Collapsible sections state - synced with global state
@@ -4227,6 +4314,18 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     )
   ) : null;
 
+  // "Updated X ago by <name>" element for triage (Delta H.9 + H.10)
+  const updatedByLabel = shot?.updatedBy && userDisplayByUid?.get(shot.updatedBy);
+  const updatedElement = shot?.updatedAt ? (
+    <span
+      className="text-[10px] text-slate-400 dark:text-slate-500 truncate max-w-full"
+      title={`${shot.updatedAt?.toDate?.()?.toLocaleString?.() || ""}${updatedByLabel ? ` by ${updatedByLabel}` : ""}`}
+    >
+      Updated {formatRelativeTime(shot.updatedAt)}
+      {updatedByLabel && <span className="ml-1">by {updatedByLabel}</span>}
+    </span>
+  ) : null;
+
   return (
     <Card
       className={`overflow-hidden border shadow-sm transition ${focusClasses} relative group cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 outline-none`}
@@ -4259,26 +4358,15 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
-                  onEdit?.();
+                  // Delta I.8: Always navigate to V3 editor (cutover complete)
+                  if (shot?.projectId) {
+                    navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
+                  }
                 }}
               >
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit Shot
               </DropdownMenuItem>
-              {FLAGS.shotEditorV3 && shot?.projectId && (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.location.href = `/projects/${shot.projectId}/shots/${shot.id}/editor`;
-                  }}
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Open in Editor
-                  <span className="ml-auto text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">
-                    Beta
-                  </span>
-                </DropdownMenuItem>
-              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={(e) => {
@@ -4351,6 +4439,9 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
 
           {/* Status - in comfy mode, below description */}
           {statusElement}
+
+          {/* Updated timestamp for triage (Delta H.9) */}
+          {updatedElement}
         </div>
       )}
 
@@ -4461,6 +4552,9 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
 
             {/* Status Dropdown */}
             {statusElement}
+
+            {/* Updated timestamp for triage (Delta H.9) */}
+            {updatedElement}
 
             {/* Tags */}
             {tagsSection}
