@@ -385,8 +385,8 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
               shot.name || "Untitled",
               { status: statusLabel }
             )
-          ).catch(() => {
-            // Activity logging failures are non-critical
+          ).catch((error) => {
+            console.error("[ShotEditorHeaderBandV3] Activity logging failed for status change:", error);
           });
         }
 
@@ -445,9 +445,9 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
             suggestedName, // Use new name for activity
             { name: suggestedName }
           )
-        ).catch(() => {
-          // Activity logging failures are non-critical
-        });
+        ).catch((error) => {
+            console.error("[ShotEditorHeaderBandV3] Activity logging failed for suggested name:", error);
+          });
       }
 
       // onSnapshot will update the shot and hide suggestion automatically
@@ -538,9 +538,9 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
             shot.name || "Untitled",
             { shotNumber: newValue || "(cleared)" }
           )
-        ).catch(() => {
-          // Activity logging failures are non-critical
-        });
+        ).catch((error) => {
+            console.error("[ShotEditorHeaderBandV3] Activity logging failed for shot number:", error);
+          });
       }
 
       setShotNumberSaveState("saved");
@@ -662,9 +662,9 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
             shot.name || "Untitled",
             { description: newValue || "(cleared)" }
           )
-        ).catch(() => {
-          // Activity logging failures are non-critical
-        });
+        ).catch((error) => {
+            console.error("[ShotEditorHeaderBandV3] Activity logging failed for description:", error);
+          });
       }
 
       setDescriptionSaveState("saved");
@@ -760,7 +760,17 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
 
       // Build update payload following schema audit pattern
       // Convert date string to Firestore Timestamp, or null if empty
-      const dateTimestamp = newValue ? parseDateToTimestamp(newValue) : null;
+      let dateTimestamp = null;
+      if (newValue) {
+        try {
+          dateTimestamp = parseDateToTimestamp(newValue);
+        } catch (parseError) {
+          console.error("[ShotEditorHeaderBandV3] Invalid date format:", parseError);
+          setDateSaveState("error");
+          setTimeout(() => setDateSaveState("idle"), 2000);
+          return;
+        }
+      }
 
       const updatePayload = {
         date: dateTimestamp,
@@ -787,9 +797,9 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
             shot.name || "Untitled",
             { date: newValue || "(cleared)" }
           )
-        ).catch(() => {
-          // Activity logging failures are non-critical
-        });
+        ).catch((error) => {
+            console.error("[ShotEditorHeaderBandV3] Activity logging failed for date:", error);
+          });
       }
 
       setDateSaveState("saved");
@@ -1086,13 +1096,14 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
             {/* Divider before actions */}
             <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
 
-            {/* Duplicate button */}
+            {/* Duplicate button - disabled until feature implemented */}
             <Button
               variant="ghost"
               size="sm"
               onClick={handleDuplicate}
-              className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-              title="Duplicate shot"
+              disabled
+              className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 disabled:opacity-50"
+              title="Duplicate shot (coming soon)"
             >
               <Copy className="w-4 h-4" />
             </Button>
@@ -1114,9 +1125,9 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
                   Open legacy editor
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleDuplicate}>
+                <DropdownMenuItem onClick={handleDuplicate} disabled className="opacity-50">
                   <Copy className="w-4 h-4 mr-2" />
-                  Duplicate shot
+                  Duplicate shot (coming soon)
                 </DropdownMenuItem>
                 {!readOnly && (
                   <>
