@@ -79,6 +79,30 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
   const [dateSaveState, setDateSaveState] = useState("idle"); // idle | saving | saved | error
   const dateInputRef = useRef(null);
 
+  // Track timeout IDs for cleanup to prevent memory leaks
+  const timeoutsRef = useRef(new Set());
+
+  // Cleanup all timeouts on unmount to prevent state updates on unmounted component
+  useEffect(() => {
+    const timeouts = timeoutsRef.current;
+    return () => {
+      timeouts.forEach((id) => clearTimeout(id));
+      timeouts.clear();
+    };
+  }, []);
+
+  /**
+   * Helper to set a timeout that auto-cleans from tracking set
+   */
+  const setSafeTimeout = useCallback((callback, delay) => {
+    const id = setTimeout(() => {
+      timeoutsRef.current.delete(id);
+      callback();
+    }, delay);
+    timeoutsRef.current.add(id);
+    return id;
+  }, []);
+
   // Auto-focus description textarea and place cursor at end when entering edit mode
   useEffect(() => {
     if (isEditingDescription && descriptionTextareaRef.current) {
@@ -392,7 +416,7 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
 
         setStatusSaveState("saved");
         // Reset to idle after brief feedback
-        setTimeout(() => setStatusSaveState("idle"), 1500);
+        setSafeTimeout(() => setStatusSaveState("idle"), 1500);
       } catch (error) {
         console.error("[ShotEditorHeaderBandV3] Failed to update status:", error);
         setStatusSaveState("idle");
@@ -548,12 +572,12 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
       setShotNumberDraft("");
 
       // Reset to idle after brief feedback
-      setTimeout(() => setShotNumberSaveState("idle"), 1500);
+      setSafeTimeout(() => setShotNumberSaveState("idle"), 1500);
     } catch (error) {
       console.error("[ShotEditorHeaderBandV3] Failed to update shot number:", error);
       setShotNumberSaveState("error");
       // Reset error state after feedback
-      setTimeout(() => setShotNumberSaveState("idle"), 2000);
+      setSafeTimeout(() => setShotNumberSaveState("idle"), 2000);
     }
   }, [clientId, shot?.id, shot?.projectId, shot?.shotNumber, shot?.name, shotNumberDraft, auth?.user]);
 
@@ -672,12 +696,12 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
       setDescriptionDraft("");
 
       // Reset to idle after brief feedback
-      setTimeout(() => setDescriptionSaveState("idle"), 1500);
+      setSafeTimeout(() => setDescriptionSaveState("idle"), 1500);
     } catch (error) {
       console.error("[ShotEditorHeaderBandV3] Failed to update description:", error);
       setDescriptionSaveState("error");
       // Reset error state after feedback
-      setTimeout(() => setDescriptionSaveState("idle"), 2000);
+      setSafeTimeout(() => setDescriptionSaveState("idle"), 2000);
     }
   }, [clientId, shot?.id, shot?.projectId, shot?.description, shot?.type, shot?.name, descriptionDraft, auth?.user]);
 
@@ -767,7 +791,7 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
         } catch (parseError) {
           console.error("[ShotEditorHeaderBandV3] Invalid date format:", parseError);
           setDateSaveState("error");
-          setTimeout(() => setDateSaveState("idle"), 2000);
+          setSafeTimeout(() => setDateSaveState("idle"), 2000);
           return;
         }
       }
@@ -807,12 +831,12 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
       setDateDraft("");
 
       // Reset to idle after brief feedback
-      setTimeout(() => setDateSaveState("idle"), 1500);
+      setSafeTimeout(() => setDateSaveState("idle"), 1500);
     } catch (error) {
       console.error("[ShotEditorHeaderBandV3] Failed to update date:", error);
       setDateSaveState("error");
       // Reset error state after feedback
-      setTimeout(() => setDateSaveState("idle"), 2000);
+      setSafeTimeout(() => setDateSaveState("idle"), 2000);
     }
   }, [clientId, shot?.id, shot?.projectId, shot?.date, shot?.name, dateDraft, auth?.user]);
 
