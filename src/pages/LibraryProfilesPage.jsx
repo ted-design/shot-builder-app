@@ -1,26 +1,23 @@
 /**
- * LibraryProfilesPage — Unified Profiles Discovery Surface (R.4)
+ * LibraryProfilesPage — Unified Profiles Workspace (R.5)
  *
- * DESIGN PHILOSOPHY (from R.3):
- * - Unified discovery: Talent + Crew in one surface
- * - Search-first: Primary discovery via search, NOT scrolling a list
- * - NO left rail as primary: Central card grid scales to 500+ profiles
+ * DESIGN PHILOSOPHY (from R.1/R.3, refined in R.5):
+ * - Master-detail workspace: Left rail + right canvas
+ * - Rail-first discovery: Compact list scales to 500+ profiles
  * - URL state sync: Filter state (?type=talent|crew|all) in URL
  * - Inline editing: Profile canvas uses inline edit fields
+ * - Stable frame: No jarring reflows on selection
  *
- * CRITICAL RULES (from R.4 spec):
- * 1. Discovery != Editing — discovery is calm, editing happens on selection
- * 2. Search-first, NOT rail-first — avoid scroll prison
- * 3. Talent != Crew visual emphasis — same system, different display
- * 4. Inline editing canonical — modals only for create/media
- * 5. URL-addressable filter state — shareable links
+ * LAYOUT (R.5):
+ * - LEFT RAIL (~280px): Search, type filter, profile list
+ * - RIGHT CANVAS (flex): Selected profile detail with sections
  *
- * LAYOUT:
- * - Header band with title, description, count, create button
- * - Search input (primary)
- * - Type filter pills (All / Talent / Crew) with URL sync
- * - Card grid (central, responsive)
- * - Selection → Canvas panel slides in from right
+ * CRITICAL RULES:
+ * 1. Rail is primary navigation, canvas is focused detail
+ * 2. Auto-select first result when no selection
+ * 3. Inline editing canonical — modals only for create/media
+ * 4. URL-addressable filter state — shareable links
+ * 5. Empty states are intentional, not broken
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -38,9 +35,9 @@ import { talentPath, crewMemberPath } from "../lib/paths";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
-import ProfileCard from "../components/profiles/ProfileCard";
 import ProfileCanvas from "../components/profiles/ProfileCanvas";
 import TalentCreateModal from "../components/talent/TalentCreateModal";
+import Thumb from "../components/Thumb";
 import {
   Search,
   Plus,
@@ -81,29 +78,38 @@ function buildDisplayName(profile) {
   return combined || "Unnamed";
 }
 
+function getSecondaryLine(profile, type, deptName, positionName) {
+  if (type === "talent") {
+    return profile.agency || null;
+  }
+  // Crew: company or position/department
+  const parts = [positionName, deptName].filter(Boolean);
+  if (parts.length > 0) return parts.join(" · ");
+  return profile.company || null;
+}
+
 // ============================================================================
-// TYPE FILTER PILLS
+// TYPE FILTER PILLS (Rail version - compact)
 // ============================================================================
 
-function TypeFilterPills({ value, onChange, counts }) {
+function TypeFilterPillsCompact({ value, onChange, counts }) {
   const options = [
-    { id: "all", label: "All", icon: UserCircle, count: counts.all },
-    { id: "talent", label: "Talent", icon: Users, count: counts.talent },
-    { id: "crew", label: "Crew", icon: User, count: counts.crew },
+    { id: "all", label: "All", count: counts.all },
+    { id: "talent", label: "Talent", count: counts.talent },
+    { id: "crew", label: "Crew", count: counts.crew },
   ];
 
   return (
-    <div className="flex items-center gap-1 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1">
+    <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-slate-800">
       {options.map((opt) => {
         const isActive = value === opt.id;
-        const Icon = opt.icon;
         return (
           <button
             key={opt.id}
             type="button"
             onClick={() => onChange(opt.id)}
             className={`
-              flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium
+              flex-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium
               transition-all duration-150
               ${isActive
                 ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
@@ -111,10 +117,9 @@ function TypeFilterPills({ value, onChange, counts }) {
               }
             `}
           >
-            <Icon className="w-4 h-4" />
             <span>{opt.label}</span>
             <span className={`
-              text-xs tabular-nums
+              tabular-nums
               ${isActive ? "text-slate-500 dark:text-slate-400" : "text-slate-400 dark:text-slate-500"}
             `}>
               {opt.count}
@@ -127,37 +132,85 @@ function TypeFilterPills({ value, onChange, counts }) {
 }
 
 // ============================================================================
-// HEADER BAND
+// PROFILE LIST ITEM (Rail row - compact)
 // ============================================================================
 
-function ProfilesHeaderBand({ totalCount, canCreate, onCreateClick }) {
-  return (
-    <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/95">
-      <div className="px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-              Profiles
-            </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              Browse talent and crew across your organization
-            </p>
-          </div>
+function ProfileListItem({
+  profile,
+  type,
+  isSelected,
+  onClick,
+  secondaryLine,
+}) {
+  const name = buildDisplayName(profile);
+  const isTalent = type === "talent";
 
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-500 dark:text-slate-400 tabular-nums">
-              {totalCount} {totalCount === 1 ? "profile" : "profiles"}
-            </span>
-            {canCreate && (
-              <Button onClick={onCreateClick} className="gap-1.5">
-                <Plus className="w-4 h-4" />
-                New profile
-              </Button>
-            )}
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-lg
+        transition-all duration-150
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset
+        ${isSelected
+          ? "bg-primary/10 dark:bg-primary/20"
+          : "hover:bg-slate-100 dark:hover:bg-slate-800"
+        }
+      `}
+    >
+      {/* Avatar/Thumbnail */}
+      <div className={`
+        flex-shrink-0 overflow-hidden bg-slate-200 dark:bg-slate-700
+        ${isTalent ? "w-10 h-12 rounded-md" : "w-10 h-10 rounded-full"}
+      `}>
+        {isTalent ? (
+          <Thumb
+            path={profile.headshotPath || null}
+            size={100}
+            alt={name}
+            className="w-full h-full"
+            imageClassName="w-full h-full object-cover object-top"
+            fallback={
+              <div className="w-full h-full flex items-center justify-center">
+                <Users className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+              </div>
+            }
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <User className="w-5 h-5 text-slate-400 dark:text-slate-500" />
           </div>
-        </div>
+        )}
       </div>
-    </header>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className={`
+            text-sm font-medium truncate
+            ${isSelected ? "text-slate-900 dark:text-slate-100" : "text-slate-700 dark:text-slate-300"}
+          `}>
+            {name}
+          </span>
+          {/* Type badge - subtle */}
+          <span className={`
+            flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide
+            ${isTalent
+              ? "bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400"
+              : "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400"
+            }
+          `}>
+            {isTalent ? "T" : "C"}
+          </span>
+        </div>
+        {secondaryLine && (
+          <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+            {secondaryLine}
+          </p>
+        )}
+      </div>
+    </button>
   );
 }
 
@@ -165,18 +218,18 @@ function ProfilesHeaderBand({ totalCount, canCreate, onCreateClick }) {
 // EMPTY STATES
 // ============================================================================
 
-function EmptyState({ type, hasQuery, onCreateClick, canCreate }) {
+function RailEmptyState({ type, hasQuery }) {
   if (hasQuery) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-4">
-        <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-4">
-          <Search className="w-8 h-8 text-slate-300 dark:text-slate-500" />
+      <div className="flex flex-col items-center justify-center py-12 px-4">
+        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-3">
+          <Search className="w-6 h-6 text-slate-300 dark:text-slate-500" />
         </div>
-        <h2 className="text-lg font-medium text-slate-700 dark:text-slate-300 mb-2">
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-400 text-center">
           No matches found
-        </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-sm">
-          Try a different search term or adjust your filters.
+        </p>
+        <p className="text-xs text-slate-500 dark:text-slate-500 text-center mt-1">
+          Try a different search term
         </p>
       </div>
     );
@@ -186,26 +239,38 @@ function EmptyState({ type, hasQuery, onCreateClick, canCreate }) {
   const label = type === "all" ? "profiles" : type;
 
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4">
-      <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-6">
-        <Icon className="w-10 h-10 text-slate-300 dark:text-slate-500" />
+    <div className="flex flex-col items-center justify-center py-12 px-4">
+      <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-4">
+        <Icon className="w-7 h-7 text-slate-300 dark:text-slate-500" />
       </div>
-      <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">
+      <p className="text-sm font-medium text-slate-600 dark:text-slate-400 text-center">
         No {label} yet
-      </h2>
-      <p className="text-sm text-slate-600 dark:text-slate-400 text-center max-w-md mb-6">
-        {type === "talent"
-          ? "Talent profiles help you track models for casting across projects."
-          : type === "crew"
-            ? "Crew profiles help you manage production team members and their roles."
-            : "Add talent or crew profiles to build your organization's people directory."}
       </p>
-      {canCreate && (
-        <Button onClick={onCreateClick} className="gap-1.5">
-          <Plus className="w-4 h-4" />
-          Add your first {type === "all" ? "profile" : type}
-        </Button>
-      )}
+      <p className="text-xs text-slate-500 dark:text-slate-500 text-center mt-1 max-w-[200px]">
+        {type === "talent"
+          ? "Add talent profiles for casting"
+          : type === "crew"
+            ? "Add crew members to your team"
+            : "Add talent or crew to get started"}
+      </p>
+    </div>
+  );
+}
+
+function CanvasEmptyState() {
+  return (
+    <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+      <div className="text-center max-w-sm px-6">
+        <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
+          <UserCircle className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+        </div>
+        <h2 className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">
+          Select a profile
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-500">
+          Choose someone from the list to view their details
+        </p>
+      </div>
     </div>
   );
 }
@@ -316,6 +381,20 @@ export default function LibraryProfilesPage() {
   }), [allProfiles.length, talent.length, crew.length]);
 
   // ══════════════════════════════════════════════════════════════════════════
+  // AUTO-SELECT FIRST PROFILE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  useEffect(() => {
+    // Auto-select first profile if none selected and results exist
+    // Note: Use filteredProfiles.length in deps to avoid re-running on array identity change
+    if (!selectedProfile && filteredProfiles.length > 0 && !loading) {
+      const first = filteredProfiles[0];
+      setSelectedProfile(first);
+      setSelectedType(first._type);
+    }
+  }, [filteredProfiles.length, selectedProfile, loading]);
+
+  // ══════════════════════════════════════════════════════════════════════════
   // HANDLERS
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -329,16 +408,14 @@ export default function LibraryProfilesPage() {
       }
       return next;
     });
+    // Clear selection when changing type filter
+    setSelectedProfile(null);
+    setSelectedType(null);
   }, [setSearchParams]);
 
   const handleSelectProfile = useCallback((profile) => {
     setSelectedProfile(profile);
     setSelectedType(profile._type);
-  }, []);
-
-  const handleCloseCanvas = useCallback(() => {
-    setSelectedProfile(null);
-    setSelectedType(null);
   }, []);
 
   const handleCreateClick = useCallback(() => {
@@ -400,7 +477,10 @@ export default function LibraryProfilesPage() {
   // RENDER
   // ══════════════════════════════════════════════════════════════════════════
 
-  // Loading state
+  const canEdit =
+    selectedType === "talent" ? canManageTalentRoles : canManageCrewRoles;
+
+  // Full page loading
   if (loading && allProfiles.length === 0) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -414,92 +494,110 @@ export default function LibraryProfilesPage() {
     );
   }
 
-  const canEdit =
-    selectedType === "talent" ? canManageTalentRoles : canManageCrewRoles;
-
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
-      {/* Header band */}
-      <ProfilesHeaderBand
-        totalCount={counts.all}
-        canCreate={canCreate}
-        onCreateClick={handleCreateClick}
-      />
-
-      {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Discovery surface */}
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${selectedProfile ? "lg:w-1/2" : ""}`}>
-          {/* Search and filters */}
-          <div className="px-6 py-4 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              {/* Search input */}
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  type="text"
-                  placeholder="Search profiles..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-
-              {/* Type filter pills */}
-              <TypeFilterPills
-                value={typeFilter}
-                onChange={handleTypeChange}
-                counts={counts}
-              />
+    <div className="h-full flex flex-col bg-white dark:bg-slate-900">
+      {/* Header */}
+      <header className="flex-shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Profiles
+              </h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                Manage talent and crew for your organization
+              </p>
             </div>
-          </div>
 
-          {/* Results area */}
-          <div className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900">
-            {filteredProfiles.length === 0 ? (
-              <EmptyState
-                type={typeFilter}
-                hasQuery={!!searchQuery.trim()}
-                onCreateClick={handleCreateClick}
-                canCreate={canCreate}
-              />
-            ) : (
-              <div className="p-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                  {filteredProfiles.map((profile) => (
-                    <ProfileCard
-                      key={`${profile._type}-${profile.id}`}
-                      profile={profile}
-                      type={profile._type}
-                      isSelected={
-                        selectedProfile?.id === profile.id &&
-                        selectedProfile?._type === profile._type
-                      }
-                      onClick={() => handleSelectProfile(profile)}
-                      deptName={profile.departmentId ? deptNameById.get(profile.departmentId) : null}
-                      positionName={profile.positionId ? positionNameById.get(profile.positionId) : null}
-                    />
-                  ))}
-                </div>
-              </div>
+            {canCreate && (
+              <Button onClick={handleCreateClick} size="sm" className="gap-1.5">
+                <Plus className="w-4 h-4" />
+                New profile
+              </Button>
             )}
           </div>
         </div>
+      </header>
 
-        {/* Profile canvas (slides in on selection) */}
-        {selectedProfile && (
-          <div className="hidden lg:block w-[420px] flex-shrink-0">
+      {/* Main workspace: Rail + Canvas */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* LEFT RAIL */}
+        <aside className="w-[280px] flex-shrink-0 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900">
+          {/* Search + Filter */}
+          <div className="flex-shrink-0 p-3 space-y-3 border-b border-slate-100 dark:border-slate-800">
+            {/* Search input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 text-sm"
+              />
+            </div>
+
+            {/* Type filter pills */}
+            <TypeFilterPillsCompact
+              value={typeFilter}
+              onChange={handleTypeChange}
+              counts={counts}
+            />
+          </div>
+
+          {/* Profile list */}
+          <div className="flex-1 overflow-y-auto">
+            {filteredProfiles.length === 0 ? (
+              <RailEmptyState type={typeFilter} hasQuery={!!searchQuery.trim()} />
+            ) : (
+              <div className="p-2 space-y-0.5">
+                {filteredProfiles.map((profile) => (
+                  <ProfileListItem
+                    key={`${profile._type}-${profile.id}`}
+                    profile={profile}
+                    type={profile._type}
+                    isSelected={
+                      selectedProfile?.id === profile.id &&
+                      selectedProfile?._type === profile._type
+                    }
+                    onClick={() => handleSelectProfile(profile)}
+                    secondaryLine={getSecondaryLine(
+                      profile,
+                      profile._type,
+                      profile.departmentId ? deptNameById.get(profile.departmentId) : null,
+                      profile.positionId ? positionNameById.get(profile.positionId) : null
+                    )}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Rail footer with count */}
+          <div className="flex-shrink-0 px-3 py-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+            <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+              {filteredProfiles.length} {filteredProfiles.length === 1 ? "profile" : "profiles"}
+              {searchQuery.trim() && " found"}
+            </p>
+          </div>
+        </aside>
+
+        {/* RIGHT CANVAS */}
+        <main className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-900">
+          {selectedProfile ? (
             <ProfileCanvas
               profile={selectedProfile}
               type={selectedType}
               canEdit={canEdit}
               onUpdate={handleProfileUpdate}
-              onClose={handleCloseCanvas}
+              onClose={null} // No close in workspace mode
               deptName={selectedProfile.departmentId ? deptNameById.get(selectedProfile.departmentId) : null}
               positionName={selectedProfile.positionId ? positionNameById.get(selectedProfile.positionId) : null}
             />
-          </div>
-        )}
+          ) : (
+            <CanvasEmptyState />
+          )}
+        </main>
       </div>
 
       {/* Create modal (talent only for now — crew uses existing modal) */}
