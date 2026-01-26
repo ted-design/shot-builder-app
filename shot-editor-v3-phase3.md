@@ -230,6 +230,7 @@ Phase 3 is NOT complete if:
 🏁 **Shot Editing Convergence: COMPLETE** — All surfaces use V3; convergence plan closed (J.1–J.7)
 ✅ **Delta L.4: COMPLETED** — Library Talent: Avatar Cropping Fix + Structured Measurements + Functional Edit
 ✅ **Delta L.5: COMPLETED** — Library Departments: Canonical Full-Page Workspace Shell
+✅ **Delta P.5: COMPLETED** — Products Workspace: Activate Assets Section (Read-Only, Real Data)
 
 ---
 
@@ -3723,6 +3724,268 @@ User names resolved via `useUsers(clientId)` hook → `clients/{clientId}/users`
 | Timestamp hover | Hover over relative timestamp | Shows absolute date (e.g., "Jan 15, 2025") |
 | Overview card metrics | Click Activity card in Overview | Shows "X events" count matching timeline entries |
 | Nav badge | Check Activity nav item badge | Shows count matching actual events |
+
+---
+
+## Delta P.5: Products Workspace - Activate Assets Section (Read-Only)
+
+**Date:** 2026-01-26
+**Status:** ✅ Complete
+
+### Objective
+
+Replace the "coming soon" Assets section in Products V3 with a real, designed, read-only assets surface that displays existing product images, without schema changes.
+
+### Context
+
+The Products V3 workspace shell includes five sections: Overview, Colorways, Samples, Assets, and Activity. The Assets section was showing a placeholder "coming soon" state. This delta activates the Assets section to display existing product images (thumbnail, header, and colorway images) with a well-designed empty state for future document uploads.
+
+### Data Discovery
+
+**Existing asset data on products:**
+- Product Family: `thumbnailImagePath`, `headerImagePath`
+- Product SKU: `imagePath` (one per colorway)
+
+**No dedicated assets collection exists.** Products do not have an `attachments[]` array like shots do. Per spec, this delta is read-only and does not introduce new schema. Document uploads are deferred to P.6.
+
+### Design Approach
+
+- **Summary bar**: Shows "X images | 0 documents" count at top
+- **Product Images group**: Displays family-level images (thumbnail, header)
+- **Colorway Images group**: Displays SKU images with colorway name labels
+- **Image cards**: Square aspect ratio with gradient overlay and label
+- **Documents section**: Intentional empty state with disabled upload button
+- **Context footer**: Explains current state and hints at future document support
+
+### Data Sources (No Schema Changes)
+
+Images collected from:
+1. `family.thumbnailImagePath` → "Thumbnail" label
+2. `family.headerImagePath` → "Header Image" label (if different from thumbnail)
+3. `skus[].imagePath` → Colorway name as label
+
+User names for activity are not needed in Assets section.
+
+### Implementation Details
+
+**AssetsSection Component:**
+- Receives `family` and `skus` as props
+- Uses `useMemo` to compute `existingImages` array from family and SKU data
+- Groups images by category: "Product Images" and "Colorway Images"
+- Uses `AppImage` component with `preferredSize={200}` for thumbnails
+- Documents section shows designed empty state with disabled "Upload document" button
+- Context footer explains limitations
+
+**BentoCard Update:**
+- Assets card in Overview section now shows real image count instead of "Coming soon"
+- Removed `variant="coming-soon"` prop
+- Added `metric`, `metricLabel`, and `subMetrics` props
+
+**Nav Rail Badge:**
+- Assets badge shows real image count instead of hardcoded 0
+- Count computed from: family images + SKU images with non-null paths
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/ProductDetailPageV3.jsx` | Replaced placeholder AssetsSection with real image display; uses shared helpers for metrics; updated Assets BentoCard; passed family/skus to AssetsSection |
+| `src/components/products/workspace/overviewHelpers.js` | Updated `computeAssetMetrics` and `computeActivityMetrics` to accept product data instead of mock arrays |
+| `src/components/products/workspace/__tests__/overviewHelpers.test.js` | Updated tests for new function signatures |
+| `shot-editor-v3-phase3.md` | This delta entry (P.5) |
+
+### Line Ranges Changed
+
+- `src/pages/ProductDetailPageV3.jsx`:
+  - Lines 72-127: Added `assetMetrics` computation in OverviewSection
+  - Lines 175-207: Updated Assets BentoCard (removed coming-soon variant, added real metrics)
+  - Lines 203-329: Replaced placeholder AssetsSection with real image gallery implementation
+  - Lines 762-793: Updated counts useMemo to compute real asset count
+  - Lines 970-972: Updated AssetsSection call to pass family and skus props
+
+### Key Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Image grouping** | By category (Product Images, Colorway Images) | Logical organization; matches how images are sourced |
+| **Card layout** | Square aspect ratio with overlay | Consistent with other image cards in app; shows label clearly |
+| **Documents empty state** | Disabled button, not hidden | Communicates intent; shows where uploads will go |
+| **No upload in P.5** | Read-only display only | Per spec: avoid new upload pipeline unless proven component exists |
+| **Count includes all images** | Family + all SKU images | Accurate representation of all product imagery |
+
+### Before/After
+
+**Before:**
+- Assets BentoCard: Grayed out with "Coming soon" badge, disabled
+- Assets section: Generic WorkspaceEmptyState with "Upload tech packs..." placeholder
+- Nav rail assets badge: Always showed 0
+
+**After:**
+- Assets BentoCard: Active, clickable, shows "3 assets" with "3 images" submetric
+- Assets section: Real image gallery with Product Images and Colorway Images groups, designed Documents empty state
+- Nav rail assets badge: Shows real count based on existing images
+
+### Code Quality: DRY Refactor
+
+During review, duplicate counting logic was identified and extracted to shared helpers:
+
+| Helper | Location | Parameters |
+|--------|----------|------------|
+| `computeAssetMetrics` | `overviewHelpers.js` | `(family, skus)` |
+| `computeActivityMetrics` | `overviewHelpers.js` | `(family)` |
+
+These helpers are now used by both `OverviewSection` and the main component's `counts` useMemo, eliminating ~40 lines of duplicate code.
+
+### Intentionally NOT Touched
+
+- Samples section (remains demo data)
+- No new Firestore collections or subcollections
+- No new write paths or mutations
+- No changes to productMutations.js or product schema
+- No changes to Firestore security rules
+- No upload functionality (deferred to P.6)
+
+### Verification
+
+- [x] `npm run lint` — Zero warnings
+- [x] `npm run build` — Succeeds
+- [x] Playwright screenshots captured
+
+### Screenshots
+
+| Screenshot | Description |
+|------------|-------------|
+| `.playwright-mcp/products-assets-after.png` | Assets section showing Product Images and Colorway Images groups |
+| `.playwright-mcp/products-assets-documents-empty.png` | Scrolled view showing Documents empty state with disabled upload button |
+| `.playwright-mcp/products-overview-full.png` | Overview section showing Assets card with "3 assets" count |
+
+### Manual QA Checklist
+
+| Scenario | Steps | Expected |
+|----------|-------|----------|
+| Assets section with images | Navigate to product detail, click Assets in rail | Shows grouped images (Product Images, Colorway Images) |
+| Image count accuracy | Compare Assets card count to actual images in section | Counts match |
+| Documents empty state | Scroll to Documents section | Shows "No documents yet" with disabled upload button |
+| Overview card metrics | View Assets card in Overview | Shows "X assets" with "X images" submetric |
+| Nav badge | Check Assets nav item badge | Shows count matching actual images |
+| Assets card clickable | Click Assets card in Overview | Navigates to Assets section |
+
+### Future: Delta P.7
+
+**P.7 — Assets Upload & Document Management** (deferred):
+- Add `assets: []` array to productFamilySchema following shot.attachments pattern
+- Wire MultiImageAttachmentManager or similar component
+- Support document uploads (PDFs, tech packs)
+- Add delete/reorder capability
+
+---
+
+## Delta P.6: Products Gallery View Editor Entry + Consistent returnTo Navigation
+
+**Date:** 2026-01-26
+**Status:** ✅ Complete (Verified — No Code Changes Required)
+
+### Objective
+
+Verify that Products gallery view correctly opens the product detail/editor page, and confirm that returnTo navigation works consistently across both gallery and table views.
+
+### Context
+
+A potential bug was reported where "Products V3 editor/detail is not accessible from gallery view (only table view)". Investigation was required to verify the claim and implement any necessary fixes.
+
+### Investigation Results
+
+**Finding: No bug exists.** The gallery view navigation is fully functional:
+
+1. **Gallery view click works** — Clicking any product card in gallery view navigates to `/products/{productId}?returnTo=%2Fproducts`
+2. **Table view click works** — Clicking the product name in table view navigates to the same URL
+3. **returnTo parameter is included** — Both views include the returnTo query parameter
+4. **Return navigation works** — The "← Return to Products" link correctly navigates back to the products list
+5. **View state is preserved** — View mode (gallery/table) persists via localStorage, so returning maintains the user's view preference
+
+### Root Cause Analysis
+
+There was no bug. The implementation at `src/pages/ProductsPage.jsx` correctly handles gallery card clicks:
+
+```javascript
+// Line 1666-1681: handleCardClick navigates to detail page
+const handleCardClick = (event) => {
+  if (event.target.closest('button, input, [role="button"], [role="checkbox"]')) return;
+  if (selectionModeActive) {
+    toggleFamilySelection(family.id);
+    return;
+  }
+  navigate(`/products/${family.id}?returnTo=${encodeURIComponent('/products')}`);
+};
+```
+
+The Card components in `renderComfyCard()`, `renderCompactCard()`, and `renderWideCard()` all have:
+- `onClick={isCardClickable ? handleCardClick : undefined}`
+- `isCardClickable = true` (always true)
+- `cursor-pointer` class for visual feedback
+- Built-in hover effects from Card component (`hover:-translate-y-0.5 hover:shadow-md`)
+
+### Behavior Verification Table
+
+| Scenario | Before | After (Verified) |
+|----------|--------|------------------|
+| Click gallery card | Opens product detail | ✅ Works correctly |
+| Click table row product name | Opens product detail | ✅ Works correctly |
+| returnTo parameter | Included in URL | ✅ Encoded as `%2Fproducts` |
+| "Return to Products" link | Returns to list | ✅ Works correctly |
+| View state on return | Preserved | ✅ Via localStorage |
+| Card hover effect | Visual feedback | ✅ Shadow + lift on hover |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `shot-editor-v3-phase3.md` | This delta entry (P.6) — documentation only |
+
+**No code changes were required.** The functionality was already correctly implemented.
+
+### Key Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **View state storage** | localStorage (not URL) | Existing pattern; simpler; no URL bloat |
+| **returnTo format** | `/products` encoded | Matches existing pattern; secure (validates internal paths only) |
+| **Card clickable area** | Entire card | Intuitive; excludes interactive elements (buttons, checkboxes) |
+| **No changes needed** | Documentation only | Functionality verified working as designed |
+
+### Verification
+
+- [x] `npm run lint` — Zero warnings
+- [x] `npm run build` — Succeeds
+- [x] Playwright screenshots captured
+
+### Screenshots
+
+| Screenshot | Description |
+|------------|-------------|
+| `.playwright-mcp/products-gallery-affordance.png` | Products gallery view showing cards with hover affordance |
+| `.playwright-mcp/products-gallery-open-detail.png` | Product detail page opened from gallery view |
+| `.playwright-mcp/products-gallery-return.png` | Return to gallery view after clicking "Return to Products" |
+| `.playwright-mcp/products-table-open-detail-final.png` | Product detail page opened from table view |
+
+### Manual QA Checklist
+
+| Scenario | Steps | Expected |
+|----------|-------|----------|
+| Gallery card click | Products page → Gallery view → Click card | Opens product detail |
+| Table name click | Products page → Table view → Click product name | Opens product detail |
+| Return navigation | Product detail → Click "Return to Products" | Returns to products list |
+| View state preserved | Gallery view → Open product → Return | Still in gallery view |
+| returnTo in URL | Check browser URL after opening product | Contains `?returnTo=%2Fproducts` |
+
+### Intentionally NOT Touched
+
+- No changes to ProductsPage.jsx
+- No changes to ProductDetailPageV3.jsx
+- No changes to Card component hover styles
+- No changes to routing or navigation patterns
+- No URL-based view state (localStorage is sufficient)
+- No schema changes
 
 ---
 
