@@ -44,8 +44,6 @@ import {
   Users,
   User,
   UserCircle,
-  Building2,
-  Briefcase,
 } from "lucide-react";
 
 // ============================================================================
@@ -388,12 +386,13 @@ export default function LibraryProfilesPage() {
 
   useEffect(() => {
     // Auto-select first profile if none selected and results exist
+    // Note: Use filteredProfiles.length in deps to avoid re-running on array identity change
     if (!selectedProfile && filteredProfiles.length > 0 && !loading) {
       const first = filteredProfiles[0];
       setSelectedProfile(first);
       setSelectedType(first._type);
     }
-  }, [filteredProfiles, selectedProfile, loading]);
+  }, [filteredProfiles.length, selectedProfile, loading]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // HANDLERS
