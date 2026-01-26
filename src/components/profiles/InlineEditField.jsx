@@ -1,11 +1,17 @@
 /**
- * InlineEditField — Reusable inline edit component (R.4)
+ * InlineEditField — Reusable inline edit component (R.4 → R.6)
  *
  * Implements the canonical inline editing model from R.1/R.3:
  * - Click field → transforms to input
  * - Enter/blur → save
  * - Escape → cancel
  * - Error state shown inline
+ *
+ * R.6 IMPROVEMENTS:
+ * - Calmer edit affordances (no "(click to edit)" text)
+ * - Subtle hover states that invite interaction
+ * - Better focus ring styling during edit mode
+ * - Keyboard hint shown via title attribute only
  *
  * DESIGN PRINCIPLES:
  * - Edit-in-place by default (no modals for existing entities)
@@ -142,12 +148,13 @@ export default function InlineEditField({
         type="button"
         onClick={handleStartEdit}
         disabled={disabled}
+        title={disabled ? undefined : "Click to edit"}
         className={`
-          group text-left w-full rounded-md px-2 py-1 -mx-2 -my-1
-          transition-colors duration-150
+          group text-left w-full rounded-lg px-2.5 py-1.5 -mx-2.5 -my-1.5
+          transition-all duration-150
           ${disabled
-            ? "cursor-default opacity-60"
-            : "hover:bg-slate-100 dark:hover:bg-slate-700/50 cursor-text"
+            ? "cursor-default"
+            : "hover:bg-slate-100/80 dark:hover:bg-slate-700/40 cursor-text"
           }
           ${className}
         `}
@@ -160,11 +167,6 @@ export default function InlineEditField({
         `}>
           {isEmpty ? placeholder : value}
         </span>
-        {!disabled && (
-          <span className="ml-1 opacity-0 group-hover:opacity-50 transition-opacity text-xs text-slate-400">
-            (click to edit)
-          </span>
-        )}
       </button>
     );
   }
@@ -177,7 +179,7 @@ export default function InlineEditField({
 
   return (
     <div className={`relative ${className}`}>
-      <div className="flex items-start gap-1">
+      <div className="flex items-start gap-1.5">
         <InputComponent
           ref={inputRef}
           value={editValue}
@@ -187,37 +189,36 @@ export default function InlineEditField({
           disabled={isSaving}
           placeholder={placeholder}
           className={`
-            flex-1 rounded-md border px-2 py-1 text-base
-            transition-colors duration-150
-            focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
+            flex-1 rounded-lg border px-2.5 py-1.5 text-sm
+            transition-all duration-150
+            focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50
             disabled:opacity-60 disabled:cursor-not-allowed
             ${error
-              ? "border-red-300 dark:border-red-700"
-              : "border-slate-300 dark:border-slate-600"
+              ? "border-red-300 dark:border-red-700 bg-red-50/50 dark:bg-red-900/10"
+              : "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800"
             }
-            bg-white dark:bg-slate-800
             text-slate-900 dark:text-slate-100
             placeholder:text-slate-400 dark:placeholder:text-slate-500
-            ${multiline ? "resize-none" : ""}
+            ${multiline ? "resize-none leading-relaxed" : ""}
             ${inputClassName}
           `}
           {...inputProps}
         />
 
-        {/* Save/Cancel buttons */}
-        <div className="flex items-center gap-0.5 flex-shrink-0">
+        {/* Save/Cancel buttons — subtle, calm */}
+        <div className="flex items-center gap-0.5 flex-shrink-0 pt-0.5">
           <button
             type="button"
             data-inline-edit-action="save"
             onClick={handleSave}
             disabled={isSaving}
-            className="p-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 disabled:opacity-50"
+            className="p-1.5 rounded-md hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 disabled:opacity-50 transition-colors"
             title="Save (Enter)"
           >
             {isSaving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
-              <Check className="w-4 h-4" />
+              <Check className="w-3.5 h-3.5" />
             )}
           </button>
           <button
@@ -225,17 +226,17 @@ export default function InlineEditField({
             data-inline-edit-action="cancel"
             onClick={handleCancel}
             disabled={isSaving}
-            className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 disabled:opacity-50"
+            className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 disabled:opacity-50 transition-colors"
             title="Cancel (Escape)"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
       {/* Error message */}
       {error && (
-        <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+        <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
           {error}
         </p>
       )}
