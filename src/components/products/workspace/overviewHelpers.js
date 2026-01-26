@@ -79,15 +79,26 @@ export function computeColorwayMetrics(skus = []) {
 }
 
 /**
- * Compute assets metrics for overview card (placeholder - returns mock data)
- * @param {Array} assets - Array of asset objects
+ * Compute assets metrics for overview card
+ * Counts existing product images from family and SKU data
+ *
+ * @param {Object} family - Product family object with headerImagePath, thumbnailImagePath
+ * @param {Array} skus - Array of SKU objects with imagePath
  * @returns {Object} { total, subMetrics }
  */
-export function computeAssetMetrics(assets = []) {
-  // Mock data for now
-  const total = assets.length;
+export function computeAssetMetrics(family, skus = []) {
+  let imageCount = 0;
 
-  if (total === 0) {
+  // Count family-level images
+  if (family?.headerImagePath) imageCount += 1;
+  if (family?.thumbnailImagePath && family.thumbnailImagePath !== family.headerImagePath) {
+    imageCount += 1;
+  }
+
+  // Count SKU colorway images
+  imageCount += skus.filter((sku) => sku.imagePath).length;
+
+  if (imageCount === 0) {
     return {
       total: 0,
       subMetrics: [],
@@ -95,35 +106,51 @@ export function computeAssetMetrics(assets = []) {
   }
 
   return {
-    total,
-    subMetrics: [
-      { value: Math.floor(total * 0.6), label: "images", variant: "default" },
-      { value: Math.ceil(total * 0.4), label: "docs", variant: "default" },
-    ],
+    total: imageCount,
+    subMetrics: [{ value: imageCount, label: "images", variant: "default" }],
   };
 }
 
+// Threshold in milliseconds to distinguish meaningful updates from creation (60 seconds)
+const ACTIVITY_UPDATE_THRESHOLD_MS = 60000;
+
 /**
- * Compute activity metrics for overview card (placeholder - returns mock data)
- * @param {Array} activities - Array of activity objects
+ * Compute activity metrics for overview card
+ * Counts activity events from audit fields (createdAt, updatedAt)
+ *
+ * @param {Object} family - Product family object with createdAt, updatedAt timestamps
  * @returns {Object} { total, subMetrics }
  */
-export function computeActivityMetrics(activities = []) {
-  const total = activities.length;
+export function computeActivityMetrics(family) {
+  let count = 0;
 
-  if (total === 0) {
+  // Count creation event
+  if (family?.createdAt) {
+    count += 1;
+  }
+
+  // Count update event if meaningfully different from creation (> 60 seconds)
+  if (family?.updatedAt && family?.createdAt) {
+    const createdTime = family.createdAt?.toDate?.() || family.createdAt;
+    const updatedTime = family.updatedAt?.toDate?.() || family.updatedAt;
+    const timeDiff = Math.abs(
+      new Date(updatedTime).getTime() - new Date(createdTime).getTime()
+    );
+    if (timeDiff > ACTIVITY_UPDATE_THRESHOLD_MS) {
+      count += 1;
+    }
+  }
+
+  if (count === 0) {
     return {
       total: 0,
       subMetrics: [],
     };
   }
 
-  // Mock: count recent activity (last 7 days would be "recent")
-  const recent = Math.min(total, Math.floor(total * 0.3) || 1);
-
   return {
-    total,
-    subMetrics: [{ value: recent, label: "this week", variant: "info" }],
+    total: count,
+    subMetrics: count > 1 ? [{ value: 1, label: "recent", variant: "info" }] : [],
   };
 }
 

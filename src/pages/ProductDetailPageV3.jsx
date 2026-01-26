@@ -62,6 +62,8 @@ import {
   BentoCard,
   computeSampleMetrics,
   computeColorwayMetrics,
+  computeAssetMetrics,
+  computeActivityMetrics,
   SECTION_DESCRIPTIONS,
 } from "../components/products/workspace";
 
@@ -74,57 +76,9 @@ function OverviewSection({ family, skus, samples, onNavigate }) {
   const colorwayMetrics = useMemo(() => computeColorwayMetrics(skus), [skus]);
   const sampleMetrics = useMemo(() => computeSampleMetrics(samples), [samples]);
 
-  // Compute asset metrics from existing product images
-  const assetMetrics = useMemo(() => {
-    let imageCount = 0;
-    const subMetrics = [];
-
-    // Count family-level images
-    if (family?.headerImagePath) imageCount += 1;
-    if (family?.thumbnailImagePath && family.thumbnailImagePath !== family.headerImagePath) {
-      imageCount += 1;
-    }
-
-    // Count SKU colorway images
-    const skuImageCount = skus.filter((sku) => sku.imagePath).length;
-    imageCount += skuImageCount;
-
-    if (imageCount > 0) {
-      subMetrics.push({ value: imageCount, label: "images", variant: "default" });
-    }
-
-    return {
-      total: imageCount,
-      subMetrics,
-    };
-  }, [family, skus]);
-
-  // Compute activity count from audit fields
-  const activityMetrics = useMemo(() => {
-    let count = 0;
-
-    // Count creation event
-    if (family?.createdAt) {
-      count += 1;
-    }
-
-    // Count update event if meaningfully different from creation (> 60 seconds)
-    if (family?.updatedAt && family?.createdAt) {
-      const createdTime = family.createdAt?.toDate?.() || family.createdAt;
-      const updatedTime = family.updatedAt?.toDate?.() || family.updatedAt;
-      const timeDiff = Math.abs(
-        new Date(updatedTime).getTime() - new Date(createdTime).getTime()
-      );
-      if (timeDiff > 60000) {
-        count += 1;
-      }
-    }
-
-    return {
-      total: count,
-      subMetrics: count > 1 ? [{ value: 1, label: "recent", variant: "info" }] : [],
-    };
-  }, [family]);
+  // Compute asset and activity metrics using shared helpers
+  const assetMetrics = useMemo(() => computeAssetMetrics(family, skus), [family, skus]);
+  const activityMetrics = useMemo(() => computeActivityMetrics(family), [family]);
 
   // Size label for quick info
   const sizeLabel = useMemo(() => {
@@ -759,39 +713,13 @@ export default function ProductDetailPageV3() {
     return getCategoryLabel(family.gender, family.productType, family.productSubcategory);
   }, [family]);
 
-  // Counts for nav badges
-  const counts = useMemo(() => {
-    // Compute activity count from audit fields
-    let activityCount = 0;
-    if (family?.createdAt) {
-      activityCount += 1;
-    }
-    if (family?.updatedAt && family?.createdAt) {
-      const createdTime = family.createdAt?.toDate?.() || family.createdAt;
-      const updatedTime = family.updatedAt?.toDate?.() || family.updatedAt;
-      const timeDiff = Math.abs(
-        new Date(updatedTime).getTime() - new Date(createdTime).getTime()
-      );
-      if (timeDiff > 60000) {
-        activityCount += 1;
-      }
-    }
-
-    // Compute asset count from existing product images
-    let assetCount = 0;
-    if (family?.headerImagePath) assetCount += 1;
-    if (family?.thumbnailImagePath && family.thumbnailImagePath !== family.headerImagePath) {
-      assetCount += 1;
-    }
-    assetCount += skus.filter((sku) => sku.imagePath).length;
-
-    return {
-      colorways: skus.length,
-      samples: demoSamples.length,
-      assets: assetCount,
-      activity: activityCount,
-    };
-  }, [skus, demoSamples.length, family]);
+  // Counts for nav badges - use shared helpers to avoid duplication
+  const counts = useMemo(() => ({
+    colorways: skus.length,
+    samples: demoSamples.length,
+    assets: computeAssetMetrics(family, skus).total,
+    activity: computeActivityMetrics(family).total,
+  }), [skus, demoSamples.length, family]);
 
   const handleBack = useCallback(() => {
     navigate("/products");

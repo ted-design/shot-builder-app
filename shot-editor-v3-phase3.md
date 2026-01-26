@@ -3789,7 +3789,9 @@ User names for activity are not needed in Assets section.
 
 | File | Change |
 |------|--------|
-| `src/pages/ProductDetailPageV3.jsx` | Replaced placeholder AssetsSection with real image display component; added assetMetrics computation in OverviewSection; updated Assets BentoCard; updated counts computation; passed family/skus to AssetsSection |
+| `src/pages/ProductDetailPageV3.jsx` | Replaced placeholder AssetsSection with real image display; uses shared helpers for metrics; updated Assets BentoCard; passed family/skus to AssetsSection |
+| `src/components/products/workspace/overviewHelpers.js` | Updated `computeAssetMetrics` and `computeActivityMetrics` to accept product data instead of mock arrays |
+| `src/components/products/workspace/__tests__/overviewHelpers.test.js` | Updated tests for new function signatures |
 | `shot-editor-v3-phase3.md` | This delta entry (P.5) |
 
 ### Line Ranges Changed
@@ -3823,13 +3825,23 @@ User names for activity are not needed in Assets section.
 - Assets section: Real image gallery with Product Images and Colorway Images groups, designed Documents empty state
 - Nav rail assets badge: Shows real count based on existing images
 
+### Code Quality: DRY Refactor
+
+During review, duplicate counting logic was identified and extracted to shared helpers:
+
+| Helper | Location | Parameters |
+|--------|----------|------------|
+| `computeAssetMetrics` | `overviewHelpers.js` | `(family, skus)` |
+| `computeActivityMetrics` | `overviewHelpers.js` | `(family)` |
+
+These helpers are now used by both `OverviewSection` and the main component's `counts` useMemo, eliminating ~40 lines of duplicate code.
+
 ### Intentionally NOT Touched
 
 - Samples section (remains demo data)
 - No new Firestore collections or subcollections
 - No new write paths or mutations
 - No changes to productMutations.js or product schema
-- No changes to workspace shared components
 - No changes to Firestore security rules
 - No upload functionality (deferred to P.6)
 
