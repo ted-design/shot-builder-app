@@ -16,7 +16,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import {
   useShots,
@@ -124,7 +124,7 @@ import {
   FilterMenu,
 } from "../components/overview";
 
-const CallSheetEmbed = lazy(() => import("../components/callsheet/CallSheetEmbed"));
+// D.1: CallSheetEmbed removed — Schedule is now standalone at /projects/:projectId/schedule
 const PlannerExportModal = lazy(() => import("../components/planner/PlannerExportModal"));
 
 // Import export normalization helpers (extracted from PlannerPage)
@@ -170,7 +170,7 @@ import { buildActiveFilterPills, defaultOverviewFilters, removeFilterKey } from 
 import { normaliseShotStatus, DEFAULT_SHOT_STATUS } from "../lib/shotStatus";
 import { normaliseShot, sortShotsForView, SHOT_SORT_OPTIONS } from "../lib/shotsSelectors";
 import { getStaggerDelay } from "../lib/animations";
-import ShotsAssetsTab from "../components/shots/ShotsAssetsTab";
+// D.1: ShotsAssetsTab removed — Assets is now standalone at /projects/:projectId/assets
 import {
   createInitialSectionStatuses,
   cloneShotDraft,
@@ -4592,20 +4592,8 @@ const ShotVisualGalleryCard = memo(function ShotVisualGalleryCard({
 // Test-only export for readStoredViewPrefs
 export const __test__readStoredViewPrefs = readStoredViewPrefs;
 
-const OVERVIEW_TAB_STORAGE_KEY = "shots:overviewTab";
-
-const normaliseOverviewTab = (value) => {
-  if (value === "schedule") return "schedule";
-  if (value === "planner") return "schedule"; // Redirect legacy planner to schedule
-  if (value === "assets") return "assets";
-  return "shots";
-};
-
-const overviewTabs = [
-  { value: "shots", label: "Builder", icon: Camera },
-  { value: "schedule", label: "Schedule", icon: Calendar },
-  { value: "assets", label: "Assets", icon: Users },
-];
+// D.1: Tab constants removed — ShotsPage is now Builder-only.
+// Legacy ?view=schedule and ?view=assets URLs redirect to standalone routes.
 
 const shallowEqual = (a, b) => {
   if (a === b) return true;
@@ -4619,22 +4607,32 @@ const shallowEqual = (a, b) => {
   return true;
 };
 
-export default function ShotsPage({ initialView = null }) {
-  const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+export default function ShotsPage() {
+  const navigate = useNavigate();
+  const { projectId } = useParams();
+  const [searchParams] = useSearchParams();
   const { setLastVisitedPath } = useProjectScope();
-  const queryTab = searchParams.get("view");
-  const normalisedPropTab = initialView ? normaliseOverviewTab(initialView) : null;
-  const normalisedQueryTab = queryTab ? normaliseOverviewTab(queryTab) : null;
-  const [activeTab, setActiveTab] = useState(() => {
-    if (normalisedPropTab) return normalisedPropTab;
-    if (normalisedQueryTab) return normalisedQueryTab;
-    const stored = readStorage(OVERVIEW_TAB_STORAGE_KEY);
-    return stored ? normaliseOverviewTab(stored) : "shots";
-  });
   const [sharedFilters, setSharedFiltersState] = useState(() => readStoredShotFilters());
   const [sharedSelectedShotIds, setSharedSelectedShotIdsState] = useState(() => new Set());
   const [focusShotId, setFocusShotIdState] = useState(null);
+
+  // D.1: Redirect legacy ?view= URLs to standalone routes
+  useEffect(() => {
+    const viewParam = searchParams.get("view");
+    if (viewParam === "schedule" || viewParam === "planner") {
+      navigate(`/projects/${projectId}/schedule`, { replace: true });
+      return;
+    }
+    if (viewParam === "assets") {
+      navigate(`/projects/${projectId}/assets`, { replace: true });
+      return;
+    }
+  }, [searchParams, projectId, navigate]);
+
+  // D.1: ShotsPage is now Builder-only — always set path to /shots
+  useEffect(() => {
+    setLastVisitedPath("/shots");
+  }, [setLastVisitedPath]);
 
   const updateSharedFilters = useCallback((updater) => {
     setSharedFiltersState((prev) => {
@@ -4692,107 +4690,12 @@ export default function ShotsPage({ initialView = null }) {
     [sharedFilters, updateSharedFilters, sharedSelectedShotIds, updateSharedSelectedShotIds, focusShotId, setFocusShotId]
   );
 
-  useEffect(() => {
-    if (normalisedPropTab && normalisedPropTab !== activeTab) {
-      setActiveTab(normalisedPropTab);
-      return;
-    }
-    if (normalisedQueryTab && normalisedQueryTab !== activeTab) {
-      setActiveTab(normalisedQueryTab);
-    }
-  }, [normalisedPropTab, normalisedQueryTab, activeTab]);
-
-  useEffect(() => {
-    writeStorage(OVERVIEW_TAB_STORAGE_KEY, activeTab);
-  }, [activeTab]);
-
-  const handleTabChange = useCallback(
-    (nextTab) => {
-      const resolved = normaliseOverviewTab(nextTab);
-      setActiveTab(resolved);
-      writeStorage(OVERVIEW_TAB_STORAGE_KEY, resolved);
-      const existing = new URLSearchParams(location.search);
-      if (resolved === "shots") {
-        existing.delete("view");
-      } else {
-        existing.set("view", resolved);
-      }
-      setSearchParams(existing, { replace: true });
-    },
-    [location.search, setSearchParams]
-  );
-
-  // Remember last visited path including tab
-  useEffect(() => {
-    if (activeTab === "schedule") {
-      setLastVisitedPath("/shots?view=schedule");
-    } else if (activeTab === "assets") {
-      setLastVisitedPath("/shots?view=assets");
-    } else {
-      setLastVisitedPath("/shots");
-    }
-  }, [activeTab, setLastVisitedPath]);
-
-  const activeContent = useMemo(() => {
-    if (activeTab === "schedule") {
-      return (
-        <Suspense
-          fallback={
-            <div className="flex min-h-[240px] items-center justify-center">
-              <LoadingSpinner size="lg" />
-            </div>
-          }
-        >
-          <CallSheetEmbed />
-        </Suspense>
-      );
-    }
-    if (activeTab === "assets") {
-      return <ShotsAssetsTab />;
-    }
-    return <ShotsWorkspace />;
-  }, [activeTab]);
-
-  const activeLabel = activeTab === "schedule" ? "Schedule" : activeTab === "assets" ? "Assets" : "Builder";
-
   return (
     <ShotsOverviewProvider value={overviewValue}>
       <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-neutral-900">
         {/* Non-sticky header - scrolls with content */}
         <div className="px-6 pt-4 pb-2" data-shot-overview-header>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="heading-page">Shots</h1>
-            <div
-              className="flex items-center space-x-1 rounded-full border border-neutral-200 bg-neutral-100 p-1 dark:border-neutral-700 dark:bg-neutral-800"
-              role="tablist"
-              aria-label="Shot overview tabs"
-              aria-orientation="horizontal"
-            >
-              {overviewTabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = tab.value === activeTab;
-                return (
-                  <button
-                    key={tab.value}
-                    type="button"
-                    className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                      isActive
-                        ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-100"
-                        : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-                    }`}
-                    onClick={() => handleTabChange(tab.value)}
-                    role="tab"
-                    id={`overview-tab-${tab.value}`}
-                    aria-controls={`overview-panel-${tab.value}`}
-                    aria-selected={isActive}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <h1 className="heading-page">Shots</h1>
         </div>
 
         {/* Sticky toolbar anchor - stays fixed when scrolling */}
@@ -4801,14 +4704,9 @@ export default function ShotsPage({ initialView = null }) {
           className="sticky top-14 z-40 bg-slate-50/95 dark:bg-neutral-900/95 backdrop-blur-sm"
         />
 
-        <div
-          className="flex-1"
-          id={`overview-panel-${activeTab}`}
-          role="tabpanel"
-          aria-labelledby={`overview-tab-${activeTab}`}
-          aria-label={`${activeLabel} workspace`}
-        >
-          {activeContent}
+        {/* D.1: Builder-only — render ShotsWorkspace directly */}
+        <div className="flex-1" role="main" aria-label="Shots workspace">
+          <ShotsWorkspace />
         </div>
       </div>
     </ShotsOverviewProvider>

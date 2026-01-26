@@ -228,6 +228,8 @@ Phase 3 is NOT complete if:
 ✅ **Delta J.4: COMPLETED** — Retire ScheduleShotEditorModal (Dead Code Cleanup)
 ✅ **Delta J.5: COMPLETED** — Retire ShotEditModal from Active Use (Orphaned — Tests Only)
 🏁 **Shot Editing Convergence: COMPLETE** — All surfaces use V3; convergence plan closed (J.1–J.7)
+✅ **Delta L.4: COMPLETED** — Library Talent: Avatar Cropping Fix + Structured Measurements + Functional Edit
+✅ **Delta L.5: COMPLETED** — Library Departments: Canonical Full-Page Workspace Shell
 
 ---
 
@@ -3616,5 +3618,1259 @@ All future deltas MUST follow this verification protocol (documented in `docs/cl
 - [x] `npm run build` — Succeeds
 - [x] Documentation matches project standards
 - [x] No product code changes (process-only delta)
+
+---
+
+## Delta P.4: Products Workspace - Activate Activity Section (Read-Only)
+
+**Date:** 2026-01-26
+**Status:** ✅ Complete
+
+### Objective
+
+Replace the "coming soon" Activity section in Products V3 with a real, designed, read-only activity surface wired to existing audit data, without schema changes.
+
+### Context
+
+The Products V3 workspace shell includes five sections: Overview, Colorways, Samples, Assets, and Activity. The Activity section was showing a placeholder "coming soon" state. This delta activates the Activity section with real data from existing document-level audit fields.
+
+### Design Approach
+
+- **Timeline pattern**: Vertical timeline with icon + event label + actor name + relative timestamp
+- **Color-coded events**: Creation events use emerald accent, update events use neutral slate
+- **Actor resolution**: Uses existing `useUsers` hook to resolve `createdBy`/`updatedBy` user IDs to display names
+- **Relative timestamps**: Uses `date-fns` `formatDistanceToNow` with absolute date on hover (title attribute)
+- **Intentional empty state**: Explains what will appear rather than generic "nothing here"
+- **Context footer**: Explains current limitations and hints at future detailed history
+
+### Data Sources (No Schema Changes)
+
+Fields from product family document (`/clients/{clientId}/productFamilies/{familyId}`):
+- `createdAt` — Timestamp when product was created
+- `createdBy` — User ID who created the product
+- `updatedAt` — Timestamp when product was last modified
+- `updatedBy` — User ID who last modified the product
+
+User names resolved via `useUsers(clientId)` hook → `clients/{clientId}/users` collection.
+
+### Implementation Details
+
+**Activity Event Logic:**
+1. Always show "Product created" event if `createdAt` exists
+2. Show "Product updated" event only if `updatedAt` differs from `createdAt` by more than 60 seconds (avoids duplicate for initial save)
+3. Events sorted by timestamp descending (most recent first)
+
+**BentoCard Update:**
+- Activity card in Overview section now shows real event count instead of "Coming soon"
+- Card is clickable and navigates to Activity section
+
+**Nav Rail Badge:**
+- Activity badge shows real event count instead of hardcoded 0
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/ProductDetailPageV3.jsx` | Replaced placeholder ActivitySection with real timeline component; added `useUsers` import, `formatDistanceToNow` from date-fns, and icons (Clock, Plus, User); updated counts computation; updated Overview BentoCard for Activity |
+| `shot-editor-v3-phase3.md` | This delta entry (P.4) |
+
+### Line Ranges Changed
+
+- `src/pages/ProductDetailPageV3.jsx`:
+  - Lines 37-50: Added imports (Clock, Plus, User icons; formatDistanceToNow; useUsers)
+  - Lines 120-150: Added activityMetrics computation in OverviewSection
+  - Lines 184-193: Updated Activity BentoCard (removed coming-soon variant, added real metrics)
+  - Lines 217-440: Replaced placeholder ActivitySection with real timeline implementation
+  - Lines 589-610: Updated counts useMemo to compute real activity count
+
+### Before/After
+
+**Before:**
+- Activity BentoCard: Grayed out with "Coming soon" badge, disabled
+- Activity section: Generic WorkspaceEmptyState with "Track changes, comments..." placeholder
+- Nav rail activity badge: Always showed 0
+
+**After:**
+- Activity BentoCard: Active, clickable, shows "1 event" or "2 events" based on real data
+- Activity section: Vertical timeline showing "Product created" and optionally "Product updated" events with actor names and relative timestamps
+- Nav rail activity badge: Shows 1 or 2 based on actual events
+
+### Intentionally NOT Touched
+
+- Assets section (remains "coming soon")
+- No new Firestore collections or subcollections
+- No new write paths or mutations
+- No changes to productMutations.js
+- No changes to workspace shared components
+- No changes to Firestore security rules
+
+### Verification
+
+- [x] `npm run lint` — Zero warnings
+- [x] `npm run build` — Succeeds
+- [ ] Manual QA: Navigate to `/products?productsV3=1`, select a product, verify Activity section shows timeline
+
+### Manual QA Checklist
+
+⚠️ Chrome extension unavailable during implementation
+
+| Scenario | Steps | Expected |
+|----------|-------|----------|
+| Activity section with events | Navigate to product detail, click Activity in rail | Timeline shows "Product created" event with timestamp |
+| Activity section with update | Navigate to a product that has been updated since creation | Timeline shows both "Product created" and "Product updated" |
+| Actor name display | View activity for product created by known user | Shows "by [User Name]" after event label |
+| Missing actor | View activity for product with null createdBy | Shows event without "by" attribution |
+| Timestamp hover | Hover over relative timestamp | Shows absolute date (e.g., "Jan 15, 2025") |
+| Overview card metrics | Click Activity card in Overview | Shows "X events" count matching timeline entries |
+| Nav badge | Check Activity nav item badge | Shows count matching actual events |
+
+---
+
+## 🔧 Delta L.1 — Library Locations: Canonical Full-Page Workspace Shell
+
+### What This Delta Accomplishes
+
+**Objective**: Redesign the Library → Locations page into a full-page, structured workspace that matches the Products V3 / Shot Editor V3 design language.
+
+**Before:**
+- `LibraryLocationsPage.jsx` was a thin wrapper around `LocationsPage.jsx`
+- `LocationsPage.jsx` was a traditional table/gallery view with modal-first editing
+- PageHeader + grid/table of cards with "Edit" buttons opening modals
+- No master-detail pattern; cramped modal UX
+
+**After:**
+- Full-page workspace layout following V3 spatial language
+- Three-zone layout: Header band (top), Location rail (left), Detail canvas (right)
+- Master-detail pattern: click location in rail → details appear in canvas
+- Designed empty states for all scenarios (no data, no selection, search no results)
+- Local state selection (no URL routing per spec)
+
+### Layout Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  HEADER BAND - Title + Description + Count + New Location   │
+├─────────────────┬───────────────────────────────────────────┤
+│  LOCATION RAIL  │           DETAIL CANVAS                   │
+│  ─────────────  │  ─────────────────────────────────────   │
+│  [Search input] │  [Hero image]                             │
+│  ─────────────  │                                           │
+│  [Location 1] ◄ │  Location Name                            │
+│  [Location 2]   │  ─────────────────────────────────────   │
+│  [Location 3]   │  📍 Address                               │
+│  ...            │  📞 Phone                                 │
+│  ─────────────  │  📝 Notes                                 │
+│  X locations    │                                           │
+│                 │  [Edit location]                          │
+└─────────────────┴───────────────────────────────────────────┘
+```
+
+### Data Source
+
+- **Collection**: `clients/{clientId}/locations`
+- **Path helper**: `locationsPath(clientId)` from `lib/paths.js`
+- **Query**: Real-time subscription via `onSnapshot`, ordered by `name` ascending
+- **Search**: Existing `searchLocations()` from `lib/search.js`
+- **Permissions**: `canManageLocations(role)` from `lib/rbac.js`
+
+### Components Created
+
+| Component | Purpose |
+|-----------|---------|
+| `LocationsHeaderBand` | Sticky header with title, description, count, and "New location" CTA |
+| `LocationRail` | Left sidebar with search input and scrollable location list |
+| `LocationRailItem` | Individual location item in rail with thumbnail + name + address |
+| `LocationDetailCanvas` | Right panel showing selected location details |
+| `LocationsEmptyState` | Full-page empty state when no locations exist |
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Master-detail pattern | Replaces modal-first UX; allows scan → focus → act workflow |
+| Local state selection | Per spec: "If no pattern exists, keep selection local-state for now" |
+| Auto-select first location | Avoids blank canvas on load; better UX |
+| Reused `Thumb` component | Consistent image handling with existing patterns |
+| Reused `LocationCreateModal` | No new write paths needed; existing modal handles creation |
+| Edit button logs to console | Read-only focused delta; editing deferred to future delta |
+
+### What Was Intentionally NOT Touched
+
+| Item | Reason |
+|------|--------|
+| **Schema changes** | Non-goal per spec |
+| **New write paths** | Read-only acceptable; modal handles creation |
+| **URL-addressable selection** | Spec says: "keep selection local-state for now" |
+| **Inline editing** | Deferred; Edit button currently logs intent only |
+| **LocationsPage.jsx** | Still exists; may be used by project-scoped `/catalogue/locations` |
+| **Route changes** | Route remains `/library/locations`; no new routes |
+| **Shared workspace primitives** | Reused existing components where appropriate |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/LibraryLocationsPage.jsx` | Complete rewrite: thin wrapper → full workspace shell (~600 lines) |
+| `shot-editor-v3-phase3.md` | This delta entry (L.1) |
+
+### Line Ranges Changed
+
+- `src/pages/LibraryLocationsPage.jsx`:
+  - Lines 1-600: Complete rewrite (was 7 lines wrapping LocationsPage)
+  - Imports: `useCallback, useEffect, useMemo, useState` + Firestore + UI components
+  - Components: `formatAddress`, `LocationRailItem`, `LocationRail`, `LocationDetailCanvas`, `LocationsHeaderBand`, `LocationsEmptyState`, `LibraryLocationsPage`
+
+### Bundle Impact
+
+- **Before**: `LibraryLocationsPage.jsx` was ~7 lines (thin wrapper)
+- **After**: `LibraryLocationsPage-CD3FrmNF.js` — 11.27 kB (gzip: 3.09 kB)
+- **Note**: LocationsPage.jsx still bundled separately for project-scoped catalogue use
+
+### Verification
+
+- [x] `npm run lint` — Zero warnings
+- [x] `npm run build` — Succeeds (15.27s)
+- [ ] Manual QA: Chrome extension unavailable
+
+### Manual QA Checklist
+
+⚠️ Chrome extension unavailable during implementation
+
+| Scenario | Steps | Expected |
+|----------|-------|----------|
+| Empty state | Navigate to `/library/locations` with no locations | Full-page empty state with "No locations yet" message and "Add your first location" CTA |
+| Location list | Navigate with existing locations | Left rail shows locations with thumbnails; first auto-selected |
+| Selection | Click different location in rail | Canvas updates to show selected location details |
+| Search filter | Type in search input | Rail filters to matching locations |
+| Search no results | Type non-matching query | Rail shows "No matches found" empty state |
+| Detail display | Select location with all fields | Canvas shows hero image, name, address, phone, notes |
+| Minimal detail | Select location with only name | Canvas shows name + "No additional details" placeholder |
+| New location | Click "New location" button | LocationCreateModal opens |
+| Permission check | View as non-producer role | "New location" button hidden; "Edit location" hidden |
+
+---
+
+## 🔧 Delta L.2 — Library Talent: Canonical Full-Page Workspace Shell
+
+### What This Delta Accomplishes
+
+**Objective**: Redesign the Library → Talent page into a full-page, structured workspace that matches the Products V3 / Shot Editor V3 / Library Locations (L.1) design language.
+
+**Before:**
+- `LibraryTalentPage.jsx` was a thin 7-line wrapper around `TalentPage.jsx`
+- `TalentPage.jsx` was a traditional table/gallery view with modal-first editing
+- PageHeader + grid/table of cards with "View" buttons opening modals
+- No master-detail pattern; relied on `TalentDetailModal` for viewing details
+
+**After:**
+- Full-page workspace layout following V3 spatial language
+- Three-zone layout: Header band (top), Talent rail (left), Detail canvas (right)
+- Master-detail pattern: click talent in rail → details appear in canvas
+- Designed empty states for all scenarios (no data, no selection, search no results)
+- Local state selection (no URL routing per spec)
+
+### Layout Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  HEADER BAND - Title + Description + Count + New Talent     │
+├─────────────────┬───────────────────────────────────────────┤
+│  TALENT RAIL    │           DETAIL CANVAS                   │
+│  ─────────────  │  ─────────────────────────────────────   │
+│  [Search input] │       [Circular portrait]                 │
+│  ─────────────  │                                           │
+│  [👤 Talent 1]◄│           Talent Name                     │
+│  [👤 Talent 2] │           Agency                          │
+│  [👤 Talent 3] │  ─────────────────────────────────────   │
+│  ...           │  👤 Gender                                │
+│  ─────────────  │  📞 Phone                                 │
+│  X talent       │  ✉️ Email                                 │
+│                 │  🔗 Portfolio                             │
+│                 │  📏 Measurements                          │
+│                 │  📝 Notes                                 │
+│                 │                                           │
+│                 │  [Edit talent]                            │
+└─────────────────┴───────────────────────────────────────────┘
+```
+
+### Data Source
+
+- **Collection**: `clients/{clientId}/talent`
+- **Path helper**: `talentPath(clientId)` from `lib/paths.js`
+- **Query**: Real-time subscription via `onSnapshot`, ordered by `lastName` ascending
+- **Search**: Existing `searchTalent()` from `lib/search.js`
+- **Permissions**: `canManageTalent(role)` from `lib/rbac.js`
+
+### Components Created
+
+| Component | Purpose |
+|-----------|---------|
+| `TalentHeaderBand` | Sticky header with title, description, count, and "New talent" CTA |
+| `TalentRail` | Left sidebar with search input and scrollable talent list |
+| `TalentRailItem` | Individual talent item in rail with circular thumbnail + name + agency |
+| `TalentDetailCanvas` | Right panel showing selected talent details (portrait, name, contact, notes) |
+| `TalentEmptyState` | Full-page empty state when no talent exist |
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Master-detail pattern | Replaces modal-first UX; allows scan → focus → act workflow |
+| Local state selection | Per spec: "If no pattern exists, keep selection local-state for now" |
+| Auto-select first talent | Avoids blank canvas on load; better UX |
+| Circular portrait in rail | Differentiation from Locations; talent photos are typically portraits |
+| Circular hero image in canvas | Consistent with rail; portrait-style presentation |
+| Reused `Thumb` component | Consistent image handling with existing patterns |
+| Reused `TalentCreateModal` | No new write paths needed; existing modal handles creation |
+| Edit button logs to console | Read-only focused delta; editing deferred to future delta |
+
+### What Was Intentionally NOT Touched
+
+| Item | Reason |
+|------|--------|
+| **Schema changes** | Non-goal per spec |
+| **New write paths** | Read-only acceptable; modal handles creation |
+| **URL-addressable selection** | Spec says: "keep selection local-state for now" |
+| **Inline editing** | Deferred; Edit button currently logs intent only |
+| **TalentPage.jsx** | Still exists; may be used by project-scoped `/catalogue/people` |
+| **Route changes** | Route remains `/library/talent`; no new routes |
+| **Gallery images display** | Canvas shows headshot only; gallery deferred to future delta |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/LibraryTalentPage.jsx` | Complete rewrite: thin wrapper → full workspace shell (~700 lines) |
+| `shot-editor-v3-phase3.md` | This delta entry (L.2) |
+
+### Line Ranges Changed
+
+- `src/pages/LibraryTalentPage.jsx`:
+  - Lines 1-699: Complete rewrite (was 7 lines wrapping TalentPage)
+  - Imports: `useCallback, useEffect, useMemo, useState` + Firestore + UI components
+  - Components: `buildDisplayName`, `formatContact`, `getNotesPreview`, `TalentRailItem`, `TalentRail`, `TalentDetailCanvas`, `TalentHeaderBand`, `TalentEmptyState`, `LibraryTalentPage`
+
+### Bundle Impact
+
+- **Before**: `LibraryTalentPage.jsx` was ~7 lines (thin wrapper importing TalentPage)
+- **After**: `LibraryTalentPage-tI5Fau17.js` — 13.00 kB (gzip: 3.45 kB)
+- **Note**: TalentPage.jsx still bundled separately for project-scoped catalogue use
+
+### Verification
+
+- [x] `npm run lint` — Zero warnings
+- [x] `npm run build` — Succeeds (16.02s)
+- [ ] Manual QA: Chrome extension unavailable
+
+### Manual QA Checklist
+
+⚠️ Chrome extension unavailable during implementation
+
+| Scenario | Steps | Expected |
+|----------|-------|----------|
+| Empty state | Navigate to `/library/talent` with no talent | Full-page empty state with "No talent yet" message and "Add your first talent" CTA |
+| Talent list | Navigate with existing talent | Left rail shows talent with circular thumbnails; first auto-selected |
+| Selection | Click different talent in rail | Canvas updates to show selected talent details |
+| Search filter | Type in search input | Rail filters to matching talent |
+| Search no results | Type non-matching query | Rail shows "No matches found" empty state |
+| Detail display | Select talent with all fields | Canvas shows portrait, name, agency, gender, phone, email, portfolio, measurements, notes |
+| Minimal detail | Select talent with only name | Canvas shows name + "No additional details" placeholder |
+| New talent | Click "New talent" button | TalentCreateModal opens |
+| Permission check | View as non-producer role | "New talent" button hidden; "Edit talent" hidden |
+
+---
+
+## 🔧 Delta L.3 — Library Crew: Canonical Full-Page Workspace Shell
+
+### What This Delta Accomplishes
+
+**Objective**: Redesign the Library → Crew page into a full-page, structured workspace that matches the Products V3 / Shot Editor V3 / Library Locations (L.1) / Library Talent (L.2) design language.
+
+**Before:**
+- `LibraryCrewPage.jsx` was a card-based table with inline form (~237 lines)
+- Table rows for crew members with name, department, position, email, phone
+- Inline create form at top of card with department/position dropdowns
+- No master-detail pattern
+- No designed empty states
+- Admin table presentation style
+
+**After:**
+- Full workspace shell with header band, left rail, and right detail canvas (~900 lines)
+- Header band with title ("Crew"), description, count badge, and "New crew member" CTA
+- Left rail with search input and scrollable crew list (avatar placeholder + name + position/dept or company)
+- Right canvas showing selected crew member details (portrait placeholder, name, role subtitle, company, department, email, phone, notes)
+- Designed empty states for: no crew, no search results, nothing selected, no details
+- Create modal with department/position dropdowns
+- Edit via existing CrewEditModal
+
+### Layout Structure
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Header Band: "Crew" + description + count + [New crew member] │
+├──────────────┬──────────────────────────────────────────────┤
+│ Left Rail    │ Right Canvas                                 │
+│              │                                              │
+│ [Search...]  │        ┌────┐                                │
+│              │        │ 👤 │   ← Avatar placeholder          │
+│ ┌──────────┐ │        └────┘                                │
+│ │ 👤 Name   │ │      Jane Smith                              │
+│ │ Position │ │  Director of Photography • Camera            │
+│ └──────────┘ │                                              │
+│ ┌──────────┐ │  📧 Email: jane@example.com                  │
+│ │ 👤 Name   │ │  📱 Phone: 555-1234                         │
+│ │ Company  │ │  🏢 Company: Acme Productions                │
+│ └──────────┘ │  📋 Notes: Available weekends                │
+│              │                                              │
+│ 42 members   │  [Edit crew member]                          │
+└──────────────┴──────────────────────────────────────────────┘
+```
+
+### Data Sources
+
+- **Crew data**: `useOrganizationCrew(clientId)` → real-time Firestore subscription
+  - Returns: `{ crew, crewById, loading, error, createCrewMember, updateCrewMember, deleteCrewMember }`
+  - Path: `clients/{clientId}/crew`
+- **Department/Position lookups**: `useDepartments(clientId)` → real-time Firestore subscription
+  - Returns: `{ departments, ... }` where each department has `positions` array
+
+### RBAC
+
+- Uses `canManageProjects(globalRole)` → `admin` or `producer` roles
+- CTA button and Edit button hidden for viewers/crew roles
+
+### Crew Member Fields Displayed
+
+| Field | Rail | Canvas |
+|-------|------|--------|
+| Name (firstName + lastName) | ✅ | ✅ |
+| Department | via lookup | ✅ |
+| Position | via lookup | ✅ |
+| Company | fallback subtitle | ✅ |
+| Email | — | ✅ (mailto link) |
+| Phone | — | ✅ |
+| Notes | — | ✅ |
+
+### Empty States
+
+| State | Location | Message |
+|-------|----------|---------|
+| No crew at all | Full page | "No crew members yet" + description + CTA |
+| No search results | Rail | "No matches found" + "Try a different search term" |
+| Nothing selected | Canvas | "Select a crew member" + description |
+| No details | Canvas | "No additional details for this crew member" + edit hint |
+
+### Intentionally NOT Changed
+
+| Item | Reason |
+|------|--------|
+| **Schema changes** | Scope constraint: no schema changes |
+| **New write paths** | Using existing `createCrewMember`, `updateCrewMember` mutations |
+| **URL-addressable selection** | Spec says: "keep selection local-state for now" |
+| **Delete from canvas** | Delete still available via confirm prompt in old flow |
+| **Route changes** | Route remains `/library/crew`; no new routes |
+| **CrewEditModal.jsx** | Reused as-is for editing |
+| **Search lib integration** | Using inline filter (no searchCrew function exists) |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/LibraryCrewPage.jsx` | Complete rewrite: card/table → full workspace shell (~900 lines) |
+| `shot-editor-v3-phase3.md` | This delta entry (L.3) |
+
+### Line Ranges Changed
+
+- `src/pages/LibraryCrewPage.jsx`:
+  - Lines 1-899: Complete rewrite (was ~237 lines with inline form + table)
+  - Imports: `useCallback, useEffect, useMemo, useState` + auth + hooks + UI components + lucide icons
+  - Components: `buildDisplayName`, `filterCrew`, `CrewRailItem`, `CrewRail`, `CrewDetailCanvas`, `CrewHeaderBand`, `CrewEmptyState`, `CrewCreateModal`, `LibraryCrewPage`
+
+### Bundle Impact
+
+- **Before**: `LibraryCrewPage.jsx` was ~237 lines (card/table pattern)
+- **After**: `LibraryCrewPage-DjgnXieo.js` — 18.37 kB (gzip: 4.42 kB)
+- **Note**: CrewEditModal still bundled separately
+
+### Verification
+
+- [x] `npm run lint` — Zero warnings
+- [x] `npm run build` — Succeeds (15.56s)
+- [ ] Manual QA: Chrome extension unavailable
+
+### Manual QA Checklist
+
+⚠️ Chrome extension unavailable during implementation
+
+| Scenario | Steps | Expected |
+|----------|-------|----------|
+| Empty state | Navigate to `/library/crew` with no crew | Full-page empty state with "No crew members yet" message and "Add your first crew member" CTA |
+| Crew list | Navigate with existing crew | Left rail shows crew with avatar placeholders; first auto-selected |
+| Selection | Click different crew member in rail | Canvas updates to show selected crew member details |
+| Search filter | Type in search input | Rail filters to matching crew members |
+| Search no results | Type non-matching query | Rail shows "No matches found" empty state |
+| Detail display | Select crew with all fields | Canvas shows avatar, name, role subtitle, company, department, email, phone, notes |
+| Minimal detail | Select crew with only name | Canvas shows name + "No additional details" placeholder |
+| New crew member | Click "New crew member" button | Create modal opens with department/position dropdowns |
+| Create flow | Fill form and submit | New crew member appears in rail, modal closes |
+| Edit flow | Click "Edit crew member" button | CrewEditModal opens with pre-filled data |
+| Permission check | View as non-producer role | "New crew member" button hidden; "Edit crew member" hidden |
+
+---
+
+## 🎨 Delta L.4 — Library Talent: Avatar Cropping Fix + Structured Measurements + Functional Edit
+
+### What This Delta Accomplishes
+
+**Objective**: Improve Library → Talent credibility and usability by fixing three issues:
+1. Hero and rail images were circular, cropping full-body/editorial talent photos
+2. Measurements were displayed as an unstructured sentence
+3. "Edit talent" button was a no-op (logged to console only)
+
+**Before:**
+- Hero image: 160×160px circular (`rounded-full`) — cropped heads and bodies
+- Rail thumbnail: 48×48px circular — cropped heads
+- Measurements: Displayed as inline sentence `key: value • key: value`
+- Edit button: `console.info` only — no modal opened
+
+**After:**
+- Hero image: 192×256px rectangular (`rounded-2xl`) — appropriate for editorial/full-body imagery
+- Rail thumbnail: 40×48px rectangular (`rounded-lg`) with `object-top` to prioritize faces
+- Measurements: 2-column spec grid with friendly labels and proper formatting via `getMeasurementDisplayValue`
+- Edit button: Opens `TalentEditModal` with full save flow (Firestore + image upload)
+
+### Implementation Details
+
+#### A) Avatar / Imagery Fix
+
+**Rail thumbnail (TalentRailItem):**
+```jsx
+// Before: w-12 h-12 rounded-full
+// After: w-10 h-12 rounded-lg + object-top
+<div className="w-10 h-12 rounded-lg overflow-hidden">
+  <Thumb imageClassName="w-full h-full object-cover object-top" />
+</div>
+```
+
+**Hero image (TalentDetailCanvas):**
+```jsx
+// Before: w-40 h-40 rounded-full
+// After: w-48 h-64 rounded-2xl shadow-sm + object-top
+<div className="w-48 h-64 rounded-2xl overflow-hidden shadow-sm">
+  <Thumb imageClassName="w-full h-full object-cover object-top" />
+</div>
+```
+
+#### B) Structured Measurements Display
+
+Added helper function `parseMeasurementsForDisplay()` that:
+1. Iterates known measurement keys in display order (height, bust, waist, hips, etc.)
+2. Uses `getMeasurementDisplayValue()` from `lib/measurements.js` for proper formatting
+3. Appends any unknown keys with capitalized labels
+4. Returns `[{ key, label, value }]` array for rendering
+
+**Display format:** 2-column grid instead of inline sentence:
+```jsx
+<div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+  {measurementEntries.map(({ key, label, value }) => (
+    <div key={key} className="flex justify-between gap-2">
+      <span className="text-slate-500">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
+  ))}
+</div>
+```
+
+**Note (inline TODO):** Future work should normalize measurements to numeric fields for range search. This delta only improves display — no schema changes.
+
+#### C) Functional Edit Modal
+
+**State added:**
+- `editModalOpen` — controls TalentEditModal visibility
+- `editBusy` — loading state during save
+
+**Handlers:**
+- `handleEdit(talent)` — opens modal (checks `canManage` permission)
+- `closeEditModal()` — closes modal
+- `handleSaveTalent({ updates, newImageFile, removeImage })` — full save flow:
+  - Updates Firestore document with `updateDoc`
+  - Normalizes measurements via `normalizeMeasurementsMap`
+  - Handles headshot upload/removal via `uploadImageFile`/`deleteImageByPath`
+  - Handles gallery image updates via `buildGalleryUpdate` (copied from TalentPage)
+  - Shows toast on success/error
+
+**Permission handling:**
+- When `canManage` is true: Edit button with Pencil icon
+- When `canManage` is false: Explanatory text "Only producers and admins can edit talent records"
+
+### Key Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Rectangular aspect ratio** | 4:5 (hero), 5:6 (rail) | Common editorial/model card proportions |
+| **object-top** | Yes | Prioritizes faces at top of frame |
+| **Measurement parsing** | UI-only derivation | No schema changes per spec; future work noted |
+| **Gallery helper duplication** | Copied from TalentPage | Minimal blast radius; no shared utility exists |
+| **Permission text** | Static message | Simple; no tooltip complexity needed |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/LibraryTalentPage.jsx` | Avatar fixes, measurements display, edit modal wiring |
+| `shot-editor-v3-phase3.md` | This delta entry (L.4) |
+
+### Line Ranges Changed
+
+- `src/pages/LibraryTalentPage.jsx`:
+  - Lines 1-33: Updated imports (added `doc`, `updateDoc`, `uploadImageFile`, `deleteImageByPath`, `normalizeMeasurementsMap`, `getMeasurementDisplayValue`, `toast`, `TalentEditModal`, `nanoid`, `Pencil`)
+  - Lines 86-157: Added gallery helpers (`normaliseGalleryOrder`, `buildGalleryUpdate`)
+  - Lines 159-210: Added measurement display helpers (`MEASUREMENT_DISPLAY_ORDER`, `MEASUREMENT_LABELS`, `parseMeasurementsForDisplay`)
+  - Lines 212-259: Updated `TalentRailItem` thumbnail (circular → rectangular)
+  - Lines 305-450: Updated `TalentDetailCanvas` (hero image, measurements grid, permission-aware actions)
+  - Lines 518-521: Added edit modal state
+  - Lines 598-665: Updated `handleEdit` and added `closeEditModal`, `handleSaveTalent` handlers
+  - Lines 766-775: Added `TalentEditModal` JSX
+
+### Bundle Impact
+
+- **Before**: `LibraryTalentPage-*.js` — ~10 kB (estimated)
+- **After**: `LibraryTalentPage-BdOQfxhl.js` — 16.39 kB (gzip: 4.78 kB)
+- **Reason**: Added gallery update logic, measurement helpers, and TalentEditModal integration
+
+### Verification
+
+- [x] `npm run lint` — Zero warnings
+- [x] `npm run build` — Succeeds (15.54s)
+- [ ] Manual QA: Chrome extension unavailable
+
+### Manual QA Checklist
+
+⚠️ Chrome extension unavailable during implementation
+
+| Scenario | Steps | Expected |
+|----------|-------|----------|
+| Hero image crop | Navigate to `/library/talent`, select talent with full-body image | Rectangular (192×256) hero image with rounded corners, no circular crop |
+| Rail thumbnail crop | View talent list in rail | Rectangular thumbnails (40×48), faces visible at top |
+| Fallback rendering | Select talent with no image | User icon centered in rectangular placeholder |
+| Measurements display | Select talent with measurements data | 2-column grid showing Height, Bust, Waist, etc. with formatted values |
+| Measurements empty | Select talent without measurements | Measurements section not shown |
+| Edit button (producer) | Click "Edit talent" as producer/admin | TalentEditModal opens with talent data pre-filled |
+| Edit button (viewer) | View as non-producer role | Text shows "Only producers and admins can edit talent records" instead of button |
+| Save changes | Edit talent in modal, click Save | Modal closes, toast shows "Talent updated successfully", data persists |
+| Image upload | Add/change headshot in edit modal | New image saves to Storage, displays in hero |
+| Measurements edit | Change measurements in modal | Changes save to Firestore, display updates in canvas |
+
+### Intentionally NOT Changed
+
+| Item | Reason |
+|------|--------|
+| **Schema changes** | Scope constraint: no schema changes |
+| **Measurements normalization** | UI-only change; numeric normalization noted as future work |
+| **Search/filter features** | Out of scope |
+| **Delete from canvas** | Delete available via TalentEditModal (existing flow) |
+| **TalentEditModal.jsx** | Reused as-is |
+| **TalentCreateModal.jsx** | Unchanged |
+| **Route changes** | Route remains `/library/talent` |
+| **Shared gallery utility** | Would require refactoring TalentPage; minimal blast radius preferred |
+
+---
+
+## 🔧 Delta L.5 — Library Departments: Canonical Full-Page Workspace Shell
+
+### What This Delta Accomplishes
+
+**Objective**: Redesign the Library → Departments page into a full-page, structured workspace that matches the Products V3 / Shot Editor V3 / Library Locations (L.1) / Library Talent (L.2) / Library Crew (L.3) design language.
+
+**Before:**
+- `DepartmentsPage.jsx` was a simple admin-style card layout (~178 lines)
+- PageHeader + inline "Add department" form card
+- Grid of department cards with position lists and inline forms
+- No master-detail pattern
+- No designed empty states
+- Admin table presentation style
+
+**After:**
+- Full workspace shell with header band, left rail, and right detail canvas (~806 lines)
+- Header band with title ("Departments"), description, count badge, "Seed defaults" button, and "New department" CTA
+- Left rail with search input and scrollable department list (icon + name + position count)
+- Right canvas showing selected department details (icon, editable name, position list with add/delete)
+- Designed empty states for: no departments, no search results, nothing selected, no positions
+- Create modal for new departments
+- Inline name editing with save/cancel
+- Delete department action in canvas
+
+### Layout Structure
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Header Band: "Departments" + description + count + [Seed] [New]│
+├──────────────┬──────────────────────────────────────────────┤
+│ Left Rail    │ Right Canvas                                 │
+│              │                                              │
+│ [Search...]  │        ┌────────┐                            │
+│              │        │ 💼      │   ← Icon placeholder       │
+│ ┌──────────┐ │        └────────┘                            │
+│ │ 💼 Camera │ │                                              │
+│ │ 5 pos.   │ │      Camera [✏️]  ← Editable name            │
+│ └──────────┘ │                                              │
+│ ┌──────────┐ │  👥 Positions (5)                            │
+│ │ 💼 Light  │ │  [New position title...] [Add]              │
+│ │ 3 pos.   │ │  ┌─────────────────────────────┐            │
+│ └──────────┘ │  │ Director of Photography [🗑] │            │
+│              │  │ Camera Operator [🗑]         │            │
+│ 8 departments│  │ 1st AC [🗑]                  │            │
+│              │  └─────────────────────────────┘            │
+│              │                                              │
+│              │  [🗑 Delete department]                      │
+└──────────────┴──────────────────────────────────────────────┘
+```
+
+### Data Sources
+
+- **Department data**: `useDepartments(clientId)` → real-time Firestore subscription
+  - Returns: `{ departments, loading, error, createDepartment, updateDepartment, deleteDepartment, createPosition, deletePosition, seedDefaultDepartments }`
+  - Path: `clients/{clientId}/departments`
+  - Subcollection: `departments/{deptId}/positions`
+
+### RBAC
+
+- Uses `canManageProjects(globalRole)` → `admin` or `producer` roles
+- CTA buttons, edit controls, add/delete forms hidden for viewers/crew roles
+
+### Department Fields Displayed
+
+| Field | Rail | Canvas |
+|-------|------|--------|
+| Name | ✅ | ✅ (editable) |
+| Position count | ✅ | ✅ |
+| Positions list | — | ✅ (with add/delete) |
+
+### Empty States
+
+| State | Location | Message |
+|-------|----------|---------|
+| No departments at all | Full page | "No departments yet" + description + "Seed defaults" + "Add your first department" CTAs |
+| No search results | Rail | "No matches found" + "Try a different search term" |
+| Nothing selected | Canvas | "Select a department" + description |
+| No positions | Canvas | "No positions in this department yet" + add hint |
+
+### Create Flow
+
+- "New department" button opens modal with single name field
+- Create calls `createDepartment.mutateAsync({ name })`
+- On success, newly created department is auto-selected in rail
+
+### Edit Flow
+
+- Department name editable inline in canvas via pencil icon
+- Enter saves, Escape cancels
+- Calls `updateDepartment.mutateAsync({ departmentId, updates: { name } })`
+
+### Position Management
+
+- Add position form in canvas (text input + Add button)
+- Delete position via trash icon (with confirm dialog)
+- Calls `createPosition.mutateAsync({ departmentId, title })` and `deletePosition.mutateAsync({ departmentId, positionId })`
+
+### Intentionally NOT Changed
+
+| Item | Reason |
+|------|--------|
+| **Schema changes** | Scope constraint: no schema changes |
+| **Position editing** | Only create/delete implemented (matches legacy); full edit would require modal |
+| **Department reordering** | Not in scope; uses existing order field |
+| **URL-addressable selection** | Spec says: "keep selection local-state for now" |
+| **Route changes** | Route remains `/library/departments`; no new routes |
+| **useDepartments hook** | Reused as-is; all mutations already implemented |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/DepartmentsPage.jsx` | Complete rewrite: admin card layout → full workspace shell (~806 lines) |
+| `shot-editor-v3-phase3.md` | This delta entry (L.5) |
+
+### Line Ranges Changed
+
+- `src/pages/DepartmentsPage.jsx`:
+  - Lines 1-806: Complete rewrite (was ~178 lines with inline forms)
+  - Imports: `useCallback, useEffect, useMemo, useState` + auth + hooks + UI components + lucide icons
+  - Components: `filterDepartments`, `DepartmentRailItem`, `DepartmentRail`, `DepartmentDetailCanvas`, `DepartmentsHeaderBand`, `DepartmentsEmptyState`, `DepartmentCreateModal`, `DepartmentsPage`
+
+### Bundle Impact
+
+- **Before**: `DepartmentsPage.jsx` was ~178 lines (simple admin card layout)
+- **After**: `DepartmentsPage-Bylt6bQx.js` — 15.37 kB (gzip: 4.04 kB)
+- **Note**: useDepartments hook bundled separately
+
+### Verification
+
+- [x] `npm run lint` — Zero warnings
+- [x] `npm run build` — Succeeds (16.00s)
+- [ ] Manual QA: Chrome extension unavailable
+
+### Manual QA Checklist
+
+⚠️ Chrome extension unavailable during implementation
+
+| Scenario | Steps | Expected |
+|----------|-------|----------|
+| Empty state | Navigate to `/library/departments` with no departments | Full-page empty state with "No departments yet" message, "Seed defaults" and "Add your first department" CTAs |
+| Seed defaults | Click "Seed defaults" button | Default departments created, first auto-selected |
+| Department list | Navigate with existing departments | Left rail shows departments with icon + name + position count; first auto-selected |
+| Selection | Click different department in rail | Canvas updates to show selected department details |
+| Search filter | Type in search input | Rail filters to matching departments (by name or position title) |
+| Search no results | Type non-matching query | Rail shows "No matches found" empty state |
+| Detail display | Select department with positions | Canvas shows icon, name (editable), position count, position list |
+| No positions | Select department without positions | Canvas shows "No positions in this department yet" placeholder |
+| New department | Click "New department" button | Create modal opens with name field |
+| Create flow | Fill name and submit | New department appears in rail, auto-selected, modal closes |
+| Edit name | Click pencil icon next to name | Inline edit mode with input, save (✓) and cancel (✗) buttons |
+| Save name | Edit name, press Enter or click ✓ | Name updates, edit mode closes |
+| Cancel edit | Press Escape or click ✗ | Edit mode closes, name unchanged |
+| Add position | Fill position form, click Add | Position appears in list |
+| Delete position | Click trash icon on position | Confirm dialog, position removed on confirm |
+| Delete department | Click "Delete department" button | Confirm dialog, department deleted, next selected |
+| Permission check | View as non-producer role | All edit controls hidden; buttons, forms, trash icons not shown |
+
+---
+
+## 📚 Delta R.1 — Library Domain Architecture Definition (Documentation Only)
+
+### Initiative: R — Library Domain Architecture & Editing Model
+
+This is a **NEW INITIATIVE** (letter R) focused on establishing a cohesive Library system model before further incremental work.
+
+### What Problem This Delta Solves
+
+**Objective**: Stop incremental "page polishing" and define a world-class, cohesive Library system model that matches the design maturity of Products V3.
+
+**Before**:
+- Library domains (Talent, Crew, Locations, Departments, Tags, Palette) evolved through L.x deltas
+- Each delta copied the rail+canvas layout from the previous one
+- No coherent vision for domain-specific surfaces
+- Editing escapes to legacy modals instead of inline edit
+- No Library Hub — navigation defaults to Talent arbitrarily
+
+**After**:
+- Comprehensive architecture document defines the Library system model
+- Three domain archetypes identified: Profiles, Structure, Classification
+- Canonical navigation model with Library Hub concept
+- Canonical editing model: inline edit by default, modals only for creation/destruction
+- Clear transition plan (R.2-R.5) for implementation
+- Explicit freeze on further L.x shell rewrites until architecture is implemented
+
+### Deliverables
+
+| Deliverable | Path | Description |
+|-------------|------|-------------|
+| **Architecture Document** | `docs/library-domain-architecture.md` | Comprehensive spec for Library system model (~400 lines) |
+| **Delta Entry** | `shot-editor-v3-phase3.md` | This entry documenting R.1 |
+
+### Architecture Document Contents
+
+The new `docs/library-domain-architecture.md` contains:
+
+1. **Problem Statement** — Why the Library feels fragmented vs Products V3; names anti-patterns explicitly
+2. **Library Purpose & Principles** — What the Library is FOR; design principles (contextual over generic, progressive disclosure, edit-in-place, navigation clarity, calm editorial aesthetic)
+3. **Domain Inventory & Archetypes** — Classifies 6 domains into 3 archetypes:
+   - **Profiles** (Talent, Crew): Portrait-centric master-detail, inline canvas editing
+   - **Structure** (Departments): Expandable list, inline hierarchy editing
+   - **Classification** (Tags, Palette): Dense table/grid, inline cell editing
+4. **Canonical Navigation Model** — Library Hub concept with 3 variant sketches (Bento, Split, Minimal)
+5. **Canonical Editing Model** — Rules for inline edit, when modals are permitted, transition from legacy modals
+6. **Transition Plan** — Proposed R.2-R.5 deltas (NOT implemented, just defined)
+7. **Freeze List** — Pauses further L.x shell rewrites until architecture is used
+
+### Visual Analysis Performed
+
+**Tool used**: Playwright MCP browser automation
+
+**Sites analyzed**:
+- `kobolabs.io` — Design sensibility reference (calm, intentional, editorial, spatial)
+- `my.sethero.com` — Attempted workflow clarity reference (login page only; departments requires auth)
+
+**Screenshots captured**: `kobolabs-hero.png` (viewport screenshot of homepage)
+
+### What Was Intentionally NOT Changed
+
+| Item | Reason |
+|------|--------|
+| **Any code files** | R.1 is documentation-only per spec |
+| **Library page implementations** | Frozen until R.2+ |
+| **Routing** | No navigation changes |
+| **Data schemas** | No schema changes |
+| **UI components** | No component changes |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `docs/library-domain-architecture.md` | **NEW** — Complete architecture document (~400 lines) |
+| `shot-editor-v3-phase3.md` | This delta entry (R.1) |
+
+### Verification
+
+- [x] Documentation only — no npm commands needed
+- [x] Architecture document created at `docs/library-domain-architecture.md`
+- [x] No code changes made
+
+### FREEZE NOTICE
+
+**Effective immediately**, the following work is paused until R.2 is complete:
+
+- ❌ Further L.x shell rewrites (no more copying rail+canvas pattern)
+- ❌ Cosmetic tweaks to Library pages
+- ❌ Ad-hoc fixes to Library navigation
+- ❌ New Library domains
+
+**Exceptions**: Critical bugfixes, security patches, performance fixes only.
+
+### Next Steps (NOT YET AUTHORIZED)
+
+| Delta | Description | Status |
+|-------|-------------|--------|
+| R.2 | Library Hub implementation | Proposed |
+| R.3 | Talent inline edit surface | Proposed |
+| R.4 | Crew scaling model | Proposed |
+| R.5 | Classification consolidation (Tags + Palette) | Proposed |
+
+**Do NOT implement R.2+ without explicit authorization.**
+
+---
+
+## 🔗 Delta R.2 — Library Hub (Canonical Entry + Domain Navigation)
+
+### What This Delta Delivers
+
+Implements the canonical Library Hub at `/library` as the primary entry point for the Library domain, following the Bento-style hub variant from `docs/library-domain-architecture.md`. The hub makes Library a destination rather than defaulting to a subdomain.
+
+**Key changes:**
+1. New `LibraryHubPage.jsx` component with Bento-style domain tiles
+2. `/library` now renders the hub instead of redirecting to `/library/talent`
+3. Sidebar Library submenu includes "Overview" link to hub as first item
+4. Domain tiles show real-time counts from existing hooks
+5. Three archetype sections: Profiles, Structure, Classification
+
+### Implementation Details
+
+**New component:** `src/pages/LibraryHubPage.jsx`
+
+The hub uses the Bento-style variant with:
+- `DomainTile` component inspired by Products V3 `BentoCard`
+- `SectionHeader` component for archetype groupings
+- Calm, editorial design with generous whitespace
+- Real-time counts from existing hooks (`useTalent`, `useLocations`, `useOrganizationCrew`, `useDepartments`, `useColorSwatches`)
+- Graceful fallback ("—") for unavailable counts (e.g., Tags which are project-scoped)
+
+**Routing changes:**
+- `App.jsx`: Changed `/library` index route from `<Navigate to="/library/talent">` to `<LibraryHubPage />`
+- `LibraryPage.jsx`: Conditionally renders only `<Outlet />` when on hub (path is exactly `/library`)
+
+**Sidebar changes:**
+- `SidebarNav.jsx`: Added "Overview" item as first entry in `libraryItems` with `end: true` for exact matching
+- `SidebarNavGroup.jsx`: Added support for `end` prop on items for exact path matching
+
+### Key Decisions Table
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Hub variant | Bento (card tiles) | Matches Products V3 design language; provides clear domain navigation with counts |
+| Domain tile design | Custom `DomainTile` component | Simpler than importing `BentoCard` from Products workspace; tailored for hub needs |
+| Count fetching | Existing hooks | No new Firestore collections or queries; uses `useTalent`, `useLocations`, etc. |
+| Tags count | "—" fallback | Tags are project-scoped and aggregated from shots; not available at org level |
+| Hub header | Self-contained | Hub renders its own `PageHeader`; subdomain pages retain tabbed shell |
+| Sidebar entry | "Overview" item | Clear labeling; positioned first in Library submenu |
+| Exact matching | `end: true` prop | Prevents Overview link highlighting when on `/library/talent`, etc. |
+
+### Verification Results
+
+**Build verification:**
+- [x] `npm run lint` — 0 errors, 0 warnings
+- [x] `npm run build` — Success (LibraryHubPage-BsFQbBrR.js: 5.67 kB)
+
+**Visual verification (Playwright):**
+- [x] Hub renders at `/library` with all three sections
+- [x] Profiles: Talent (16 profiles), Crew (1 member)
+- [x] Structure: Departments (1 department), Locations (2 venues)
+- [x] Classification: Tags (— tags), Swatches (78 swatches)
+- [x] Domain tile click navigates to correct subdomain (tested: Talent)
+- [x] Sidebar Library submenu shows "Overview" as first item
+- [x] "Overview" link navigates back to hub from subdomain
+- [x] "Overview" link has correct active state (highlighted only when on hub)
+
+**Screenshots captured:**
+- `.playwright-mcp/library-hub-verification-1.png` — Initial hub view
+- `.playwright-mcp/library-hub-final-with-sidebar.png` — Hub with sidebar expanded
+
+### Before/After Behavior Table
+
+| Scenario | Before | After |
+|----------|--------|-------|
+| Sidebar → Library | Expands submenu; no hub entry | Submenu includes "Overview" → `/library` |
+| Direct `/library` | Redirects to `/library/talent` | Renders LibraryHubPage (hub) |
+| Hub → Talent (click tile) | N/A | Navigates to `/library/talent` |
+| `/library/talent` page | Shows tabs + Talent content | Same (unchanged) |
+| Sidebar "Overview" active state | N/A | Highlighted only when on `/library` exactly |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/LibraryHubPage.jsx` | **NEW** — Hub component (~270 lines) |
+| `src/pages/LibraryPage.jsx` | Conditionally hide header/tabs when on hub |
+| `src/App.jsx` | Add lazy import; change index route to render hub |
+| `src/components/layout/SidebarNav.jsx` | Add "Overview" item with `end: true` |
+| `src/components/layout/SidebarNavGroup.jsx` | Add `end` prop support for exact matching |
+
+### Intentionally NOT Touched
+
+| Item | Reason |
+|------|--------|
+| Talent/Crew/Locations/Departments pages | Out of R.2 scope; deferred to R.3+ |
+| Tags/Palette pages | Out of R.2 scope; deferred to R.5 |
+| "Back to Library" breadcrumb on domain pages | Would require touching 6+ files; deferred to R.3 |
+| Legacy route redirects | Existing redirects preserved; no new ones added |
+| Data schemas | No schema changes |
+| Edit surfaces | No editing model changes |
+
+---
+
+## 🔗 Delta R.3 — Library Profiles System (Design & Architecture)
+
+### What This Delta Delivers
+
+A comprehensive design and architecture specification for unifying Talent and Crew as a single canonical "Profiles" system. This delta is **documentation-only** — no code changes.
+
+**Full specification**: See `docs/library-profiles-system.md`
+
+### Key Design Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Profile model | Core + Extensions pattern | Shared identity/contact fields with type-specific extensions (measurements for talent, departments for crew) |
+| Route strategy | `/library/profiles` with type filter | Unified discovery with URL state sync; preserves legacy routes as redirects |
+| Editing model | Inline edit by default | Per R.1 principles; modals only for create flows and destructive actions |
+| Search approach | Free text + type filter | Simple start; faceted search deferred to future delta |
+| Schema changes | None required | Model is logical overlay; existing collections preserved |
+
+### Canonical Profile Model Summary
+
+```typescript
+interface ProfileCore {
+  id, firstName, lastName, displayName
+  primaryImagePath, email, phone
+  profileType: 'talent' | 'crew'   // Discriminator
+  notes, createdAt, updatedAt, clientId
+}
+
+interface TalentProfile extends ProfileCore {
+  profileType: 'talent'
+  agency, url, gender, measurements, galleryImages
+}
+
+interface CrewProfile extends ProfileCore {
+  profileType: 'crew'
+  company, departmentId, positionId
+}
+```
+
+### Route Strategy
+
+| Route | Behavior |
+|-------|----------|
+| `/library/profiles` | All profiles (talent + crew) |
+| `/library/profiles?type=talent` | Filtered to talent |
+| `/library/profiles?type=crew` | Filtered to crew |
+| `/library/talent` | Redirect to `?type=talent` |
+| `/library/crew` | Redirect to `?type=crew` |
+
+### Editing Rules (from R.1)
+
+- **Inline edit by default** for all text fields (name, email, phone, agency, notes)
+- **Click → Edit → Save/Cancel** pattern with visual affordances
+- **Modals permitted** only for: create flows, delete confirmation, image cropping
+- **No "Edit" button that opens full form modal** — violates inline-edit principle
+
+### Surface Sketches Included
+
+1. **Browse / Discover state** — Unified rail showing all profiles with type badges
+2. **Focused Edit state** — Rail dimmed, single field in edit mode with save/cancel
+3. **Measurements grid edit** — Tab-navigable cell editing for talent measurements
+
+### Problems This Design Solves
+
+| Problem | Solution |
+|---------|----------|
+| ~1,800 lines of duplicate Talent/Crew code | Unified ProfileCard, ProfileCanvas, InlineEditField components |
+| Modal-based editing violates R.1 | Inline edit as canonical pattern |
+| No unified people discovery | Single `/library/profiles` destination |
+| Divergent UX between talent and crew | Consistent editing model with type-specific extensions |
+
+### R.4 Implementation Proposal
+
+Delta R.4 should implement this design with the following scope:
+
+**In scope:**
+- New `ProfilesPage.jsx` unified discovery surface
+- New `ProfileCard.jsx`, `ProfileCanvas.jsx`, `InlineEditField.jsx`
+- Routing updates for `/library/profiles`
+- Sidebar update (nest Talent/Crew under "Profiles" group)
+- Text field inline editing
+
+**Out of scope:**
+- Schema/collection changes
+- Image inline editing (modal ok)
+- Advanced filters (agency, department)
+- Mobile responsive layout
+
+### Visual References Used
+
+| Source | Applied to |
+|--------|------------|
+| KoboLabs (kobolabs.io) | Calm, editorial rhythm; generous whitespace; muted warm palette |
+| Products V3 | Workspace pattern (rail + canvas); bento cards; section headers |
+| Shot Editor V3 | Contextual panels; progressive disclosure; inline editing affordances |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `docs/library-profiles-system.md` | **NEW** — Full specification (~500 lines) |
+
+### Why This Approach
+
+1. **Design-first**: Architecture defined before implementation prevents false starts
+2. **Incremental**: R.4 implements subset; future deltas add advanced features
+3. **Backward compatible**: Legacy routes redirect; no breaking changes
+4. **Aligned with R.1**: Honors the canonical editing model and archetype definitions
+
+---
+
+## 🔗 Delta R.4 — Library Profiles Surface (Unified Discovery + Focused Profile Editor)
+
+**Status:** ✅ Complete
+**Date:** 2026-01-26
+**Scope:** Implementation — Routing, UI components, inline editing
+
+### What R.4 Delivers
+
+R.4 implements the canonical Profiles system defined in R.3:
+
+1. **Unified Profiles Discovery Surface** (`/library/profiles`)
+   - Search-first discovery (NOT rail-first per R.4 spec)
+   - Type filter pills (All / Talent / Crew) with URL sync (`?type=talent|crew|all`)
+   - Responsive card grid that scales to 500+ profiles
+   - Visual distinction: Talent = image-forward rectangular cards; Crew = role-forward with circular avatars
+
+2. **Focused Profile Canvas**
+   - Slides in from right on selection (desktop)
+   - Inline editing for core fields (name, email, phone, notes, etc.)
+   - Measurements grid display for Talent
+   - Type-aware field visibility (gender/agency/portfolio for Talent; company/department for Crew)
+
+3. **Inline Edit Field Component**
+   - Reusable `InlineEditField` component for text/email/tel/url/textarea
+   - Click to edit → blur/Enter to save → Escape to cancel
+   - Error state shown inline, optimistic UI with rollback
+
+4. **Navigation Integration**
+   - `/library/profiles` route added
+   - Sidebar updated with Profiles group (indented Talent/Crew children)
+   - Library tabs include Profiles
+   - Library Hub includes "View all profiles" link
+
+### Implementation Details
+
+#### Key Design Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Discovery pattern** | Central card grid (NOT left rail) | R.4 spec: "avoid scroll prison"; scales to 500+ profiles |
+| **URL state** | `?type=talent\|crew\|all` | Shareable filter state; browser back/forward works |
+| **Selection model** | Local state + canvas panel | No URL for selected profile (per existing L.2/L.3 pattern) |
+| **Inline editing** | New `InlineEditField` component | Canonical per R.1/R.3; click-to-edit, blur-to-save |
+| **Talent imagery** | Rectangular 3:4 aspect, object-top | Avoids cropping heads; portrait-friendly |
+| **Crew imagery** | Circular avatar placeholder | Role-forward, not image-forward |
+| **Create modal** | Reuse existing `TalentCreateModal` | Only create flows use modals (per R.1) |
+| **Department editing** | Read-only in canvas | Requires dropdown/select; deferred to modal or future inline select |
+
+#### Data Layer
+
+- **No schema changes** — Uses existing `clients/{clientId}/talent` and `clients/{clientId}/crew` collections
+- **Unified data shape** — UI layer adds `_type` and `_displayName` overlay fields
+- **Real-time sync** — Uses existing `useTalent` and `useOrganizationCrew` hooks
+- **Search** — Reuses `searchTalent` from `lib/search.js`; adds inline `searchCrew` helper
+
+#### Component Architecture
+
+```
+LibraryProfilesPage.jsx
+├── ProfilesHeaderBand (title, count, create button)
+├── TypeFilterPills (All / Talent / Crew)
+├── ProfileCard grid (discovery)
+│   └── ProfileCard.jsx (visual distinction by type)
+├── ProfileCanvas (detail/edit panel)
+│   └── InlineEditField.jsx (reusable inline edit)
+└── TalentCreateModal (create flow only)
+```
+
+### Verification Results
+
+| Check | Result |
+|-------|--------|
+| `npm run lint` | ✅ Zero warnings |
+| `npm run build` | ✅ Successful (16s) |
+| Manual QA | Pending (requires authenticated session) |
+| Demo mode | Route not wired (demo has separate routing; out of scope) |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/LibraryProfilesPage.jsx` | **NEW** — Unified profiles discovery surface |
+| `src/components/profiles/ProfileCard.jsx` | **NEW** — Discovery card component |
+| `src/components/profiles/ProfileCanvas.jsx` | **NEW** — Detail/edit canvas with inline editing |
+| `src/components/profiles/InlineEditField.jsx` | **NEW** — Reusable inline edit primitive |
+| `src/App.jsx` | Added `/library/profiles` route + lazy import |
+| `src/pages/LibraryPage.jsx` | Added Profiles tab; profiles page gets own header |
+| `src/pages/LibraryHubPage.jsx` | Added "View all profiles" link in Profiles section |
+| `src/components/layout/SidebarNav.jsx` | Added Profiles group with indented Talent/Crew |
+| `src/components/layout/SidebarNavGroup.jsx` | Added support for indented items + query param matching |
+
+### What Was Intentionally NOT Touched
+
+| Item | Reason |
+|------|--------|
+| `LibraryTalentPage.jsx` / `LibraryCrewPage.jsx` | Legacy views remain functional; `/library/talent` and `/library/crew` still work |
+| Demo mode routing (`DemoPage.jsx`) | Demo has separate routing config; out of R.4 scope |
+| Firestore collections/schema | No schema changes per R.4 spec |
+| Advanced filters (agency, department dropdown) | Deferred to R.5 |
+| Mobile responsive layout | Basic grid works; polishing deferred |
+| Virtualization | Grid is efficient for 500+ items; windowing not required yet |
+| Measurement inline editing | Complex grid UI; deferred to future delta |
+
+### Visual QA Notes
+
+Screenshots require authenticated access to `/library/profiles`. Demo mode routing (`/demo/library/profiles`) is not wired and out of scope for R.4.
+
+**To verify manually:**
+1. Start dev server: `npm run dev`
+2. Log in with valid credentials
+3. Navigate to `/library/profiles`
+4. Test filter pills (URL should update)
+5. Click a profile to open canvas
+6. Test inline editing on text fields
+
+### Follow-up Work (R.5+)
+
+| Item | Priority |
+|------|----------|
+| Wire demo mode `/demo/library/profiles` route | Medium |
+| Advanced filters (agency, department, gender) | Medium |
+| Measurement inline editing | Low |
+| Mobile-optimized profile canvas (sheet vs panel) | Low |
+| Crew profile images | Low |
 
 ---

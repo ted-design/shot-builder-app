@@ -85,7 +85,7 @@ export default function ProjectDashboardPage() {
       <PageHeader sticky={true} className="top-16 z-30">
         <PageHeader.Content>
           <div className="min-w-0">
-            <PageHeader.Title>{project?.name || (loadingProject ? "Loading…" : "Project Dashboard")}</PageHeader.Title>
+            <PageHeader.Title>Project Dashboard</PageHeader.Title>
             <PageHeader.Description>Project overview and quick access.</PageHeader.Description>
           </div>
         </PageHeader.Content>
@@ -177,6 +177,14 @@ export default function ProjectDashboardPage() {
                 description="In this project"
                 icon={Camera}
                 className="bg-gradient-to-br from-sky-50 to-white dark:from-sky-950/30 dark:to-neutral-900"
+              />
+              <StatCard
+                to={`/projects/${projectId}/schedule`}
+                label="Schedule"
+                value="→"
+                description="Call sheet & timeline"
+                icon={Calendar}
+                className="bg-gradient-to-br from-violet-50 to-white dark:from-violet-950/30 dark:to-neutral-900"
               />
             </div>
           </div>
