@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { Link, useNavigate } from "react-router-dom";
 import { addDoc, collection, doc, updateDoc, setDoc, serverTimestamp, deleteField } from "../lib/demoSafeFirestore";
 import { auth, db } from "../lib/firebase";
-import { useProjects } from "../hooks/useFirestoreQuery";
+import { useProjects, queryKeys } from "../hooks/useFirestoreQuery";
 import { CLIENT_ID, projectsPath } from "../lib/paths";
 import { useAuth } from "../context/AuthContext";
 import { canManageProjects, ROLE } from "../lib/rbac";
@@ -14,6 +14,9 @@ import { showError, toast } from "../lib/toast";
 import { createProjectSchema, updateProjectSchema } from "../schemas/index.js";
 import { SkeletonCard } from "../components/ui/Skeleton";
 import { Button } from "../components/ui/button";
+import { useStuckLoading } from "../hooks/useStuckLoading";
+import { StuckLoadingFallback } from "../components/common/StuckLoadingFallback";
+import { QueryErrorFallback } from "../components/common/QueryErrorFallback";
 import { Input } from "../components/ui/input";
 import {
   DropdownMenu,
@@ -30,7 +33,21 @@ export default function ProjectsPage() {
   const resolvedClientId = clientId || CLIENT_ID;
 
   // TanStack Query hook - cached data with realtime updates
-  const { data: itemsRaw = [], isLoading: loadingProjects, error: projectsError } = useProjects(resolvedClientId);
+  const {
+    data: itemsRaw = [],
+    isLoading: loadingProjects,
+    isFetching: fetchingProjects,
+    isError: projectsIsError,
+    error: projectsError,
+    refetch: refetchProjects,
+  } = useProjects(resolvedClientId);
+
+  // Stuck-loading detection for defensive UX
+  const { isStuck: isProjectsStuck, elapsedMs: projectsElapsedMs } = useStuckLoading({
+    isLoading: loadingProjects,
+    isFetching: fetchingProjects,
+    itemCount: itemsRaw?.length || 0,
+  });
 
   const role = globalRole || ROLE.VIEWER;
   const canManage = canManageProjects(role);
@@ -376,13 +393,54 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {/* Skeleton loading state */}
-      {loadingProjects && items.length === 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array(3).fill(0).map((_, i) => (
-            <SkeletonCard key={i} className="h-48" />
-          ))}
-        </div>
+      {/* Error state - show when query failed and no cached data */}
+      {projectsIsError && items.length === 0 && !loadingProjects && (
+        <QueryErrorFallback
+          title="Unable to load projects"
+          subtitle="We couldn't load your projects. Check your connection and try again."
+          onRetry={refetchProjects}
+          retrying={fetchingProjects}
+          variant="card"
+          debugInfo={{
+            clientId,
+            resolvedClientId,
+            queryKey: queryKeys.projects(resolvedClientId),
+            enabled: Boolean(resolvedClientId),
+            isLoading: loadingProjects,
+            isFetching: fetchingProjects,
+            isError: projectsIsError,
+            errorMessage: projectsError?.message,
+            elapsedMs: projectsElapsedMs,
+          }}
+        />
+      )}
+
+      {/* Skeleton loading state with stuck-loading fallback */}
+      {loadingProjects && items.length === 0 && !projectsIsError && (
+        isProjectsStuck ? (
+          <StuckLoadingFallback
+            title="Still loading projects..."
+            subtitle="If this doesn't resolve, refresh the page or check your connection."
+            variant="card"
+            debugInfo={{
+              clientId,
+              resolvedClientId,
+              queryKey: queryKeys.projects(resolvedClientId),
+              enabled: Boolean(resolvedClientId),
+              isLoading: loadingProjects,
+              isFetching: fetchingProjects,
+              isError: projectsIsError,
+              errorMessage: projectsError?.message,
+              elapsedMs: projectsElapsedMs,
+            }}
+          />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array(3).fill(0).map((_, i) => (
+              <SkeletonCard key={i} className="h-48" />
+            ))}
+          </div>
+        )
       )}
       {!canManage && (
         <div className="rounded-card border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4 text-sm text-neutral-600 dark:text-neutral-400">

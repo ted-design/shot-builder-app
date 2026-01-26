@@ -1,7 +1,7 @@
 # Shot Editor V3 — Parity Gate Checklist
 
-**Version:** v1.7
-**Status:** ✅ CUTOVER COMPLETE (Delta I.8) + Bundle Optimized (Delta I.9)
+**Version:** v1.8
+**Status:** ✅ V3 IS SOLE EDITOR — Legacy Modal Removed from ShotsPage (Delta I.10)
 **Last Updated:** 2026-01-25
 
 ---
@@ -272,6 +272,14 @@ Before removing the legacy modal:
 - Separate chunk: `ShotEditModal-B12v3_aR.js` (43.34 kB)
 - Rollback valve preserved until observation period completes (cleanup is I.10)
 
+### Phase I.7 (Complete - Delta I.10 Burn the Ships)
+- ~~Remove `?legacyShotEditor=1` rollback valve from ShotsPage~~ ✅ DONE (Delta I.10)
+- ~~Remove lazy-loaded ShotEditModal import from ShotsPage~~ ✅ DONE
+- ~~Remove `useLegacyShotEditorMode` hook~~ ✅ DONE
+- ~~Update all click handlers to navigate directly to V3~~ ✅ DONE
+- **V3 is now the sole editor path for the Shots page**
+- Note: `ShotEditModal.jsx` preserved for PlannerPage and ScheduleShotEditorModal use
+
 ---
 
 ## 6. Revision History
@@ -286,6 +294,7 @@ Before removing the legacy modal:
 | v1.5 | 2026-01-24 | Claude | CommentSection integrated (Delta I.6): Reuses existing CommentSection in canvas area — ALL BLOCKERS RESOLVED |
 | v1.6 | 2026-01-25 | Claude | **CUTOVER COMPLETE** (Delta I.8): V3 is default editor everywhere; legacy modal gated behind `?legacyShotEditor=1` safety valve |
 | v1.7 | 2026-01-25 | Claude | **BUNDLE OPTIMIZED** (Delta I.9): Legacy modal lazy-loaded; only included when rollback valve active |
+| v1.8 | 2026-01-25 | Claude | **BURN THE SHIPS** (Delta I.10): Rollback valve removed; V3 is sole editor for ShotsPage; ShotEditModal preserved for Planner/Callsheet only |
 
 ---
 

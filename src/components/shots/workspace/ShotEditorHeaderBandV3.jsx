@@ -10,7 +10,7 @@
  */
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
 import { shotsPath } from "../../../lib/paths";
@@ -47,8 +47,62 @@ import ConfirmDialog from "../../common/ConfirmDialog";
 
 export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = false }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const auth = useAuth();
   const clientId = auth?.clientId;
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RETURN TO CONTEXT (J.6)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Parse returnTo query param and derive navigation target
+   *
+   * SUPPORTED FORMATS (per J.6 spec):
+   * 1) returnTo=schedule → navigate to /projects/${projectId}/shots?view=planner
+   * 2) returnTo=planner  → navigate to /projects/${projectId}/shots?view=planner (alias)
+   * 3) returnTo=<encoded path starting with "/"> → decode and navigate (internal only)
+   *
+   * SECURITY: Only allow navigation to internal paths (must start with "/")
+   */
+  const returnToContext = useMemo(() => {
+    const returnTo = searchParams.get("returnTo");
+    if (!returnTo) return null;
+
+    // Known aliases
+    if (returnTo === "schedule" || returnTo === "planner") {
+      return {
+        label: "Return to Schedule",
+        path: `/projects/${projectId}/shots?view=planner`,
+      };
+    }
+
+    // Encoded path format (must start with "/")
+    try {
+      const decodedPath = decodeURIComponent(returnTo);
+      // Security: only allow internal paths starting with "/"
+      // Must not contain protocol or external URLs
+      if (
+        decodedPath.startsWith("/") &&
+        !decodedPath.includes("://") &&
+        !decodedPath.startsWith("//")
+      ) {
+        // Derive a simple label from the path
+        const pathSegments = decodedPath.split("/").filter(Boolean);
+        const lastSegment = pathSegments[pathSegments.length - 1] || "previous page";
+        const label = `Return to ${lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1).replace(/[?#].*$/, "")}`;
+        return {
+          label,
+          path: decodedPath,
+        };
+      }
+    } catch {
+      // Invalid encoded string - ignore silently
+    }
+
+    // Unrecognized format - do nothing
+    return null;
+  }, [searchParams, projectId]);
 
   // Delete shot mutation (uses soft delete - sets deleted: true)
   const deleteShotMutation = useDeleteShot(clientId, projectId, {
@@ -300,6 +354,16 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
   const handleBack = () => {
     navigate(`/projects/${projectId}/shots`);
   };
+
+  /**
+   * Handle "Return to" navigation (J.6)
+   * Navigates to the path specified in returnToContext
+   */
+  const handleReturnTo = useCallback(() => {
+    if (returnToContext?.path) {
+      navigate(returnToContext.path);
+    }
+  }, [returnToContext, navigate]);
 
   const handleOpenLegacy = () => {
     // Navigate to the shots list (legacy uses modal-based editing)
@@ -876,6 +940,19 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
               <ArrowLeft className="w-4 h-4 mr-1.5" />
               Shots
             </Button>
+
+            {/* Return to affordance (J.6) - shown when returnTo query param is present */}
+            {returnToContext && (
+              <button
+                type="button"
+                onClick={handleReturnTo}
+                className="flex-shrink-0 inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                title={returnToContext.label}
+              >
+                <ArrowLeft className="w-3 h-3" />
+                <span className="max-w-[120px] truncate">{returnToContext.label}</span>
+              </button>
+            )}
 
             {/* Divider */}
             <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 flex-shrink-0" />

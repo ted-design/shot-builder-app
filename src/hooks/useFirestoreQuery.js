@@ -24,6 +24,11 @@ import {
 import { db } from "../lib/firebase";
 import { isProjectLeakDebugEnabled, projectLeakLog } from "../lib/debugProjectLeak";
 
+// Timeout for first snapshot in promise-based onSnapshot patterns.
+// If the first snapshot doesn't arrive within this time, the queryFn rejects.
+// Conservative value to account for slow networks while preventing indefinite hangs.
+const FIRST_SNAPSHOT_TIMEOUT_MS = 10000;
+
 const listenerRegistry = new Map();
 
 const serializeQueryKey = (key) => JSON.stringify(key);
@@ -226,8 +231,12 @@ export function useProjects(clientId, options = {}) {
   const isEnabled = Boolean((enabledOverride ?? true) && clientId);
 
   // Ref to resolve/reject the initial queryFn promise when first snapshot arrives
-  // Structure: { resolve, reject } or null if no pending promise
+  // Structure: { resolve, reject, timeoutId } or null if no pending promise
   const resolverRef = useRef(null);
+
+  // K.4: Ref to hold subscription cleanup function for timeout/abort scenarios.
+  // Allows queryFn to unsubscribe if Promise times out or is aborted before first snapshot.
+  const unsubscribeRef = useRef(null);
 
   const mapSnapshot = useCallback((snapshot) => {
     return snapshot.docs
@@ -246,7 +255,8 @@ export function useProjects(clientId, options = {}) {
   useEffect(() => {
     if (!isEnabled || !projectsQuery) return undefined;
 
-    return registerSnapshotListener(queryKey, () =>
+    // K.4: Store cleanup function in ref so queryFn can unsubscribe on timeout/abort
+    const cleanup = registerSnapshotListener(queryKey, () =>
       onSnapshot(
         projectsQuery,
         (snapshot) => {
@@ -254,6 +264,7 @@ export function useProjects(clientId, options = {}) {
 
           // Resolve pending queryFn promise on first snapshot
           if (resolverRef.current) {
+            clearTimeout(resolverRef.current.timeoutId);
             resolverRef.current.resolve(projects);
             resolverRef.current = null;
           }
@@ -265,12 +276,18 @@ export function useProjects(clientId, options = {}) {
           console.error("[useProjects] Subscription error:", error);
           // Reject pending queryFn promise if first snapshot failed
           if (resolverRef.current) {
+            clearTimeout(resolverRef.current.timeoutId);
             resolverRef.current.reject(error);
             resolverRef.current = null;
           }
         }
       )
     );
+    unsubscribeRef.current = cleanup;
+    return () => {
+      cleanup();
+      unsubscribeRef.current = null;
+    };
   }, [isEnabled, queryClient, queryKey, projectsQuery, mapSnapshot]);
 
   const result = useQuery({
@@ -287,15 +304,36 @@ export function useProjects(clientId, options = {}) {
         return Promise.reject(new Error("Query aborted"));
       }
 
-      // Wait for onSnapshot to deliver initial data
+      // Wait for onSnapshot to deliver initial data with timeout protection
       return new Promise((resolve, reject) => {
-        resolverRef.current = { resolve, reject };
+        // K.4: Helper to clean up subscription (safe to call multiple times)
+        const cleanupSubscription = () => {
+          if (typeof unsubscribeRef.current === "function") {
+            unsubscribeRef.current();
+            unsubscribeRef.current = null;
+          }
+        };
+
+        // Start timeout to prevent indefinite hanging if first snapshot never arrives
+        const timeoutId = setTimeout(() => {
+          if (resolverRef.current) {
+            resolverRef.current = null;
+            // K.4: Also unsubscribe to prevent orphaned listener on timeout
+            cleanupSubscription();
+            reject(new Error(`Timed out waiting for Firestore snapshot: projects/${clientId}`));
+          }
+        }, FIRST_SNAPSHOT_TIMEOUT_MS);
+
+        resolverRef.current = { resolve, reject, timeoutId };
 
         // Handle TanStack Query cancellation (e.g., component unmount)
         const handleAbort = () => {
           if (resolverRef.current) {
-            resolverRef.current.reject(new Error("Query aborted"));
+            clearTimeout(resolverRef.current.timeoutId);
             resolverRef.current = null;
+            // K.4: Also unsubscribe to prevent orphaned listener on abort
+            cleanupSubscription();
+            reject(new Error("Query aborted"));
           }
         };
 

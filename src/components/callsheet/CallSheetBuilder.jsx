@@ -2,6 +2,7 @@
 // Main container for the Call Sheet Builder (vertical editor + preview)
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   useSchedule,
   useUpdateScheduleTracks,
@@ -47,7 +48,6 @@ import { useProjectCrew } from "../../hooks/useProjectCrew";
 import { useDepartments } from "../../hooks/useDepartments";
 import { useProjectDepartments } from "../../hooks/useProjectDepartments";
 import EntryFormModal from "./entries/EntryFormModal";
-import ScheduleShotEditorModal from "./entries/ScheduleShotEditorModal";
 import ColumnConfigModal from "./columns/ColumnConfigModal";
 import TrackManager from "./tracks/TrackManager";
 import CallSheetExportModal from "./export/CallSheetExportModal";
@@ -109,6 +109,9 @@ function CallSheetBuilder({
   const normalizedViewMode = viewMode === "preview" ? "preview" : "builder";
   const isPreviewOnly = normalizedViewMode === "preview";
 
+  // Delta J.3: Navigation to V3 editor
+  const navigate = useNavigate();
+
   // Modal state
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [entryModalMode, setEntryModalMode] = useState("select"); // 'shot' | 'custom' | 'select'
@@ -119,8 +122,6 @@ function CallSheetBuilder({
   const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
   const [isTrackManagerOpen, setIsTrackManagerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isShotEditorOpen, setIsShotEditorOpen] = useState(false);
-  const [shotEditorShot, setShotEditorShot] = useState(null);
 
   // Workspace fullscreen mode - keeps both editor and preview visible in an overlay
   const [isWorkspaceFullscreen, setIsWorkspaceFullscreen] = useState(false);
@@ -720,6 +721,7 @@ function CallSheetBuilder({
     [updateEntry]
   );
 
+  // Delta J.3: Navigate to Shot Editor V3 instead of opening inline modal
   const handleEditShotEntry = useCallback(
     (entry) => {
       const shotId = entry?.shotRef;
@@ -729,10 +731,10 @@ function CallSheetBuilder({
         toast.error({ title: "Shot not found", description: "This schedule entry references a missing shot." });
         return;
       }
-      setShotEditorShot({ ...shot, id: shotId });
-      setIsShotEditorOpen(true);
+      // Navigate to V3 editor with return context
+      navigate(`/projects/${projectId}/shots/${shotId}/editor?returnTo=schedule`);
     },
-    [shotsMap]
+    [shotsMap, navigate, projectId]
   );
 
   // Combined handler that routes to shot editor for shots, custom entry modal for banners
@@ -1221,20 +1223,6 @@ function CallSheetBuilder({
 
       {!isPreviewOnly ? (
         <>
-          <ScheduleShotEditorModal
-            open={isShotEditorOpen}
-            onClose={() => {
-              setIsShotEditorOpen(false);
-              setShotEditorShot(null);
-            }}
-            clientId={clientId}
-            projectId={projectId}
-            shot={shotEditorShot}
-            families={productFamilies}
-            locations={locationsArray}
-            talentOptions={talentOptions}
-          />
-
           <ColumnConfigModal
             isOpen={isColumnConfigOpen}
             onClose={() => setIsColumnConfigOpen(false)}
