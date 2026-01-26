@@ -74,6 +74,31 @@ function OverviewSection({ family, skus, samples, onNavigate }) {
   const colorwayMetrics = useMemo(() => computeColorwayMetrics(skus), [skus]);
   const sampleMetrics = useMemo(() => computeSampleMetrics(samples), [samples]);
 
+  // Compute asset metrics from existing product images
+  const assetMetrics = useMemo(() => {
+    let imageCount = 0;
+    const subMetrics = [];
+
+    // Count family-level images
+    if (family?.headerImagePath) imageCount += 1;
+    if (family?.thumbnailImagePath && family.thumbnailImagePath !== family.headerImagePath) {
+      imageCount += 1;
+    }
+
+    // Count SKU colorway images
+    const skuImageCount = skus.filter((sku) => sku.imagePath).length;
+    imageCount += skuImageCount;
+
+    if (imageCount > 0) {
+      subMetrics.push({ value: imageCount, label: "images", variant: "default" });
+    }
+
+    return {
+      total: imageCount,
+      subMetrics,
+    };
+  }, [family, skus]);
+
   // Compute activity count from audit fields
   const activityMetrics = useMemo(() => {
     let count = 0;
@@ -172,12 +197,14 @@ function OverviewSection({ family, skus, samples, onNavigate }) {
           onClick={() => onNavigate("samples")}
         />
 
-        {/* Assets card - coming soon */}
+        {/* Assets card */}
         <BentoCard
           icon={FileText}
           title="Assets"
           description={SECTION_DESCRIPTIONS.assets}
-          variant="coming-soon"
+          metric={assetMetrics.total}
+          metricLabel={assetMetrics.total === 1 ? "asset" : "assets"}
+          subMetrics={assetMetrics.subMetrics}
           onClick={() => onNavigate("assets")}
         />
 
@@ -200,16 +227,162 @@ function OverviewSection({ family, skus, samples, onNavigate }) {
 // ASSETS & ACTIVITY SECTIONS (Coming Soon)
 // ============================================================================
 
-function AssetsSection() {
+/**
+ * Assets Section - Product files & documents
+ *
+ * Currently read-only with designed empty state. Products don't yet have
+ * an attachments array like shots do. This section prepares for that pattern.
+ *
+ * Future: Add `assets: []` array to productFamilySchema following shot.attachments pattern
+ */
+function AssetsSection({ family, skus }) {
+  // Compute existing image assets from product data
+  // These are the images already associated with the product (not supplementary files)
+  const existingImages = useMemo(() => {
+    const images = [];
+
+    // Family-level images
+    if (family?.headerImagePath) {
+      images.push({
+        id: "header",
+        type: "image",
+        category: "Product Images",
+        label: "Header Image",
+        path: family.headerImagePath,
+        updatedAt: family.updatedAt,
+      });
+    }
+    if (family?.thumbnailImagePath && family.thumbnailImagePath !== family.headerImagePath) {
+      images.push({
+        id: "thumbnail",
+        type: "image",
+        category: "Product Images",
+        label: "Thumbnail",
+        path: family.thumbnailImagePath,
+        updatedAt: family.updatedAt,
+      });
+    }
+
+    // SKU colorway images
+    skus.forEach((sku) => {
+      if (sku.imagePath) {
+        images.push({
+          id: `sku-${sku.id}`,
+          type: "image",
+          category: "Colorway Images",
+          label: sku.colorName || "Colorway",
+          path: sku.imagePath,
+          updatedAt: sku.updatedAt,
+        });
+      }
+    });
+
+    return images;
+  }, [family, skus]);
+
+  // Group images by category
+  const groupedAssets = useMemo(() => {
+    const groups = {};
+    existingImages.forEach((img) => {
+      if (!groups[img.category]) {
+        groups[img.category] = [];
+      }
+      groups[img.category].push(img);
+    });
+    return groups;
+  }, [existingImages]);
+
+  const hasImages = existingImages.length > 0;
+
   return (
-    <div className="p-6">
-      <SectionHeader title="Assets" className="px-0 border-0 pb-4" />
-      <WorkspaceEmptyState
-        icon={FileText}
-        title="Documents & Files"
-        description="Upload tech packs, material specifications, reference images, and other product documents."
-        actionLabel="Upload file"
-      />
+    <div className="p-6 space-y-6">
+      <SectionHeader title="Assets" className="px-0 border-0 pb-0" />
+
+      {/* Summary bar */}
+      <div className="flex items-center gap-4 py-2 px-3 rounded-lg bg-slate-50/80 dark:bg-slate-800/50">
+        <div className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-slate-400" />
+          <span className="text-xs text-slate-600 dark:text-slate-400">
+            {existingImages.length} {existingImages.length === 1 ? "image" : "images"}
+          </span>
+        </div>
+        <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
+        <span className="text-xs text-slate-500 dark:text-slate-500">
+          0 documents
+        </span>
+      </div>
+
+      {/* Existing images section - read-only display */}
+      {hasImages && (
+        <div className="space-y-4">
+          {Object.entries(groupedAssets).map(([category, items]) => (
+            <div key={category}>
+              <h3 className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                {category}
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {items.map((asset) => (
+                  <div
+                    key={asset.id}
+                    className="group relative rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-700 aspect-square"
+                  >
+                    <AppImage
+                      src={asset.path}
+                      alt={asset.label}
+                      preferredSize={200}
+                      className="w-full h-full object-cover"
+                    />
+                    {/* Overlay with label */}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                      <p className="text-xs text-white truncate font-medium">
+                        {asset.label}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Documents section - always empty for now */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          Documents
+        </h3>
+        <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 p-6">
+          <div className="flex flex-col items-center justify-center text-center">
+            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-3">
+              <FileText className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+            </div>
+            <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              No documents yet
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mb-4">
+              Add tech packs, spec sheets, label art, packaging files, and reference documents.
+            </p>
+            <button
+              type="button"
+              disabled
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md
+                bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-500
+                cursor-not-allowed"
+              title="Document uploads coming in a future update"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Upload document
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Context footer */}
+      <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
+        <p className="text-[11px] text-slate-400 dark:text-slate-500">
+          Product images are shown above. Document uploads (tech packs, spec sheets) will be available in a future update.
+        </p>
+      </div>
     </div>
   );
 }
@@ -604,13 +777,21 @@ export default function ProductDetailPageV3() {
       }
     }
 
+    // Compute asset count from existing product images
+    let assetCount = 0;
+    if (family?.headerImagePath) assetCount += 1;
+    if (family?.thumbnailImagePath && family.thumbnailImagePath !== family.headerImagePath) {
+      assetCount += 1;
+    }
+    assetCount += skus.filter((sku) => sku.imagePath).length;
+
     return {
       colorways: skus.length,
       samples: demoSamples.length,
-      assets: 0,
+      assets: assetCount,
       activity: activityCount,
     };
-  }, [skus.length, demoSamples.length, family?.createdAt, family?.updatedAt]);
+  }, [skus, demoSamples.length, family]);
 
   const handleBack = useCallback(() => {
     navigate("/products");
@@ -786,7 +967,9 @@ export default function ProductDetailPageV3() {
               {activeSection === "samples" && (
                 <SamplesSection family={family} skus={skus} samples={demoSamples} />
               )}
-              {activeSection === "assets" && <AssetsSection />}
+              {activeSection === "assets" && (
+                <AssetsSection family={family} skus={skus} />
+              )}
               {activeSection === "activity" && (
                 <ActivitySection family={family} clientId={clientId} />
               )}
