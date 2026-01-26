@@ -34,6 +34,7 @@ import { useAuth } from "../context/AuthContext";
 import { locationsPath } from "../lib/paths";
 import { searchLocations } from "../lib/search";
 import { canManageLocations } from "../lib/rbac";
+import { toast } from "../lib/toast";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
@@ -482,17 +483,14 @@ export default function LibraryLocationsPage() {
   }, []);
 
   const handleEdit = useCallback((location) => {
-    // For now, editing opens the legacy modal flow
-    // This is a read-only focused delta; editing can remain modal-based
-    // In a future delta, edit could become inline in the canvas
-    console.info("[LibraryLocationsPage] Edit requested for:", location.id);
-    // TODO: Implement inline editing or navigate to edit view
+    // Inline editing for locations is planned for a future delta
+    // For now, show a toast to inform the user
+    toast.info(`Edit functionality for "${location.name || "this location"}" coming soon`);
   }, []);
 
-  const handleCreateLocation = useCallback(async (data) => {
+  const handleCreateLocation = useCallback(async () => {
     // Delegate to the LocationCreateModal's internal handling
     // The modal will handle the Firestore write and close itself
-    console.info("[LibraryLocationsPage] Create location:", data);
   }, []);
 
   // ══════════════════════════════════════════════════════════════════════════

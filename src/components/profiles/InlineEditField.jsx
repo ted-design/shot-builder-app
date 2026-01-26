@@ -17,6 +17,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, X, Loader2 } from "lucide-react";
 
 /**
+ * Strip HTML tags from input for security.
+ * This prevents XSS if the value is rendered elsewhere.
+ */
+function stripHtmlTags(str) {
+  if (!str) return str;
+  return str.replace(/<[^>]*>/g, "");
+}
+
+/**
  * InlineEditField
  *
  * @param {Object} props
@@ -79,7 +88,9 @@ export default function InlineEditField({
   }, [value]);
 
   const handleSave = useCallback(async () => {
-    const trimmed = editValue.trim();
+    // Sanitize input: strip HTML tags for security (prevents XSS)
+    const sanitized = multiline ? stripHtmlTags(editValue) : editValue;
+    const trimmed = sanitized.trim();
 
     // No change — just exit edit mode
     if (trimmed === (value || "").trim()) {
@@ -100,7 +111,7 @@ export default function InlineEditField({
     } finally {
       setIsSaving(false);
     }
-  }, [editValue, value, onSave]);
+  }, [editValue, value, onSave, multiline]);
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === "Escape") {

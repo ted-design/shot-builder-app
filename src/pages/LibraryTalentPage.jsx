@@ -811,7 +811,6 @@ export default function LibraryTalentPage() {
   const handleCreateTalent = useCallback(async () => {
     // The TalentCreateModal handles its own Firestore write internally
     // We just need to close the modal on success
-    console.info("[LibraryTalentPage] Create talent requested");
   }, []);
 
   // ══════════════════════════════════════════════════════════════════════════
