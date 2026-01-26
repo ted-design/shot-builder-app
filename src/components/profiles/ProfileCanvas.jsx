@@ -1,18 +1,22 @@
 /**
- * ProfileCanvas — Focused profile detail/editor canvas (R.4)
+ * ProfileCanvas — Focused profile detail/editor canvas (R.4 → R.5)
  *
- * DESIGN PHILOSOPHY (from R.1/R.3):
+ * DESIGN PHILOSOPHY (from R.1/R.3, refined in R.5):
  * - Inline editing is canonical — click field to edit, blur/Enter to save
  * - Talent: Image-forward, measurements grid, agency/portfolio
  * - Crew: Role-forward, department, company
  * - NO modal for editing existing fields (only create/media)
  *
+ * R.5 REFINEMENTS:
+ * - Works in workspace mode (no close button when onClose is null)
+ * - Better section rhythm and visual hierarchy
+ * - Calmer spacing, less boxiness
+ *
  * LAYOUT:
- * - Hero portrait section
- * - Name (inline editable)
- * - Contact info (inline editable)
- * - Type-specific fields (measurements for talent, department for crew)
- * - Notes section
+ * - Hero portrait section (centered)
+ * - Name + subtitle (inline editable)
+ * - Organized field sections with clear groupings
+ * - Notes section at bottom
  */
 
 import { useCallback, useMemo } from "react";
@@ -172,27 +176,36 @@ export default function ProfileCanvas({
   // RENDER
   // ══════════════════════════════════════════════════════════════════════════
 
+  // Check if we're in workspace mode (no close button)
+  const isWorkspaceMode = !onClose;
+
   return (
-    <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 overflow-hidden">
-      {/* Header with close button */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
-        <div className="flex items-center gap-2">
-          <span className={`
-            px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide
-            ${isTalent
-              ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
-              : "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
-            }
-          `}>
-            {isTalent ? "Talent" : "Crew"}
-          </span>
-          {!canEdit && (
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">
-              View only
+    <div className={`
+      flex-1 flex flex-col overflow-hidden
+      ${isWorkspaceMode
+        ? "bg-slate-50 dark:bg-slate-900"
+        : "bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700"
+      }
+    `}>
+      {/* Header - only show close button and header bar if not workspace mode */}
+      {!isWorkspaceMode && (
+        <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="flex items-center gap-2">
+            <span className={`
+              px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide
+              ${isTalent
+                ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+                : "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
+              }
+            `}>
+              {isTalent ? "Talent" : "Crew"}
             </span>
-          )}
-        </div>
-        {onClose && (
+            {!canEdit && (
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                View only
+              </span>
+            )}
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -201,36 +214,62 @@ export default function ProfileCanvas({
           >
             <X className="w-5 h-5" />
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-auto">
-        <div className="max-w-lg mx-auto px-6 py-8">
-          {/* Hero image */}
-          <div className={`
-            relative mx-auto overflow-hidden bg-slate-100 dark:bg-slate-700 mb-6 shadow-sm
-            ${isTalent
-              ? "w-40 h-52 rounded-xl"
-              : "w-32 h-32 rounded-full"
-            }
-          `}>
-            {isTalent ? (
-              <Thumb
-                path={profile.headshotPath || null}
-                size={400}
-                alt={name}
-                className="w-full h-full"
-                imageClassName="w-full h-full object-cover object-top"
-                fallback={
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Users className="w-14 h-14 text-slate-300 dark:text-slate-500" />
-                  </div>
-                }
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <User className="w-14 h-14 text-slate-300 dark:text-slate-500" />
+        <div className={`
+          max-w-xl mx-auto px-8
+          ${isWorkspaceMode ? "py-10" : "py-8"}
+        `}>
+          {/* Hero section with image */}
+          <div className="flex flex-col items-center mb-8">
+            {/* Hero image */}
+            <div className={`
+              relative overflow-hidden bg-slate-200 dark:bg-slate-700 shadow-sm
+              ${isTalent
+                ? "w-36 h-48 rounded-xl"
+                : "w-28 h-28 rounded-full"
+              }
+            `}>
+              {isTalent ? (
+                <Thumb
+                  path={profile.headshotPath || null}
+                  size={400}
+                  alt={name}
+                  className="w-full h-full"
+                  imageClassName="w-full h-full object-cover object-top"
+                  fallback={
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Users className="w-12 h-12 text-slate-400 dark:text-slate-500" />
+                    </div>
+                  }
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <User className="w-12 h-12 text-slate-400 dark:text-slate-500" />
+                </div>
+              )}
+            </div>
+
+            {/* Type badge (shown in workspace mode since there's no header) */}
+            {isWorkspaceMode && (
+              <div className="mt-4 flex items-center gap-2">
+                <span className={`
+                  px-2.5 py-1 rounded-full text-xs font-medium
+                  ${isTalent
+                    ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+                    : "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
+                  }
+                `}>
+                  {isTalent ? "Talent" : "Crew"}
+                </span>
+                {!canEdit && (
+                  <span className="text-xs text-slate-400 dark:text-slate-500">
+                    View only
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -253,34 +292,40 @@ export default function ProfileCanvas({
           </div>
 
           {/* Subtitle (agency for talent, role for crew) */}
-          <div className="text-center mb-6">
+          <div className="text-center mb-8">
             {isTalent ? (
               canEdit && onUpdate ? (
                 <InlineEditField
                   value={profile.agency || ""}
                   onSave={(val) => handleFieldSave("agency", val)}
                   placeholder="Add agency"
-                  className="text-base text-slate-600 dark:text-slate-400 justify-center"
+                  className="text-base text-slate-500 dark:text-slate-400 justify-center"
                   inputClassName="text-center"
                 />
               ) : (
                 profile.agency && (
-                  <p className="text-base text-slate-600 dark:text-slate-400">
+                  <p className="text-base text-slate-500 dark:text-slate-400">
                     {profile.agency}
                   </p>
                 )
               )
             ) : (
               (deptName || positionName) && (
-                <p className="text-base text-slate-600 dark:text-slate-400">
+                <p className="text-base text-slate-500 dark:text-slate-400">
                   {[positionName, deptName].filter(Boolean).join(" · ")}
                 </p>
               )
             )}
           </div>
 
-          {/* Details section */}
-          <div className="space-y-5">
+          {/* Details section - wrapped in card for workspace mode */}
+          <div className={`
+            space-y-5
+            ${isWorkspaceMode
+              ? "bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200/60 dark:border-slate-700/60"
+              : ""
+            }
+          `}>
             {/* Gender (talent only) */}
             {isTalent && (
               <div className="flex items-start gap-3">

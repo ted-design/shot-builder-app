@@ -4874,3 +4874,127 @@ Screenshots require authenticated access to `/library/profiles`. Demo mode routi
 | Crew profile images | Low |
 
 ---
+
+## R.5 — Profiles Workspace Layout Refactor
+
+> **Delta R.5** — Refactor /library/profiles from grid+slide-in to master-detail workspace
+> **Status**: ✅ Completed
+> **Date**: 2026-01-26
+
+### Problem Statement
+
+The R.4 grid + slide-in canvas felt "prototype-y" and created several UX issues:
+
+| Issue | Manifestation |
+|-------|---------------|
+| **Grid-first discovery wastes space** | Crew view with 1 profile shows lonely card in sea of whitespace |
+| **Uneven card sizes** | Talent cards dominate; crew cards look empty/cheap |
+| **Slide-in canvas compresses layout** | Creates huge dead zones; jarring reflow on selection |
+| **No stable "workspace frame"** | Lacks the visual consistency of Products V3 |
+
+### Solution: Master-Detail Workspace
+
+Refactored to a rail + canvas layout:
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Profiles                                              [+ New profile]   │
+│  Manage talent and crew for your organization                            │
+├─────────────────────────┬────────────────────────────────────────────────┤
+│                         │                                                │
+│  ┌─────────────────┐    │              ┌─────────────┐                   │
+│  │ 🔍 Search...    │    │              │             │                   │
+│  └─────────────────┘    │              │   [photo]   │                   │
+│                         │              │             │                   │
+│  [ All 17 ][ T 16 ][ C 1 ]           └─────────────┘                   │
+│                         │                                                │
+│  ┌─────────────────┐    │                 Talent                         │
+│  │ [■] AJ McDonald │◀───│                                                │
+│  │     Elite Model  │    │           AJ McDonald                         │
+│  │     T            │    │         Elite Model Management                │
+│  ├─────────────────┤    │                                                │
+│  │ [■] Ashley Allan│    │  ┌───────────────────────────────────────────┐ │
+│  │     Elite Model  │    │  │  Gender      Women                       │ │
+│  │     T            │    │  │  Email       arnika@elitemodels.com      │ │
+│  └─────────────────┘    │  │  Phone       416-826-6349                 │ │
+│                         │  │  Portfolio   https://toronto.elite...     │ │
+│  17 profiles            │  │  Notes       (click to add)               │ │
+│                         │  └───────────────────────────────────────────┘ │
+└─────────────────────────┴────────────────────────────────────────────────┘
+```
+
+### Key Changes
+
+| Component | Before (R.4) | After (R.5) |
+|-----------|--------------|-------------|
+| **Discovery surface** | 6-column card grid | Compact rail list (~280px) |
+| **Profile items** | Large cards with portrait images | Compact rows with small thumbnails |
+| **Type indicator** | Badge overlay on card | Inline "T" or "C" badge |
+| **Selection** | Canvas slides in from right | Canvas is stable right panel |
+| **Canvas mode** | Has close button (slide-in panel) | No close button (workspace mode) |
+| **Auto-selection** | None | First profile auto-selected on load |
+| **Empty crew state** | Lonely card in grid | Profile selected in canvas |
+
+### Files Changed
+
+| File | Lines | Change |
+|------|-------|--------|
+| `src/pages/LibraryProfilesPage.jsx` | 1-619 | Complete refactor to rail+canvas layout |
+| `src/components/profiles/ProfileCanvas.jsx` | 1-30, 175-230 | Added workspace mode (no close button); improved hero section |
+| `src/components/profiles/ProfileCard.jsx` | — | **Unused** (rail uses inline ProfileListItem) |
+
+### Before/After Behavior
+
+| Behavior | Before (R.4) | After (R.5) |
+|----------|--------------|-------------|
+| Initial load (all) | 6-col grid, no selection | Rail list + first profile selected |
+| Crew filter | Single card in grid (empty feel) | Rail shows 1 item, canvas shows details |
+| Talent filter | 6-col grid of portrait cards | Compact rail, large canvas |
+| Selection | Grid card highlight + slide-in | Rail highlight + stable canvas |
+| Canvas close | X button in header | No close (workspace mode) |
+| Filter change | Preserves selection (buggy) | Clears selection, auto-selects first |
+
+### Screenshot Verification
+
+| View | Before | After |
+|------|--------|-------|
+| All profiles | `before-profiles-all.png` | `after-profiles-all.png` |
+| Crew filter | `before-profiles-crew.png` | `after-profiles-crew.png` |
+| Talent filter | `before-profiles-talent.png` | `after-profiles-talent.png` |
+
+Screenshots saved to `.playwright-mcp/` directory.
+
+### Manual QA Checklist
+
+- [x] `/library/profiles` loads with rail + canvas; stable layout
+- [x] Search filters results; empty state appears appropriately
+- [x] Type toggle updates URL param and results + counts
+- [x] Selecting a result updates canvas
+- [x] Crew-only view at low counts still looks intentional
+- [x] First profile auto-selected on load
+- [x] Inline editing works on all text fields
+- [x] `npm run lint` — zero warnings
+- [x] `npm run build` — successful
+
+### Visual Polish Applied
+
+| Element | Treatment |
+|---------|-----------|
+| Rail background | White (same as app shell) |
+| Canvas background | Subtle gray (`slate-50`) |
+| Details card | White card with subtle border/shadow |
+| Type badges | Small "T"/"C" badges inline with name |
+| Thumbnails | Rectangular (talent) or circular (crew) |
+| Section spacing | Generous padding in canvas |
+
+### What Was Intentionally NOT Changed
+
+| Item | Reason |
+|------|--------|
+| `ProfileCard.jsx` | Left in place (unused but safe to keep) |
+| Firestore schema | No schema changes |
+| Create modal | Reuses existing TalentCreateModal |
+| Measurement editing | Deferred (complex grid UI) |
+| Mobile layout | Basic rail works; polishing deferred |
+
+---
