@@ -1,21 +1,28 @@
 /**
- * LibraryLocationsPage — Canonical Full-Page Workspace Shell
+ * LibraryLocationsPage — Canonical Full-Page Workspace Shell (R.9)
  *
- * DESIGN PHILOSOPHY (L.1 Delta)
- * =============================
+ * DESIGN PHILOSOPHY (L.1 Delta → R.9 Inspector Standardization)
+ * ==============================================================
  * This page transforms the Library → Locations view into a workspace-style experience
  * following the Products V3 / Shot Editor V3 spatial language:
  *
  * LAYOUT:
  * - TOP: Header band with page title, search, and primary actions
  * - LEFT: Scannable location rail with search results
- * - RIGHT: Selected location detail canvas
+ * - RIGHT: Selected location detail canvas (Inspector)
  *
  * KEY CHANGES FROM LEGACY:
  * 1. Master-detail pattern replaces modal-first UX
  * 2. Location selection is local state (no URL routing per spec)
  * 3. Designed empty states for both rail and canvas
  * 4. Full-page workspace instead of admin table presentation
+ *
+ * R.9 STANDARDIZATION:
+ * - Inline editing in the Inspector (canvas) — NO modals for primary editing
+ * - Click field → edit inline
+ * - Blur/Enter → save
+ * - Escape → cancel
+ * - Matches Profiles behavior (R.5–R.7)
  *
  * DATA SOURCE:
  * - Firestore: clients/{clientId}/locations (via locationsPath)
@@ -25,9 +32,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   collection,
+  doc,
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
+  updateDoc,
 } from "../lib/demoSafeFirestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
@@ -39,14 +49,15 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import Thumb from "../components/Thumb";
+import InlineEditField from "../components/profiles/InlineEditField";
 import LocationCreateModal from "../components/locations/LocationCreateModal";
 import {
   MapPin,
-  Phone,
-  FileText,
   Plus,
   Search,
   Building2,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 
 // ============================================================================
@@ -192,13 +203,154 @@ function LocationRail({
 }
 
 // ============================================================================
-// LOCATION DETAIL CANVAS (RIGHT PANEL)
+// COMPLETENESS HEURISTIC
 // ============================================================================
 
-function LocationDetailCanvas({ location, canManage, onEdit }) {
+/**
+ * Compute location completeness for the summary band.
+ * Returns { filled, total } for display as "X/Y"
+ */
+function computeCompleteness(location) {
+  const fields = [
+    Boolean(location.name),
+    Boolean(location.photoPath),
+    Boolean(location.street || location.city),
+    Boolean(location.phone),
+    Boolean(location.notes),
+  ];
+  const filled = fields.filter(Boolean).length;
+  return { filled, total: fields.length };
+}
+
+/**
+ * Format timestamp for display
+ */
+function formatLastUpdated(timestamp) {
+  if (!timestamp) return "—";
+
+  // Handle Firestore Timestamp
+  const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+  if (isNaN(date.getTime())) return "—";
+
+  const now = new Date();
+  const diff = now - date;
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+// ============================================================================
+// SUMMARY METRICS BAND
+// ============================================================================
+
+function MetricSlot({ icon: Icon, label, value, variant = "default" }) {
+  const variantStyles = {
+    default: "text-slate-600 dark:text-slate-300",
+    muted: "text-slate-400 dark:text-slate-500",
+  };
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-2">
+      <Icon className={`w-4 h-4 flex-shrink-0 ${variantStyles[variant]} opacity-60`} />
+      <div className="min-w-0">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+          {label}
+        </p>
+        <p className={`text-sm font-semibold truncate ${variantStyles[variant]}`}>
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function LocationSummaryBand({ location }) {
+  const completeness = useMemo(
+    () => computeCompleteness(location),
+    [location]
+  );
+
+  const lastUpdated = formatLastUpdated(location.updatedAt || location.createdAt);
+
+  return (
+    <div className="flex items-center divide-x divide-slate-100 dark:divide-slate-700 border border-slate-100 dark:border-slate-700 rounded-lg bg-slate-50/50 dark:bg-slate-800/30">
+      <MetricSlot
+        icon={CheckCircle2}
+        label="Completeness"
+        value={`${completeness.filled}/${completeness.total}`}
+      />
+      <MetricSlot
+        icon={Clock}
+        label="Last updated"
+        value={lastUpdated}
+      />
+    </div>
+  );
+}
+
+// ============================================================================
+// FACT ROW (for editable fields)
+// ============================================================================
+
+function FactRow({ label, value, isEditable, onSave, placeholder, type = "text", multiline = false }) {
+  const isEmpty = !value || !value.trim();
+
+  // Editable version
+  if (isEditable && onSave) {
+    return (
+      <div className="py-2">
+        <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+          {label}
+        </p>
+        <InlineEditField
+          value={value || ""}
+          onSave={onSave}
+          placeholder={placeholder || `Add ${label.toLowerCase()}`}
+          type={type}
+          multiline={multiline}
+          rows={multiline ? 4 : undefined}
+          className="text-sm"
+        />
+      </div>
+    );
+  }
+
+  // Read-only version
+  return (
+    <div className="py-2">
+      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+        {label}
+      </p>
+      {isEmpty ? (
+        <p className="text-sm text-slate-400 dark:text-slate-500 italic">—</p>
+      ) : (
+        <p className={`text-sm ${multiline ? "whitespace-pre-wrap" : ""} text-slate-900 dark:text-slate-100`}>
+          {value}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// LOCATION DETAIL CANVAS (RIGHT PANEL) — R.9 Inspector Pattern
+// ============================================================================
+
+function LocationDetailCanvas({ location, canManage, onUpdate }) {
+  // Field save handler — wraps onUpdate with field-specific logic
+  const handleFieldSave = useCallback(async (field, value) => {
+    if (!onUpdate) return;
+    await onUpdate({ field, value });
+  }, [onUpdate]);
+
   if (!location) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-white dark:bg-slate-800">
+      <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
         <div className="text-center max-w-sm px-4">
           <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4">
             <MapPin className="w-8 h-8 text-slate-300 dark:text-slate-500" />
@@ -215,99 +367,155 @@ function LocationDetailCanvas({ location, canManage, onEdit }) {
   }
 
   const name = (location.name || "Unnamed location").trim();
-  const address = formatAddress(location);
 
   return (
-    <main className="flex-1 overflow-auto bg-white dark:bg-slate-800">
-      <div className="max-w-2xl mx-auto px-8 py-8">
-        {/* Hero image */}
-        <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-700 mb-6">
-          <Thumb
-            path={location.photoPath || null}
-            size={1200}
-            alt={name}
-            className="w-full h-full"
-            imageClassName="w-full h-full object-cover"
-            fallback={
-              <div className="w-full h-full flex items-center justify-center">
-                <Building2 className="w-16 h-16 text-slate-300 dark:text-slate-500" />
+    <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900">
+      <div className="max-w-2xl mx-auto px-6 py-8">
+        {/* ════════════════════════════════════════════════════════════════
+            WORKSPACE STAGE CONTAINER (matches ProfileCanvas R.7)
+            ════════════════════════════════════════════════════════════════ */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+
+          {/* ══════════════════════════════════════════════════════════════
+              HERO / IDENTITY BLOCK
+              ══════════════════════════════════════════════════════════════ */}
+          <div className="p-6 pb-4">
+            {/* Type badge */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
+                Location
+              </span>
+              {!canManage && (
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                  View only
+                </span>
+              )}
+            </div>
+
+            {/* Hero image */}
+            <div className="flex justify-center mb-5">
+              <div className="relative w-full max-w-md aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-700">
+                <Thumb
+                  path={location.photoPath || null}
+                  size={800}
+                  alt={name}
+                  className="w-full h-full"
+                  imageClassName="w-full h-full object-cover"
+                  fallback={
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800">
+                      <Building2 className="w-12 h-12 text-slate-300 dark:text-slate-600" />
+                    </div>
+                  }
+                />
               </div>
-            }
-          />
-        </div>
-
-        {/* Name */}
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-4">
-          {name}
-        </h1>
-
-        {/* Address */}
-        {address && (
-          <div className="flex items-start gap-3 mb-4">
-            <MapPin className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-0.5">
-                Address
-              </p>
-              <p className="text-base text-slate-900 dark:text-slate-100">
-                {address}
-              </p>
             </div>
-          </div>
-        )}
 
-        {/* Phone */}
-        {location.phone && (
-          <div className="flex items-start gap-3 mb-4">
-            <Phone className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-0.5">
-                Phone
-              </p>
-              <p className="text-base text-slate-900 dark:text-slate-100">
-                {location.phone}
-              </p>
+            {/* Name — hero typographic anchor (inline editable) */}
+            <div className="text-center mb-1">
+              {canManage && onUpdate ? (
+                <InlineEditField
+                  value={name}
+                  onSave={(val) => handleFieldSave("name", val)}
+                  placeholder="Enter location name"
+                  className="text-xl font-semibold text-slate-900 dark:text-slate-100 justify-center"
+                  inputClassName="text-xl font-semibold text-center"
+                />
+              ) : (
+                <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                  {name}
+                </h1>
+              )}
             </div>
-          </div>
-        )}
 
-        {/* Notes */}
-        {location.notes && (
-          <div className="flex items-start gap-3 mb-6">
-            <FileText className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-0.5">
-                Notes
-              </p>
-              <p className="text-base text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
-                {location.notes}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Empty state for no details */}
-        {!address && !location.phone && !location.notes && (
-          <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 p-6 text-center">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              No additional details for this location.
-            </p>
-            {canManage && (
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                Edit the location to add address, phone, or notes.
+            {/* Address summary line (read-only, computed) */}
+            {(location.street || location.city) && (
+              <p className="text-center text-sm text-slate-500 dark:text-slate-400 mb-6">
+                {formatAddress(location)}
               </p>
             )}
-          </div>
-        )}
 
-        {/* Actions */}
-        {canManage && (
-          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700">
-            <Button variant="secondary" onClick={() => onEdit(location)}>
-              Edit location
-            </Button>
+            {/* ══════════════════════════════════════════════════════════════
+                SUMMARY METRICS BAND
+                ══════════════════════════════════════════════════════════════ */}
+            <LocationSummaryBand location={location} />
           </div>
-        )}
+
+          {/* ══════════════════════════════════════════════════════════════
+              DETAILS SECTION — Inline Editable Fields
+              ══════════════════════════════════════════════════════════════ */}
+          <div className="border-t border-slate-100 dark:border-slate-700 px-6 py-5">
+            <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
+              Address Details
+            </h3>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-1">
+              <FactRow
+                label="Street"
+                value={location.street || ""}
+                isEditable={canManage}
+                onSave={(val) => handleFieldSave("street", val)}
+                placeholder="Add street address"
+              />
+              <FactRow
+                label="Unit / Suite"
+                value={location.unit || ""}
+                isEditable={canManage}
+                onSave={(val) => handleFieldSave("unit", val)}
+                placeholder="Add unit"
+              />
+              <FactRow
+                label="City"
+                value={location.city || ""}
+                isEditable={canManage}
+                onSave={(val) => handleFieldSave("city", val)}
+                placeholder="Add city"
+              />
+              <FactRow
+                label="Province / State"
+                value={location.province || ""}
+                isEditable={canManage}
+                onSave={(val) => handleFieldSave("province", val)}
+                placeholder="Add province"
+              />
+              <FactRow
+                label="Postal / ZIP"
+                value={location.postal || ""}
+                isEditable={canManage}
+                onSave={(val) => handleFieldSave("postal", val)}
+                placeholder="Add postal code"
+              />
+            </div>
+          </div>
+
+          {/* Contact Section */}
+          <div className="border-t border-slate-100 dark:border-slate-700 px-6 py-5">
+            <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
+              Contact
+            </h3>
+            <FactRow
+              label="Phone"
+              value={location.phone || ""}
+              isEditable={canManage}
+              onSave={(val) => handleFieldSave("phone", val)}
+              placeholder="Add phone number"
+              type="tel"
+            />
+          </div>
+
+          {/* Notes Section */}
+          <div className="border-t border-slate-100 dark:border-slate-700 px-6 py-5">
+            <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
+              Notes
+            </h3>
+            <FactRow
+              label="Access & Details"
+              value={location.notes || ""}
+              isEditable={canManage}
+              onSave={(val) => handleFieldSave("notes", val)}
+              placeholder="Add access instructions, parking details, loading notes..."
+              multiline
+            />
+          </div>
+        </div>
       </div>
     </main>
   );
@@ -482,11 +690,25 @@ export default function LibraryLocationsPage() {
     setCreateModalOpen(true);
   }, []);
 
-  const handleEdit = useCallback((location) => {
-    // Inline editing for locations is planned for a future delta
-    // For now, show a toast to inform the user
-    toast.info(`Edit functionality for "${location.name || "this location"}" coming soon`);
-  }, []);
+  // ══════════════════════════════════════════════════════════════════════════
+  // LOCATION UPDATE HANDLER (R.9 — Inline Edit)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const handleLocationUpdate = useCallback(async ({ field, value }) => {
+    if (!selectedId || !clientId) return;
+
+    try {
+      const docRef = doc(db, ...locationsPath(clientId), selectedId);
+      await updateDoc(docRef, {
+        [field]: value,
+        updatedAt: serverTimestamp(),
+      });
+      toast.success("Location updated");
+    } catch (err) {
+      console.error("[LibraryLocationsPage] Update failed:", err);
+      throw new Error(err?.message || "Failed to update location");
+    }
+  }, [selectedId, clientId]);
 
   const handleCreateLocation = useCallback(async () => {
     // Delegate to the LocationCreateModal's internal handling
@@ -576,11 +798,11 @@ export default function LibraryLocationsPage() {
           loading={false}
         />
 
-        {/* Right canvas */}
+        {/* Right canvas (Inspector) */}
         <LocationDetailCanvas
           location={selectedLocation}
           canManage={canManage}
-          onEdit={handleEdit}
+          onUpdate={handleLocationUpdate}
         />
       </div>
 

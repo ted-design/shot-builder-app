@@ -1,9 +1,17 @@
 /**
  * LibraryPage — Layout Shell for Library Domain Routes
  *
- * R.2 Update: Conditionally shows tabs only when on a subdomain page
- * (talent, crew, locations, etc.). When on the hub (/library), the
- * LibraryHubPage renders its own header and navigation.
+ * R.8 Update: Hub removed. /library now redirects to /library/profiles.
+ * This shell provides header tabs for non-Profiles Library pages.
+ * Profiles page handles its own header (has custom search/filter UI).
+ *
+ * LIBRARY SYSTEM MODEL (R.8):
+ * - The Library is a Managed Collection System, not a set of pages
+ * - The ONE dominant interaction model is: List + Inspector
+ * - The List is the browsing context
+ * - The Inspector is the edit surface
+ * - Editing NEVER navigates to a new page
+ * - There is NO Library Hub
  */
 
 import React from "react";
@@ -17,17 +25,21 @@ export default function LibraryPage() {
   const location = useLocation();
   const isActive = (to) => location.pathname.startsWith(to);
 
-  // R.2: When on the hub (/library exactly), let the hub page handle its own header
-  // R.4: Profiles page also handles its own header (has custom search/filter UI)
-  const isOnHub = location.pathname === "/library" || location.pathname === "/library/";
+  // R.8: Profiles page handles its own header (has custom search/filter UI)
   const isOnProfiles = location.pathname.startsWith("/library/profiles");
+  // R.9: Locations page handles its own header (full-page workspace)
+  const isOnLocations = location.pathname.startsWith("/library/locations");
+  // R.10: Tags page handles its own header (List + Inspector workspace)
+  const isOnTags = location.pathname.startsWith("/library/tags");
+  // R.11: Palette page handles its own header (List + Inspector workspace)
+  const isOnPalette = location.pathname.startsWith("/library/palette");
 
-  // On the hub or profiles page, render only the outlet (they have their own headers)
-  if (isOnHub || isOnProfiles) {
+  // These pages render their own header/shell (full-page workspace pattern)
+  if (isOnProfiles || isOnLocations || isOnTags || isOnPalette) {
     return <Outlet />;
   }
 
-  // On subdomain pages, show the shell with tabs
+  // On other Library domain pages, show the shell with tabs
   return (
     <div className="space-y-6">
       <PageHeader sticky={true} className="top-14 z-40">

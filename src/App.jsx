@@ -44,7 +44,7 @@ const ImportProducts = lazy(() => import("./pages/ImportProducts"));
 const TalentPage = lazy(() => import("./pages/TalentPage"));
 const LocationsPage = lazy(() => import("./pages/LocationsPage"));
 const LibraryPage = lazy(() => import("./pages/LibraryPage"));
-const LibraryHubPage = lazy(() => import("./pages/LibraryHubPage"));
+// R.8: LibraryHubPage removed — /library now redirects to /library/profiles
 const LibraryProfilesPage = lazy(() => import("./pages/LibraryProfilesPage"));
 const LibraryTalentPage = lazy(() => import("./pages/LibraryTalentPage"));
 const LibraryCrewPage = lazy(() => import("./pages/LibraryCrewPage"));
@@ -387,13 +387,10 @@ function AppRoutes() {
                       </Suspense>
                     }
                   >
+                    {/* R.8: Hub removed — /library redirects to /library/profiles */}
                     <Route
                       index
-                      element={
-                        <Suspense fallback={<PageLoadingFallback />}>
-                          <LibraryHubPage />
-                        </Suspense>
-                      }
+                      element={<Navigate to="/library/profiles" replace />}
                     />
                     <Route
                       path="profiles"
