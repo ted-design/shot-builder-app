@@ -19,6 +19,7 @@ import {
   Star,
   Shield,
   ClipboardList,
+  Home,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ROLE } from '../../lib/rbac';
@@ -42,11 +43,13 @@ export default function SidebarNav({ isExpanded }) {
 
   const isInProjectContext = Boolean(projectMatch && currentProjectId);
 
-  // Library submenu items
+  // Library submenu items (R.4: Profiles group with Talent/Crew nested)
   const libraryItems = useMemo(
     () => [
-      { to: "/library/talent", label: "Talent", icon: Users },
-      { to: "/library/crew", label: "Crew", icon: User },
+      { to: "/library", label: "Overview", icon: Home, end: true },
+      { to: "/library/profiles", label: "Profiles", icon: Users },
+      { to: "/library/profiles?type=talent", label: "Talent", icon: Users, indent: true },
+      { to: "/library/profiles?type=crew", label: "Crew", icon: User, indent: true },
       { to: "/library/locations", label: "Locations", icon: MapPin },
       { to: "/library/departments", label: "Departments", icon: Briefcase },
       { to: "/library/tags", label: "Tags", icon: Tag },

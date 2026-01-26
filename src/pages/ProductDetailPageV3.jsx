@@ -42,8 +42,13 @@ import {
   Box,
   FileText,
   Activity,
+  Clock,
+  Plus,
+  User,
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { genderLabel } from "../lib/productMutations";
+import { useUsers } from "../hooks/useComments";
 import { getCategoryLabel } from "../lib/productCategories";
 
 // Workspace components
@@ -68,6 +73,33 @@ function OverviewSection({ family, skus, samples, onNavigate }) {
   // Compute metrics for each section
   const colorwayMetrics = useMemo(() => computeColorwayMetrics(skus), [skus]);
   const sampleMetrics = useMemo(() => computeSampleMetrics(samples), [samples]);
+
+  // Compute activity count from audit fields
+  const activityMetrics = useMemo(() => {
+    let count = 0;
+
+    // Count creation event
+    if (family?.createdAt) {
+      count += 1;
+    }
+
+    // Count update event if meaningfully different from creation (> 60 seconds)
+    if (family?.updatedAt && family?.createdAt) {
+      const createdTime = family.createdAt?.toDate?.() || family.createdAt;
+      const updatedTime = family.updatedAt?.toDate?.() || family.updatedAt;
+      const timeDiff = Math.abs(
+        new Date(updatedTime).getTime() - new Date(createdTime).getTime()
+      );
+      if (timeDiff > 60000) {
+        count += 1;
+      }
+    }
+
+    return {
+      total: count,
+      subMetrics: count > 1 ? [{ value: 1, label: "recent", variant: "info" }] : [],
+    };
+  }, [family]);
 
   // Size label for quick info
   const sizeLabel = useMemo(() => {
@@ -149,12 +181,14 @@ function OverviewSection({ family, skus, samples, onNavigate }) {
           onClick={() => onNavigate("assets")}
         />
 
-        {/* Activity card - coming soon */}
+        {/* Activity card */}
         <BentoCard
           icon={Activity}
           title="Activity"
           description={SECTION_DESCRIPTIONS.activity}
-          variant="coming-soon"
+          metric={activityMetrics.total}
+          metricLabel={activityMetrics.total === 1 ? "event" : "events"}
+          subMetrics={activityMetrics.subMetrics}
           onClick={() => onNavigate("activity")}
         />
       </div>
@@ -180,16 +214,227 @@ function AssetsSection() {
   );
 }
 
-function ActivitySection() {
+/**
+ * Format a timestamp to a relative string (e.g., "5 minutes ago")
+ * Handles Firestore Timestamps, Date objects, and numeric timestamps
+ */
+function formatTimestamp(timestamp) {
+  if (!timestamp) return null;
+
+  try {
+    // Handle Firestore Timestamp objects
+    const date =
+      timestamp?.toDate?.() ||
+      (timestamp instanceof Date ? timestamp : new Date(timestamp));
+
+    // Validate the date is valid
+    if (isNaN(date.getTime())) return null;
+
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Format a timestamp to an absolute date string (e.g., "Jan 15, 2025")
+ */
+function formatAbsoluteDate(timestamp) {
+  if (!timestamp) return null;
+
+  try {
+    const date =
+      timestamp?.toDate?.() ||
+      (timestamp instanceof Date ? timestamp : new Date(timestamp));
+
+    if (isNaN(date.getTime())) return null;
+
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Activity Section - Read-only timeline of product changes
+ *
+ * Shows real audit data from the product document:
+ * - When the product was created (createdAt, createdBy)
+ * - When it was last modified (updatedAt, updatedBy)
+ *
+ * Uses existing document-level fields per v3.1 guidance - no new schema.
+ */
+function ActivitySection({ family, clientId }) {
+  // Fetch users to resolve createdBy/updatedBy IDs to names
+  const { data: users = [] } = useUsers(clientId);
+
+  // Resolve a user ID to their display name
+  const getUserName = useCallback(
+    (userId) => {
+      if (!userId) return null;
+      const user = users.find((u) => u.id === userId);
+      return user?.displayName || user?.email || null;
+    },
+    [users]
+  );
+
+  // Build activity events from product audit fields
+  const activityEvents = useMemo(() => {
+    const events = [];
+
+    // Product creation event
+    if (family?.createdAt) {
+      events.push({
+        id: "created",
+        type: "created",
+        label: "Product created",
+        timestamp: family.createdAt,
+        actorId: family.createdBy,
+        icon: Plus,
+      });
+    }
+
+    // Product updated event (only if different from creation)
+    if (family?.updatedAt) {
+      const createdTime = family.createdAt?.toDate?.() || family.createdAt;
+      const updatedTime = family.updatedAt?.toDate?.() || family.updatedAt;
+
+      // Only show update if it's meaningfully different from creation (> 60 seconds)
+      const timeDiff = Math.abs(
+        new Date(updatedTime).getTime() - new Date(createdTime).getTime()
+      );
+
+      if (timeDiff > 60000) {
+        events.push({
+          id: "updated",
+          type: "updated",
+          label: "Product updated",
+          timestamp: family.updatedAt,
+          actorId: family.updatedBy,
+          icon: Clock,
+        });
+      }
+    }
+
+    // Sort by timestamp descending (most recent first)
+    events.sort((a, b) => {
+      const timeA = a.timestamp?.toDate?.() || new Date(a.timestamp);
+      const timeB = b.timestamp?.toDate?.() || new Date(b.timestamp);
+      return timeB.getTime() - timeA.getTime();
+    });
+
+    return events;
+  }, [family]);
+
   return (
     <div className="p-6">
       <SectionHeader title="Activity" className="px-0 border-0 pb-4" />
-      <WorkspaceEmptyState
-        icon={Activity}
-        title="Activity Timeline"
-        description="Track changes, comments, decisions, and team activity on this product."
-        actionLabel="Add note"
-      />
+
+      {activityEvents.length === 0 ? (
+        // Empty state - no activity yet
+        <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 p-8">
+          <div className="flex flex-col items-center justify-center text-center">
+            <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-3">
+              <Activity className="w-6 h-6 text-slate-400 dark:text-slate-500" />
+            </div>
+            <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              No activity yet
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">
+              Activity will appear here when the product is created or updated.
+            </p>
+          </div>
+        </div>
+      ) : (
+        // Activity timeline
+        <div className="space-y-1">
+          {activityEvents.map((event, index) => {
+            const Icon = event.icon;
+            const actorName = getUserName(event.actorId);
+            const relativeTime = formatTimestamp(event.timestamp);
+            const absoluteDate = formatAbsoluteDate(event.timestamp);
+            const isLast = index === activityEvents.length - 1;
+
+            return (
+              <div key={event.id} className="relative flex gap-3">
+                {/* Timeline connector */}
+                {!isLast && (
+                  <div
+                    className="absolute left-[15px] top-8 w-px h-[calc(100%-8px)] bg-slate-200 dark:bg-slate-700"
+                    aria-hidden="true"
+                  />
+                )}
+
+                {/* Event icon */}
+                <div className="relative flex-shrink-0">
+                  <div
+                    className={`
+                      w-8 h-8 rounded-full flex items-center justify-center
+                      ${
+                        event.type === "created"
+                          ? "bg-emerald-50 dark:bg-emerald-900/20"
+                          : "bg-slate-100 dark:bg-slate-700"
+                      }
+                    `}
+                  >
+                    <Icon
+                      className={`
+                        w-4 h-4
+                        ${
+                          event.type === "created"
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-slate-500 dark:text-slate-400"
+                        }
+                      `}
+                    />
+                  </div>
+                </div>
+
+                {/* Event content */}
+                <div className="flex-1 min-w-0 pb-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm text-slate-900 dark:text-slate-100">
+                        <span className="font-medium">{event.label}</span>
+                        {actorName && (
+                          <span className="text-slate-500 dark:text-slate-400">
+                            {" "}by{" "}
+                            <span className="text-slate-700 dark:text-slate-300">
+                              {actorName}
+                            </span>
+                          </span>
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Timestamp */}
+                    {relativeTime && (
+                      <span
+                        className="flex-shrink-0 text-xs text-slate-400 dark:text-slate-500"
+                        title={absoluteDate || undefined}
+                      >
+                        {relativeTime}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Context footer */}
+      <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700">
+        <p className="text-[11px] text-slate-400 dark:text-slate-500">
+          Activity shows when this product was created and last modified.
+          Detailed change history will be available in a future update.
+        </p>
+      </div>
     </div>
   );
 }
@@ -342,12 +587,30 @@ export default function ProductDetailPageV3() {
   }, [family]);
 
   // Counts for nav badges
-  const counts = useMemo(() => ({
-    colorways: skus.length,
-    samples: demoSamples.length,
-    assets: 0,
-    activity: 0,
-  }), [skus.length, demoSamples.length]);
+  const counts = useMemo(() => {
+    // Compute activity count from audit fields
+    let activityCount = 0;
+    if (family?.createdAt) {
+      activityCount += 1;
+    }
+    if (family?.updatedAt && family?.createdAt) {
+      const createdTime = family.createdAt?.toDate?.() || family.createdAt;
+      const updatedTime = family.updatedAt?.toDate?.() || family.updatedAt;
+      const timeDiff = Math.abs(
+        new Date(updatedTime).getTime() - new Date(createdTime).getTime()
+      );
+      if (timeDiff > 60000) {
+        activityCount += 1;
+      }
+    }
+
+    return {
+      colorways: skus.length,
+      samples: demoSamples.length,
+      assets: 0,
+      activity: activityCount,
+    };
+  }, [skus.length, demoSamples.length, family?.createdAt, family?.updatedAt]);
 
   const handleBack = useCallback(() => {
     navigate("/products");
@@ -524,7 +787,9 @@ export default function ProductDetailPageV3() {
                 <SamplesSection family={family} skus={skus} samples={demoSamples} />
               )}
               {activeSection === "assets" && <AssetsSection />}
-              {activeSection === "activity" && <ActivitySection />}
+              {activeSection === "activity" && (
+                <ActivitySection family={family} clientId={clientId} />
+              )}
             </ErrorBoundary>
           </main>
         </div>

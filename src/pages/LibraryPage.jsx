@@ -1,3 +1,11 @@
+/**
+ * LibraryPage — Layout Shell for Library Domain Routes
+ *
+ * R.2 Update: Conditionally shows tabs only when on a subdomain page
+ * (talent, crew, locations, etc.). When on the hub (/library), the
+ * LibraryHubPage renders its own header and navigation.
+ */
+
 import React from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -9,6 +17,17 @@ export default function LibraryPage() {
   const location = useLocation();
   const isActive = (to) => location.pathname.startsWith(to);
 
+  // R.2: When on the hub (/library exactly), let the hub page handle its own header
+  // R.4: Profiles page also handles its own header (has custom search/filter UI)
+  const isOnHub = location.pathname === "/library" || location.pathname === "/library/";
+  const isOnProfiles = location.pathname.startsWith("/library/profiles");
+
+  // On the hub or profiles page, render only the outlet (they have their own headers)
+  if (isOnHub || isOnProfiles) {
+    return <Outlet />;
+  }
+
+  // On subdomain pages, show the shell with tabs
   return (
     <div className="space-y-6">
       <PageHeader sticky={true} className="top-14 z-40">
@@ -27,6 +46,7 @@ export default function LibraryPage() {
               aria-orientation="horizontal"
             >
               {[
+                { to: "/library/profiles", label: "Profiles" },
                 { to: "/library/talent", label: "Talent" },
                 { to: "/library/crew", label: "Crew" },
                 { to: "/library/locations", label: "Locations" },

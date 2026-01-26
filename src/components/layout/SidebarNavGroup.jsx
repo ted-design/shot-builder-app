@@ -19,8 +19,13 @@ export default function SidebarNavGroup({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const location = useLocation();
 
-  // Check if any child is active
-  const hasActiveChild = items.some((item) => location.pathname.startsWith(item.to));
+  // Check if any child is active (R.2: respect `end` prop for exact matching)
+  const hasActiveChild = items.some((item) => {
+    if (item.end) {
+      return location.pathname === item.to || location.pathname === `${item.to}/`;
+    }
+    return location.pathname.startsWith(item.to);
+  });
 
   // Auto-open if a child is active
   React.useEffect(() => {
@@ -72,22 +77,38 @@ export default function SidebarNavGroup({
       {/* Submenu items */}
       {isOpen && (
         <div className={`sidebar-submenu mt-1 space-y-1 pl-4 ${isExpanded ? 'block' : 'hidden'}`}>
-          {items.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ${
-                  isActive
-                    ? 'bg-sidebar-active text-white'
-                    : 'text-neutral-400 hover:bg-sidebar-hover hover:text-white'
-                }`
-              }
-            >
-              {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+          {items.map((item) => {
+            // Handle query params in isActive check
+            const hasQueryParams = item.to.includes('?');
+            const basePath = hasQueryParams ? item.to.split('?')[0] : item.to;
+            const queryParams = hasQueryParams ? item.to.split('?')[1] : null;
+
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => {
+                  // For items with query params, check both path and search
+                  let active = isActive;
+                  if (hasQueryParams && !item.end) {
+                    active = location.pathname.startsWith(basePath) &&
+                      location.search === `?${queryParams}`;
+                  }
+                  return `flex items-center gap-3 rounded-md py-2 text-sm font-medium transition-colors duration-150 ${
+                    item.indent ? 'pl-7 pr-3' : 'px-3'
+                  } ${
+                    active
+                      ? 'bg-sidebar-active text-white'
+                      : 'text-neutral-400 hover:bg-sidebar-hover hover:text-white'
+                  }`;
+                }}
+              >
+                {item.icon && <item.icon className={`shrink-0 ${item.indent ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />}
+                <span className={item.indent ? 'text-xs' : ''}>{item.label}</span>
+              </NavLink>
+            );
+          })}
         </div>
       )}
     </div>

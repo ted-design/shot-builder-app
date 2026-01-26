@@ -44,6 +44,8 @@ const ImportProducts = lazy(() => import("./pages/ImportProducts"));
 const TalentPage = lazy(() => import("./pages/TalentPage"));
 const LocationsPage = lazy(() => import("./pages/LocationsPage"));
 const LibraryPage = lazy(() => import("./pages/LibraryPage"));
+const LibraryHubPage = lazy(() => import("./pages/LibraryHubPage"));
+const LibraryProfilesPage = lazy(() => import("./pages/LibraryProfilesPage"));
 const LibraryTalentPage = lazy(() => import("./pages/LibraryTalentPage"));
 const LibraryCrewPage = lazy(() => import("./pages/LibraryCrewPage"));
 const LibraryLocationsPage = lazy(() => import("./pages/LibraryLocationsPage"));
@@ -385,7 +387,22 @@ function AppRoutes() {
                       </Suspense>
                     }
                   >
-                    <Route index element={<Navigate to="/library/talent" replace />} />
+                    <Route
+                      index
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <LibraryHubPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="profiles"
+                      element={
+                        <Suspense fallback={<PageLoadingFallback />}>
+                          <LibraryProfilesPage />
+                        </Suspense>
+                      }
+                    />
                     <Route
                       path="talent"
                       element={
