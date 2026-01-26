@@ -19,7 +19,7 @@ import {
   Star,
   Shield,
   ClipboardList,
-  Home,
+  // R.8: Home icon removed (was used for Library Overview which is now deprecated)
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ROLE } from '../../lib/rbac';
@@ -43,11 +43,10 @@ export default function SidebarNav({ isExpanded }) {
 
   const isInProjectContext = Boolean(projectMatch && currentProjectId);
 
-  // Library submenu items (R.4: Profiles group with Talent/Crew nested)
+  // Library submenu items (R.8: Hub removed, Profiles is now primary entry)
   const libraryItems = useMemo(
     () => [
-      { to: "/library", label: "Overview", icon: Home, end: true },
-      { to: "/library/profiles", label: "Profiles", icon: Users },
+      { to: "/library/profiles", label: "Profiles", icon: Users, end: true },
       { to: "/library/profiles?type=talent", label: "Talent", icon: Users, indent: true },
       { to: "/library/profiles?type=crew", label: "Crew", icon: User, indent: true },
       { to: "/library/locations", label: "Locations", icon: MapPin },

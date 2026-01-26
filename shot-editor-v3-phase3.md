@@ -5261,3 +5261,286 @@ Screenshots saved to `.playwright-mcp/` directory.
 | Mobile layout | Basic rail works; polishing deferred |
 
 ---
+
+## 🔧 Delta R.8 — Library Entry Flattening + Hub Removal
+
+### What This Delta Delivers
+
+Minimal structural cleanup that removes the Library Hub and flattens entry navigation. This is **NOT** a full system refactor — it removes navigation indirection only.
+
+### Changes Made
+
+| Change | Before R.8 | After R.8 |
+|--------|------------|-----------|
+| `/library` route | Renders `LibraryHubPage` | Redirects to `/library/profiles` |
+| Sidebar Library submenu | First item: "Overview" | First item: "Profiles" |
+| `LibraryPage.jsx` | Hub conditional logic | Simplified (Profiles only) |
+| `LibraryHubPage.jsx` | Actively routed | Deprecated (file kept) |
+
+### Current State by Domain
+
+| Domain | Layout | Edit Model | Status |
+|--------|--------|------------|--------|
+| **Profiles** | Rail/list + Inspector (canvas) | Inline edit | ✅ Target model |
+| **Departments** | Workspace shell (rail + canvas) | Inline edit | ✅ Target model |
+| **Locations** | Workspace shell (rail + canvas) | Modal | ⚠️ Partial |
+| **Tags** | Card-based page | Modal | ❌ Legacy |
+| **Swatches** | Card-based page | Modal | ❌ Legacy |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/App.jsx` | Index route redirects to `/library/profiles`; removed hub import |
+| `src/components/layout/SidebarNav.jsx` | Removed "Overview"; "Profiles" is first entry |
+| `src/pages/LibraryPage.jsx` | Removed hub conditional; updated documentation |
+
+### Files Deprecated (Not Deleted)
+
+| File | Status |
+|------|--------|
+| `src/pages/LibraryHubPage.jsx` | Deprecated — no longer routed. Kept temporarily; eligible for removal in a later cleanup delta once stable. |
+
+### Documentation Created
+
+- `docs/library-system-r8.md` — Records actual R.8 scope + target system model
+
+### What Was NOT Done (Deferred)
+
+| Item | Reason |
+|------|--------|
+| Inline edit for Locations/Tags/Swatches | Out of R.8 scope |
+| Polymorphic list renderers (tree, table, grid) | Requires deeper refactor |
+| Talent/Crew legacy page retirement | Still routed for now |
+| Visual redesign | R.8 is structural only |
+
+### Verification
+
+- [x] `npm run lint` — zero warnings
+- [x] `npm run build` — successful (16.38s)
+- [x] `/library` redirects to `/library/profiles`
+- [x] Sidebar shows "Profiles" as first Library item
+
+---
+
+## 🔧 Delta R.9 — Library Inspector Standardization (Locations)
+
+### What This Delta Delivers
+
+R.9 enforces the Library system rule established in R.8 by standardizing the **List + Inspector** interaction model and applying it to **Locations**. This turns the rule "Editing never navigates away from the list" from documentation into enforced behavior.
+
+This is a **STRUCTURAL + BEHAVIORAL** refactor ONLY — no visual redesign, no feature additions.
+
+### System Rule (Now Enforced)
+
+The Library is a **MANAGED COLLECTION SYSTEM** governed by ONE interaction model:
+
+```
+LIST (browse context) + INSPECTOR (edit surface)
+```
+
+Rules:
+- The List is always visible
+- The Inspector is the ONLY edit surface
+- Editing NEVER navigates to a new page
+- Editing NEVER opens a modal for primary fields
+- Closing the Inspector does NOT change routes
+
+### Before / After Behavior
+
+| Behavior | Before R.9 | After R.9 |
+|----------|------------|-----------|
+| Edit a Location field | "Edit" button → toast "coming soon" | Click field → edit inline |
+| Save field changes | N/A (not implemented) | Blur/Enter → save to Firestore |
+| Cancel field edit | N/A | Escape → cancel |
+| Name editing | Not available | Click name → edit inline |
+| Address fields | Read-only display | Click any field → edit inline |
+| Phone editing | Read-only display | Click → edit inline |
+| Notes editing | Read-only display | Click → edit inline (multiline) |
+| Inspector layout | Basic hero + static fields | Workspace stage with summary band |
+
+### Changes Made
+
+| Component | Change |
+|-----------|--------|
+| `LocationDetailCanvas` | Refactored to use `InlineEditField` for all editable fields |
+| Field save | Added `handleLocationUpdate` → Firestore updateDoc |
+| Summary band | Added completeness + last updated metrics (matching Profiles) |
+| Hero name | Now inline-editable (click to edit) |
+| Address section | Structured with section header + 2-column grid |
+| Contact section | Phone field with inline edit |
+| Notes section | Multiline inline edit for access instructions |
+| "Edit location" button | Removed — editing is inline |
+| Modal usage | `LocationEditModal` no longer used for primary editing |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/LibraryLocationsPage.jsx` | Major refactor: added inline editing, Firestore update handler, summary band, FactRow component |
+
+### What Was NOT Changed (Intentionally)
+
+| Item | Reason |
+|------|--------|
+| `LocationCreateModal` | Create flows may use modals — only editing must be inline |
+| `LocationEditModal.jsx` | File kept for reference, no longer used for primary editing |
+| Image upload | Hero image editing deferred — requires separate mechanism |
+| Tags / Swatches | Out of R.9 scope |
+| Departments | Already compliant (inline edit) |
+
+### Compliance Status After R.9
+
+| Domain | Layout | Edit Model | Status |
+|--------|--------|------------|--------|
+| **Profiles** | Rail/list + Inspector | Inline edit | ✅ Target model |
+| **Locations** | Rail/list + Inspector | Inline edit | ✅ Target model (R.9) |
+| **Departments** | Workspace shell | Inline edit | ✅ Target model |
+| **Tags** | Card-based page | Modal | ❌ Legacy |
+| **Swatches** | Card-based page | Modal | ❌ Legacy |
+
+### Verification
+
+- [x] `npm run lint` — zero warnings
+- [x] `npm run build` — successful
+
+### Manual QA Checklist
+
+⚠️ **Note:** Chrome extension unavailable for visual verification.
+
+| Scenario | Steps | Expected |
+|----------|-------|----------|
+| Select Location | Click any location in left rail | Inspector shows location details |
+| Edit name | Click location name in Inspector | Transforms to input, cursor focused |
+| Save name | Edit text, press Enter or blur | Toast "Location updated", field shows new value |
+| Cancel edit | Press Escape while editing | Reverts to original value |
+| Edit address field | Click any address field (street, city, etc.) | Transforms to inline edit |
+| Edit phone | Click phone field | Transforms to inline edit |
+| Edit notes | Click notes field | Shows multiline textarea |
+| Summary band | View Inspector | Shows "Completeness" and "Last updated" metrics |
+| Create flow | Click "New location" | Modal opens (acceptable — create uses modal) |
+| No navigation | Edit any field | URL does not change, list remains visible |
+| Close Inspector | N/A (workspace mode) | No close button — selection-based |
+
+**User Action:** Run `npm run dev` and verify above scenarios manually.
+
+---
+
+## R.11 — Swatches List + Inspector
+
+**Date:** 2026-01-26
+**Scope:** Convert Swatches (Palette) from modal-first to List + Inspector pattern
+**Classification:** Parity Gap → Structural Conversion
+
+### What This Delta Delivers
+
+R.11 converts **Swatches (Palette)** from a legacy modal-based editing experience into the canonical **List + Inspector** model established by Profiles (R.5–R.7), Locations (R.9), and Tags (R.10).
+
+This is a **STRUCTURAL** conversion — no visual redesign, no new features beyond parity.
+
+### System Rule (Enforced)
+
+The Library is a **MANAGED COLLECTION SYSTEM** governed by ONE interaction model:
+
+```
+LIST (browse context) + INSPECTOR (edit surface)
+```
+
+Rules enforced:
+- The List (Rail) is always visible
+- The Inspector (Canvas) is the ONLY edit surface
+- Editing NEVER navigates to a new page
+- Editing NEVER opens a modal for primary fields
+- Closing the Inspector does NOT change routes
+
+### Before / After Behavior
+
+| Behavior | Before R.11 | After R.11 |
+|----------|-------------|------------|
+| View swatches | Table inside Library shell | Full-page workspace with Rail + Inspector |
+| Edit swatch name | Modal (SwatchEditModal) | Click name → inline edit in Inspector |
+| Edit hex color | Modal | Click hex → inline edit with color preview |
+| Edit aliases | Modal | Click aliases → inline edit (comma-separated) |
+| Edit texture image | Modal | SingleImageDropzone in Inspector |
+| Delete swatch | ConfirmDialog | ConfirmDialog (unchanged — destructive action) |
+| Create swatch | SwatchCreateModal | SwatchCreateModal (unchanged — matches Locations R.9) |
+| Navigation on edit | No change (modal overlay) | No change (Inspector is local state) |
+| Selection | Row actions | Click rail item → loads Inspector |
+
+### Changes Made
+
+| Component | Change |
+|-----------|--------|
+| `LibraryPage.jsx` | Added `/library/palette` to bypass list (renders own header/shell) |
+| `PalettePage.jsx` | Full rewrite: Rail + Inspector pattern |
+| `SwatchRail` | New: Left panel with search, swatch list items |
+| `SwatchRailItem` | New: List item with color preview + name + usage count |
+| `SwatchDetailCanvas` | New: Inspector (right panel) with inline editing |
+| `InlineHexColorEditor` | New: Inline hex editor with live color preview |
+| `PaletteHeaderBand` | New: Sticky header with title, count, actions |
+| `PaletteEmptyState` | New: Full-page empty state |
+| `SwatchSummaryBand` | New: Usage + Last updated metrics |
+| Inline editing | Uses `InlineEditField` for name, aliases |
+| Eye dropper | Retained: click-to-sample from texture image |
+| Seed from products | Retained in header actions |
+
+### Files Changed
+
+| File | Lines | Change |
+|------|-------|--------|
+| `src/pages/LibraryPage.jsx` | 28–38 | Added palette bypass condition |
+| `src/pages/PalettePage.jsx` | 1–1235 | Full rewrite: List + Inspector pattern |
+
+### What Was NOT Changed (Intentionally)
+
+| Item | Reason |
+|------|--------|
+| `SwatchCreateModal.jsx` | Create flows may use modals — only editing must be inline (matches R.9 Locations) |
+| `SwatchEditModal.jsx` | File exists but no longer used for primary editing |
+| Data schema | No changes to Firestore structure |
+| Routing | No new routes — Inspector is local state |
+| Profiles | Not touched (R.5–R.7 scope) |
+| Locations | Not touched (R.9 scope) |
+| Tags | Not touched (R.10 scope) |
+
+### Compliance Status After R.11
+
+| Domain | Layout | Edit Model | Status |
+|--------|--------|------------|--------|
+| **Profiles** | Rail/list + Inspector | Inline edit | ✅ Target model (R.5–R.7) |
+| **Locations** | Rail/list + Inspector | Inline edit | ✅ Target model (R.9) |
+| **Tags** | Rail/list + Inspector | Inline edit | ✅ Target model (R.10) |
+| **Swatches (Palette)** | Rail/list + Inspector | Inline edit | ✅ Target model (R.11) |
+| **Departments** | Workspace shell | Inline edit | ✅ Target model |
+
+### Verification
+
+- [x] `npm run lint` — zero warnings
+- [x] `npm run build` — successful
+
+### Manual QA Checklist
+
+| Scenario | Steps | Expected |
+|----------|-------|----------|
+| Page loads | Navigate to /library/palette | Full-page workspace with Rail + Inspector |
+| Select swatch | Click any swatch in rail | Inspector shows swatch details |
+| Edit name | Click swatch name in Inspector | Transforms to input, cursor focused |
+| Save name | Edit text, press Enter or blur | Toast "Name updated", field shows new value |
+| Cancel edit | Press Escape while editing | Reverts to original value |
+| Edit hex color | Click hex value | Transforms to inline input with color preview |
+| Invalid hex | Enter "ABC" (no #) | Shows validation error |
+| Valid hex | Enter "#FF5500", blur | Toast "Color updated", preview updates |
+| Edit aliases | Click aliases field | Transforms to inline edit |
+| Add texture | Drop/click in dropzone | Uploads image, extracts color, updates Inspector |
+| Eye dropper | Click "Eye dropper", click image | Samples color, updates hex |
+| Delete swatch | Click "Delete Swatch" | ConfirmDialog opens |
+| Delete blocked | Swatch has usage > 0 | Button disabled, shows "Relink SKUs" message |
+| Search | Type in rail search box | Filters swatches by name/alias |
+| Create swatch | Click "New swatch" | SwatchCreateModal opens |
+| Seed from products | Click "Seed from products" | Creates swatches from product colorNames |
+| No navigation | Edit any field | URL does not change, rail remains visible |
+| Empty state | No swatches exist | Shows centered empty state with CTA |
+
+**User Action:** Run `npm run dev` and verify above scenarios manually.
+
+---
