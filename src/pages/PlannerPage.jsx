@@ -79,7 +79,7 @@ import UnassignedShotsTray from "../components/planner/UnassignedShotsTray";
 import PlannerToolbar from "../components/planner/PlannerToolbar";
 import PlannerCompactCard from "../components/planner/PlannerCompactCard";
 const PlannerExportModal = lazy(() => import("../components/planner/PlannerExportModal"));
-import ShotEditModal from "../components/shots/ShotEditModal";
+// ShotEditModal removed - Planner now navigates to Shot Editor V3 (Delta J.2)
 import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import {
@@ -2037,30 +2037,14 @@ function PlannerPageContent({ embedded = false }) {
     return dateStr || "";
   }, []);
 
+  // Navigate to Shot Editor V3 for full shot editing (Delta J.2)
   const openShotEditor = useCallback(
     (shot) => {
       if (!shot) return;
-      try {
-        const products = normaliseShotProducts(shot);
-        const talentSelection = mapShotTalentToSelection(shot);
-        setEditingShot({
-          shot,
-          draft: {
-            name: shot.name || "",
-            description: shot.description || "",
-            type: shot.type || "",
-            date: toDateInputValue(shot.date),
-            locationId: shot.locationId || "",
-            talent: talentSelection,
-            products,
-          },
-        });
-      } catch (error) {
-        console.error("[Planner] Failed to prepare shot for editing", error);
-        toast.error("Unable to open shot editor");
-      }
+      // Navigate to V3 editor with returnTo param for context
+      navigate(`/projects/${projectId}/shots/${shot.id}/editor?returnTo=planner`);
     },
-    [mapShotTalentToSelection, normaliseShotProducts]
+    [navigate, projectId]
   );
 
   const handleOpenShotEdit = useCallback(
@@ -3601,36 +3585,7 @@ function PlannerPageContent({ embedded = false }) {
           drag existing shots into lanes once they appear here.
         </div>
       )}
-      {canEditShots && editingShot && (
-        <ShotEditModal
-          open
-          titleId="planner-shot-edit-title"
-          shotId={editingShot.shot.id}
-          shotName={editingShot.shot.name}
-          description="Update shot details, linked products, and talent assignments."
-          draft={editingShot.draft}
-          onChange={updateEditingDraft}
-          onClose={closeShotEditor}
-          onSubmit={handleSaveShot}
-          isSaving={isSavingShot}
-          onDelete={() => handleDeleteShot(editingShot.shot)}
-          families={families}
-          loadFamilyDetails={loadFamilyDetails}
-          createProduct={buildShotProduct}
-          allowProductCreation={false}
-          locations={locations}
-          talentOptions={talentOptions}
-          talentPlaceholder="Select talent"
-          talentNoOptionsMessage={talentNoOptionsMessage}
-          talentLoadError={talentLoadError}
-          projects={projects}
-          currentProjectId={projectId}
-          onMoveToProject={handleMoveToProject}
-          movingProject={movingProject}
-          onCopyToProject={handleCopyToProject}
-          copyingProject={copyingProject}
-        />
-      )}
+      {/* Shot editing now handled by navigation to Shot Editor V3 (Delta J.2) */}
       {!canEditPlanner && (
         <div className="rounded-card border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Planner actions are read-only for your role. Producers or crew can organise shot lanes.

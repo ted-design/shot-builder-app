@@ -1676,7 +1676,8 @@ export default function ProductsPage() {
       }
 
       // Navigate to detail page (always available regardless of feature flags)
-      navigate(`/products/${family.id}`);
+      // Include returnTo param for "Return to Products" affordance (Delta P.3)
+      navigate(`/products/${family.id}?returnTo=${encodeURIComponent('/products')}`);
     };
     const { displayImagePath, colourList, coloursLabel, sizeList, sizesLabel } = buildFamilyMeta(
       family
@@ -1735,10 +1736,24 @@ export default function ProductsPage() {
     const isSelected = selectedFamilyIds.has(family.id);
     const isCompactCard = resolvedDensityKey === "compact";
     const isCardClickable = true; // Always clickable: selection toggle or navigation
-    const cardClasses = `relative flex h-full flex-col overflow-visible ${isSelected ? "ring-2 ring-primary/60" : ""} ${isCardClickable ? "cursor-pointer" : ""}`.trim();
+    const cardClasses = `relative flex h-full flex-col overflow-visible ${isSelected ? "ring-2 ring-primary/60" : ""} ${isCardClickable ? "cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 outline-none" : ""}`.trim();
+
+    // Keyboard handler for Enter/Space to trigger navigation like a link
+    const handleCardKeyDown = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleCardClick(e);
+      }
+    };
 
     const renderCompactCard = () => (
-      <Card className={cardClasses} onClick={isCardClickable ? handleCardClick : undefined}>
+      <Card
+        className={cardClasses}
+        onClick={isCardClickable ? handleCardClick : undefined}
+        tabIndex={isCardClickable ? 0 : undefined}
+        onKeyDown={isCardClickable ? handleCardKeyDown : undefined}
+      >
         <CardContent
           className={`grid grid-cols-[96px,1fr] gap-3 ${densityConfig.cardPadding}`}
           ref={family.id === menuFamilyId ? menuRef : null}
@@ -1811,7 +1826,7 @@ export default function ProductsPage() {
                 </Button>
                 <ProductActionMenu
                   family={family}
-                  onView={() => navigate(`/products/${family.id}`)}
+                  onView={() => navigate(`/products/${family.id}?returnTo=${encodeURIComponent('/products')}`)}
                   onEdit={loadFamilyForEdit}
                   onRename={startRename}
                   onToggleStatus={handleStatusToggle}
@@ -1881,6 +1896,8 @@ export default function ProductsPage() {
       <Card
         className={cardClasses}
         onClick={isCardClickable ? handleCardClick : undefined}
+        tabIndex={isCardClickable ? 0 : undefined}
+        onKeyDown={isCardClickable ? handleCardKeyDown : undefined}
       >
         <CardContent className={`flex h-full flex-col gap-4 ${densityConfig.cardPadding}`}>
           <div
@@ -1917,7 +1934,7 @@ export default function ProductsPage() {
             )}
             <ProductActionMenu
               family={family}
-              onView={() => navigate(`/products/${family.id}`)}
+              onView={() => navigate(`/products/${family.id}?returnTo=${encodeURIComponent('/products')}`)}
               onEdit={loadFamilyForEdit}
               onRename={startRename}
               onToggleStatus={handleStatusToggle}
@@ -2032,7 +2049,12 @@ export default function ProductsPage() {
       };
 
       return (
-        <Card className={cardClasses} onClick={isCardClickable ? handleCardClick : undefined}>
+        <Card
+          className={cardClasses}
+          onClick={isCardClickable ? handleCardClick : undefined}
+          tabIndex={isCardClickable ? 0 : undefined}
+          onKeyDown={isCardClickable ? handleCardKeyDown : undefined}
+        >
           <CardContent className={`flex h-full flex-col ${densityConfig.cardPadding}`}>
             {/* Top Row: Image + Details side by side */}
             <div className="flex flex-1 gap-3">
@@ -2146,7 +2168,7 @@ export default function ProductsPage() {
                         </Button>
                         <ProductActionMenu
                           family={family}
-                          onView={() => navigate(`/products/${family.id}`)}
+                          onView={() => navigate(`/products/${family.id}?returnTo=${encodeURIComponent('/products')}`)}
                           onEdit={loadFamilyForEdit}
                           onRename={startRename}
                           onToggleStatus={handleStatusToggle}
@@ -2216,7 +2238,8 @@ export default function ProductsPage() {
     } = buildFamilyMeta(family);
     const handleManageColours = () => {
       // Always navigate to detail page (regardless of feature flags)
-      navigate(`/products/${family.id}`);
+      // Include returnTo param for "Return to Products" affordance (Delta P.3)
+      navigate(`/products/${family.id}?returnTo=${encodeURIComponent('/products')}`);
     };
     const joinedColours = colourList.slice(0, 4).join(", ");
     const hasMoreColours = colourList.length > 4;
@@ -2349,7 +2372,7 @@ export default function ProductsPage() {
                 </Button>
             <ProductActionMenu
               family={family}
-              onView={() => navigate(`/products/${family.id}`)}
+              onView={() => navigate(`/products/${family.id}?returnTo=${encodeURIComponent('/products')}`)}
               onEdit={loadFamilyForEdit}
               onRename={startRename}
               onToggleStatus={handleStatusToggle}
@@ -2558,7 +2581,7 @@ export default function ProductsPage() {
           </Button>
           <ProductActionMenu
             family={family}
-            onView={() => navigate(`/products/${family.id}`)}
+            onView={() => navigate(`/products/${family.id}?returnTo=${encodeURIComponent('/products')}`)}
             onEdit={loadFamilyForEdit}
             onRename={startRename}
             onToggleStatus={handleStatusToggle}
@@ -2597,7 +2620,7 @@ export default function ProductsPage() {
         familySkus={familySkus}
         ensureFamilySkus={ensureFamilySkusLoaded}
         paletteIndex={paletteIndex}
-        onProductClick={(family) => navigate(`/products/${family.id}`)}
+        onProductClick={(family) => navigate(`/products/${family.id}?returnTo=${encodeURIComponent('/products')}`)}
       />
     );
   };

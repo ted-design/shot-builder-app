@@ -138,9 +138,6 @@ import { ButtonGroup } from "../components/ui/ButtonGroup";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
 import TalentMultiSelect from "../components/shots/TalentMultiSelect";
 import NotesEditor from "../components/shots/NotesEditor";
-// Delta I.9: Lazy-load legacy modal to reduce default-path bundle size.
-// This component is only loaded when the rollback valve (?legacyShotEditor=1) is active.
-const ShotEditModal = lazy(() => import("../components/shots/ShotEditModal"));
 import ShotCreationPrelude from "../components/shots/ShotCreationPrelude";
 import BulkOperationsToolbar from "../components/shots/BulkOperationsToolbar";
 import ShotTableView from "../components/shots/ShotTableView";
@@ -187,23 +184,6 @@ import { calculateTalentTotals, calculateGroupedShotTotals } from "../lib/insigh
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
-
-/**
- * Delta I.8/I.9: Safety valve for legacy shot editor.
- *
- * Shot Editor V3 is now the default. This helper enables emergency rollback
- * by checking for `?legacyShotEditor=1` query param. This is NOT a user-facing
- * feature toggle—it exists only for debugging and emergency rollback scenarios.
- *
- * Delta I.9 improvement: The legacy modal is now lazy-loaded, so it won't be
- * included in the bundle unless this rollback valve is activated.
- *
- * Will be removed in a future delta (I.10+) when legacy editor is fully deprecated.
- */
-function useLegacyShotEditorMode() {
-  const [searchParams] = useSearchParams();
-  return searchParams.get("legacyShotEditor") === "1";
-}
 
 // Firestore batch write limit
 const FIRESTORE_BATCH_LIMIT = 500;
@@ -473,9 +453,6 @@ export function ShotsWorkspace() {
   const { setLastVisitedPath } = useProjectScope();
   const redirectNotifiedRef = useRef(false);
   const { clientId, role: globalRole, projectRoles = {}, user, claims } = useAuth();
-
-  // Delta I.8: Legacy shot editor safety valve (debug/emergency rollback only)
-  const forceLegacyEditor = useLegacyShotEditorMode();
 
   // TanStack Query hooks for data fetching with intelligent caching
   const { data: shots = [], isLoading: shotsLoading } = useShots(clientId, projectId);
@@ -2058,12 +2035,13 @@ export function ShotsWorkspace() {
     [mapShotTalentToSelection, normaliseShotProducts, setEditAutoStatus, setFocusShotId, user]
   );
 
+  // Delta I.10: Navigate to V3 editor (legacy modal removed)
   const handleEditShot = useCallback(
     (shot) => {
-      if (!canEditShots) return;
-      openShotEditor(shot);
+      if (!canEditShots || !shot?.projectId) return;
+      navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
     },
-    [canEditShots, openShotEditor]
+    [canEditShots, navigate]
   );
 
   // Single shot duplicate handler (used by 3-dot menu)
@@ -3744,13 +3722,9 @@ export function ShotsWorkspace() {
                 onChangeStatus={canEditShots ? (shot, value) => updateShot(shot, { status: value }) : null}
                 focusedShotId={focusShotId}
                 onFocusShot={(shot) => {
-                  // Delta I.8: Always navigate to V3 editor (cutover complete)
-                  // Legacy editor only accessible via ?legacyShotEditor=1 query param
-                  if (shot?.projectId && !forceLegacyEditor) {
+                  // Delta I.10: Always navigate to V3 editor (legacy modal removed)
+                  if (shot?.projectId) {
                     navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
-                  } else if (forceLegacyEditor) {
-                    // Safety valve: open legacy modal when explicitly requested
-                    handleEditShot(shot);
                   } else {
                     handleFocusShot(shot);
                   }
@@ -3803,85 +3777,6 @@ export function ShotsWorkspace() {
           isLoading={isCreatingFromPrelude}
         />
       )}
-
-      {/* Delta I.9: Legacy modals wrapped in Suspense for lazy loading.
-          These modals are only loaded when needed (rollback valve active or legacy create path).
-          This reduces the default bundle size when V3 editor is used. */}
-      <Suspense fallback={null}>
-        {/* Legacy full create modal (kept for backward compatibility - currently dead code) */}
-        {canEditShots && isCreateModalOpen && (
-          <ShotEditModal
-            open
-            titleId="create-shot-modal-title"
-            heading="Create shot"
-            shotName={createDraft.name || "New shot"}
-            draft={createDraft}
-            onChange={handleCreateDraftChange}
-            onClose={() => {
-              if (isCreatingShot) return;
-              setCreateModalOpen(false);
-              if (projectId) {
-                setCreateDraft({
-                  ...initialShotDraft,
-                  projectId: projectId,
-                  status: DEFAULT_SHOT_STATUS,
-                });
-              }
-              setCreateAutoStatus(createInitialSectionStatuses());
-            }}
-            onSubmit={handleCreateShot}
-            isSaving={isCreatingShot}
-            submitLabel="Create shot"
-            savingLabel="Creating…"
-            families={families}
-            loadFamilyDetails={loadFamilyDetails}
-            createProduct={buildShotProduct}
-            allowProductCreation={canManageProducts}
-            onCreateProduct={handleCreateProductFamily}
-            onCreateColourway={handleCreateColourway}
-            locations={locations}
-            talentOptions={talentOptions}
-            talentPlaceholder={talentLoadError ? "Talent unavailable" : "Select talent"}
-            talentNoOptionsMessage={talentNoOptionsMessage}
-            talentLoadError={talentLoadError}
-            autoSaveStatus={createAutoStatus}
-          />
-        )}
-        {/* Delta I.8/I.9: Legacy edit modal - only rendered when safety valve is active (?legacyShotEditor=1)
-            This is kept for emergency rollback scenarios only. */}
-        {canEditShots && editingShot && forceLegacyEditor && (
-          <ShotEditModal
-            open
-            titleId="edit-shot-modal-title"
-            shotId={editingShot.shot.id}
-            shotName={editingShot.shot.name}
-            draft={editingShot.draft}
-            onChange={updateEditingDraft}
-            onClose={closeShotEditor}
-            onSubmit={handleSaveShot}
-            isSaving={isSavingShot}
-            onDelete={() => removeShot(editingShot.shot)}
-            families={families}
-            loadFamilyDetails={loadFamilyDetails}
-            createProduct={buildShotProduct}
-            allowProductCreation={canManageProducts}
-            onCreateProduct={handleCreateProductFamily}
-            onCreateColourway={handleCreateColourway}
-            locations={locations}
-            talentOptions={talentOptions}
-            talentPlaceholder="Select talent"
-            talentNoOptionsMessage={talentNoOptionsMessage}
-            talentLoadError={talentLoadError}
-            projects={projects}
-            currentProjectId={projectId}
-            onMoveToProject={handleMoveToProject}
-            movingProject={movingProject}
-            onCopyToProject={handleCopyToProject}
-            copyingProject={copyingProject}
-            autoSaveStatus={editAutoStatus}
-          />
-        )}
-      </Suspense>
 
       {/* Project Picker Modal for single-shot copy/move */}
       <ProjectPickerModal

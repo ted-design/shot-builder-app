@@ -24,7 +24,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { doc, getDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { productFamilyPath, productFamilySkusPath } from "../lib/paths";
@@ -201,7 +201,51 @@ function ActivitySection() {
 export default function ProductDetailPageV3() {
   const { productId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { clientId } = useAuth();
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RETURN TO CONTEXT (P.3 - same pattern as J.6)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Parse returnTo query param and derive navigation target
+   *
+   * SUPPORTED FORMATS:
+   * 1) returnTo=<encoded path starting with "/"> → decode and navigate (internal only)
+   *
+   * SECURITY: Only allow navigation to internal paths (must start with "/")
+   */
+  const returnToContext = useMemo(() => {
+    const returnTo = searchParams.get("returnTo");
+    if (!returnTo) return null;
+
+    // Encoded path format (must start with "/")
+    try {
+      const decodedPath = decodeURIComponent(returnTo);
+      // Security: only allow internal paths starting with "/"
+      // Must not contain protocol or external URLs
+      if (
+        decodedPath.startsWith("/") &&
+        !decodedPath.includes("://") &&
+        !decodedPath.startsWith("//")
+      ) {
+        // Derive a simple label from the path
+        const pathSegments = decodedPath.split("/").filter(Boolean);
+        const lastSegment = pathSegments[pathSegments.length - 1] || "previous page";
+        const label = `Return to ${lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1).replace(/[?#].*$/, "")}`;
+        return {
+          label,
+          path: decodedPath,
+        };
+      }
+    } catch {
+      // Invalid encoded string - ignore silently
+    }
+
+    // Unrecognized format - do nothing
+    return null;
+  }, [searchParams]);
 
   // Data state
   const [family, setFamily] = useState(null);
@@ -309,6 +353,16 @@ export default function ProductDetailPageV3() {
     navigate("/products");
   }, [navigate]);
 
+  /**
+   * Handle "Return to" navigation (P.3)
+   * Navigates to the path specified in returnToContext
+   */
+  const handleReturnTo = useCallback(() => {
+    if (returnToContext?.path) {
+      navigate(returnToContext.path);
+    }
+  }, [returnToContext, navigate]);
+
   // Workspace context value
   const workspaceValue = useMemo(() => ({
     activeSection,
@@ -362,15 +416,30 @@ export default function ProductDetailPageV3() {
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/95">
           <div className="px-6 py-2">
             <div className="flex items-center justify-between">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBack}
-                className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-              >
-                <ArrowLeft className="w-4 h-4 mr-1.5" />
-                Products
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleBack}
+                  className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-1.5" />
+                  Products
+                </Button>
+
+                {/* Return to affordance (P.3) - shown when returnTo query param is present */}
+                {returnToContext && (
+                  <button
+                    type="button"
+                    onClick={handleReturnTo}
+                    className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                    title={returnToContext.label}
+                  >
+                    <ArrowLeft className="w-3 h-3" />
+                    <span className="max-w-[120px] truncate">{returnToContext.label}</span>
+                  </button>
+                )}
+              </div>
 
               <Button variant="outline" size="sm" disabled title="Edit mode coming soon">
                 <Edit3 className="w-4 h-4 mr-1.5" />
