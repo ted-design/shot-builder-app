@@ -9,6 +9,8 @@ import {
 } from "../ui/dropdown-menu";
 import { toDateInputValue } from "../../lib/shotDraft";
 import { normaliseShotStatus, shotStatusOptions } from "../../lib/shotStatus";
+import { getShotNotesPreview } from "../../lib/shotNotes";
+import { isCorruptShotDescription, resolveShotShortDescriptionSource, resolveShotShortDescriptionText } from "../../lib/shotDescription";
 import {
   resolveShotCoverWithCrop,
   getCropObjectPosition,
@@ -24,23 +26,12 @@ import { readStorage, writeStorage } from "../../lib/safeStorage";
 import { TagBadge } from "../ui/TagBadge";
 
 const STATUS_LABEL_MAP = new Map(shotStatusOptions.map(({ value, label }) => [value, label]));
-const CLEAN_TAG_REGEX = /<[^>]+>/g;
-const NBSP_REGEX = /&nbsp;/g;
 
 const statusBadgeClasses = {
   todo: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
   in_progress: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200",
   complete: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200",
   on_hold: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200",
-};
-
-const toPlainText = (html) => {
-  if (!html) return "";
-  return html
-    .replace(NBSP_REGEX, " ")
-    .replace(CLEAN_TAG_REGEX, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 };
 
 const summariseProduct = (product) => {
@@ -351,7 +342,7 @@ const ShotTableView = memo(function ShotTableView({
       </div>
       <div role="rowgroup">
         {rows.map((row, rowIndex) => {
-          const { shot, products, talent, notesHtml, locationName } = row;
+          const { shot, products, talent, locationName } = row;
           const shotId = shot?.id || row.id;
           const isSelected = selectedIds ? selectedIds.has(shotId) : false;
           const isFocused = focusedShotId ? shotId === focusedShotId : false;
@@ -371,7 +362,10 @@ const ShotTableView = memo(function ShotTableView({
                 .filter(Boolean)
                 .join(", ")
             : "";
-          const notesPlain = toPlainText(notesHtml);
+          const notesPlain = getShotNotesPreview(shot);
+          const descriptionSource = resolveShotShortDescriptionSource(shot);
+          const isCorruptDescription = isCorruptShotDescription(descriptionSource, notesPlain);
+          const descriptionText = isCorruptDescription ? "" : resolveShotShortDescriptionText(shot);
           const tagLabels = Array.isArray(shot?.tags)
             ? shot.tags.map((t) => t?.label).filter(Boolean)
             : [];
@@ -563,15 +557,15 @@ const ShotTableView = memo(function ShotTableView({
 
                 if (columnKey === "name" && showName) {
                   // When consolidated, show both name and description in this column
-                  const showDescriptionHere = consolidatedShotColumn && shot?.type;
+                  const showDescriptionHere = consolidatedShotColumn && (descriptionText || isCorruptDescription);
                   return (
                     <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-900 dark:text-slate-100`}>
                       <div className="font-semibold leading-5 truncate" title={shot?.name || "Unnamed shot"}>
                         {shot?.name || "Unnamed shot"}
                       </div>
                       {showDescriptionHere && (
-                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5" title={shot.type}>
-                          {shot.type}
+                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5" title={isCorruptDescription ? undefined : descriptionText}>
+                          {isCorruptDescription ? "No description" : descriptionText}
                         </div>
                       )}
                     </div>
@@ -581,7 +575,7 @@ const ShotTableView = memo(function ShotTableView({
                 if (columnKey === "type" && showType && !consolidatedShotColumn) {
                   return (
                     <div key={columnKey} role="cell" data-col={columnKey} className={`${densityConfig.tablePadding} ${densityConfig.tableRow} text-slate-600 dark:text-slate-300`}>
-                      {shot?.type || "—"}
+                      {isCorruptDescription ? "No description" : descriptionText || "—"}
                     </div>
                   );
                 }

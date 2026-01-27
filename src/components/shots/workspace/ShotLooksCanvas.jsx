@@ -35,7 +35,8 @@
  *
  * NOTES:
  * - Looks are stored separately from shot.products (coexist without breaking existing usage)
- * - Hero product is used for header colorway/auto-name in future deltas (not this one)
+ * - Hero product colorway drives header display AND auto-fills shot.description for e-comm shots
+ *   (per UX.Shots.HeroAutoFillWriteThrough delta)
  * - displayImageId: ONE reference per look can be designated as the shot's display image
  *   (used in shots table/gallery; inside editor all references remain peers)
  */
@@ -47,6 +48,7 @@ import { db, uploadImageFile } from "../../../lib/firebase";
 import { shotsPath, productFamiliesPath, productFamilySkusPath } from "../../../lib/paths";
 import { useAuth } from "../../../context/AuthContext";
 import { logActivity, createShotUpdatedActivity } from "../../../lib/activityLogger";
+import { shouldAutoFillDescriptionOnHeroChange } from "../../../lib/shotDescription";
 import { compressImageFile } from "../../../lib/images";
 import { showConfirm } from "../../../lib/toast";
 import { queryKeys } from "../../../hooks/useFirestoreQuery";
@@ -1110,7 +1112,37 @@ export default function ShotLooksCanvas({
     debouncedSave(newLooks);
   }, [looks, debouncedSave]);
 
-  const handleSetHero = useCallback((lookId, productId) => {
+  /**
+   * Set a product as HERO for a look.
+   *
+   * E-COMM DESCRIPTION WRITE-THROUGH:
+   * Per UX.Shots.HeroAutoFillWriteThrough delta:
+   * When setting hero on an e-comm shot, auto-fill shot.description with the
+   * hero product's colorway label. Only auto-fill if:
+   * - shot.type === "E-comm" (or shotType === "ecomm")
+   * - AND (description is empty OR description matches previous auto-derived colorway)
+   *
+   * PATTERN A (CONSERVATIVE OVERWRITE GUARD):
+   * Only overwrite if description === "" OR description === prevDerived (previous hero's colorway).
+   * This preserves any user-typed description, even if it happens to match another product's colorway.
+   */
+  const handleSetHero = useCallback(async (lookId, productId) => {
+    // Find the look being modified
+    const targetLook = looks.find((l) => l.id === lookId);
+    if (!targetLook) return;
+
+    // Get previous hero's colorway (prevDerived) before changing
+    const prevHeroId = targetLook.heroProductId;
+    const prevHeroProduct = prevHeroId
+      ? targetLook.products?.find((p) => p.productId === prevHeroId)
+      : null;
+    const prevDerived = (prevHeroProduct?.colourName || "").trim().toLowerCase();
+
+    // Find the new hero product
+    const heroProduct = targetLook.products?.find((p) => p.productId === productId);
+    const newColorway = heroProduct?.colourName?.trim() || "";
+
+    // Build updated looks array
     const newLooks = looks.map((look) => {
       if (look.id !== lookId) return look;
       return {
@@ -1120,8 +1152,75 @@ export default function ShotLooksCanvas({
     });
 
     setLooks(newLooks);
+
+    // E-COMM DESCRIPTION WRITE-THROUGH
+    // Check if this is an e-comm shot (type label or shotType id)
+    const isEcommShot =
+      shot?.type?.toLowerCase() === "e-comm" ||
+      shot?.shotType?.toLowerCase() === "ecomm" ||
+      shot?.type?.toLowerCase() === "ecommerce";
+
+    if (isEcommShot && newColorway && clientId && shot?.id && !readOnly) {
+      // Pattern A: only auto-fill if empty or matches previous hero's colorway
+      const shouldAutoFill = shouldAutoFillDescriptionOnHeroChange(
+        shot?.description,
+        prevHeroProduct?.colourName
+      );
+
+      if (shouldAutoFill) {
+        // Write description along with looks in a single update
+        try {
+          const shotRef = doc(db, ...shotsPath(clientId), shot.id);
+          const sanitizedLooks = sanitizeForFirestore(newLooks);
+
+          await updateDoc(shotRef, {
+            looks: sanitizedLooks,
+            description: newColorway,
+            updatedAt: serverTimestamp(),
+          });
+
+          setSaveStatus("saved");
+
+          // Invalidate shots cache
+          if (shot.projectId) {
+            queryClient.invalidateQueries({ queryKey: queryKeys.shots(clientId, shot.projectId) });
+          }
+
+          // Clear saved indicator after 2s
+          if (savedIndicatorTimerRef.current) {
+            clearTimeout(savedIndicatorTimerRef.current);
+          }
+          savedIndicatorTimerRef.current = setTimeout(() => {
+            setSaveStatus("idle");
+          }, 2000);
+
+          // Log activity (non-blocking)
+          if (shot.projectId) {
+            logActivity(
+              clientId,
+              shot.projectId,
+              createShotUpdatedActivity(
+                user?.uid || "unknown",
+                user?.displayName || "Unknown",
+                user?.photoURL || null,
+                shot.id,
+                shot.name || "Untitled Shot",
+                { looks: "hero set", description: newColorway }
+              )
+            ).catch(() => {});
+          }
+
+          return; // Already saved, skip debouncedSave
+        } catch (error) {
+          console.error("[ShotLooksCanvas] Failed to save hero with description:", error);
+          setSaveStatus("error");
+        }
+      }
+    }
+
+    // Fall back to standard looks-only save
     debouncedSave(newLooks);
-  }, [looks, debouncedSave]);
+  }, [looks, debouncedSave, shot, clientId, readOnly, user, queryClient, saveLooks]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // REFERENCE IMAGE HANDLERS

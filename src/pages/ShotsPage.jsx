@@ -94,6 +94,7 @@ import {
   ExternalLink,
   Image,
   Clock,
+  Eraser,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -133,6 +134,12 @@ import {
   buildPlannerExportLanes,
 } from "../lib/plannerExportHelpers";
 import { stripHtml } from "../lib/stripHtml";
+import {
+  isCorruptShotDescription,
+  resolveShotDraftShortDescriptionSource,
+  resolveShotShortDescriptionSource,
+  resolveShotShortDescriptionText,
+} from "../lib/shotDescription";
 import { VirtualizedGrid } from "../components/ui/VirtualizedList";
 import { ButtonGroup } from "../components/ui/ButtonGroup";
 import ShotProductsEditor from "../components/shots/ShotProductsEditor";
@@ -150,8 +157,9 @@ import { describeFirebaseError } from "../lib/firebaseErrors";
 import { writeDoc } from "../lib/firestoreWrites";
 import { toast, showConfirm } from "../lib/toast";
 import { formatRelativeTime } from "../lib/notifications";
-import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
+import { sanitizeNotesHtml } from "../lib/sanitize";
 import { applyShotTextFieldSanitization } from "../lib/shotPatchBuilder";
+import { getShotNotesPreview } from "../lib/shotNotes";
 import AppImage from "../components/common/AppImage";
 import { z } from "zod";
 import { createProductFamily, createProductColourway } from "../lib/productMutations";
@@ -1073,51 +1081,85 @@ export function ShotsWorkspace() {
 
   const normaliseShotProducts = useCallback(
     (shot) => {
+      // Helper to normalise a single product object
+      const normaliseProduct = (product) => {
+        if (!product) return null;
+        if (product.familyId) {
+          return withDerivedProductFields(product);
+        }
+        const familyId = product.productId || product.productIdRef;
+        if (!familyId) return null;
+        const family = families.find((entry) => entry.id === familyId);
+        if (!family) return null;
+        const base = {
+          familyId,
+          familyName: product.productName || family.styleName || "",
+          styleNumber: product.styleNumber ?? family.styleNumber ?? null,
+          thumbnailImagePath:
+            product.thumbnailImagePath ||
+            family.thumbnailImagePath ||
+            family.headerImagePath ||
+            null,
+          colourId: product.colourId ?? null,
+          colourwayId: product.colourId ?? null,
+          colourName: product.colourName || "",
+          colourImagePath: product.colourImagePath ?? null,
+          images: Array.isArray(product.images) ? product.images : [],
+          size: product.size ?? null,
+          sizeScope:
+            product.sizeScope ||
+            (product.status === "pending-size"
+              ? "pending"
+              : product.size
+              ? "single"
+              : "all"),
+          status: product.status === "pending-size" ? "pending-size" : "complete",
+        };
+        return withDerivedProductFields(base);
+      };
+
+      // Collect products from all sources
+      const allProducts = [];
+      const seenKeys = new Set();
+
+      // Helper to add product avoiding duplicates (by productId + colourId + size)
+      // Include size and sizeScope in the key to avoid collapsing different sizes of the same colorway
+      const addProduct = (product) => {
+        if (!product) return;
+        const sizeKey = product.sizeScope === "all" ? "all" : (product.size || "");
+        const key = `${product.familyId || product.productId || ""}-${product.colourId || ""}-${sizeKey}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          allProducts.push(product);
+        }
+      };
+
+      // Source 1: shot.products (legacy/direct products)
       if (Array.isArray(shot?.products) && shot.products.length) {
-        return shot.products
-          .map((product) => {
-            if (!product) return null;
-            if (product.familyId) {
-              return withDerivedProductFields(product);
-            }
-            const familyId = product.productId || product.productIdRef;
-            if (!familyId) return null;
-            const family = families.find((entry) => entry.id === familyId);
-            if (!family) return null;
-            const base = {
-              familyId,
-              familyName: product.productName || family.styleName || "",
-              styleNumber: product.styleNumber ?? family.styleNumber ?? null,
-              thumbnailImagePath:
-                product.thumbnailImagePath ||
-                family.thumbnailImagePath ||
-                family.headerImagePath ||
-                null,
-              colourId: product.colourId ?? null,
-              colourwayId: product.colourId ?? null,
-              colourName: product.colourName || "",
-              colourImagePath: product.colourImagePath ?? null,
-              images: Array.isArray(product.images) ? product.images : [],
-              size: product.size ?? null,
-              sizeScope:
-                product.sizeScope ||
-                (product.status === "pending-size"
-                  ? "pending"
-                  : product.size
-                  ? "single"
-                  : "all"),
-              status: product.status === "pending-size" ? "pending-size" : "complete",
-            };
-            return withDerivedProductFields(base);
-          })
-          .filter(Boolean);
+        shot.products.forEach((product) => {
+          const normalised = normaliseProduct(product);
+          addProduct(normalised);
+        });
       }
-      if (!Array.isArray(shot?.productIds)) return [];
-      return shot.productIds
-        .map((familyId) => {
+
+      // Source 2: shot.looks[].products (Look-based products from V3 editor)
+      if (Array.isArray(shot?.looks) && shot.looks.length) {
+        shot.looks.forEach((look) => {
+          if (Array.isArray(look.products)) {
+            look.products.forEach((product) => {
+              const normalised = normaliseProduct(product);
+              addProduct(normalised);
+            });
+          }
+        });
+      }
+
+      // Source 3: shot.productIds (legacy ID-only references) - only if no products found yet
+      if (allProducts.length === 0 && Array.isArray(shot?.productIds)) {
+        shot.productIds.forEach((familyId) => {
           const family = families.find((entry) => entry.id === familyId);
-          if (!family) return null;
-          return withDerivedProductFields({
+          if (!family) return;
+          const normalised = withDerivedProductFields({
             id: `legacy-${familyId}`,
             familyId,
             familyName: family.styleName,
@@ -1132,8 +1174,11 @@ export function ShotsWorkspace() {
             status: "complete",
             sizeScope: "all",
           });
-        })
-        .filter(Boolean);
+          addProduct(normalised);
+        });
+      }
+
+      return allProducts;
     },
     [families, withDerivedProductFields]
   );
@@ -1167,26 +1212,26 @@ export function ShotsWorkspace() {
     [talentOptions]
   );
 
-  const tableRows = useMemo(
-    () =>
-      sortedShots.map((shot) => {
-        const products = normaliseShotProducts(shot);
-        const talentSelection = mapShotTalentToSelection(shot);
-        const notesHtml = formatNotesForDisplay(shot.notes);
-        const locationName =
-          shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
+	  const tableRows = useMemo(
+	    () =>
+	      sortedShots.map((shot) => {
+	        const products = normaliseShotProducts(shot);
+	        const talentSelection = mapShotTalentToSelection(shot);
+	        const notesPreview = getShotNotesPreview(shot);
+	        const locationName =
+	          shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
 
-        return {
-          id: shot.id,
-          shot,
-          products,
-          talent: talentSelection,
-          notesHtml,
-          locationName,
-        };
-      }),
-    [sortedShots, normaliseShotProducts, mapShotTalentToSelection, locationById]
-  );
+	        return {
+	          id: shot.id,
+	          shot,
+	          products,
+	          talent: talentSelection,
+	          notesPreview,
+	          locationName,
+	        };
+	      }),
+	    [sortedShots, normaliseShotProducts, mapShotTalentToSelection, locationById]
+	  );
 
   const buildShotProduct = useCallback(
     (selection, previous = null) => {
@@ -1393,8 +1438,8 @@ export function ShotsWorkspace() {
         ? locations.find((location) => location.id === locationId)?.name || null
         : null;
 
-      // Short description from the Description field (or fallback to legacy type)
-      const shortDescription = validation.data.description || validation.data.type || "";
+      const shortDescription = validation.data.description || "";
+      const shotType = validation.data.type || "";
       // Rich notes from the Notes field
       const notesHtml = sanitizeNotesHtml(validation.data.notes || "");
       const resolvedStatus = normaliseShotStatus(validation.data.status);
@@ -1417,8 +1462,8 @@ export function ShotsWorkspace() {
 
       const shotData = {
         name: validation.data.name,
-        description: shortDescription, // Short description (canonical field)
-        type: shortDescription,        // Legacy field (keep in sync with description)
+        description: shortDescription,
+        type: shotType,
         notes: notesHtml, // Rich text notes
         shotNumber: validation.data.shotNumber || "",
         date: parseDateToTimestamp(validation.data.date) || null,
@@ -1529,7 +1574,7 @@ export function ShotsWorkspace() {
         for (const shotSpec of shots) {
           const shotData = {
             name: shotSpec.name,
-            description: shotSpec.type, // Shot type as description
+            description: "",
             type: shotSpec.type,
             notes: "",
             shotNumber: "",
@@ -1997,10 +2042,7 @@ export function ShotsWorkspace() {
       try {
         const products = normaliseShotProducts(shot);
         const talentSelection = mapShotTalentToSelection(shot);
-
-        const canonicalDescription = stripHtml(String(shot.description ?? ""));
-        const legacyDescription = stripHtml(String(shot.type ?? ""));
-        const resolvedDescription = canonicalDescription || legacyDescription || "";
+        const resolvedDescription = resolveShotShortDescriptionText(shot);
 
         // AUTO-MIGRATION: Convert legacy referenceImagePath to attachments array if needed
         let attachments = Array.isArray(shot.attachments) ? shot.attachments : [];
@@ -2013,8 +2055,7 @@ export function ShotsWorkspace() {
 
         const draft = {
           name: shot.name || "",
-          // Initialize description with fallback to type for legacy shots.
-          // Use stripped text so placeholder HTML/whitespace doesn't block the fallback.
+          // Initialize description from shot.description (no legacy fallback).
           description: resolvedDescription,
           type: shot.type || "",
           notes: shot.notes || "",
@@ -2269,10 +2310,7 @@ export function ShotsWorkspace() {
     if (diffMap.basics) {
       patch.name = draft.name;
       patch.status = draft.status ?? DEFAULT_SHOT_STATUS;
-      // Always keep description and type in sync (canonical value from either field)
-      const canonicalDescription = draft.description || draft.type || "";
-      patch.description = canonicalDescription;
-      patch.type = canonicalDescription;
+      patch.description = resolveShotDraftShortDescriptionSource(draft);
       patch.shotNumber = draft.shotNumber || "";
       patch.date = draft.date || "";
       patch.locationId = draft.locationId || "";
@@ -2429,7 +2467,7 @@ export function ShotsWorkspace() {
       await updateShot(editingShot.shot, {
         name: parsed.name,
         description: parsed.description || "",
-        type: parsed.description || "",  // Keep in sync with description for backward compat
+        type: parsed.type || "",
         date: parsed.date || "",
         locationId: parsed.locationId || null,
         talent: parsed.talent,
@@ -2563,8 +2601,8 @@ export function ShotsWorkspace() {
       // Create a copy without the id and with updated metadata
       const shotCopy = {
         name: shotData.name,
-        description: shotData.description || shotData.type || "",
-        type: shotData.type || shotData.description || "",  // Keep in sync for backward compat
+        description: resolveShotShortDescriptionSource(shotData),
+        type: typeof shotData.type === "string" ? shotData.type : "",
         notes: shotData.notes || "",
         shotNumber: "",  // Intentionally blank - shot numbers are unique
         date: shotData.date || "",
@@ -3057,10 +3095,11 @@ export function ShotsWorkspace() {
               }))
           : [];
 
+        const shortDescription = resolveShotShortDescriptionSource(shot);
         const duplicatePayload = {
           name: duplicateName,
-          description: shot?.description || shot?.type || "",  // Canonical with legacy fallback
-          type: shot?.type || shot?.description || "",         // Legacy with canonical fallback
+          description: shortDescription,
+          type: typeof shot?.type === "string" ? shot.type : "",
           notes: shot?.notes || "",
           status: normaliseShotStatus(shot?.status || DEFAULT_SHOT_STATUS),
           date: shot?.date || null,
@@ -3239,12 +3278,13 @@ export function ShotsWorkspace() {
       // Create new documents with addDoc (cannot batch addDoc operations easily)
       for (let i = 0; i < selectedShots.length; i++) {
         const shot = selectedShots[i];
+        const shortDescription = resolveShotShortDescriptionSource(shot);
 
         // Copy all properties except id and timestamps
         const shotData = {
           name: shot.name,
-          description: shot.description || shot.type || "",
-          type: shot.type || shot.description || "",  // Keep in sync for backward compat
+          description: shortDescription,
+          type: typeof shot?.type === "string" ? shot.type : "",
           notes: shot.notes || "",
           shotNumber: "",  // Intentionally blank - shot numbers are unique
           date: shot.date || null,
@@ -3618,24 +3658,22 @@ export function ShotsWorkspace() {
                   expandedGroups={expandedGroups}
                   onToggleGroup={toggleGroupExpanded}
                   className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
-                  renderShot={(shot, index) => {
-                    const shotProducts = normaliseShotProducts(shot);
-                    const shotTalentSelection = mapShotTalentToSelection(shot);
-                    const notesHtml = formatNotesForDisplay(shot.notes);
-                    const locationName =
-                      shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
-                    return (
-                      <div key={shot.id} className="animate-fade-in opacity-0" style={getStaggerDelay(index)}>
-                        <ShotGalleryCard
-                          shot={shot}
-                          locationName={locationName}
-                          products={shotProducts}
-                          talent={shotTalentSelection}
-                          notesHtml={notesHtml}
-                          canEditShots={canEditShots}
-                          onEdit={() => handleEditShot(shot)}
-                          onDelete={() => removeShot(shot)}
-                          onDuplicate={() => handleDuplicateSingleShot(shot)}
+	                  renderShot={(shot, index) => {
+	                    const shotProducts = normaliseShotProducts(shot);
+	                    const shotTalentSelection = mapShotTalentToSelection(shot);
+	                    const locationName =
+	                      shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
+	                    return (
+	                      <div key={shot.id} className="animate-fade-in opacity-0" style={getStaggerDelay(index)}>
+	                        <ShotGalleryCard
+	                          shot={shot}
+	                          locationName={locationName}
+	                          products={shotProducts}
+	                          talent={shotTalentSelection}
+	                          canEditShots={canEditShots}
+	                          onEdit={() => handleEditShot(shot)}
+	                          onDelete={() => removeShot(shot)}
+	                          onDuplicate={() => handleDuplicateSingleShot(shot)}
                           onCopyToProject={() => handleCopyToProjectSingleShot(shot)}
                           onMoveToProject={() => handleMoveToProjectSingleShot(shot)}
                           onArchive={() => handleArchiveSingleShot(shot)}
@@ -3658,27 +3696,25 @@ export function ShotsWorkspace() {
                   itemHeight={galleryItemHeight}
                   threshold={80}
                   className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
-                  renderItem={(shot, index, isVirtualized) => {
-                    const shotProducts = normaliseShotProducts(shot);
-                    const shotTalentSelection = mapShotTalentToSelection(shot);
-                    const notesHtml = formatNotesForDisplay(shot.notes);
-                    const locationName =
-                      shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
-                    return (
-                      <div
-                        className={isVirtualized ? "" : "animate-fade-in opacity-0"}
+	                  renderItem={(shot, index, isVirtualized) => {
+	                    const shotProducts = normaliseShotProducts(shot);
+	                    const shotTalentSelection = mapShotTalentToSelection(shot);
+	                    const locationName =
+	                      shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
+	                    return (
+	                      <div
+	                        className={isVirtualized ? "" : "animate-fade-in opacity-0"}
                         style={isVirtualized ? {} : getStaggerDelay(index)}
                       >
-                        <ShotGalleryCard
-                          shot={shot}
-                          locationName={locationName}
-                          products={shotProducts}
-                          talent={shotTalentSelection}
-                          notesHtml={notesHtml}
-                          canEditShots={canEditShots}
-                          onEdit={() => handleEditShot(shot)}
-                          onDelete={() => removeShot(shot)}
-                          onDuplicate={() => handleDuplicateSingleShot(shot)}
+	                        <ShotGalleryCard
+	                          shot={shot}
+	                          locationName={locationName}
+	                          products={shotProducts}
+	                          talent={shotTalentSelection}
+	                          canEditShots={canEditShots}
+	                          onEdit={() => handleEditShot(shot)}
+	                          onDelete={() => removeShot(shot)}
+	                          onDuplicate={() => handleDuplicateSingleShot(shot)}
                           onCopyToProject={() => handleCopyToProjectSingleShot(shot)}
                           onMoveToProject={() => handleMoveToProjectSingleShot(shot)}
                           onArchive={() => handleArchiveSingleShot(shot)}
@@ -3700,14 +3736,13 @@ export function ShotsWorkspace() {
               <ShotTableView
                 rows={
                   // Rebuild rows from table-ordered shots to reflect manual order
-                  tableOrderedShots.map((shot) => {
-                    const products = normaliseShotProducts(shot);
-                    const talentSelection = mapShotTalentToSelection(shot);
-                    const notesHtml = formatNotesForDisplay(shot.notes);
-                    const locationName = shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
-                    return { shot, products, talent: talentSelection, notesHtml, locationName };
-                  })
-                }
+	                  tableOrderedShots.map((shot) => {
+	                    const products = normaliseShotProducts(shot);
+	                    const talentSelection = mapShotTalentToSelection(shot);
+	                    const locationName = shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
+	                    return { shot, products, talent: talentSelection, locationName };
+	                  })
+	                }
                 viewPrefs={viewPrefs}
                 density={SHOT_DENSITY_CONFIG[resolvedDensity]}
                 canEditShots={canEditShots}
@@ -3890,7 +3925,6 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   locationName,
   products,
   talent,
-  notesHtml,
   canEditShots,
   onEdit,
   onDelete,
@@ -3908,6 +3942,8 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   userDisplayByUid = null,
 }) {
   const navigate = useNavigate();
+  const auth = useAuth();
+  const clientId = auth?.clientId;
 
   // Delta I.8: Always navigate to V3 editor on card click (cutover complete)
   // The flag check is removed since FLAGS.shotEditorV3 is always true.
@@ -3925,6 +3961,26 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     },
     [navigate, shot]
   );
+
+  const handleClearCorruptDescription = useCallback(async (e) => {
+    e?.stopPropagation?.();
+    if (!canEditShots) return;
+    if (!clientId || !shot?.id) return;
+
+    const confirmed = await showConfirm("Clear description? This will set it to empty.");
+    if (!confirmed) return;
+
+    try {
+      const shotRef = doc(db, ...getShotsPath(clientId), shot.id);
+      // User-invoked only; single-field update (no other fields mutated).
+      await updateDoc(shotRef, { description: "" });
+      toast.success({ title: "Description cleared" });
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Failed to clear description");
+      console.error("[Shots] Failed to clear description:", error);
+      toast.error({ title: "Failed to clear description", description: `${code}: ${message}` });
+    }
+  }, [canEditShots, clientId, shot?.id]);
 
   // Collapsible sections state - synced with global state
   const [expandedSections, setExpandedSections] = useState({
@@ -3990,6 +4046,10 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     : "";
 
   const density = normaliseShotDensity(viewPrefs?.density);
+  const notesPreview = getShotNotesPreview(shot);
+  const descriptionSource = resolveShotShortDescriptionSource(shot);
+  const isCorruptDescription = isCorruptShotDescription(descriptionSource, notesPreview);
+  const descriptionText = isCorruptDescription ? "" : resolveShotShortDescriptionText(shot);
 
   // Status label + color
   const statusValue = normaliseShotStatus(shot?.status);
@@ -4062,7 +4122,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   const hasTalent = talent && talent.length > 0;
   const hasLocation = locationName && locationName !== "Unassigned";
   const hasTalentOrLocation = hasTalent || hasLocation;
-  const hasNotes = Boolean(notesHtml);
+  const hasNotes = Boolean(notesPreview);
 
   // Determine if talent & location section should be shown based on visibility prefs
   const shouldShowTalentLocation = (showTalent || showLocation) && hasTalentOrLocation;
@@ -4104,10 +4164,9 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     <div key="notes" className="space-y-1.5">
       <CollapsibleHeader label="Notes" icon={FileText} section="notes" hasContent={hasNotes} />
       {expandedSections.notes && (
-        <div
-          className="prose prose-xs dark:prose-invert max-w-none text-[11px] text-slate-600 dark:text-slate-300 line-clamp-3"
-          dangerouslySetInnerHTML={{ __html: notesHtml }}
-        />
+        <p className="max-w-none text-[11px] text-slate-600 dark:text-slate-300 line-clamp-3 leading-5">
+          {notesPreview}
+        </p>
       )}
     </div>
   );
@@ -4215,6 +4274,12 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit Shot
               </DropdownMenuItem>
+              {isCorruptDescription && (
+                <DropdownMenuItem onClick={handleClearCorruptDescription}>
+                  <Eraser className="mr-2 h-4 w-4" />
+                  Clear description
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={(e) => {
@@ -4269,7 +4334,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
       )}
 
       {/* Comfy Density: Header (Name + Description + Status) Above Image */}
-      {!isCompact && (showName || (showType && shot.type) || statusElement) && (
+      {!isCompact && (showName || (showType && (descriptionText || isCorruptDescription)) || statusElement) && (
         <div className={`border-b border-slate-200 dark:border-slate-700 ${cardPadding} space-y-2`}>
           {/* Shot Name */}
           {showName && (
@@ -4279,9 +4344,9 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
           )}
 
           {/* Description/Type */}
-          {showType && shot.type && (
-            <p className="min-w-0 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={shot.type}>
-              {shot.type}
+          {showType && (descriptionText || isCorruptDescription) && (
+            <p className="min-w-0 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={isCorruptDescription ? undefined : descriptionText}>
+              {isCorruptDescription ? "No description" : descriptionText}
             </p>
           )}
 
@@ -4423,9 +4488,9 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
             )}
 
             {/* Description/Type */}
-            {showType && shot.type && (
-              <p className="min-w-0 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={shot.type}>
-                {shot.type}
+            {showType && (descriptionText || isCorruptDescription) && (
+              <p className="min-w-0 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={isCorruptDescription ? undefined : descriptionText}>
+                {isCorruptDescription ? "No description" : descriptionText}
               </p>
             )}
 

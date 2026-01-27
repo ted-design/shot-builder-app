@@ -30,6 +30,8 @@ import { scheduleQueryKeys } from "./useSchedule";
 import { calculateEndTime, parseTimeToMinutes, minutesToTimeString } from "../lib/timeUtils";
 import { getPrimaryAttachmentWithStyle, getShotImagePath, resolveShotCoverImage } from "../lib/imageHelpers";
 import { stripHtml } from "../lib/stripHtml";
+import { getShotNotesPreview } from "../lib/shotNotes";
+import { resolveShotShortDescriptionText } from "../lib/shotDescription";
 import {
   getNextAvailableTime,
   sortEntriesByTime,
@@ -225,12 +227,9 @@ export function useResolvedScheduleEntries(
           });
 
           const productNames = Array.from(labelByProductId.values());
-          const canonicalDescription = stripHtml(String(shot.description ?? ""));
-          const legacyDescription = stripHtml(String(shot.type ?? ""));
-          const resolvedShotDescription = canonicalDescription || legacyDescription || "";
+          const resolvedShotDescription = resolveShotShortDescriptionText(shot);
 
-          // Details field: read from shot.description (canonical) with fallback to shot.type (legacy).
-          // Use stripped text so placeholder HTML/whitespace doesn't block the fallback.
+          // Details field: read from shot.description only (separate from notes and type).
           const resolvedDetails = resolvedShotDescription;
 
           // Resolve location (entry override wins)
@@ -244,7 +243,7 @@ export function useResolvedScheduleEntries(
             entryLocation?.name || shotLocation?.name || shot.locationName || "";
 
           const entryNotes = entry.notes ? stripHtml(entry.notes) : "";
-          const shotNotes = shot.notes ? stripHtml(shot.notes) : "";
+          const shotNotes = getShotNotesPreview(shot);
           // Notes field: prioritize entry notes, then shot notes (not description)
           const resolvedNotes = entryNotes || shotNotes;
           // Description field: separate from notes for granular toggle control

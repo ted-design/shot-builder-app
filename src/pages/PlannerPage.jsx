@@ -65,9 +65,11 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import { formatNotesForDisplay, sanitizeNotesHtml } from "../lib/sanitize";
+import { sanitizeNotesHtml } from "../lib/sanitize";
 import { applyShotTextFieldSanitization } from "../lib/shotPatchBuilder";
 import { stripHtml } from "../lib/stripHtml";
+import { getShotNotesPreview } from "../lib/shotNotes";
+import { resolveShotTypeText } from "../lib/shotDescription";
 import { Button } from "../components/ui/button";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { TagList } from "../components/ui/TagBadge";
@@ -450,16 +452,16 @@ const buildPlannerExportLanes = (shotsByLane, lanes, normaliseShotProductsFn) =>
         laneName: lane.name,
         shotNumber,
         name: shot.name || "Untitled shot",
-        type: shot.type || "",
+        type: resolveShotTypeText(shot),
         date: formatShotDate(shot.date) || "",
-        location: shot.locationName || shot.location || "",
-        talent: talentNames,
-        products: productLabels,
-        notes: stripHtml(shot.description || ""),
-        image: resolveShotImageForExport(shot, normalisedProducts),
-        attachments: Array.isArray(shot.attachments) ? shot.attachments : [],
-        referenceImageCrop: shot.referenceImageCrop || null,
-        referenceImagePath: shot.referenceImagePath || null,
+	        location: shot.locationName || shot.location || "",
+	        talent: talentNames,
+	        products: productLabels,
+	        notes: getShotNotesPreview(shot),
+	        image: resolveShotImageForExport(shot, normalisedProducts),
+	        attachments: Array.isArray(shot.attachments) ? shot.attachments : [],
+	        referenceImageCrop: shot.referenceImageCrop || null,
+	        referenceImagePath: shot.referenceImagePath || null,
         imageUrl: shot.imageUrl || null,
         productImages,
       };
@@ -684,7 +686,7 @@ function ShotCard({
       ? shot.shotNumber.trim()
       : null;
   const shotNameLabel = shot.name || (shotNumberLabel ? shotNumberLabel : "Untitled shot");
-  const notesHtml = visibleFields.notes ? formatNotesForDisplay(shot.notes) : "";
+  const notesPreview = visibleFields.notes ? getShotNotesPreview(shot) : "";
   const talentList = Array.isArray(shot.talent)
     ? shot.talent
         .map((entry) => entry?.name)
@@ -1032,12 +1034,13 @@ function ShotCard({
                   ) : null;
                 }
                 if (key === 'notes') {
-                  return notesHtml ? (
+                  return notesPreview ? (
                     <div
                       key="notes"
                       className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300"
-                      dangerouslySetInnerHTML={{ __html: notesHtml }}
-                    />
+                    >
+                      {notesPreview}
+                    </div>
                   ) : null;
                 }
                 return null;
@@ -1954,15 +1957,46 @@ function PlannerPageContent({ embedded = false }) {
   const normaliseShotProducts = useCallback(
     (shot) => {
       if (!shot) return [];
+
+      // Collect products from all sources, avoiding duplicates
+      const allProducts = [];
+      const seenKeys = new Set();
+
+      const addProduct = (product) => {
+        if (!product) return;
+        const key = `${product.familyId || product.productId || ""}-${product.colourId || ""}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          allProducts.push(product);
+        }
+      };
+
+      // Source 1: shot.products (legacy/direct products)
       if (Array.isArray(shot.products) && shot.products.length) {
-        return shot.products.map((product) => withDerivedProductFields(product)).filter(Boolean);
+        shot.products.forEach((product) => {
+          const normalised = withDerivedProductFields(product);
+          addProduct(normalised);
+        });
       }
-      if (!Array.isArray(shot.productIds) || !shot.productIds.length) return [];
-      return shot.productIds
-        .map((familyId) => {
+
+      // Source 2: shot.looks[].products (Look-based products from V3 editor)
+      if (Array.isArray(shot.looks) && shot.looks.length) {
+        shot.looks.forEach((look) => {
+          if (Array.isArray(look.products)) {
+            look.products.forEach((product) => {
+              const normalised = withDerivedProductFields(product);
+              addProduct(normalised);
+            });
+          }
+        });
+      }
+
+      // Source 3: shot.productIds (legacy ID-only references) - only if no products found yet
+      if (allProducts.length === 0 && Array.isArray(shot.productIds) && shot.productIds.length) {
+        shot.productIds.forEach((familyId) => {
           const family = familyId ? familiesById.get(familyId) : null;
-          if (!family) return null;
-          return withDerivedProductFields({
+          if (!family) return;
+          const normalised = withDerivedProductFields({
             id: `legacy-${familyId}`,
             familyId,
             productId: familyId,
@@ -1980,8 +2014,11 @@ function PlannerPageContent({ embedded = false }) {
             status: "complete",
             sizeScope: "all",
           });
-        })
-        .filter(Boolean);
+          addProduct(normalised);
+        });
+      }
+
+      return allProducts;
     },
     [familiesById, withDerivedProductFields]
   );

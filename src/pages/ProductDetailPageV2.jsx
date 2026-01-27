@@ -72,6 +72,7 @@ import {
 } from "../components/ui/sheet";
 import { genderLabel } from "../lib/productMutations";
 import { getCategoryLabel } from "../lib/productCategories";
+import { getProductNotesText } from "../lib/productNotes";
 
 /**
  * ColorwayTile - Compact colorway representation for grid view
@@ -1392,6 +1393,13 @@ export default function ProductDetailPageV2() {
   const [selectedColorwayId, setSelectedColorwayId] = useState(null);
   const [roadmapOpen, setRoadmapOpen] = useState(false);
 
+  // DEV MARKER: Identify which product detail component is mounted
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.info("[ProductDetail] Mounted: ProductDetailPageV2 (src/pages/ProductDetailPageV2.jsx)");
+    }
+  }, []);
+
   // Fetch product family and SKUs
   useEffect(() => {
     if (!clientId || !productId) {
@@ -1452,6 +1460,9 @@ export default function ProductDetailPageV2() {
     if (family.sizeOptions?.length > 0) return family.sizeOptions.join(", ");
     return null;
   }, [family]);
+
+  // Notes display text - handles both legacy string and new array format
+  const notesDisplayText = useMemo(() => getProductNotesText(family?.notes), [family?.notes]);
 
   // Find selected colorway object
   const selectedColorway = useMemo(() => {
@@ -1637,10 +1648,10 @@ export default function ProductDetailPageV2() {
               </div>
 
               {/* Notes - if present, subtle below metadata */}
-              {family.notes && (
+              {notesDisplayText && (
                 <div className="mt-6 pt-5 border-t border-slate-200 dark:border-slate-700">
                   <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">
-                    {family.notes}
+                    {notesDisplayText}
                   </p>
                 </div>
               )}

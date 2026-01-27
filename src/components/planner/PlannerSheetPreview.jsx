@@ -13,6 +13,7 @@ import {
 } from '../../lib/plannerSheetSections';
 import AppImage from '../common/AppImage';
 import { getPrimaryAttachmentWithStyle } from '../../lib/imageHelpers';
+import { getShotNotesPreview } from '../../lib/shotNotes';
 import {
   calculateLayout,
   getPageDimensions,
@@ -148,9 +149,7 @@ function PreviewShotCardList({ shot, visibleSections, sectionStates }) {
 
       case SECTION_TYPES.NOTES: {
         // Simple text rendering for preview (PDF has more complex rendering)
-        const notesText = shot.notes
-          ? shot.notes.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-          : '';
+        const notesText = getShotNotesPreview(shot);
         return (
           <div className="px-2 py-2 text-xs text-slate-600 dark:text-slate-400 line-clamp-2" title={notesText || '-'}>
             {notesText || '-'}
@@ -287,10 +286,7 @@ function PreviewShotCardGallery({ shot, visibleSections, sectionStates }) {
                 value = productList.length > 0 ? productList.join(', ') : '-';
                 break;
               case SECTION_TYPES.NOTES:
-                const notesText = shot.notes
-                  ? shot.notes.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-                  : '';
-                value = notesText || '-';
+                value = getShotNotesPreview(shot) || '-';
                 break;
               default:
                 value = '-';
