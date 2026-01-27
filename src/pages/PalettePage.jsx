@@ -56,6 +56,7 @@ import {
   ChevronDown,
   ChevronRight,
   X,
+  ExternalLink,
 } from "lucide-react";
 
 // ============================================================================
@@ -500,53 +501,54 @@ function SwatchCockpit({
             </div>
 
             {productsUsingColor.length > 0 ? (
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {productsUsingColor.slice(0, 6).map((family) => {
                   const familyImage = family.thumbnailImagePath || family.headerImagePath;
                   return (
                     <Link
                       key={family.id}
                       to={`/products/${family.id}?returnTo=${encodeURIComponent('/library/palette')}`}
-                      className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
+                      className="flex items-center gap-3 px-3 py-2.5 -mx-3 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all group"
                     >
                       {familyImage ? (
                         <AppImage
                           src={familyImage}
                           alt={family.styleName || "Product"}
-                          className="w-8 h-8 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 flex-shrink-0"
+                          className="w-10 h-10 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 flex-shrink-0"
                           imageClassName="w-full h-full object-cover"
                           fallback={
-                            <div className="w-8 h-8 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
-                              <Package className="w-3 h-3 text-slate-400" />
+                            <div className="w-10 h-10 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                              <Package className="w-4 h-4 text-slate-400" />
                             </div>
                           }
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 border border-slate-200 dark:border-slate-600">
-                          <Package className="w-3 h-3 text-slate-400" />
+                        <div className="w-10 h-10 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 border border-slate-200 dark:border-slate-600">
+                          <Package className="w-4 h-4 text-slate-400" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate group-hover:text-primary transition-colors">
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate group-hover:text-primary transition-colors">
                           {family.styleName || "Unnamed product"}
                         </p>
                       </div>
+                      <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-slate-400 dark:group-hover:text-slate-500 transition-colors flex-shrink-0" />
                     </Link>
                   );
                 })}
                 {productsUsingColor.length > 6 && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 pt-1 pl-2">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 pt-2 pl-3">
                     +{productsUsingColor.length - 6} more products
                   </p>
                 )}
               </div>
             ) : usageCount > 0 ? (
-              <div className="py-4 text-center">
-                <p className="text-sm text-amber-600 dark:text-amber-400">
-                  {usageCount} product{usageCount !== 1 ? "s" : ""} reference this color name but could not be resolved
+              <div className="py-4 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  {usageCount} product{usageCount !== 1 ? "s" : ""} use this color name
                 </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  The color "{swatch.name}" appears in product colorNames but matching families were not found
+                <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                  Products may be loading or filtered from the current view
                 </p>
               </div>
             ) : (
@@ -596,19 +598,54 @@ function SwatchCockpit({
                   <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Texture Image
                   </p>
+
+                  {/* Existing texture thumbnail with View action */}
+                  {swatch.swatchImagePath && !textureFile && (
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 flex-shrink-0 bg-slate-100 dark:bg-slate-700">
+                        <AppImage
+                          src={swatch.swatchImagePath}
+                          alt={name}
+                          className="w-full h-full"
+                          imageClassName="w-full h-full object-cover"
+                          fallback={
+                            <div
+                              className="w-full h-full"
+                              style={{ backgroundColor: hexColor }}
+                            />
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          Current texture
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 h-7 text-xs"
+                          onClick={() => {
+                            // Open image in new tab for full view
+                            window.open(swatch.swatchImagePath, "_blank", "noopener,noreferrer");
+                          }}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          View full size
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload zone */}
                   {canEdit ? (
                     <div>
-                      {swatch.swatchImagePath && !textureFile && (
-                        <p className="text-xs text-slate-500 mb-1.5">
-                          Upload a new image to replace the current texture
-                        </p>
-                      )}
                       <SingleImageDropzone
                         value={textureFile}
                         onChange={handleTextureChange}
                         disabled={extracting}
                         showPreview={true}
-                        existingImageUrl={swatch.swatchImagePath}
+                        existingImageUrl={null}
                       />
                       {extracting && (
                         <p className="mt-1.5 text-sm text-slate-500">
@@ -618,14 +655,7 @@ function SwatchCockpit({
                     </div>
                   ) : (
                     <div>
-                      {swatch.swatchImagePath ? (
-                        <AppImage
-                          src={swatch.swatchImagePath}
-                          alt={name}
-                          className="max-h-32 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden"
-                          imageClassName="object-cover max-h-32"
-                        />
-                      ) : (
+                      {!swatch.swatchImagePath && (
                         <p className="text-sm text-slate-400 dark:text-slate-500 italic">
                           No texture image
                         </p>

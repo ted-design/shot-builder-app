@@ -17,6 +17,50 @@ const emptyForm = {
   notes: "",
 };
 
+/**
+ * Normalize phone number for matching by stripping formatting characters.
+ * @param {string} phone - Raw phone number string
+ * @returns {string} Normalized phone string (digits only)
+ */
+const normalizePhone = (phone) => {
+  if (!phone) return "";
+  // Strip spaces, dashes, parentheses, plus signs, periods
+  return phone.replace(/[\s\-\(\)\+\.]/g, "");
+};
+
+/**
+ * Check if string contains at least one letter (A-Z, a-z).
+ */
+const hasLetter = (str) => /[a-zA-Z]/.test(str);
+
+/**
+ * Gating: Name-based suggestions require EITHER:
+ * - Input contains a space (likely first + last), OR
+ * - Input length >= 4 AND contains at least one letter
+ */
+const shouldGateNameSuggestions = (query) => {
+  if (!query) return true; // Gate (don't show) if empty
+  const trimmed = query.trim();
+  if (trimmed.includes(" ")) return false; // Don't gate - has space
+  return !(trimmed.length >= 4 && hasLetter(trimmed)); // Gate unless 4+ chars with letter
+};
+
+/**
+ * Gating: Phone-based suggestions require normalized digit length >= 7.
+ */
+const shouldGatePhoneSuggestions = (normalizedPhone) => {
+  return normalizedPhone.length < 7;
+};
+
+/**
+ * Gating: Company-based suggestions require length >= 4 AND contains letter.
+ */
+const shouldGateCompanySuggestions = (query) => {
+  if (!query) return true;
+  const trimmed = query.trim();
+  return !(trimmed.length >= 4 && hasLetter(trimmed));
+};
+
 const emptyRole = {
   departmentId: "",
   positionId: "",
@@ -109,18 +153,55 @@ export default function AddPersonModal({
     if (!query) return [];
 
     const tokens = query.split(" ").filter(Boolean);
+    const normalizedQueryPhone = normalizePhone(query);
+
+    // Compute gating flags once for the entire query
+    const gateNames = shouldGateNameSuggestions(query);
+    const gatePhones = shouldGatePhoneSuggestions(normalizedQueryPhone);
+    const gateCompanies = shouldGateCompanySuggestions(query);
+
+    // If all suggestion types are gated, return early
+    if (gateNames && gatePhones && gateCompanies) return [];
 
     return orgCrew
-      .filter((member) => {
+      .map((member) => {
         const first = (member.firstName || "").toLowerCase();
         const last = (member.lastName || "").toLowerCase();
         const email = (member.email || "").toLowerCase();
+        const company = (member.company || "").toLowerCase();
+        const phone = member.phone || "";
+        const normalizedPhone = normalizePhone(phone);
         const full = `${first} ${last}`.trim();
 
-        if (full.includes(query) || first.includes(query) || last.includes(query) || email.includes(query)) return true;
-        if (tokens.length > 1) return tokens.every((token) => full.includes(token) || email.includes(token));
-        return false;
+        let matchedField = null;
+
+        // Check name matches (highest priority) - gated
+        if (!gateNames && (full.includes(query) || first.includes(query) || last.includes(query))) {
+          matchedField = "name";
+        }
+        // Check email match - uses same gating as name (requires meaningful query)
+        else if (!gateNames && email.includes(query)) {
+          matchedField = "email";
+        }
+        // Check company match - gated (requires 4+ chars with letter)
+        else if (!gateCompanies && company && company.includes(query)) {
+          matchedField = "company";
+        }
+        // Check phone match (normalized) - gated (requires 7+ digits)
+        else if (!gatePhones && normalizedPhone && normalizedPhone.includes(normalizedQueryPhone)) {
+          matchedField = "phone";
+        }
+        // Check multi-token match for name/email/company - gated by name rules
+        else if (!gateNames && tokens.length > 1 && tokens.every((token) =>
+          full.includes(token) || email.includes(token) || company.includes(token)
+        )) {
+          matchedField = "name";
+        }
+
+        if (!matchedField) return null;
+        return { ...member, _matchedField: matchedField };
       })
+      .filter(Boolean)
       .slice(0, 8);
   }, [debouncedQuery, orgCrew, selectedCrewMember]);
 
@@ -364,6 +445,14 @@ export default function AddPersonModal({
                     {suggestions.map((member) => {
                       const isAssigned = existingCrewIds.has(member.id);
                       const displayName = joinNameParts(member.firstName || "", member.lastName || "") || "Unnamed";
+                      const matchedField = member._matchedField;
+                      // Show secondary info based on matched field
+                      const secondaryText =
+                        matchedField === "phone" && member.phone
+                          ? member.phone
+                          : matchedField === "company" && member.company
+                            ? member.company
+                            : member.email || null;
                       return (
                         <button
                           key={member.id}
@@ -380,9 +469,13 @@ export default function AddPersonModal({
                               <div className="font-medium text-slate-900 dark:text-slate-100 truncate">
                                 {highlightMatch(displayName, debouncedQuery)}
                               </div>
-                              {member.email && (
+                              {secondaryText && (
                                 <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                                  {highlightMatch(member.email, debouncedQuery)}
+                                  {matchedField === "phone" || matchedField === "company" ? (
+                                    <>{highlightMatch(secondaryText, debouncedQuery)}</>
+                                  ) : (
+                                    highlightMatch(secondaryText, debouncedQuery)
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -584,6 +677,13 @@ export default function AddPersonModal({
             {error && (
               <div className="rounded-md bg-red-50 dark:bg-red-900/30 px-4 py-2 text-sm text-red-600 dark:text-red-400">
                 {error}
+              </div>
+            )}
+
+            {/* Possible duplicate warning - shown when creating new while suggestions exist */}
+            {!selectedCrewMember && suggestions.length > 0 && canSubmit && (
+              <div className="rounded-md bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
+                <span className="font-medium">Possible duplicate:</span> Similar people already exist in your organization. Review the suggestions above before creating a new record.
               </div>
             )}
 
