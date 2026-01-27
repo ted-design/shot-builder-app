@@ -68,6 +68,11 @@ export function getCropTransformStyle(cropData) {
 
   const { x = 0, y = 0, width = 100, height = 100, zoom = 1, rotation = 0 } = cropData;
 
+  // Validate dimensions to prevent invalid CSS values
+  if (typeof width !== "number" || typeof height !== "number" || width <= 0 || height <= 0) {
+    return {};
+  }
+
   // Calculate the focal point (center of crop area)
   const focalX = x + width / 2;
   const focalY = y + height / 2;
@@ -96,6 +101,11 @@ export function getCropObjectPosition(cropData) {
   // width, height are the dimensions of the crop rectangle as percentages
   // The focal point is the CENTER of the crop area
   const { x = 0, y = 0, width = 100, height = 100 } = cropData;
+
+  // Validate dimensions to prevent invalid CSS values
+  if (typeof width !== "number" || typeof height !== "number" || width <= 0 || height <= 0) {
+    return undefined;
+  }
 
   // Calculate the center of the crop area (focal point)
   const focalX = x + width / 2;
