@@ -1122,10 +1122,12 @@ export function ShotsWorkspace() {
       const allProducts = [];
       const seenKeys = new Set();
 
-      // Helper to add product avoiding duplicates (by productId + colourId)
+      // Helper to add product avoiding duplicates (by productId + colourId + size)
+      // Include size and sizeScope in the key to avoid collapsing different sizes of the same colorway
       const addProduct = (product) => {
         if (!product) return;
-        const key = `${product.familyId || product.productId || ""}-${product.colourId || ""}`;
+        const sizeKey = product.sizeScope === "all" ? "all" : (product.size || "");
+        const key = `${product.familyId || product.productId || ""}-${product.colourId || ""}-${sizeKey}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
           allProducts.push(product);

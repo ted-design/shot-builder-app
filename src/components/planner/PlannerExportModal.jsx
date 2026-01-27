@@ -955,7 +955,18 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
     const sanitized = notesText
       .replace(/<[^>]*>/g, ' ')                                    // Standard HTML tags
       .replace(/\b(ul|ol|li|p|div|span|br|strong|em|b|i|u|s|a|h[1-6])>/gi, ' ') // Malformed tags like "ul>"
-      .replace(/&[a-z]+;/gi, ' ');                                 // HTML entities
+      // Decode common HTML entities instead of stripping them
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&apos;/gi, "'")
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&copy;/gi, '©')
+      .replace(/&reg;/gi, '®')
+      .replace(/&trade;/gi, '™')
+      .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))  // Numeric entities
+      .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));  // Hex entities
 
     // Normalize whitespace while preserving intentional line breaks
     const normalized = sanitized

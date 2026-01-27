@@ -7,7 +7,11 @@ export const isCorruptShotDescription = (description, notesPreview = "") => {
 
   const lower = raw.toLowerCase();
   // Treat HTML-ish fragments as corrupted legacy description data.
-  if (lower.includes("<") || lower.includes("</") || lower.includes("ul>") || lower.includes("li>") || lower.includes("p>")) {
+  // Use actual tag patterns to avoid false positives on text like "Size < XL"
+  if (
+    /<\s*\/?[a-z]/i.test(raw) ||  // Opening/closing tags like <p>, </div>
+    /\b(ul|ol|li|p|div|span|br)>/i.test(raw)  // Malformed closing fragments like "ul>"
+  ) {
     return true;
   }
 
