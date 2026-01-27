@@ -50,6 +50,7 @@ import { formatDistanceToNow } from "date-fns";
 import { genderLabel } from "../lib/productMutations";
 import { useUsers } from "../hooks/useComments";
 import { getCategoryLabel } from "../lib/productCategories";
+import { getProductNotesText } from "../lib/productNotes";
 
 // Workspace components
 import {
@@ -87,6 +88,24 @@ function OverviewSection({ family, skus, samples, onNavigate }) {
     return "Not specified";
   }, [family]);
 
+  // Notes display text - handles both legacy string and new array format
+  const notesDisplayText = useMemo(() => {
+    const result = getProductNotesText(family.notes);
+    // DEV: Log notes processing for debugging HTML leak issues
+    if (process.env.NODE_ENV === "development" && family.notes) {
+      const rawPreview = typeof family.notes === "string"
+        ? family.notes.slice(0, 200)
+        : JSON.stringify(family.notes).slice(0, 200);
+      console.info("[ProductDetailPageV3] Notes processing:", {
+        rawNotesPreview: rawPreview,
+        processedNotesPreview: result.slice(0, 200),
+        containsHtmlBefore: typeof family.notes === "string" && family.notes.includes("<"),
+        containsHtmlAfter: result.includes("<"),
+      });
+    }
+    return result;
+  }, [family.notes]);
+
   return (
     <div className="p-6 space-y-6">
       {/* Quick stats bar - compact product identity recap */}
@@ -108,12 +127,12 @@ function OverviewSection({ family, skus, samples, onNavigate }) {
           <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Sizes</p>
           <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{sizeLabel}</p>
         </div>
-        {family.notes && (
+        {notesDisplayText && (
           <>
             <div className="h-8 w-px bg-slate-200 dark:bg-slate-700" />
             <div className="flex-1 min-w-0">
               <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Notes</p>
-              <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{family.notes}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{notesDisplayText}</p>
             </div>
           </>
         )}
@@ -575,6 +594,13 @@ export default function ProductDetailPageV3() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { clientId } = useAuth();
+
+  // DEV MARKER: Identify which product detail component is mounted
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.info("[ProductDetail] Mounted: ProductDetailPageV3 (src/pages/ProductDetailPageV3.jsx)");
+    }
+  }, []);
 
   // ══════════════════════════════════════════════════════════════════════════
   // RETURN TO CONTEXT (P.3 - same pattern as J.6)

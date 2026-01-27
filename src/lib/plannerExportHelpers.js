@@ -4,8 +4,9 @@
 // Extracted from PlannerPage.jsx to allow reuse without mounting the page.
 // These have NO React dependencies and NO side effects.
 
-import { stripHtml } from "./stripHtml";
 import { getPrimaryAttachment } from "./imageHelpers";
+import { resolveShotTypeText } from "./shotDescription";
+import { getShotNotesPreview } from "./shotNotes";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -241,12 +242,12 @@ export const buildPlannerExportLanes = (shotsByLane, lanes, normaliseShotProduct
         laneName: lane.name,
         shotNumber,
         name: shot.name || "Untitled shot",
-        type: shot.type || "",
+        type: resolveShotTypeText(shot),
         date: formatShotDate(shot.date) || "",
         location: shot.locationName || shot.location || "",
         talent: talentNames,
         products: productLabels,
-        notes: stripHtml(shot.description || ""),
+        notes: getShotNotesPreview(shot),
         image: resolveShotImageForExport(shot, normalisedProducts),
         attachments: Array.isArray(shot.attachments) ? shot.attachments : [],
         referenceImageCrop: shot.referenceImageCrop || null,

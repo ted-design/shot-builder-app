@@ -3,8 +3,9 @@
 
 import React from "react";
 import { Image as ImageIcon, Check, Tag, Square, CheckSquare } from "lucide-react";
-import { stripHtml } from "../../../lib/stripHtml";
+import { resolveShotShortDescriptionText } from "../../../lib/shotDescription";
 import { getShotImagePath } from "../../../lib/imageHelpers";
+import { getShotNotesPreview } from "../../../lib/shotNotes";
 import AppImage from "../../common/AppImage";
 
 /**
@@ -48,12 +49,10 @@ function ShotPickerCard({
   const shotTitle = shot.name || `Shot ${shot.shotNumber || "—"}`;
 
   // Get description (strip HTML)
-  const canonicalDescription = stripHtml(String(shot.description ?? ""));
-  const legacyDescription = stripHtml(String(shot.type ?? ""));
-  const description = (canonicalDescription || legacyDescription || "") || null;
+  const description = resolveShotShortDescriptionText(shot) || null;
 
   // Get notes preview
-  const notes = shot.notes ? stripHtml(shot.notes) : null;
+  const notes = getShotNotesPreview(shot) || null;
 
   // Get tags
   const tags = shot.tags || [];

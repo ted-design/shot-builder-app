@@ -34,6 +34,7 @@ import { Input } from "../components/ui/input";
 import { Modal } from "../components/ui/modal";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { adaptUser } from "../auth/adapter";
+import { getShotNotesPreview } from "../lib/shotNotes";
 
 const DEMO_PARAMS = new Set(["1", "true", "on", "yes"]);
 
@@ -377,7 +378,9 @@ function DemoShotsPage() {
                       <div>
                         <div className="font-semibold text-slate-900 dark:text-slate-50">{shot.name}</div>
                         <div className="text-xs text-slate-500 dark:text-slate-400">{shot.type}</div>
-                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 line-clamp-2" dangerouslySetInnerHTML={{ __html: shot.notes }} />
+	                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
+	                          {getShotNotesPreview(shot)}
+	                        </p>
                       </div>
                     </div>
                   </td>
@@ -468,7 +471,9 @@ function DemoShotsPage() {
                     <div className="flex h-full items-center justify-center text-xs text-slate-500">No image</div>
                   )}
                 </div>
-                <p className="text-sm text-slate-600 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: shot.notes }} />
+	                <p className="text-sm text-slate-600 dark:text-slate-300">
+	                  {getShotNotesPreview(shot)}
+	                </p>
                 <div className="flex flex-wrap gap-2 text-xs text-slate-600 dark:text-slate-300">
                   <Badge variant="secondary" className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                     {shot.date}

@@ -19,6 +19,8 @@ import { logActivity, createShotUpdatedActivity } from "../../../lib/activityLog
 import { toDateInputValue, parseDateToTimestamp } from "../../../lib/shotDraft";
 import { shotStatusOptions, normaliseShotStatus } from "../../../lib/shotStatus";
 import { stripHtml } from "../../../lib/stripHtml";
+import { isCorruptShotDescription } from "../../../lib/shotDescription";
+import { getShotNotesPreview } from "../../../lib/shotNotes";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { StatusBadge } from "../../ui/StatusBadge";
@@ -40,6 +42,7 @@ import {
   Pencil,
   Trash2,
   Calendar,
+  Eraser,
 } from "lucide-react";
 import { toast } from "../../../lib/toast";
 import { useDeleteShot } from "../../../hooks/useFirestoreMutations";
@@ -174,6 +177,20 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
       dateInputRef.current.focus();
     }
   }, [isEditingDate]);
+
+  const notesPreview = useMemo(() => getShotNotesPreview(shot) || "", [shot?.notes]);
+  const rawDescription = useMemo(
+    () => (typeof shot?.description === "string" ? shot.description : ""),
+    [shot?.description]
+  );
+  const isCorruptDescription = useMemo(
+    () => isCorruptShotDescription(rawDescription, notesPreview),
+    [rawDescription, notesPreview]
+  );
+  const descriptionDisplayText = useMemo(() => {
+    if (isCorruptDescription) return "";
+    return stripHtml(rawDescription).slice(0, 200).trim();
+  }, [isCorruptDescription, rawDescription]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // DERIVED VALUES
@@ -672,11 +689,11 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
    */
   const handleStartEditingDescription = useCallback(() => {
     if (readOnly) return;
-    // Use description field, with legacy fallback to type field
-    // Strip HTML tags to show clean text in edit mode
-    setDescriptionDraft(stripHtml(shot?.description || shot?.type || ""));
+    // Use description field only (type is legacy).
+    // If the stored description is corrupt (HTML-ish or notes bleed), do not prefill it.
+    setDescriptionDraft(isCorruptDescription ? "" : descriptionDisplayText);
     setIsEditingDescription(true);
-  }, [readOnly, shot?.description, shot?.type]);
+  }, [readOnly, isCorruptDescription, descriptionDisplayText]);
 
   /**
    * Cancel description editing (revert to original)
@@ -703,8 +720,7 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
     const newValue = descriptionDraft.trim().slice(0, 200);
 
     // Guard: no-op if same value (no write)
-    // Check against both description and legacy type field for comparison
-    const oldValue = shot?.description || shot?.type || "";
+    const oldValue = typeof shot?.description === "string" ? shot.description : "";
     if (newValue === oldValue) {
       setIsEditingDescription(false);
       setDescriptionDraft("");
@@ -767,7 +783,27 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
       // Reset error state after feedback
       setSafeTimeout(() => setDescriptionSaveState("idle"), 2000);
     }
-  }, [clientId, shot?.id, shot?.projectId, shot?.description, shot?.type, shot?.name, descriptionDraft, auth?.user]);
+  }, [clientId, shot?.id, shot?.projectId, shot?.description, shot?.name, descriptionDraft, auth?.user]);
+
+  const handleClearCorruptDescription = useCallback(async () => {
+    if (readOnly) return;
+    if (!clientId || !shot?.id) return;
+
+    setDescriptionSaveState("saving");
+    try {
+      const shotRef = doc(db, ...shotsPath(clientId), shot.id);
+      // User-invoked only; single-field update (no updatedAt/updatedBy mutations).
+      await updateDoc(shotRef, { description: "" });
+      toast.success({ title: "Description cleared" });
+      setDescriptionSaveState("saved");
+      setSafeTimeout(() => setDescriptionSaveState("idle"), 1500);
+    } catch (error) {
+      console.error("[ShotEditorHeaderBandV3] Failed to clear description:", error);
+      toast.error({ title: "Failed to clear description" });
+      setDescriptionSaveState("error");
+      setSafeTimeout(() => setDescriptionSaveState("idle"), 2000);
+    }
+  }, [readOnly, clientId, shot?.id, setSafeTimeout]);
 
   /**
    * Handle keydown in description textarea
@@ -997,7 +1033,7 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
                   <span className={`text-xs truncate block ${
                     descriptionSaveState === "saving" || descriptionSaveState === "saved" || descriptionSaveState === "error"
                       ? "text-slate-500 dark:text-slate-400"
-                      : stripHtml(shot?.description || shot?.type)
+                      : descriptionDisplayText
                         ? "text-slate-600 dark:text-slate-400"
                         : "text-slate-400 dark:text-slate-500 italic"
                   }`}>
@@ -1007,7 +1043,9 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
                         ? "Saved"
                         : descriptionSaveState === "error"
                           ? "Error"
-                          : stripHtml(shot?.description || shot?.type) || "No description"}
+                          : isCorruptDescription
+                            ? "No description"
+                            : descriptionDisplayText || "No description"}
                   </span>
                   {!readOnly && descriptionSaveState === "idle" && (
                     <Pencil className="w-3 h-3 inline-block ml-1 opacity-0 group-hover:opacity-50 transition-opacity" />
@@ -1230,6 +1268,12 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
                   <Copy className="w-4 h-4 mr-2" />
                   Duplicate shot (coming soon)
                 </DropdownMenuItem>
+                {!readOnly && isCorruptDescription && (
+                  <DropdownMenuItem onClick={handleClearCorruptDescription}>
+                    <Eraser className="w-4 h-4 mr-2" />
+                    Clear description
+                  </DropdownMenuItem>
+                )}
                 {!readOnly && (
                   <>
                     <DropdownMenuSeparator />

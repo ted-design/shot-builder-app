@@ -27,6 +27,8 @@ import { getPrimaryAttachment } from "../../lib/imageHelpers";
 import { FileDown, Eye, X, GripVertical } from "lucide-react";
 import PlannerSheetSectionManager from "./PlannerSheetSectionManager";
 import PdfPagePreview from "../export/PdfPagePreview";
+import { stripHtml } from "../../lib/stripHtml";
+import { getShotNotesPreview } from "../../lib/shotNotes";
 import {
   getDefaultSectionConfig,
   exportSettingsToSectionConfig,
@@ -943,33 +945,43 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
     return content;
   };
 
-  const buildNotesContent = (html, keyPrefix, containerStyle) => {
-    if (!html) return null;
-    if (typeof document === "undefined" || typeof document.createElement !== "function") {
-      const plain = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      if (!plain) return null;
-      return (
-        <View
-          key={`${keyPrefix}-notes`}
-          style={[styles.notesContainer, containerStyle]}
-          wrap={false}
-        >
-          <Text style={styles.notesText}>{plain}</Text>
-        </View>
-      );
-    }
+  const buildNotesContent = (notesText, keyPrefix, containerStyle) => {
+    // Notes should already be sanitized by buildPlannerExportLanes (via stripHtml),
+    // but we apply defensive sanitization here to catch any remaining HTML fragments.
+    if (!notesText) return null;
 
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-    const content = renderBlockNodes(Array.from(doc.body.childNodes || []), keyPrefix);
-    if (!content.length) return null;
+    // Defensive sanitization: strip any remaining HTML tags or malformed fragments
+    // This catches edge cases like corrupted data or bypassed sanitization
+    const sanitized = notesText
+      .replace(/<[^>]*>/g, ' ')                                    // Standard HTML tags
+      .replace(/\b(ul|ol|li|p|div|span|br|strong|em|b|i|u|s|a|h[1-6])>/gi, ' ') // Malformed tags like "ul>"
+      .replace(/&[a-z]+;/gi, ' ');                                 // HTML entities
+
+    // Normalize whitespace while preserving intentional line breaks
+    const normalized = sanitized
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/[ \t]+/g, ' ')
+      .trim();
+
+    if (!normalized) return null;
+
+    // Split by line breaks and render each line
+    const lines = normalized.split('\n').filter(line => line.trim());
+
+    if (lines.length === 0) return null;
+
     return (
       <View
         key={`${keyPrefix}-notes`}
         style={[styles.notesContainer, containerStyle]}
         wrap={false}
       >
-        {content}
+        {lines.map((line, index) => (
+          <Text key={`${keyPrefix}-line-${index}`} style={styles.notesText}>
+            {line}
+          </Text>
+        ))}
       </View>
     );
   };
@@ -1182,7 +1194,7 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
       // Regular columns
       switch (column.id) {
         case SECTION_TYPES.SHOT_TYPE:
-          return shot.type || '-';
+          return stripHtml(shot.type || "") || "-";
 
         case SECTION_TYPES.TALENT: {
           const talentList = ensureStringList(shot?.talent);
@@ -1196,11 +1208,9 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
         }
 
         case SECTION_TYPES.NOTES: {
-          // Simple text rendering for table (strip HTML)
-          const notesText = shot.notes
-            ? shot.notes.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-            : '';
-          return notesText || '-';
+          // Notes are already sanitized by buildPlannerExportLanes (via stripHtml)
+          // Just use the pre-sanitized value directly
+          return getShotNotesPreview(shot) || "-";
         }
 
         default:
@@ -1283,11 +1293,11 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
       ? { key: "date", icon: PdfIconCalendar, label: "Date", value: shot?.date || null }
       : null;
     const typeItemBase = visibleFields.type
-      ? { key: "type", icon: null, label: "Shot Type", value: shot?.type || null }
+      ? { key: "type", icon: null, label: "Shot Type", value: stripHtml(shot?.type || "") || null }
       : null;
 
     const notesContent = visibleFields.notes
-      ? buildNotesContent(shot?.notes, `${shotKey}`, isGallery ? styles.galleryNotesContainer : null)
+      ? buildNotesContent(getShotNotesPreview(shot), `${shotKey}`, isGallery ? styles.galleryNotesContainer : null)
       : null;
 
     if (!isGallery) {
@@ -2147,12 +2157,12 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
         const row = [lane.name];
         if (fields.shotNumber) row.push(shot.shotNumber || "");
         if (fields.name) row.push(shot.name || "");
-        if (fields.type) row.push(shot.type || "");
+        if (fields.type) row.push(stripHtml(shot.type || ""));
         if (fields.date) row.push(shot.date || "");
         if (fields.location) row.push(shot.location || "");
         if (fields.talent) row.push(shot.talent.join(", "));
         if (fields.products) row.push(shot.products.join(", "));
-        if (fields.notes) row.push(shot.notes || "");
+        if (fields.notes) row.push(getShotNotesPreview(shot));
         if (fields.image) row.push(shot.image || "");
         rows.push(row.map(escapeCsv).join(","));
       });
