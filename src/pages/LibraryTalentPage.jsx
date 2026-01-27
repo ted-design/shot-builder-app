@@ -103,38 +103,61 @@ const normaliseGalleryOrder = (items = []) =>
 const buildGalleryUpdate = async (talentId, nextAttachments = [], previousAttachments = []) => {
   const sortedNext = normaliseGalleryOrder(nextAttachments);
   const previousMap = new Map((previousAttachments || []).map((item) => [item.id, item]));
-  const finalGallery = [];
 
-  for (let index = 0; index < sortedNext.length; index += 1) {
-    const attachment = sortedNext[index];
+  // Prepare all items with metadata and identify which need uploads
+  const preparedItems = sortedNext.map((attachment, index) => {
     const description = (attachment.description || "").trim();
     const cropData = attachment.cropData || null;
     const id = attachment.id || nanoid();
+    return { attachment, index, description, cropData, id };
+  });
 
-    if (attachment.file) {
-      const baseName = attachment.file.name || `image-${id}.jpg`;
+  // Parallel upload for items with files
+  const uploadPromises = preparedItems
+    .filter((item) => item.attachment.file)
+    .map(async (item) => {
+      const baseName = item.attachment.file.name || `image-${item.id}.jpg`;
       const safeName = baseName.replace(/\s+/g, "_");
-      const { path, downloadURL } = await uploadImageFile(attachment.file, {
+      const { path, downloadURL } = await uploadImageFile(item.attachment.file, {
         folder: "talent",
         id: talentId,
-        filename: `${id}-${safeName}`,
+        filename: `${item.id}-${safeName}`,
       });
-      finalGallery.push({ id, path, downloadURL, description, cropData, order: index });
+      return { ...item, path, downloadURL, uploaded: true };
+    });
+
+  const uploadResults = await Promise.all(uploadPromises);
+  const uploadedMap = new Map(uploadResults.map((r) => [r.id, r]));
+
+  // Build final gallery preserving order
+  const finalGallery = [];
+  for (const item of preparedItems) {
+    const uploaded = uploadedMap.get(item.id);
+    if (uploaded) {
+      finalGallery.push({
+        id: uploaded.id,
+        path: uploaded.path,
+        downloadURL: uploaded.downloadURL,
+        description: uploaded.description,
+        cropData: uploaded.cropData,
+        order: uploaded.index,
+      });
       continue;
     }
 
-    const previous = previousMap.get(attachment.id) || {};
-    const path = attachment.path || previous.path || null;
-    const downloadURL = attachment.downloadURL || previous.downloadURL || path || null;
+    // Existing item (no new file)
+    const previous = previousMap.get(item.attachment.id) || {};
+    const path = item.attachment.path || previous.path || null;
+    const downloadURL = item.attachment.downloadURL || previous.downloadURL || path || null;
     if (!path && !downloadURL) continue;
 
     finalGallery.push({
-      id,
+      id: item.id,
       path,
       downloadURL,
-      description,
-      cropData: cropData ?? previous.cropData ?? null,
-      order: index,
+      description: item.description,
+      cropData: item.cropData ?? previous.cropData ?? null,
+      order: item.index,
     });
   }
 
