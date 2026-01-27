@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Cropper from "react-easy-crop";
 import { X, RotateCcw, ZoomIn, Crop } from "lucide-react";
 import { Button } from "../ui/button";
@@ -21,24 +21,77 @@ const ASPECT_RATIOS = {
   "4:3": { value: 4 / 3, label: "4:3 Standard" },
 };
 
-export default function AdvancedImageCropEditor({ open, onClose, attachment, onSave }) {
-  // Initialize crop state from existing cropData or defaults
-  const initialCropData = attachment?.cropData || {
-    x: 0,
-    y: 0,
-    width: 100,
-    height: 100,
-    zoom: 1,
-    rotation: 0,
-    aspect: "free",
-  };
+/**
+ * Convert numeric aspect value to the matching key in ASPECT_RATIOS.
+ * S.4: imageCropDataSchema stores aspect as NUMBER, UI uses string keys.
+ */
+function aspectValueToKey(value) {
+  if (value === null || value === undefined) return "free";
+  // Find matching key by comparing numeric values with small tolerance
+  for (const [key, config] of Object.entries(ASPECT_RATIOS)) {
+    if (config.value !== null && Math.abs(config.value - value) < 0.01) {
+      return key;
+    }
+  }
+  return "free"; // Default to free if no match
+}
 
-  const [crop, setCrop] = useState({ x: initialCropData.x || 0, y: initialCropData.y || 0 });
-  const [zoom, setZoom] = useState(initialCropData.zoom || 1);
-  const [rotation, setRotation] = useState(initialCropData.rotation || 0);
-  const [aspect, setAspect] = useState(initialCropData.aspect || "free");
+/**
+ * Convert aspect key to numeric value for storage.
+ * S.4: imageCropDataSchema expects aspect as NUMBER or null.
+ */
+function aspectKeyToValue(key) {
+  return ASPECT_RATIOS[key]?.value ?? null;
+}
+
+export default function AdvancedImageCropEditor({ open, onClose, attachment, onSave }) {
+  // Track which attachment we've initialized for to detect changes
+  const initializedForRef = useRef(null);
+
+  // Initialize crop state from existing cropData or defaults
+  const getInitialCropData = useCallback(() => {
+    return attachment?.cropData || {
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      zoom: 1,
+      rotation: 0,
+      aspect: null,
+    };
+  }, [attachment?.cropData]);
+
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [aspect, setAspect] = useState("free");
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [croppedAreaPercent, setCroppedAreaPercent] = useState(null);
+
+  // S.4: Reinitialize state when modal opens with new/different attachment
+  // This fixes the "rotation only shows after reopen" bug
+  useEffect(() => {
+    if (!open) return;
+
+    const attachmentId = attachment?.id;
+    const cropDataKey = JSON.stringify(attachment?.cropData);
+    const currentKey = `${attachmentId}:${cropDataKey}`;
+
+    // Only reinitialize if this is a new attachment or cropData changed
+    if (initializedForRef.current !== currentKey) {
+      const initialCropData = getInitialCropData();
+      const initialAspectKey = aspectValueToKey(initialCropData.aspect);
+
+      setCrop({ x: 0, y: 0 }); // Reset pan to center
+      setZoom(initialCropData.zoom || 1);
+      setRotation(initialCropData.rotation || 0);
+      setAspect(initialAspectKey);
+      setCroppedAreaPixels(null);
+      setCroppedAreaPercent(null);
+
+      initializedForRef.current = currentKey;
+    }
+  }, [open, attachment?.id, attachment?.cropData, getInitialCropData]);
 
   // Handle crop complete
   const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
@@ -57,6 +110,7 @@ export default function AdvancedImageCropEditor({ open, onClose, attachment, onS
   }, []);
 
   // Save crop data
+  // S.4: Converts aspect key to numeric value per imageCropDataSchema semantics
   const handleSave = useCallback(() => {
     if (!croppedAreaPercent) {
       onClose();
@@ -70,7 +124,7 @@ export default function AdvancedImageCropEditor({ open, onClose, attachment, onS
       height: croppedAreaPercent.height,
       zoom,
       rotation,
-      aspect,
+      aspect: aspectKeyToValue(aspect), // Convert to numeric value or null
     };
 
     onSave(cropData);

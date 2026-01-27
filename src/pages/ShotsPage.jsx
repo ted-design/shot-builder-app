@@ -179,6 +179,15 @@ import {
   buildSectionDiffMap,
 } from "../lib/shotSectionStatus";
 import { convertLegacyImageToAttachment } from "../lib/migrations/migrateShots";
+import {
+  resolveShotCoverImage,
+  resolveShotCoverWithCrop,
+  getCropObjectPosition,
+  getCropTransformStyle,
+  getCoverSourceType,
+  COVER_SOURCE,
+  COVER_SOURCE_LABELS,
+} from "../lib/imageHelpers";
 import { InsightsSidebar } from "../components/insights";
 import { calculateTalentTotals, calculateGroupedShotTotals } from "../lib/insightsCalculator";
 
@@ -3815,79 +3824,11 @@ export function ShotsWorkspace() {
 
 
 /**
- * Select the display image for a shot
- *
- * FALLBACK LOGIC (per Delta F.5):
- * 1. Designated display image (from any look's displayImageId)
- * 2. Hero product image (from first look with a hero)
- * 3. First reference image (from first look with references)
- * 4. Legacy: Primary attachment from multi-image system
- * 5. Legacy: referenceImagePath
- * 6. Product images from shot.products[]
- *
- * This order ensures:
- * - User-designated display image takes priority
- * - Fallback is deterministic and consistent
- * - Backward compatibility with legacy fields
+ * Select the display image for a shot.
+ * Alias to resolveShotCoverImage from imageHelpers for backward compatibility.
+ * @see resolveShotCoverImage for priority order documentation
  */
-function selectShotImage(shot, products = []) {
-  const looks = shot?.looks || [];
-
-  // Priority 1: Designated display image from looks (F.5)
-  // Defensive: if displayImageId points to a missing reference, treat as unset and continue fallback
-  for (const look of looks) {
-    if (look.displayImageId && Array.isArray(look.references)) {
-      const displayRef = look.references.find((ref) => ref.id === look.displayImageId);
-      // Only return if reference actually exists (handles deleted reference edge case)
-      if (displayRef) {
-        if (displayRef.downloadURL) return displayRef.downloadURL;
-        if (displayRef.path) return displayRef.path;
-      }
-      // displayImageId set but reference not found - continue to next look/priority
-    }
-  }
-
-  // Priority 2: Hero product image from first look with a hero
-  for (const look of looks) {
-    if (look.heroProductId && Array.isArray(look.products)) {
-      const heroProduct = look.products.find((p) => p.productId === look.heroProductId);
-      if (heroProduct?.colourImagePath) return heroProduct.colourImagePath;
-      if (heroProduct?.thumbnailImagePath) return heroProduct.thumbnailImagePath;
-    }
-  }
-
-  // Priority 3: First reference image from first look with references
-  for (const look of looks) {
-    if (Array.isArray(look.references) && look.references.length > 0) {
-      const firstRef = look.references[0];
-      if (firstRef?.downloadURL) return firstRef.downloadURL;
-      if (firstRef?.path) return firstRef.path;
-    }
-  }
-
-  // Priority 4: Primary attachment from new multi-image system (legacy)
-  if (shot?.attachments && Array.isArray(shot.attachments) && shot.attachments.length > 0) {
-    const primary = shot.attachments.find((att) => att.isPrimary) || shot.attachments[0];
-    if (primary?.path) return primary.path;
-  }
-
-  // Priority 5: Legacy reference/storyboard image
-  if (shot?.referenceImagePath) {
-    return shot.referenceImagePath;
-  }
-
-  // Priority 6: Product images (fallback from shot.products)
-  for (const product of products) {
-    if (!product) continue;
-    if (product.thumbnailImagePath) return product.thumbnailImagePath;
-    if (Array.isArray(product.images)) {
-      const candidate = product.images.find(Boolean);
-      if (candidate) return candidate;
-    }
-    if (product.colourImagePath) return product.colourImagePath;
-  }
-  return null;
-}
+const selectShotImage = resolveShotCoverImage;
 
 const ShotProductChips = memo(function ShotProductChips({ products }) {
   if (!Array.isArray(products) || products.length === 0) {
@@ -4008,14 +3949,26 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     }));
   }, []);
 
-  const imagePath = useMemo(() => selectShotImage(shot, products), [shot, products]);
-  const imagePosition = useMemo(() => {
-    // Only apply crop position if the image is the reference image
-    if (imagePath === shot?.referenceImagePath && shot?.referenceImageCrop) {
-      return `${shot.referenceImageCrop.x}% ${shot.referenceImageCrop.y}%`;
-    }
-    return undefined;
-  }, [imagePath, shot]);
+  // S.4: Use resolveShotCoverWithCrop for consistent crop data propagation
+  const { path: imagePath, cropData } = useMemo(
+    () => resolveShotCoverWithCrop(shot, products),
+    [shot, products]
+  );
+  // S.4.1: Apply full crop transform (zoom/rotation) when present, otherwise use objectPosition
+  const hasCropTransform = cropData && (cropData.zoom !== 1 || cropData.rotation !== 0);
+  const cropTransformStyle = useMemo(
+    () => (hasCropTransform ? getCropTransformStyle(cropData) : undefined),
+    [cropData, hasCropTransform]
+  );
+  // Fallback to objectPosition when no transform needed
+  const imagePosition = useMemo(
+    () => (!hasCropTransform ? getCropObjectPosition(cropData) : undefined),
+    [cropData, hasCropTransform]
+  );
+
+  // S.3: Cover source indicator (only show for non-auto sources)
+  const coverSourceType = useMemo(() => getCoverSourceType(shot), [shot]);
+  const showCoverSourceBadge = coverSourceType !== COVER_SOURCE.AUTO;
   const formattedDate = toDateInputValue(shot.date);
   const {
     showProducts = true,
@@ -4347,17 +4300,36 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
             className={`relative ${mediaWidth} md:w-48 overflow-hidden ${mediaRadius} border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900 flex items-center justify-center max-h-80`}
           >
             {imagePath ? (
-              <AppImage
-                src={imagePath}
-                alt={`${shot.name || "Shot"} preview`}
-                preferredSize={640}
-                className="max-h-full max-w-full"
-                imageClassName="max-h-full max-w-full object-contain"
-                position={imagePosition}
-                fallback={
-                  <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
-                }
-              />
+              <>
+                <AppImage
+                  src={imagePath}
+                  alt={`${shot.name || "Shot"} preview`}
+                  preferredSize={640}
+                  className="max-h-full max-w-full"
+                  imageClassName={hasCropTransform ? "h-full w-full object-cover" : "max-h-full max-w-full object-contain"}
+                  imageStyle={cropTransformStyle}
+                  position={imagePosition}
+                  fallback={
+                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
+                  }
+                />
+                {/* S.3: Cover source indicator */}
+                {showCoverSourceBadge && (
+                  <div
+                    className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-semibold leading-none ${
+                      coverSourceType === COVER_SOURCE.REFERENCE
+                        ? "bg-amber-500 text-white"
+                        : "bg-violet-500 text-white"
+                    }`}
+                    title={coverSourceType === COVER_SOURCE.REFERENCE
+                      ? "Cover from selected reference"
+                      : "Cover from hero product"
+                    }
+                  >
+                    {COVER_SOURCE_LABELS[coverSourceType]}
+                  </div>
+                )}
+              </>
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
             )}
@@ -4393,17 +4365,36 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
               className={`relative ${mediaWidth} overflow-hidden ${mediaRadius} border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900 flex items-center justify-center self-start max-h-80`}
             >
               {imagePath ? (
-                <AppImage
-                  src={imagePath}
-                  alt={`${shot.name || "Shot"} preview`}
-                  preferredSize={640}
-                  className="max-h-full max-w-full"
-                  imageClassName="max-h-full max-w-full object-contain"
-                  position={imagePosition}
-                  fallback={
-                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
-                  }
-                />
+                <>
+                  <AppImage
+                    src={imagePath}
+                    alt={`${shot.name || "Shot"} preview`}
+                    preferredSize={640}
+                    className="max-h-full max-w-full"
+                    imageClassName={hasCropTransform ? "h-full w-full object-cover" : "max-h-full max-w-full object-contain"}
+                    imageStyle={cropTransformStyle}
+                    position={imagePosition}
+                    fallback={
+                      <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
+                    }
+                  />
+                  {/* S.3: Cover source indicator */}
+                  {showCoverSourceBadge && (
+                    <div
+                      className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-semibold leading-none ${
+                        coverSourceType === COVER_SOURCE.REFERENCE
+                          ? "bg-amber-500 text-white"
+                          : "bg-violet-500 text-white"
+                      }`}
+                      title={coverSourceType === COVER_SOURCE.REFERENCE
+                        ? "Cover from selected reference"
+                        : "Cover from hero product"
+                      }
+                    >
+                      {COVER_SOURCE_LABELS[coverSourceType]}
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">No preview</div>
               )}
@@ -4500,7 +4491,26 @@ const ShotVisualGalleryCard = memo(function ShotVisualGalleryCard({
   projectId,
 }) {
   const navigate = useNavigate();
-  const imagePath = useMemo(() => selectShotImage(shot, products), [shot, products]);
+  // S.4: Use resolveShotCoverWithCrop for consistent crop data propagation
+  const { path: imagePath, cropData } = useMemo(
+    () => resolveShotCoverWithCrop(shot, products),
+    [shot, products]
+  );
+  // S.4.1: Apply full crop transform (zoom/rotation) when present
+  const hasCropTransform = cropData && (cropData.zoom !== 1 || cropData.rotation !== 0);
+  const cropTransformStyle = useMemo(
+    () => (hasCropTransform ? getCropTransformStyle(cropData) : undefined),
+    [cropData, hasCropTransform]
+  );
+  // Fallback to objectPosition when no transform needed
+  const imagePosition = useMemo(
+    () => (!hasCropTransform ? getCropObjectPosition(cropData) : undefined),
+    [cropData, hasCropTransform]
+  );
+
+  // S.3: Cover source indicator (only show for non-auto sources)
+  const coverSourceType = useMemo(() => getCoverSourceType(shot), [shot]);
+  const showCoverSourceBadge = coverSourceType !== COVER_SOURCE.AUTO;
 
   // Status value and display label
   const statusValue = normaliseShotStatus(shot?.status);
@@ -4544,6 +4554,8 @@ const ShotVisualGalleryCard = memo(function ShotVisualGalleryCard({
             preferredSize={640}
             className="absolute inset-0 h-full w-full"
             imageClassName="h-full w-full object-cover"
+            imageStyle={cropTransformStyle}
+            position={imagePosition}
             fallback={
               <div className="flex h-full w-full items-center justify-center">
                 <Camera className="h-10 w-10 text-slate-300 dark:text-slate-600" />
@@ -4553,6 +4565,23 @@ const ShotVisualGalleryCard = memo(function ShotVisualGalleryCard({
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <Camera className="h-10 w-10 text-slate-300 dark:text-slate-600" />
+          </div>
+        )}
+
+        {/* S.3: Cover source indicator (top-left) */}
+        {showCoverSourceBadge && (
+          <div
+            className={`absolute top-2 left-2 px-1.5 py-0.5 rounded text-[8px] font-semibold leading-none shadow-sm ${
+              coverSourceType === COVER_SOURCE.REFERENCE
+                ? "bg-amber-500 text-white"
+                : "bg-violet-500 text-white"
+            }`}
+            title={coverSourceType === COVER_SOURCE.REFERENCE
+              ? "Cover from selected reference"
+              : "Cover from hero product"
+            }
+          >
+            {COVER_SOURCE_LABELS[coverSourceType]}
           </div>
         )}
 

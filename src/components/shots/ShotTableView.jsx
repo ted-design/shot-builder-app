@@ -9,7 +9,16 @@ import {
 } from "../ui/dropdown-menu";
 import { toDateInputValue } from "../../lib/shotDraft";
 import { normaliseShotStatus, shotStatusOptions } from "../../lib/shotStatus";
-import { getImageWithFallback, hasMultipleAttachments, getAttachmentCount } from "../../lib/imageHelpers";
+import {
+  resolveShotCoverWithCrop,
+  getCropObjectPosition,
+  getCropTransformStyle,
+  hasMultipleAttachments,
+  getAttachmentCount,
+  getCoverSourceType,
+  COVER_SOURCE,
+  COVER_SOURCE_LABELS,
+} from "../../lib/imageHelpers";
 import AppImage from "../common/AppImage";
 import { readStorage, writeStorage } from "../../lib/safeStorage";
 import { TagBadge } from "../ui/TagBadge";
@@ -368,10 +377,18 @@ const ShotTableView = memo(function ShotTableView({
             : [];
           const tagsSummary = tagLabels.join(", ");
 
-          // Get image data with product fallback (attachments → reference → product images)
-          const { path: imagePath, style: imageStyle } = getImageWithFallback(shot, products);
+          // S.4: Get image data with crop support
+          const { path: imagePath, cropData } = resolveShotCoverWithCrop(shot, products);
+          // S.4.1: Apply full crop transform (zoom/rotation) when present
+          const hasCropTransform = cropData && (cropData.zoom !== 1 || cropData.rotation !== 0);
+          const cropTransformStyle = hasCropTransform ? getCropTransformStyle(cropData) : undefined;
+          const imagePosition = !hasCropTransform ? getCropObjectPosition(cropData) : undefined;
           const multiImageCount = getAttachmentCount(shot);
           const showMultiImageBadge = hasMultipleAttachments(shot);
+
+          // S.3: Cover source indicator (only show for non-auto sources)
+          const coverSourceType = getCoverSourceType(shot);
+          const showCoverSourceBadge = coverSourceType !== COVER_SOURCE.AUTO;
 
           return (
             <div
@@ -486,14 +503,31 @@ const ShotTableView = memo(function ShotTableView({
                               preferredSize={96}
                               loading="lazy"
                               className="w-full h-full flex items-center justify-center"
-                              imageClassName="max-w-full max-h-full object-contain"
-                              style={imageStyle}
+                              imageClassName={hasCropTransform ? "w-full h-full object-cover" : "max-w-full max-h-full object-contain"}
+                              imageStyle={cropTransformStyle}
+                              position={imagePosition}
                               fallback={
                                 <div className="flex h-full w-full items-center justify-center text-[9px] text-slate-400">
                                   No image
                                 </div>
                               }
                             />
+                            {/* S.3: Cover source indicator (top-left) */}
+                            {showCoverSourceBadge && (
+                              <div
+                                className={`absolute top-0 left-0 rounded-br-sm px-1 py-0.5 text-[7px] font-semibold leading-none ${
+                                  coverSourceType === COVER_SOURCE.REFERENCE
+                                    ? "bg-amber-500 text-white"
+                                    : "bg-violet-500 text-white"
+                                }`}
+                                title={coverSourceType === COVER_SOURCE.REFERENCE
+                                  ? "Cover from selected reference"
+                                  : "Cover from hero product"
+                                }
+                              >
+                                {COVER_SOURCE_LABELS[coverSourceType]}
+                              </div>
+                            )}
                             {showMultiImageBadge && (
                               <div className="absolute bottom-0 right-0 rounded-tl-sm bg-black/70 px-1 py-0.5 text-[8px] font-medium text-white leading-none">
                                 {multiImageCount}

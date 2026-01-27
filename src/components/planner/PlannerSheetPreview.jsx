@@ -74,10 +74,13 @@ function buildTableGridTemplate(visibleSections, sectionStates) {
 function PreviewShotCardList({ shot, visibleSections, sectionStates }) {
   const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
 
-  // Get primary image with crop positioning
-  const { path: primaryImagePath, objectPosition: primaryImagePosition } = getPrimaryAttachmentWithStyle(shot);
+  // Get primary image with crop positioning (S.4.1: includes zoom/rotation transform)
+  const { path: primaryImagePath, style: cropStyle, objectPosition: primaryImagePosition } = getPrimaryAttachmentWithStyle(shot);
   const imagePath = primaryImagePath || shot.image || null;
-  const imagePosition = primaryImagePosition;
+  // Check if cropStyle contains a transform (zoom/rotation)
+  const hasCropTransform = cropStyle && cropStyle.transform;
+  const imagePosition = !hasCropTransform ? primaryImagePosition : undefined;
+  const imageStyle = hasCropTransform ? cropStyle : undefined;
 
   // Build grid template with minimum widths for readable columns
   const gridTemplate = useMemo(() => {
@@ -175,6 +178,7 @@ function PreviewShotCardList({ shot, visibleSections, sectionStates }) {
                 alt={shot.name || 'Shot'}
                 className="w-16 h-16 flex items-center justify-center rounded border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 overflow-hidden"
                 imageClassName="w-full h-full"
+                imageStyle={imageStyle}
                 fit="cover"
                 position={imagePosition}
               />
@@ -211,10 +215,13 @@ function PreviewShotCardGallery({ shot, visibleSections, sectionStates }) {
   const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
   const showShotNumber = visibleSections.some(s => s.id === SECTION_TYPES.SHOT_NUMBER);
 
-  // Get primary image with crop positioning
-  const { path: primaryImagePath, objectPosition: primaryImagePosition } = getPrimaryAttachmentWithStyle(shot);
+  // Get primary image with crop positioning (S.4.1: includes zoom/rotation transform)
+  const { path: primaryImagePath, style: cropStyle, objectPosition: primaryImagePosition } = getPrimaryAttachmentWithStyle(shot);
   const imagePath = primaryImagePath || shot.image || null;
-  const imagePosition = primaryImagePosition;
+  // Check if cropStyle contains a transform (zoom/rotation)
+  const hasCropTransform = cropStyle && cropStyle.transform;
+  const imagePosition = !hasCropTransform ? primaryImagePosition : undefined;
+  const imageStyle = hasCropTransform ? cropStyle : undefined;
 
   return (
     <div
@@ -230,7 +237,8 @@ function PreviewShotCardGallery({ shot, visibleSections, sectionStates }) {
               alt={shot.name || 'Shot'}
               className="w-full h-full"
               imageClassName="w-full h-full"
-              fit="contain"
+              imageStyle={imageStyle}
+              fit={hasCropTransform ? "cover" : "contain"}
               position={imagePosition}
             />
           ) : (
