@@ -39,7 +39,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from "../lib/demoSafeFirestore";
-import { db } from "../lib/firebase";
+import { db, uploadImageFile } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import { locationsPath } from "../lib/paths";
 import { searchLocations } from "../lib/search";
@@ -49,7 +49,9 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import Thumb from "../components/Thumb";
+import AppImage from "../components/common/AppImage";
 import InlineEditField from "../components/profiles/InlineEditField";
+import SingleImageDropzone from "../components/common/SingleImageDropzone";
 import LocationCreateModal from "../components/locations/LocationCreateModal";
 import {
   MapPin,
@@ -58,6 +60,8 @@ import {
   Building2,
   CheckCircle2,
   Clock,
+  Camera,
+  ExternalLink,
 } from "lucide-react";
 
 // ============================================================================
@@ -341,12 +345,44 @@ function FactRow({ label, value, isEditable, onSave, placeholder, type = "text",
 // LOCATION DETAIL CANVAS (RIGHT PANEL) — R.9 Inspector Pattern
 // ============================================================================
 
-function LocationDetailCanvas({ location, canManage, onUpdate }) {
+function LocationDetailCanvas({ location, canManage, onUpdate, clientId }) {
+  // Photo upload state
+  const [photoFile, setPhotoFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  // Reset photo file state when location changes
+  useEffect(() => {
+    setPhotoFile(null);
+  }, [location?.id]);
+
   // Field save handler — wraps onUpdate with field-specific logic
   const handleFieldSave = useCallback(async (field, value) => {
     if (!onUpdate) return;
     await onUpdate({ field, value });
   }, [onUpdate]);
+
+  // Photo upload handler
+  const handlePhotoChange = useCallback(async (file) => {
+    if (!file || !location?.id || !clientId) return;
+
+    setPhotoFile(file);
+    setUploading(true);
+
+    try {
+      const { path } = await uploadImageFile(file, {
+        folder: "locations",
+        id: location.id,
+      });
+      await onUpdate({ field: "photoPath", value: path });
+      toast.success("Photo updated");
+      setPhotoFile(null);
+    } catch (error) {
+      console.error("[LocationDetailCanvas] Photo upload failed:", error);
+      toast.error(error?.message || "Failed to upload photo");
+    } finally {
+      setUploading(false);
+    }
+  }, [location?.id, clientId, onUpdate]);
 
   if (!location) {
     return (
@@ -499,6 +535,90 @@ function LocationDetailCanvas({ location, canManage, onUpdate }) {
               placeholder="Add phone number"
               type="tel"
             />
+          </div>
+
+          {/* ══════════════════════════════════════════════════════════════
+              PHOTO SECTION — R.22 Upload/Replace
+              ══════════════════════════════════════════════════════════════ */}
+          <div className="border-t border-slate-100 dark:border-slate-700 px-6 py-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Camera className="w-4 h-4 text-slate-400" />
+              <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Photo
+              </h3>
+            </div>
+
+            {/* Current photo thumbnail with View action */}
+            {location.photoPath && !photoFile && (
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-20 h-20 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 flex-shrink-0 bg-slate-100 dark:bg-slate-700">
+                  <AppImage
+                    src={location.photoPath}
+                    alt={name}
+                    preferredSize={160}
+                    className="w-full h-full"
+                    imageClassName="w-full h-full object-cover"
+                    fallback={
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Building2 className="w-6 h-6 text-slate-300 dark:text-slate-600" />
+                      </div>
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    Current photo
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 h-7 text-xs"
+                    onClick={() => {
+                      // Open full-size image in new tab
+                      // AppImage resolves the path, so we use the resolved URL if available
+                      // For now, open directly as AppImage handles resolution
+                      const img = document.querySelector(`[alt="${name}"]`);
+                      const src = img?.src || location.photoPath;
+                      window.open(src, "_blank", "noopener,noreferrer");
+                    }}
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    View full size
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Upload/Replace zone */}
+            {canManage ? (
+              <div>
+                <SingleImageDropzone
+                  value={photoFile}
+                  onChange={handlePhotoChange}
+                  disabled={uploading}
+                  showPreview={true}
+                  existingImageUrl={null}
+                />
+                {uploading && (
+                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <LoadingSpinner size="sm" />
+                    Uploading photo...
+                  </p>
+                )}
+                {!location.photoPath && !photoFile && (
+                  <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+                    Add a reference photo for this location
+                  </p>
+                )}
+              </div>
+            ) : (
+              !location.photoPath && (
+                <p className="text-sm text-slate-400 dark:text-slate-500 italic">
+                  No photo available
+                </p>
+              )
+            )}
           </div>
 
           {/* Notes Section */}
@@ -803,6 +923,7 @@ export default function LibraryLocationsPage() {
           location={selectedLocation}
           canManage={canManage}
           onUpdate={handleLocationUpdate}
+          clientId={clientId}
         />
       </div>
 

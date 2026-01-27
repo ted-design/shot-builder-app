@@ -1,28 +1,28 @@
 /**
- * LibraryTalentPage — Canonical Full-Page Workspace Shell
+ * LibraryTalentPage — R.17: Gallery Grid + Expand-Down Cockpit
  *
- * DESIGN PHILOSOPHY (L.2 Delta)
- * =============================
- * This page transforms the Library → Talent view into a workspace-style experience
- * following the Products V3 / Shot Editor V3 / Library Locations spatial language:
+ * DESIGN PHILOSOPHY (R.17 Delta)
+ * ==============================
+ * This page transforms the Library → Talent view into a grid + cockpit experience
+ * matching the Products and Palette (Swatches) spatial language:
  *
  * LAYOUT:
  * - TOP: Header band with page title, search, and primary actions
- * - LEFT: Scannable talent rail with search results
- * - RIGHT: Selected talent detail canvas
+ * - MAIN: Gallery grid of talent tiles (image-first, scannable)
+ * - BELOW GRID: Expand-down cockpit when a talent is selected
  *
- * KEY CHANGES FROM LEGACY:
- * 1. Master-detail pattern replaces modal-first UX
- * 2. Talent selection is local state (no URL routing per spec)
- * 3. Designed empty states for both rail and canvas
- * 4. Full-page workspace instead of admin table/gallery presentation
+ * KEY CHANGES FROM L.2/L.4:
+ * 1. Replaced left rail (TalentRail) with a grid of TalentTile components
+ * 2. Replaced right canvas (TalentDetailCanvas) with expand-down TalentCockpit
+ * 3. Moved search to header band
+ * 4. All L.4 content (edit modal, measurements) preserved in cockpit
  *
  * DATA SOURCE:
  * - Firestore: clients/{clientId}/talent (via talentPath)
  * - Real-time subscription via onSnapshot
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   doc,
@@ -52,10 +52,10 @@ import {
   FileText,
   Plus,
   Search,
-  Building2,
   ExternalLink,
   Ruler,
   Pencil,
+  X,
 } from "lucide-react";
 import { stripHtml } from "../lib/stripHtml";
 
@@ -103,38 +103,61 @@ const normaliseGalleryOrder = (items = []) =>
 const buildGalleryUpdate = async (talentId, nextAttachments = [], previousAttachments = []) => {
   const sortedNext = normaliseGalleryOrder(nextAttachments);
   const previousMap = new Map((previousAttachments || []).map((item) => [item.id, item]));
-  const finalGallery = [];
 
-  for (let index = 0; index < sortedNext.length; index += 1) {
-    const attachment = sortedNext[index];
+  // Prepare all items with metadata and identify which need uploads
+  const preparedItems = sortedNext.map((attachment, index) => {
     const description = (attachment.description || "").trim();
     const cropData = attachment.cropData || null;
     const id = attachment.id || nanoid();
+    return { attachment, index, description, cropData, id };
+  });
 
-    if (attachment.file) {
-      const baseName = attachment.file.name || `image-${id}.jpg`;
+  // Parallel upload for items with files
+  const uploadPromises = preparedItems
+    .filter((item) => item.attachment.file)
+    .map(async (item) => {
+      const baseName = item.attachment.file.name || `image-${item.id}.jpg`;
       const safeName = baseName.replace(/\s+/g, "_");
-      const { path, downloadURL } = await uploadImageFile(attachment.file, {
+      const { path, downloadURL } = await uploadImageFile(item.attachment.file, {
         folder: "talent",
         id: talentId,
-        filename: `${id}-${safeName}`,
+        filename: `${item.id}-${safeName}`,
       });
-      finalGallery.push({ id, path, downloadURL, description, cropData, order: index });
+      return { ...item, path, downloadURL, uploaded: true };
+    });
+
+  const uploadResults = await Promise.all(uploadPromises);
+  const uploadedMap = new Map(uploadResults.map((r) => [r.id, r]));
+
+  // Build final gallery preserving order
+  const finalGallery = [];
+  for (const item of preparedItems) {
+    const uploaded = uploadedMap.get(item.id);
+    if (uploaded) {
+      finalGallery.push({
+        id: uploaded.id,
+        path: uploaded.path,
+        downloadURL: uploaded.downloadURL,
+        description: uploaded.description,
+        cropData: uploaded.cropData,
+        order: uploaded.index,
+      });
       continue;
     }
 
-    const previous = previousMap.get(attachment.id) || {};
-    const path = attachment.path || previous.path || null;
-    const downloadURL = attachment.downloadURL || previous.downloadURL || path || null;
+    // Existing item (no new file)
+    const previous = previousMap.get(item.attachment.id) || {};
+    const path = item.attachment.path || previous.path || null;
+    const downloadURL = item.attachment.downloadURL || previous.downloadURL || path || null;
     if (!path && !downloadURL) continue;
 
     finalGallery.push({
-      id,
+      id: item.id,
       path,
       downloadURL,
-      description,
-      cropData: cropData ?? previous.cropData ?? null,
-      order: index,
+      description: item.description,
+      cropData: item.cropData ?? previous.cropData ?? null,
+      order: item.index,
     });
   }
 
@@ -206,356 +229,277 @@ function parseMeasurementsForDisplay(measurements) {
 }
 
 // ============================================================================
-// TALENT RAIL ITEM
+// TALENT TILE (Grid Item) — R.17
 // ============================================================================
 
-function TalentRailItem({ talent, isSelected, onClick }) {
+function TalentTile({ talent, isSelected, onClick, tileRef }) {
   const name = buildDisplayName(talent);
   const agency = (talent.agency || "").trim();
+  const hasImage = Boolean(talent.headshotPath);
 
   return (
     <button
+      ref={tileRef}
       type="button"
       onClick={onClick}
       className={`
-        w-full text-left p-3 rounded-lg transition-all duration-150
+        group relative flex flex-col items-center p-2 rounded-lg transition-all duration-200
         focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1
         ${isSelected
-          ? "bg-slate-100 dark:bg-slate-700 shadow-sm"
-          : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
+          ? "bg-slate-100 dark:bg-slate-700/60 border border-slate-300 dark:border-slate-500 shadow-sm"
+          : "border border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-slate-200 dark:hover:border-slate-700"
         }
       `}
+      aria-pressed={isSelected}
+      aria-label={`${name}${isSelected ? " (selected)" : ""}`}
     >
-      <div className="flex items-start gap-3">
-        {/* Thumbnail — L.4: Rounded rectangle to avoid cropping heads */}
-        <div className="flex-shrink-0 w-10 h-12 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-700">
+      {/* Portrait preview — taller aspect ratio for headshots */}
+      <div className={`
+        w-16 h-20 rounded-lg overflow-hidden transition-all bg-slate-100 dark:bg-slate-700
+        ${isSelected ? "shadow-md" : "shadow-sm group-hover:shadow-md"}
+      `}>
+        {hasImage ? (
           <Thumb
-            path={talent.headshotPath || null}
-            size={96}
+            path={talent.headshotPath}
             alt={name}
+            size={160}
             className="w-full h-full"
             imageClassName="w-full h-full object-cover object-top"
             fallback={
               <div className="w-full h-full flex items-center justify-center">
-                <User className="w-5 h-5 text-slate-300 dark:text-slate-500" />
+                <User className="w-6 h-6 text-slate-300 dark:text-slate-500" />
               </div>
             }
           />
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium truncate ${
-            isSelected
-              ? "text-slate-900 dark:text-slate-100"
-              : "text-slate-700 dark:text-slate-300"
-          }`}>
-            {name}
-          </p>
-          {agency && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-              {agency}
-            </p>
-          )}
-        </div>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <User className="w-6 h-6 text-slate-300 dark:text-slate-500" />
+          </div>
+        )}
       </div>
+
+      {/* Name */}
+      <p className={`
+        mt-1.5 text-[11px] font-medium text-center truncate w-full max-w-[80px]
+        ${isSelected ? "text-slate-900 dark:text-slate-100" : "text-slate-600 dark:text-slate-400"}
+      `}>
+        {name}
+      </p>
+
+      {/* Agency badge */}
+      {agency && (
+        <span className="mt-0.5 text-[9px] text-slate-400 dark:text-slate-500 truncate max-w-[80px]">
+          {agency}
+        </span>
+      )}
     </button>
   );
 }
 
 // ============================================================================
-// TALENT RAIL (LEFT PANEL)
+// TALENT COCKPIT (Expand-Down Panel) — R.17
 // ============================================================================
 
-function TalentRail({
-  talent,
-  selectedId,
-  onSelect,
-  searchQuery,
-  onSearchChange,
-  loading,
-}) {
-  return (
-    <aside className="w-72 flex-shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col overflow-hidden">
-      {/* Search header */}
-      <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input
-            type="text"
-            placeholder="Search talent..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9 h-9 text-sm"
-          />
-        </div>
-      </div>
-
-      {/* Talent list */}
-      <div className="flex-1 overflow-auto p-2">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <LoadingSpinner size="md" />
-          </div>
-        ) : talent.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mb-3">
-              <User className="w-5 h-5 text-slate-400 dark:text-slate-500" />
-            </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
-              {searchQuery ? "No matches found" : "No talent yet"}
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-500">
-              {searchQuery
-                ? "Try a different search term"
-                : "Create talent to get started"}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            {talent.map((person) => (
-              <TalentRailItem
-                key={person.id}
-                talent={person}
-                isSelected={selectedId === person.id}
-                onClick={() => onSelect(person.id)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Count footer */}
-      {!loading && talent.length > 0 && (
-        <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            {talent.length} {talent.length === 1 ? "talent" : "talent"}
-          </p>
-        </div>
-      )}
-    </aside>
-  );
-}
-
-// ============================================================================
-// TALENT DETAIL CANVAS (RIGHT PANEL)
-// ============================================================================
-
-function TalentDetailCanvas({ talent, canManage, onEdit }) {
-  if (!talent) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-white dark:bg-slate-800">
-        <div className="text-center max-w-sm px-4">
-          <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-slate-300 dark:text-slate-500" />
-          </div>
-          <h2 className="text-lg font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Select a talent
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Choose a talent from the list to view their details, or create a new one.
-          </p>
-        </div>
-      </div>
-    );
-  }
+function TalentCockpit({ talent, canManage, onEdit, onClose }) {
+  if (!talent) return null;
 
   const name = buildDisplayName(talent);
   const agency = (talent.agency || "").trim();
   const notesContent = talent.notes || talent.sizing || "";
   const notesPlain = stripHtml(notesContent);
-  // L.4: Parse measurements into structured display entries
   const measurementEntries = parseMeasurementsForDisplay(talent.measurements);
   const hasMeasurements = measurementEntries.length > 0;
 
   return (
-    <main className="flex-1 overflow-auto bg-white dark:bg-slate-800">
-      <div className="max-w-2xl mx-auto px-8 py-8">
-        {/* L.4: Hero image - rectangular with rounded corners for full-body/editorial imagery */}
-        <div className="relative w-48 h-64 mx-auto rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-700 mb-6 shadow-sm">
-          <Thumb
-            path={talent.headshotPath || null}
-            size={512}
-            alt={name}
-            className="w-full h-full"
-            imageClassName="w-full h-full object-cover object-top"
-            fallback={
-              <div className="w-full h-full flex items-center justify-center">
-                <User className="w-16 h-16 text-slate-300 dark:text-slate-500" />
-              </div>
-            }
-          />
+    <div className="mt-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{name}</h3>
+          <span className="text-[9px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded">
+            Talent Workspace
+          </span>
+          {!canManage && (
+            <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+              View only
+            </span>
+          )}
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700 transition-colors"
+          aria-label="Close detail panel"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
 
-        {/* Name - centered under portrait */}
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-2 text-center">
-          {name}
-        </h1>
-
-        {/* Agency - centered */}
-        {agency && (
-          <p className="text-base text-slate-600 dark:text-slate-400 text-center mb-6">
-            {agency}
-          </p>
-        )}
-
-        {!agency && <div className="mb-6" />}
-
-        {/* Details section */}
-        <div className="space-y-4">
-          {/* Gender */}
-          {talent.gender && (
-            <div className="flex items-start gap-3">
-              <User className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-0.5">
-                  Gender
-                </p>
-                <p className="text-base text-slate-900 dark:text-slate-100">
-                  {talent.gender}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Phone */}
-          {talent.phone && (
-            <div className="flex items-start gap-3">
-              <Phone className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-0.5">
-                  Phone
-                </p>
-                <p className="text-base text-slate-900 dark:text-slate-100">
-                  {talent.phone}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Email */}
-          {talent.email && (
-            <div className="flex items-start gap-3">
-              <Mail className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-0.5">
-                  Email
-                </p>
-                <a
-                  href={`mailto:${talent.email}`}
-                  className="text-base text-primary hover:underline"
-                >
-                  {talent.email}
-                </a>
-              </div>
-            </div>
-          )}
-
-          {/* Portfolio URL */}
-          {talent.url && (
-            <div className="flex items-start gap-3">
-              <ExternalLink className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-0.5">
-                  Portfolio
-                </p>
-                <a
-                  href={talent.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-base text-primary hover:underline break-all"
-                >
-                  {talent.url}
-                </a>
-              </div>
-            </div>
-          )}
-
-          {/* L.4: Measurements - structured 2-column spec grid */}
-          {hasMeasurements && (
-            <div className="flex items-start gap-3">
-              <Ruler className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">
-                  Measurements
-                </p>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-                  {measurementEntries.map(({ key, label, value }) => (
-                    <div key={key} className="flex justify-between gap-2">
-                      <span className="text-sm text-slate-500 dark:text-slate-400">
-                        {label}
-                      </span>
-                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                        {value}
-                      </span>
-                    </div>
-                  ))}
+      {/* Two-column layout: Identity | Content */}
+      <div className="flex">
+        {/* Left: Identity column */}
+        <div className="flex-shrink-0 w-44 p-4 border-r border-slate-100 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/30">
+          {/* Hero portrait */}
+          <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden border-2 border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-700">
+            <Thumb
+              path={talent.headshotPath || null}
+              size={320}
+              alt={name}
+              className="w-full h-full"
+              imageClassName="w-full h-full object-cover object-top"
+              fallback={
+                <div className="w-full h-full flex items-center justify-center">
+                  <User className="w-12 h-12 text-slate-300 dark:text-slate-500" />
                 </div>
-              </div>
-            </div>
+              }
+            />
+          </div>
+
+          {/* Agency */}
+          {agency && (
+            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 text-center">
+              {agency}
+            </p>
           )}
 
-          {/* Notes */}
-          {notesPlain && (
-            <div className="flex items-start gap-3">
-              <FileText className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-0.5">
-                  Notes
-                </p>
-                <p className="text-base text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
-                  {notesPlain}
-                </p>
-              </div>
-            </div>
+          {/* Gender badge */}
+          {talent.gender && (
+            <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-500 text-center">
+              {talent.gender}
+            </p>
           )}
         </div>
 
-        {/* Empty state for no details */}
-        {!agency && !talent.phone && !talent.email && !talent.url && !talent.gender && !notesPlain && !hasMeasurements && (
-          <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 p-6 text-center mt-4">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              No additional details for this talent.
-            </p>
-            {canManage && (
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                Edit the talent to add contact info, notes, or measurements.
+        {/* Right: Content area */}
+        <div className="flex-1 min-w-0 overflow-y-auto max-h-[min(60vh,560px)]">
+          {/* Contact section */}
+          <div className="px-4 py-4 border-b border-slate-100 dark:border-slate-700">
+            <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">
+              Contact
+            </h4>
+            <div className="space-y-3">
+              {/* Phone */}
+              {talent.phone && (
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                  <span className="text-sm text-slate-900 dark:text-slate-100">
+                    {talent.phone}
+                  </span>
+                </div>
+              )}
+
+              {/* Email */}
+              {talent.email && (
+                <div className="flex items-center gap-3">
+                  <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                  <a
+                    href={`mailto:${talent.email}`}
+                    className="text-sm text-primary hover:underline truncate"
+                  >
+                    {talent.email}
+                  </a>
+                </div>
+              )}
+
+              {/* Portfolio URL */}
+              {talent.url && (
+                <div className="flex items-center gap-3">
+                  <ExternalLink className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                  <a
+                    href={talent.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline truncate"
+                  >
+                    {talent.url}
+                  </a>
+                </div>
+              )}
+
+              {/* No contact info */}
+              {!talent.phone && !talent.email && !talent.url && (
+                <p className="text-sm text-slate-400 dark:text-slate-500 italic">
+                  No contact info
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Measurements section */}
+          {hasMeasurements && (
+            <div className="px-4 py-4 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-2 mb-3">
+                <Ruler className="w-4 h-4 text-slate-400" />
+                <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Measurements
+                </h4>
+              </div>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+                {measurementEntries.map(({ key, label, value }) => (
+                  <div key={key} className="flex justify-between gap-2">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      {label}
+                    </span>
+                    <span className="text-xs font-medium text-slate-900 dark:text-slate-100">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notes section */}
+          {notesPlain && (
+            <div className="px-4 py-4 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-2 mb-3">
+                <FileText className="w-4 h-4 text-slate-400" />
+                <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Notes
+                </h4>
+              </div>
+              <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                {notesPlain}
+              </p>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="px-4 py-4">
+            {canManage ? (
+              <Button variant="secondary" size="sm" onClick={() => onEdit(talent)} className="gap-1.5">
+                <Pencil className="w-3.5 h-3.5" />
+                Edit talent
+              </Button>
+            ) : (
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                Only producers and admins can edit talent records.
               </p>
             )}
           </div>
-        )}
-
-        {/* Actions — L.4: Edit opens modal when canManage is true */}
-        {canManage ? (
-          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700">
-            <Button variant="secondary" onClick={() => onEdit(talent)} className="gap-1.5">
-              <Pencil className="w-4 h-4" />
-              Edit talent
-            </Button>
-          </div>
-        ) : (
-          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700">
-            <p className="text-xs text-slate-400 dark:text-slate-500">
-              Only producers and admins can edit talent records.
-            </p>
-          </div>
-        )}
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
 
 // ============================================================================
-// HEADER BAND
+// HEADER BAND (with search) — R.17
 // ============================================================================
 
-function TalentHeaderBand({ canManage, onCreateClick, talentCount }) {
+function TalentHeaderBand({
+  canManage,
+  onCreateClick,
+  talentCount,
+  searchQuery,
+  onSearchChange,
+}) {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/95">
       <div className="px-6 py-3">
-        <div className="flex items-center justify-between">
-          {/* Left: Title + description */}
-          <div>
+        <div className="flex items-center justify-between gap-4">
+          {/* Left: Title */}
+          <div className="flex-shrink-0">
             <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Talent
             </h1>
@@ -564,8 +508,22 @@ function TalentHeaderBand({ canManage, onCreateClick, talentCount }) {
             </p>
           </div>
 
+          {/* Center: Search */}
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Search talent..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="pl-9 h-9 text-sm"
+              />
+            </div>
+          </div>
+
           {/* Right: Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-shrink-0">
             {talentCount > 0 && (
               <span className="text-sm text-slate-500 dark:text-slate-400">
                 {talentCount} {talentCount === 1 ? "talent" : "talent"}
@@ -618,6 +576,26 @@ function TalentEmptyState({ canManage, onCreateClick }) {
 }
 
 // ============================================================================
+// NO RESULTS STATE (for search) — R.17
+// ============================================================================
+
+function NoResultsState({ searchQuery }) {
+  return (
+    <div className="py-16 text-center">
+      <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4">
+        <Search className="w-6 h-6 text-slate-300 dark:text-slate-500" />
+      </div>
+      <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
+        No matches found for "{searchQuery}"
+      </p>
+      <p className="text-xs text-slate-500 dark:text-slate-500">
+        Try a different search term
+      </p>
+    </div>
+  );
+}
+
+// ============================================================================
 // MAIN PAGE COMPONENT
 // ============================================================================
 
@@ -640,6 +618,10 @@ export default function LibraryTalentPage() {
   // L.4: Edit modal state
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editBusy, setEditBusy] = useState(false);
+
+  // R.17: Refs for tiles and cockpit
+  const tileRefs = useRef({});
+  const cockpitRef = useRef(null);
 
   // Firestore path
   const currentTalentPath = useMemo(() => talentPath(clientId), [clientId]);
@@ -697,19 +679,92 @@ export default function LibraryTalentPage() {
     return talent.find((t) => t.id === selectedId) || null;
   }, [talent, selectedId]);
 
-  // Auto-select first talent when data loads and nothing is selected
-  useEffect(() => {
-    if (!loading && talent.length > 0 && !selectedId) {
-      setSelectedId(talent[0].id);
-    }
-  }, [loading, talent, selectedId]);
-
   // Clear selection if selected talent was deleted
   useEffect(() => {
     if (selectedId && !talent.find((t) => t.id === selectedId)) {
-      setSelectedId(talent.length > 0 ? talent[0].id : null);
+      setSelectedId(null);
     }
   }, [talent, selectedId]);
+
+  // R.17: Ref callback for each tile
+  const setTileRef = useCallback((talentId) => (el) => {
+    tileRefs.current[talentId] = el;
+  }, []);
+
+  // R.17: Scroll cockpit into view when opening
+  useEffect(() => {
+    if (!selectedId || !cockpitRef.current) return;
+
+    let rafId1;
+    let rafId2;
+
+    rafId1 = requestAnimationFrame(() => {
+      rafId2 = requestAnimationFrame(() => {
+        const cockpit = cockpitRef.current;
+        if (!cockpit) return;
+
+        const rect = cockpit.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+
+        const isBottomOffscreen = rect.bottom > viewportHeight - 40;
+        const isTopOffscreen = rect.top < 0;
+
+        if (isBottomOffscreen || isTopOffscreen) {
+          cockpit.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+          });
+        }
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(rafId1);
+      cancelAnimationFrame(rafId2);
+    };
+  }, [selectedId]);
+
+  // R.17: Keyboard navigation for talent when cockpit is open
+  useEffect(() => {
+    if (!selectedId || filteredTalent.length === 0) return;
+
+    const handleKeyDown = (event) => {
+      const tag = event.target.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        event.target.isContentEditable
+      ) {
+        return;
+      }
+
+      const isLeft = event.key === "ArrowLeft";
+      const isRight = event.key === "ArrowRight";
+
+      if (!isLeft && !isRight) return;
+
+      event.preventDefault();
+
+      const currentIndex = filteredTalent.findIndex((t) => t.id === selectedId);
+      if (currentIndex === -1) return;
+
+      let nextIndex;
+      if (isLeft) {
+        nextIndex = currentIndex === 0 ? filteredTalent.length - 1 : currentIndex - 1;
+      } else {
+        nextIndex = currentIndex === filteredTalent.length - 1 ? 0 : currentIndex + 1;
+      }
+
+      const nextTalent = filteredTalent[nextIndex];
+      if (nextTalent) {
+        setSelectedId(nextTalent.id);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectedId, filteredTalent]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // HANDLERS
@@ -717,6 +772,16 @@ export default function LibraryTalentPage() {
 
   const handleCreateClick = useCallback(() => {
     setCreateModalOpen(true);
+  }, []);
+
+  // R.17: Toggle selection (click to select/deselect)
+  const handleSelect = useCallback((talentId) => {
+    setSelectedId((prev) => (prev === talentId ? null : talentId));
+  }, []);
+
+  // R.17: Close cockpit
+  const handleCloseDetail = useCallback(() => {
+    setSelectedId(null);
   }, []);
 
   // L.4: Open edit modal for the selected talent
@@ -858,6 +923,8 @@ export default function LibraryTalentPage() {
           canManage={canManage}
           onCreateClick={handleCreateClick}
           talentCount={0}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
         />
         <TalentEmptyState
           canManage={canManage}
@@ -875,34 +942,50 @@ export default function LibraryTalentPage() {
     );
   }
 
-  // Main workspace layout
+  // R.17: Main workspace layout — Grid + Expand-Down Cockpit
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
-      {/* Header band */}
+      {/* Header band with search */}
       <TalentHeaderBand
         canManage={canManage}
         onCreateClick={handleCreateClick}
         talentCount={talent.length}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
       />
 
-      {/* Workspace: Rail + Canvas */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left rail */}
-        <TalentRail
-          talent={filteredTalent}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          loading={false}
-        />
+      {/* Main content */}
+      <div className="flex-1 px-6 py-6">
+        {filteredTalent.length > 0 ? (
+          <>
+            {/* Talent grid — portrait-oriented tiles */}
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1">
+              {filteredTalent.map((person) => (
+                <TalentTile
+                  key={person.id}
+                  talent={person}
+                  isSelected={selectedId === person.id}
+                  onClick={() => handleSelect(person.id)}
+                  tileRef={setTileRef(person.id)}
+                />
+              ))}
+            </div>
 
-        {/* Right canvas */}
-        <TalentDetailCanvas
-          talent={selectedTalent}
-          canManage={canManage}
-          onEdit={handleEdit}
-        />
+            {/* Cockpit panel — only when talent selected */}
+            {selectedTalent && (
+              <div ref={cockpitRef}>
+                <TalentCockpit
+                  talent={selectedTalent}
+                  canManage={canManage}
+                  onEdit={handleEdit}
+                  onClose={handleCloseDetail}
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          <NoResultsState searchQuery={searchQuery} />
+        )}
       </div>
 
       {/* Create modal */}

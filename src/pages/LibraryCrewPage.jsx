@@ -42,6 +42,7 @@ import {
   Building2,
   Briefcase,
 } from "lucide-react";
+import InlineEditField from "../components/profiles/InlineEditField";
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -71,7 +72,15 @@ function filterCrew(crew, searchQuery) {
 
 function CrewRailItem({ crewMember, isSelected, onClick, deptName, positionName }) {
   const name = buildDisplayName(crewMember);
-  const subtitle = [positionName, deptName].filter(Boolean).join(" • ") || crewMember.company || null;
+
+  // Build secondary line: company, then contact (email preferred over phone for de-dupe)
+  // This prioritizes info useful for identifying "is this the same person?"
+  const contactInfo = crewMember.email || crewMember.phone || null;
+  const secondaryParts = [crewMember.company, contactInfo].filter(Boolean);
+  const secondaryLine = secondaryParts.length > 0 ? secondaryParts.join(" • ") : null;
+
+  // Tertiary line: position/dept (lower emphasis)
+  const tertiaryLine = [positionName, deptName].filter(Boolean).join(" • ") || null;
 
   return (
     <button
@@ -101,9 +110,14 @@ function CrewRailItem({ crewMember, isSelected, onClick, deptName, positionName 
           }`}>
             {name}
           </p>
-          {subtitle && (
+          {secondaryLine && (
             <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-              {subtitle}
+              {secondaryLine}
+            </p>
+          )}
+          {tertiaryLine && (
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
+              {tertiaryLine}
             </p>
           )}
         </div>
@@ -194,7 +208,7 @@ function CrewRail({
 // CREW DETAIL CANVAS (RIGHT PANEL)
 // ============================================================================
 
-function CrewDetailCanvas({ crewMember, canManage, onEdit, deptName, positionName }) {
+function CrewDetailCanvas({ crewMember, canManage, onEdit, onUpdateField, deptName, positionName }) {
   if (!crewMember) {
     return (
       <div className="flex-1 flex items-center justify-center bg-white dark:bg-slate-800">
@@ -214,7 +228,18 @@ function CrewDetailCanvas({ crewMember, canManage, onEdit, deptName, positionNam
   }
 
   const name = buildDisplayName(crewMember);
-  const hasDetails = crewMember.email || crewMember.phone || crewMember.company || deptName || positionName || crewMember.notes;
+  // Always show fields if canManage (they're editable), otherwise only if populated
+  const showCompany = canManage || crewMember.company;
+  const showEmail = canManage || crewMember.email;
+  const showPhone = canManage || crewMember.phone;
+  const showNotes = canManage || crewMember.notes;
+  const hasAnyDetails = crewMember.email || crewMember.phone || crewMember.company || deptName || positionName || crewMember.notes;
+
+  // Inline save handler factory
+  const handleFieldSave = (fieldName) => async (newValue) => {
+    if (!onUpdateField) return;
+    await onUpdateField(crewMember.id, { [fieldName]: newValue });
+  };
 
   return (
     <main className="flex-1 overflow-auto bg-white dark:bg-slate-800">
@@ -240,22 +265,31 @@ function CrewDetailCanvas({ crewMember, canManage, onEdit, deptName, positionNam
 
         {/* Details section */}
         <div className="space-y-4">
-          {/* Company */}
-          {crewMember.company && (
+          {/* Company — inline editable */}
+          {showCompany && (
             <div className="flex items-start gap-3">
-              <Building2 className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-              <div>
+              <Building2 className="w-5 h-5 text-slate-400 flex-shrink-0 mt-2" />
+              <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-0.5">
                   Company
                 </p>
-                <p className="text-base text-slate-900 dark:text-slate-100">
-                  {crewMember.company}
-                </p>
+                {canManage ? (
+                  <InlineEditField
+                    value={crewMember.company || ""}
+                    onSave={handleFieldSave("company")}
+                    placeholder="Add company"
+                    type="text"
+                  />
+                ) : (
+                  <p className="text-base text-slate-900 dark:text-slate-100">
+                    {crewMember.company}
+                  </p>
+                )}
               </div>
             </div>
           )}
 
-          {/* Department */}
+          {/* Department — NOT inline editable (requires picker, use modal) */}
           {deptName && (
             <div className="flex items-start gap-3">
               <Briefcase className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
@@ -273,74 +307,97 @@ function CrewDetailCanvas({ crewMember, canManage, onEdit, deptName, positionNam
             </div>
           )}
 
-          {/* Email */}
-          {crewMember.email && (
+          {/* Email — inline editable */}
+          {showEmail && (
             <div className="flex items-start gap-3">
-              <Mail className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-              <div>
+              <Mail className="w-5 h-5 text-slate-400 flex-shrink-0 mt-2" />
+              <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-0.5">
                   Email
                 </p>
-                <a
-                  href={`mailto:${crewMember.email}`}
-                  className="text-base text-primary hover:underline"
-                >
-                  {crewMember.email}
-                </a>
+                {canManage ? (
+                  <InlineEditField
+                    value={crewMember.email || ""}
+                    onSave={handleFieldSave("email")}
+                    placeholder="Add email"
+                    type="email"
+                  />
+                ) : (
+                  <a
+                    href={`mailto:${crewMember.email}`}
+                    className="text-base text-primary hover:underline"
+                  >
+                    {crewMember.email}
+                  </a>
+                )}
               </div>
             </div>
           )}
 
-          {/* Phone */}
-          {crewMember.phone && (
+          {/* Phone — inline editable */}
+          {showPhone && (
             <div className="flex items-start gap-3">
-              <Phone className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-              <div>
+              <Phone className="w-5 h-5 text-slate-400 flex-shrink-0 mt-2" />
+              <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-0.5">
                   Phone
                 </p>
-                <p className="text-base text-slate-900 dark:text-slate-100">
-                  {crewMember.phone}
-                </p>
+                {canManage ? (
+                  <InlineEditField
+                    value={crewMember.phone || ""}
+                    onSave={handleFieldSave("phone")}
+                    placeholder="Add phone"
+                    type="tel"
+                  />
+                ) : (
+                  <p className="text-base text-slate-900 dark:text-slate-100">
+                    {crewMember.phone}
+                  </p>
+                )}
               </div>
             </div>
           )}
 
-          {/* Notes */}
-          {crewMember.notes && (
+          {/* Notes — inline editable (multiline) */}
+          {showNotes && (
             <div className="flex items-start gap-3">
-              <FileText className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-              <div>
+              <FileText className="w-5 h-5 text-slate-400 flex-shrink-0 mt-2" />
+              <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-0.5">
                   Notes
                 </p>
-                <p className="text-base text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
-                  {crewMember.notes}
-                </p>
+                {canManage ? (
+                  <InlineEditField
+                    value={crewMember.notes || ""}
+                    onSave={handleFieldSave("notes")}
+                    placeholder="Add notes"
+                    multiline
+                    rows={3}
+                  />
+                ) : (
+                  <p className="text-base text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                    {crewMember.notes}
+                  </p>
+                )}
               </div>
             </div>
           )}
         </div>
 
-        {/* Empty state for no details */}
-        {!hasDetails && (
+        {/* Empty state for no details — only show for viewers (editors see editable fields) */}
+        {!canManage && !hasAnyDetails && (
           <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 p-6 text-center mt-4">
             <p className="text-sm text-slate-500 dark:text-slate-400">
               No additional details for this crew member.
             </p>
-            {canManage && (
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                Edit to add contact info, department, or notes.
-              </p>
-            )}
           </div>
         )}
 
-        {/* Actions */}
+        {/* Actions — full edit modal for fields not inline editable (name, dept/position) */}
         {canManage && (
           <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700">
             <Button variant="secondary" onClick={() => onEdit(crewMember)}>
-              Edit crew member
+              Edit all details
             </Button>
           </div>
         )}
@@ -773,6 +830,11 @@ export default function LibraryCrewPage() {
     });
   }, [editingCrewMember, updateCrewMember]);
 
+  // Inline edit handler for individual fields (used by inspector)
+  const handleUpdateField = useCallback(async (crewMemberId, updates) => {
+    await updateCrewMember.mutateAsync({ crewMemberId, updates });
+  }, [updateCrewMember]);
+
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER
   // ══════════════════════════════════════════════════════════════════════════
@@ -865,6 +927,7 @@ export default function LibraryCrewPage() {
           crewMember={selectedCrewMember}
           canManage={canManage}
           onEdit={handleEdit}
+          onUpdateField={handleUpdateField}
           deptName={selectedCrewMember?.departmentId ? deptNameById.get(selectedCrewMember.departmentId) : null}
           positionName={selectedCrewMember?.positionId ? positionNameById.get(selectedCrewMember.positionId) : null}
         />

@@ -43,12 +43,12 @@ export default function SidebarNav({ isExpanded }) {
 
   const isInProjectContext = Boolean(projectMatch && currentProjectId);
 
-  // Library submenu items (R.8: Hub removed, Profiles is now primary entry)
+  // Library submenu items (R.18: Profiles deprecated, Talent is canonical people surface)
+  // R.22.1: Crew restored as first-class Library entry (all people directory)
   const libraryItems = useMemo(
     () => [
-      { to: "/library/profiles", label: "Profiles", icon: Users, end: true },
-      { to: "/library/profiles?type=talent", label: "Talent", icon: Users, indent: true },
-      { to: "/library/profiles?type=crew", label: "Crew", icon: User, indent: true },
+      { to: "/library/talent", label: "Talent", icon: Users, end: true },
+      { to: "/library/crew", label: "Crew", icon: User },
       { to: "/library/locations", label: "Locations", icon: MapPin },
       { to: "/library/departments", label: "Departments", icon: Briefcase },
       { to: "/library/tags", label: "Tags", icon: Tag },

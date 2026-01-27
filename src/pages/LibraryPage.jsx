@@ -1,15 +1,15 @@
 /**
  * LibraryPage — Layout Shell for Library Domain Routes
  *
- * R.8 Update: Hub removed. /library now redirects to /library/profiles.
- * This shell provides header tabs for non-Profiles Library pages.
- * Profiles page handles its own header (has custom search/filter UI).
+ * R.18 Update: Profiles deprecated. /library now redirects to /library/talent.
+ * This shell provides header tabs for non-full-workspace Library pages.
+ * Full-workspace pages (Talent, Locations, Tags, Palette) handle their own headers.
  *
- * LIBRARY SYSTEM MODEL (R.8):
+ * LIBRARY SYSTEM MODEL (R.18):
  * - The Library is a Managed Collection System, not a set of pages
- * - The ONE dominant interaction model is: List + Inspector
- * - The List is the browsing context
- * - The Inspector is the edit surface
+ * - The ONE dominant interaction model is: List + Inspector (or Gallery + Cockpit)
+ * - Talent is the canonical "people" browsing surface
+ * - Profiles surface is deprecated (redirects to Talent)
  * - Editing NEVER navigates to a new page
  * - There is NO Library Hub
  */
@@ -25,17 +25,19 @@ export default function LibraryPage() {
   const location = useLocation();
   const isActive = (to) => location.pathname.startsWith(to);
 
-  // R.8: Profiles page handles its own header (has custom search/filter UI)
-  const isOnProfiles = location.pathname.startsWith("/library/profiles");
+  // R.17: Talent page handles its own header (Gallery + Cockpit workspace)
+  const isOnTalent = location.pathname.startsWith("/library/talent");
   // R.9: Locations page handles its own header (full-page workspace)
   const isOnLocations = location.pathname.startsWith("/library/locations");
   // R.10: Tags page handles its own header (List + Inspector workspace)
   const isOnTags = location.pathname.startsWith("/library/tags");
   // R.11: Palette page handles its own header (List + Inspector workspace)
   const isOnPalette = location.pathname.startsWith("/library/palette");
+  // R.22.2: Crew page handles its own header (List + Inspector workspace)
+  const isOnCrew = location.pathname.startsWith("/library/crew");
 
   // These pages render their own header/shell (full-page workspace pattern)
-  if (isOnProfiles || isOnLocations || isOnTags || isOnPalette) {
+  if (isOnTalent || isOnLocations || isOnTags || isOnPalette || isOnCrew) {
     return <Outlet />;
   }
 
@@ -57,8 +59,8 @@ export default function LibraryPage() {
               aria-label="Library tabs"
               aria-orientation="horizontal"
             >
+              {/* R.18: Profiles removed, Talent is canonical */}
               {[
-                { to: "/library/profiles", label: "Profiles" },
                 { to: "/library/talent", label: "Talent" },
                 { to: "/library/crew", label: "Crew" },
                 { to: "/library/locations", label: "Locations" },
