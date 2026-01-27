@@ -51,6 +51,7 @@ import { compressImageFile } from "../../../lib/images";
 import { showConfirm } from "../../../lib/toast";
 import { queryKeys } from "../../../hooks/useFirestoreQuery";
 import ShotProductSelectorModal from "../ShotProductSelectorModal";
+import AdvancedImageCropEditor from "../AdvancedImageCropEditor";
 import AppImage from "../../common/AppImage";
 import { Button } from "../../ui/button";
 import {
@@ -65,7 +66,18 @@ import {
   ImageIcon,
   Upload,
   X,
+  RotateCcw,
+  Image,
+  Package,
+  Wand2,
+  Crop,
 } from "lucide-react";
+import {
+  getCoverSourceType,
+  COVER_SOURCE,
+  getCropTransformStyle,
+  getCropObjectPosition,
+} from "../../../lib/imageHelpers";
 
 // ============================================================================
 // CONSTANTS
@@ -208,6 +220,68 @@ function TrustIndicator({ status }) {
     );
   }
   return null;
+}
+
+// ============================================================================
+// COVER SOURCE INDICATOR (S.3)
+// Shows which source is providing the shot's cover image + Reset to Auto
+// ============================================================================
+
+const COVER_SOURCE_CONFIG = {
+  [COVER_SOURCE.REFERENCE]: {
+    label: "Reference",
+    shortLabel: "REF",
+    icon: Image,
+    colorClass: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700/40",
+    description: "Cover from selected reference image",
+  },
+  [COVER_SOURCE.HERO_PRODUCT]: {
+    label: "Hero Product",
+    shortLabel: "HERO",
+    icon: Package,
+    colorClass: "text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-700/40",
+    description: "Cover from hero product image",
+  },
+  [COVER_SOURCE.AUTO]: {
+    label: "Auto",
+    shortLabel: "AUTO",
+    icon: Wand2,
+    colorClass: "text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700",
+    description: "Cover auto-selected from available images",
+  },
+};
+
+function CoverSourceIndicator({ shot, onResetToAuto, readOnly }) {
+  const sourceType = getCoverSourceType(shot);
+  const config = COVER_SOURCE_CONFIG[sourceType] || COVER_SOURCE_CONFIG[COVER_SOURCE.AUTO];
+  const Icon = config.icon;
+  const canReset = sourceType !== COVER_SOURCE.AUTO;
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Current source badge */}
+      <div
+        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs font-medium ${config.colorClass}`}
+        title={config.description}
+      >
+        <Icon className="w-3 h-3" />
+        <span>Cover: {config.label}</span>
+      </div>
+
+      {/* Reset to Auto button (only shown when not already auto) */}
+      {!readOnly && canReset && (
+        <button
+          type="button"
+          onClick={onResetToAuto}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          title="Reset to automatic cover selection"
+        >
+          <RotateCcw className="w-3 h-3" />
+          <span>Reset</span>
+        </button>
+      )}
+    </div>
+  );
 }
 
 // ============================================================================
@@ -422,6 +496,7 @@ function LookReferencesSection({
   onAddReference,
   onRemoveReference,
   onSetDisplayImage,
+  onEditCrop,
   readOnly,
   isUploading,
 }) {
@@ -523,6 +598,11 @@ function LookReferencesSection({
         <div className="grid grid-cols-3 gap-2">
           {references.map((ref, index) => {
             const isDisplayImage = ref.id === displayImageId;
+            const hasCrop = Boolean(ref.cropData);
+            // S.4: Apply crop transform for zoom/rotation, fallback to objectPosition for pan-only
+            const hasCropTransform = hasCrop && (ref.cropData.zoom !== 1 || ref.cropData.rotation !== 0);
+            const cropTransformStyle = hasCropTransform ? getCropTransformStyle(ref.cropData) : undefined;
+            const imagePosition = !hasCropTransform && hasCrop ? getCropObjectPosition(ref.cropData) : undefined;
             return (
               <div
                 key={ref.id}
@@ -541,6 +621,8 @@ function LookReferencesSection({
                   preferredSize={160}
                   className="w-full h-full"
                   imageClassName="w-full h-full object-cover"
+                  imageStyle={cropTransformStyle}
+                  position={imagePosition}
                   placeholder={
                     <div className="flex items-center justify-center h-full text-xs text-slate-400">
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -556,6 +638,15 @@ function LookReferencesSection({
                 {isDisplayImage && (
                   <div className="absolute top-1 left-1 p-1 rounded-full bg-amber-500 text-white shadow-sm">
                     <Star className="w-2.5 h-2.5 fill-current" />
+                  </div>
+                )}
+                {/* Crop indicator (always visible when set, positioned after star) */}
+                {hasCrop && (
+                  <div
+                    className={`absolute ${isDisplayImage ? "top-1 left-7" : "top-1 left-1"} px-1 py-0.5 rounded text-[7px] font-semibold leading-none bg-blue-500 text-white shadow-sm`}
+                    title="Image has custom crop"
+                  >
+                    CROP
                   </div>
                 )}
                 {/* Action buttons overlay (visible on hover) */}
@@ -575,6 +666,15 @@ function LookReferencesSection({
                       title={isDisplayImage ? "Remove as display image" : "Set as display image"}
                     >
                       <Star className={`w-3 h-3 ${isDisplayImage ? "fill-current" : ""}`} />
+                    </button>
+                    {/* Edit crop button (bottom-center) */}
+                    <button
+                      type="button"
+                      onClick={() => onEditCrop(ref)}
+                      className="absolute bottom-1 left-1/2 -translate-x-1/2 p-1 rounded-full bg-slate-900/70 text-white opacity-0 group-hover:opacity-100 hover:bg-blue-500 transition-all"
+                      title="Edit crop"
+                    >
+                      <Crop className="w-3 h-3" />
                     </button>
                     {/* Remove button (top-right) */}
                     <button
@@ -658,6 +758,7 @@ function LookOptionPanel({
   onAddReference,
   onRemoveReference,
   onSetDisplayImage,
+  onEditCrop,
   isUploadingReference,
   readOnly,
 }) {
@@ -776,6 +877,7 @@ function LookOptionPanel({
             onAddReference={(file) => onAddReference(look.id, file)}
             onRemoveReference={(refId) => onRemoveReference(look.id, refId)}
             onSetDisplayImage={(refId) => onSetDisplayImage(look.id, refId)}
+            onEditCrop={(ref) => onEditCrop(look.id, ref)}
             readOnly={readOnly}
             isUploading={isUploadingReference}
           />
@@ -821,6 +923,11 @@ export default function ShotLooksCanvas({
 
   // Reference image upload state
   const [isUploadingReference, setIsUploadingReference] = useState(false);
+
+  // Crop editor modal state (S.4)
+  const [cropEditorOpen, setCropEditorOpen] = useState(false);
+  const [cropEditorLookId, setCropEditorLookId] = useState(null);
+  const [cropEditorReference, setCropEditorReference] = useState(null);
 
   // Refs for debounced save
   const saveTimerRef = useRef(null);
@@ -1127,6 +1234,85 @@ export default function ShotLooksCanvas({
     debouncedSave(newLooks);
   }, [looks, debouncedSave]);
 
+  /**
+   * Reset cover to auto by clearing displayImageId from all looks.
+   * Per S.3: Provides explicit "Reset to Auto" action.
+   * Note: heroProductId is preserved as it serves dual purpose (styling identity).
+   * Users can clear hero manually if desired.
+   */
+  const handleResetCoverToAuto = useCallback(() => {
+    const newLooks = looks.map((look) => {
+      // Only clear displayImageId if it's set
+      if (!look.displayImageId) return look;
+      return {
+        ...look,
+        displayImageId: null,
+      };
+    });
+
+    setLooks(newLooks);
+    // Save immediately since this is an explicit user action
+    saveLooks(newLooks);
+  }, [looks, saveLooks]);
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CROP EDITING HANDLERS (S.4)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Open the crop editor for a reference image.
+   * S.4: Entry point for editing crop on look references.
+   */
+  const handleEditCrop = useCallback((lookId, reference) => {
+    setCropEditorLookId(lookId);
+    setCropEditorReference(reference);
+    setCropEditorOpen(true);
+  }, []);
+
+  /**
+   * Save crop data to a reference.
+   * S.4: Stores cropData on shot.looks[].references[].cropData
+   * Note: aspect is stored as NUMBER (not string) per imageCropDataSchema semantics.
+   */
+  const handleSaveCrop = useCallback((cropData) => {
+    if (!cropEditorLookId || !cropEditorReference) return;
+
+    const newLooks = looks.map((look) => {
+      if (look.id !== cropEditorLookId) return look;
+
+      const newReferences = (look.references || []).map((ref) => {
+        if (ref.id !== cropEditorReference.id) return ref;
+        return {
+          ...ref,
+          cropData: cropData, // Contains x, y, width, height, zoom, rotation, aspect (number|null)
+        };
+      });
+
+      return {
+        ...look,
+        references: newReferences,
+      };
+    });
+
+    setLooks(newLooks);
+    // Save immediately since this is an explicit user action
+    saveLooks(newLooks);
+
+    // Close the editor
+    setCropEditorOpen(false);
+    setCropEditorLookId(null);
+    setCropEditorReference(null);
+  }, [looks, saveLooks, cropEditorLookId, cropEditorReference]);
+
+  /**
+   * Close the crop editor without saving.
+   */
+  const handleCloseCropEditor = useCallback(() => {
+    setCropEditorOpen(false);
+    setCropEditorLookId(null);
+    setCropEditorReference(null);
+  }, []);
+
   // ══════════════════════════════════════════════════════════════════════════
   // CLEANUP
   // ══════════════════════════════════════════════════════════════════════════
@@ -1166,6 +1352,14 @@ export default function ShotLooksCanvas({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* S.3: Cover source indicator with Reset to Auto action */}
+          {hasLooks && (
+            <CoverSourceIndicator
+              shot={shot}
+              onResetToAuto={handleResetCoverToAuto}
+              readOnly={readOnly}
+            />
+          )}
           {!readOnly && <TrustIndicator status={saveStatus} />}
           {/* Add Look button moves to tab bar when looks exist */}
           {!readOnly && !hasLooks && (
@@ -1205,6 +1399,7 @@ export default function ShotLooksCanvas({
           onAddReference={handleAddReference}
           onRemoveReference={handleRemoveReference}
           onSetDisplayImage={handleSetDisplayImage}
+          onEditCrop={handleEditCrop}
           isUploadingReference={isUploadingReference}
           readOnly={readOnly}
         />
@@ -1231,6 +1426,16 @@ export default function ShotLooksCanvas({
           families={families}
           loadFamilyDetails={loadFamilyDetails}
           onSubmit={handleProductsSelected}
+        />
+      )}
+
+      {/* S.4: Crop editor modal for look references */}
+      {cropEditorOpen && cropEditorReference && (
+        <AdvancedImageCropEditor
+          open={cropEditorOpen}
+          onClose={handleCloseCropEditor}
+          attachment={cropEditorReference}
+          onSave={handleSaveCrop}
         />
       )}
     </section>

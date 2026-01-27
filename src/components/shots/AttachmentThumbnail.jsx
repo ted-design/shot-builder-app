@@ -3,6 +3,7 @@ import { Button } from "../ui/button";
 import AppImage from "../common/AppImage";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { getCropTransformStyle, getCropObjectPosition } from "../../lib/imageHelpers";
 
 /**
  * AttachmentThumbnail - Individual attachment thumbnail with controls
@@ -38,17 +39,11 @@ export default function AttachmentThumbnail({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  // Calculate CSS transforms for crop preview (if cropData exists)
-  const getImageStyle = () => {
-    if (!attachment.cropData) return {};
-
-    const { x, y, zoom = 1, rotation = 0 } = attachment.cropData;
-
-    return {
-      transform: `translate(-${x}%, -${y}%) scale(${zoom}) rotate(${rotation}deg)`,
-      transformOrigin: "center",
-    };
-  };
+  // S.4: Calculate CSS transforms for crop preview using centralized helpers
+  const hasCrop = Boolean(attachment.cropData);
+  const hasCropTransform = hasCrop && (attachment.cropData.zoom !== 1 || attachment.cropData.rotation !== 0);
+  const imageStyle = hasCropTransform ? getCropTransformStyle(attachment.cropData) : undefined;
+  const imagePosition = !hasCropTransform && hasCrop ? getCropObjectPosition(attachment.cropData) : undefined;
 
   return (
     <div
@@ -87,7 +82,8 @@ export default function AttachmentThumbnail({
           preferredSize={240}
           className="h-full w-full"
           imageClassName="h-full w-full object-cover"
-          style={getImageStyle()}
+          imageStyle={imageStyle}
+          position={imagePosition}
           placeholder={
             <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
               Loading…

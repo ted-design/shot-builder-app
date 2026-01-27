@@ -28,7 +28,7 @@ import { useAuth } from "../context/AuthContext";
 import { isDemoModeActive } from "../lib/flags";
 import { scheduleQueryKeys } from "./useSchedule";
 import { calculateEndTime, parseTimeToMinutes, minutesToTimeString } from "../lib/timeUtils";
-import { getPrimaryAttachmentWithStyle, getShotImagePath } from "../lib/imageHelpers";
+import { getPrimaryAttachmentWithStyle, getShotImagePath, resolveShotCoverImage } from "../lib/imageHelpers";
 import { stripHtml } from "../lib/stripHtml";
 import {
   getNextAvailableTime,
@@ -153,45 +153,6 @@ export function useResolvedScheduleEntries(
       return nextDetailed && !currentDetailed;
     };
 
-    const selectShotImage = (shot, shotProducts, productsMap) => {
-      if (!shot) return null;
-
-      // Priority 1: Primary attachment from new multi-image system
-      if (shot.attachments && Array.isArray(shot.attachments) && shot.attachments.length > 0) {
-        const primary = shot.attachments.find((att) => att.isPrimary) || shot.attachments[0];
-        if (primary?.downloadURL) return primary.downloadURL;
-        if (primary?.path) return primary.path;
-      }
-
-      // Priority 2: Legacy reference image
-      if (shot.referenceImagePath) return shot.referenceImagePath;
-      if (shot.downloadURL) return shot.downloadURL;
-
-      // Priority 3: Shot-level product images (when no shot image is attached)
-      if (Array.isArray(shotProducts)) {
-        for (const product of shotProducts) {
-          if (!product) continue;
-          if (product.thumbnailImagePath) return product.thumbnailImagePath;
-          if (product.colourImagePath) return product.colourImagePath;
-        }
-      }
-
-      // Priority 4: Family product images (via lookup map)
-      const productIds = Array.isArray(shot.productIds) ? shot.productIds : [];
-      for (const productId of productIds) {
-        const family = productsMap?.get?.(productId);
-        if (!family) continue;
-        if (family.thumbnailImagePath) return family.thumbnailImagePath;
-        if (Array.isArray(family.images)) {
-          const candidate = family.images.find(Boolean);
-          if (candidate) return candidate;
-        }
-        if (family.colourImagePath) return family.colourImagePath;
-      }
-
-      return null;
-    };
-
     // First, resolve entry data
     const resolved = entries.map((entry) => {
       const endTime = calculateEndTime(entry.startTime, entry.duration);
@@ -300,10 +261,8 @@ export function useResolvedScheduleEntries(
             resolvedTalent: talentNames,
             resolvedProducts: productNames,
             resolvedLocation: locationName,
-            resolvedImage:
-              shotImage?.path ||
-              selectShotImage(shot, shotProducts, productsMap) ||
-              getShotImagePath(shot),
+            // Use unified resolver for consistent cover images across all views
+            resolvedImage: resolveShotCoverImage(shot, shotProducts),
             resolvedImagePosition: shotImage?.objectPosition,
             description: "",
             resolvedDescription,
