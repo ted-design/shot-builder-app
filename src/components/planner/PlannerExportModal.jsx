@@ -24,11 +24,15 @@ import {
 } from "../../lib/pdfLayoutCalculator";
 import { processImageForPDF, getOptimalImageDimensions } from "../../lib/pdfImageProcessor";
 import { getPrimaryAttachment } from "../../lib/imageHelpers";
-import { FileDown, Eye, X, GripVertical } from "lucide-react";
+import { FileDown, X, ExternalLink, Loader2 } from "lucide-react";
 import PlannerSheetSectionManager from "./PlannerSheetSectionManager";
 import PdfPagePreview from "../export/PdfPagePreview";
+import ExportSectionPanel from "../export/ExportSectionPanel";
+import ExportEditorShell from "../export/ExportEditorShell";
+import LightweightExportPreview from "../export/LightweightExportPreview";
 import { stripHtml } from "../../lib/stripHtml";
 import { getShotNotesPreview } from "../../lib/shotNotes";
+import { getExportDescriptionText } from "../../lib/shotDescription";
 import {
   getDefaultSectionConfig,
   exportSettingsToSectionConfig,
@@ -39,6 +43,7 @@ import {
 } from "../../lib/plannerSheetSections";
 import useImageExportWorker from "../../hooks/useImageExportWorker";
 import ExportProgressModal from "../export/ExportProgressModal";
+import { legacyOptionsToDocumentState } from "../../lib/documentModel";
 
 const styles = StyleSheet.create({
   page: {
@@ -125,6 +130,105 @@ const styles = StyleSheet.create({
     height: 50,
     objectFit: "cover",
     borderRadius: 2,
+  },
+  // ============================================================================
+  // ShotBlock Layout Styles (stacked block design for table mode)
+  // ============================================================================
+  shotBlock: {
+    flexDirection: "row",
+    paddingTop: 9,
+    paddingBottom: 10,
+    paddingHorizontal: 4,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#f1f5f9",
+    borderBottomStyle: "solid",
+  },
+  shotBlockImageContainer: {
+    width: 44,
+    height: 44,
+    marginRight: 10,
+    flexShrink: 0,
+  },
+  shotBlockImage: {
+    width: 44,
+    height: 44,
+    objectFit: "cover",
+    borderRadius: 3,
+  },
+  shotBlockContent: {
+    flex: 1,
+    flexShrink: 1,
+  },
+  shotBlockPrimary: {
+    marginBottom: 4,
+  },
+  shotBlockName: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: "#1e293b",
+    lineHeight: 1.25,
+  },
+  shotBlockDescription: {
+    fontSize: 9,
+    color: "#64748b",
+    lineHeight: 1.3,
+    marginTop: 1,
+  },
+  shotBlockMeta: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    marginTop: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+    backgroundColor: "#f8fafc",
+    borderRadius: 2,
+  },
+  shotBlockMetaItem: {
+    fontSize: 7.5,
+    color: "#64748b",
+    lineHeight: 1.2,
+  },
+  shotBlockMetaSeparator: {
+    fontSize: 7,
+    color: "#cbd5e1",
+    marginHorizontal: 3,
+  },
+  // Products displayed as separate semantic group with subtle pill treatment
+  shotBlockProducts: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    marginTop: 4,
+    gap: 4,
+  },
+  shotBlockProductItem: {
+    fontSize: 7.5,
+    color: "#334155",
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 3,
+    lineHeight: 1.2,
+  },
+  shotBlockProductMore: {
+    fontSize: 7,
+    color: "#94a3b8",
+    fontStyle: "italic",
+  },
+  shotBlockNotes: {
+    marginTop: 5,
+    paddingTop: 3,
+    paddingBottom: 2,
+    paddingLeft: 6,
+    borderLeftWidth: 2,
+    borderLeftColor: "#e2e8f0",
+    borderLeftStyle: "solid",
+  },
+  shotBlockNotesText: {
+    fontSize: 8,
+    color: "#64748b",
+    lineHeight: 1.35,
   },
   laneSection: {
     marginBottom: 18,
@@ -386,6 +490,104 @@ const styles = StyleSheet.create({
     color: "#2563eb",
     textDecoration: "underline",
   },
+  // ============================================================================
+  // Gallery V2 Editorial Layout Styles
+  // Denser, more scannable card design without repetitive labels
+  // ============================================================================
+  galleryV2Title: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: "#111827",
+    marginBottom: 3,
+    lineHeight: 1.3,
+  },
+  galleryV2TitleCompact: {
+    fontSize: 10,
+    marginBottom: 2,
+  },
+  galleryV2Description: {
+    fontSize: 8.5,
+    color: "#64748b",
+    marginBottom: 5,
+    lineHeight: 1.35,
+  },
+  galleryV2DescriptionCompact: {
+    fontSize: 8,
+    marginBottom: 4,
+  },
+  galleryV2MetaStrip: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    marginBottom: 5,
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+    backgroundColor: "#f8fafc",
+    borderRadius: 2,
+  },
+  galleryV2MetaItem: {
+    fontSize: 8,
+    color: "#64748b",
+  },
+  galleryV2MetaItemCompact: {
+    fontSize: 7.5,
+  },
+  galleryV2MetaSeparator: {
+    fontSize: 7,
+    color: "#cbd5e1",
+    marginHorizontal: 4,
+  },
+  galleryV2MetaSeparatorCompact: {
+    marginHorizontal: 3,
+  },
+  galleryV2Products: {
+    marginBottom: 4,
+    marginTop: 1,
+  },
+  galleryV2ProductItem: {
+    fontSize: 8,
+    color: "#334155",
+    lineHeight: 1.3,
+    marginBottom: 2,
+  },
+  galleryV2ProductItemCompact: {
+    fontSize: 7.5,
+  },
+  galleryV2ProductBullet: {
+    fontSize: 6,
+    color: "#94a3b8",
+  },
+  galleryV2ProductMore: {
+    fontSize: 7.5,
+    color: "#94a3b8",
+    fontStyle: "italic",
+    marginTop: 1,
+  },
+  galleryV2Notes: {
+    marginTop: 4,
+    paddingTop: 3,
+    paddingHorizontal: 5,
+    paddingBottom: 3,
+    paddingLeft: 6,
+    backgroundColor: "#f8fafc",
+    borderLeftWidth: 2,
+    borderLeftColor: "#e2e8f0",
+    borderLeftStyle: "solid",
+    borderRadius: 2,
+  },
+  galleryV2NotesCompact: {
+    paddingTop: 2,
+    paddingHorizontal: 3,
+    paddingBottom: 2,
+  },
+  galleryV2NotesText: {
+    fontSize: 7.5,
+    color: "#64748b",
+    lineHeight: 1.3,
+  },
+  galleryV2NotesTextCompact: {
+    fontSize: 7,
+  },
   galleryContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -396,7 +598,7 @@ const styles = StyleSheet.create({
 const fieldOptions = [
   { key: "shotNumber", label: "Shot number" },
   { key: "name", label: "Shot title" },
-  { key: "type", label: "Shot type" },
+  { key: "type", label: "Description" },
   { key: "date", label: "Date" },
   { key: "location", label: "Location" },
   { key: "talent", label: "Talent" },
@@ -636,24 +838,65 @@ const BLOCK_TAGS = new Set([
   "hr",
 ]);
 
+/**
+ * PlannerPdfDocument
+ *
+ * PDF Document Component that renders the planner export.
+ * Uses the document composition model (src/lib/documentModel.ts) to ensure
+ * each section renders exactly once at the appropriate document level:
+ *
+ * Document Structure:
+ * ┌─────────────────────────────────────┐
+ * │ DocumentHeader                      │  ← Rendered ONCE at document start
+ * │   - title, subtitle, timestamp      │
+ * ├─────────────────────────────────────┤
+ * │ GlobalSummaries                     │  ← Rendered ONCE after header
+ * │   - laneSummary (if enabled)        │
+ * │   - talentSummary (if enabled)      │
+ * ├─────────────────────────────────────┤
+ * │ TableHeader (table layout only)     │  ← Rendered ONCE before lanes
+ * ├─────────────────────────────────────┤
+ * │ LaneSection (repeated per lane)     │
+ * │   - laneHeading                     │
+ * │   ├── ShotBlock (repeated)          │
+ * │   └── ...                           │
+ * └─────────────────────────────────────┘
+ */
 const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, options }) => {
-  const orientation = options.orientation === "landscape" ? "landscape" : "portrait";
-  const layout = options.layout === "gallery" ? "gallery" : "table"; // treat non-gallery as table
-  const densityId = options.density || "standard";
-  const parsedColumns = Number.parseInt(options.galleryColumns, 10);
+  // ============================================================================
+  // Convert legacy options to document composition model
+  // This ensures consistent structure and enables future model-based features
+  // ============================================================================
+  const documentState = legacyOptionsToDocumentState(options);
+
+  // Extract document-level settings from the composed model
+  const { header: headerState, summaries: summariesState, shots: shotsState } = documentState;
+
+  // Orientation and layout from document model
+  const orientation = headerState.orientation;
+  const layout = shotsState.layoutMode;
+  const densityId = shotsState.density;
+
+  // Gallery columns with bounds checking
   const galleryColumns =
     layout === "gallery"
-      ? Math.min(6, Math.max(1, Number.isNaN(parsedColumns) ? 3 : parsedColumns))
+      ? Math.min(6, Math.max(1, shotsState.galleryColumns))
       : 1;
   const columnWidth = `${(100 / galleryColumns).toFixed(4)}%`;
+
+  // Field visibility from section states (preserves flex values)
   const visibleFields = options.fields || {};
   const customLabels = options.customLabels || {};
 
   // Use sectionStates from options if available (includes flex values), otherwise fallback
   const sectionStates = options.sectionStates || exportSettingsToSectionConfig(visibleFields);
 
-  const showLaneSummary = options.includeLaneSummary && laneSummary?.lanes?.length;
-  const showTalentSummary = options.includeTalentSummary && talentSummary?.rows?.length;
+  // ============================================================================
+  // Global Summaries: Render ONCE at document level (not per lane)
+  // The document model ensures these are document-level, not lane-level
+  // ============================================================================
+  const showLaneSummary = summariesState.laneSummary.visible && laneSummary?.lanes?.length;
+  const showTalentSummary = summariesState.talentSummary.visible && talentSummary?.rows?.length;
   const talentLanes = Array.isArray(talentSummary?.lanes) ? talentSummary.lanes : [];
   const talentRows = Array.isArray(talentSummary?.rows) ? talentSummary.rows : [];
   const exportLanes = Array.isArray(lanes) ? lanes : [];
@@ -1205,7 +1448,9 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
       // Regular columns
       switch (column.id) {
         case SECTION_TYPES.SHOT_TYPE:
-          return stripHtml(shot.type || "") || "-";
+          // Use centralized description resolver with safe fallback logic
+          // See src/lib/shotDescription.js for precedence rules
+          return getExportDescriptionText(shot, { products: shot?.products }) || "-";
 
         case SECTION_TYPES.TALENT: {
           const talentList = ensureStringList(shot?.talent);
@@ -1251,6 +1496,132 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
             </View>
           );
         })}
+      </View>
+    );
+  };
+
+  // ============================================================================
+  // ShotBlock Renderer - Stacked layout for dense, scannable shot rows
+  // Replaces column-based table rows with a hierarchical block structure:
+  //   A) PRIMARY LINE: Shot name (dominant) + description (subline)
+  //   B) SECONDARY METADATA: Compact strip with date/loc, talent, products
+  //   C) NOTES: Full-width block when present
+  //   D) IMAGE: Small thumbnail left-aligned when present
+  // ============================================================================
+  const renderShotBlock = (shot, _lane, index, sectionStates) => {
+    const visibleSections = getVisibleSections(sectionStates);
+    const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
+    const showShotNumber = visibleSections.some(s => s.id === SECTION_TYPES.SHOT_NUMBER);
+    const showShotName = visibleSections.some(s => s.id === SECTION_TYPES.SHOT_NAME);
+    const showShotType = visibleSections.some(s => s.id === SECTION_TYPES.SHOT_TYPE);
+    const showDate = visibleSections.some(s => s.id === SECTION_TYPES.DATE);
+    const showLocation = visibleSections.some(s => s.id === SECTION_TYPES.LOCATION);
+    const showTalent = visibleSections.some(s => s.id === SECTION_TYPES.TALENT);
+    const showProducts = visibleSections.some(s => s.id === SECTION_TYPES.PRODUCTS);
+    const showNotes = visibleSections.some(s => s.id === SECTION_TYPES.NOTES);
+
+    const shotKey = shot?.id || index;
+    const shotNumber = normaliseShotNumber(shot?.shotNumber);
+    const talentList = ensureStringList(shot?.talent);
+    const productList = ensureStringList(shot?.products);
+
+    // Build primary line: shot name with optional shot number prefix
+    const shotName = shot?.name || '';
+    const displayName = showShotNumber && shotNumber
+      ? `${shotNumber} · ${shotName || 'Untitled Shot'}`
+      : shotName || (showShotName ? 'Untitled Shot' : '');
+
+    // Build description using centralized resolver with safe fallback logic
+    // See src/lib/shotDescription.js for precedence rules and suppression checks
+    const description = showShotType ? getExportDescriptionText(shot, { products: productList }) : '';
+
+    // Build metadata items (compact strip below name/description)
+    // Products are rendered separately for better visual hierarchy
+    const metaItems = [];
+
+    // Date/Location combined
+    if (showDate && shot?.date) {
+      metaItems.push({ key: 'date', value: shot.date });
+    }
+    if (showLocation && shot?.location) {
+      metaItems.push({ key: 'location', value: shot.location });
+    }
+
+    // Talent - comma-separated
+    if (showTalent && talentList.length > 0) {
+      metaItems.push({ key: 'talent', value: talentList.join(', ') });
+    }
+
+    // Products - displayed as separate semantic group with pill treatment
+    const MAX_PRODUCTS_SHOWN = 3;
+    const hasProducts = showProducts && productList.length > 0;
+    const productsToShow = hasProducts ? productList.slice(0, MAX_PRODUCTS_SHOWN) : [];
+    const remainingProducts = hasProducts ? productList.length - MAX_PRODUCTS_SHOWN : 0;
+
+    // Notes (full width when present)
+    const notesText = showNotes ? getShotNotesPreview(shot) : '';
+
+    // Check if image is real (not a placeholder flag)
+    const hasRealImage = showImage && shot?.image && shot.image !== '__PREVIEW_PLACEHOLDER__';
+
+    return (
+      <View key={shotKey} style={styles.shotBlock} wrap={false}>
+        {/* Optional small thumbnail - only renders when real image exists */}
+        {showImage && hasRealImage && (
+          <View style={styles.shotBlockImageContainer}>
+            <Image src={shot.image} style={styles.shotBlockImage} />
+          </View>
+        )}
+
+        {/* Content area */}
+        <View style={styles.shotBlockContent}>
+          {/* Primary Line: Name + Description */}
+          {(displayName || description) && (
+            <View style={styles.shotBlockPrimary}>
+              {displayName ? (
+                <Text style={styles.shotBlockName}>{displayName}</Text>
+              ) : null}
+              {description ? (
+                <Text style={styles.shotBlockDescription}>{description}</Text>
+              ) : null}
+            </View>
+          )}
+
+          {/* Secondary Metadata Strip (location, talent, date) */}
+          {metaItems.length > 0 && (
+            <View style={styles.shotBlockMeta}>
+              {metaItems.map((item, idx) => (
+                <React.Fragment key={item.key}>
+                  {idx > 0 && (
+                    <Text style={styles.shotBlockMetaSeparator}>·</Text>
+                  )}
+                  <Text style={styles.shotBlockMetaItem}>{item.value}</Text>
+                </React.Fragment>
+              ))}
+            </View>
+          )}
+
+          {/* Products - Separate semantic group with pill treatment */}
+          {hasProducts && (
+            <View style={styles.shotBlockProducts}>
+              {productsToShow.map((product, idx) => (
+                <Text key={`product-${idx}`} style={styles.shotBlockProductItem}>
+                  {product}
+                </Text>
+              ))}
+              {remainingProducts > 0 && (
+                <Text style={styles.shotBlockProductMore}>+{remainingProducts} more</Text>
+              )}
+            </View>
+          )}
+
+          {/* Notes - Full Width with left rail */}
+          {notesText ? (
+            <View style={styles.shotBlockNotes}>
+              <Text style={styles.shotBlockNotesText}>{notesText}</Text>
+            </View>
+          ) : null}
+        </View>
       </View>
     );
   };
@@ -1303,9 +1674,8 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
     const dateItemBase = visibleFields.date
       ? { key: "date", icon: PdfIconCalendar, label: "Date", value: shot?.date || null }
       : null;
-    const typeItemBase = visibleFields.type
-      ? { key: "type", icon: null, label: "Shot Type", value: stripHtml(shot?.type || "") || null }
-      : null;
+    // Legacy shotType field is suppressed as a labeled item in card/list layout.
+    // Description content flows through ShotBlock layout when using table mode.
 
     const notesContent = visibleFields.notes
       ? buildNotesContent(getShotNotesPreview(shot), `${shotKey}`, isGallery ? styles.galleryNotesContainer : null)
@@ -1337,11 +1707,6 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
           labelStyle: styles.listDetailLabel,
           valueStyle: styles.listDetailValue,
         }),
-        makeItem(typeItemBase, {
-          containerStyle: styles.listDetailItem,
-          labelStyle: styles.listDetailLabel,
-          valueStyle: styles.listDetailValue,
-        }),
       ].filter(Boolean);
 
       const hasRightContent = hasShotNumber || rightItems.length > 0;
@@ -1359,12 +1724,9 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
         <View key={shotKey} style={cardStyle} wrap={false}>
           <View style={styles.listRow}>
             <View style={leftColumnStyles}>
+              {/* Image: only render when real image exists */}
               {hasRealImage ? (
                 <Image src={shot.image} style={shotImageStyle} />
-              ) : hasImage ? (
-                <View style={[shotImageStyle, { backgroundColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center' }]}>
-                  <Text style={{ fontSize: 8, color: '#94a3b8' }}>Image Preview</Text>
-                </View>
               ) : null}
               {shotTitle ? <Text style={styles.shotTitle}>{shotTitle}</Text> : null}
               {leftItems.map((item, itemIndex) => renderDetailItem(item, itemIndex))}
@@ -1381,81 +1743,118 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
       );
     }
 
-    const galleryItems = [
-      makeItem(locationItemBase, {
-        containerStyle: styles.galleryDetailItem,
-        labelStyle: styles.galleryDetailLabel,
-        valueStyle: styles.galleryDetailValue,
-      }),
-      makeItem(talentItemBase, {
-        containerStyle: styles.galleryDetailItem,
-        labelStyle: styles.galleryDetailLabel,
-        valueStyle: styles.galleryDetailValue,
-      }),
-      makeItem(productItemBase, {
-        containerStyle: styles.galleryDetailItem,
-        labelStyle: styles.galleryDetailLabel,
-        valueStyle: styles.galleryDetailValue,
-        bulletStyle: styles.galleryDetailBullet,
-      }),
-      makeItem(dateItemBase, {
-        containerStyle: styles.galleryDetailItem,
-        labelStyle: styles.galleryDetailLabel,
-        valueStyle: styles.galleryDetailValue,
-      }),
-      makeItem(typeItemBase, {
-        containerStyle: styles.galleryDetailItem,
-        labelStyle: styles.galleryDetailLabel,
-        valueStyle: styles.galleryDetailValue,
-      }),
-    ].filter(Boolean);
+    // ========================================================================
+    // Gallery V2 Editorial Layout
+    // Hierarchy: Title → Description → Meta Strip → Products → Notes
+    // No field labels; denser, more scannable design
+    // ========================================================================
 
-    const titleStyle = [styles.shotTitle, styles.galleryShotTitle];
     const effectiveColumns = layoutConfig?.columns || galleryColumns;
-    if (effectiveColumns >= 3) {
-      titleStyle.push(styles.galleryShotTitleCompact);
+    const isCompact = effectiveColumns >= 3;
+
+    // Title styles
+    const titleStyle = [styles.galleryV2Title];
+    if (isCompact) titleStyle.push(styles.galleryV2TitleCompact);
+
+    // Get description using centralized resolver
+    const descriptionText = getExportDescriptionText(shot, { products: productList });
+    const descriptionStyle = [styles.galleryV2Description];
+    if (isCompact) descriptionStyle.push(styles.galleryV2DescriptionCompact);
+
+    // Build meta strip items (location · talent · date)
+    const metaItems = [];
+    if (visibleFields.location && shot?.location) {
+      metaItems.push({ key: 'location', value: shot.location });
+    }
+    if (visibleFields.talent && talentList.length > 0) {
+      metaItems.push({ key: 'talent', value: talentList.join(', ') });
+    }
+    if (visibleFields.date && shot?.date) {
+      metaItems.push({ key: 'date', value: shot.date });
     }
 
-    const galleryLabelStyle = effectiveColumns >= 3 ? styles.galleryDetailLabelCompact : null;
-    const galleryValueStyle = effectiveColumns >= 3 ? styles.galleryDetailValueCompact : null;
-    const galleryBulletStyle = effectiveColumns >= 3 ? styles.galleryDetailBulletCompact : null;
+    const metaItemStyle = [styles.galleryV2MetaItem];
+    const metaSepStyle = [styles.galleryV2MetaSeparator];
+    if (isCompact) {
+      metaItemStyle.push(styles.galleryV2MetaItemCompact);
+      metaSepStyle.push(styles.galleryV2MetaSeparatorCompact);
+    }
 
-    const galleryItemsWithSizing = galleryItems.map((item) =>
-      makeItem(item, {
-        labelStyle: item.labelStyle
-          ? [item.labelStyle, galleryLabelStyle].filter(Boolean)
-          : galleryLabelStyle,
-        valueStyle: item.valueStyle
-          ? [item.valueStyle, galleryValueStyle].filter(Boolean)
-          : galleryValueStyle,
-        bulletStyle: item.bulletStyle
-          ? [item.bulletStyle, galleryBulletStyle].filter(Boolean)
-          : galleryBulletStyle,
-      })
-    );
+    // Products: cap at 2 items with "+N more"
+    const MAX_PRODUCTS_SHOWN = 2;
+    const showProducts = visibleFields.products && productList.length > 0;
+    const productsToShow = showProducts ? productList.slice(0, MAX_PRODUCTS_SHOWN) : [];
+    const remainingProducts = showProducts ? productList.length - MAX_PRODUCTS_SHOWN : 0;
+    const productItemStyle = [styles.galleryV2ProductItem];
+    if (isCompact) productItemStyle.push(styles.galleryV2ProductItemCompact);
+
+    // Notes: deterministic truncation at 120 chars (consistent across all densities)
+    const GALLERY_NOTES_MAX_CHARS = 120;
+    const rawNotes = visibleFields.notes ? getShotNotesPreview(shot) : '';
+    const truncatedNotes = rawNotes.length > GALLERY_NOTES_MAX_CHARS
+      ? rawNotes.slice(0, GALLERY_NOTES_MAX_CHARS).trim() + '…'
+      : rawNotes;
+    const notesStyle = [styles.galleryV2Notes];
+    const notesTextStyle = [styles.galleryV2NotesText];
+    if (isCompact) {
+      notesStyle.push(styles.galleryV2NotesCompact);
+      notesTextStyle.push(styles.galleryV2NotesTextCompact);
+    }
 
     // Check if image is a real image or a preview placeholder for gallery
     const hasRealGalleryImage = hasImage && shot.image !== '__PREVIEW_PLACEHOLDER__';
 
     return (
       <View key={shotKey} style={cardStyle} wrap={false}>
+        {/* Shot Number Badge */}
         {hasShotNumber ? (
           <Text style={[styles.shotNumberBadge, styles.galleryShotNumber]}>{shotNumber}</Text>
         ) : null}
+
+        {/* Image: only render when real image exists; omit placeholder to avoid "broken CMS" feel */}
         {hasRealGalleryImage ? (
           <Image src={shot.image} style={shotImageStyle} />
-        ) : hasImage ? (
-          <View style={[shotImageStyle, { backgroundColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center' }]}>
-            <Text style={{ fontSize: 8, color: '#94a3b8' }}>Image Preview</Text>
-          </View>
         ) : null}
+
+        {/* Title */}
         {shotTitle ? <Text style={titleStyle}>{shotTitle}</Text> : null}
-        {galleryItemsWithSizing.length ? (
-          <View style={[styles.detailStack, styles.galleryDetailStack]}>
-            {galleryItemsWithSizing.map((item, itemIndex) => renderDetailItem(item, itemIndex))}
+
+        {/* Description (via centralized resolver) */}
+        {descriptionText ? <Text style={descriptionStyle}>{descriptionText}</Text> : null}
+
+        {/* Meta Strip: Location · Talent · Date */}
+        {metaItems.length > 0 ? (
+          <View style={styles.galleryV2MetaStrip}>
+            {metaItems.map((item, idx) => (
+              <React.Fragment key={item.key}>
+                {idx > 0 ? <Text style={metaSepStyle}>·</Text> : null}
+                <Text style={metaItemStyle}>{item.value}</Text>
+              </React.Fragment>
+            ))}
           </View>
         ) : null}
-        {notesContent}
+
+        {/* Products (capped at 2 + "+N more") */}
+        {showProducts ? (
+          <View style={styles.galleryV2Products}>
+            {productsToShow.map((product, idx) => (
+              <Text key={`product-${idx}`} style={productItemStyle}>
+                <Text style={styles.galleryV2ProductBullet}>• </Text>
+                {product}
+              </Text>
+            ))}
+            {remainingProducts > 0 ? (
+              <Text style={styles.galleryV2ProductMore}>+{remainingProducts} more</Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {/* Notes (truncated callout) */}
+        {truncatedNotes ? (
+          <View style={notesStyle}>
+            <Text style={notesTextStyle}>{truncatedNotes}</Text>
+          </View>
+        ) : null}
       </View>
     );
   };
@@ -1481,13 +1880,29 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
     </View>
   );
 
+  // ============================================================================
+  // PDF Document Rendering
+  // Structure follows the document composition model exactly:
+  // 1. DocumentHeader (title, subtitle, timestamp) - ONCE
+  // 2. GlobalSummaries (lane summary, talent summary) - ONCE
+  // 3. LaneSections (repeated per lane with shot content)
+  // ============================================================================
   return (
     <Document>
       <Page size="LETTER" orientation={orientation} style={styles.page}>
+        {/* ================================================================
+            DOCUMENT HEADER - Rendered exactly ONCE at document start
+            Uses headerState from document composition model
+            ================================================================ */}
         <View style={styles.header} wrap={false}>
-          {options.title ? <Text style={styles.title}>{options.title}</Text> : null}
-          {options.subtitle ? <Text style={styles.subtitle}>{options.subtitle}</Text> : null}
+          {headerState.title ? <Text style={styles.title}>{headerState.title}</Text> : null}
+          {headerState.subtitle ? <Text style={styles.subtitle}>{headerState.subtitle}</Text> : null}
         </View>
+
+        {/* ================================================================
+            GLOBAL SUMMARIES - Rendered exactly ONCE after header
+            These are document-level summaries, NOT repeated per lane
+            ================================================================ */}
         {showLaneSummary
           ? renderSummaryTable(
               [
@@ -1522,13 +1937,18 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
               }))
             )
           : null}
-        {layout === "table" && exportLanes.some(lane => Array.isArray(lane.shots) && lane.shots.length > 0) && (
-          renderTableHeaderRow(sectionStates, customLabels)
-        )}
+
+        {/* ================================================================
+            LANE SECTIONS - Repeated for each lane
+            Each lane contains its shots (no header/summary repetition)
+            Table layout uses ShotBlock (stacked design for dense readability)
+            Gallery layout uses shotCards
+            ================================================================ */}
         {exportLanes.map((lane, laneIndex) => {
           const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
           const shotCards = laneShots.map((shot, index) => renderShotCard(shot, lane, index));
-          const tableRows = laneShots.map((shot, index) => renderTableRow(shot, lane, index, sectionStates));
+          // Use ShotBlock layout for table mode (stacked, dense, scannable)
+          const shotBlocks = laneShots.map((shot, index) => renderShotBlock(shot, lane, index, sectionStates));
           return (
             <View key={lane.id} style={styles.laneSection}>
               <Text style={styles.laneHeading}>
@@ -1539,7 +1959,7 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
               ) : layout === "gallery" ? (
                 <View style={styles.galleryContainer}>{shotCards}</View>
               ) : (
-                <View>{tableRows}</View>
+                <View>{shotBlocks}</View>
               )}
             </View>
           );
@@ -1562,6 +1982,33 @@ const escapeCsv = (value) => {
 };
 
 const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoading, projectName }) => {
+  // ============================================================================
+  // New Preset-Driven State (ExportEditorShell)
+  // ============================================================================
+  // The resolved config from ExportEditorShell drives both preview and export
+  const [resolvedConfig, setResolvedConfig] = useState(null);
+  const [legacyOptionsFromPreset, setLegacyOptionsFromPreset] = useState(null);
+
+  // Handler for config changes from ExportEditorShell
+  const handlePresetConfigChange = useCallback((config, legacyOpts) => {
+    setResolvedConfig(config);
+    setLegacyOptionsFromPreset(legacyOpts);
+  }, []);
+
+  // ============================================================================
+  // Canonical Derived Options (Single Source of Truth)
+  // ============================================================================
+  // This memoized object is computed directly from the preset config.
+  // Preview, PDF export, and CSV export all consume this same object,
+  // eliminating sync issues and ensuring visual consistency.
+  //
+  // Dependencies are stable primitives and nested objects from legacyOptionsFromPreset.
+  // The memo only recomputes when actual config values change.
+  // ============================================================================
+
+  // ============================================================================
+  // Legacy State (kept for backward compatibility, driven by preset config)
+  // ============================================================================
   const [title, setTitle] = useState("Planner export");
   const [subtitle, setSubtitle] = useState("");
   const [orientation, setOrientation] = useState("portrait");
@@ -1590,11 +2037,199 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
   const [dateFilterMode, setDateFilterMode] = useState("any");
   const [selectedDate, setSelectedDate] = useState("");
   const [showPreview, setShowPreview] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Resizable divider state
+  // On-demand PDF preview state (lightweight HTML preview by default)
+  const [isGeneratingPdfPreview, setIsGeneratingPdfPreview] = useState(false);
+
+  // Section expansion state for ExportSectionPanel (legacy UI, no longer user-facing)
+  const [expandedSections, setExpandedSections] = useState({
+    header: true,
+    summaries: true,
+    shots: true,
+  });
+
+  // Resizable divider state (no longer needed with ExportEditorShell's built-in layout)
   const [dividerPosition, setDividerPosition] = useState(40); // percentage
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef(null);
+
+  // ============================================================================
+  // Derived Legacy Options (CANONICAL SOURCE OF TRUTH)
+  // ============================================================================
+  // This is the single memoized object that preview, PDF export, and CSV export
+  // all consume. It's computed directly from legacyOptionsFromPreset (when available)
+  // with fallback to legacy state variables for edge cases.
+  //
+  // Benefits:
+  // - Single source of truth eliminates sync bugs
+  // - Preview always matches export (trust invariant maintained)
+  // - Memoization with explicit dependencies prevents unnecessary re-renders
+  // ============================================================================
+  const derivedLegacyOptions = useMemo(() => {
+    // When preset config is available, use it directly as the canonical source
+    if (legacyOptionsFromPreset) {
+      return {
+        title: legacyOptionsFromPreset.title || projectName || "Planner export",
+        subtitle: legacyOptionsFromPreset.subtitle || "",
+        orientation: legacyOptionsFromPreset.orientation || "portrait",
+        layout: legacyOptionsFromPreset.layout || "table",
+        density: legacyOptionsFromPreset.density || "standard",
+        galleryColumns: Number(legacyOptionsFromPreset.galleryColumns) || 3,
+        fields: {
+          shotNumber: legacyOptionsFromPreset.fields?.shotNumber ?? true,
+          name: legacyOptionsFromPreset.fields?.shotName ?? true,
+          type: legacyOptionsFromPreset.fields?.shotType ?? true,
+          date: legacyOptionsFromPreset.fields?.date ?? true,
+          location: legacyOptionsFromPreset.fields?.location ?? true,
+          talent: legacyOptionsFromPreset.fields?.talent ?? true,
+          products: legacyOptionsFromPreset.fields?.products ?? true,
+          notes: legacyOptionsFromPreset.fields?.notes ?? true,
+          image: legacyOptionsFromPreset.fields?.image ?? false,
+        },
+        sectionStates, // Keep section states for column widths
+        customLabels,
+        includeLaneSummary: legacyOptionsFromPreset.includeLaneSummary ?? true,
+        includeTalentSummary: legacyOptionsFromPreset.includeTalentSummary ?? true,
+        includeImages: legacyOptionsFromPreset.includeImages ?? false,
+        fallbackToProductImages: legacyOptionsFromPreset.fallbackToProductImages ?? true,
+        inlineImages: legacyOptionsFromPreset.inlineImages ?? true,
+      };
+    }
+
+    // Fallback to legacy state variables (for backward compatibility)
+    const resolvedGalleryColumnsValue = (() => {
+      const parsed = Number.parseInt(galleryColumns, 10);
+      if (Number.isNaN(parsed)) return 1;
+      return Math.min(6, Math.max(1, parsed));
+    })();
+
+    return {
+      title,
+      subtitle,
+      orientation,
+      layout: layoutMode,
+      density,
+      galleryColumns: resolvedGalleryColumnsValue,
+      fields,
+      sectionStates,
+      customLabels,
+      includeLaneSummary,
+      includeTalentSummary,
+      includeImages: fields.image,
+      fallbackToProductImages,
+      inlineImages,
+    };
+  }, [
+    // Preset config (primary source)
+    legacyOptionsFromPreset,
+    projectName,
+    // Legacy state (fallback)
+    title,
+    subtitle,
+    orientation,
+    layoutMode,
+    density,
+    galleryColumns,
+    fields,
+    sectionStates,
+    customLabels,
+    includeLaneSummary,
+    includeTalentSummary,
+    fallbackToProductImages,
+    inlineImages,
+  ]);
+
+  // ============================================================================
+  // Sync legacy state from preset config when it changes
+  // DEPRECATED: This sync is kept for backward compatibility but derivedLegacyOptions
+  // is now the canonical source. This sync ensures legacy UI components still work.
+  // STABILITY FIX: Only update state when values actually changed to prevent
+  // render loops and excessive PDF regeneration
+  // ============================================================================
+  const prevLegacyOptionsRef = useRef(null);
+
+  useEffect(() => {
+    if (!legacyOptionsFromPreset) return;
+
+    // Skip if the options haven't meaningfully changed (prevents ping-pong)
+    const prev = prevLegacyOptionsRef.current;
+    if (prev) {
+      // Fast equality check on key fields that trigger re-renders
+      const sameTitle = (legacyOptionsFromPreset.title || projectName || "Planner export") === title;
+      const sameSubtitle = (legacyOptionsFromPreset.subtitle || "") === subtitle;
+      const sameOrientation = (legacyOptionsFromPreset.orientation || "portrait") === orientation;
+      const sameLayout = (legacyOptionsFromPreset.layout || "table") === layoutMode;
+      const sameDensity = (legacyOptionsFromPreset.density || "standard") === density;
+      const sameColumns = String(legacyOptionsFromPreset.galleryColumns || 3) === galleryColumns;
+      const sameLaneSummary = (legacyOptionsFromPreset.includeLaneSummary ?? true) === includeLaneSummary;
+      const sameTalentSummary = (legacyOptionsFromPreset.includeTalentSummary ?? true) === includeTalentSummary;
+
+      // Check if all values are the same - skip update entirely
+      if (sameTitle && sameSubtitle && sameOrientation && sameLayout &&
+          sameDensity && sameColumns && sameLaneSummary && sameTalentSummary) {
+        // Fields check only if basic props match
+        if (legacyOptionsFromPreset.fields && prev.fields) {
+          const fieldsMatch =
+            (legacyOptionsFromPreset.fields.shotNumber ?? true) === (prev.fields.shotNumber ?? true) &&
+            (legacyOptionsFromPreset.fields.shotName ?? true) === (prev.fields.shotName ?? true) &&
+            (legacyOptionsFromPreset.fields.shotType ?? true) === (prev.fields.shotType ?? true) &&
+            (legacyOptionsFromPreset.fields.date ?? true) === (prev.fields.date ?? true) &&
+            (legacyOptionsFromPreset.fields.location ?? true) === (prev.fields.location ?? true) &&
+            (legacyOptionsFromPreset.fields.talent ?? true) === (prev.fields.talent ?? true) &&
+            (legacyOptionsFromPreset.fields.products ?? true) === (prev.fields.products ?? true) &&
+            (legacyOptionsFromPreset.fields.notes ?? true) === (prev.fields.notes ?? true) &&
+            (legacyOptionsFromPreset.fields.image ?? true) === (prev.fields.image ?? true);
+          if (fieldsMatch) {
+            return; // No changes - skip all state updates
+          }
+        }
+      }
+    }
+
+    // Store current for next comparison
+    prevLegacyOptionsRef.current = legacyOptionsFromPreset;
+
+    // Batch state updates - only update values that actually changed
+    const newTitle = legacyOptionsFromPreset.title || projectName || "Planner export";
+    const newSubtitle = legacyOptionsFromPreset.subtitle || "";
+    const newOrientation = legacyOptionsFromPreset.orientation || "portrait";
+    const newLayout = legacyOptionsFromPreset.layout || "table";
+    const newDensity = legacyOptionsFromPreset.density || "standard";
+    const newColumns = String(legacyOptionsFromPreset.galleryColumns || 3);
+    const newLaneSummary = legacyOptionsFromPreset.includeLaneSummary ?? true;
+    const newTalentSummary = legacyOptionsFromPreset.includeTalentSummary ?? true;
+
+    // Update only changed values to minimize re-renders
+    if (newTitle !== title) setTitle(newTitle);
+    if (newSubtitle !== subtitle) setSubtitle(newSubtitle);
+    if (newOrientation !== orientation) setOrientation(newOrientation);
+    if (newLayout !== layoutMode) setLayoutMode(newLayout);
+    if (newDensity !== density) setDensity(newDensity);
+    if (newColumns !== galleryColumns) setGalleryColumns(newColumns);
+    if (newLaneSummary !== includeLaneSummary) setIncludeLaneSummary(newLaneSummary);
+    if (newTalentSummary !== includeTalentSummary) setIncludeTalentSummary(newTalentSummary);
+
+    // Map and update fields only if they changed
+    if (legacyOptionsFromPreset.fields) {
+      const mappedFields = {
+        shotNumber: legacyOptionsFromPreset.fields.shotNumber ?? true,
+        name: legacyOptionsFromPreset.fields.shotName ?? true,
+        type: legacyOptionsFromPreset.fields.shotType ?? true,
+        date: legacyOptionsFromPreset.fields.date ?? true,
+        location: legacyOptionsFromPreset.fields.location ?? true,
+        talent: legacyOptionsFromPreset.fields.talent ?? true,
+        products: legacyOptionsFromPreset.fields.products ?? true,
+        notes: legacyOptionsFromPreset.fields.notes ?? true,
+        image: legacyOptionsFromPreset.fields.image ?? true,
+      };
+      // Only update fields if at least one value differs
+      const fieldsChanged = Object.keys(mappedFields).some(key => mappedFields[key] !== fields[key]);
+      if (fieldsChanged) {
+        setFields(mappedFields);
+      }
+    }
+  }, [legacyOptionsFromPreset, projectName, title, subtitle, orientation, layoutMode, density, galleryColumns, includeLaneSummary, includeTalentSummary, fields]);
 
   const laneOptions = useMemo(() => {
     if (!Array.isArray(lanes)) return [];
@@ -1903,6 +2538,12 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     };
   }, [lanesWithImageFallback]);
 
+  // ============================================================================
+  // DEPRECATED: selectedOptions is replaced by derivedLegacyOptions
+  // Kept for backward compatibility but no longer used as primary pipeline.
+  // Preview, PDF export, and CSV export now all use derivedLegacyOptions.
+  // TODO: Remove in future cleanup once confirmed stable.
+  // ============================================================================
   const selectedOptions = useMemo(
     () => ({
       title,
@@ -1936,7 +2577,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
   // Preview shows placeholder indicators for images to keep UI responsive
   // Actual image processing only happens when user clicks "Export PDF"
   const previewLanes = useMemo(() => {
-    const shouldShowImages = Boolean(fields.image);
+    // Use derivedLegacyOptions as single source of truth
+    const shouldShowImages = Boolean(derivedLegacyOptions.fields.image);
 
     // For preview, we use a special marker to indicate where images would appear
     // This keeps the preview lightweight and responsive
@@ -1957,18 +2599,22 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       });
       return { ...lane, shots };
     });
-  }, [lanesWithImageFallback, fields.image]);
+  }, [lanesWithImageFallback, derivedLegacyOptions.fields.image]);
 
   // Debounced preview document to prevent excessive PDF regeneration
   // while user is actively changing settings
   const [debouncedPreviewInputs, setDebouncedPreviewInputs] = useState(null);
   const previewDebounceRef = useRef(null);
+  // Track previous primitive values to skip no-op updates (explicit equality)
+  const prevPreviewStateRef = useRef(null);
 
-  // Debounce the preview inputs (500ms delay) to prevent UI blocking
+  // Debounce the preview inputs (200ms delay) to prevent UI blocking
   // during rapid setting changes - async usePDF hook handles the rest
+  // Uses derivedLegacyOptions as single source of truth for options
   useEffect(() => {
     if (!hasShots || !open) {
       setDebouncedPreviewInputs(null);
+      prevPreviewStateRef.current = null;
       return;
     }
 
@@ -1977,13 +2623,61 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       clearTimeout(previewDebounceRef.current);
     }
 
-    // Set new timeout - 500ms gives user time to finish interactions
+    // Set new timeout - 500ms settle delay coordinates with PdfPagePreview circuit breaker
+    // This prevents document churn while user is actively changing settings
     previewDebounceRef.current = setTimeout(() => {
+      // Explicit shallow equality on primitive fields that affect rendering
+      // This avoids JSON.stringify overhead and is more explicit about what matters
+      const currentState = {
+        laneCount: previewLanes.length,
+        shotCount: previewLanes.reduce((acc, l) => acc + (l.shots?.length || 0), 0),
+        title: derivedLegacyOptions.title,
+        orientation: derivedLegacyOptions.orientation,
+        layout: derivedLegacyOptions.layout,
+        density: derivedLegacyOptions.density,
+        includeLaneSummary: derivedLegacyOptions.includeLaneSummary,
+        includeTalentSummary: derivedLegacyOptions.includeTalentSummary,
+        // Field visibility (explicit booleans)
+        fieldImage: derivedLegacyOptions.fields.image,
+        fieldShotNumber: derivedLegacyOptions.fields.shotNumber,
+        fieldName: derivedLegacyOptions.fields.name,
+        fieldType: derivedLegacyOptions.fields.type,
+        fieldDate: derivedLegacyOptions.fields.date,
+        fieldLocation: derivedLegacyOptions.fields.location,
+        fieldTalent: derivedLegacyOptions.fields.talent,
+        fieldProducts: derivedLegacyOptions.fields.products,
+        fieldNotes: derivedLegacyOptions.fields.notes,
+      };
+
+      // Skip update if all tracked primitives are unchanged
+      const prev = prevPreviewStateRef.current;
+      if (prev &&
+          prev.laneCount === currentState.laneCount &&
+          prev.shotCount === currentState.shotCount &&
+          prev.title === currentState.title &&
+          prev.orientation === currentState.orientation &&
+          prev.layout === currentState.layout &&
+          prev.density === currentState.density &&
+          prev.includeLaneSummary === currentState.includeLaneSummary &&
+          prev.includeTalentSummary === currentState.includeTalentSummary &&
+          prev.fieldImage === currentState.fieldImage &&
+          prev.fieldShotNumber === currentState.fieldShotNumber &&
+          prev.fieldName === currentState.fieldName &&
+          prev.fieldType === currentState.fieldType &&
+          prev.fieldDate === currentState.fieldDate &&
+          prev.fieldLocation === currentState.fieldLocation &&
+          prev.fieldTalent === currentState.fieldTalent &&
+          prev.fieldProducts === currentState.fieldProducts &&
+          prev.fieldNotes === currentState.fieldNotes) {
+        return;
+      }
+      prevPreviewStateRef.current = currentState;
+
       setDebouncedPreviewInputs({
         lanes: previewLanes,
         laneSummary: derivedLaneSummary,
         talentSummary: derivedTalentSummary,
-        options: selectedOptions,
+        options: derivedLegacyOptions,
       });
     }, 500);
 
@@ -1992,7 +2686,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
         clearTimeout(previewDebounceRef.current);
       }
     };
-  }, [hasShots, open, previewLanes, derivedLaneSummary, derivedTalentSummary, selectedOptions]);
+  }, [hasShots, open, previewLanes, derivedLaneSummary, derivedTalentSummary, derivedLegacyOptions]);
 
   // Create PDF document element for preview using debounced inputs
   const previewDocument = useMemo(() => {
@@ -2031,6 +2725,76 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
 
   const clearTalentFilters = useCallback(() => setSelectedTalentNames([]), []);
 
+  const handleSectionToggle = useCallback((sectionId, isExpanded) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: isExpanded,
+    }));
+  }, []);
+
+  const handleIncludeImagesChange = useCallback((include) => {
+    setSectionStates(prev => ({
+      ...prev,
+      [SECTION_TYPES.IMAGE]: {
+        ...prev[SECTION_TYPES.IMAGE],
+        visible: include,
+      },
+    }));
+  }, []);
+
+  // Handler for opening PDF preview in a new tab (on-demand, not automatic)
+  const handleOpenPdfPreview = useCallback(async () => {
+    if (!hasShots) {
+      toast.error("No shots to preview.");
+      return;
+    }
+
+    try {
+      setIsGeneratingPdfPreview(true);
+
+      // Use derivedLegacyOptions as single source of truth
+      const shouldIncludeImages = Boolean(derivedLegacyOptions.fields?.image);
+
+      // For preview, we skip image processing to keep it fast
+      // Use previewLanes which already has image fallback applied
+      let preparedLanes;
+      if (shouldIncludeImages) {
+        // Include image URLs but don't inline them (faster preview)
+        preparedLanes = previewLanes;
+      } else {
+        // Strip images for no-image preview
+        preparedLanes = previewLanes.map((lane) => {
+          const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
+          const shots = laneShots.map((shot) => ({ ...shot, image: null }));
+          return { ...lane, shots };
+        });
+      }
+
+      // Generate PDF blob
+      const blob = await pdf(
+        <PlannerPdfDocument
+          lanes={preparedLanes}
+          laneSummary={derivedLaneSummary}
+          talentSummary={derivedTalentSummary}
+          options={derivedLegacyOptions}
+        />
+      ).toBlob();
+
+      // Open in new tab
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+
+      // Clean up the blob URL after a delay (allow time for tab to load)
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+
+    } catch (error) {
+      console.error('PDF preview generation failed:', error);
+      toast.error('Failed to generate PDF preview. Please try again.');
+    } finally {
+      setIsGeneratingPdfPreview(false);
+    }
+  }, [hasShots, derivedLegacyOptions, previewLanes, derivedLaneSummary, derivedTalentSummary]);
+
   const isLaneSelectionMode = laneFilterMode === "selected";
 
   const handleDownloadPdf = useCallback(async () => {
@@ -2039,14 +2803,19 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       return;
     }
 
-    const shouldIncludeImages = Boolean(fields.image);
+    // Use derivedLegacyOptions as single source of truth
+    const shouldIncludeImages = Boolean(derivedLegacyOptions.fields.image);
+    const shouldInlineImages = derivedLegacyOptions.inlineImages;
+    const exportDensity = derivedLegacyOptions.density;
+    const exportFallbackToProductImages = derivedLegacyOptions.fallbackToProductImages;
+    const exportTitle = derivedLegacyOptions.title;
 
     try {
       setIsGenerating(true);
       let preparedLanes;
 
       // If images are enabled and we're inlining, process them with Web Worker
-      if (shouldIncludeImages && inlineImages) {
+      if (shouldIncludeImages && shouldInlineImages) {
         // Show progress modal for image processing
         setShowExportProgress(true);
         resetProgress();
@@ -2054,8 +2823,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
         // Process images using Web Worker (off main thread)
         const { imageDataMap, successCount, failedCount } = await processImagesForExport(
           lanesWithImageFallback,
-          density,
-          fallbackToProductImages
+          exportDensity,
+          exportFallbackToProductImages
         );
 
         if (failedCount > 0 && successCount === 0) {
@@ -2084,7 +2853,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
           });
           return { ...lane, shots };
         });
-      } else if (shouldIncludeImages && !inlineImages) {
+      } else if (shouldIncludeImages && !shouldInlineImages) {
         // Pass through URLs for non-inlined images (legacy behavior)
         preparedLanes = lanesWithImageFallback;
       } else {
@@ -2097,13 +2866,14 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       }
 
       // Generate PDF (this is fast since images are already processed)
+      // Uses derivedLegacyOptions - same object as preview for consistency
       setGenerationStage("Rendering PDF…");
       const blob = await pdf(
         <PlannerPdfDocument
           lanes={preparedLanes}
           laneSummary={derivedLaneSummary}
           talentSummary={derivedTalentSummary}
-          options={selectedOptions}
+          options={derivedLegacyOptions}
         />
       ).toBlob();
 
@@ -2111,7 +2881,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      const filename = `${title || "planner-export"}.pdf`;
+      const filename = `${exportTitle || "planner-export"}.pdf`;
       link.download = filename.replace(/\s+/g, "-");
       document.body.appendChild(link);
       link.click();
@@ -2134,15 +2904,10 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     lanesWithImageFallback,
     derivedLaneSummary,
     derivedTalentSummary,
-    selectedOptions,
-    title,
+    derivedLegacyOptions,
     onClose,
-    fields.image,
-    inlineImages,
     processImagesForExport,
     resetProgress,
-    density,
-    fallbackToProductImages,
   ]);
 
   const handleDownloadCsv = useCallback(() => {
@@ -2150,31 +2915,37 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       toast.error("No shots match your current filters.");
       return;
     }
+
+    // Use derivedLegacyOptions as single source of truth (same as PDF and preview)
+    const csvFields = derivedLegacyOptions.fields;
+    const csvTitle = derivedLegacyOptions.title;
+
     const headers = ["Lane"];
-    if (fields.shotNumber) headers.push("Shot number");
-    if (fields.name) headers.push("Shot title");
-    if (fields.type) headers.push("Shot type");
-    if (fields.date) headers.push("Date");
-    if (fields.location) headers.push("Location");
-    if (fields.talent) headers.push("Talent");
-    if (fields.products) headers.push("Products");
-    if (fields.notes) headers.push("Notes");
-    if (fields.image) headers.push("Image");
+    if (csvFields.shotNumber) headers.push("Shot number");
+    if (csvFields.name) headers.push("Shot title");
+    if (csvFields.type) headers.push("Description");
+    if (csvFields.date) headers.push("Date");
+    if (csvFields.location) headers.push("Location");
+    if (csvFields.talent) headers.push("Talent");
+    if (csvFields.products) headers.push("Products");
+    if (csvFields.notes) headers.push("Notes");
+    if (csvFields.image) headers.push("Image");
 
     const rows = [];
     lanesWithImageFallback.forEach((lane) => {
       const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
       laneShots.forEach((shot) => {
         const row = [lane.name];
-        if (fields.shotNumber) row.push(shot.shotNumber || "");
-        if (fields.name) row.push(shot.name || "");
-        if (fields.type) row.push(stripHtml(shot.type || ""));
-        if (fields.date) row.push(shot.date || "");
-        if (fields.location) row.push(shot.location || "");
-        if (fields.talent) row.push(shot.talent.join(", "));
-        if (fields.products) row.push(shot.products.join(", "));
-        if (fields.notes) row.push(getShotNotesPreview(shot));
-        if (fields.image) row.push(shot.image || "");
+        if (csvFields.shotNumber) row.push(shot.shotNumber || "");
+        if (csvFields.name) row.push(shot.name || "");
+        // Use centralized description resolver with safe fallback logic
+        if (csvFields.type) row.push(getExportDescriptionText(shot, { products: shot.products }));
+        if (csvFields.date) row.push(shot.date || "");
+        if (csvFields.location) row.push(shot.location || "");
+        if (csvFields.talent) row.push(shot.talent.join(", "));
+        if (csvFields.products) row.push(shot.products.join(", "));
+        if (csvFields.notes) row.push(getShotNotesPreview(shot));
+        if (csvFields.image) row.push(shot.image || "");
         rows.push(row.map(escapeCsv).join(","));
       });
     });
@@ -2184,7 +2955,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    const filename = `${title || "planner-export"}.csv`;
+    const filename = `${csvTitle || "planner-export"}.csv`;
     link.download = filename.replace(/\s+/g, "-");
     document.body.appendChild(link);
     link.click();
@@ -2192,7 +2963,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     URL.revokeObjectURL(url);
     toast.success("CSV export saved");
     onClose?.();
-  }, [fields, hasShots, lanesWithImageFallback, title, onClose]);
+  }, [derivedLegacyOptions, hasShots, lanesWithImageFallback, onClose]);
 
   // Don't render if not open
   if (!open) return null;
@@ -2221,24 +2992,6 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Preview Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowPreview(!showPreview)}
-            className={`
-              flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors
-              ${showPreview
-                ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-600 dark:text-slate-400'
-              }
-            `}
-          >
-            <Eye className="w-4 h-4" />
-            <span className="text-sm font-medium">
-              {showPreview ? 'Hide Preview' : 'Show Preview'}
-            </span>
-          </button>
-
           <Button onClick={handleDownloadCsv} disabled={!hasShots || isLoading || isGenerating} className="gap-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600">
             <FileDown className="w-4 h-4" />
             Export CSV
@@ -2255,182 +3008,91 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
         </div>
       </div>
 
-        {/* Main Content Area with Resizable Panels */}
-        <div ref={containerRef} className="flex-1 flex overflow-hidden relative">
-          {/* Left Panel - Configuration */}
-          <div
-            className="flex flex-col overflow-y-auto bg-slate-50 dark:bg-slate-800/50"
-            style={{ width: showPreview ? `${dividerPosition}%` : '100%' }}
-          >
-            <div className="p-6 space-y-6">
-              {/* Document Settings */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Document Settings</h3>
-
-                <div>
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="planner-export-title-input">
-                    Page title
-                  </label>
-                  <input
-                    id="planner-export-title-input"
-                    type="text"
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
-                    placeholder="Planner overview"
+        {/* Main Content Area - ExportEditorShell with integrated preview */}
+        <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden relative">
+          {/* ExportEditorShell - Canonical preset-driven export UI */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <ExportEditorShell
+              projectName={projectName}
+              initialDocumentType="internalPlanning"
+              onConfigChange={handlePresetConfigChange}
+            previewSlot={
+              <div className="h-full flex flex-col">
+                {/* Preview header with Open PDF button */}
+                <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Preview
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleOpenPdfPreview}
+                    disabled={isGeneratingPdfPreview || !hasShots}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isGeneratingPdfPreview ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Open PDF preview
+                      </>
+                    )}
+                  </button>
+                </div>
+                {/* Lightweight HTML preview */}
+                <div className="flex-1 min-h-0 overflow-auto">
+                  <LightweightExportPreview
+                    lanes={lanesWithImageFallback}
+                    options={derivedLegacyOptions}
                   />
                 </div>
-
-                <div>
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="planner-export-subtitle-input">
-                    Subtitle
-                  </label>
-                  <input
-                    id="planner-export-subtitle-input"
-                    type="text"
-                    value={subtitle}
-                    onChange={(event) => setSubtitle(event.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
-                    placeholder="Generated automatically"
-                  />
-                </div>
-
-                <div>
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Page orientation</span>
-                  <div className="mt-2 inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
-                    {["portrait", "landscape"].map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => setOrientation(option)}
-                        className={`px-3 py-1.5 text-sm capitalize transition ${
-                          orientation === option
-                            ? "bg-slate-900 dark:bg-slate-700 text-white"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
-
-              {/* Layout Settings */}
-              <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-700">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Layout</h3>
-
-                <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-                    Switch between a table or gallery-style cards for the PDF export.
-                  </p>
-                  <div className="inline-flex overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
-                    {[
-                      { value: "gallery", label: "Gallery" },
-                      { value: "table", label: "Table" },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setLayoutMode(option.value)}
-                        className={`px-3 py-1.5 text-sm transition ${
-                          layoutMode === option.value
-                            ? "bg-slate-900 dark:bg-slate-700 text-white"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
+            }
+            actionsSlot={
+              <div className="flex items-center justify-between">
+                {/* Filter Summary */}
+                <div className="text-sm text-slate-600 dark:text-slate-400">
+                  {laneFilterMode === "selected" && (
+                    <span>{selectedLaneIds.length} lane{selectedLaneIds.length !== 1 ? 's' : ''} selected</span>
+                  )}
+                  {selectedTalentNames.length > 0 && (
+                    <span className="ml-2">• {selectedTalentNames.length} talent filter{selectedTalentNames.length !== 1 ? 's' : ''}</span>
+                  )}
+                  {dateFilterMode === "specific" && selectedDate && (
+                    <span className="ml-2">• Date: {selectedDate}</span>
+                  )}
                 </div>
-
-                {layoutMode === "gallery" && (
-                  <div className="space-y-3 pt-2">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                      Density
-                    </label>
-                    <div className="space-y-2">
-                      {Object.values(DENSITY_PRESETS).map((preset) => (
-                        <label key={preset.id} className="flex items-start gap-3 cursor-pointer group">
-                          <input
-                            type="radio"
-                            name="density"
-                            value={preset.id}
-                            checked={density === preset.id}
-                            onChange={() => setDensity(preset.id)}
-                            className="mt-0.5 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary"
-                          />
-                          <div className="flex-1">
-                            <div className="text-sm font-medium text-slate-900 dark:text-slate-100 group-hover:text-primary">
-                              {preset.label}
-                            </div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">
-                              {preset.description}
-                            </div>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {/* Filters Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(prev => !prev)}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  {showFilters ? 'Hide Filters' : 'Show Filters'}
+                </button>
               </div>
+            }
+            />
+          </div>
 
-              {/* Image handling */}
-              <div className="space-y-2 pt-4 border-t border-slate-200 dark:border-slate-700">
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Image handling
-                </label>
-                <label className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={fallbackToProductImages}
-                    onChange={(event) => setFallbackToProductImages(event.target.checked)}
-                    className="mt-1 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary"
-                  />
-                  <span>Use product images when shot image is missing</span>
-                </label>
-                <label className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={inlineImages}
-                    onChange={(event) => setInlineImages(event.target.checked)}
-                    className="mt-1 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-primary focus:ring-primary"
-                  />
-                  <span>Inline images for PDF (slower, avoid external fetch issues)</span>
-                </label>
-              </div>
-
-              {/* Include Sections */}
-              <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-700">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Include sections</h3>
-                <div className="space-y-2 text-sm text-slate-700 dark:text-slate-300">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={includeLaneSummary}
-                      onChange={(event) => setIncludeLaneSummary(event.target.checked)}
-                      className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
-                    />
-                    Lane summary
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={includeTalentSummary}
-                      onChange={(event) => setIncludeTalentSummary(event.target.checked)}
-                      className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
-                    />
-                    Talent summary
-                  </label>
+          {/* Slide-out Filter Panel (hidden by default) */}
+          {showFilters && (
+            <div className="absolute right-0 top-0 bottom-0 w-80 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 shadow-xl z-20 overflow-y-auto">
+              <div className="p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filter Shots</h3>
+                  <button
+                    onClick={() => setShowFilters(false)}
+                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-              </div>
-
-              {/* Filter Shots */}
-              <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-700">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filter shots</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Choose which lanes, talent, and dates to include in your export.
+                  Choose which lanes, talent, and dates to include.
                 </p>
 
                 {/* Lanes Filter */}
@@ -2487,14 +3149,11 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                             className="text-primary dark:text-blue-400 hover:underline"
                             onClick={handleSelectAllLanes}
                           >
-                            Select all lanes
+                            Select all
                           </button>
-                          <span aria-hidden="true">•</span>
+                          <span>•</span>
                           <span>{selectedLaneIds.length} selected</span>
                         </div>
-                      )}
-                      {laneOptions.length === 0 && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400">No lanes available.</p>
                       )}
                     </div>
                   )}
@@ -2503,9 +3162,6 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                 {/* Talent Filter */}
                 <div>
                   <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Talent</span>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    Leave blank to include every talent. Select one or more names to limit the export.
-                  </p>
                   {talentOptions.length > 0 ? (
                     <div className="mt-2 grid grid-cols-1 gap-2">
                       {talentOptions.map((option) => (
@@ -2529,7 +3185,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                       className="mt-2 text-xs text-primary dark:text-blue-400 hover:underline"
                       onClick={clearTalentFilters}
                     >
-                      Clear talent filters
+                      Clear filters
                     </button>
                   )}
                 </div>
@@ -2575,92 +3231,12 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                         type="date"
                         value={selectedDate}
                         onChange={(event) => setSelectedDate(event.target.value)}
-                        className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary/60"
+                        className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm"
                       />
-                      {availableDates.length > 0 && (
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          Available dates: {availableDates.join(", ")}
-                        </p>
-                      )}
                     </div>
                   )}
                 </div>
               </div>
-
-              {/* Section Manager */}
-              <div className="pt-6 border-t border-slate-200 dark:border-slate-700">
-                <PlannerSheetSectionManager
-                  sectionStates={sectionStates}
-                  onSectionStatesChange={setSectionStates}
-                />
-              </div>
-
-              {/* Custom Header Labels (Table Mode Only) */}
-              {layoutMode === 'table' && (
-                <div className="pt-6 border-t border-slate-200 dark:border-slate-700">
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                    Custom Header Labels
-                  </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mb-4">
-                    Customize column header text to make labels fit better in the PDF table.
-                  </p>
-                  <div className="space-y-2">
-                    {getVisibleSections(sectionStates).map(section => (
-                      <div key={section.id} className="flex items-center gap-2">
-                        <label className="text-xs text-slate-600 dark:text-slate-400 w-24 flex-shrink-0">
-                          {section.label}:
-                        </label>
-                        <input
-                          type="text"
-                          placeholder={section.label}
-                          value={customLabels[section.id] || ''}
-                          onChange={(e) => setCustomLabels(prev => ({
-                            ...prev,
-                            [section.id]: e.target.value
-                          }))}
-                          className="flex-1 px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400"
-                        />
-                        {customLabels[section.id] && (
-                          <button
-                            onClick={() => setCustomLabels(prev => {
-                              const updated = { ...prev };
-                              delete updated[section.id];
-                              return updated;
-                            })}
-                            className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-                          >
-                            Reset
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Resizable Divider */}
-          {showPreview && (
-            <div
-              className="w-1 bg-slate-200 dark:bg-slate-700 hover:bg-blue-500 dark:hover:bg-blue-600 cursor-col-resize relative flex items-center justify-center transition-colors group"
-              onMouseDown={() => setIsDragging(true)}
-            >
-              <div className="absolute inset-y-0 -left-1 -right-1" />
-              <GripVertical className="w-4 h-4 text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
-            </div>
-          )}
-
-          {/* Right Panel - Live PDF Preview */}
-          {showPreview && (
-            <div
-              className="flex-1 overflow-hidden bg-slate-100 dark:bg-slate-900"
-              style={{ width: `${100 - dividerPosition}%` }}
-            >
-              <PdfPagePreview
-                document={previewDocument}
-                status={previewDocument ? 'ready' : 'generating'}
-              />
             </div>
           )}
         </div>
