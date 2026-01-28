@@ -26,7 +26,6 @@ import { processImageForPDF, getOptimalImageDimensions } from "../../lib/pdfImag
 import { getPrimaryAttachment } from "../../lib/imageHelpers";
 import { FileDown, X, ExternalLink, Loader2 } from "lucide-react";
 import PlannerSheetSectionManager from "./PlannerSheetSectionManager";
-import PdfPagePreview from "../export/PdfPagePreview";
 import ExportSectionPanel from "../export/ExportSectionPanel";
 import ExportEditorShell from "../export/ExportEditorShell";
 import LightweightExportPreview from "../export/LightweightExportPreview";
@@ -44,6 +43,7 @@ import {
 import useImageExportWorker from "../../hooks/useImageExportWorker";
 import ExportProgressModal from "../export/ExportProgressModal";
 import { legacyOptionsToDocumentState } from "../../lib/documentModel";
+import { buildPdfInputs, logPdfInputs } from "../../lib/pdfInputs";
 
 const styles = StyleSheet.create({
   page: {
@@ -888,6 +888,18 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
   const visibleFields = options.fields || {};
   const customLabels = options.customLabels || {};
 
+  // DEV-only: warn if images are enabled but zero shots have image data
+  if (process.env.NODE_ENV === 'development' && visibleFields.image) {
+    const allShots = (lanes || []).flatMap(l => l.shots || []);
+    const shotsWithImages = allShots.filter(s => s?.image && s.image !== '__PREVIEW_PLACEHOLDER__');
+    if (allShots.length > 0 && shotsWithImages.length === 0) {
+      console.warn(
+        '[PlannerPdfDocument] fields.image=true but 0/' + allShots.length +
+        ' shots have image data (mode: pdf)'
+      );
+    }
+  }
+
   // Use sectionStates from options if available (includes flex values), otherwise fallback
   const sectionStates = options.sectionStates || exportSettingsToSectionConfig(visibleFields);
 
@@ -1378,8 +1390,8 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
 
   // Render table header row with column labels
   const renderTableHeaderRow = (sectionStates, customLabels = {}) => {
-    const visibleSections = getVisibleSections(sectionStates);
-    const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
+    // Canonical gate: use options.fields.image, NOT sectionStates/visibleSections
+    const showImage = Boolean(visibleFields.image);
 
     // Get consolidated column layout
     const columns = getTableColumnLayout(sectionStates);
@@ -1411,8 +1423,8 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
 
   // Render a shot as a table row
   const renderTableRow = (shot, _lane, index, sectionStates) => {
-    const visibleSections = getVisibleSections(sectionStates);
-    const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
+    // Canonical gate: use options.fields.image, NOT sectionStates/visibleSections
+    const showImage = Boolean(visibleFields.image);
     const shotKey = shot?.id || index;
 
     // Get consolidated column layout (same as header)
@@ -1510,7 +1522,8 @@ const PlannerPdfDocument = React.memo(({ lanes, laneSummary, talentSummary, opti
   // ============================================================================
   const renderShotBlock = (shot, _lane, index, sectionStates) => {
     const visibleSections = getVisibleSections(sectionStates);
-    const showImage = visibleSections.some(s => s.id === SECTION_TYPES.IMAGE);
+    // Canonical gate: use options.fields.image, NOT sectionStates/visibleSections
+    const showImage = Boolean(visibleFields.image);
     const showShotNumber = visibleSections.some(s => s.id === SECTION_TYPES.SHOT_NUMBER);
     const showShotName = visibleSections.some(s => s.id === SECTION_TYPES.SHOT_NAME);
     const showShotType = visibleSections.some(s => s.id === SECTION_TYPES.SHOT_TYPE);
@@ -2423,14 +2436,17 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     [filteredLanes]
   );
 
-  const includeImages = Boolean(fields.image);
+  // Canonical image flag: derivedLegacyOptions.fields.image is the ONLY source of truth.
+  // Do NOT use the legacy `fields` state variable here — it can lag behind the preset config.
+  const canonicalIncludeImages = Boolean(derivedLegacyOptions.fields.image);
+  const canonicalFallback = Boolean(derivedLegacyOptions.fallbackToProductImages);
   const lanesWithImageFallback = useMemo(() => {
-    if (!includeImages) return filteredLanes;
+    if (!canonicalIncludeImages) return filteredLanes;
     return filteredLanes.map((lane) => {
       const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
       const shots = laneShots.map((shot) => {
         if (shot?.image) return shot;
-        if (!fallbackToProductImages) return shot;
+        if (!canonicalFallback) return shot;
         const fallback =
           Array.isArray(shot.productImages) && shot.productImages.length
             ? shot.productImages.find(Boolean)
@@ -2440,7 +2456,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       });
       return { ...lane, shots };
     });
-  }, [filteredLanes, includeImages, fallbackToProductImages]);
+  }, [filteredLanes, canonicalIncludeImages, canonicalFallback]);
 
   // Image processing for PDF export - only runs when user clicks Download
   // This is the key change: images are NOT processed during preview
@@ -2573,133 +2589,10 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     ]
   );
 
-  // Prepare lanes for preview - NO image processing happens here
-  // Preview shows placeholder indicators for images to keep UI responsive
-  // Actual image processing only happens when user clicks "Export PDF"
-  const previewLanes = useMemo(() => {
-    // Use derivedLegacyOptions as single source of truth
-    const shouldShowImages = Boolean(derivedLegacyOptions.fields.image);
-
-    // For preview, we use a special marker to indicate where images would appear
-    // This keeps the preview lightweight and responsive
-    return lanesWithImageFallback.map((lane) => {
-      const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
-      const shots = laneShots.map((shot) => {
-        const preparedShot = { ...shot };
-        if (shouldShowImages && shot?.image) {
-          // Mark that this shot HAS an image, but don't include the actual data
-          // The PDF renderer will show a placeholder
-          preparedShot.image = '__PREVIEW_PLACEHOLDER__';
-          preparedShot._hasImage = true;
-        } else {
-          preparedShot.image = null;
-          preparedShot._hasImage = false;
-        }
-        return preparedShot;
-      });
-      return { ...lane, shots };
-    });
-  }, [lanesWithImageFallback, derivedLegacyOptions.fields.image]);
-
-  // Debounced preview document to prevent excessive PDF regeneration
-  // while user is actively changing settings
-  const [debouncedPreviewInputs, setDebouncedPreviewInputs] = useState(null);
-  const previewDebounceRef = useRef(null);
-  // Track previous primitive values to skip no-op updates (explicit equality)
-  const prevPreviewStateRef = useRef(null);
-
-  // Debounce the preview inputs (200ms delay) to prevent UI blocking
-  // during rapid setting changes - async usePDF hook handles the rest
-  // Uses derivedLegacyOptions as single source of truth for options
-  useEffect(() => {
-    if (!hasShots || !open) {
-      setDebouncedPreviewInputs(null);
-      prevPreviewStateRef.current = null;
-      return;
-    }
-
-    // Clear previous timeout
-    if (previewDebounceRef.current) {
-      clearTimeout(previewDebounceRef.current);
-    }
-
-    // Set new timeout - 500ms settle delay coordinates with PdfPagePreview circuit breaker
-    // This prevents document churn while user is actively changing settings
-    previewDebounceRef.current = setTimeout(() => {
-      // Explicit shallow equality on primitive fields that affect rendering
-      // This avoids JSON.stringify overhead and is more explicit about what matters
-      const currentState = {
-        laneCount: previewLanes.length,
-        shotCount: previewLanes.reduce((acc, l) => acc + (l.shots?.length || 0), 0),
-        title: derivedLegacyOptions.title,
-        orientation: derivedLegacyOptions.orientation,
-        layout: derivedLegacyOptions.layout,
-        density: derivedLegacyOptions.density,
-        includeLaneSummary: derivedLegacyOptions.includeLaneSummary,
-        includeTalentSummary: derivedLegacyOptions.includeTalentSummary,
-        // Field visibility (explicit booleans)
-        fieldImage: derivedLegacyOptions.fields.image,
-        fieldShotNumber: derivedLegacyOptions.fields.shotNumber,
-        fieldName: derivedLegacyOptions.fields.name,
-        fieldType: derivedLegacyOptions.fields.type,
-        fieldDate: derivedLegacyOptions.fields.date,
-        fieldLocation: derivedLegacyOptions.fields.location,
-        fieldTalent: derivedLegacyOptions.fields.talent,
-        fieldProducts: derivedLegacyOptions.fields.products,
-        fieldNotes: derivedLegacyOptions.fields.notes,
-      };
-
-      // Skip update if all tracked primitives are unchanged
-      const prev = prevPreviewStateRef.current;
-      if (prev &&
-          prev.laneCount === currentState.laneCount &&
-          prev.shotCount === currentState.shotCount &&
-          prev.title === currentState.title &&
-          prev.orientation === currentState.orientation &&
-          prev.layout === currentState.layout &&
-          prev.density === currentState.density &&
-          prev.includeLaneSummary === currentState.includeLaneSummary &&
-          prev.includeTalentSummary === currentState.includeTalentSummary &&
-          prev.fieldImage === currentState.fieldImage &&
-          prev.fieldShotNumber === currentState.fieldShotNumber &&
-          prev.fieldName === currentState.fieldName &&
-          prev.fieldType === currentState.fieldType &&
-          prev.fieldDate === currentState.fieldDate &&
-          prev.fieldLocation === currentState.fieldLocation &&
-          prev.fieldTalent === currentState.fieldTalent &&
-          prev.fieldProducts === currentState.fieldProducts &&
-          prev.fieldNotes === currentState.fieldNotes) {
-        return;
-      }
-      prevPreviewStateRef.current = currentState;
-
-      setDebouncedPreviewInputs({
-        lanes: previewLanes,
-        laneSummary: derivedLaneSummary,
-        talentSummary: derivedTalentSummary,
-        options: derivedLegacyOptions,
-      });
-    }, 500);
-
-    return () => {
-      if (previewDebounceRef.current) {
-        clearTimeout(previewDebounceRef.current);
-      }
-    };
-  }, [hasShots, open, previewLanes, derivedLaneSummary, derivedTalentSummary, derivedLegacyOptions]);
-
-  // Create PDF document element for preview using debounced inputs
-  const previewDocument = useMemo(() => {
-    if (!debouncedPreviewInputs) return null;
-    return (
-      <PlannerPdfDocument
-        lanes={debouncedPreviewInputs.lanes}
-        laneSummary={debouncedPreviewInputs.laneSummary}
-        talentSummary={debouncedPreviewInputs.talentSummary}
-        options={debouncedPreviewInputs.options}
-      />
-    );
-  }, [debouncedPreviewInputs]);
+  // NOTE: The inline preview is rendered by LightweightExportPreview (HTML-based),
+  // which receives lanesWithImageFallback and derivedLegacyOptions directly.
+  // No additional lane preprocessing is needed here — LightweightExportPreview
+  // resolves image URLs asynchronously via useResolvedImageUrl.
 
   const handleToggleLane = useCallback((laneId) => {
     setSelectedLaneIds((previous) => {
@@ -2742,7 +2635,21 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     }));
   }, []);
 
+  // ============================================================================
+  // Canonical PDF inputs — SINGLE source of truth for both handlers
+  // Both "Open PDF preview" and "Export PDF" MUST call this and use its output.
+  // ============================================================================
+  const getPdfInputs = useCallback(() => {
+    return buildPdfInputs({
+      options: derivedLegacyOptions,
+      lanes: lanesWithImageFallback,
+      laneSummary: derivedLaneSummary,
+      talentSummary: derivedTalentSummary,
+    });
+  }, [derivedLegacyOptions, lanesWithImageFallback, derivedLaneSummary, derivedTalentSummary]);
+
   // Handler for opening PDF preview in a new tab (on-demand, not automatic)
+  // Images are resolved to base64 before PDF generation — same contract as Export PDF.
   const handleOpenPdfPreview = useCallback(async () => {
     if (!hasShots) {
       toast.error("No shots to preview.");
@@ -2752,31 +2659,44 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     try {
       setIsGeneratingPdfPreview(true);
 
-      // Use derivedLegacyOptions as single source of truth
-      const shouldIncludeImages = Boolean(derivedLegacyOptions.fields?.image);
+      // Use canonical inputs — same object as Export PDF
+      const { options, lanes, laneSummary: ls, talentSummary: ts, meta } = getPdfInputs();
 
-      // For preview, we skip image processing to keep it fast
-      // Use previewLanes which already has image fallback applied
-      let preparedLanes;
-      if (shouldIncludeImages) {
-        // Include image URLs but don't inline them (faster preview)
-        preparedLanes = previewLanes;
-      } else {
-        // Strip images for no-image preview
-        preparedLanes = previewLanes.map((lane) => {
+      // DEV-only: log inputs to prove parity with Export PDF
+      logPdfInputs('open-preview', meta, options);
+
+      // Resolve images to base64 (same path as Export PDF)
+      let preparedLanes = lanes;
+      if (meta.imagesEnabled) {
+        const { imageDataMap } = await processImagesForExport(
+          lanes,
+          options.density || 'standard',
+          Boolean(options.fallbackToProductImages)
+        );
+
+        preparedLanes = lanes.map((lane) => {
           const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
-          const shots = laneShots.map((shot) => ({ ...shot, image: null }));
+          const shots = laneShots.map((shot) => {
+            const shotId = shot?.id ? String(shot.id) : null;
+            const base64 = shotId ? imageDataMap.get(shotId) : null;
+            return { ...shot, image: base64 || null };
+          });
           return { ...lane, shots };
         });
+
+        if (process.env.NODE_ENV === 'development') {
+          const firstTwo = preparedLanes.flatMap(l => l.shots || []).filter(s => s.image).slice(0, 2);
+          console.log('[IMAGE-CONTRACT] open-preview first 2 src prefixes:', firstTwo.map(s => s.image?.substring(0, 30)));
+        }
       }
 
-      // Generate PDF blob
+      // Generate PDF blob with resolved images
       const blob = await pdf(
         <PlannerPdfDocument
           lanes={preparedLanes}
-          laneSummary={derivedLaneSummary}
-          talentSummary={derivedTalentSummary}
-          options={derivedLegacyOptions}
+          laneSummary={ls}
+          talentSummary={ts}
+          options={options}
         />
       ).toBlob();
 
@@ -2793,7 +2713,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     } finally {
       setIsGeneratingPdfPreview(false);
     }
-  }, [hasShots, derivedLegacyOptions, previewLanes, derivedLaneSummary, derivedTalentSummary]);
+  }, [hasShots, getPdfInputs, processImagesForExport]);
 
   const isLaneSelectionMode = laneFilterMode === "selected";
 
@@ -2803,26 +2723,33 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       return;
     }
 
-    // Use derivedLegacyOptions as single source of truth
-    const shouldIncludeImages = Boolean(derivedLegacyOptions.fields.image);
-    const shouldInlineImages = derivedLegacyOptions.inlineImages;
-    const exportDensity = derivedLegacyOptions.density;
-    const exportFallbackToProductImages = derivedLegacyOptions.fallbackToProductImages;
-    const exportTitle = derivedLegacyOptions.title;
+    // Use canonical inputs — same object as Open PDF Preview
+    const { options, lanes, laneSummary: ls, talentSummary: ts, meta } = getPdfInputs();
+
+    // DEV-only: log inputs to prove parity with Open PDF Preview
+    logPdfInputs('export-pdf', meta, options);
+
+    const shouldIncludeImages = meta.imagesEnabled;
+    const shouldInlineImages = options.inlineImages;
+    const exportDensity = options.density;
+    const exportFallbackToProductImages = options.fallbackToProductImages;
+    const exportTitle = options.title;
 
     try {
       setIsGenerating(true);
       let preparedLanes;
 
-      // If images are enabled and we're inlining, process them with Web Worker
+      // If images are enabled and we're inlining, enhance lanes with base64 data
+      // This is an enhancement on top of the canonical lanes (which have URLs).
       if (shouldIncludeImages && shouldInlineImages) {
         // Show progress modal for image processing
         setShowExportProgress(true);
         resetProgress();
 
         // Process images using Web Worker (off main thread)
+        // Use the canonical lanes (which already have fallback images applied)
         const { imageDataMap, successCount, failedCount } = await processImagesForExport(
-          lanesWithImageFallback,
+          lanes,
           exportDensity,
           exportFallbackToProductImages
         );
@@ -2838,8 +2765,8 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
           toast.warning(`${failedCount} images failed to load and will be skipped.`);
         }
 
-        // Prepare lanes with processed image data
-        preparedLanes = lanesWithImageFallback.map((lane) => {
+        // Replace URL images with processed base64 data
+        preparedLanes = lanes.map((lane) => {
           const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
           const shots = laneShots.map((shot) => {
             const preparedShot = { ...shot };
@@ -2853,27 +2780,25 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
           });
           return { ...lane, shots };
         });
-      } else if (shouldIncludeImages && !shouldInlineImages) {
-        // Pass through URLs for non-inlined images (legacy behavior)
-        preparedLanes = lanesWithImageFallback;
       } else {
-        // No images - strip them out
-        preparedLanes = lanesWithImageFallback.map((lane) => {
-          const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
-          const shots = laneShots.map((shot) => ({ ...shot, image: null }));
-          return { ...lane, shots };
-        });
+        // Images OFF or not inlined: use canonical lanes as-is
+        // (buildPdfInputs already stripped images when disabled)
+        preparedLanes = lanes;
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        const firstTwo = preparedLanes.flatMap(l => l.shots || []).filter(s => s.image).slice(0, 2);
+        console.log('[IMAGE-CONTRACT] export-pdf first 2 src prefixes:', firstTwo.map(s => s.image?.substring(0, 30)));
       }
 
       // Generate PDF (this is fast since images are already processed)
-      // Uses derivedLegacyOptions - same object as preview for consistency
       setGenerationStage("Rendering PDF…");
       const blob = await pdf(
         <PlannerPdfDocument
           lanes={preparedLanes}
-          laneSummary={derivedLaneSummary}
-          talentSummary={derivedTalentSummary}
-          options={derivedLegacyOptions}
+          laneSummary={ls}
+          talentSummary={ts}
+          options={options}
         />
       ).toBlob();
 
@@ -2901,10 +2826,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
     }
   }, [
     hasShots,
-    lanesWithImageFallback,
-    derivedLaneSummary,
-    derivedTalentSummary,
-    derivedLegacyOptions,
+    getPdfInputs,
     onClose,
     processImagesForExport,
     resetProgress,
