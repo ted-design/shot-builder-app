@@ -3,6 +3,9 @@
  *
  * Provides a WYSIWYG preview of the PDF export layout.
  * Renders identical layout to the PDF output using HTML/CSS.
+ *
+ * V2: Editorial layout with hierarchy:
+ * Title → Description → Meta Strip → Products → Notes
  */
 
 import React, { useMemo } from 'react';
@@ -13,19 +16,48 @@ import {
   PAGE_DIMENSIONS,
   PAGE_MARGINS,
 } from '../../lib/pdfLayoutCalculator';
+import { getExportDescriptionText } from '../../lib/shotDescription';
+import { getShotNotesPreview } from '../../lib/shotNotes';
 
 /**
- * Shot Card Preview Component
+ * Shot Card Preview Component (V2 Editorial Layout)
  * Renders a single shot card matching PDF layout
+ * Hierarchy: Title → Description → Meta Strip → Products → Notes
  */
 function ShotCardPreview({ shot, preset, cardIndex, layout }) {
   const position = getCardPosition(cardIndex, layout);
-  const { fontSize, imageHeight, cardPadding, showAllFields } = preset;
+  const { fontSize, imageHeight, cardPadding } = preset;
+  const isCompact = layout.columns >= 3;
 
   // Calculate object-position for image crop
   const objectPosition = shot.referenceImageCrop
     ? `${shot.referenceImageCrop.x}% ${shot.referenceImageCrop.y}%`
     : '50% 50%';
+
+  // Prepare data
+  const productList = Array.isArray(shot.products) ? shot.products : [];
+  const talentList = Array.isArray(shot.talent) ? shot.talent : [];
+
+  // Get description using centralized resolver
+  const descriptionText = getExportDescriptionText(shot, { products: productList });
+
+  // Build meta strip items
+  const metaItems = [];
+  if (shot.location) metaItems.push(shot.location);
+  if (talentList.length > 0) metaItems.push(talentList.join(', '));
+  if (shot.scheduledDate || shot.date) metaItems.push(shot.scheduledDate || shot.date);
+
+  // Products: cap at 2 items with "+N more"
+  const MAX_PRODUCTS = 2;
+  const productsToShow = productList.slice(0, MAX_PRODUCTS);
+  const remainingProducts = productList.length - MAX_PRODUCTS;
+
+  // Notes: deterministic truncation at 120 chars (matches PDF export)
+  const GALLERY_NOTES_MAX_CHARS = 120;
+  const rawNotes = getShotNotesPreview(shot) || '';
+  const truncatedNotes = rawNotes.length > GALLERY_NOTES_MAX_CHARS
+    ? rawNotes.slice(0, GALLERY_NOTES_MAX_CHARS).trim() + '…'
+    : rawNotes;
 
   return (
     <div
@@ -67,13 +99,14 @@ function ShotCardPreview({ shot, preset, cardIndex, layout }) {
         </div>
       )}
 
-      {/* Shot Title */}
+      {/* Title */}
       <div
         style={{
-          fontSize: `${fontSize.title}px`,
+          fontSize: `${isCompact ? fontSize.title - 1 : fontSize.title}px`,
           fontWeight: 600,
           color: '#111827',
-          marginBottom: '6px',
+          marginBottom: '3px',
+          lineHeight: 1.3,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
@@ -82,88 +115,92 @@ function ShotCardPreview({ shot, preset, cardIndex, layout }) {
         {shot.shotNumber ? `Shot ${shot.shotNumber}` : shot.name || 'Untitled Shot'}
       </div>
 
-      {/* Details */}
-      <div style={{ fontSize: `${fontSize.label}px`, color: '#64748b' }}>
-        {/* Location */}
-        {shot.location && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '4px',
-            }}
-          >
-            <span style={{ marginRight: '6px', fontSize: '10px' }}>📍</span>
-            <span
+      {/* Description */}
+      {descriptionText && (
+        <div
+          style={{
+            fontSize: `${isCompact ? 8 : 8.5}px`,
+            color: '#64748b',
+            marginBottom: '4px',
+            lineHeight: 1.35,
+          }}
+        >
+          {descriptionText}
+        </div>
+      )}
+
+      {/* Meta Strip: Location · Talent · Date (inline with separators) */}
+      {metaItems.length > 0 && (
+        <div
+          style={{
+            fontSize: `${isCompact ? 7.5 : 8}px`,
+            color: '#64748b',
+            marginBottom: '4px',
+            lineHeight: 1.4,
+          }}
+        >
+          {metaItems.map((item, idx) => (
+            <React.Fragment key={idx}>
+              {idx > 0 && <span style={{ color: '#cbd5e1', margin: '0 4px' }}>·</span>}
+              <span>{item}</span>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+
+      {/* Products (capped at 2 + "+N more") */}
+      {productsToShow.length > 0 && (
+        <div style={{ marginBottom: '3px' }}>
+          {productsToShow.map((product, idx) => (
+            <div
+              key={idx}
               style={{
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                fontSize: `${isCompact ? 7.5 : 8}px`,
+                color: '#1f2937',
+                lineHeight: 1.3,
+                marginBottom: '1px',
               }}
             >
-              {shot.location}
-            </span>
-          </div>
-        )}
-
-        {/* Talent */}
-        {shot.talent && shot.talent.length > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '4px',
-            }}
-          >
-            <span style={{ marginRight: '6px', fontSize: '10px' }}>👤</span>
-            <span
+              <span style={{ color: '#94a3b8' }}>• </span>
+              {product}
+            </div>
+          ))}
+          {remainingProducts > 0 && (
+            <div
               style={{
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                fontSize: '7.5px',
+                color: '#94a3b8',
+                fontStyle: 'italic',
+                marginTop: '1px',
               }}
             >
-              {shot.talent.join(', ')}
-            </span>
-          </div>
-        )}
+              +{remainingProducts} more
+            </div>
+          )}
+        </div>
+      )}
 
-        {/* Date (only in detailed view) */}
-        {showAllFields && shot.scheduledDate && (
+      {/* Notes (truncated callout) */}
+      {truncatedNotes && (
+        <div
+          style={{
+            marginTop: '3px',
+            padding: `${isCompact ? '2px 3px' : '3px 4px'}`,
+            backgroundColor: '#f8fafc',
+            borderRadius: '3px',
+          }}
+        >
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '4px',
+              fontSize: `${isCompact ? 7 : 7.5}px`,
+              color: '#64748b',
+              lineHeight: 1.3,
             }}
           >
-            <span style={{ marginRight: '6px', fontSize: '10px' }}>📅</span>
-            <span>{shot.scheduledDate}</span>
+            {truncatedNotes}
           </div>
-        )}
-
-        {/* Shot Type (only in detailed view) */}
-        {showAllFields && shot.shotType && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '4px',
-            }}
-          >
-            <span style={{ marginRight: '6px', fontSize: '10px' }}>🎬</span>
-            <span
-              style={{
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {shot.shotType}
-            </span>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
