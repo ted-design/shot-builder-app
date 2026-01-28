@@ -46,7 +46,7 @@ function estimatePagination(options, shots) {
   } = options;
 
   const pageCapacity = PAGE_CAPACITY_UNITS[orientation] || PAGE_CAPACITY_UNITS.portrait;
-  const hasImages = includeImages || options.fields?.image;
+  const hasImages = Boolean(options.fields?.image ?? includeImages);
 
   let itemHeight;
   let itemsPerRow;
@@ -257,6 +257,35 @@ describe('estimatePagination', () => {
       expect(result.totalPages).toBeGreaterThan(0);
       expect(result.shotsPerPage).toBeGreaterThan(0);
     });
+  });
+
+  describe('invariant: shots > 0 always produces at least 1 page', () => {
+    // Regression guard: no combination of options should produce 0 pages when shots exist.
+    const shotCounts = [1, 5, 50];
+    const layouts = ['gallery', 'table', 'shotblock'];
+    const densities = ['compact', 'standard', 'detailed'];
+    const orientations = ['portrait', 'landscape'];
+    const imageModes = [true, false];
+
+    for (const count of shotCounts) {
+      for (const layout of layouts) {
+        for (const density of densities) {
+          for (const orientation of orientations) {
+            for (const includeImages of imageModes) {
+              const label = `${count} shots, ${layout}, ${density}, ${orientation}, images=${includeImages}`;
+              it(label, () => {
+                const result = estimatePagination(
+                  { layout, density, orientation, includeImages, galleryColumns: 3 },
+                  createMockShots(count)
+                );
+                expect(result.totalPages).toBeGreaterThanOrEqual(1);
+                expect(result.pages[0].length).toBeGreaterThanOrEqual(1);
+              });
+            }
+          }
+        }
+      }
+    }
   });
 
   describe('density variations', () => {

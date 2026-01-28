@@ -1,18 +1,19 @@
 /**
- * LightweightExportPreview - Paged HTML preview for export configuration
+ * LightweightExportPreview - Document-like HTML preview for export configuration
  *
- * This component provides a performant, document-like preview of export settings
- * without generating actual PDFs. Key features:
+ * This component provides a calm, scannable preview of export settings without
+ * generating actual PDFs. It is a reading aid, not a contract.
  *
- * 1. **Paged Layout**: Shows page boundaries with page numbers, mimicking real PDF
- * 2. **Deterministic Pagination**: Uses layout heuristics to estimate page breaks
- * 3. **Scannable Cards**: Line-clamped text ensures consistent card heights
- * 4. **Editorial Design**: Apple-ish aesthetic with subtle shadows and off-white pages
- * 5. **Instant Updates**: Responds immediately to config changes
+ * Key principles:
+ * - At most TWO page containers (visual shells, not real pagination)
+ * - No deterministic pagination logic, no unit math, no capacity formulas
+ * - Density affects only line clamps, spacing, and image max-height
+ * - Content flows naturally; overflow is clipped at page boundaries
+ * - Fit-to-viewport mode scales pages to comfortably fill available width
  */
 
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
-import { FileText, Image as ImageIcon, ImageOff, LayoutGrid, Table2, Loader2 } from 'lucide-react';
+import { FileText, Image as ImageIcon, ImageOff, LayoutGrid, Table2, Loader2, Minus, Plus } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import {
   resolveExportImageUrl,
@@ -29,139 +30,72 @@ import {
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Maximum number of sample shots to display (performance cap)
-const MAX_SAMPLE_SHOTS = 6;
+// Maximum sample shots rendered across both pages
+const MAX_SAMPLE_SHOTS = 12;
 
-// Maximum notes length for preview
+// Text truncation limits
 const MAX_NOTES_LENGTH = 60;
-
-// Maximum description length
 const MAX_DESCRIPTION_LENGTH = 50;
-
-// Maximum products to show inline
 const MAX_PRODUCTS_INLINE = 2;
 
-// Page dimensions (ratio-based for CSS)
-const PAGE_RATIOS = {
-  portrait: 8.5 / 11,   // Width / Height
-  landscape: 11 / 8.5,
-};
-
-// Page height estimates in "units" (relative to content)
-// Used for deterministic pagination heuristics
-const PAGE_CAPACITY_UNITS = {
-  portrait: 100,
-  landscape: 75,
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Image Stage Sizing
-// Bounded max-heights per density to ensure cards remain scannable
+// Density Tokens
+// Density controls ONLY: image max-height, spacing, and line clamps.
+// It must NOT influence pagination or page splitting.
 // ─────────────────────────────────────────────────────────────────────────────
+
 const STAGE_MAX_HEIGHT = {
-  compact: 60,
-  standard: 80,
-  detailed: 100,
+  compact: 80,
+  standard: 120,
+  detailed: 160,
 };
 
-// Card height estimates (in units) for pagination
-const CARD_HEIGHT_UNITS = {
-  compact: { withImage: 18, withoutImage: 10 },
-  standard: { withImage: 24, withoutImage: 12 },
-  detailed: { withImage: 32, withoutImage: 16 },
+const DENSITY_SPACING = {
+  compact: { cardPadding: 'p-1.5', gap: 'gap-1.5', rowPy: 'py-1.5' },
+  standard: { cardPadding: 'p-2.5', gap: 'gap-2', rowPy: 'py-2' },
+  detailed: { cardPadding: 'p-3', gap: 'gap-2.5', rowPy: 'py-2.5' },
 };
 
-// Row height estimates for table mode
-const ROW_HEIGHT_UNITS = {
-  compact: { withImage: 8, withoutImage: 4 },
-  standard: { withImage: 10, withoutImage: 5 },
-  detailed: { withImage: 14, withoutImage: 7 },
+const DENSITY_TEXT = {
+  compact: { title: 'text-[10px]', body: 'text-[9px]', meta: 'text-[8px]', notes: 'text-[7px]' },
+  standard: { title: 'text-xs', body: 'text-[10px]', meta: 'text-[9px]', notes: 'text-[8px]' },
+  detailed: { title: 'text-xs', body: 'text-[11px]', meta: 'text-[10px]', notes: 'text-[9px]' },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pagination Estimator
+// Zoom / Fit Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Estimates pagination for the preview based on layout configuration.
- * This provides deterministic page breaks without rendering actual PDF.
- *
- * @param {Object} options - Layout options
- * @param {Array} shots - Array of shot objects
- * @returns {Object} Pagination info with page assignments
- */
-function estimatePagination(options, shots) {
-  if (!shots || shots.length === 0) {
-    return { pages: [], totalPages: 0, shotsPerPage: 0 };
-  }
+// Base widths used for scale computation (matches PageShell maxWidth)
+const PAGE_BASE_WIDTH = { portrait: 400, landscape: 540 };
 
-  const {
-    layout = 'gallery',
-    density = 'standard',
-    orientation = 'portrait',
-    includeImages = true,
-    galleryColumns = 3,
-  } = options;
+// Discrete zoom steps for manual control (excluding "fit")
+const ZOOM_STEPS = [0.7, 0.85, 1.0];
+const MIN_FIT_SCALE = 0.55;
+const MAX_FIT_SCALE = 1.0;
 
-  const pageCapacity = PAGE_CAPACITY_UNITS[orientation] || PAGE_CAPACITY_UNITS.portrait;
-  const hasImages = includeImages || options.fields?.image;
+// Horizontal padding inside the scroll container
+const VIEWPORT_PADDING_PX = 32; // p-4 = 16px each side
 
-  let itemHeight;
-  let itemsPerRow;
-
-  if (layout === 'table' || layout === 'shotblock') {
-    // Table/ShotBlock: items flow vertically in a single column
-    const heights = ROW_HEIGHT_UNITS[density] || ROW_HEIGHT_UNITS.standard;
-    itemHeight = hasImages ? heights.withImage : heights.withoutImage;
-    itemsPerRow = 1;
-  } else {
-    // Gallery: items flow in grid
-    const heights = CARD_HEIGHT_UNITS[density] || CARD_HEIGHT_UNITS.standard;
-    itemHeight = hasImages ? heights.withImage : heights.withoutImage;
-    itemsPerRow = Math.min(Number(galleryColumns) || 3, 4);
-  }
-
-  // Calculate items per page
-  const rowHeight = itemHeight;
-  const rowsPerPage = Math.max(1, Math.floor(pageCapacity / rowHeight));
-  const itemsPerPage = rowsPerPage * itemsPerRow;
-
-  // Distribute shots across pages
-  const pages = [];
-  for (let i = 0; i < shots.length; i += itemsPerPage) {
-    pages.push(shots.slice(i, i + itemsPerPage));
-  }
-
-  return {
-    pages,
-    totalPages: pages.length,
-    shotsPerPage: itemsPerPage,
-    rowsPerPage,
-    itemsPerRow,
-  };
-}
+// Hysteresis threshold: ignore scale changes smaller than this to prevent
+// oscillation from scrollbar toggling (scrollbar is ~15-17px, which can cause
+// a scale difference of ~0.03-0.04 on a 400px base).
+const FIT_SCALE_HYSTERESIS = 0.04;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Text Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Truncate text to max length with ellipsis
- */
 function truncateText(text, maxLength) {
   if (!text) return '';
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength).trim() + '…';
+  return text.slice(0, maxLength).trim() + '\u2026';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Image Resolution Hook
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Hook to resolve an image source to a browser-loadable URL
- * Returns { url, loading, error } state
- */
 function useResolvedImageUrl(imageSource, enabled = true) {
   const [state, setState] = useState({ url: null, loading: false, error: null });
 
@@ -176,13 +110,11 @@ function useResolvedImageUrl(imageSource, enabled = true) {
       return;
     }
 
-    // If already a valid browser URL, use directly
     if (isValidBrowserImageUrl(normalizedSource)) {
       setState({ url: normalizedSource, loading: false, error: null });
       return;
     }
 
-    // Need to resolve via adapter
     let cancelled = false;
     setState(prev => ({ ...prev, loading: true, error: null }));
 
@@ -200,9 +132,7 @@ function useResolvedImageUrl(imageSource, enabled = true) {
         setState({ url: null, loading: false, error: err?.message || 'Resolution failed' });
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [normalizedSource]);
 
   return state;
@@ -212,9 +142,6 @@ function useResolvedImageUrl(imageSource, enabled = true) {
 // Shot Image Thumbnail
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Image thumbnail component with URL resolution, contain-fit, and bounded stage sizing.
- */
 function ShotImageThumbnail({
   imageSource,
   altText,
@@ -290,10 +217,6 @@ function ShotImageThumbnail({
 // Sample Shot Card (Gallery Mode)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Sample shot card for lightweight preview - Gallery mode
- * All text is line-clamped for consistent card heights
- */
 function SampleShotCard({
   shot,
   showImage,
@@ -302,8 +225,9 @@ function SampleShotCard({
   imageKey,
   onImageDimensionsLoaded,
 }) {
-  const isCompact = density === 'compact';
   const maxStageHeight = STAGE_MAX_HEIGHT[density] || STAGE_MAX_HEIGHT.standard;
+  const spacing = DENSITY_SPACING[density] || DENSITY_SPACING.standard;
+  const text = DENSITY_TEXT[density] || DENSITY_TEXT.standard;
 
   const productList = Array.isArray(shot.products) ? shot.products : [];
   const talentList = Array.isArray(shot.talent) ? shot.talent : [];
@@ -314,7 +238,7 @@ function SampleShotCard({
       className={cn(
         'bg-white border border-stone-200 rounded-md overflow-hidden',
         'transition-shadow hover:shadow-sm',
-        isCompact ? 'p-2' : 'p-2.5'
+        spacing.cardPadding
       )}
     >
       {/* Image thumbnail */}
@@ -341,56 +265,48 @@ function SampleShotCard({
         </div>
       )}
 
-      {/* Title - 1 line clamp */}
-      <div className={cn(
-        'font-medium text-stone-900 line-clamp-1',
-        isCompact ? 'text-[10px]' : 'text-xs'
-      )}>
+      {/* Title */}
+      <div className={cn('font-medium text-stone-900 line-clamp-1', text.title)}>
         {shot.shotNumber ? `Shot ${shot.shotNumber}` : shot.name || 'Untitled Shot'}
       </div>
 
-      {/* Description - 1 line clamp */}
+      {/* Description */}
       {shot.description && (
-        <div className={cn(
-          'text-stone-500 line-clamp-1 mt-0.5',
-          isCompact ? 'text-[9px]' : 'text-[10px]'
-        )}>
+        <div className={cn('text-stone-500 line-clamp-1 mt-0.5', text.body)}>
           {truncateText(shot.description, MAX_DESCRIPTION_LENGTH)}
         </div>
       )}
 
-      {/* Meta strip - max 2 lines */}
+      {/* Meta strip */}
       <div className={cn(
         'flex items-center gap-1 text-stone-500 mt-1 flex-wrap line-clamp-2',
-        isCompact ? 'text-[8px]' : 'text-[9px]'
+        text.meta
       )}>
         {shot.location && <span>{shot.location}</span>}
         {talentList.length > 0 && (
           <>
-            {shot.location && <span className="text-stone-300">·</span>}
-            <span>{talentList.slice(0, 2).join(', ')}{talentList.length > 2 ? '…' : ''}</span>
+            {shot.location && <span className="text-stone-300">&middot;</span>}
+            <span>{talentList.slice(0, 2).join(', ')}{talentList.length > 2 ? '\u2026' : ''}</span>
           </>
         )}
       </div>
 
-      {/* Products - max 2 items + "+N more" */}
+      {/* Products */}
       {productList.length > 0 && (
-        <div className={cn(
-          'mt-1.5 text-stone-600 line-clamp-1',
-          isCompact ? 'text-[8px]' : 'text-[9px]'
-        )}>
-          <span className="text-stone-400">•</span> {productList.slice(0, MAX_PRODUCTS_INLINE).join(', ')}
+        <div className={cn('mt-1.5 text-stone-600 line-clamp-1', text.meta)}>
+          <span className="text-stone-400">&bull;</span>{' '}
+          {productList.slice(0, MAX_PRODUCTS_INLINE).join(', ')}
           {productList.length > MAX_PRODUCTS_INLINE && (
             <span className="text-stone-400 ml-1">+{productList.length - MAX_PRODUCTS_INLINE}</span>
           )}
         </div>
       )}
 
-      {/* Notes snippet - max 2 lines */}
-      {shot.notes && (
+      {/* Notes */}
+      {shot.notes && density !== 'compact' && (
         <div className={cn(
           'mt-1.5 px-1.5 py-1 bg-stone-50 rounded text-stone-500 line-clamp-2',
-          isCompact ? 'text-[7px]' : 'text-[8px]'
+          text.notes
         )}>
           {truncateText(shot.notes, MAX_NOTES_LENGTH)}
         </div>
@@ -403,9 +319,6 @@ function SampleShotCard({
 // Sample Shot Row (Table Mode)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Sample shot row for lightweight preview - Table/ShotBlock mode
- */
 function SampleShotRow({
   shot,
   showImage,
@@ -414,8 +327,9 @@ function SampleShotRow({
   imageKey,
   onImageDimensionsLoaded,
 }) {
-  const isCompact = density === 'compact';
   const maxStageHeight = STAGE_MAX_HEIGHT[density] || STAGE_MAX_HEIGHT.standard;
+  const spacing = DENSITY_SPACING[density] || DENSITY_SPACING.standard;
+  const text = DENSITY_TEXT[density] || DENSITY_TEXT.standard;
 
   const productList = Array.isArray(shot.products) ? shot.products : [];
   const talentList = Array.isArray(shot.talent) ? shot.talent : [];
@@ -423,8 +337,8 @@ function SampleShotRow({
 
   return (
     <div className={cn(
-      'flex items-start gap-2.5 py-2 border-b border-stone-100 last:border-b-0',
-      isCompact ? 'py-1.5' : 'py-2'
+      'flex items-start gap-2.5 border-b border-stone-100 last:border-b-0',
+      spacing.rowPy
     )}>
       {/* Image thumbnail */}
       {showImage && (
@@ -451,34 +365,29 @@ function SampleShotRow({
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        {/* Title - 1 line */}
-        <div className={cn(
-          'font-medium text-stone-900 line-clamp-1',
-          isCompact ? 'text-[10px]' : 'text-xs'
-        )}>
+        <div className={cn('font-medium text-stone-900 line-clamp-1', text.title)}>
           {shot.shotNumber ? `Shot ${shot.shotNumber}` : shot.name || 'Untitled Shot'}
           {shot.description && (
             <span className="font-normal text-stone-500 ml-1.5">
-              — {truncateText(shot.description, MAX_DESCRIPTION_LENGTH)}
+              &mdash; {truncateText(shot.description, MAX_DESCRIPTION_LENGTH)}
             </span>
           )}
         </div>
 
-        {/* Meta row - 1 line */}
         <div className={cn(
           'flex items-center gap-1.5 text-stone-500 mt-0.5 flex-wrap',
-          isCompact ? 'text-[8px]' : 'text-[9px]'
+          text.meta
         )}>
           {shot.location && <span>{shot.location}</span>}
           {talentList.length > 0 && (
             <>
-              {shot.location && <span className="text-stone-300">·</span>}
-              <span>{talentList.slice(0, 2).join(', ')}{talentList.length > 2 ? '…' : ''}</span>
+              {shot.location && <span className="text-stone-300">&middot;</span>}
+              <span>{talentList.slice(0, 2).join(', ')}{talentList.length > 2 ? '\u2026' : ''}</span>
             </>
           )}
           {productList.length > 0 && (
             <>
-              <span className="text-stone-300">·</span>
+              <span className="text-stone-300">&middot;</span>
               <span>{productList.slice(0, MAX_PRODUCTS_INLINE).join(', ')}</span>
               {productList.length > MAX_PRODUCTS_INLINE && (
                 <span className="text-stone-400">+{productList.length - MAX_PRODUCTS_INLINE}</span>
@@ -492,29 +401,81 @@ function SampleShotRow({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Page Container
+// Zoom Control
+// Quiet two-state toggle with optional +/- for discrete steps.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Page container with document-like styling
- * Shows page boundaries with subtle shadow and page number
- */
-function PageContainer({
-  pageNumber,
-  totalPages,
-  orientation = 'portrait',
-  children,
-  className,
-}) {
+function ZoomControl({ mode, manualStep, onModeChange, onStepChange }) {
+  const stepIndex = ZOOM_STEPS.indexOf(manualStep);
+  const canZoomOut = mode === 'manual' && stepIndex > 0;
+  const canZoomIn = mode === 'manual' && stepIndex < ZOOM_STEPS.length - 1;
+
+  return (
+    <div className="inline-flex items-center gap-0.5 rounded-md border border-stone-200 bg-white/80 backdrop-blur-sm shadow-sm">
+      {/* Minus */}
+      <button
+        type="button"
+        disabled={!canZoomOut}
+        onClick={() => canZoomOut && onStepChange(ZOOM_STEPS[stepIndex - 1])}
+        className={cn(
+          'w-6 h-6 flex items-center justify-center rounded-l-[5px] transition-colors',
+          canZoomOut
+            ? 'text-stone-600 hover:bg-stone-100'
+            : 'text-stone-300 cursor-default'
+        )}
+        aria-label="Zoom out"
+      >
+        <Minus className="w-3 h-3" />
+      </button>
+
+      {/* Fit / 100% toggle */}
+      <button
+        type="button"
+        onClick={() => onModeChange(mode === 'fit' ? 'manual' : 'fit')}
+        className={cn(
+          'px-2 h-6 text-[10px] font-medium transition-colors border-x border-stone-200',
+          mode === 'fit'
+            ? 'text-stone-900 bg-stone-100'
+            : 'text-stone-600 hover:bg-stone-50'
+        )}
+      >
+        {mode === 'fit' ? 'Fit' : `${Math.round(manualStep * 100)}%`}
+      </button>
+
+      {/* Plus */}
+      <button
+        type="button"
+        disabled={!canZoomIn}
+        onClick={() => canZoomIn && onStepChange(ZOOM_STEPS[stepIndex + 1])}
+        className={cn(
+          'w-6 h-6 flex items-center justify-center rounded-r-[5px] transition-colors',
+          canZoomIn
+            ? 'text-stone-600 hover:bg-stone-100'
+            : 'text-stone-300 cursor-default'
+        )}
+        aria-label="Zoom in"
+      >
+        <Plus className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Page Shell
+// Visual document page — fixed aspect ratio, clips overflow.
+// NOT guaranteed to match real PDF page breaks.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function PageShell({ pageLabel, orientation = 'portrait', children, className }) {
   const isLandscape = orientation === 'landscape';
 
   return (
-    <div className={cn('flex flex-col', className)}>
-      {/* Page */}
+    <div className={cn('flex flex-col w-full', className)}>
       <div
         className={cn(
           'relative bg-white rounded shadow-md border border-stone-200/80',
-          'overflow-hidden'
+          'overflow-hidden mx-auto'
         )}
         style={{
           aspectRatio: isLandscape ? '11 / 8.5' : '8.5 / 11',
@@ -522,14 +483,13 @@ function PageContainer({
           width: '100%',
         }}
       >
-        {/* Page content area */}
         <div className="absolute inset-0 p-4 overflow-hidden">
           {children}
         </div>
 
-        {/* Page number label */}
-        <div className="absolute bottom-2 right-3 text-[9px] text-stone-400 font-medium">
-          {pageNumber} of ~{totalPages}
+        {/* Page label */}
+        <div className="absolute bottom-2 right-3 text-[9px] text-stone-400 font-medium select-none">
+          {pageLabel}
         </div>
       </div>
     </div>
@@ -537,16 +497,15 @@ function PageContainer({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Document Header (inside first page)
+// Document Header (rendered inside the first page)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function DocumentHeader({ options, shotCount }) {
   const isTableLayout = options.layout === 'table' || options.layout === 'shotblock';
-  const showImages = options.includeImages || options.fields?.image;
+  const showImages = Boolean(options?.fields?.image);
 
   return (
     <div className="mb-3 pb-2 border-b border-stone-200">
-      {/* Title */}
       <h2 className="text-sm font-semibold text-stone-900 line-clamp-1">
         {options.title || 'Export Preview'}
       </h2>
@@ -556,7 +515,6 @@ function DocumentHeader({ options, shotCount }) {
         </p>
       )}
 
-      {/* Stats row */}
       <div className="flex items-center gap-3 mt-2 text-[9px] text-stone-500">
         <div className="flex items-center gap-1">
           <FileText className="w-3 h-3" />
@@ -602,6 +560,68 @@ function EmptyState() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Shot Content Renderer
+// Renders a list of shots in the current layout mode.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ShotContent({
+  shots,
+  layout,
+  columns,
+  showImages,
+  density,
+  gridStageRatio,
+  onImageDimensionsLoaded,
+  indexOffset = 0,
+}) {
+  const isTableLayout = layout === 'table' || layout === 'shotblock';
+  const spacing = DENSITY_SPACING[density] || DENSITY_SPACING.standard;
+
+  if (isTableLayout) {
+    return (
+      <div className="space-y-0">
+        {shots.map((shot, i) => {
+          const imageKey = shot.id || `shot-${indexOffset + i}`;
+          return (
+            <SampleShotRow
+              key={imageKey}
+              shot={shot}
+              showImage={showImages}
+              density={density}
+              gridStageRatio={gridStageRatio}
+              imageKey={imageKey}
+              onImageDimensionsLoaded={onImageDimensionsLoaded}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn('grid', spacing.gap)}
+      style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+    >
+      {shots.map((shot, i) => {
+        const imageKey = shot.id || `shot-${indexOffset + i}`;
+        return (
+          <SampleShotCard
+            key={imageKey}
+            shot={shot}
+            showImage={showImages}
+            density={density}
+            gridStageRatio={gridStageRatio}
+            imageKey={imageKey}
+            onImageDimensionsLoaded={onImageDimensionsLoaded}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -610,22 +630,17 @@ export default function LightweightExportPreview({
   options = {},
   className,
 }) {
-  // Flatten shots from lanes
+  // Flatten all shots from lanes
   const allShots = useMemo(() => {
-    return lanes.flatMap((lane) => {
-      const laneShots = Array.isArray(lane.shots) ? lane.shots : [];
-      return laneShots;
-    });
+    return lanes.flatMap((lane) => (Array.isArray(lane.shots) ? lane.shots : []));
   }, [lanes]);
 
-  // Sample shots for preview (capped for performance)
+  // Sample shots capped for performance
   const sampleShots = useMemo(() => {
     return allShots.slice(0, MAX_SAMPLE_SHOTS);
   }, [allShots]);
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Unified Grid Stage Ratio
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ─── Unified Grid Stage Ratio ──────────────────────────────────────────────
   const imageDimensionsRef = useRef(new Map());
   const [gridStageRatio, setGridStageRatio] = useState(DEFAULT_PREVIEW_STAGE_RATIO);
 
@@ -644,26 +659,132 @@ export default function LightweightExportPreview({
     }
   }, []);
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Pagination
-  // ─────────────────────────────────────────────────────────────────────────────
-  const pagination = useMemo(() => {
-    return estimatePagination(options, sampleShots);
-  }, [options, sampleShots]);
+  // ─── Derived config ────────────────────────────────────────────────────────
+  // Canonical flag: options.fields.image is the ONLY source of truth.
+  const showImages = Boolean(options?.fields?.image);
 
-  // Estimate total pages for the FULL dataset (not just sample)
-  const fullPagination = useMemo(() => {
-    return estimatePagination(options, allShots);
-  }, [options, allShots]);
-
-  const showImages = options.includeImages || options.fields?.image;
+  // DEV-only: warn if images are enabled but no sample shots have image data.
+  // This catches storage/CORS regressions early without affecting production.
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    if (!showImages || sampleShots.length === 0) return;
+    const shotsWithImages = sampleShots.filter(
+      (s) => s?.image && s.image !== '__PREVIEW_PLACEHOLDER__'
+    );
+    if (shotsWithImages.length === 0) {
+      console.warn(
+        '[LightweightExportPreview] Images are enabled but no sample shots have image data. ' +
+        'This may indicate a storage/CORS regression or missing image URLs in shot data.'
+      );
+    }
+  }, [showImages, sampleShots]);
   const density = options.density || 'standard';
   const orientation = options.orientation || 'portrait';
   const layout = options.layout || 'gallery';
   const columns = layout === 'gallery' ? Math.min(Number(options.galleryColumns) || 3, 3) : 1;
-  const isTableLayout = layout === 'table' || layout === 'shotblock';
 
-  // No shots
+  // ─── Zoom / Fit State ─────────────────────────────────────────────────────
+  const viewportRef = useRef(null);
+  const [zoomMode, setZoomMode] = useState('fit'); // 'fit' | 'manual'
+  const [manualStep, setManualStep] = useState(1.0);
+  const [fitScale, setFitScale] = useState(1.0);
+
+  const pageBaseWidth = PAGE_BASE_WIDTH[orientation] || PAGE_BASE_WIDTH.portrait;
+
+  // ResizeObserver: measure viewport and compute fit scale.
+  // IMPORTANT: The observed element (viewportRef) has overflow:auto, so showing/
+  // hiding a scrollbar changes clientWidth, which re-triggers the observer.
+  // We break this feedback loop with:
+  //   1. requestAnimationFrame coalescing (one update per frame max)
+  //   2. Hysteresis threshold (ignore changes < FIT_SCALE_HYSTERESIS)
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+
+    let rafId = null;
+
+    const computeFit = () => {
+      rafId = null;
+      const availableWidth = el.clientWidth - VIEWPORT_PADDING_PX;
+      if (availableWidth <= 0) return;
+      const raw = availableWidth / pageBaseWidth;
+      const clamped = Math.min(MAX_FIT_SCALE, Math.max(MIN_FIT_SCALE, Math.round(raw * 100) / 100));
+      setFitScale((prev) => {
+        // Hysteresis: only update if the change exceeds threshold
+        if (Math.abs(prev - clamped) < FIT_SCALE_HYSTERESIS) return prev;
+        return clamped;
+      });
+    };
+
+    // Initial computation (synchronous, no RAF needed)
+    computeFit();
+
+    const ro = new ResizeObserver(() => {
+      if (rafId != null) return; // already scheduled
+      rafId = requestAnimationFrame(computeFit);
+    });
+    ro.observe(el);
+
+    return () => {
+      ro.disconnect();
+      if (rafId != null) cancelAnimationFrame(rafId);
+    };
+  }, [pageBaseWidth]);
+
+  // Active scale depends on mode
+  const activeScale = zoomMode === 'fit' ? fitScale : manualStep;
+
+  // ─── Visual page split ────────────────────────────────────────────────────
+  // Split sample shots across two visual shells.
+  // This is a presentation choice, not a pagination calculation.
+  const page1Shots = useMemo(() => {
+    return sampleShots.slice(0, Math.ceil(sampleShots.length / 2));
+  }, [sampleShots]);
+
+  const page2Shots = useMemo(() => {
+    return sampleShots.slice(Math.ceil(sampleShots.length / 2));
+  }, [sampleShots]);
+
+  const showPage2 = page2Shots.length > 0;
+  const remainingPages = allShots.length > sampleShots.length
+    ? Math.max(1, Math.ceil((allShots.length - sampleShots.length) / Math.max(page1Shots.length, 1)))
+    : 0;
+  const displayedPageCount = (showPage2 ? 2 : 1) + remainingPages;
+
+  // ─── DEV-only render storm guard ──────────────────────────────────────────
+  // Counts renders and ResizeObserver callbacks. If either exceeds 30 in 2s,
+  // logs a warning. This is a tripwire to catch future regressions early.
+  const renderCountRef = useRef({ count: 0, windowStart: 0 });
+  if (import.meta.env.DEV) {
+    const now = performance.now();
+    const rc = renderCountRef.current;
+    if (now - rc.windowStart > 2000) {
+      rc.count = 0;
+      rc.windowStart = now;
+    }
+    rc.count++;
+    if (rc.count === 30) {
+      console.warn(
+        '[LightweightExportPreview] Render storm detected: 30+ renders in 2 seconds. ' +
+        'Check ResizeObserver / scale / layout interactions.'
+      );
+    }
+  }
+
+  // ─── DEV-only diagnostic log (TEMP) ─────────────────────────────────────
+  if (import.meta.env.DEV) {
+    const el = viewportRef.current;
+    const cw = el ? el.clientWidth : 0;
+    const ch = el ? el.clientHeight : 0;
+    console.debug(
+      `[LIGHTWEIGHT-PREVIEW] allShots=${allShots.length} sampleShots=${sampleShots.length} ` +
+      `page1=${page1Shots.length} page2=${page2Shots.length} ` +
+      `container=${cw}x${ch} fitScale=${fitScale} activeScale=${activeScale} ` +
+      `earlyReturn=${renderCountRef.current.count >= 30 ? 'renderStorm' : 'none'}`
+    );
+  }
+
+  // ─── Empty state ───────────────────────────────────────────────────────────
   if (allShots.length === 0) {
     return (
       <div className={cn('h-full flex flex-col', className)}>
@@ -673,98 +794,96 @@ export default function LightweightExportPreview({
   }
 
   return (
-    <div className={cn('h-full overflow-auto p-4', className)} style={{ backgroundColor: '#f5f5f4' }}>
-      {/* Preview info bar */}
-      <div className="max-w-lg mx-auto mb-3">
-        <div className="flex items-center justify-between text-[10px] text-stone-500">
-          <span>
-            Sample preview ({Math.min(sampleShots.length, allShots.length)} of {allShots.length} shots)
+    <div
+      ref={viewportRef}
+      className={cn('h-full overflow-auto', className)}
+      style={{ backgroundColor: '#f5f5f4' }}
+    >
+      {/* Info bar + zoom control */}
+      <div className="sticky top-0 z-10 px-4 pt-3 pb-2" style={{ backgroundColor: '#f5f5f4' }}>
+        <div className="max-w-lg mx-auto flex items-center justify-between">
+          <span className="text-[10px] text-stone-500">
+            Preview ({Math.min(sampleShots.length, allShots.length)} of {allShots.length} shots)
+            {allShots.length > sampleShots.length && (
+              <span className="ml-2">
+                &middot; ~{displayedPageCount}+ pages
+              </span>
+            )}
           </span>
-          <span>
-            ~{fullPagination.totalPages} page{fullPagination.totalPages !== 1 ? 's' : ''} estimated
-          </span>
+          <ZoomControl
+            mode={zoomMode}
+            manualStep={manualStep}
+            onModeChange={setZoomMode}
+            onStepChange={(step) => {
+              setManualStep(step);
+              setZoomMode('manual');
+            }}
+          />
         </div>
       </div>
 
-      {/* Paged content */}
-      <div className="flex flex-col items-center gap-4">
-        {pagination.pages.map((pageShots, pageIndex) => (
-          <PageContainer
-            key={pageIndex}
-            pageNumber={pageIndex + 1}
-            totalPages={fullPagination.totalPages}
-            orientation={orientation}
-          >
-            {/* Document header on first page */}
-            {pageIndex === 0 && (
-              <DocumentHeader options={options} shotCount={allShots.length} />
-            )}
+      {/* Scaled pages wrapper */}
+      <div className="px-4 pb-4">
+        <div
+          className="flex flex-col items-center gap-6"
+          style={{
+            transform: `scale(${activeScale})`,
+            transformOrigin: 'top center',
+            // Use negative margin to collapse dead space below scaled content,
+            // without changing the element's height (which would toggle scrollbars
+            // and create a ResizeObserver feedback loop).
+            // The wrapper still occupies its natural unscaled height in DOM flow;
+            // the negative margin visually pulls up the bottom boundary.
+            ...(activeScale < 1 ? { marginBottom: `-${Math.round((1 - activeScale) * 100)}%` } : {}),
+          }}
+        >
+          {/* Page 1 */}
+          <PageShell pageLabel="Page 1" orientation={orientation}>
+            <DocumentHeader options={options} shotCount={allShots.length} />
+            <ShotContent
+              shots={page1Shots}
+              layout={layout}
+              columns={columns}
+              showImages={showImages}
+              density={density}
+              gridStageRatio={gridStageRatio}
+              onImageDimensionsLoaded={handleImageDimensionsLoaded}
+              indexOffset={0}
+            />
+          </PageShell>
 
-            {/* Page content */}
-            {isTableLayout ? (
-              // Table/ShotBlock layout
-              <div className="space-y-0">
-                {pageShots.map((shot, shotIndex) => {
-                  const globalIndex = pageIndex * pagination.shotsPerPage + shotIndex;
-                  const imageKey = shot.id || `shot-${globalIndex}`;
-                  return (
-                    <SampleShotRow
-                      key={imageKey}
-                      shot={shot}
-                      showImage={showImages}
-                      density={density}
-                      gridStageRatio={gridStageRatio}
-                      imageKey={imageKey}
-                      onImageDimensionsLoaded={handleImageDimensionsLoaded}
-                    />
-                  );
-                })}
-              </div>
-            ) : (
-              // Gallery layout
-              <div
-                className="grid gap-2"
-                style={{
-                  gridTemplateColumns: `repeat(${columns}, 1fr)`,
-                }}
-              >
-                {pageShots.map((shot, shotIndex) => {
-                  const globalIndex = pageIndex * pagination.shotsPerPage + shotIndex;
-                  const imageKey = shot.id || `shot-${globalIndex}`;
-                  return (
-                    <SampleShotCard
-                      key={imageKey}
-                      shot={shot}
-                      showImage={showImages}
-                      density={density}
-                      gridStageRatio={gridStageRatio}
-                      imageKey={imageKey}
-                      onImageDimensionsLoaded={handleImageDimensionsLoaded}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </PageContainer>
-        ))}
+          {/* Page 2 */}
+          {showPage2 && (
+            <PageShell pageLabel="Page 2" orientation={orientation}>
+              <ShotContent
+                shots={page2Shots}
+                layout={layout}
+                columns={columns}
+                showImages={showImages}
+                density={density}
+                gridStageRatio={gridStageRatio}
+                onImageDimensionsLoaded={handleImageDimensionsLoaded}
+                indexOffset={page1Shots.length}
+              />
+            </PageShell>
+          )}
 
-        {/* More pages indicator */}
-        {fullPagination.totalPages > pagination.pages.length && (
-          <div className="text-center py-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-sm border border-stone-200 text-[10px] text-stone-500">
-              <span>
-                +{fullPagination.totalPages - pagination.pages.length} more page{fullPagination.totalPages - pagination.pages.length !== 1 ? 's' : ''} in full export
-              </span>
+          {/* More pages indicator */}
+          {remainingPages > 0 && (
+            <div className="text-center py-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-sm border border-stone-200 text-[10px] text-stone-500">
+                +{remainingPages} more page{remainingPages !== 1 ? 's' : ''} in full export
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Full preview prompt */}
-        {allShots.length > MAX_SAMPLE_SHOTS && (
-          <div className="text-center text-[10px] text-stone-400 pb-2">
-            Use "Open PDF preview" for full document fidelity
-          </div>
-        )}
+          {/* PDF fidelity hint */}
+          {allShots.length > MAX_SAMPLE_SHOTS && (
+            <div className="text-center text-[10px] text-stone-400 pb-2">
+              Open PDF preview for full document fidelity
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
