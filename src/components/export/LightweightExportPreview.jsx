@@ -264,8 +264,9 @@ function ShotImageThumbnail({
   }
 
   if (!url || error || imgError) {
+    const errorMessage = error || (imgError ? 'Image failed to load' : 'No image available');
     return (
-      <div className={stageClassName} style={stageStyle}>
+      <div className={stageClassName} style={stageStyle} title={errorMessage}>
         <ImageOff className="w-4 h-4 text-stone-400" />
       </div>
     );
