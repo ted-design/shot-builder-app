@@ -1,8 +1,23 @@
 // vite.config.js
 import { defineConfig } from "vite";
+import { execSync } from "child_process";
 import react from "@vitejs/plugin-react";
 
+// Generate a build identifier: prefer git SHA, fall back to timestamp
+function getBuildId() {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf-8" }).trim();
+  } catch {
+    return `build-${Date.now()}`;
+  }
+}
+
+const buildId = getBuildId();
+
 export default defineConfig({
+  define: {
+    __BUILD_ID__: JSON.stringify(buildId),
+  },
   plugins: [react()],
   build: {
     rollupOptions: {

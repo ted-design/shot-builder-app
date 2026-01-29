@@ -36,8 +36,13 @@ const queryClient = new QueryClient({
   },
 });
 
-// Lazy load all major pages to reduce initial bundle size
-const ProjectsPage = lazy(() => import("./pages/ProjectsPage"));
+// ProjectsPage is statically imported (not lazy) because it is the post-login
+// landing route (/projects). After a mobile OAuth redirect completes on /login,
+// the app navigates here immediately — a lazy import at that point risks a
+// "Importing a module script failed" TypeError on Safari/iOS.
+import ProjectsPage from "./pages/ProjectsPage";
+
+// Lazy load all other major pages to reduce initial bundle size
 const ShotsPage = lazy(() => import("./pages/ShotsPage"));
 const ShotEditorPageV3 = lazy(() => import("./pages/ShotEditorPageV3"));
 const ProductsPage = lazy(() => import("./pages/ProductsPage"));
@@ -214,11 +219,7 @@ function AppRoutes() {
                   <Route index element={<Navigate to="/projects" replace />} />
                   <Route
                     path="/projects"
-                    element={
-                      <Suspense fallback={<PageLoadingFallback />}>
-                        <ProjectsPage />
-                      </Suspense>
-                    }
+                    element={<ProjectsPage />}
                   />
                   {/* Legacy unscoped routes */}
                   <Route path="/shots" element={<LegacyShotsRedirect />} />

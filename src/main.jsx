@@ -37,10 +37,22 @@ if (typeof React === 'undefined' || typeof React.forwardRef === 'undefined') {
   throw new Error(errorMsg);
 }
 
+// Build identifier injected by Vite at build time (git SHA or timestamp)
+const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev';
+
+// Log build ID for diagnostics (visible in browser DevTools console)
+console.info(`[ShotBuilder] build=${BUILD_ID} env=${import.meta.env.MODE}`);
+
+// Detect iOS Safari for Sentry tagging
+const ua = navigator.userAgent || '';
+const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+
 // Initialize Sentry for error tracking
 Sentry.init({
   dsn: "https://a56224a78678d4aca8e608ecb45d7f57@o4510145413447680.ingest.us.sentry.io/4510145414955008",
   environment: import.meta.env.MODE, // 'development' or 'production'
+  release: `shot-builder@${BUILD_ID}`,
 
   // Performance Monitoring
   integrations: [
@@ -50,6 +62,15 @@ Sentry.init({
       blockAllMedia: true,
     }),
   ],
+
+  // Attach build and device tags to every event
+  initialScope: {
+    tags: {
+      build_id: BUILD_ID,
+      is_ios: String(isIOS),
+      is_safari: String(isSafari),
+    },
+  },
 
   // Performance monitoring sample rate (10% of transactions)
   tracesSampleRate: 0.1,
@@ -65,6 +86,10 @@ Sentry.init({
       console.log('Sentry event (dev mode, not sent):', event, hint);
       return null;
     }
+
+    // Attach current route to every event
+    event.tags = event.tags || {};
+    event.tags.route = window.location.pathname;
 
     // Filter out benign IndexedDB errors from Firebase Auth persistence
     // These occur when navigating away during auth state changes and are non-actionable
