@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   onIdTokenChanged,
+  onAuthStateChanged,
   signInWithPopup,
   signInWithRedirect,
   signOut as fbSignOut,
@@ -25,11 +26,50 @@ const LAST_ROLE_STORAGE_KEY = "auth:last-known-role";
 
 const readStoredRole = () => normalizeRole(readStorage(LAST_ROLE_STORAGE_KEY)) || null;
 
+// ---------------------------------------------------------------------------
+// DEV-only structured auth debug logger
+// ---------------------------------------------------------------------------
+function authDebug(event, data) {
+  if (!import.meta.env.DEV) return;
+
+  const hasOAuthParams = (() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return !!(params.get("code") || params.get("state"));
+    } catch { return false; }
+  })();
+
+  const hasFirebaseRedirectKeys = (() => {
+    try {
+      const keys = Object.keys(sessionStorage);
+      return keys.some(k => k.startsWith("firebase:pendingRedirect"));
+    } catch { return false; }
+  })();
+
+  console.log(`[AuthDebug] ${event}`, {
+    ...data,
+    pathname: window.location.pathname,
+    isMobile: isMobileBrowser(),
+    hasOAuthParams,
+    hasFirebaseRedirectKeys,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+// Expose last auth event + last redirect result status for the LoginPage debug panel
+let _lastAuthEvent = "none";
+let _lastRedirectResultStatus = "none";
+
+export function getAuthDebugState() {
+  return { lastAuthEvent: _lastAuthEvent, lastRedirectResultStatus: _lastRedirectResultStatus };
+}
+
 export const AuthContext = createContext({
   user: null,
   initializing: true,
   loadingClaims: false,
   ready: false,
+  checkingRedirect: true,
   claims: null,
   role: null,
   clientId: null,
@@ -58,6 +98,11 @@ export function AuthProvider({ children }) {
   // StrictMode double-mounts the component in development.
   const redirectChecked = useRef(false);
 
+  // DEV: log mount
+  useEffect(() => {
+    authDebug("AUTH_MOUNT", { initializing: true, checkingRedirect: true });
+  }, []);
+
   // Process any pending redirect result on mount (critical for mobile).
   // signInWithRedirect stores the OAuth result; getRedirectResult resolves it.
   // Without this, mobile Safari with ITP may never surface the auth state
@@ -73,16 +118,29 @@ export function AuthProvider({ children }) {
     let cancelled = false;
 
     async function handleRedirectResult() {
+      authDebug("REDIRECT_CHECK_START", {});
       try {
         // Ensure persistence is set before processing redirect
         await setPersistence(auth, browserLocalPersistence);
         const result = await getRedirectResult(auth);
-        if (import.meta.env.DEV) {
-          console.log("[AuthContext] getRedirectResult:", result ? "user found" : "no pending redirect");
-        }
+        const status = result
+          ? (result.user ? "user" : "null")
+          : "none";
+        _lastRedirectResultStatus = status;
+        authDebug("REDIRECT_CHECK_DONE", {
+          hasResult: !!result,
+          hasUser: !!result?.user,
+          errorCode: null,
+        });
       } catch (err) {
         // auth/credential-already-in-use or network errors are non-fatal here.
         // The onIdTokenChanged listener will still pick up a valid session.
+        _lastRedirectResultStatus = `error:${err?.code || "unknown"}`;
+        authDebug("REDIRECT_CHECK_DONE", {
+          hasResult: false,
+          hasUser: false,
+          errorCode: err?.code || "unknown",
+        });
         if (import.meta.env.DEV) {
           console.warn("[AuthContext] getRedirectResult error (non-fatal):", err?.code || err);
         }
@@ -97,11 +155,16 @@ export function AuthProvider({ children }) {
     return () => { cancelled = true; };
   }, []);
 
+  // onIdTokenChanged listener
   useEffect(() => {
     const unsub = onIdTokenChanged(auth, (u) => {
-      if (import.meta.env.DEV) {
-        console.log("[AuthContext] onIdTokenChanged:", u ? u.uid : "null");
-      }
+      _lastAuthEvent = "ID_TOKEN_CHANGED";
+      authDebug("ID_TOKEN_CHANGED", {
+        uid: u?.uid || null,
+        email: u?.email || null,
+        isAnon: u?.isAnonymous || false,
+        providerIds: u?.providerData?.map(p => p.providerId) || [],
+      });
       setUser(u || null);
       setClaims(null);
       setClaimsError(null);
@@ -118,6 +181,20 @@ export function AuthProvider({ children }) {
     return () => unsub();
   }, []);
 
+  // onAuthStateChanged listener (DEV instrumentation — supplements onIdTokenChanged)
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      _lastAuthEvent = "AUTH_STATE_CHANGED";
+      authDebug("AUTH_STATE_CHANGED", {
+        uid: u?.uid || null,
+        email: u?.email || null,
+        isAnon: u?.isAnonymous || false,
+        providerIds: u?.providerData?.map(p => p.providerId) || [],
+      });
+    });
+    return () => unsub();
+  }, []);
+
   useEffect(() => {
     if (role) {
       writeStorage(LAST_ROLE_STORAGE_KEY, role);
@@ -125,6 +202,19 @@ export function AuthProvider({ children }) {
       removeStorage(LAST_ROLE_STORAGE_KEY);
     }
   }, [role]);
+
+  // Derive ready and log whenever it changes
+  const ready = !initializing && !loadingClaims && !checkingRedirect;
+
+  useEffect(() => {
+    authDebug("AUTH_READY", {
+      ready,
+      initializing,
+      checkingRedirect,
+      loadingClaims,
+      hasUser: !!user,
+    });
+  }, [ready, initializing, checkingRedirect, loadingClaims, user]);
 
   useEffect(() => {
     if (!user) {
@@ -242,15 +332,24 @@ export function AuthProvider({ children }) {
       user,
       initializing,
       loadingClaims,
-      ready: !initializing && !loadingClaims && !checkingRedirect,
+      checkingRedirect,
+      ready,
       claims,
       role,
       clientId,
       projectRoles,
       claimsError,
       signIn: async () => {
+        // Always set persistence before any sign-in attempt
+        try {
+          await setPersistence(auth, browserLocalPersistence);
+        } catch (e) {
+          authDebug("PERSISTENCE_ERROR", { error: e?.code || e?.message || "unknown" });
+        }
+
         // On mobile, go directly to redirect (popup is unreliable).
         if (isMobileBrowser()) {
+          authDebug("SIGN_IN_REDIRECT", { reason: "mobile" });
           await signInWithRedirect(auth, provider);
           return;
         }
@@ -267,6 +366,7 @@ export function AuthProvider({ children }) {
             "auth/internal-error",
           ].includes(code);
           if (shouldRedirect) {
+            authDebug("SIGN_IN_REDIRECT", { reason: `popup-fallback:${code}` });
             await signInWithRedirect(auth, provider);
           } else {
             throw e;
@@ -290,6 +390,7 @@ export function AuthProvider({ children }) {
       initializing,
       loadingClaims,
       checkingRedirect,
+      ready,
       claims,
       role,
       clientId,

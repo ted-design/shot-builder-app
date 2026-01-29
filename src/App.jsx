@@ -7,6 +7,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FLAGS, isDemoModeActive } from "./lib/flags";
 import { useAuth } from "./context/AuthContext";
 import { DemoModeAuthProvider } from "./context/DemoModeAuthProvider";
+// LoginPage is statically imported (not lazy) to avoid Safari "Importing a module
+// script failed" errors. /login is the redirect-return target for mobile OAuth and
+// must always be available in the main bundle without a network round-trip.
+import LoginPage from "./pages/LoginPage";
 import DemoModeBanner from "./components/DemoModeBanner";
 import { adaptUser } from "./auth/adapter";
 import AuthReadyGate from "./auth/AuthReadyGate";
@@ -33,7 +37,6 @@ const queryClient = new QueryClient({
 });
 
 // Lazy load all major pages to reduce initial bundle size
-const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ProjectsPage = lazy(() => import("./pages/ProjectsPage"));
 const ShotsPage = lazy(() => import("./pages/ShotsPage"));
 const ShotEditorPageV3 = lazy(() => import("./pages/ShotEditorPageV3"));
@@ -173,14 +176,7 @@ function AppRoutes() {
               <PDFDemoMount />
               <MaybeRedirectLogin user={userForGuard} />
               <Routes>
-                <Route
-                  path="/login"
-                  element={
-                    <Suspense fallback={<PageLoadingFallback />}>
-                      <LoginPage />
-                    </Suspense>
-                  }
-                />
+                <Route path="/login" element={<LoginPage />} />
                 <Route
                   path="/pulls/shared/:shareToken"
                   element={
