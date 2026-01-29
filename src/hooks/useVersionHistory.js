@@ -240,6 +240,270 @@ export function formatChangedFields(changedFields) {
 }
 
 /**
+ * Fields where a short before→after summary is meaningful.
+ * For anything else we fall back to "X changed".
+ */
+const PRIMITIVE_SUMMARY_FIELDS = new Set([
+  "name",
+  "status",
+  "description",
+  "shotNumber",
+  "gender",
+  "productType",
+  "styleName",
+  "styleNumber",
+  "email",
+  "phone",
+  "agency",
+  "city",
+  "province",
+  "postal",
+  "street",
+]);
+
+/**
+ * Generate up to `max` human-readable change summaries for a version.
+ *
+ * Uses the version's own snapshot and the previous (older) version's snapshot
+ * to derive before→after labels for primitive fields.  Complex fields fall
+ * back to descriptive labels like "Notes changed".
+ *
+ * @param {object} version - The version document
+ * @param {object|null} olderVersion - The next-older version (or null for first)
+ * @param {number} [max=2] - Maximum summaries to return
+ * @returns {string[]} Array of summary strings
+ */
+export function getChangeSummaries(version, olderVersion, max = 2) {
+  const fields = version?.changedFields;
+  if (!fields || fields.length === 0) {
+    if (version?.changeType === "create") return ["Initial version"];
+    return [];
+  }
+
+  const summaries = [];
+  const currentSnap = version.snapshot || {};
+  const previousSnap = olderVersion?.snapshot || {};
+
+  for (const field of fields) {
+    if (summaries.length >= max) break;
+
+    const label = formatFieldName(field);
+    const curr = currentSnap[field];
+    const prev = previousSnap[field];
+
+    // For primitives with short string values, show before→after
+    if (
+      PRIMITIVE_SUMMARY_FIELDS.has(field) &&
+      isPrimitive(curr) &&
+      isPrimitive(prev) &&
+      prev !== undefined &&
+      curr !== undefined
+    ) {
+      const prevStr = truncateValue(String(prev));
+      const currStr = truncateValue(String(curr));
+      if (prevStr !== currStr) {
+        summaries.push(`${capitalize(label)}: ${prevStr} → ${currStr}`);
+      } else {
+        summaries.push(`${capitalize(label)} changed`);
+      }
+    } else {
+      summaries.push(`${capitalize(label)} changed`);
+    }
+  }
+
+  // If there are more fields than max, note it
+  if (fields.length > max) {
+    summaries.push(`+${fields.length - max} more`);
+  }
+
+  return summaries;
+}
+
+/**
+ * Extract a plain-text notes preview snippet from a version's snapshot.
+ *
+ * Returns null if the version doesn't include notes changes, or if notes
+ * are missing/empty. Returns "(Notes cleared)" if notes were explicitly
+ * set to empty. Otherwise returns a whitespace-normalized, truncated
+ * plain-text snippet.
+ *
+ * @param {object} version - Version document with snapshot and changedFields
+ * @param {number} [maxLen=120] - Maximum characters before truncation
+ * @returns {string|null} Preview string or null
+ */
+export function getNotesPreview(version, maxLen = 120) {
+  if (!version) return null;
+
+  const fields = version.changedFields;
+  if (!fields || !fields.includes("notes")) return null;
+
+  const notes = version.snapshot?.notes;
+
+  // Notes were cleared
+  if (notes === "" || notes === null || notes === undefined) {
+    return "(Notes cleared)";
+  }
+
+  if (typeof notes !== "string") return null;
+
+  // Strip HTML tags for plain-text preview
+  const plain = notes
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!plain) return "(Notes cleared)";
+
+  if (plain.length <= maxLen) return plain;
+  return plain.slice(0, maxLen - 1) + "\u2026";
+}
+
+/**
+ * Extract before/after plain-text previews for Notes from two adjacent versions.
+ *
+ * Returns `null` if the version doesn't include a notes change.
+ * "Before" comes from the older version's snapshot; "After" from the current.
+ * When the older version is unavailable, `before` is null.
+ *
+ * @param {object} version - The version document (newer)
+ * @param {object|null} olderVersion - The next-older version (or null)
+ * @param {number} [maxLen=100] - Maximum characters per preview
+ * @returns {{ before: string|null, after: string|null } | null}
+ */
+export function getNotesBeforeAfter(version, olderVersion, maxLen = 100) {
+  if (!version) return null;
+
+  const fields = version.changedFields;
+  if (!fields || !fields.includes("notes")) return null;
+
+  const stripHtml = (html) => {
+    if (html === null || html === undefined || html === "") return null;
+    if (typeof html !== "string") return null;
+    const plain = html
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!plain) return null;
+    if (plain.length <= maxLen) return plain;
+    return plain.slice(0, maxLen - 1) + "\u2026";
+  };
+
+  const after = stripHtml(version.snapshot?.notes) ?? "(Notes cleared)";
+  const before = olderVersion
+    ? (stripHtml(olderVersion.snapshot?.notes) ?? "(No notes)")
+    : null; // unknown — oldest version
+
+  return { before, after };
+}
+
+/**
+ * Strip HTML tags and decode entities from a notes string, returning plain text.
+ * Shared helper used by both row previews and restore comparisons.
+ *
+ * @param {string|null|undefined} html - Raw HTML notes string
+ * @param {number} [maxLen=120] - Maximum characters before truncation
+ * @returns {string|null} Plain text or null if empty/missing
+ */
+export function stripNotesHtml(html, maxLen = 120) {
+  if (html === null || html === undefined || html === "") return null;
+  if (typeof html !== "string") return null;
+  const plain = html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!plain) return null;
+  if (plain.length <= maxLen) return plain;
+  return plain.slice(0, maxLen - 1) + "\u2026";
+}
+
+/**
+ * Get a plain-text snapshot preview of notes stored in a version.
+ *
+ * Unlike getNotesBeforeAfter, this returns the snapshot's own state
+ * (not a diff against an adjacent version). Suitable for row-level display.
+ *
+ * @param {object} version - Version document with snapshot
+ * @param {number} [maxLen=120] - Max characters
+ * @returns {string|null} Preview string or null if no notes in snapshot
+ */
+export function getNotesSnapshotPreview(version, maxLen = 120) {
+  if (!version?.snapshot) return null;
+  const notes = version.snapshot.notes;
+  if (notes === "" || notes === null || notes === undefined) return "(No notes)";
+  return stripNotesHtml(notes, maxLen) ?? "(No notes)";
+}
+
+/**
+ * Compare current live entity notes against a target version's snapshot notes.
+ *
+ * Used exclusively by the restore confirm dialog to show CURRENT → TARGET.
+ * Does NOT use adjacency logic.
+ *
+ * @param {object} currentEntityData - Live shot/entity data (from editor context)
+ * @param {object} targetVersion - Version to restore to
+ * @param {number} [maxLen=120] - Max characters per preview
+ * @returns {{ current: string, target: string, notesWillChange: boolean } | null}
+ */
+export function getRestoreNotesComparison(currentEntityData, targetVersion, maxLen = 120) {
+  if (!targetVersion?.snapshot) return null;
+
+  // Only relevant if the target snapshot has notes
+  const targetNotes = targetVersion.snapshot.notes;
+  if (targetNotes === undefined) return null;
+
+  const currentNotes = currentEntityData?.notes;
+
+  const currentPlain = stripNotesHtml(currentNotes, maxLen) ?? "(No notes)";
+  const targetPlain = stripNotesHtml(targetNotes, maxLen) ?? "(No notes)";
+
+  // Normalize for equality comparison (full text, not truncated)
+  const currentNorm = stripNotesHtml(currentNotes, 999999) ?? "";
+  const targetNorm = stripNotesHtml(targetNotes, 999999) ?? "";
+
+  return {
+    current: currentPlain,
+    target: targetPlain,
+    notesWillChange: currentNorm !== targetNorm,
+  };
+}
+
+/** @returns {boolean} */
+function isPrimitive(value) {
+  return value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+}
+
+/** Truncate a display value to keep summaries compact. */
+function truncateValue(str, maxLen = 24) {
+  if (!str) return '""';
+  if (str.length <= maxLen) return str;
+  return str.slice(0, maxLen - 1) + "\u2026";
+}
+
+/** Capitalise the first character of a string. */
+function capitalize(str) {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
  * Format a field name for display
  *
  * @param {string} fieldName - Field name (camelCase)
@@ -289,9 +553,23 @@ function formatFieldName(fieldName) {
 export function formatVersionTimestamp(timestamp) {
   if (!timestamp) return "Unknown time";
 
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  // Firestore Timestamps have toDate(); plain ISO strings / numbers fall through to Date ctor.
+  let date;
+  try {
+    date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    if (isNaN(date.getTime())) return "Unknown time";
+  } catch {
+    return "Unknown time";
+  }
+
   const now = new Date();
   const diffMs = now - date;
+
+  // Handle future timestamps (clock skew or pending server timestamp)
+  if (diffMs < 0) {
+    return "Just now";
+  }
+
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);

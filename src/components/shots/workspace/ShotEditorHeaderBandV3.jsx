@@ -14,6 +14,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
 import { shotsPath } from "../../../lib/paths";
+import { updateShotWithVersion } from "../../../lib/updateShotWithVersion";
 import { useAuth } from "../../../context/AuthContext";
 import { logActivity, createShotUpdatedActivity } from "../../../lib/activityLogger";
 import { toDateInputValue, parseDateToTimestamp } from "../../../lib/shotDraft";
@@ -43,10 +44,12 @@ import {
   Trash2,
   Calendar,
   Eraser,
+  History,
 } from "lucide-react";
 import { toast } from "../../../lib/toast";
 import { useDeleteShot } from "../../../hooks/useFirestoreMutations";
 import ConfirmDialog from "../../common/ConfirmDialog";
+import { VersionHistoryPanel } from "../../versioning";
 
 export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = false }) {
   const navigate = useNavigate();
@@ -117,6 +120,7 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
 
   // Delete confirmation state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Shot number editing state
@@ -460,21 +464,16 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
       setStatusSaveState("saving");
 
       try {
-        const shotRef = doc(db, ...shotsPath(clientId), shot.id);
         const user = auth?.user;
 
-        // Build update payload following schema audit pattern
-        const updatePayload = {
-          status: newStatus,
-          updatedAt: serverTimestamp(),
-        };
-
-        // Only write updatedBy if user exists (never write null)
-        if (user?.uid) {
-          updatePayload.updatedBy = user.uid;
-        }
-
-        await updateDoc(shotRef, updatePayload);
+        await updateShotWithVersion({
+          clientId,
+          shotId: shot.id,
+          patch: { status: newStatus },
+          shot,
+          user,
+          source: "ShotEditorHeaderBandV3.status",
+        });
 
         // Log activity for attribution (non-blocking)
         if (shot.projectId && user) {
@@ -521,21 +520,16 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
     setIsApplying(true);
 
     try {
-      const shotRef = doc(db, ...shotsPath(clientId), shot.id);
       const user = auth?.user;
 
-      // Build update payload following schema audit pattern
-      const updatePayload = {
-        name: suggestedName,
-        updatedAt: serverTimestamp(),
-      };
-
-      // Only write updatedBy if user exists (never write null)
-      if (user?.uid) {
-        updatePayload.updatedBy = user.uid;
-      }
-
-      await updateDoc(shotRef, updatePayload);
+      await updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch: { name: suggestedName },
+        shot,
+        user,
+        source: "ShotEditorHeaderBandV3.name",
+      });
 
       // Log activity for attribution (non-blocking)
       if (shot.projectId && user) {
@@ -614,21 +608,16 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
     setShotNumberSaveState("saving");
 
     try {
-      const shotRef = doc(db, ...shotsPath(clientId), shot.id);
       const user = auth?.user;
 
-      // Build update payload following schema audit pattern
-      const updatePayload = {
-        shotNumber: newValue,
-        updatedAt: serverTimestamp(),
-      };
-
-      // Only write updatedBy if user exists (never write null)
-      if (user?.uid) {
-        updatePayload.updatedBy = user.uid;
-      }
-
-      await updateDoc(shotRef, updatePayload);
+      await updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch: { shotNumber: newValue },
+        shot,
+        user,
+        source: "ShotEditorHeaderBandV3.shotNumber",
+      });
 
       // Log activity for attribution (non-blocking)
       if (shot.projectId && user) {
@@ -737,21 +726,16 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
     setDescriptionSaveState("saving");
 
     try {
-      const shotRef = doc(db, ...shotsPath(clientId), shot.id);
       const user = auth?.user;
 
-      // Build update payload following schema audit pattern
-      const updatePayload = {
-        description: newValue,
-        updatedAt: serverTimestamp(),
-      };
-
-      // Only write updatedBy if user exists (never write null)
-      if (user?.uid) {
-        updatePayload.updatedBy = user.uid;
-      }
-
-      await updateDoc(shotRef, updatePayload);
+      await updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch: { description: newValue },
+        shot,
+        user,
+        source: "ShotEditorHeaderBandV3.description",
+      });
 
       // Log activity for attribution (non-blocking)
       if (shot.projectId && user) {
@@ -791,9 +775,14 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
 
     setDescriptionSaveState("saving");
     try {
-      const shotRef = doc(db, ...shotsPath(clientId), shot.id);
-      // User-invoked only; single-field update (no updatedAt/updatedBy mutations).
-      await updateDoc(shotRef, { description: "" });
+      await updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch: { description: "" },
+        shot,
+        user: auth?.user,
+        source: "ShotEditorHeaderBandV3.clearDescription",
+      });
       toast.success({ title: "Description cleared" });
       setDescriptionSaveState("saved");
       setSafeTimeout(() => setDescriptionSaveState("idle"), 1500);
@@ -879,10 +868,8 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
     setDateSaveState("saving");
 
     try {
-      const shotRef = doc(db, ...shotsPath(clientId), shot.id);
       const user = auth?.user;
 
-      // Build update payload following schema audit pattern
       // Convert date string to Firestore Timestamp, or null if empty
       let dateTimestamp = null;
       if (newValue) {
@@ -896,17 +883,14 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
         }
       }
 
-      const updatePayload = {
-        date: dateTimestamp,
-        updatedAt: serverTimestamp(),
-      };
-
-      // Only write updatedBy if user exists (never write null)
-      if (user?.uid) {
-        updatePayload.updatedBy = user.uid;
-      }
-
-      await updateDoc(shotRef, updatePayload);
+      await updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch: { date: dateTimestamp },
+        shot,
+        user,
+        source: "ShotEditorHeaderBandV3.date",
+      });
 
       // Log activity for attribution (non-blocking)
       if (shot.projectId && user) {
@@ -1259,6 +1243,10 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onSelect={() => setHistoryPanelOpen(true)}>
+                  <History className="w-4 h-4 mr-2" />
+                  Version history
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleOpenLegacy}>
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Open legacy editor
@@ -1304,6 +1292,19 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
         variant="destructive"
         loading={isDeleting}
       />
+
+      {/* Version history panel */}
+      {shot?.id && clientId && (
+        <VersionHistoryPanel
+          open={historyPanelOpen}
+          onClose={() => setHistoryPanelOpen(false)}
+          clientId={clientId}
+          entityType="shots"
+          entityId={shot.id}
+          entityName={shot.name || "Untitled"}
+          currentEntityData={shot}
+        />
+      )}
     </header>
   );
 }

@@ -29,6 +29,7 @@ import PlannerSheetSectionManager from "./PlannerSheetSectionManager";
 import ExportSectionPanel from "../export/ExportSectionPanel";
 import ExportEditorShell from "../export/ExportEditorShell";
 import LightweightExportPreview from "../export/LightweightExportPreview";
+import InlinePdfPreview from "../export/InlinePdfPreview";
 import { stripHtml } from "../../lib/stripHtml";
 import { getShotNotesPreview } from "../../lib/shotNotes";
 import { getExportDescriptionText } from "../../lib/shotDescription";
@@ -2055,6 +2056,10 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
   // On-demand PDF preview state (lightweight HTML preview by default)
   const [isGeneratingPdfPreview, setIsGeneratingPdfPreview] = useState(false);
 
+  // High-fidelity inline PDF preview toggle (default OFF — keeps LightweightExportPreview)
+  const [highFidelityPreview, setHighFidelityPreview] = useState(false);
+  const [highFidelityWasAutoDisabled, setHighFidelityWasAutoDisabled] = useState(false);
+
   // Section expansion state for ExportSectionPanel (legacy UI, no longer user-facing)
   const [expandedSections, setExpandedSections] = useState({
     header: true,
@@ -2457,6 +2462,46 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
       return { ...lane, shots };
     });
   }, [filteredLanes, canonicalIncludeImages, canonicalFallback]);
+
+  // ============================================================================
+  // Auto-disable high-fidelity preview when export config changes
+  // Prevents runaway PDF regeneration by falling back to lightweight preview.
+  // Uses a snapshot ref to detect actual changes (avoids render loops).
+  // ============================================================================
+  const hfConfigSnapshotRef = useRef(null);
+
+  useEffect(() => {
+    // Build a lightweight fingerprint of config that affects PDF output
+    const laneFingerprint = lanesWithImageFallback.map(
+      (l) => `${l.id || ''}:${Array.isArray(l.shots) ? l.shots.length : 0}`
+    ).join(',');
+    const configFingerprint = JSON.stringify({
+      title: derivedLegacyOptions.title,
+      subtitle: derivedLegacyOptions.subtitle,
+      orientation: derivedLegacyOptions.orientation,
+      layout: derivedLegacyOptions.layout,
+      density: derivedLegacyOptions.density,
+      galleryColumns: derivedLegacyOptions.galleryColumns,
+      fields: derivedLegacyOptions.fields,
+      includeLaneSummary: derivedLegacyOptions.includeLaneSummary,
+      includeTalentSummary: derivedLegacyOptions.includeTalentSummary,
+      includeImages: derivedLegacyOptions.includeImages,
+      fallbackToProductImages: derivedLegacyOptions.fallbackToProductImages,
+      lanes: laneFingerprint,
+    });
+
+    const prev = hfConfigSnapshotRef.current;
+    hfConfigSnapshotRef.current = configFingerprint;
+
+    // On first capture (prev === null) or when HF is off, just record — don't trigger
+    if (prev === null || !highFidelityPreview) return;
+
+    // Config changed while high fidelity is on → auto-disable
+    if (prev !== configFingerprint) {
+      setHighFidelityPreview(false);
+      setHighFidelityWasAutoDisabled(true);
+    }
+  }, [derivedLegacyOptions, lanesWithImageFallback, highFidelityPreview]);
 
   // Image processing for PDF export - only runs when user clicks Download
   // This is the key change: images are NOT processed during preview
@@ -2940,11 +2985,51 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
               onConfigChange={handlePresetConfigChange}
             previewSlot={
               <div className="h-full flex flex-col">
-                {/* Preview header with Open PDF button */}
+                {/* Preview header with toggle and Open PDF button */}
                 <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Preview
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Preview
+                    </span>
+                    {/* High-fidelity toggle */}
+                    <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">High fidelity (PDF)</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={highFidelityPreview}
+                        onClick={() => {
+                          setHighFidelityPreview((v) => !v);
+                          setHighFidelityWasAutoDisabled(false);
+                        }}
+                        className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                          highFidelityPreview ? 'bg-slate-700' : 'bg-slate-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                            highFidelityPreview ? 'translate-x-3.5' : 'translate-x-0.5'
+                          }`}
+                        />
+                      </button>
+                    </label>
+                    {/* Auto-disabled notice */}
+                    {highFidelityWasAutoDisabled && !highFidelityPreview && (
+                      <span className="inline-flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400">
+                        Paused (settings changed)
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHighFidelityWasAutoDisabled(false);
+                            setHighFidelityPreview(true);
+                          }}
+                          className="underline hover:text-amber-700 dark:hover:text-amber-300 font-medium"
+                        >
+                          Re-enable
+                        </button>
+                      </span>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={handleOpenPdfPreview}
@@ -2964,12 +3049,24 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                     )}
                   </button>
                 </div>
-                {/* Lightweight HTML preview */}
+                {/* Preview content: lightweight HTML or high-fidelity PDF iframe */}
                 <div className="flex-1 min-h-0 overflow-auto">
-                  <LightweightExportPreview
-                    lanes={lanesWithImageFallback}
-                    options={derivedLegacyOptions}
-                  />
+                  {highFidelityPreview ? (
+                    <InlinePdfPreview
+                      enabled={highFidelityPreview}
+                      getPdfInputs={getPdfInputs}
+                      processImagesForExport={processImagesForExport}
+                      PlannerPdfDocument={PlannerPdfDocument}
+                      pdfRenderer={pdf}
+                      totalShots={derivedLaneSummary.totalShots}
+                      layout={derivedLegacyOptions.layout || 'gallery'}
+                    />
+                  ) : (
+                    <LightweightExportPreview
+                      lanes={lanesWithImageFallback}
+                      options={derivedLegacyOptions}
+                    />
+                  )}
                 </div>
               </div>
             }

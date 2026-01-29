@@ -19,6 +19,97 @@ import { db } from "./firebase";
 import { isDemoModeActive } from "./flags";
 import { VERSION_RETENTION_DAYS } from "../types/versioning";
 
+// ============================================================================
+// TEXT NORMALIZATION — notes-aware meaningful-change detection
+// ============================================================================
+
+/**
+ * Strip HTML tags and decode common entities, returning plain text.
+ * Null-safe: returns "" for falsy / non-string input.
+ *
+ * @param {unknown} html - Raw HTML string (or null/undefined/number)
+ * @returns {string} Plain text (may be empty string)
+ */
+export function stripHtmlToText(html) {
+  if (html === null || html === undefined || html === "") return "";
+  if (typeof html !== "string") return "";
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Normalize a string for comparison: collapse whitespace, trim, normalize newlines.
+ *
+ * @param {unknown} s - Input string (or null/undefined)
+ * @returns {string} Normalized string (may be empty string)
+ */
+export function normalizeText(s) {
+  if (s === null || s === undefined || s === "") return "";
+  if (typeof s !== "string") return "";
+  return s.replace(/\r\n/g, "\n").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Determine whether two notes values are meaningfully different.
+ * Compares normalized visible text, NOT raw HTML structure.
+ *
+ * @param {unknown} prevNotes - Previous notes (HTML string or null)
+ * @param {unknown} nextNotes - Next notes (HTML string or null)
+ * @returns {boolean} true if the visible text changed
+ */
+export function notesMeaningfullyDifferent(prevNotes, nextNotes) {
+  const prevText = normalizeText(stripHtmlToText(prevNotes));
+  const nextText = normalizeText(stripHtmlToText(nextNotes));
+  return prevText !== nextText;
+}
+
+// ============================================================================
+// METADATA IGNORE LIST
+// ============================================================================
+
+/**
+ * Metadata-only fields that should NOT trigger a new version.
+ *
+ * Changes limited to these fields (e.g. autosave setting updatedAt without
+ * touching real content) are considered no-ops for versioning purposes.
+ */
+const METADATA_IGNORE_FIELDS = new Set([
+  "id",
+  "createdAt",
+  "createdBy",
+  "updatedAt",
+  "updatedBy",
+  "deleted",
+  "deletedAt",
+  "notesUpdatedAt",
+  "notesUpdatedBy",
+  "lastViewedAt",
+  "lastViewedBy",
+  "looksUpdatedAt",
+  "looksUpdatedBy",
+]);
+
+/**
+ * Check if a value is a Firestore FieldValue sentinel (e.g. serverTimestamp()).
+ * Sentinels have an internal _methodName property and should not be compared
+ * via JSON.stringify because they serialise to `{}` or similar garbage.
+ */
+function isFieldValueSentinel(value) {
+  return (
+    value != null &&
+    typeof value === "object" &&
+    typeof value._methodName === "string"
+  );
+}
+
 /**
  * Calculate the fields that changed between two objects
  *
@@ -26,7 +117,7 @@ import { VERSION_RETENTION_DAYS } from "../types/versioning";
  * @param {object} currentData - Current document state
  * @returns {string[]} List of field names that changed
  */
-function getChangedFields(previousData, currentData) {
+export function getChangedFields(previousData, currentData) {
   if (!previousData || !currentData) {
     return [];
   }
@@ -38,13 +129,27 @@ function getChangedFields(previousData, currentData) {
   ]);
 
   for (const key of allKeys) {
-    // Skip internal/timestamp fields
-    if (["id", "createdAt", "updatedAt", "deleted", "deletedAt"].includes(key)) {
+    // Skip metadata-only fields — changes to these alone should NOT create a version
+    if (METADATA_IGNORE_FIELDS.has(key)) {
       continue;
     }
 
     const prevValue = previousData[key];
     const currValue = currentData[key];
+
+    // Skip comparison when either side is a FieldValue sentinel (e.g. serverTimestamp()).
+    // Sentinels are metadata artefacts and cannot be meaningfully compared.
+    if (isFieldValueSentinel(prevValue) || isFieldValueSentinel(currValue)) {
+      continue;
+    }
+
+    // Notes field: compare normalized visible text, not raw HTML
+    if (key === "notes") {
+      if (notesMeaningfullyDifferent(prevValue, currValue)) {
+        changedFields.push(key);
+      }
+      continue;
+    }
 
     // Simple comparison - stringify for deep comparison
     if (JSON.stringify(prevValue) !== JSON.stringify(currValue)) {

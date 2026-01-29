@@ -28,6 +28,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { doc, updateDoc, serverTimestamp, collection, addDoc, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
+import { updateShotWithVersion } from "../../../lib/updateShotWithVersion";
 import { shotsPath, shotNoteVersionsPath } from "../../../lib/paths";
 import { useAuth } from "../../../context/AuthContext";
 import { formatRelativeTime } from "../../../lib/notifications";
@@ -168,6 +169,11 @@ export default function ShotNotesCanvas({
   const [draft, setDraft] = useState(() => shot?.notes || "");
   const [saveStatus, setSaveStatus] = useState("idle"); // 'idle' | 'saving' | 'saved' | 'error'
 
+  // Editor key: incremented to force TipTap re-mount when external content
+  // changes are detected (e.g. after a version restore). TipTap editors do
+  // not reliably pick up `content` prop changes after initialization.
+  const [editorKey, setEditorKey] = useState(0);
+
   // Track what we've persisted to avoid duplicate saves
   const lastPersistedRef = useRef(normalizeHtmlContent(shot?.notes));
   const lastVersionHashRef = useRef(null);
@@ -184,7 +190,7 @@ export default function ShotNotesCanvas({
   // SYNC EXTERNAL CHANGES
   // ══════════════════════════════════════════════════════════════════════════
 
-  // Sync draft with shot.notes when shot changes externally
+  // Sync draft with shot.notes when shot changes externally (e.g. restore)
   useEffect(() => {
     const serverContent = normalizeHtmlContent(shot?.notes);
     const currentDraft = normalizeHtmlContent(draft);
@@ -194,6 +200,8 @@ export default function ShotNotesCanvas({
     if (serverContent !== currentDraft && !saveTimerRef.current) {
       setDraft(shot?.notes || "");
       lastPersistedRef.current = serverContent;
+      // Force TipTap editor re-mount so the restored content is visible
+      setEditorKey((k) => k + 1);
     }
   }, [shot?.notes, draft]);
 
@@ -220,10 +228,8 @@ export default function ShotNotesCanvas({
     setSaveStatus("saving");
 
     try {
-      const shotRef = doc(db, ...shotsPath(clientId), shot.id);
-
       // Prepare attribution data
-      const updatePayload = {
+      const patch = {
         notes: normalized, // Store normalized (empty-safe) HTML
         notesUpdatedAt: serverTimestamp(),
         notesUpdatedBy: user ? {
@@ -231,10 +237,16 @@ export default function ShotNotesCanvas({
           displayName: user.displayName || user.email || "Unknown",
           photoURL: user.photoURL || null,
         } : null,
-        updatedAt: serverTimestamp(),
       };
 
-      await updateDoc(shotRef, updatePayload);
+      await updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch,
+        shot,
+        user,
+        source: "ShotNotesCanvas",
+      });
 
       // Update tracking
       lastPersistedRef.current = normalized;
@@ -393,7 +405,7 @@ export default function ShotNotesCanvas({
   // ══════════════════════════════════════════════════════════════════════════
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4 rounded-lg" data-section="shot-notes">
       {/* Header row with title and trust indicator */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
@@ -445,6 +457,7 @@ export default function ShotNotesCanvas({
         ) : (
           // Rich text editor with visible toolbar (primary thinking surface per design-spec.md)
           <RichTextEditor
+            key={editorKey}
             value={draft}
             onChange={handleChange}
             disabled={false}
