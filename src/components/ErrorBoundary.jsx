@@ -20,6 +20,7 @@ class ErrorBoundary extends Component {
     const message = error?.message || "";
     return (
       message.includes("Failed to fetch dynamically imported module") ||
+      message.includes("Importing a module script failed") ||
       message.includes("ChunkLoadError") ||
       message.includes("Loading chunk") ||
       message.includes("Failed to fetch") && message.includes("import")
