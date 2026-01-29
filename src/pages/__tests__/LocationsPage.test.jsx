@@ -36,6 +36,8 @@ let serverTimestampMock;
 let onSnapshotMock;
 
 vi.mock("firebase/firestore", () => ({
+  getFirestore: vi.fn(() => ({})),
+  connectFirestoreEmulator: vi.fn(),
   collection: (...args) => collectionMock(...args),
   doc: (...args) => docMock(...args),
   orderBy: (...args) => orderByMock(...args),

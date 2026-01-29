@@ -42,6 +42,8 @@ const collectionMock = vi.fn((...segments) => ({ __path: segments }));
 const docMock = vi.fn((...segments) => ({ __path: segments }));
 
 vi.mock("firebase/firestore", () => ({
+  getFirestore: vi.fn(() => ({})),
+  connectFirestoreEmulator: vi.fn(),
   collection: collectionMock,
   doc: docMock,
   addDoc: addDocMock,

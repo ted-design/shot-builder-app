@@ -136,6 +136,8 @@ const firestoreHarness = vi.hoisted(() => {
 const { snapshotData, addDocCalls, setSnapshot, createSnapshot, getDocsMock } = firestoreHarness;
 
 vi.mock("firebase/firestore", () => ({
+  getFirestore: vi.fn(() => ({})),
+  connectFirestoreEmulator: vi.fn(),
   collection: firestoreHarness.collectionMock,
   doc: firestoreHarness.docMock,
   query: firestoreHarness.queryMock,
