@@ -698,6 +698,7 @@ export default function ShotEditModal({
           entityType="shots"
           entityId={shotId}
           entityName={shotName || draft?.name}
+          currentEntityData={draft}
         />
       )}
     </Modal>

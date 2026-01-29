@@ -35,6 +35,7 @@ import { shotsPath } from "../../../lib/paths";
 import { useAuth } from "../../../context/AuthContext";
 import { queryKeys } from "../../../hooks/useFirestoreQuery";
 import { logActivity, createShotUpdatedActivity } from "../../../lib/activityLogger";
+import { updateShotWithVersion } from "../../../lib/updateShotWithVersion";
 import { toast } from "../../../lib/toast";
 import TalentMultiSelect from "../TalentMultiSelect";
 import LocationSelect from "../LocationSelect";
@@ -584,12 +585,15 @@ export default function ShotAssetsSection({
       setIsSaving(true);
 
       try {
-        const shotRef = doc(db, ...shotsPath(clientId), shot.id);
         const sanitizedUpdates = sanitizeForFirestore(updates);
 
-        await updateDoc(shotRef, {
-          ...sanitizedUpdates,
-          updatedAt: serverTimestamp(),
+        await updateShotWithVersion({
+          clientId,
+          shotId: shot.id,
+          patch: sanitizedUpdates,
+          shot,
+          user,
+          source: "ShotAssetsSection",
         });
 
         // Invalidate cache so other views reflect changes

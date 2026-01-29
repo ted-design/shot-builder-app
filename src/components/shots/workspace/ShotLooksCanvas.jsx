@@ -48,6 +48,7 @@ import { db, uploadImageFile } from "../../../lib/firebase";
 import { shotsPath, productFamiliesPath, productFamilySkusPath } from "../../../lib/paths";
 import { useAuth } from "../../../context/AuthContext";
 import { logActivity, createShotUpdatedActivity } from "../../../lib/activityLogger";
+import { updateShotWithVersion } from "../../../lib/updateShotWithVersion";
 import { shouldAutoFillDescriptionOnHeroChange } from "../../../lib/shotDescription";
 import { compressImageFile } from "../../../lib/images";
 import { showConfirm } from "../../../lib/toast";
@@ -974,8 +975,6 @@ export default function ShotLooksCanvas({
     setSaveStatus("saving");
 
     try {
-      const shotRef = doc(db, ...shotsPath(clientId), shot.id);
-
       // H.3: Sanitize looks array to remove any undefined values before Firestore write.
       // Firestore rejects documents containing undefined, which can occur when spreading
       // look objects that have properties explicitly set to undefined in React state.
@@ -986,9 +985,13 @@ export default function ShotLooksCanvas({
       // stray undefined values in nested objects, not structural changes.
       const sanitizedLooks = sanitizeForFirestore(newLooks);
 
-      await updateDoc(shotRef, {
-        looks: sanitizedLooks,
-        updatedAt: serverTimestamp(),
+      await updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch: { looks: sanitizedLooks },
+        shot,
+        user,
+        source: "ShotLooksCanvas.saveLooks",
       });
 
       setSaveStatus("saved");
@@ -1170,13 +1173,15 @@ export default function ShotLooksCanvas({
       if (shouldAutoFill) {
         // Write description along with looks in a single update
         try {
-          const shotRef = doc(db, ...shotsPath(clientId), shot.id);
           const sanitizedLooks = sanitizeForFirestore(newLooks);
 
-          await updateDoc(shotRef, {
-            looks: sanitizedLooks,
-            description: newColorway,
-            updatedAt: serverTimestamp(),
+          await updateShotWithVersion({
+            clientId,
+            shotId: shot.id,
+            patch: { looks: sanitizedLooks, description: newColorway },
+            shot,
+            user,
+            source: "ShotLooksCanvas.heroAutoFill",
           });
 
           setSaveStatus("saved");

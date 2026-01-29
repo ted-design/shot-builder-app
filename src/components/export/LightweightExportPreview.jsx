@@ -467,7 +467,7 @@ function ZoomControl({ mode, manualStep, onModeChange, onStepChange }) {
 // NOT guaranteed to match real PDF page breaks.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function PageShell({ pageLabel, orientation = 'portrait', children, className }) {
+function PageShell({ pageLabel, orientation = 'portrait', children, className, _devScale, _devPageHeightPx }) {
   const isLandscape = orientation === 'landscape';
 
   return (
@@ -486,6 +486,29 @@ function PageShell({ pageLabel, orientation = 'portrait', children, className })
         <div className="absolute inset-0 p-4 overflow-hidden">
           {children}
         </div>
+
+        {/* DEV-only: page boundary diagnostic line */}
+        {import.meta.env.DEV && _devPageHeightPx != null && (
+          <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{ zIndex: 50 }}>
+            <div
+              className="border-t-2 border-dashed"
+              style={{ borderColor: 'rgba(239, 68, 68, 0.5)' }}
+            >
+              <span
+                className="absolute right-1 font-mono rounded px-1"
+                style={{
+                  top: '-14px',
+                  fontSize: '7px',
+                  lineHeight: '12px',
+                  color: '#ef4444',
+                  backgroundColor: 'rgba(255,255,255,0.85)',
+                }}
+              >
+                {pageLabel} | {_devPageHeightPx}px | scale={_devScale}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Page label */}
         <div className="absolute bottom-2 right-3 text-[9px] text-stone-400 font-medium select-none">
@@ -691,6 +714,23 @@ export default function LightweightExportPreview({
 
   const pageBaseWidth = PAGE_BASE_WIDTH[orientation] || PAGE_BASE_WIDTH.portrait;
 
+  // ─── DEV-only: font readiness signal ────────────────────────────────────
+  const [fontsReady, setFontsReady] = useState(
+    typeof document !== 'undefined' && document.fonts?.status === 'loaded'
+  );
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    document.fonts?.ready?.then(() => setFontsReady(true));
+  }, []);
+
+  // Computed page height (theoretical, unscaled) for diagnostics
+  const pageHeightPx = useMemo(() => {
+    const isLandscape = orientation === 'landscape';
+    return Math.round(
+      isLandscape ? 540 * (8.5 / 11) : 400 * (11 / 8.5)
+    );
+  }, [orientation]);
+
   // ResizeObserver: measure viewport and compute fit scale.
   // IMPORTANT: The observed element (viewportRef) has overflow:auto, so showing/
   // hiding a scrollbar changes clientWidth, which re-triggers the observer.
@@ -771,16 +811,17 @@ export default function LightweightExportPreview({
     }
   }
 
-  // ─── DEV-only diagnostic log (TEMP) ─────────────────────────────────────
+  // ─── DEV-only pagination diagnostics log ─────────────────────────────────
   if (import.meta.env.DEV) {
     const el = viewportRef.current;
     const cw = el ? el.clientWidth : 0;
     const ch = el ? el.clientHeight : 0;
+    const imagesTotal = sampleShots.filter(s => s?.image).length;
+    const imagesLoaded = imageDimensionsRef.current.size;
     console.debug(
-      `[LIGHTWEIGHT-PREVIEW] allShots=${allShots.length} sampleShots=${sampleShots.length} ` +
-      `page1=${page1Shots.length} page2=${page2Shots.length} ` +
-      `container=${cw}x${ch} fitScale=${fitScale} activeScale=${activeScale} ` +
-      `earlyReturn=${renderCountRef.current.count >= 30 ? 'renderStorm' : 'none'}`
+      `[LW-PAGINATION] container=${cw}x${ch} scale=${activeScale} ` +
+      `pageHeightPx=${pageHeightPx} pages=${displayedPageCount} ` +
+      `imagesReady=${imagesLoaded}/${imagesTotal} fontsReady=${fontsReady}`
     );
   }
 
@@ -838,7 +879,7 @@ export default function LightweightExportPreview({
           }}
         >
           {/* Page 1 */}
-          <PageShell pageLabel="Page 1" orientation={orientation}>
+          <PageShell pageLabel="Page 1" orientation={orientation} _devScale={activeScale} _devPageHeightPx={pageHeightPx}>
             <DocumentHeader options={options} shotCount={allShots.length} />
             <ShotContent
               shots={page1Shots}
@@ -854,7 +895,7 @@ export default function LightweightExportPreview({
 
           {/* Page 2 */}
           {showPage2 && (
-            <PageShell pageLabel="Page 2" orientation={orientation}>
+            <PageShell pageLabel="Page 2" orientation={orientation} _devScale={activeScale} _devPageHeightPx={pageHeightPx}>
               <ShotContent
                 shots={page2Shots}
                 layout={layout}
