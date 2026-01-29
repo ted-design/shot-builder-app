@@ -23,6 +23,203 @@
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- Boot diagnostics: captures module load failures before React mounts -->
+    <script>
+      (function() {
+        // Collect boot errors for Sentry (flushed once Sentry loads in main.jsx)
+        window.__BOOT_ERRORS = [];
+        window.__BOOT_PHASE = 'pre-react';
+
+        // Detect iOS Safari for targeted diagnostics
+        var ua = navigator.userAgent || '';
+        var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        var isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+        window.__IS_IOS_SAFARI = isIOS && isSafari;
+
+        // --- A) Global error listener for SCRIPT/LINK load failures ---
+        window.addEventListener('error', function(event) {
+          var target = event.target;
+          // Capture resource load errors (script/link elements)
+          if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+            var failedSrc = target.src || target.href || 'unknown';
+            var entry = {
+              type: 'resource_load_error',
+              tagName: target.tagName,
+              src: failedSrc,
+              message: event.message || 'Resource failed to load',
+              route: window.location.pathname,
+              timestamp: Date.now(),
+              isIOS: isIOS,
+              isSafari: isSafari,
+              // Populated async by probe below
+              probeStatus: null,
+              probeContentType: null,
+              probeSnippet: null
+            };
+            window.__BOOT_ERRORS.push(entry);
+
+            // Probe the failing URL to capture what the server actually returned
+            if (failedSrc !== 'unknown') {
+              try {
+                fetch(failedSrc, { cache: 'no-store' }).then(function(res) {
+                  entry.probeStatus = res.status;
+                  entry.probeContentType = res.headers.get('content-type') || 'unknown';
+                  return res.text();
+                }).then(function(body) {
+                  entry.probeSnippet = (body || '').substring(0, 120);
+                }).catch(function(err) {
+                  entry.probeStatus = 'fetch-error';
+                  entry.probeSnippet = String(err).substring(0, 120);
+                });
+              } catch (e) {
+                entry.probeStatus = 'fetch-exception';
+                entry.probeSnippet = String(e).substring(0, 120);
+              }
+            }
+
+            // Show fallback UI
+            showBootFailure('A required script failed to load: ' + failedSrc);
+            return;
+          }
+
+          // Capture JS errors during boot
+          if (window.__BOOT_PHASE === 'pre-react') {
+            window.__BOOT_ERRORS.push({
+              type: 'js_error',
+              message: event.message || '',
+              filename: event.filename || '',
+              lineno: event.lineno,
+              colno: event.colno,
+              route: window.location.pathname,
+              timestamp: Date.now()
+            });
+          }
+        }, true); // useCapture: true to catch resource errors
+
+        // --- B) Detect HTML-served-for-JS (SPA rewrite misconfiguration) ---
+        // Runs after DOM is ready to find the module entry script
+        function checkModuleAssetIntegrity() {
+          // Find the first <script type="module" src="..."> in the document
+          var scripts = document.querySelectorAll('script[type="module"][src]');
+          if (!scripts.length) return;
+
+          var moduleSrc = scripts[0].src;
+          // Only check on iOS Safari or when on /login (the problem route)
+          if (!window.__IS_IOS_SAFARI && window.location.pathname.indexOf('/login') === -1) return;
+
+          fetch(moduleSrc, { method: 'GET', cache: 'no-store' })
+            .then(function(res) { return res.text().then(function(t) { return { text: t, status: res.status }; }); })
+            .then(function(result) {
+              var snippet = result.text.substring(0, 60).toLowerCase();
+              if (snippet.indexOf('<!doctype') !== -1 || snippet.indexOf('<html') !== -1) {
+                var entry = {
+                  type: 'html_served_for_js',
+                  src: moduleSrc,
+                  status: result.status,
+                  snippet: result.text.substring(0, 80),
+                  route: window.location.pathname,
+                  timestamp: Date.now()
+                };
+                window.__BOOT_ERRORS.push(entry);
+                showBootFailure('Asset request returned HTML instead of JavaScript (SPA rewrite likely misconfigured)');
+              }
+            })
+            .catch(function() { /* network error — other handlers will catch */ });
+        }
+
+        // --- B2) Record the asset manifest (module entry + modulepreloads) ---
+        // Captured for Sentry breadcrumb to identify which hashed filenames
+        // the current shell is pointing at when mobile fails.
+        function captureAssetManifest() {
+          var manifest = { moduleEntry: null, preloads: [] };
+          var moduleScript = document.querySelector('script[type="module"][src]');
+          if (moduleScript) manifest.moduleEntry = moduleScript.src;
+          var preloadLinks = document.querySelectorAll('link[rel="modulepreload"]');
+          for (var i = 0; i < Math.min(preloadLinks.length, 3); i++) {
+            manifest.preloads.push(preloadLinks[i].href);
+          }
+          window.__BOOT_ASSET_MANIFEST = manifest;
+        }
+
+        // Run checks once DOM is interactive
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', function() {
+            captureAssetManifest();
+            checkModuleAssetIntegrity();
+          });
+        } else {
+          captureAssetManifest();
+          checkModuleAssetIntegrity();
+        }
+
+        // --- C) Fallback UX when module import fails ---
+        var fallbackShown = false;
+        function showBootFailure(reason) {
+          if (fallbackShown) return;
+          fallbackShown = true;
+
+          // Give React a short window to mount — if it does, it handles errors itself
+          setTimeout(function() {
+            if (window.__BOOT_PHASE === 'react-mounted') return;
+
+            var root = document.getElementById('root');
+            if (!root) return;
+            root.innerHTML =
+              '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;font-family:system-ui,-apple-system,sans-serif;text-align:center;background:#f8fafc;color:#334155;">' +
+                '<h1 style="font-size:20px;font-weight:600;margin:0 0 12px;">We couldn\'t load the app</h1>' +
+                '<p style="font-size:14px;color:#64748b;margin:0 0 8px;max-width:360px;">' + (reason || 'A required resource failed to load.') + '</p>' +
+                '<p style="font-size:13px;color:#94a3b8;margin:0 0 24px;">This usually means the app was updated since you last loaded it. A reload will fix it.</p>' +
+                '<button onclick="window.location.href=window.location.pathname+\'?r=\'+Date.now()" style="padding:12px 28px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent;">Tap to Reload</button>' +
+              '</div>';
+          }, 3000); // 3s grace period for React to mount
+        }
+
+        // Also catch module-level import failures via unhandledrejection (pre-React)
+        window.addEventListener('unhandledrejection', function(event) {
+          if (window.__BOOT_PHASE !== 'pre-react') return;
+          var reason = event.reason || {};
+          var msg = reason.message || String(reason);
+          if (msg.indexOf('import') !== -1 || msg.indexOf('module') !== -1 || msg.indexOf('Failed to fetch') !== -1) {
+            var entry = {
+              type: 'module_import_rejection',
+              message: msg,
+              stack: reason.stack ? reason.stack.substring(0, 500) : '',
+              route: window.location.pathname,
+              timestamp: Date.now(),
+              isIOS: isIOS,
+              isSafari: isSafari,
+              probeStatus: null,
+              probeContentType: null,
+              probeSnippet: null
+            };
+            window.__BOOT_ERRORS.push(entry);
+
+            // Try to extract URL from error message (e.g. "Failed to fetch dynamically imported module: https://...")
+            var urlMatch = msg.match(/https?:\/\/[^\s'"]+/);
+            if (urlMatch) {
+              try {
+                fetch(urlMatch[0], { cache: 'no-store' }).then(function(res) {
+                  entry.probeStatus = res.status;
+                  entry.probeContentType = res.headers.get('content-type') || 'unknown';
+                  return res.text();
+                }).then(function(body) {
+                  entry.probeSnippet = (body || '').substring(0, 120);
+                }).catch(function(err) {
+                  entry.probeStatus = 'fetch-error';
+                  entry.probeSnippet = String(err).substring(0, 120);
+                });
+              } catch (e) {
+                // fetch not available or other error
+              }
+            }
+
+            showBootFailure('A module failed to load: ' + msg.substring(0, 120));
+          }
+        });
+      })();
+    </script>
+
     <!-- Vite entry -->
     <script type="module" src="/src/main.jsx"></script>
   </body>

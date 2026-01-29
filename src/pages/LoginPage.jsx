@@ -8,9 +8,14 @@ import {
   sendPasswordResetEmail,
   sendEmailVerification,
   updateProfile,
+  browserLocalPersistence,
+  setPersistence,
 } from "firebase/auth";
 import { auth, provider } from "../lib/firebase";
 import { markAuthRedirectStart } from "../lib/authRedirectTracker";
+import { isMobileBrowser } from "../lib/isMobileBrowser";
+import { useAuth } from "../context/AuthContext";
+import { getAuthDebugState } from "../context/AuthContext";
 
 const mapAuthError = (error) => {
   const code = error?.code;
@@ -33,6 +38,7 @@ const mapAuthError = (error) => {
 
 export default function LoginPage() {
   const nav = useNavigate();
+  const { user, ready, initializing, loadingClaims, checkingRedirect } = useAuth();
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,12 +48,24 @@ export default function LoginPage() {
   const [confirm, setConfirm] = useState("");
   const [name, setName] = useState("");
 
+  // Navigate away once auth is ready and user is present
   useEffect(() => {
-    const unsub = auth.onIdTokenChanged((u) => {
-      if (u) nav("/projects", { replace: true });  // go to Projects after sign-in
-    });
-    return () => unsub();
-  }, [nav]);
+    if (ready && user) {
+      nav("/projects", { replace: true });
+    }
+  }, [ready, user, nav]);
+
+  // Timeout fallback: if redirect check hangs for > 15s, clear the gate so the
+  // user isn't stuck on the spinner indefinitely.
+  useEffect(() => {
+    if (!checkingRedirect) return;
+    const id = setTimeout(() => {
+      if (import.meta.env.DEV) {
+        console.warn("[LoginPage] Redirect check timed out after 15 s");
+      }
+    }, 15000);
+    return () => clearTimeout(id);
+  }, [checkingRedirect]);
 
   const toggleMode = () => {
     setMode((prev) => (prev === "signin" ? "signup" : "signin"));
@@ -62,8 +80,27 @@ export default function LoginPage() {
     setInfo("");
     setBusy(true);
     try {
+      // Always set persistence before any sign-in attempt
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+      } catch (persistErr) {
+        setError("Unable to save sign-in state. Please check your browser settings and try again.");
+        setBusy(false);
+        return;
+      }
+
+      // On mobile, skip popup entirely — it's almost always blocked.
+      // Go straight to redirect for a reliable sign-in experience.
+      if (isMobileBrowser()) {
+        if (import.meta.env.DEV) {
+          console.log("[LoginPage] Mobile detected, using signInWithRedirect directly");
+        }
+        await signInWithRedirect(auth, provider);
+        return; // Page will navigate away
+      }
+
       await signInWithPopup(auth, provider);
-      // onIdTokenChanged above will redirect after sign-in.
+      // useEffect above will redirect after sign-in.
     } catch (e) {
       const code = e && e.code ? String(e.code) : "unknown";
       const shouldRedirect = [
@@ -102,6 +139,14 @@ export default function LoginPage() {
     setBusy(true);
     try {
       markAuthRedirectStart("LoginPage.loginRedirect");
+      // Always set persistence before redirect sign-in
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+      } catch (persistErr) {
+        setError("Unable to save sign-in state. Please check your browser settings and try again.");
+        setBusy(false);
+        return;
+      }
       await signInWithRedirect(auth, provider);
     } catch (e) {
       setError(`Sign-in (redirect) failed: ${e.message || e}`);
@@ -166,6 +211,19 @@ export default function LoginPage() {
       setBusy(false);
     }
   };
+
+  // --- Task D: While redirect is in flight, show a holding state ---
+  if (checkingRedirect) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900 px-4">
+        <div className="w-full max-w-md space-y-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 shadow-sm text-center">
+          <div className="animate-spin mx-auto h-6 w-6 border-2 border-slate-300 border-t-slate-700 dark:border-slate-600 dark:border-t-slate-300 rounded-full" />
+          <p className="text-sm text-slate-600 dark:text-slate-400">Finishing sign-in&hellip;</p>
+          {import.meta.env.DEV && <AuthDebugPanel ready={ready} initializing={initializing} loadingClaims={loadingClaims} checkingRedirect={checkingRedirect} user={user} />}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900 px-4">
@@ -274,7 +332,39 @@ export default function LoginPage() {
             {error || info}
           </div>
         )}
+
+        {import.meta.env.DEV && <AuthDebugPanel ready={ready} initializing={initializing} loadingClaims={loadingClaims} checkingRedirect={checkingRedirect} user={user} />}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DEV-only Auth Debug Panel — renders current auth state for diagnosis
+// ---------------------------------------------------------------------------
+function AuthDebugPanel({ ready, initializing, loadingClaims, checkingRedirect, user }) {
+  const [tick, setTick] = useState(0);
+
+  // Re-render every 2s to pick up module-level debug state changes
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 2000);
+    return () => clearInterval(id);
+  }, []);
+
+  const { lastAuthEvent, lastRedirectResultStatus } = getAuthDebugState();
+
+  return (
+    <div className="mt-4 rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-3 text-left text-xs font-mono text-amber-800 dark:text-amber-300">
+      <div className="font-bold mb-1">Auth Debug (DEV only)</div>
+      <div>ready: {String(ready)}</div>
+      <div>initializing: {String(initializing)}</div>
+      <div>checkingRedirect: {String(checkingRedirect)}</div>
+      <div>loadingClaims: {String(loadingClaims)}</div>
+      <div>user: {user?.uid || "null"}</div>
+      <div>lastRedirectResult: {lastRedirectResultStatus}</div>
+      <div>lastAuthEvent: {lastAuthEvent}</div>
+      <div>isMobile: {String(isMobileBrowser())}</div>
+      <div>pathname: {window.location.pathname}</div>
     </div>
   );
 }

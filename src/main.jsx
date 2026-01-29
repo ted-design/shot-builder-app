@@ -37,10 +37,22 @@ if (typeof React === 'undefined' || typeof React.forwardRef === 'undefined') {
   throw new Error(errorMsg);
 }
 
+// Build identifier injected by Vite at build time (git SHA or timestamp)
+const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev';
+
+// Log build ID for diagnostics (visible in browser DevTools console)
+console.info(`[ShotBuilder] build=${BUILD_ID} env=${import.meta.env.MODE}`);
+
+// Detect iOS Safari for Sentry tagging
+const ua = navigator.userAgent || '';
+const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+
 // Initialize Sentry for error tracking
 Sentry.init({
   dsn: "https://a56224a78678d4aca8e608ecb45d7f57@o4510145413447680.ingest.us.sentry.io/4510145414955008",
   environment: import.meta.env.MODE, // 'development' or 'production'
+  release: `shot-builder@${BUILD_ID}`,
 
   // Performance Monitoring
   integrations: [
@@ -50,6 +62,15 @@ Sentry.init({
       blockAllMedia: true,
     }),
   ],
+
+  // Attach build and device tags to every event
+  initialScope: {
+    tags: {
+      build_id: BUILD_ID,
+      is_ios: String(isIOS),
+      is_safari: String(isSafari),
+    },
+  },
 
   // Performance monitoring sample rate (10% of transactions)
   tracesSampleRate: 0.1,
@@ -65,6 +86,10 @@ Sentry.init({
       console.log('Sentry event (dev mode, not sent):', event, hint);
       return null;
     }
+
+    // Attach current route to every event
+    event.tags = event.tags || {};
+    event.tags.route = window.location.pathname;
 
     // Filter out benign IndexedDB errors from Firebase Auth persistence
     // These occur when navigating away during auth state changes and are non-actionable
@@ -108,11 +133,6 @@ Sentry.addBreadcrumb({
   data: bootContext,
 });
 
-function isModuleScriptImportFailure(event) {
-  const message = event?.message || "";
-  return message.includes("Importing a module script failed");
-}
-
 function getRecentAssetResourceTimings(limit = 10) {
   try {
     return performance
@@ -132,30 +152,116 @@ function getRecentAssetResourceTimings(limit = 10) {
   }
 }
 
-window.addEventListener(
-  "error",
-  (event) => {
-    if (!isModuleScriptImportFailure(event)) return;
-    const target = event?.target;
-    const requestUrl =
-      target?.src ||
-      target?.currentSrc ||
-      target?.href ||
-      event?.filename ||
-      null;
+// --- Boot diagnostics: flush pre-React errors to Sentry ---
+function flushBootErrorsToSentry() {
+  const bootErrors = window.__BOOT_ERRORS || [];
+  if (bootErrors.length === 0) return;
 
-    Sentry.captureMessage("Module script import failed", {
-      level: "error",
-      extra: {
-        message: event?.message,
-        requestUrl,
-        location: window.location.href,
-        recentAssets: getRecentAssetResourceTimings(10),
-      },
-    });
-  },
-  true
-);
+  for (const entry of bootErrors) {
+    if (entry.type === 'html_served_for_js') {
+      Sentry.captureMessage('Asset request returned HTML (SPA rewrite likely misconfigured)', {
+        level: 'error',
+        tags: {
+          boot_phase: 'pre-react',
+          route: entry.route,
+          is_ios_safari: String(!!window.__IS_IOS_SAFARI),
+        },
+        contexts: {
+          boot_error: {
+            src: entry.src,
+            http_status: entry.status,
+            response_snippet: entry.snippet,
+          },
+        },
+      });
+    } else if (entry.type === 'resource_load_error') {
+      Sentry.captureMessage('BOOT_ASSET_LOAD_FAIL', {
+        level: 'error',
+        tags: {
+          boot_phase: 'pre-react',
+          route: entry.route,
+          asset_url: entry.src,
+          resource_tag: entry.tagName,
+          status: String(entry.probeStatus ?? 'unknown'),
+          content_type: String(entry.probeContentType ?? 'unknown'),
+          is_ios: String(!!entry.isIOS),
+          is_safari: String(!!entry.isSafari),
+        },
+        contexts: {
+          boot_error: {
+            src: entry.src,
+            message: entry.message,
+            probe_status: entry.probeStatus,
+            probe_content_type: entry.probeContentType,
+            probe_snippet: entry.probeSnippet,
+          },
+        },
+      });
+    } else if (entry.type === 'module_import_rejection') {
+      Sentry.captureMessage('BOOT_ASSET_LOAD_FAIL', {
+        level: 'error',
+        tags: {
+          boot_phase: 'pre-react',
+          route: entry.route,
+          asset_url: entry.message?.match?.(/https?:\/\/[^\s'"]+/)?.[0] || 'unknown',
+          status: String(entry.probeStatus ?? 'unknown'),
+          content_type: String(entry.probeContentType ?? 'unknown'),
+          is_ios: String(!!entry.isIOS),
+          is_safari: String(!!entry.isSafari),
+        },
+        contexts: {
+          boot_error: {
+            message: entry.message,
+            stack: entry.stack,
+            probe_status: entry.probeStatus,
+            probe_content_type: entry.probeContentType,
+            probe_snippet: entry.probeSnippet,
+          },
+        },
+      });
+    } else if (entry.type === 'js_error') {
+      Sentry.captureMessage(`Pre-React JS error: ${entry.message}`, {
+        level: 'warning',
+        tags: {
+          boot_phase: 'pre-react',
+          route: entry.route,
+        },
+        contexts: {
+          boot_error: {
+            filename: entry.filename,
+            lineno: entry.lineno,
+            colno: entry.colno,
+          },
+        },
+      });
+    }
+  }
+
+  // Clear after flushing
+  window.__BOOT_ERRORS = [];
+}
+
+// Record the asset manifest as a Sentry breadcrumb for diagnostics.
+// This tells us exactly which hashed filenames the shell is pointing at.
+const manifest = window.__BOOT_ASSET_MANIFEST;
+if (manifest) {
+  Sentry.addBreadcrumb({
+    category: 'boot',
+    message: 'Asset manifest from shell HTML',
+    level: 'info',
+    data: {
+      module_entry: manifest.moduleEntry,
+      preload_0: manifest.preloads[0] || null,
+      preload_1: manifest.preloads[1] || null,
+      preload_2: manifest.preloads[2] || null,
+    },
+  });
+}
+
+// Flush boot errors now that Sentry is initialized.
+// Delay slightly to allow async fetch probes (in index.html) to populate
+// status/content-type/snippet fields on boot error entries.
+setTimeout(flushBootErrorsToSentry, 2000);
 
 // Global handler for chunk loading errors (catches errors outside React error boundary)
 const CHUNK_RELOAD_KEY = "chunk-reload-attempted";
@@ -164,6 +270,7 @@ function isChunkLoadError(error) {
   const message = error?.message || "";
   return (
     message.includes("Failed to fetch dynamically imported module") ||
+    message.includes("Importing a module script failed") ||
     message.includes("ChunkLoadError") ||
     message.includes("Loading chunk") ||
     (message.includes("Failed to fetch") && message.includes("import"))
@@ -215,3 +322,6 @@ function Root() {
 }
 
 createRoot(rootEl).render(<Root />);
+
+// Signal that React has mounted — disables pre-React fallback UI
+window.__BOOT_PHASE = 'react-mounted';

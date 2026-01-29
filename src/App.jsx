@@ -7,6 +7,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FLAGS, isDemoModeActive } from "./lib/flags";
 import { useAuth } from "./context/AuthContext";
 import { DemoModeAuthProvider } from "./context/DemoModeAuthProvider";
+// LoginPage is statically imported (not lazy) to avoid Safari "Importing a module
+// script failed" errors. /login is the redirect-return target for mobile OAuth and
+// must always be available in the main bundle without a network round-trip.
+import LoginPage from "./pages/LoginPage";
 import DemoModeBanner from "./components/DemoModeBanner";
 import { adaptUser } from "./auth/adapter";
 import AuthReadyGate from "./auth/AuthReadyGate";
@@ -32,9 +36,13 @@ const queryClient = new QueryClient({
   },
 });
 
-// Lazy load all major pages to reduce initial bundle size
-const LoginPage = lazy(() => import("./pages/LoginPage"));
-const ProjectsPage = lazy(() => import("./pages/ProjectsPage"));
+// ProjectsPage is statically imported (not lazy) because it is the post-login
+// landing route (/projects). After a mobile OAuth redirect completes on /login,
+// the app navigates here immediately — a lazy import at that point risks a
+// "Importing a module script failed" TypeError on Safari/iOS.
+import ProjectsPage from "./pages/ProjectsPage";
+
+// Lazy load all other major pages to reduce initial bundle size
 const ShotsPage = lazy(() => import("./pages/ShotsPage"));
 const ShotEditorPageV3 = lazy(() => import("./pages/ShotEditorPageV3"));
 const ProductsPage = lazy(() => import("./pages/ProductsPage"));
@@ -173,14 +181,7 @@ function AppRoutes() {
               <PDFDemoMount />
               <MaybeRedirectLogin user={userForGuard} />
               <Routes>
-                <Route
-                  path="/login"
-                  element={
-                    <Suspense fallback={<PageLoadingFallback />}>
-                      <LoginPage />
-                    </Suspense>
-                  }
-                />
+                <Route path="/login" element={<LoginPage />} />
                 <Route
                   path="/pulls/shared/:shareToken"
                   element={
@@ -218,11 +219,7 @@ function AppRoutes() {
                   <Route index element={<Navigate to="/projects" replace />} />
                   <Route
                     path="/projects"
-                    element={
-                      <Suspense fallback={<PageLoadingFallback />}>
-                        <ProjectsPage />
-                      </Suspense>
-                    }
+                    element={<ProjectsPage />}
                   />
                   {/* Legacy unscoped routes */}
                   <Route path="/shots" element={<LegacyShotsRedirect />} />
