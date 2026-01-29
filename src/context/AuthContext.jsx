@@ -1,10 +1,13 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   onIdTokenChanged,
   signInWithPopup,
   signInWithRedirect,
   signOut as fbSignOut,
   getIdTokenResult,
+  getRedirectResult,
+  browserLocalPersistence,
+  setPersistence,
 } from "firebase/auth";
 import {
   doc,
@@ -16,6 +19,7 @@ import { auth, provider, db } from "../lib/firebase";
 import { CLIENT_ID } from "../lib/paths";
 import { normalizeRole } from "../lib/rbac";
 import { readStorage, removeStorage, writeStorage } from "../lib/safeStorage";
+import { isMobileBrowser } from "../lib/isMobileBrowser";
 
 const LAST_ROLE_STORAGE_KEY = "auth:last-known-role";
 
@@ -45,9 +49,59 @@ export function AuthProvider({ children }) {
   const [projectRoles, setProjectRoles] = useState({});
   const [role, setRole] = useState(() => readStoredRole());
   const [claimsError, setClaimsError] = useState(null);
+  // Track whether we're still checking for a pending redirect result.
+  // This prevents the route guard from seeing "no user" and redirecting
+  // to /login before a redirect sign-in has been fully processed.
+  const [checkingRedirect, setCheckingRedirect] = useState(true);
+
+  // Ref guard: ensure the redirect check runs exactly once, even if React
+  // StrictMode double-mounts the component in development.
+  const redirectChecked = useRef(false);
+
+  // Process any pending redirect result on mount (critical for mobile).
+  // signInWithRedirect stores the OAuth result; getRedirectResult resolves it.
+  // Without this, mobile Safari with ITP may never surface the auth state
+  // through onIdTokenChanged alone.
+  useEffect(() => {
+    if (redirectChecked.current) {
+      // Already ran (StrictMode remount) — just clear the flag.
+      setCheckingRedirect(false);
+      return;
+    }
+    redirectChecked.current = true;
+
+    let cancelled = false;
+
+    async function handleRedirectResult() {
+      try {
+        // Ensure persistence is set before processing redirect
+        await setPersistence(auth, browserLocalPersistence);
+        const result = await getRedirectResult(auth);
+        if (import.meta.env.DEV) {
+          console.log("[AuthContext] getRedirectResult:", result ? "user found" : "no pending redirect");
+        }
+      } catch (err) {
+        // auth/credential-already-in-use or network errors are non-fatal here.
+        // The onIdTokenChanged listener will still pick up a valid session.
+        if (import.meta.env.DEV) {
+          console.warn("[AuthContext] getRedirectResult error (non-fatal):", err?.code || err);
+        }
+      } finally {
+        if (!cancelled) {
+          setCheckingRedirect(false);
+        }
+      }
+    }
+
+    handleRedirectResult();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const unsub = onIdTokenChanged(auth, (u) => {
+      if (import.meta.env.DEV) {
+        console.log("[AuthContext] onIdTokenChanged:", u ? u.uid : "null");
+      }
       setUser(u || null);
       setClaims(null);
       setClaimsError(null);
@@ -188,13 +242,18 @@ export function AuthProvider({ children }) {
       user,
       initializing,
       loadingClaims,
-      ready: !initializing && !loadingClaims,
+      ready: !initializing && !loadingClaims && !checkingRedirect,
       claims,
       role,
       clientId,
       projectRoles,
       claimsError,
       signIn: async () => {
+        // On mobile, go directly to redirect (popup is unreliable).
+        if (isMobileBrowser()) {
+          await signInWithRedirect(auth, provider);
+          return;
+        }
         try {
           await signInWithPopup(auth, provider);
         } catch (e) {
@@ -230,6 +289,7 @@ export function AuthProvider({ children }) {
       user,
       initializing,
       loadingClaims,
+      checkingRedirect,
       claims,
       role,
       clientId,
