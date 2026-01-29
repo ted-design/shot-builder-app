@@ -16,6 +16,8 @@ let mockUpdateDoc;
 let mockServerTimestamp;
 
 vi.mock('firebase/firestore', () => ({
+  getFirestore: vi.fn(() => ({})),
+  connectFirestoreEmulator: vi.fn(),
   collection: vi.fn((...args) => ({ _path: args })),
   doc: vi.fn((...args) => ({ _path: args })),
   getDocs: vi.fn(),

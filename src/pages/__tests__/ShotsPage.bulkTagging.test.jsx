@@ -27,6 +27,8 @@ const writeBatchMock = vi.fn(() => {
 const serverTimestampMock = vi.fn(() => ({ __serverTimestamp: true }));
 
 vi.mock("firebase/firestore", () => ({
+  getFirestore: vi.fn(() => ({})),
+  connectFirestoreEmulator: vi.fn(),
   collection: vi.fn((...args) => ({ __path: args })),
   doc: vi.fn((...args) => ({ __path: args })),
   query: vi.fn((ref) => ref),

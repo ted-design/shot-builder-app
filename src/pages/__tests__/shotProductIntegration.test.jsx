@@ -130,6 +130,8 @@ const orderByMock = vi.fn((...args) => ({ __orderBy: args }));
 const whereMock = vi.fn((...args) => ({ __where: args }));
 
 vi.mock("firebase/firestore", () => ({
+  getFirestore: vi.fn(() => ({})),
+  connectFirestoreEmulator: vi.fn(),
   collection: collectionMock,
   doc: docMock,
   query: queryMock,

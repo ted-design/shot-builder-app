@@ -11,6 +11,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock firebase modules before importing the module under test
 vi.mock("firebase/firestore", () => ({
+  getFirestore: vi.fn(() => ({})),
+  connectFirestoreEmulator: vi.fn(),
   doc: vi.fn((...args) => args.join("/")),
   updateDoc: vi.fn(() => Promise.resolve()),
   serverTimestamp: vi.fn(() => "SERVER_TIMESTAMP"),
