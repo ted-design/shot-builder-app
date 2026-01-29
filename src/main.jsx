@@ -91,6 +91,117 @@ Sentry.init({
   },
 });
 
+// --- Boot diagnostics: flush pre-React errors to Sentry ---
+function flushBootErrorsToSentry() {
+  const bootErrors = window.__BOOT_ERRORS || [];
+  if (bootErrors.length === 0) return;
+
+  for (const entry of bootErrors) {
+    if (entry.type === 'html_served_for_js') {
+      Sentry.captureMessage('Asset request returned HTML (SPA rewrite likely misconfigured)', {
+        level: 'error',
+        tags: {
+          boot_phase: 'pre-react',
+          route: entry.route,
+          is_ios_safari: String(!!window.__IS_IOS_SAFARI),
+        },
+        contexts: {
+          boot_error: {
+            src: entry.src,
+            http_status: entry.status,
+            response_snippet: entry.snippet,
+          },
+        },
+      });
+    } else if (entry.type === 'resource_load_error') {
+      Sentry.captureMessage('BOOT_ASSET_LOAD_FAIL', {
+        level: 'error',
+        tags: {
+          boot_phase: 'pre-react',
+          route: entry.route,
+          asset_url: entry.src,
+          resource_tag: entry.tagName,
+          status: String(entry.probeStatus ?? 'unknown'),
+          content_type: String(entry.probeContentType ?? 'unknown'),
+          is_ios: String(!!entry.isIOS),
+          is_safari: String(!!entry.isSafari),
+        },
+        contexts: {
+          boot_error: {
+            src: entry.src,
+            message: entry.message,
+            probe_status: entry.probeStatus,
+            probe_content_type: entry.probeContentType,
+            probe_snippet: entry.probeSnippet,
+          },
+        },
+      });
+    } else if (entry.type === 'module_import_rejection') {
+      Sentry.captureMessage('BOOT_ASSET_LOAD_FAIL', {
+        level: 'error',
+        tags: {
+          boot_phase: 'pre-react',
+          route: entry.route,
+          asset_url: entry.message?.match?.(/https?:\/\/[^\s'"]+/)?.[0] || 'unknown',
+          status: String(entry.probeStatus ?? 'unknown'),
+          content_type: String(entry.probeContentType ?? 'unknown'),
+          is_ios: String(!!entry.isIOS),
+          is_safari: String(!!entry.isSafari),
+        },
+        contexts: {
+          boot_error: {
+            message: entry.message,
+            stack: entry.stack,
+            probe_status: entry.probeStatus,
+            probe_content_type: entry.probeContentType,
+            probe_snippet: entry.probeSnippet,
+          },
+        },
+      });
+    } else if (entry.type === 'js_error') {
+      Sentry.captureMessage(`Pre-React JS error: ${entry.message}`, {
+        level: 'warning',
+        tags: {
+          boot_phase: 'pre-react',
+          route: entry.route,
+        },
+        contexts: {
+          boot_error: {
+            filename: entry.filename,
+            lineno: entry.lineno,
+            colno: entry.colno,
+          },
+        },
+      });
+    }
+  }
+
+  // Clear after flushing
+  window.__BOOT_ERRORS = [];
+}
+
+// Record the asset manifest as a Sentry breadcrumb for diagnostics.
+// This tells us exactly which hashed filenames the shell is pointing at.
+const manifest = window.__BOOT_ASSET_MANIFEST;
+if (manifest) {
+  Sentry.addBreadcrumb({
+    category: 'boot',
+    message: 'Asset manifest from shell HTML',
+    level: 'info',
+    data: {
+      module_entry: manifest.moduleEntry,
+      preload_0: manifest.preloads[0] || null,
+      preload_1: manifest.preloads[1] || null,
+      preload_2: manifest.preloads[2] || null,
+    },
+  });
+}
+
+// Flush boot errors now that Sentry is initialized.
+// Delay slightly to allow async fetch probes (in index.html) to populate
+// status/content-type/snippet fields on boot error entries.
+setTimeout(flushBootErrorsToSentry, 2000);
+
 // Global handler for chunk loading errors (catches errors outside React error boundary)
 const CHUNK_RELOAD_KEY = "chunk-reload-attempted";
 
@@ -145,3 +256,6 @@ function Root() {
 }
 
 createRoot(rootEl).render(<Root />);
+
+// Signal that React has mounted — disables pre-React fallback UI
+window.__BOOT_PHASE = 'react-mounted';

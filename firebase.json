@@ -12,26 +12,58 @@
   },
   "hosting": {
     "public": "dist",
+    "cleanUrls": false,
+    "trailingSlash": false,
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
     "rewrites": [
-      { "source": "**", "destination": "/index.html" }
+      {
+        "source": "/assets/**",
+        "destination": "/404.html"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
     ],
+    "_headers_precedence": "Firebase Hosting merges ALL matching header blocks. For duplicate keys the LAST matching block wins. Rules are ordered: broad defaults first, specific overrides after. See docs/auth-boot-diagnostics.md for curl verification commands.",
     "headers": [
       {
-        "source": "/index.html",
+        "source": "**",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-          { "key": "Pragma", "value": "no-cache" },
-          { "key": "Expires", "value": "0" },
+          { "key": "Cache-Control", "value": "no-store, max-age=0" },
           { "key": "X-Frame-Options", "value": "DENY" },
           { "key": "X-Content-Type-Options", "value": "nosniff" },
           { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-          { "key": "X-XSS-Protection", "value": "1; mode=block" },
+          { "key": "X-XSS-Protection", "value": "1; mode=block" }
+        ]
+      },
+      {
+        "source": "/index.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-store, max-age=0" },
+          { "key": "Pragma", "value": "no-cache" },
+          { "key": "Expires", "value": "0" },
           { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" }
+        ]
+      },
+      {
+        "source": "/404.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-store, max-age=0" },
+          { "key": "Pragma", "value": "no-cache" },
+          { "key": "Expires", "value": "0" }
+        ]
+      },
+      {
+        "source": "/assets/**/*.@(js|mjs)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
+          { "key": "Content-Type", "value": "application/javascript; charset=utf-8" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" }
         ]
       },
       {
@@ -53,15 +85,6 @@
         "headers": [
           { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
           { "key": "X-Content-Type-Options", "value": "nosniff" }
-        ]
-      },
-      {
-        "source": "**",
-        "headers": [
-          { "key": "X-Frame-Options", "value": "DENY" },
-          { "key": "X-Content-Type-Options", "value": "nosniff" },
-          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-          { "key": "X-XSS-Protection", "value": "1; mode=block" }
         ]
       }
     ]
