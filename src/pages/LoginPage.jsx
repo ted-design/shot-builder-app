@@ -54,6 +54,18 @@ export default function LoginPage() {
     }
   }, [ready, user, nav]);
 
+  // Timeout fallback: if redirect check hangs for > 15s, clear the gate so the
+  // user isn't stuck on the spinner indefinitely.
+  useEffect(() => {
+    if (!checkingRedirect) return;
+    const id = setTimeout(() => {
+      if (import.meta.env.DEV) {
+        console.warn("[LoginPage] Redirect check timed out after 15 s");
+      }
+    }, 15000);
+    return () => clearTimeout(id);
+  }, [checkingRedirect]);
+
   const toggleMode = () => {
     setMode((prev) => (prev === "signin" ? "signup" : "signin"));
     setError("");
@@ -68,7 +80,13 @@ export default function LoginPage() {
     setBusy(true);
     try {
       // Always set persistence before any sign-in attempt
-      await setPersistence(auth, browserLocalPersistence);
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+      } catch (persistErr) {
+        setError("Unable to save sign-in state. Please check your browser settings and try again.");
+        setBusy(false);
+        return;
+      }
 
       // On mobile, skip popup entirely — it's almost always blocked.
       // Go straight to redirect for a reliable sign-in experience.
@@ -119,7 +137,13 @@ export default function LoginPage() {
     setBusy(true);
     try {
       // Always set persistence before redirect sign-in
-      await setPersistence(auth, browserLocalPersistence);
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+      } catch (persistErr) {
+        setError("Unable to save sign-in state. Please check your browser settings and try again.");
+        setBusy(false);
+        return;
+      }
       await signInWithRedirect(auth, provider);
     } catch (e) {
       setError(`Sign-in (redirect) failed: ${e.message || e}`);

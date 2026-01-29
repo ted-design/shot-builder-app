@@ -183,6 +183,8 @@ export function AuthProvider({ children }) {
 
   // onAuthStateChanged listener (DEV instrumentation — supplements onIdTokenChanged)
   useEffect(() => {
+    if (!import.meta.env.DEV) return;
+
     const unsub = onAuthStateChanged(auth, (u) => {
       _lastAuthEvent = "AUTH_STATE_CHANGED";
       authDebug("AUTH_STATE_CHANGED", {
