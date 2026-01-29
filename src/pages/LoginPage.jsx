@@ -8,6 +8,8 @@ import {
   sendPasswordResetEmail,
   sendEmailVerification,
   updateProfile,
+  browserLocalPersistence,
+  setPersistence,
 } from "firebase/auth";
 import { auth, provider } from "../lib/firebase";
 import { isMobileBrowser } from "../lib/isMobileBrowser";
@@ -68,6 +70,7 @@ export default function LoginPage() {
         if (import.meta.env.DEV) {
           console.log("[LoginPage] Mobile detected, using signInWithRedirect directly");
         }
+        await setPersistence(auth, browserLocalPersistence);
         await signInWithRedirect(auth, provider);
         return; // Page will navigate away
       }
