@@ -91,6 +91,72 @@ Sentry.init({
   },
 });
 
+const bootContext = {
+  href: window.location.href,
+  path: window.location.pathname,
+  referrer: document.referrer,
+  userAgent: navigator.userAgent,
+  visibility: document.visibilityState,
+  timeOrigin: performance.timeOrigin,
+};
+
+console.info("[Boot] App bootstrap", bootContext);
+Sentry.addBreadcrumb({
+  category: "boot",
+  message: "App bootstrap",
+  level: "info",
+  data: bootContext,
+});
+
+function isModuleScriptImportFailure(event) {
+  const message = event?.message || "";
+  return message.includes("Importing a module script failed");
+}
+
+function getRecentAssetResourceTimings(limit = 10) {
+  try {
+    return performance
+      .getEntriesByType("resource")
+      .filter((entry) => typeof entry?.name === "string" && entry.name.includes("/assets/"))
+      .slice(-limit)
+      .map((entry) => ({
+        name: entry.name,
+        initiatorType: entry.initiatorType,
+        duration: Math.round(entry.duration),
+        transferSize: entry.transferSize,
+        encodedBodySize: entry.encodedBodySize,
+        decodedBodySize: entry.decodedBodySize,
+      }));
+  } catch (error) {
+    return null;
+  }
+}
+
+window.addEventListener(
+  "error",
+  (event) => {
+    if (!isModuleScriptImportFailure(event)) return;
+    const target = event?.target;
+    const requestUrl =
+      target?.src ||
+      target?.currentSrc ||
+      target?.href ||
+      event?.filename ||
+      null;
+
+    Sentry.captureMessage("Module script import failed", {
+      level: "error",
+      extra: {
+        message: event?.message,
+        requestUrl,
+        location: window.location.href,
+        recentAssets: getRecentAssetResourceTimings(10),
+      },
+    });
+  },
+  true
+);
+
 // Global handler for chunk loading errors (catches errors outside React error boundary)
 const CHUNK_RELOAD_KEY = "chunk-reload-attempted";
 
@@ -119,6 +185,10 @@ window.addEventListener("unhandledrejection", (event) => {
             message: event.reason?.message,
             stack: event.reason?.stack,
           },
+        },
+        extra: {
+          location: window.location.href,
+          recentAssets: getRecentAssetResourceTimings(10),
         },
       });
 

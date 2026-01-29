@@ -5,7 +5,9 @@ import {
   signInWithRedirect,
   signOut as fbSignOut,
   getIdTokenResult,
+  getRedirectResult,
 } from "firebase/auth";
+import * as Sentry from "@sentry/react";
 import {
   doc,
   onSnapshot,
@@ -13,6 +15,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { auth, provider, db } from "../lib/firebase";
+import { consumeAuthRedirectMarker, markAuthRedirectStart } from "../lib/authRedirectTracker";
 import { CLIENT_ID } from "../lib/paths";
 import { normalizeRole } from "../lib/rbac";
 import { readStorage, removeStorage, writeStorage } from "../lib/safeStorage";
@@ -62,6 +65,78 @@ export function AuthProvider({ children }) {
       setInitializing(false);
     });
     return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const marker = consumeAuthRedirectMarker();
+    if (!marker) return undefined;
+
+    let cancelled = false;
+    const startedAt = Date.now();
+    let redirectResultStatus = "pending";
+    const configuredAuthDomain =
+      auth?.app?.options?.authDomain ||
+      auth?.config?.authDomain ||
+      null;
+
+    const timeoutMs = 8000;
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled) return;
+      const stillNoUser = !auth.currentUser;
+      if (!stillNoUser) return;
+      Sentry.captureMessage("Auth redirect did not produce a user", {
+        level: "warning",
+        tags: { authRedirect: "timeout" },
+        extra: {
+          marker,
+          elapsedMs: Date.now() - startedAt,
+          redirectResultStatus,
+          location: window.location.href,
+          origin: window.location.origin,
+          authDomain: configuredAuthDomain,
+          online: navigator.onLine,
+          visibility: document.visibilityState,
+          referrer: document.referrer,
+          userAgent: navigator.userAgent,
+        },
+      });
+    }, timeoutMs);
+
+    getRedirectResult(auth)
+      .then((result) => {
+        if (cancelled) return;
+        if (!result) {
+          redirectResultStatus = "null";
+          return;
+        }
+        redirectResultStatus = "ok";
+        Sentry.addBreadcrumb({
+          category: "auth",
+          message: "Auth redirect result received",
+          level: "info",
+          data: {
+            marker,
+            providerId: result.providerId || result?.credential?.providerId,
+            hasUser: Boolean(result.user),
+          },
+        });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        redirectResultStatus = "error";
+        Sentry.captureException(error, {
+          tags: { authRedirect: "getRedirectResult" },
+          extra: {
+            marker,
+            location: window.location.href,
+          },
+        });
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, []);
 
   useEffect(() => {
@@ -208,6 +283,7 @@ export function AuthProvider({ children }) {
             "auth/internal-error",
           ].includes(code);
           if (shouldRedirect) {
+            markAuthRedirectStart("AuthContext.signIn");
             await signInWithRedirect(auth, provider);
           } else {
             throw e;

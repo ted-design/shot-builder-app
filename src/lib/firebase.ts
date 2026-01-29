@@ -128,6 +128,21 @@ function getFirebaseOptions(): { options: FirebaseOptions; missing: MissingEnvIn
     appId: readEnv("VITE_FIREBASE_APP_ID"),
   };
 
+  if (typeof window !== "undefined" && isProd) {
+    const host = window.location?.hostname;
+    const configuredAuthDomain = options.authDomain;
+    const shouldPreferSameSiteAuthDomain =
+      typeof host === "string" &&
+      host.length > 0 &&
+      host.endsWith("immediategroup.ca") &&
+      typeof configuredAuthDomain === "string" &&
+      (configuredAuthDomain.endsWith(".firebaseapp.com") || configuredAuthDomain.endsWith(".web.app"));
+
+    if (shouldPreferSameSiteAuthDomain) {
+      options.authDomain = host;
+    }
+  }
+
   if (!options.apiKey) missing.missing.push("VITE_FIREBASE_API_KEY");
   if (!options.authDomain) missing.missing.push("VITE_FIREBASE_AUTH_DOMAIN");
   if (!options.projectId) missing.missing.push("VITE_FIREBASE_PROJECT_ID");
@@ -326,6 +341,7 @@ export function assertFirebaseProject(expectedProjectId: string): void {
 }
 
 export const firebaseProjectId = firebaseConfig.projectId;
+export const firebaseAuthDomain = firebaseConfig.authDomain;
 
 // Performance Monitoring Utilities
 // Use these to create custom traces for measuring operation performance

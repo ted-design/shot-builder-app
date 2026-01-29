@@ -10,6 +10,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { auth, provider } from "../lib/firebase";
+import { markAuthRedirectStart } from "../lib/authRedirectTracker";
 
 const mapAuthError = (error) => {
   const code = error?.code;
@@ -75,6 +76,7 @@ export default function LoginPage() {
       ].includes(code);
       if (shouldRedirect) {
         try {
+          markAuthRedirectStart("LoginPage.login-fallback");
           await signInWithRedirect(auth, provider);
           return;
         } catch (e2) {
@@ -99,6 +101,7 @@ export default function LoginPage() {
     setInfo("");
     setBusy(true);
     try {
+      markAuthRedirectStart("LoginPage.loginRedirect");
       await signInWithRedirect(auth, provider);
     } catch (e) {
       setError(`Sign-in (redirect) failed: ${e.message || e}`);
