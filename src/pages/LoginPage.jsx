@@ -12,6 +12,7 @@ import {
   setPersistence,
 } from "firebase/auth";
 import { auth, provider } from "../lib/firebase";
+import { markAuthRedirectStart } from "../lib/authRedirectTracker";
 import { isMobileBrowser } from "../lib/isMobileBrowser";
 import { useAuth } from "../context/AuthContext";
 import { getAuthDebugState } from "../context/AuthContext";
@@ -112,6 +113,7 @@ export default function LoginPage() {
       ].includes(code);
       if (shouldRedirect) {
         try {
+          markAuthRedirectStart("LoginPage.login-fallback");
           await signInWithRedirect(auth, provider);
           return;
         } catch (e2) {
@@ -136,6 +138,7 @@ export default function LoginPage() {
     setInfo("");
     setBusy(true);
     try {
+      markAuthRedirectStart("LoginPage.loginRedirect");
       // Always set persistence before redirect sign-in
       try {
         await setPersistence(auth, browserLocalPersistence);

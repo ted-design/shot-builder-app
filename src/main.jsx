@@ -116,6 +116,42 @@ Sentry.init({
   },
 });
 
+const bootContext = {
+  href: window.location.href,
+  path: window.location.pathname,
+  referrer: document.referrer,
+  userAgent: navigator.userAgent,
+  visibility: document.visibilityState,
+  timeOrigin: performance.timeOrigin,
+};
+
+console.info("[Boot] App bootstrap", bootContext);
+Sentry.addBreadcrumb({
+  category: "boot",
+  message: "App bootstrap",
+  level: "info",
+  data: bootContext,
+});
+
+function getRecentAssetResourceTimings(limit = 10) {
+  try {
+    return performance
+      .getEntriesByType("resource")
+      .filter((entry) => typeof entry?.name === "string" && entry.name.includes("/assets/"))
+      .slice(-limit)
+      .map((entry) => ({
+        name: entry.name,
+        initiatorType: entry.initiatorType,
+        duration: Math.round(entry.duration),
+        transferSize: entry.transferSize,
+        encodedBodySize: entry.encodedBodySize,
+        decodedBodySize: entry.decodedBodySize,
+      }));
+  } catch (error) {
+    return null;
+  }
+}
+
 // --- Boot diagnostics: flush pre-React errors to Sentry ---
 function flushBootErrorsToSentry() {
   const bootErrors = window.__BOOT_ERRORS || [];
@@ -256,6 +292,10 @@ window.addEventListener("unhandledrejection", (event) => {
             message: event.reason?.message,
             stack: event.reason?.stack,
           },
+        },
+        extra: {
+          location: window.location.href,
+          recentAssets: getRecentAssetResourceTimings(10),
         },
       });
 
