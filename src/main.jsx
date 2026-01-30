@@ -152,6 +152,163 @@ function getRecentAssetResourceTimings(limit = 10) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Module-import-failure telemetry (production only, once per session)
+// ---------------------------------------------------------------------------
+const MODULE_TELEMETRY_KEY = 'telemetry:module-import-failed:sent';
+const IS_PRODUCTION = import.meta.env.MODE === 'production';
+
+function isModuleImportError(msg) {
+  if (!msg) return false;
+  return (
+    msg.includes('Importing a module script failed') ||
+    msg.includes('Failed to fetch dynamically imported module') ||
+    msg.includes("Unexpected token '<'") ||
+    msg.includes('ChunkLoadError')
+  );
+}
+
+/** Return the most-likely failing /assets/*.js URL from Resource Timing. */
+function guessSuspectAssetUrl() {
+  try {
+    const entries = performance
+      .getEntriesByType('resource')
+      .filter((e) => typeof e.name === 'string' && /\/assets\/.*\.js/.test(e.name));
+
+    // Suspect: transferSize === 0 with some duration (possible blocked / wrong content-type)
+    const suspect = [...entries]
+      .reverse()
+      .find(
+        (e) =>
+          (e.transferSize === 0 && e.duration > 0) ||
+          (e.encodedBodySize === 0 && e.duration > 0)
+      );
+    if (suspect) return suspect.name;
+
+    // Fallback: last loaded /assets/*.js
+    return entries.length > 0 ? entries[entries.length - 1].name : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort probe of a same-origin URL: HEAD then Range-GET. */
+async function probeAssetUrl(url) {
+  if (!url) return null;
+  try {
+    const origin = window.location.origin;
+    if (!url.startsWith(origin)) return { skipped: true, reason: 'cross-origin' };
+
+    // Try HEAD first
+    try {
+      const headResp = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+      return {
+        method: 'HEAD',
+        status: headResp.status,
+        contentType: headResp.headers.get('content-type'),
+      };
+    } catch {
+      // HEAD blocked (e.g. service worker), fall through to Range GET
+    }
+
+    // Range GET – read first 256 bytes
+    const getResp = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: { Range: 'bytes=0-255' },
+    });
+    const snippet = (await getResp.text()).slice(0, 120);
+    return {
+      method: 'GET-range',
+      status: getResp.status,
+      contentType: getResp.headers.get('content-type'),
+      bodySnippet: snippet,
+    };
+  } catch (err) {
+    return { error: String(err) };
+  }
+}
+
+/**
+ * Fire rich Sentry telemetry for a module import failure.
+ * Runs at most once per browser session and only in production.
+ */
+async function fireModuleImportTelemetry(errorMessage, errorStack, scriptSrc) {
+  if (!IS_PRODUCTION) return;
+  try {
+    if (sessionStorage.getItem(MODULE_TELEMETRY_KEY)) return;
+    sessionStorage.setItem(MODULE_TELEMETRY_KEY, '1');
+  } catch {
+    // sessionStorage unavailable (private mode edge case) — proceed anyway
+  }
+
+  const suspectUrl =
+    scriptSrc ||
+    errorMessage?.match?.(/https?:\/\/[^\s'"]+/)?.[0] ||
+    guessSuspectAssetUrl();
+
+  const recentAssets = getRecentAssetResourceTimings(30);
+  const probeResult = await probeAssetUrl(suspectUrl);
+
+  Sentry.captureMessage('MODULE_IMPORT_TELEMETRY', {
+    level: 'error',
+    tags: {
+      telemetry_type: 'module_import_failed',
+      suspect_url: suspectUrl ? suspectUrl.replace(/.*\/assets\//, '/assets/') : 'unknown',
+      is_ios: String(isIOS),
+      is_safari: String(isSafari),
+      route: window.location.pathname,
+    },
+    contexts: {
+      module_error: {
+        message: errorMessage,
+        stack: errorStack?.slice?.(0, 2000),
+        scriptSrc: scriptSrc || null,
+      },
+      probe: probeResult,
+      environment: {
+        href: window.location.href,
+        origin: window.location.origin,
+        referrer: document.referrer,
+        userAgent: navigator.userAgent,
+        visibility: document.visibilityState,
+        onLine: navigator.onLine,
+      },
+    },
+    extra: {
+      recentAssets,
+      suspectUrl,
+    },
+  });
+}
+
+// Capture-phase error listener: catches <script> / module load failures that
+// don't surface as unhandled rejections (e.g. <script type="module" src="...">
+// returning HTML). Only fires in production once per session.
+if (IS_PRODUCTION && typeof window !== 'undefined') {
+  window.addEventListener(
+    'error',
+    (event) => {
+      // Only interested in resource/script load errors (not runtime JS errors)
+      const target = event?.target;
+      if (!target || target === window) return; // runtime error, ignore
+
+      const tagName = (target.tagName || '').toLowerCase();
+      if (tagName !== 'script' && tagName !== 'link') return;
+
+      const src = target.src || target.href || '';
+      if (!src.includes('/assets/')) return;
+
+      fireModuleImportTelemetry(
+        `Resource load error: ${tagName} ${src}`,
+        null,
+        src
+      );
+    },
+    true // capture phase — fires before default handlers
+  );
+}
+
 // --- Boot diagnostics: flush pre-React errors to Sentry ---
 function flushBootErrorsToSentry() {
   const bootErrors = window.__BOOT_ERRORS || [];
@@ -278,7 +435,15 @@ function isChunkLoadError(error) {
 }
 
 window.addEventListener("unhandledrejection", (event) => {
-  if (isChunkLoadError(event.reason)) {
+  const reason = event.reason;
+  const msg = reason?.message || String(reason || '');
+
+  // Fire deep telemetry for module import failures (once per session, prod only)
+  if (isModuleImportError(msg)) {
+    fireModuleImportTelemetry(msg, reason?.stack, null);
+  }
+
+  if (isChunkLoadError(reason)) {
     const hasReloadedBefore = sessionStorage.getItem(CHUNK_RELOAD_KEY) === "true";
 
     if (!hasReloadedBefore) {
@@ -289,8 +454,8 @@ window.addEventListener("unhandledrejection", (event) => {
         level: "info",
         contexts: {
           error: {
-            message: event.reason?.message,
-            stack: event.reason?.stack,
+            message: reason?.message,
+            stack: reason?.stack,
           },
         },
         extra: {

@@ -16,6 +16,8 @@ export default function ProjectEditModal({
   onDelete,
   onArchive,
   onUnarchive,
+  onComplete,
+  onReopen,
 }) {
   const [confirmation, setConfirmation] = useState("");
 
@@ -59,39 +61,77 @@ export default function ProjectEditModal({
             submitLabel="Save Changes"
             busy={busy}
           />
-          {(onArchive || onUnarchive) && (
-            <div className="rounded-card border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
-              <div className="space-y-3">
-                <div>
-                  <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-400">Archive project</h3>
-                  <p className="mt-1 text-sm text-amber-600 dark:text-amber-500">
-                    {project?.status === "archived"
-                      ? "Restore this project to make it active again and visible on the dashboard."
-                      : "Archive this project to hide it from the dashboard. You can restore it later."}
-                  </p>
-                </div>
-                {project?.status === "archived" ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={archiving}
-                    onClick={() => onUnarchive?.(project)}
-                  >
-                    {archiving ? "Restoring…" : "Unarchive project"}
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={archiving}
-                    onClick={() => onArchive?.(project)}
-                  >
-                    {archiving ? "Archiving…" : "Archive project"}
-                  </Button>
+          {((onComplete || onReopen) && project?.status !== "archived") || onArchive || onUnarchive ? (
+            <div className="rounded-card border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/40">
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Project lifecycle</h3>
+                {(onComplete || onReopen) && project?.status !== "archived" && (
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      {project?.status === "completed"
+                        ? "This project is complete. Reopen it to resume work."
+                        : "Mark this project as complete when all work is finished."}
+                    </p>
+                    {project?.status === "completed" ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        disabled={archiving}
+                        onClick={() => onReopen?.(project)}
+                      >
+                        {archiving ? "Reopening…" : "Reopen"}
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        disabled={archiving}
+                        onClick={() => onComplete?.(project)}
+                      >
+                        {archiving ? "Completing…" : "Complete"}
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {(onArchive || onUnarchive) && (
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      {project?.status === "archived"
+                        ? "Restore this project to make it visible on the dashboard."
+                        : "Archive to hide from the dashboard. Restore anytime."}
+                    </p>
+                    {project?.status === "archived" ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        disabled={archiving}
+                        onClick={() => onUnarchive?.(project)}
+                      >
+                        {archiving ? "Restoring…" : "Unarchive"}
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        disabled={archiving}
+                        onClick={() => onArchive?.(project)}
+                      >
+                        {archiving ? "Archiving…" : "Archive"}
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
-          )}
+          ) : null}
           <div className="rounded-card border border-red-200 bg-red-50/70 p-4 dark:border-red-900/50 dark:bg-red-950/30">
             <div className="space-y-3">
               <div>

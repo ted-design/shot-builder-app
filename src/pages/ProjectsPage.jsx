@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { addDoc, collection, doc, updateDoc, setDoc, serverTimestamp, deleteField } from "../lib/demoSafeFirestore";
 import { auth, db } from "../lib/firebase";
 import { useProjects, queryKeys } from "../hooks/useFirestoreQuery";
@@ -25,6 +25,8 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { ChevronDown, ChevronRight, Plus, Search, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+
+const VALID_FILTERS = ["active", "completed", "archived", "all"];
 
 export default function ProjectsPage() {
   const { clientId, user: authUser, role: globalRole } = useAuth();
@@ -60,7 +62,34 @@ export default function ProjectsPage() {
   const [updating, setUpdating] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
   const [archivingProject, setArchivingProject] = useState(false);
-  const [projectFilter, setProjectFilter] = useState("all"); // all | archived
+  const [searchParams, setSearchParams] = useSearchParams();
+  const projectFilter = VALID_FILTERS.includes(searchParams.get("filter"))
+    ? searchParams.get("filter")
+    : "active";
+  const setProjectFilter = useCallback((value) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value === "active") {
+        next.delete("filter");
+      } else {
+        next.set("filter", value);
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Normalize invalid filter param out of the URL (keep URL == UI)
+  useEffect(() => {
+    const raw = searchParams.get("filter");
+    if (raw !== null && !VALID_FILTERS.includes(raw)) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("filter");
+        return next;
+      }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   const [sortMode, setSortMode] = useState("recent"); // recent | shootDate | name
   const [query, setQuery] = useState("");
   const searchRef = useRef(null);
@@ -75,11 +104,14 @@ export default function ProjectsPage() {
       if (project?.deletedAt) return false;
 
       const status = (project?.status || "active").toLowerCase();
-      if (projectFilter === "archived") {
+      if (projectFilter === "active") {
+        if (status === "archived" || status === "completed") return false;
+      } else if (projectFilter === "completed") {
+        if (status !== "completed") return false;
+      } else if (projectFilter === "archived") {
         if (status !== "archived") return false;
-      } else {
-        if (status === "archived") return false;
       }
+      // "all" shows everything
 
       if (!q) return true;
       const haystack = `${project?.name || ""} ${project?.notes || ""}`.toLowerCase();
@@ -103,6 +135,12 @@ export default function ProjectsPage() {
     }
     return list;
   }, [itemsRaw, projectFilter, query, sortMode]);
+
+  // Total non-deleted projects (ignoring filter/search) for empty state messaging
+  const totalProjectCount = useMemo(() => {
+    if (!itemsRaw) return 0;
+    return itemsRaw.filter((p) => !p?.deletedAt).length;
+  }, [itemsRaw]);
 
   // Show a toast notification if TanStack Query reports an error
   useEffect(() => {
@@ -282,6 +320,56 @@ export default function ProjectsPage() {
     }
   };
 
+  const handleCompleteProject = async (project) => {
+    if (!project) return;
+    if (!canManage) {
+      showError("You do not have permission to update projects.");
+      return;
+    }
+    try {
+      setArchivingProject(true);
+      await updateDoc(doc(db, ...projectsPath(resolvedClientId), project.id), {
+        status: "completed",
+        updatedAt: serverTimestamp(),
+      });
+      toast.success({
+        title: "Project completed",
+        description: `${project.name} has been marked as complete.`,
+      });
+      setEditingProject(null);
+    } catch (error) {
+      console.error("Failed to complete project", error);
+      showError("Failed to complete project: " + error.message);
+    } finally {
+      setArchivingProject(false);
+    }
+  };
+
+  const handleReopenProject = async (project) => {
+    if (!project) return;
+    if (!canManage) {
+      showError("You do not have permission to update projects.");
+      return;
+    }
+    try {
+      setArchivingProject(true);
+      await updateDoc(doc(db, ...projectsPath(resolvedClientId), project.id), {
+        status: "active",
+        updatedAt: serverTimestamp(),
+      });
+      toast.success({
+        title: "Project reopened",
+        description: `${project.name} is now active again.`,
+      });
+      setEditingProject(null);
+    } catch (error) {
+      console.error("Failed to reopen project", error);
+      showError("Failed to reopen project: " + error.message);
+    } finally {
+      setArchivingProject(false);
+    }
+  };
+
   const handleUnarchiveProject = async (project) => {
     if (!project) return;
     if (!canManage) {
@@ -353,13 +441,17 @@ export default function ProjectsPage() {
                   className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
                   <SlidersHorizontal className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                  <span>{projectFilter === "archived" ? "Archived" : "All Projects"}</span>
+                  <span>
+                    {projectFilter === "active" ? "Active" : projectFilter === "completed" ? "Completed" : projectFilter === "archived" ? "Archived" : "All"}
+                  </span>
                   <ChevronDown className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onSelect={() => setProjectFilter("all")}>All Projects</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setProjectFilter("active")}>Active</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setProjectFilter("completed")}>Completed</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setProjectFilter("archived")}>Archived</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setProjectFilter("all")}>All</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -456,6 +548,9 @@ export default function ProjectsPage() {
         onSelectProject={handleSelectProject}
         onEditProject={(project) => setEditingProject(project)}
         onCreateProject={() => setShowCreateModal(true)}
+        projectFilter={projectFilter}
+        onChangeFilter={setProjectFilter}
+        totalProjectCount={totalProjectCount}
       />
       {canManage && (
         <ProjectCreateModal
@@ -481,6 +576,8 @@ export default function ProjectsPage() {
           onDelete={handleDeleteProject}
           onArchive={handleArchiveProject}
           onUnarchive={handleUnarchiveProject}
+          onComplete={handleCompleteProject}
+          onReopen={handleReopenProject}
         />
       )}
     </div>

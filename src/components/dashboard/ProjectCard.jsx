@@ -3,7 +3,6 @@ import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { StatusBadge } from "../ui/StatusBadge";
 import ProgressBar from "../ui/ProgressBar";
-import Avatar from "../ui/Avatar";
 import { Calendar, Camera, MoreVertical } from "lucide-react";
 
 // Date validation constants
@@ -170,10 +169,6 @@ export function ProjectCard({
   const updatedAt = useMemo(() => formatTimestamp(project?.updatedAt || project?.createdAt), [project?.updatedAt, project?.createdAt]);
 
   const shotCount = project?.shotCount ?? project?.stats?.shots;
-  const memberIds = useMemo(() => Object.keys(project?.members || {}), [project?.members]);
-  const visibleMemberIds = memberIds.slice(0, 4);
-  const extraMembers = Math.max(0, memberIds.length - visibleMemberIds.length);
-
   // Calculate planning progress
   const totalShots = project?.shotCount ?? project?.stats?.shots ?? 0;
   const shotsPlanned = project?.stats?.shotsPlanned ?? 0;
@@ -257,33 +252,12 @@ export function ProjectCard({
           )}
         </div>
 
-        <div className="mt-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            {visibleMemberIds.length ? (
-              <div className="flex -space-x-2">
-                {visibleMemberIds.map((memberId) => (
-                  <div key={memberId} className="rounded-full ring-2 ring-white dark:ring-slate-900">
-                    <Avatar name={memberId} size="xs" />
-                  </div>
-                ))}
-                {extraMembers ? (
-                  <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700 ring-2 ring-white dark:bg-slate-700 dark:text-slate-100 dark:ring-slate-900">
-                    +{extraMembers}
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <div className="text-xs text-slate-500 dark:text-slate-400">No members</div>
-            )}
+        {dateLabel ? (
+          <div className="mt-auto flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="truncate max-w-[160px]">{dateLabel}</span>
           </div>
-
-          {dateLabel ? (
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-              <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="truncate max-w-[160px]">{dateLabel}</span>
-            </div>
-          ) : null}
-        </div>
+        ) : null}
       </CardContent>
     </Card>
   );
