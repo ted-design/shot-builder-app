@@ -4,7 +4,8 @@ const getFallbackMatches = (query) => {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
     return false;
   }
-  return window.matchMedia(query).matches;
+  const mql = window.matchMedia(query);
+  return mql ? mql.matches : false;
 };
 
 export function useMediaQuery(query) {
@@ -16,6 +17,7 @@ export function useMediaQuery(query) {
     }
 
     const mediaQueryList = window.matchMedia(query);
+    if (!mediaQueryList) return undefined;
     const handleChange = (event) => setMatches(event.matches);
 
     setMatches(mediaQueryList.matches);
