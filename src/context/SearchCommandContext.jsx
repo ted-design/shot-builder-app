@@ -3,6 +3,7 @@
  */
 
 import { createContext, useContext, useState, useCallback } from 'react';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const SearchCommandContext = createContext({
   isOpen: false,
@@ -15,16 +16,19 @@ const SearchCommandContext = createContext({
 export function SearchCommandProvider({ children }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const isMobile = useIsMobile();
 
   const openSearch = useCallback(() => {
+    if (isMobile) return; // Command palette is desktop-only
     setIsOpen(true);
     setShowShortcuts(false);
-  }, []);
+  }, [isMobile]);
 
   const openSearchForShortcuts = useCallback(() => {
+    if (isMobile) return; // Command palette is desktop-only
     setIsOpen(true);
     setShowShortcuts(true);
-  }, []);
+  }, [isMobile]);
 
   const closeSearch = useCallback(() => {
     setIsOpen(false);

@@ -149,6 +149,7 @@ import ShotCreationPrelude from "../components/shots/ShotCreationPrelude";
 import BulkOperationsToolbar from "../components/shots/BulkOperationsToolbar";
 import ShotTableView from "../components/shots/ShotTableView";
 import BuilderGroupedView from "../components/shots/BuilderGroupedView";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { useAuth } from "../context/AuthContext";
 import { FLAGS } from "../lib/flags";
 import { useProjectScope } from "../context/ProjectScopeContext";
@@ -470,6 +471,7 @@ export function ShotsWorkspace() {
   const { setLastVisitedPath } = useProjectScope();
   const redirectNotifiedRef = useRef(false);
   const { clientId, role: globalRole, projectRoles = {}, user, claims } = useAuth();
+  const isMobile = useIsMobile();
 
   // TanStack Query hooks for data fetching with intelligent caching
   const { data: shots = [], isLoading: shotsLoading } = useShots(clientId, projectId);
@@ -3429,7 +3431,7 @@ export function ShotsWorkspace() {
                 />
 
                 {/* H.11: "Recent" filter toggle for Cards view triage (24h window) */}
-                {isGalleryView && (
+                {!isMobile && isGalleryView && (
                   <Button
                     type="button"
                     variant={recentFilterEnabled ? "default" : "outline"}
@@ -3444,33 +3446,35 @@ export function ShotsWorkspace() {
                   </Button>
                 )}
 
-                <FieldSettingsMenu
-                  fields={DETAIL_TOGGLE_OPTIONS.map(({ key, label }) => ({
-                    key: PREF_TO_COLUMN_KEY.get(key) || key,
-                    label,
-                  }))}
-                  visibleMap={Object.fromEntries(
-                    Array.from(PREF_TO_COLUMN_KEY.entries()).map(([prefKey, colKey]) => [
-                      colKey,
-                      Boolean(viewPrefs[prefKey]),
-                    ])
-                  )}
-                  lockedKeys={viewPrefs.lockedFields || []}
-                  order={Array.isArray(viewPrefs.fieldOrder) && viewPrefs.fieldOrder.length
-                    ? viewPrefs.fieldOrder
-                    : Array.from(PREF_TO_COLUMN_KEY.values())}
-                  onToggleVisible={(columnKey) => {
-                    const prefEntry = [...PREF_TO_COLUMN_KEY.entries()].find(([, v]) => v === columnKey);
-                    if (!prefEntry) return;
-                    const [prefKey] = prefEntry;
-                    toggleViewPref(prefKey);
-                  }}
-                  onToggleLock={toggleFieldLock}
-                  onReorder={reorderFields}
-                  onShowAll={handleShowAllFields}
-                  onHideAll={handleHideAllFields}
-                  iconOnly
-                />
+                {!isMobile && (
+                  <FieldSettingsMenu
+                    fields={DETAIL_TOGGLE_OPTIONS.map(({ key, label }) => ({
+                      key: PREF_TO_COLUMN_KEY.get(key) || key,
+                      label,
+                    }))}
+                    visibleMap={Object.fromEntries(
+                      Array.from(PREF_TO_COLUMN_KEY.entries()).map(([prefKey, colKey]) => [
+                        colKey,
+                        Boolean(viewPrefs[prefKey]),
+                      ])
+                    )}
+                    lockedKeys={viewPrefs.lockedFields || []}
+                    order={Array.isArray(viewPrefs.fieldOrder) && viewPrefs.fieldOrder.length
+                      ? viewPrefs.fieldOrder
+                      : Array.from(PREF_TO_COLUMN_KEY.values())}
+                    onToggleVisible={(columnKey) => {
+                      const prefEntry = [...PREF_TO_COLUMN_KEY.entries()].find(([, v]) => v === columnKey);
+                      if (!prefEntry) return;
+                      const [prefKey] = prefEntry;
+                      toggleViewPref(prefKey);
+                    }}
+                    onToggleLock={toggleFieldLock}
+                    onReorder={reorderFields}
+                    onShowAll={handleShowAllFields}
+                    onHideAll={handleHideAllFields}
+                    iconOnly
+                  />
+                )}
 
                 <SortMenu
                   options={SHOT_SORT_OPTIONS}
@@ -3479,7 +3483,7 @@ export function ShotsWorkspace() {
                   title="Sort shots"
                 />
 
-                {isGalleryView && (
+                {!isMobile && isGalleryView && (
                   <GroupByMenu
                     options={SHOT_GROUP_OPTIONS}
                     value={groupBy}
@@ -3489,41 +3493,43 @@ export function ShotsWorkspace() {
                 )}
               </ButtonGroup>
 
-              <ButtonGroup>
-                <ViewModeMenu
-                  options={SHOT_VIEW_OPTIONS}
-                  value={viewMode}
-                  onChange={updateViewMode}
-                  ariaLabel="Select view"
-                />
+              {!isMobile && (
+                <ButtonGroup>
+                  <ViewModeMenu
+                    options={SHOT_VIEW_OPTIONS}
+                    value={viewMode}
+                    onChange={updateViewMode}
+                    ariaLabel="Select view"
+                  />
 
-                <DensityMenu
-                  options={SHOT_DENSITY_OPTIONS}
-                  value={viewPrefs.density}
-                  onChange={handleDensityChange}
-                  ariaLabel="Select density"
-                />
+                  <DensityMenu
+                    options={SHOT_DENSITY_OPTIONS}
+                    value={viewPrefs.density}
+                    onChange={handleDensityChange}
+                    ariaLabel="Select density"
+                  />
 
-                {/* Bulk collapse/expand for gallery sections */}
-                {isGalleryView && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setGallerySectionsExpanded(!gallerySectionsExpanded)}
-                    aria-label={gallerySectionsExpanded ? "Collapse all sections" : "Expand all sections"}
-                    title={gallerySectionsExpanded ? "Collapse all sections" : "Expand all sections"}
-                  >
-                    {gallerySectionsExpanded ? (
-                      <ChevronsDownUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronsUpDown className="h-4 w-4" />
-                    )}
-                  </Button>
-                )}
-              </ButtonGroup>
+                  {/* Bulk collapse/expand for gallery sections */}
+                  {isGalleryView && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setGallerySectionsExpanded(!gallerySectionsExpanded)}
+                      aria-label={gallerySectionsExpanded ? "Collapse all sections" : "Expand all sections"}
+                      title={gallerySectionsExpanded ? "Collapse all sections" : "Expand all sections"}
+                    >
+                      {gallerySectionsExpanded ? (
+                        <ChevronsDownUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronsUpDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
+                </ButtonGroup>
+              )}
 
-              {canEditShots && sortedShots.length > 0 && (
+              {!isMobile && canEditShots && sortedShots.length > 0 && (
                 <Button
                   type="button"
                   variant={selectionMode ? "default" : "outline"}
@@ -3543,39 +3549,43 @@ export function ShotsWorkspace() {
                 </Button>
               )}
 
-              <ExportButton data={filteredShots} entityType="shots" buttonVariant="outline" />
+              {!isMobile && <ExportButton data={filteredShots} entityType="shots" buttonVariant="outline" />}
 
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsPdfExportOpen(true)}
-                className="flex items-center gap-1.5"
-                title="Export PDF"
-              >
-                <FileDown className="h-4 w-4" />
-                <span className="hidden sm:inline">PDF</span>
-              </Button>
+              {!isMobile && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsPdfExportOpen(true)}
+                  className="flex items-center gap-1.5"
+                  title="Export PDF"
+                >
+                  <FileDown className="h-4 w-4" />
+                  <span className="hidden sm:inline">PDF</span>
+                </Button>
+              )}
 
-              <Button
-                type="button"
-                variant={insightsSidebarOpen ? "default" : "outline"}
-                size="sm"
-                onClick={toggleInsightsSidebar}
-                aria-pressed={insightsSidebarOpen}
-                aria-label={insightsSidebarOpen ? "Hide insights" : "Show insights"}
-                className="flex items-center gap-1.5"
-              >
-                <BarChart3 className="h-4 w-4" />
-                <span className="hidden sm:inline">Insights</span>
-              </Button>
+              {!isMobile && (
+                <Button
+                  type="button"
+                  variant={insightsSidebarOpen ? "default" : "outline"}
+                  size="sm"
+                  onClick={toggleInsightsSidebar}
+                  aria-pressed={insightsSidebarOpen}
+                  aria-label={insightsSidebarOpen ? "Hide insights" : "Show insights"}
+                  className="flex items-center gap-1.5"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Insights</span>
+                </Button>
+              )}
             </div>
           </div>
         </OverviewToolbarRow>
       </OverviewToolbar>
 
-      {/* Bulk Tagging Toolbar - appears when shots are selected */}
-      {canEditShots && selectionMode && (
+      {/* Bulk Tagging Toolbar - appears when shots are selected (desktop only) */}
+      {!isMobile && canEditShots && selectionMode && (
         <BulkOperationsToolbar
           selectedCount={selectedShotIds.size}
           onClearSelection={clearSelection}
@@ -3613,7 +3623,7 @@ export function ShotsWorkspace() {
       )}
 
       <div className="flex">
-        <div className="min-w-0 flex-1 space-y-4 px-6">
+        <div className="min-w-0 flex-1 space-y-4 px-3 sm:px-6">
           {!canEditShots && (
             <div className="rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
               You can browse shots but need producer or crew access to create or edit them.
@@ -3634,7 +3644,7 @@ export function ShotsWorkspace() {
                   No shots match the current search or filters.
                 </div>
               )
-            ) : isVisualGalleryView ? (
+            ) : !isMobile && isVisualGalleryView ? (
               // Visual Gallery — read-only, image-first grid (Phase 3 Delta G.1)
               // No editing, no drag/drop. Click navigates to Shot Editor V3.
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
@@ -3651,7 +3661,7 @@ export function ShotsWorkspace() {
                   );
                 })}
               </div>
-            ) : isGalleryView ? (
+            ) : !isMobile && isGalleryView ? (
               groupBy !== "none" ? (
                 <BuilderGroupedView
                   groups={groupedShots}

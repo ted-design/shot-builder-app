@@ -1,5 +1,6 @@
 import { memo, useMemo, useRef, useState, useEffect } from "react";
 import { ArrowUp, ArrowDown, ChevronDown, Check } from "lucide-react";
+import { useIsMobile } from "../../hooks/useIsMobile";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -284,6 +285,88 @@ const ShotTableView = memo(function ShotTableView({
     setIsGrabbing(false);
     if (dragGhostRef.current) { try { document.body.removeChild(dragGhostRef.current); } catch {} dragGhostRef.current = null; }
   };
+
+  // Mobile: single-column list projection
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <div
+        className="divide-y divide-slate-200 rounded-card border border-slate-200 bg-white shadow-sm dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800"
+        role="list"
+        aria-label="Shots list"
+      >
+        {rows.map((row) => {
+          const { shot, products, talent, locationName } = row;
+          const shotId = shot?.id || row.id;
+          const statusValue = normaliseShotStatus(shot?.status);
+          const statusLabel = STATUS_LABEL_MAP.get(statusValue) || shot?.status || "—";
+          const statusClass = statusBadgeClasses[statusValue] || statusBadgeClasses.todo;
+          const descriptionText = isCorruptShotDescription(
+            resolveShotShortDescriptionSource(shot),
+            getShotNotesPreview(shot)
+          )
+            ? ""
+            : resolveShotShortDescriptionText(shot);
+
+          // Build a compact secondary line from available data
+          const secondaryParts = [];
+          if (statusLabel) secondaryParts.push(null); // status rendered as badge
+          if (locationName && locationName !== "Unassigned") secondaryParts.push(locationName);
+          const talentCount = Array.isArray(talent) ? talent.filter((t) => t?.name).length : 0;
+          const productCount = Array.isArray(products) ? products.length : 0;
+
+          return (
+            <div
+              key={shotId}
+              role="listitem"
+              className="flex items-center gap-3 px-4 py-3 active:bg-slate-50 dark:active:bg-slate-700/40 cursor-pointer"
+              onClick={() => onFocusShot?.(shot, { mirrorSelection: false })}
+            >
+              {/* Shot number / name — primary line */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                    {shot?.name || "Unnamed shot"}
+                  </span>
+                </div>
+                {/* Secondary line: description or contextual metadata */}
+                <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium leading-none ${statusClass}`}>
+                    {statusLabel}
+                  </span>
+                  {descriptionText && (
+                    <span className="truncate">{descriptionText}</span>
+                  )}
+                  {!descriptionText && locationName && locationName !== "Unassigned" && (
+                    <span className="truncate">{locationName}</span>
+                  )}
+                </div>
+                {/* Tertiary metadata chips */}
+                {(talentCount > 0 || productCount > 0) && (
+                  <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
+                    {talentCount > 0 && (
+                      <span>{talentCount} talent</span>
+                    )}
+                    {productCount > 0 && (
+                      <span>{productCount} product{productCount !== 1 ? "s" : ""}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+              {/* Chevron affordance */}
+              <ChevronDown className="h-4 w-4 -rotate-90 shrink-0 text-slate-300 dark:text-slate-600" />
+            </div>
+          );
+        })}
+        {rows.length === 0 && (
+          <div className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+            No shots to display.
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div

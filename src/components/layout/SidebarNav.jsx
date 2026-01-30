@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ROLE } from '../../lib/rbac';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import SidebarNavItem from './SidebarNavItem';
 import SidebarNavGroup from './SidebarNavGroup';
 import SidebarRecentProjects from "./SidebarRecentProjects";
@@ -35,6 +36,7 @@ import SidebarRecentProjects from "./SidebarRecentProjects";
  */
 export default function SidebarNav({ isExpanded }) {
   const { role } = useAuth();
+  const isMobile = useIsMobile();
   const projectMatch = useMatch("/projects/:projectId/*");
   const currentProjectId = projectMatch?.params?.projectId || null;
 
@@ -46,15 +48,18 @@ export default function SidebarNav({ isExpanded }) {
   // Library submenu items (R.18: Profiles deprecated, Talent is canonical people surface)
   // R.22.1: Crew restored as first-class Library entry (all people directory)
   const libraryItems = useMemo(
-    () => [
-      { to: "/library/talent", label: "Talent", icon: Users, end: true },
-      { to: "/library/crew", label: "Crew", icon: User },
-      { to: "/library/locations", label: "Locations", icon: MapPin },
-      { to: "/library/departments", label: "Departments", icon: Briefcase },
-      { to: "/library/tags", label: "Tags", icon: Tag },
-      { to: "/library/palette", label: "Swatches", icon: Palette },
-    ],
-    []
+    () => {
+      const items = [
+        { to: "/library/talent", label: "Talent", icon: Users, end: true },
+        { to: "/library/crew", label: "Crew", icon: User },
+        { to: "/library/locations", label: "Locations", icon: MapPin },
+        { to: "/library/departments", label: "Departments", icon: Briefcase },
+        { to: "/library/tags", label: "Tags", icon: Tag, desktopOnly: true },
+        { to: "/library/palette", label: "Swatches", icon: Palette },
+      ];
+      return isMobile ? items.filter((item) => !item.desktopOnly) : items;
+    },
+    [isMobile]
   );
 
   const allPeopleItems = useMemo(() => {
@@ -67,12 +72,13 @@ export default function SidebarNav({ isExpanded }) {
 
   const shotsItems = useMemo(() => {
     if (!isInProjectContext || !currentProjectId) return [];
-    return [
+    const items = [
       { to: `/projects/${currentProjectId}/shots`, label: "Builder", icon: Camera },
-      { to: `/projects/${currentProjectId}/schedule`, label: "Schedule", icon: Calendar },
+      { to: `/projects/${currentProjectId}/schedule`, label: "Schedule", icon: Calendar, desktopOnly: true },
       { to: `/projects/${currentProjectId}/assets`, label: "Assets", icon: Users },
     ];
-  }, [currentProjectId, isInProjectContext]);
+    return isMobile ? items.filter((item) => !item.desktopOnly) : items;
+  }, [currentProjectId, isInProjectContext, isMobile]);
 
   return (
     <nav className="flex-1 py-4 px-3 overflow-y-auto">
@@ -112,7 +118,7 @@ export default function SidebarNav({ isExpanded }) {
               isExpanded={isExpanded}
             />
 
-            {userRole === ROLE.ADMIN && (
+            {userRole === ROLE.ADMIN && !isMobile && (
               <SidebarNavItem
                 to="/admin"
                 icon={Shield}
@@ -192,7 +198,7 @@ export default function SidebarNav({ isExpanded }) {
 
             <SidebarNavItem to="/account" icon={Settings} label="Settings" isExpanded={isExpanded} />
 
-            {userRole === ROLE.ADMIN && (
+            {userRole === ROLE.ADMIN && !isMobile && (
               <SidebarNavItem to="/admin" icon={Shield} label="Admin" isExpanded={isExpanded} />
             )}
           </>

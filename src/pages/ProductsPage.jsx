@@ -2635,7 +2635,7 @@ export default function ProductsPage() {
         <PageHeader.Content>
           <div>
             <PageHeader.Title>Products</PageHeader.Title>
-            <PageHeader.Description>
+            <PageHeader.Description className="hidden md:block">
               Manage product families and SKUs across all projects
             </PageHeader.Description>
           </div>
@@ -2645,9 +2645,9 @@ export default function ProductsPage() {
         </PageHeader.Content>
 
         {/* Toolbar row - inside PageHeader for sticky behavior */}
-        <div className="mx-6 pb-3">
+        <div className="mx-3 md:mx-6 pb-2 md:pb-3">
           <Card className="border-b-2">
-            <CardContent className="py-4">
+            <CardContent className="py-2.5 md:py-4">
               <div className="flex flex-col gap-4">
                 {/* Main toolbar row */}
                 <div className="flex flex-wrap items-center gap-2">
@@ -2676,12 +2676,12 @@ export default function ProductsPage() {
                     }}
                   />
 
-                  {/* Selection mode toggle */}
+                  {/* Selection mode toggle — hidden on mobile (Limited mode) */}
                   {canUseBatchActions && (
                     <button
                       type="button"
                       onClick={() => setSelectionModeActive(!selectionModeActive)}
-                      className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
+                      className={`hidden md:flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
                         selectionModeActive
                           ? "border-primary/60 bg-primary/5 text-primary dark:bg-primary/10 dark:border-primary/40"
                           : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
@@ -2702,33 +2702,35 @@ export default function ProductsPage() {
                     ariaLabel="Search products"
                   />
 
-                  {/* Sort menu */}
-                  <SortMenu
-                    options={SORT_OPTIONS}
-                    value={sortOrder}
-                    onChange={setSortOrder}
-                  />
+                  {/* Sort menu — hidden on mobile (Limited mode) */}
+                  <div className="hidden md:contents">
+                    <SortMenu
+                      options={SORT_OPTIONS}
+                      value={sortOrder}
+                      onChange={setSortOrder}
+                    />
 
-                  {/* View/Density presets */}
-                  <ViewModeMenu
-                    options={VIEW_PRESETS}
-                    value={currentViewPreset}
-                    onChange={handleViewPresetChange}
-                    ariaLabel="Select view preset"
-                  />
+                    {/* View/Density presets */}
+                    <ViewModeMenu
+                      options={VIEW_PRESETS}
+                      value={currentViewPreset}
+                      onChange={handleViewPresetChange}
+                      ariaLabel="Select view preset"
+                    />
 
-                  <FieldSettingsMenu
-                    fields={PRODUCT_FIELD_OPTIONS}
-                    visibleMap={resolvedFieldVisibility}
-                    lockedKeys={lockedFields}
-                    order={resolvedFieldOrder}
-                    onToggleVisible={toggleFieldVisibility}
-                    onToggleLock={toggleFieldLock}
-                    onReorder={handleFieldOrderChange}
-                  />
+                    <FieldSettingsMenu
+                      fields={PRODUCT_FIELD_OPTIONS}
+                      visibleMap={resolvedFieldVisibility}
+                      lockedKeys={lockedFields}
+                      order={resolvedFieldOrder}
+                      onToggleVisible={toggleFieldVisibility}
+                      onToggleLock={toggleFieldLock}
+                      onReorder={handleFieldOrderChange}
+                    />
 
-                  {/* Export button */}
-                  <ExportButton data={filteredFamilies} entityType="products" />
+                    {/* Export button */}
+                    <ExportButton data={filteredFamilies} entityType="products" />
+                  </div>
 
                   {/* New product button */}
                   {canEdit && (
@@ -2764,7 +2766,7 @@ export default function ProductsPage() {
       </PageHeader>
 
       {canUseBatchActions && selectionModeActive && selectedCount > 0 && (
-        <div className="mx-6 rounded-card border border-primary/30 bg-primary/5 px-4 py-3 shadow-sm dark:bg-primary/10 dark:border-primary/40">
+        <div className="hidden md:block mx-6 rounded-card border border-primary/30 bg-primary/5 px-4 py-3 shadow-sm dark:bg-primary/10 dark:border-primary/40">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
               {selectedCount} selected
@@ -2860,8 +2862,8 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Helper text */}
-      <div className="space-y-1 px-6">
+      {/* Helper text — hidden on mobile to maximize content area */}
+      <div className="hidden md:block space-y-1 px-6">
         <p className="text-sm text-slate-600 dark:text-slate-400">
           Showing {filteredFamilies.length} of {families.length} product families
         </p>
