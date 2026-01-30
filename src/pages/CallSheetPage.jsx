@@ -3,6 +3,7 @@
 
 import React, { useState, useMemo, useCallback, lazy, Suspense } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
+import DesktopOnlyGuard from "../components/common/DesktopOnlyGuard";
 import {
   collection,
   query,
@@ -228,6 +229,7 @@ function CallSheetPage() {
   }
 
   return (
+    <DesktopOnlyGuard surface="The Call Sheet Builder">
     <div className={isPreviewMode ? "flex h-full flex-col" : "flex h-full flex-col gap-4 p-4"}>
       {!isPreviewMode ? (
         <div className="flex items-center justify-between">
@@ -363,6 +365,7 @@ function CallSheetPage() {
         />
       ) : null}
     </div>
+    </DesktopOnlyGuard>
   );
 }
 

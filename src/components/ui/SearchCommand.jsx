@@ -10,7 +10,7 @@
  * - Keyboard shortcuts (Cmd+K)
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMatch, useNavigate } from 'react-router-dom';
 import { Command } from 'cmdk';
 import {
@@ -27,6 +27,7 @@ import {
   Users,
   Settings,
   Keyboard,
+  X,
 } from 'lucide-react';
 import { globalSearch } from '../../lib/search';
 import { useQueryClient } from '@tanstack/react-query';
@@ -217,6 +218,26 @@ export default function SearchCommand() {
     );
   }, [debouncedSearch, shots, products, talent, locations, projects]);
 
+  // Lock body scroll while overlay is open (prevents touch scroll-through)
+  useEffect(() => {
+    if (isOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isOpen]);
+
   // Reset when opening
   useEffect(() => {
     if (isOpen) {
@@ -343,10 +364,18 @@ export default function SearchCommand() {
     setSearch(searchQuery);
   }, []);
 
-  const handleDialogClick = useCallback(
+  // Ref to the cmdk root container so we can distinguish backdrop from content taps
+  const dialogContentRef = useRef(null);
+
+  const handleBackdropPointerDown = useCallback(
     (event) => {
-      // Close when the user clicks on the dimmed backdrop instead of forcing ESC only
-      if (event.target === event.currentTarget) {
+      // Close when the user taps/clicks on the dimmed backdrop (outside the command box).
+      // We check against the content ref instead of relying on target === currentTarget
+      // because cmdk may inject intermediate wrapper elements.
+      if (
+        dialogContentRef.current &&
+        !dialogContentRef.current.contains(event.target)
+      ) {
         closeSearch();
       }
     },
@@ -365,8 +394,9 @@ export default function SearchCommand() {
       onOpenChange={closeSearch}
       label="Global Command Menu"
       className="command-dialog"
-      onClick={handleDialogClick}
+      onPointerDown={handleBackdropPointerDown}
     >
+      <div className="command-content-wrapper" ref={dialogContentRef}>
       <div className="command-input-wrapper">
         <Search className="command-search-icon" size={20} />
         <Command.Input
@@ -376,6 +406,14 @@ export default function SearchCommand() {
           className="command-input"
         />
         <kbd className="command-kbd">ESC</kbd>
+        <button
+          type="button"
+          onClick={closeSearch}
+          className="command-close-btn"
+          aria-label="Close command palette"
+        >
+          <X size={16} />
+        </button>
       </div>
 
       <Command.List className="command-list">
@@ -623,6 +661,7 @@ export default function SearchCommand() {
           </div>
         )}
       </Command.List>
+      </div>
     </Command.Dialog>
   );
 }

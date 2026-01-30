@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { addDoc, collection, doc, onSnapshot, serverTimestamp, setDoc } from "../lib/demoSafeFirestore";
+import DesktopOnlyGuard from "../components/common/DesktopOnlyGuard";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../lib/firebase";
 import { CLIENT_ID, talentPath, locationsPath } from "../lib/paths";
@@ -193,6 +194,7 @@ export default function AdminPage() {
   };
 
   return (
+    <DesktopOnlyGuard surface="Admin Panel">
     <div className="space-y-6">
       <PageHeader
         title="Admin"
@@ -330,5 +332,6 @@ export default function AdminPage() {
         </div>
       )}
     </div>
+    </DesktopOnlyGuard>
   );
 }

@@ -1,5 +1,6 @@
 // src/pages/ImportProducts.jsx
 import React, { useMemo, useState } from "react";
+import DesktopOnlyGuard from "../components/common/DesktopOnlyGuard";
 import { db } from "../lib/firebase";
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from "../lib/demoSafeFirestore";
 import {
@@ -244,6 +245,7 @@ export default function ImportProducts() {
   const pct = total ? Math.round((progress / total) * 100) : 0;
 
   return (
+    <DesktopOnlyGuard surface="Product Import">
     <div className="space-y-6">
       <PageHeader
         title="Import Products"
@@ -287,5 +289,6 @@ export default function ImportProducts() {
         </div>
       )}
     </div>
+    </DesktopOnlyGuard>
   );
 }

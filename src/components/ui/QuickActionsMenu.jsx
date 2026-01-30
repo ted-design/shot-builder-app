@@ -167,10 +167,11 @@ export default function QuickActionsMenu() {
     }
 
     if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+      // Use pointerdown instead of mousedown for reliable dismissal on touch devices
+      document.addEventListener("pointerdown", handleClickOutside);
       document.addEventListener("keydown", handleEscape);
       return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("pointerdown", handleClickOutside);
         document.removeEventListener("keydown", handleEscape);
       };
     }

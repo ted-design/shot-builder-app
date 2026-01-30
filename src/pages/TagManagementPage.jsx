@@ -31,6 +31,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import DesktopOnlyGuard from "../components/common/DesktopOnlyGuard";
 import {
   collection,
   query,
@@ -1071,6 +1072,7 @@ export default function TagManagementPage() {
 
   // Main workspace layout
   return (
+    <DesktopOnlyGuard surface="Tag Management">
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
       {/* Header band */}
       <TagsHeaderBand
@@ -1229,5 +1231,6 @@ export default function TagManagementPage() {
         </Modal>
       )}
     </div>
+    </DesktopOnlyGuard>
   );
 }

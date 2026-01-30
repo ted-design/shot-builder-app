@@ -20,6 +20,8 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Navigate, useParams, useNavigate, useSearchParams } from "react-router-dom";
+import ShotReaderView from "../components/shots/ShotReaderView";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { doc, onSnapshot, collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { shotsPath, productFamilySkusPath } from "../lib/paths";
@@ -101,6 +103,7 @@ export default function ShotEditorPageV3() {
   const [searchParams] = useSearchParams();
   const auth = useAuth();
   const clientId = auth?.clientId;
+  const isMobile = useIsMobile();
 
   // Read-only mode detection via URL param (?readonly=1)
   const isReadOnly = searchParams.get("readonly") === "1";
@@ -287,6 +290,11 @@ export default function ShotEditorPageV3() {
   }
 
   if (!shot) return null;
+
+  // Mobile: render read-only detail view instead of full editor
+  if (isMobile) {
+    return <ShotReaderView shot={shot} counts={counts} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">

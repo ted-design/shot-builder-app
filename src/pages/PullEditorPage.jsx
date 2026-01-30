@@ -3,6 +3,7 @@
 
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import DesktopOnlyGuard from "../components/common/DesktopOnlyGuard";
 import {
   collection,
   doc,
@@ -248,6 +249,7 @@ export default function PullEditorPage() {
   }
 
   return (
+    <DesktopOnlyGuard surface="The Pull Sheet Editor">
     <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
@@ -348,5 +350,6 @@ export default function PullEditorPage() {
         />
       )}
     </div>
+    </DesktopOnlyGuard>
   );
 }
