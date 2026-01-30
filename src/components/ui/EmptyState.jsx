@@ -26,7 +26,9 @@ export function EmptyState({
   title,
   description,
   action,
-  onAction
+  onAction,
+  secondaryAction,
+  onSecondaryAction,
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -48,11 +50,20 @@ export function EmptyState({
           </p>
         )}
 
-        {/* Action Button - Primary button if action provided */}
-        {action && onAction && (
-          <Button onClick={onAction} variant="default">
-            {action}
-          </Button>
+        {/* Action Buttons */}
+        {(action || secondaryAction) && (
+          <div className="flex items-center gap-3">
+            {action && onAction && (
+              <Button onClick={onAction} variant="default">
+                {action}
+              </Button>
+            )}
+            {secondaryAction && onSecondaryAction && (
+              <Button onClick={onSecondaryAction} variant="outline">
+                {secondaryAction}
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </div>
