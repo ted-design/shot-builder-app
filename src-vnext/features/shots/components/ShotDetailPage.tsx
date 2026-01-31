@@ -1,5 +1,4 @@
 import { useParams, useNavigate } from "react-router-dom"
-import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { InlineEdit } from "@/shared/components/InlineEdit"
@@ -7,18 +6,32 @@ import { useShot } from "@/features/shots/hooks/useShot"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { TalentPicker } from "@/features/shots/components/TalentPicker"
 import { LocationPicker } from "@/features/shots/components/LocationPicker"
-import { ProductPicker } from "@/features/shots/components/ProductPicker"
+import { ProductAssignmentPicker } from "@/features/shots/components/ProductAssignmentPicker"
+import { NotesSection } from "@/features/shots/components/NotesSection"
+import { HeroImageSection } from "@/features/shots/components/HeroImageSection"
 import { updateShotField } from "@/features/shots/lib/updateShot"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { canManageShots } from "@/shared/lib/rbac"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { Button } from "@/ui/button"
 import { Label } from "@/ui/label"
+import { Input } from "@/ui/input"
 import { Textarea } from "@/ui/textarea"
 import { Separator } from "@/ui/separator"
+import { Badge } from "@/ui/badge"
 import { ArrowLeft } from "lucide-react"
+import { Timestamp } from "firebase/firestore"
 import { toast } from "sonner"
 import { useState } from "react"
+
+function formatShotDate(date: Timestamp | undefined): string {
+  if (!date) return ""
+  const d = date.toDate()
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, "0")
+  const dd = String(d.getDate()).padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}`
+}
 
 export default function ShotDetailPage() {
   const { sid } = useParams<{ sid: string }>()
@@ -30,6 +43,11 @@ export default function ShotDetailPage() {
   const canEdit = canManageShots(role) && !isMobile
   const canDoOperational = canManageShots(role)
 
+  /**
+   * Save arbitrary fields to the shot document.
+   * SAFETY: Never include `notes` in the fields object.
+   * Legacy HTML notes are read-only. Use `notesAddendum` only.
+   */
   const save = async (fields: Record<string, unknown>) => {
     if (!shot || !clientId) return
     try {
@@ -58,11 +76,12 @@ export default function ShotDetailPage() {
   return (
     <ErrorBoundary>
       <div className="flex flex-col gap-6">
+        {/* Header: back, title, shot number, status */}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex-1">
+          <div className="flex flex-1 items-baseline gap-3">
             {canEdit ? (
               <InlineEdit
                 value={shot.title}
@@ -74,6 +93,20 @@ export default function ShotDetailPage() {
                 {shot.title || "Untitled Shot"}
               </h1>
             )}
+            {canEdit ? (
+              <InlineEdit
+                value={shot.shotNumber ?? ""}
+                onSave={(shotNumber) => save({ shotNumber: shotNumber || null })}
+                className="text-sm text-[var(--color-text-subtle)]"
+                placeholder="#"
+              />
+            ) : (
+              shot.shotNumber && (
+                <span className="text-sm text-[var(--color-text-subtle)]">
+                  #{shot.shotNumber}
+                </span>
+              )
+            )}
           </div>
           <ShotStatusSelect
             shotId={shot.id}
@@ -84,8 +117,43 @@ export default function ShotDetailPage() {
 
         <Separator />
 
+        {/* Hero image: display on all viewports, upload on desktop only */}
+        <HeroImageSection
+          heroImage={shot.heroImage}
+          shotId={shot.id}
+          canUpload={canEdit}
+        />
+
         <div className="grid gap-6 md:grid-cols-2">
+          {/* Left column: metadata + notes */}
           <div className="flex flex-col gap-4">
+            {/* Date field */}
+            <div>
+              <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                Date
+              </Label>
+              {canEdit ? (
+                <DateEditor
+                  value={formatShotDate(shot.date)}
+                  onSave={(dateStr) => {
+                    if (!dateStr) {
+                      save({ date: null })
+                      return
+                    }
+                    const ms = Date.parse(dateStr)
+                    if (!Number.isNaN(ms)) {
+                      save({ date: Timestamp.fromMillis(ms) })
+                    }
+                  }}
+                />
+              ) : (
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  {formatShotDate(shot.date) || "No date set"}
+                </p>
+              )}
+            </div>
+
+            {/* Description */}
             <div>
               <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
                 Description
@@ -102,29 +170,43 @@ export default function ShotDetailPage() {
               )}
             </div>
 
-            <div>
-              <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                Notes
-              </Label>
-              {canDoOperational ? (
-                <DescriptionEditor
-                  value={shot.notes ?? ""}
-                  onSave={(notes) => save({ notes: notes || null })}
-                />
-              ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  {shot.notes || "No notes"}
-                </p>
-              )}
-            </div>
+            {/* Notes: read-only HTML + writable addendum */}
+            <NotesSection
+              notes={shot.notes}
+              notesAddendum={shot.notesAddendum}
+              onSaveAddendum={(value) => save({ notesAddendum: value || null })}
+              canEditAddendum={canDoOperational}
+            />
+
+            {/* Tags: read-only badges */}
+            {shot.tags && shot.tags.length > 0 && (
+              <div>
+                <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                  Tags
+                </Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {shot.tags.map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      variant="outline"
+                      className="text-xs"
+                      style={{ borderColor: tag.color, color: tag.color }}
+                    >
+                      {tag.label}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
+          {/* Right column: assignments */}
           <div className="flex flex-col gap-4">
             <div>
               <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
                 Products
               </Label>
-              <ProductPicker
+              <ProductAssignmentPicker
                 selected={shot.products}
                 onSave={(products) => save({ products })}
                 disabled={!canEdit}
@@ -197,6 +279,49 @@ function DescriptionEditor({
       onBlur={handleBlur}
       autoFocus
       rows={3}
+      className="text-sm"
+    />
+  )
+}
+
+function DateEditor({
+  value,
+  onSave,
+}: {
+  readonly value: string
+  readonly onSave: (value: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+
+  const handleBlur = () => {
+    setEditing(false)
+    if (draft !== value) {
+      onSave(draft)
+    }
+  }
+
+  if (!editing) {
+    return (
+      <p
+        className="cursor-pointer rounded px-2 py-1 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-subtle)]"
+        onClick={() => {
+          setDraft(value)
+          setEditing(true)
+        }}
+      >
+        {value || "Click to set date..."}
+      </p>
+    )
+  }
+
+  return (
+    <Input
+      type="date"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={handleBlur}
+      autoFocus
       className="text-sm"
     />
   )

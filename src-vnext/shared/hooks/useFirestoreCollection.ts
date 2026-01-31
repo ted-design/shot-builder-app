@@ -7,10 +7,16 @@ import {
 } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 
+export interface FirestoreCollectionError {
+  readonly message: string
+  readonly isMissingIndex: boolean
+  readonly indexUrl?: string
+}
+
 interface FirestoreCollectionResult<T> {
   readonly data: T[]
   readonly loading: boolean
-  readonly error: string | null
+  readonly error: FirestoreCollectionError | null
 }
 
 export function useFirestoreCollection<T>(
@@ -20,7 +26,7 @@ export function useFirestoreCollection<T>(
 ): FirestoreCollectionResult<T> {
   const [data, setData] = useState<T[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<FirestoreCollectionError | null>(null)
 
   const pathKey = pathSegments?.join("/") ?? ""
   const constraintKeys = constraints.map((c) => JSON.stringify(c)).join(",")
@@ -51,7 +57,18 @@ export function useFirestoreCollection<T>(
       },
       (err) => {
         console.error("[useFirestoreCollection]", err)
-        setError(err.message)
+        const fireErr = err as { code?: string; message?: string }
+        const isMissingIndex = fireErr.code === "failed-precondition"
+        const urlMatch = (fireErr.message ?? "").match(
+          /https:\/\/console\.firebase\.google\.com[^\s)]+/,
+        )
+        setError({
+          message: isMissingIndex
+            ? "This view requires a database index that hasn't been created yet."
+            : fireErr.message ?? "Unknown error",
+          isMissingIndex,
+          indexUrl: urlMatch?.[0],
+        })
         setLoading(false)
       },
     )

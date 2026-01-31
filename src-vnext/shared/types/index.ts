@@ -18,6 +18,8 @@ export interface Project {
 
 export type ShotFirestoreStatus = "todo" | "in_progress" | "complete" | "on_hold"
 
+export type SizeScope = "all" | "single" | "pending"
+
 export interface ProductAssignment {
   readonly familyId: string
   readonly familyName?: string
@@ -26,7 +28,14 @@ export interface ProductAssignment {
   readonly colourId?: string
   readonly colourName?: string
   readonly size?: string
+  readonly sizeScope?: SizeScope
   readonly quantity?: number
+}
+
+export interface ShotTag {
+  readonly id: string
+  readonly label: string
+  readonly color: string
 }
 
 export interface Shot {
@@ -43,9 +52,12 @@ export interface Shot {
   readonly locationName?: string
   readonly laneId?: string
   readonly sortOrder: number
+  readonly shotNumber?: string
   readonly notes?: string
+  readonly notesAddendum?: string
   readonly date?: Timestamp
   readonly heroImage?: { readonly path: string; readonly downloadURL: string }
+  readonly tags?: ReadonlyArray<ShotTag>
   readonly deleted?: boolean
   readonly createdAt: Timestamp
   readonly updatedAt: Timestamp
@@ -112,10 +124,11 @@ export interface ProductFamily {
 export interface ProductSku {
   readonly id: string
   readonly name: string
-  readonly colour?: string
+  readonly colorName?: string
   readonly colourHex?: string
-  readonly size?: string
-  readonly sku?: string
+  readonly sizes?: ReadonlyArray<string>
+  readonly skuCode?: string
+  readonly imagePath?: string
 }
 
 export interface TalentRecord {

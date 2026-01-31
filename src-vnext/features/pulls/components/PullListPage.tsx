@@ -25,7 +25,7 @@ export default function PullListPage() {
   if (error) {
     return (
       <div className="p-8 text-center">
-        <p className="text-sm text-[var(--color-error)]">{error}</p>
+        <p className="text-sm text-[var(--color-error)]">{error.message}</p>
       </div>
     )
   }

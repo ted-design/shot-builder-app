@@ -21,13 +21,15 @@ function mapFamily(id: string, data: Record<string, unknown>): ProductFamily {
 }
 
 function mapSku(id: string, data: Record<string, unknown>): ProductSku {
+  const rawSizes = data["sizes"]
   return {
     id,
-    name: (data["name"] as string) ?? "",
-    colour: data["colour"] as string | undefined,
-    colourHex: data["colourHex"] as string | undefined,
-    size: data["size"] as string | undefined,
-    sku: data["sku"] as string | undefined,
+    name: (data["colorName"] as string) ?? (data["name"] as string) ?? "",
+    colorName: (data["colorName"] as string) ?? (data["name"] as string) ?? undefined,
+    colourHex: (data["hexColor"] as string) ?? (data["colourHex"] as string) ?? undefined,
+    sizes: Array.isArray(rawSizes) ? (rawSizes as string[]) : [],
+    skuCode: (data["skuCode"] as string) ?? (data["sku"] as string) ?? undefined,
+    imagePath: data["imagePath"] as string | undefined,
   }
 }
 

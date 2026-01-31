@@ -2,6 +2,10 @@ import { doc, updateDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { shotPath } from "@/shared/lib/paths"
 
+/**
+ * Update arbitrary fields on a shot document.
+ * SAFETY: Never write the legacy HTML `notes` field — use `notesAddendum` only.
+ */
 export async function updateShotField(
   shotId: string,
   clientId: string,
