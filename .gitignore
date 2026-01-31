@@ -90,6 +90,13 @@ test-results/
 # Semantic search index
 .ck/
 
+# Claude Code local settings and hook state
+.claude/settings.local.json
+.claude/.context_sentry_state.json
+
+# Context Sentry runtime artifacts
+docs/_runtime/
+
 # Debug artifacts (root level only)
 /*.png
 /*.txt
