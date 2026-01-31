@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ──────────────────────────────────────────────
+# pre-commit hook: block commits on main/master
+# and detect conflict markers in staged files.
+# ──────────────────────────────────────────────
+
+PROTECTED_BRANCHES="^(main|master)$"
+
+branch=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD)
+
+if echo "$branch" | grep -qE "$PROTECTED_BRANCHES"; then
+  echo ""
+  echo "ERROR: Commit blocked — you are on the protected branch '$branch'."
+  echo ""
+  echo "  All work must happen on a feature branch (e.g. vnext/*)."
+  echo "  To create a new branch:  git checkout -b vnext/your-feature"
+  echo ""
+  echo "  To bypass this hook (NOT recommended):"
+  echo "    git commit --no-verify"
+  echo "  To disable hooks entirely:"
+  echo "    bash scripts/disable-githooks.sh"
+  echo ""
+  exit 1
+fi
+
+# Block if merge is in progress
+if [ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]; then
+  echo ""
+  echo "ERROR: Commit blocked — unresolved merge detected (.git/MERGE_HEAD exists)."
+  echo ""
+  echo "  Resolve the merge first, then stage and commit."
+  echo "  To abort the merge:  git merge --abort"
+  echo ""
+  exit 1
+fi
+
+# Scan staged files for conflict markers
+# Only check staged content (not working tree), only text files.
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ -n "$staged_files" ]; then
+  conflict_found=0
+
+  for file in $staged_files; do
+    # Skip binary files
+    if git diff --cached --numstat -- "$file" | grep -q "^-"; then
+      continue
+    fi
+
+    # Check staged content (not disk) for all three conflict markers
+    staged_content=$(git show ":$file" 2>/dev/null || true)
+    if [ -n "$staged_content" ]; then
+      if echo "$staged_content" | grep -qE '^<{7} |^={7}$|^>{7} '; then
+        echo "ERROR: Conflict marker found in staged file: $file"
+        conflict_found=1
+      fi
+    fi
+  done
+
+  if [ "$conflict_found" -eq 1 ]; then
+    echo ""
+    echo "Commit blocked — conflict markers detected in staged files."
+    echo "Resolve conflicts, re-stage, and try again."
+    echo ""
+    exit 1
+  fi
+fi
+
+exit 0
