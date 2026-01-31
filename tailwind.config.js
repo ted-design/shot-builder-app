@@ -5,6 +5,7 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{js,jsx,ts,tsx}",
+    "./src-vnext/**/*.{ts,tsx}",
   ],
   theme: {
     extend: {

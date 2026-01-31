@@ -1,6 +1,12 @@
 import { defineConfig } from "vitest/config";
+import { resolve } from "path";
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@": resolve(import.meta.dirname, "src-vnext"),
+    },
+  },
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
@@ -13,6 +19,7 @@ export default defineConfig({
     include: [
       "src/**/*.test.{js,jsx,ts,tsx}",
       "src/**/__tests__/**/*.{js,jsx,ts,tsx}",
+      "src-vnext/**/*.test.{ts,tsx}",
     ],
     // Skip slow/flaky integration tests in CI
     // These tests work locally but hang indefinitely in CI (GitHub Actions)

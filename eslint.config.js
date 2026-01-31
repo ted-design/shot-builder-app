@@ -11,6 +11,8 @@ export default [
       "dist/**",
       "node_modules/**",
       "functions/**",
+      "src-vnext/ui/**",
+      "coverage/**",
       "playwright-report/**",
       "**/*.d.ts",
     ],
