@@ -46,6 +46,7 @@ export interface Shot {
   description?: string;
   notes?: string;
   notesAddendum?: string;
+  shotNumber?: string | null;
   date?: string | Timestamp | null;
   projectId: string;
   talent?: ShotTalent[];
