@@ -14,6 +14,9 @@ const ShotListPage = lazy(
 const ShotDetailPage = lazy(
   () => import("@/features/shots/components/ShotDetailPage"),
 )
+const ProjectAssetsPage = lazy(
+  () => import("@/features/assets/components/ProjectAssetsPage"),
+)
 const PullListPage = lazy(
   () => import("@/features/pulls/components/PullListPage"),
 )
@@ -102,6 +105,14 @@ export function AppRoutes() {
             element={
               <ProjectScopeProvider>
                 <PullDetailPage />
+              </ProjectScopeProvider>
+            }
+          />
+          <Route
+            path="projects/:id/assets"
+            element={
+              <ProjectScopeProvider>
+                <ProjectAssetsPage />
               </ProjectScopeProvider>
             }
           />

@@ -5,6 +5,7 @@ import {
   Camera,
   ClipboardList,
   CalendarDays,
+  Image,
   Package,
   Users,
   MapPin,
@@ -58,6 +59,11 @@ function getNavSections(projectId?: string): readonly NavSection[] {
           label: "Pulls",
           to: `/projects/${projectId}/pulls`,
           icon: <ClipboardList className="h-5 w-5" />,
+        },
+        {
+          label: "Assets",
+          to: `/projects/${projectId}/assets`,
+          icon: <Image className="h-5 w-5" />,
         },
         {
           label: "Call Sheet",
