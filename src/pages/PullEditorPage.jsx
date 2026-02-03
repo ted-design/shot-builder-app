@@ -223,11 +223,21 @@ export default function PullEditorPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const handleGenerateShareLink = async (token) => {
+  const handleGenerateShareLink = async (token, options = {}) => {
     if (!pull) return;
+    const allowResponses = options?.allowResponses === false ? false : true;
     await updateDoc(doc(db, ...pullsPath(projectId, clientId), pull.id), {
       shareToken: token,
       shareEnabled: true,
+      shareAllowResponses: allowResponses,
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  const handleSetShareAllowResponses = async (enabled) => {
+    if (!pull) return;
+    await updateDoc(doc(db, ...pullsPath(projectId, clientId), pull.id), {
+      shareAllowResponses: !!enabled,
       updatedAt: serverTimestamp(),
     });
   };
@@ -236,6 +246,7 @@ export default function PullEditorPage() {
     if (!pull) return;
     await updateDoc(doc(db, ...pullsPath(projectId, clientId), pull.id), {
       shareEnabled: false,
+      shareAllowResponses: false,
       updatedAt: serverTimestamp(),
     });
   };
@@ -335,6 +346,7 @@ export default function PullEditorPage() {
         <PullShareModal
           pull={pull}
           onGenerateLink={handleGenerateShareLink}
+          onSetResponsesEnabled={handleSetShareAllowResponses}
           onRevokeLink={handleRevokeShareLink}
           onClose={() => setShareModalOpen(false)}
         />
