@@ -6,6 +6,7 @@ import {
   roleLabel,
   canManageProjects,
   canManageShots,
+  canGeneratePulls,
   canManagePulls,
   canFulfillPulls,
   isViewer,
@@ -132,6 +133,28 @@ describe("permission checks", () => {
 
     it("viewer cannot manage pulls", () => {
       expect(canManagePulls("viewer")).toBe(false)
+    })
+  })
+
+  describe("canGeneratePulls", () => {
+    it("admin can generate pulls", () => {
+      expect(canGeneratePulls("admin")).toBe(true)
+    })
+
+    it("producer can generate pulls", () => {
+      expect(canGeneratePulls("producer")).toBe(true)
+    })
+
+    it("crew cannot generate pulls", () => {
+      expect(canGeneratePulls("crew")).toBe(false)
+    })
+
+    it("warehouse cannot generate pulls", () => {
+      expect(canGeneratePulls("warehouse")).toBe(false)
+    })
+
+    it("viewer cannot generate pulls", () => {
+      expect(canGeneratePulls("viewer")).toBe(false)
     })
   })
 

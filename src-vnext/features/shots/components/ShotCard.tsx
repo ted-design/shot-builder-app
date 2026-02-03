@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
 import { Badge } from "@/ui/badge"
+import { Checkbox } from "@/ui/checkbox"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { Package, Users, MapPin } from "lucide-react"
@@ -10,9 +11,17 @@ import type { Shot } from "@/shared/types"
 
 interface ShotCardProps {
   readonly shot: Shot
+  readonly selectable?: boolean
+  readonly selected?: boolean
+  readonly onSelectedChange?: (selected: boolean) => void
 }
 
-export function ShotCard({ shot }: ShotCardProps) {
+export function ShotCard({
+  shot,
+  selectable,
+  selected,
+  onSelectedChange,
+}: ShotCardProps) {
   const navigate = useNavigate()
   const { projectId } = useProjectScope()
   const [imgVisible, setImgVisible] = useState(!!shot.heroImage?.downloadURL)
@@ -48,7 +57,17 @@ export function ShotCard({ shot }: ShotCardProps) {
             )}
           </div>
         </div>
-        <div onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {selectable && (
+            <Checkbox
+              checked={!!selected}
+              onCheckedChange={(v) => {
+                if (v === "indeterminate") return
+                onSelectedChange?.(v)
+              }}
+              aria-label={selected ? "Deselect shot" : "Select shot"}
+            />
+          )}
           <ShotStatusSelect
             shotId={shot.id}
             currentStatus={shot.status}

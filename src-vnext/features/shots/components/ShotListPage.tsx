@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { LoadingState } from "@/shared/components/LoadingState"
@@ -9,9 +9,10 @@ import { ShotCard } from "@/features/shots/components/ShotCard"
 import { DraggableShotList } from "@/features/shots/components/DraggableShotList"
 import { ShotReorderControls } from "@/features/shots/components/ShotReorderControls"
 import { CreateShotDialog } from "@/features/shots/components/CreateShotDialog"
+import { CreatePullFromShotsDialog } from "@/features/pulls/components/CreatePullFromShotsDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
-import { canManageShots } from "@/shared/lib/rbac"
+import { canGeneratePulls, canManageShots } from "@/shared/lib/rbac"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { Button } from "@/ui/button"
 import { Badge } from "@/ui/badge"
@@ -71,14 +72,19 @@ function filterByStatus(
 export default function ShotListPage() {
   const { data: shots, loading, error } = useShots()
   const { role } = useAuth()
-  const { projectName } = useProjectScope()
+  const { projectId, projectName } = useProjectScope()
+  const navigate = useNavigate()
   const isMobile = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
   const [createOpen, setCreateOpen] = useState(false)
   const [mobileOptimistic, setMobileOptimistic] = useState<ReadonlyArray<Shot> | null>(null)
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
+  const [createPullOpen, setCreatePullOpen] = useState(false)
 
   const showCreate = canManageShots(role)
   const canReorder = canManageShots(role)
+  const canBulkPull = canGeneratePulls(role) && !isMobile
 
   const sortKey = (searchParams.get("sort") as SortKey) || "custom"
   const statusFilter = searchParams.get("status") as ShotFirestoreStatus | null
@@ -109,6 +115,28 @@ export default function ShotListPage() {
     const filtered = filterByStatus(base, statusFilter)
     return sortShots(filtered, sortKey)
   }, [shots, mobileOptimistic, sortKey, statusFilter])
+
+  const selectionEnabled = selectionMode && canBulkPull
+
+  const toggleSelected = (shotId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(shotId)) next.delete(shotId)
+      else next.add(shotId)
+      return next
+    })
+  }
+
+  const clearSelection = () => {
+    setSelectedIds(new Set())
+    setSelectionMode(false)
+  }
+
+  const selectedShots = useMemo(() => {
+    if (!selectionEnabled) return []
+    if (selectedIds.size === 0) return []
+    return displayShots.filter((s) => selectedIds.has(s.id))
+  }, [displayShots, selectedIds, selectionEnabled])
 
   if (loading) return <LoadingState loading />
   if (error) {
@@ -146,14 +174,51 @@ export default function ShotListPage() {
           { label: projectName || "Project" },
         ]}
         actions={
-          showCreate ? (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Shot
-            </Button>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            {canBulkPull && (
+              <Button
+                variant={selectionEnabled ? "default" : "outline"}
+                onClick={() => {
+                  if (selectionEnabled) {
+                    clearSelection()
+                  } else {
+                    setSelectionMode(true)
+                  }
+                }}
+              >
+                {selectionEnabled ? "Done" : "Select"}
+              </Button>
+            )}
+            {showCreate ? (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Shot
+              </Button>
+            ) : null}
+          </div>
         }
       />
+
+      {/* Bulk action bar (desktop only) */}
+      {selectionEnabled && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+          <div className="text-xs text-[var(--color-text-muted)]">
+            {selectedIds.size} selected
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              disabled={selectedIds.size === 0}
+              onClick={() => setCreatePullOpen(true)}
+            >
+              Create pull sheet
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Toolbar: sort + status filter */}
       {shots.length > 0 && (
@@ -245,12 +310,27 @@ export default function ShotListPage() {
         <DraggableShotList
           shots={displayShots}
           disabled={!isCustomSort || !canReorder}
+          selection={
+            selectionEnabled
+              ? { enabled: true, selectedIds, onToggle: toggleSelected }
+              : undefined
+          }
         />
       )}
 
       {showCreate && (
         <CreateShotDialog open={createOpen} onOpenChange={setCreateOpen} />
       )}
+
+      <CreatePullFromShotsDialog
+        open={createPullOpen}
+        onOpenChange={setCreatePullOpen}
+        shots={selectedShots}
+        onCreated={(pullId) => {
+          clearSelection()
+          navigate(`/projects/${projectId}/pulls/${pullId}`)
+        }}
+      />
     </ErrorBoundary>
   )
 }

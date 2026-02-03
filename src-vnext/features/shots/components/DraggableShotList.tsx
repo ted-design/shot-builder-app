@@ -26,12 +26,19 @@ import type { Shot } from "@/shared/types"
 interface DraggableShotListProps {
   readonly shots: ReadonlyArray<Shot>
   readonly disabled?: boolean
+  readonly selection?: {
+    readonly enabled: boolean
+    readonly selectedIds: ReadonlySet<string>
+    readonly onToggle: (shotId: string) => void
+  }
 }
 
-export function DraggableShotList({ shots, disabled }: DraggableShotListProps) {
+export function DraggableShotList({ shots, disabled, selection }: DraggableShotListProps) {
   const { clientId } = useAuth()
   const [optimisticOrder, setOptimisticOrder] = useState<ReadonlyArray<Shot> | null>(null)
   const displayShots = optimisticOrder ?? shots
+
+  const selectionEnabled = selection?.enabled === true
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -58,11 +65,17 @@ export function DraggableShotList({ shots, disabled }: DraggableShotListProps) {
     }
   }
 
-  if (disabled) {
+  if (disabled || selectionEnabled) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {displayShots.map((shot) => (
-          <ShotCard key={shot.id} shot={shot} />
+          <ShotCard
+            key={shot.id}
+            shot={shot}
+            selectable={selectionEnabled}
+            selected={selection?.selectedIds.has(shot.id) ?? false}
+            onSelectedChange={() => selection?.onToggle(shot.id)}
+          />
         ))}
       </div>
     )

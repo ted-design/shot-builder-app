@@ -64,6 +64,10 @@ export function canManageSchedules(role: Role): boolean {
   return role === ROLE.ADMIN || role === ROLE.PRODUCER
 }
 
+export function canGeneratePulls(role: Role): boolean {
+  return role === ROLE.ADMIN || role === ROLE.PRODUCER
+}
+
 export function canManagePulls(role: Role): boolean {
   return role === ROLE.ADMIN || role === ROLE.PRODUCER || role === ROLE.WAREHOUSE
 }

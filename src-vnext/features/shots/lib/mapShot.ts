@@ -60,14 +60,121 @@ function normalizeTags(raw: unknown): ReadonlyArray<ShotTag> {
   )
 }
 
+function isHttpUrl(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    (value.startsWith("https://") || value.startsWith("http://"))
+  )
+}
+
+type LegacyRef = { readonly id?: unknown; readonly path?: unknown; readonly downloadURL?: unknown }
+type LegacyLook = {
+  readonly displayImageId?: unknown
+  readonly references?: readonly LegacyRef[]
+}
+
+type LegacyAttachment = {
+  readonly path?: unknown
+  readonly downloadURL?: unknown
+  readonly isPrimary?: unknown
+}
+
+function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | undefined {
+  const rawHero = data["heroImage"]
+  if (rawHero && typeof rawHero === "object") {
+    const obj = rawHero as Record<string, unknown>
+    const downloadURL = obj["downloadURL"]
+    const path = obj["path"]
+    if (isHttpUrl(downloadURL)) {
+      return {
+        path: typeof path === "string" && path.length > 0 ? path : downloadURL,
+        downloadURL,
+      }
+    }
+  }
+
+  const looks = Array.isArray(data["looks"]) ? (data["looks"] as LegacyLook[]) : []
+
+  // Priority 1: Designated display image from looks
+  for (const look of looks) {
+    const displayId = look?.displayImageId
+    if (typeof displayId !== "string" || displayId.length === 0) continue
+    const refs = Array.isArray(look.references) ? look.references : []
+    const match = refs.find((r) => r?.id === displayId) ?? null
+    if (!match) continue
+    const downloadURL = match.downloadURL
+    const path = match.path
+    if (isHttpUrl(downloadURL)) {
+      return {
+        path: typeof path === "string" && path.length > 0 ? path : downloadURL,
+        downloadURL,
+      }
+    }
+    if (isHttpUrl(path)) {
+      return { path, downloadURL: path }
+    }
+  }
+
+  // Priority 2: First reference from first look with references
+  for (const look of looks) {
+    const refs = Array.isArray(look.references) ? look.references : []
+    if (refs.length === 0) continue
+    const first = refs[0]
+    const downloadURL = first?.downloadURL
+    const path = first?.path
+    if (isHttpUrl(downloadURL)) {
+      return {
+        path: typeof path === "string" && path.length > 0 ? path : downloadURL,
+        downloadURL,
+      }
+    }
+    if (isHttpUrl(path)) {
+      return { path, downloadURL: path }
+    }
+  }
+
+  // Priority 3: Primary attachment (legacy multi-image system)
+  const attachments = Array.isArray(data["attachments"])
+    ? (data["attachments"] as LegacyAttachment[])
+    : []
+  if (attachments.length > 0) {
+    const primary = attachments.find((a) => a?.isPrimary === true) ?? attachments[0]!
+    const downloadURL = primary.downloadURL
+    const path = primary.path
+    if (isHttpUrl(downloadURL)) {
+      return {
+        path: typeof path === "string" && path.length > 0 ? path : downloadURL,
+        downloadURL,
+      }
+    }
+    if (isHttpUrl(path)) {
+      return { path, downloadURL: path }
+    }
+  }
+
+  // Priority 4: Legacy single image fields
+  const referenceImagePath = data["referenceImagePath"]
+  if (isHttpUrl(referenceImagePath)) {
+    return { path: referenceImagePath, downloadURL: referenceImagePath }
+  }
+
+  return undefined
+}
+
 /**
  * Maps a raw Firestore document to a typed Shot.
  * Handles legacy field naming, date format variations, and sizeScope defaults.
  */
 export function mapShot(id: string, data: Record<string, unknown>): Shot {
+  const titleRaw =
+    (data["title"] as string | null | undefined) ??
+    (data["name"] as string | null | undefined) ??
+    ""
+  const title = typeof titleRaw === "string" ? titleRaw.trim() : ""
+
   return {
     id,
-    title: (data["title"] as string) ?? "",
+    title,
     description: data["description"] as string | undefined,
     projectId: (data["projectId"] as string) ?? "",
     clientId: (data["clientId"] as string) ?? "",
@@ -83,7 +190,7 @@ export function mapShot(id: string, data: Record<string, unknown>): Shot {
     notes: data["notes"] as string | undefined,
     notesAddendum: data["notesAddendum"] as string | undefined,
     date: normalizeDate(data["date"]),
-    heroImage: data["heroImage"] as Shot["heroImage"],
+    heroImage: normalizeHeroImage(data),
     tags: normalizeTags(data["tags"]),
     deleted: data["deleted"] as boolean | undefined,
     createdAt: data["createdAt"] as Shot["createdAt"],
