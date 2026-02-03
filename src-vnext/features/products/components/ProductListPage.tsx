@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
+import { useAuth } from "@/app/providers/AuthProvider"
+import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { canManageProducts } from "@/shared/lib/rbac"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { useProductFamilies } from "@/features/products/hooks/useProducts"
 import { ProductFamilyCard } from "@/features/products/components/ProductFamilyCard"
+import { ProductUpsertDialog } from "@/features/products/components/ProductUpsertDialog"
 import { Input } from "@/ui/input"
 import { Badge } from "@/ui/badge"
 import { Button } from "@/ui/button"
 import { Checkbox } from "@/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
-import { Package, Search } from "lucide-react"
+import { Package, Plus, Search } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 import {
   deriveProductCategories,
@@ -21,6 +25,9 @@ import {
 
 export default function ProductListPage() {
   const { data: families, loading, error } = useProductFamilies()
+  const { role } = useAuth()
+  const isMobile = useIsMobile()
+  const canEdit = !isMobile && canManageProducts(role)
   const [searchParams, setSearchParams] = useSearchParams()
 
   const qParam = searchParams.get("q") ?? ""
@@ -31,6 +38,7 @@ export default function ProductListPage() {
   const sortParam = (searchParams.get("sort") ?? "styleNameAsc") as ProductListSort
 
   const [searchDraft, setSearchDraft] = useState(qParam)
+  const [createOpen, setCreateOpen] = useState(false)
 
   useEffect(() => {
     setSearchDraft(qParam)
@@ -84,7 +92,17 @@ export default function ProductListPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Products" />
+      <PageHeader
+        title="Products"
+        actions={
+          canEdit ? (
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" />
+              New product
+            </Button>
+          ) : null
+        }
+      />
       <p className="-mt-3 text-sm text-[var(--color-text-muted)]">
         Browse your product catalog. Fast scanning, safe filters, no per-item loads.
       </p>
@@ -258,6 +276,12 @@ export default function ProductListPage() {
           )}
         </>
       )}
+
+      <ProductUpsertDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        mode="create"
+      />
     </div>
   )
 }

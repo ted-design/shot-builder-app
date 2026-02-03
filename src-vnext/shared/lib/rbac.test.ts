@@ -6,6 +6,7 @@ import {
   roleLabel,
   canManageProjects,
   canManageShots,
+  canManageProducts,
   canGeneratePulls,
   canManagePulls,
   canFulfillPulls,
@@ -111,6 +112,28 @@ describe("permission checks", () => {
 
     it("viewer cannot manage shots", () => {
       expect(canManageShots("viewer")).toBe(false)
+    })
+  })
+
+  describe("canManageProducts", () => {
+    it("admin can manage products", () => {
+      expect(canManageProducts("admin")).toBe(true)
+    })
+
+    it("producer can manage products", () => {
+      expect(canManageProducts("producer")).toBe(true)
+    })
+
+    it("crew cannot manage products", () => {
+      expect(canManageProducts("crew")).toBe(false)
+    })
+
+    it("warehouse cannot manage products", () => {
+      expect(canManageProducts("warehouse")).toBe(false)
+    })
+
+    it("viewer cannot manage products", () => {
+      expect(canManageProducts("viewer")).toBe(false)
     })
   })
 

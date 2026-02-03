@@ -63,6 +63,36 @@
 | No fan-out regression | Open `/products` with a large dataset. | No per-family SKU reads; page remains responsive. |
 | Deleted visibility gated | Toggle “Show deleted”. | Deleted families appear with “Deleted” badge; hidden by default. |
 
+### WP3 — Product CRUD (family + colorways + images)
+
+**Spec alignment:** Aligned with `docs-vnext/slices/slice-2b-product-library.md` (desktop-first editor, mobile read-only). No schema changes. No list fan-out. Writes use existing collections/fields.
+
+**Change summary**
+- Added a vNext product upsert dialog (create + edit) with safe SKU management and image upload/removal.
+- Added role gate for product editing (`canManageProducts`) and hid editors on mobile.
+- Implemented product family/SKU writes with denormalized aggregates (`skuCount`, `activeSkuCount`, `skuCodes`, `colorNames`, `sizeOptions`) and best-effort Storage cleanup on replace/remove.
+
+**Touched surfaces**
+- `src-vnext/features/products/components/ProductUpsertDialog.tsx`
+- `src-vnext/features/products/lib/productWrites.ts`
+- `src-vnext/features/products/components/ProductListPage.tsx`
+- `src-vnext/features/products/components/ProductDetailPage.tsx`
+- `src-vnext/shared/lib/rbac.ts`
+- `src-vnext/shared/lib/rbac.test.ts`
+
+**Checks (2026-02-03)**
+- `npx tsc --noEmit` ✅
+- `npm test` ✅
+
+**Manual QA required (screenshots pending)**
+⚠️ Chrome extension not available in this session for screenshots.
+
+| Scenario | Steps | Expected |
+|---|---|---|
+| Create family + SKU | Desktop: `/products` → “New product” → save. | Product created; navigates to `/products/:fid`; list shows aggregates. |
+| Edit SKUs + images | Desktop: `/products/:fid` → “Edit” → add SKU, remove SKU, upload images. | Saves; images render; removed SKU is marked deleted. |
+| Mobile gating | Mobile viewport: open `/products` and `/products/:fid`. | No edit controls; read-only UI remains usable. |
+
 ## Screenshots index
 
 _Screenshots live in `docs-vnext/_proof/FOCUS-PRODUCTS-2026-02-03-A/images/`._

@@ -1,19 +1,29 @@
 import { useParams } from "react-router-dom"
+import { useAuth } from "@/app/providers/AuthProvider"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { ProductImage } from "@/features/products/components/ProductImage"
 import { ProductSkuCard } from "@/features/products/components/ProductSkuCard"
+import { ProductUpsertDialog } from "@/features/products/components/ProductUpsertDialog"
 import {
   useProductFamily,
   useProductSkus,
 } from "@/features/products/hooks/useProducts"
 import { Badge } from "@/ui/badge"
+import { Button } from "@/ui/button"
 import { Separator } from "@/ui/separator"
-import { Palette } from "lucide-react"
+import { Pencil, Palette } from "lucide-react"
+import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { canManageProducts } from "@/shared/lib/rbac"
+import { useState } from "react"
 
 export default function ProductDetailPage() {
   const { fid } = useParams<{ fid: string }>()
+  const { role } = useAuth()
+  const isMobile = useIsMobile()
+  const canEdit = !isMobile && canManageProducts(role)
+  const [editOpen, setEditOpen] = useState(false)
   const { data: family, loading: famLoading, error: famError } = useProductFamily(fid ?? null)
   const { data: skus, loading: skuLoading } = useProductSkus(fid ?? null)
 
@@ -45,6 +55,14 @@ export default function ProductDetailPage() {
           { label: "Products", to: "/products" },
           { label: family.styleName },
         ]}
+        actions={
+          canEdit ? (
+            <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Button>
+          ) : null
+        }
       />
 
       {/* Hero area: image + metadata */}
@@ -108,6 +126,14 @@ export default function ProductDetailPage() {
           </div>
         )}
       </div>
+
+      <ProductUpsertDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        mode="edit"
+        family={family}
+        skus={skus}
+      />
     </div>
   )
 }
