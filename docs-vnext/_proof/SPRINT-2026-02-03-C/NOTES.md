@@ -15,3 +15,7 @@
 
 ⚠️ Chrome screenshot capture is not available in this Codex environment. Screenshots must be captured manually in a real browser and saved under `docs-vnext/_proof/SPRINT-2026-02-03-C/images/`.
 
+## Checks Run
+
+- `npx tsc --noEmit` (2026-02-03) ✅
+- `npm test` (2026-02-03) ✅
