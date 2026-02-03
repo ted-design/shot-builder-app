@@ -15,7 +15,7 @@ import LocationCreateModal from "../../locations/LocationCreateModal";
 import ProjectLocationSelect from "../../locations/ProjectLocationSelect";
 import { shiftTimeString } from "../../../lib/callsheet/shiftTimes";
 import { toast } from "../../../lib/toast";
-import { Loader2, Plus, Trash2, Wand2, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
+import { Loader2, Plus, Trash2, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { deriveLocationsFromLegacy } from "../../../lib/callsheet/deriveLocationsFromLegacy";
 import type { DayDetails, DayDetailsNotesStyle, LocationBlock } from "../../../types/callsheet";
@@ -574,13 +574,6 @@ export default function DayDetailsEditorV2({
     });
   }, []);
 
-  const handleAutoFillWeather = useCallback(() => {
-    toast.info({
-      title: "Weather auto-fill isn’t wired yet",
-      description: "We’ll add this once we have a location → forecast source.",
-    });
-  }, []);
-
   return (
     <Card>
       <CardHeader>
@@ -936,20 +929,8 @@ export default function DayDetailsEditorV2({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Weather</div>
-                  <div className="text-xs text-slate-500">Auto-fill will be added later; manual entry for now.</div>
+                  <div className="text-xs text-slate-500">Manual entry.</div>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={handleAutoFillWeather}
-                  disabled={readOnly}
-                  title="Auto-fill (coming soon)"
-                >
-                  <Wand2 className="h-4 w-4" />
-                  Auto-fill
-                </Button>
               </div>
 
               <div className="mt-3 grid gap-3 md:grid-cols-2">

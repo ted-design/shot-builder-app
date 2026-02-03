@@ -15,7 +15,7 @@ import { FLAGS } from "../lib/flags";
 import { shotsPath, talentPath, locationsPath, productFamiliesPath } from "../lib/paths";
 import { useFirestoreCollection } from "../hooks/useFirestoreCollection";
 import { useProjects } from "../hooks/useFirestoreQuery";
-import { useSchedules, useCreateSchedule } from "../hooks/useSchedule";
+import { useSchedules, useCreateSchedule, useDeleteSchedule, useDuplicateSchedule } from "../hooks/useSchedule";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { Button } from "../components/ui/button";
 import {
@@ -89,6 +89,35 @@ function CallSheetPage() {
       toast.success({ title: "Schedule created" });
     },
   });
+
+  const deleteSchedule = useDeleteSchedule(effectiveClientId, effectiveProjectId, {
+    onSuccess: (_data, variables) => {
+      toast.success({ title: "Schedule deleted" });
+      setActiveScheduleId((prev) => {
+        if (!prev) return prev;
+        if (prev !== variables?.scheduleId) return prev;
+        const remaining = schedules.filter((s) => s.id !== variables?.scheduleId);
+        return remaining[0]?.id || null;
+      });
+    },
+  });
+
+  const duplicateSchedule = useDuplicateSchedule(effectiveClientId, effectiveProjectId, {
+    onSuccess: (newSchedule) => {
+      if (newSchedule?.id) setActiveScheduleId(newSchedule.id);
+    },
+  });
+
+  const handleDeleteActiveSchedule = useCallback(() => {
+    if (!activeScheduleId) return;
+    deleteSchedule.mutate({ scheduleId: activeScheduleId });
+  }, [activeScheduleId, deleteSchedule]);
+
+  const handleDuplicateActiveSchedule = useCallback(() => {
+    const sourceSchedule = schedules.find((s) => s.id === activeScheduleId) || null;
+    if (!sourceSchedule) return;
+    duplicateSchedule.mutate({ sourceSchedule });
+  }, [activeScheduleId, duplicateSchedule, schedules]);
 
   // Fetch shots for the project (for adding to schedule)
   const shotsRef = useMemo(() => {
@@ -192,12 +221,6 @@ function CallSheetPage() {
     },
     [createSchedule]
   );
-
-  // Handle editing an entry (placeholder - will open modal in future phase)
-  const handleEditEntry = useCallback((entry) => {
-    console.log("Edit entry:", entry);
-    toast.info({ title: "Entry editor coming soon" });
-  }, []);
 
   // Format schedule date for display
   const formatScheduleDate = (date) => {
@@ -358,7 +381,8 @@ function CallSheetPage() {
             talentMap={talentMap}
             productsMap={productsMap}
             locationsMap={locationsMap}
-            onEditEntry={handleEditEntry}
+            onDeleteSchedule={handleDeleteActiveSchedule}
+            onDuplicateSchedule={handleDuplicateActiveSchedule}
           />
         </Suspense>
       ) : (

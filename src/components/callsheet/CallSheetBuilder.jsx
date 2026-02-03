@@ -124,6 +124,8 @@ function CallSheetBuilder({
   const [isTrackManagerOpen, setIsTrackManagerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPrintPortalOpen, setIsPrintPortalOpen] = useState(false);
+  const [isEntryDeleteConfirmOpen, setIsEntryDeleteConfirmOpen] = useState(false);
+  const [entryPendingDelete, setEntryPendingDelete] = useState(null);
 
   // Workspace fullscreen mode - keeps both editor and preview visible in an overlay
   const [isWorkspaceFullscreen, setIsWorkspaceFullscreen] = useState(false);
@@ -783,11 +785,31 @@ function CallSheetBuilder({
 
   const handleDeleteEntry = useCallback(
     (entryId) => {
-      // TODO: Add confirmation dialog
-      deleteEntry({ entryId });
+      const entry = resolvedEntries.find((item) => item.id === entryId) || null;
+      if (!entry) return;
+
+      const label =
+        entry.type === "shot"
+          ? shotsMap.get(entry.shotRef)?.name || "Shot entry"
+          : entry.title || "Custom entry";
+
+      setEntryPendingDelete({ entryId, label });
+      setIsEntryDeleteConfirmOpen(true);
     },
-    [deleteEntry]
+    [resolvedEntries, shotsMap]
   );
+
+  const handleCancelDeleteEntry = useCallback(() => {
+    setIsEntryDeleteConfirmOpen(false);
+    setEntryPendingDelete(null);
+  }, []);
+
+  const handleConfirmDeleteEntry = useCallback(() => {
+    if (!entryPendingDelete?.entryId) return;
+    deleteEntry({ entryId: entryPendingDelete.entryId });
+    setIsEntryDeleteConfirmOpen(false);
+    setEntryPendingDelete(null);
+  }, [deleteEntry, entryPendingDelete?.entryId]);
 
   const handleReorderEntries = useCallback(
     (entryId, oldIndex, newIndex) => {
@@ -1288,6 +1310,39 @@ function CallSheetBuilder({
             layoutV2Loading={layoutLoading}
             columnConfig={effectiveColumns}
           />
+
+          <Modal
+            open={isEntryDeleteConfirmOpen}
+            onClose={handleCancelDeleteEntry}
+            labelledBy="delete-entry-title"
+            contentClassName="max-w-md"
+          >
+            <Card className="border-0 shadow-none">
+              <CardHeader>
+                <h2 id="delete-entry-title" className="text-lg font-semibold text-red-600 dark:text-red-400">
+                  Delete entry
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  This action cannot be undone.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950">
+                  <p className="text-sm text-red-800 dark:text-red-200">
+                    You are about to delete <strong>{entryPendingDelete?.label || "this entry"}</strong>.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" type="button" onClick={handleCancelDeleteEntry}>
+                    Cancel
+                  </Button>
+                  <Button type="button" variant="destructive" onClick={handleConfirmDeleteEntry}>
+                    Delete
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </Modal>
         </>
       ) : null}
     </div>
