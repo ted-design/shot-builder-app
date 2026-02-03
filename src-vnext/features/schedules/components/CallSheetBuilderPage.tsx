@@ -14,6 +14,7 @@ import { useScheduleDayDetails } from "@/features/schedules/hooks/useScheduleDay
 import { useScheduleEntries } from "@/features/schedules/hooks/useScheduleEntries"
 import { useScheduleTalentCalls } from "@/features/schedules/hooks/useScheduleTalentCalls"
 import { useScheduleCrewCalls } from "@/features/schedules/hooks/useScheduleCrewCalls"
+import { useCallSheetConfig } from "@/features/schedules/hooks/useCallSheetConfig"
 import { useTalent } from "@/features/shots/hooks/usePickerData"
 import { useShots } from "@/features/shots/hooks/useShots"
 import { useCrew } from "@/features/schedules/hooks/useCrew"
@@ -21,6 +22,7 @@ import { CallSheetRenderer } from "@/features/schedules/components/CallSheetRend
 import { DayDetailsEditor } from "@/features/schedules/components/DayDetailsEditor"
 import { ScheduleEntryEditor } from "@/features/schedules/components/ScheduleEntryEditor"
 import { CallOverridesEditor } from "@/features/schedules/components/CallOverridesEditor"
+import { CallSheetOutputControls } from "@/features/schedules/components/CallSheetOutputControls"
 import { TrustChecks } from "@/features/schedules/components/TrustChecks"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { Button } from "@/ui/button"
@@ -97,6 +99,8 @@ export default function CallSheetBuilderPage() {
   const { data: crewLibrary } = useCrew(clientId)
   const [previewScale, setPreviewScale] = useState(100)
 
+  const callSheetConfig = useCallSheetConfig(clientId, projectId, scheduleId)
+
   const participatingTalentIds = useMemo(() => {
     if (!entries || entries.length === 0 || shots.length === 0) return [] as string[]
     const shotMap = new Map(shots.map((s) => [s.id, s]))
@@ -158,6 +162,7 @@ export default function CallSheetBuilderPage() {
   }
 
   const dateStr = formatScheduleDate(schedule.date)
+  const rendererConfig = callSheetConfig.config
 
   return (
     <ErrorBoundary>
@@ -195,6 +200,7 @@ export default function CallSheetBuilderPage() {
                   crewCalls={crewCalls}
                   talentLookup={talentLibrary}
                   crewLookup={crewLibrary}
+                  config={rendererConfig}
                 />
               </div>
             </div>
@@ -247,6 +253,39 @@ export default function CallSheetBuilderPage() {
                   shots={shots}
                 />
               </div>
+
+              <CallSheetOutputControls
+                sections={{
+                  header: rendererConfig.sections?.header ?? true,
+                  dayDetails: rendererConfig.sections?.dayDetails ?? true,
+                  schedule: rendererConfig.sections?.schedule ?? true,
+                  talent: rendererConfig.sections?.talent ?? true,
+                  crew: rendererConfig.sections?.crew ?? true,
+                  notes: rendererConfig.sections?.notes ?? true,
+                }}
+                scheduleBlockFields={{
+                  showShotNumber: rendererConfig.scheduleBlockFields?.showShotNumber ?? true,
+                  showShotName: rendererConfig.scheduleBlockFields?.showShotName ?? true,
+                  showDescription: rendererConfig.scheduleBlockFields?.showDescription ?? true,
+                  showTalent: rendererConfig.scheduleBlockFields?.showTalent ?? true,
+                  showLocation: rendererConfig.scheduleBlockFields?.showLocation ?? true,
+                  showNotes: rendererConfig.scheduleBlockFields?.showNotes ?? true,
+                }}
+                colors={{
+                  primary: rendererConfig.colors?.primary ?? "#111111",
+                  accent: rendererConfig.colors?.accent ?? "#2563eb",
+                  text: rendererConfig.colors?.text ?? "#111111",
+                }}
+                onPatchSections={(patch) => {
+                  void callSheetConfig.setSectionVisibility(patch)
+                }}
+                onPatchScheduleFields={(patch) => {
+                  void callSheetConfig.setScheduleBlockFields(patch)
+                }}
+                onPatchColors={(patch) => {
+                  void callSheetConfig.setColors(patch)
+                }}
+              />
 
               <CallOverridesEditor
                 scheduleId={scheduleId}
@@ -310,6 +349,7 @@ export default function CallSheetBuilderPage() {
                     crewCalls={crewCalls}
                     talentLookup={talentLibrary}
                     crewLookup={crewLibrary}
+                    config={rendererConfig}
                   />
                 </div>
               </div>

@@ -14,6 +14,7 @@ import {
   scheduleDayDetailsPath,
   scheduleTalentCallsPath,
   scheduleCrewCallsPath,
+  callSheetConfigPath,
 } from "@/shared/lib/paths"
 
 function ref(segments: string[]) {
@@ -251,4 +252,26 @@ export async function removeCrewCall(
     crewCallId,
   ]
   await deleteDoc(ref(segments))
+}
+
+// --- Call Sheet Config (Slice 4: Output + Distribution) ---
+
+export async function upsertCallSheetConfig(
+  clientId: string,
+  projectId: string,
+  scheduleId: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  const segments = callSheetConfigPath(projectId, scheduleId, clientId)
+  await setDoc(
+    ref(segments),
+    {
+      projectId,
+      scheduleId,
+      ...patch,
+      updatedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+    },
+    { merge: true },
+  )
 }

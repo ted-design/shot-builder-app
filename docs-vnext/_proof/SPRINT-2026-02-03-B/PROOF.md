@@ -42,9 +42,12 @@ Saved under: `docs-vnext/_proof/SPRINT-2026-02-03-B/images/`
 - [x] `npm test` (WP2)
 - [x] `npx tsc --noEmit` (WP3)
 - [x] `npm test` (WP3)
+- [x] `npx tsc --noEmit` (WP4)
+- [x] `npm test` (WP4)
 
 ## Progress Log
 
 - WP1 complete: derive `participatingTalentIds` locally from `entries + shots` (no extra Firestore fan-out), and ensure new schedule entries get a monotonic `order` (prevents duplicate orders after deletes).
 - WP2 complete: `CallSheetRenderer` now joins `ScheduleEntry.shotId` → `Shot` for shot number/title/description, and surfaces talent + location inline per entry; adds a real Notes section (from day details).
 - WP3 complete: `?preview=1` renders read-only call sheet with no app chrome (and no mobile redirect); non-managers are forced into preview mode.
+- WP4 complete: call sheet config is persisted to `callSheet/config` (merge-write) and applied to renderer (sections, schedule fields, colors) via an Output control panel.
