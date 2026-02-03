@@ -19,13 +19,18 @@ Branch: `vnext/slice-3-call-sheet-assembly`
 - `/projects/:id/callsheet?scheduleId=:sid`
 - `/projects/:id/callsheet?scheduleId=:sid&preview=1`
 
+## Proof IDs (from screenshot session)
+
+- `PROJECT_ID=K5UpgJI9qeIz2l2oIKQg`
+- `SCHEDULE_ID=DYVTVcjeRH7tId0iBj3s`
+
 ## Screenshots (Claude-in-Chrome required)
 
 Saved under: `docs-vnext/_proof/SPRINT-2026-02-03-B/images/`
 
-- (pending) `01-wp2-callsheet-preview-desktop.png` — Canonical renderer shows schedule + day details + talent/crew sections.
-- (pending) `02-wp3-preview-mode-mobile.png` — `?preview=1` renders read-only on mobile (no redirect).
-- (pending) `03-wp5-export-print-portal.png` — Print/export view renders cleanly (no sidebar/chrome).
+- `01-wp4-output-controls-desktop.png` — Desktop split pane; Output controls visible; Crew toggled off; preview updates.
+- `02-wp3-preview-mode-mobile.png` — Mobile `?preview=1` renders read-only call sheet; no redirect.
+- `03-wp5-export-print-portal.png` — Clean call sheet render intended for print/export (no app chrome).
 
 ## Key UI States Verified (manual)
 
