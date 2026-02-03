@@ -28,5 +28,5 @@ Save screenshots under `docs-vnext/_proof/SPRINT-2026-02-03-C/images/`.
 
 - [x] `npx tsc --noEmit` (2026-02-03)
 - [x] `npm test` (2026-02-03)
-- [ ] `npm run lint`
-- [ ] `npm run build`
+- [x] `npm run lint` (2026-02-03)
+- [x] `npm run build` (2026-02-03)
