@@ -35,6 +35,34 @@
 - `npx tsc --noEmit` ✅
 - `npm test` ✅
 
+### WP2 — `/products` browsing parity (fast + calm, URL-persisted)
+
+**Spec alignment:** Aligned with `docs-vnext/design/experience-spec.md` (in-context search + filters, bookmarkable state). No schema changes. No new Firestore queries (still a single `productFamilies` subscription).
+
+**Change summary**
+- Added URL-persisted filters (`q`, `status`, `cat`, `arch`, `del`, `sort`) for shareable/bindable browsing state.
+- Improved product card density with trustworthy metadata (active colorways, colors, sizes) using denormalized family fields (no SKU fan-out).
+- Centralized filter/sort logic in a pure function with unit tests.
+
+**Touched surfaces**
+- `src-vnext/features/products/components/ProductListPage.tsx`
+- `src-vnext/features/products/components/ProductFamilyCard.tsx`
+- `src-vnext/features/products/lib/productList.ts`
+- `src-vnext/features/products/lib/productList.test.ts`
+
+**Checks (2026-02-03)**
+- `npx tsc --noEmit` ✅
+- `npm test` ✅
+
+**Manual QA required (screenshots pending)**
+⚠️ Chrome extension not available in this session for screenshots.
+
+| Scenario | Steps | Expected |
+|---|---|---|
+| URL-persisted filters | Apply search + status + category + include archived. Refresh page. | State persists and results match filters. |
+| No fan-out regression | Open `/products` with a large dataset. | No per-family SKU reads; page remains responsive. |
+| Deleted visibility gated | Toggle “Show deleted”. | Deleted families appear with “Deleted” badge; hidden by default. |
+
 ## Screenshots index
 
 _Screenshots live in `docs-vnext/_proof/FOCUS-PRODUCTS-2026-02-03-A/images/`._

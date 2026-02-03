@@ -6,11 +6,18 @@ import type { ProductFamily } from "@/shared/types"
 
 interface ProductFamilyCardProps {
   readonly family: ProductFamily
-  readonly skuCount: number | null
 }
 
-export function ProductFamilyCard({ family, skuCount }: ProductFamilyCardProps) {
+export function ProductFamilyCard({ family }: ProductFamilyCardProps) {
   const navigate = useNavigate()
+
+  const skuCount = family.skuCount ?? null
+  const activeSkuCount = family.activeSkuCount ?? null
+  const colorCount = family.colorNames?.length ?? null
+  const sizeCount = family.sizeOptions?.length ?? null
+
+  const categoryLabel = family.productSubcategory ?? family.productType ?? family.category
+  const status = (family.status ?? "active").toLowerCase()
 
   return (
     <Card
@@ -29,26 +36,54 @@ export function ProductFamilyCard({ family, skuCount }: ProductFamilyCardProps) 
         <span className="text-sm font-medium leading-tight text-[var(--color-text)]">
           {family.styleName}
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {family.styleNumber && (
             <span className="text-xs text-[var(--color-text-muted)]">
               {family.styleNumber}
             </span>
           )}
-          {family.category && (
+          {categoryLabel && (
             <Badge
               variant="outline"
               className="text-[10px] font-normal text-[var(--color-text-muted)]"
             >
-              {family.category}
+              {categoryLabel}
+            </Badge>
+          )}
+          {family.archived && (
+            <Badge
+              variant="outline"
+              className="text-[10px] font-normal text-[var(--color-text-subtle)]"
+            >
+              Archived
+            </Badge>
+          )}
+          {family.deleted && (
+            <Badge
+              variant="outline"
+              className="text-[10px] font-normal text-[var(--color-text-subtle)]"
+            >
+              Deleted
+            </Badge>
+          )}
+          {status === "discontinued" && (
+            <Badge
+              variant="outline"
+              className="text-[10px] font-normal text-[var(--color-text-subtle)]"
+            >
+              Discontinued
             </Badge>
           )}
         </div>
-        {skuCount !== null && (
-          <span className="text-xs text-[var(--color-text-subtle)]">
-            {skuCount} {skuCount === 1 ? "colorway" : "colorways"}
-          </span>
-        )}
+        <span className="text-xs text-[var(--color-text-subtle)]">
+          {activeSkuCount !== null
+            ? `${activeSkuCount} active ${activeSkuCount === 1 ? "colorway" : "colorways"}`
+            : skuCount !== null
+              ? `${skuCount} ${skuCount === 1 ? "colorway" : "colorways"}`
+              : "—"}
+          {colorCount !== null && ` · ${colorCount} ${colorCount === 1 ? "color" : "colors"}`}
+          {sizeCount !== null && ` · ${sizeCount} ${sizeCount === 1 ? "size" : "sizes"}`}
+        </span>
       </CardContent>
     </Card>
   )
