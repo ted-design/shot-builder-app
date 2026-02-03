@@ -132,3 +132,18 @@ Screenshots (to capture):
 - `wp4-bulk-add-counts.png` — Bulk add shows correct product counts for that shot
 - `wp4-bulk-add-items-preview.png` — Added items include look-based products
 - `wp4-auto-generate-pull.png` — Auto-generated pull includes those items
+
+### WP5 — Tags are read-only on shot detail
+
+Status: ✅ Completed
+
+Changes:
+- Shot editor “Assets” section no longer allows editing tags (Slice 2 alignment: tag writes deferred).
+- Tags render reliably even when legacy tags are strings (normalized to `{id,label,color}` for display).
+
+Proof checklist:
+- [x] No tag edit affordance in shot editor assets section
+- [x] Tags display correctly for string + object legacy shapes
+
+Screenshots (to capture):
+- `wp5-editor-assets-tags-readonly.png` — Assets section shows tags with no Edit/Save controls
