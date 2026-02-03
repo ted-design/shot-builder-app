@@ -51,6 +51,7 @@ import EntryFormModal from "./entries/EntryFormModal";
 import ColumnConfigModal from "./columns/ColumnConfigModal";
 import TrackManager from "./tracks/TrackManager";
 import CallSheetExportModal from "./export/CallSheetExportModal";
+import CallSheetPrintPortal from "./print/CallSheetPrintPortal";
 import { toast } from "../../lib/toast";
 import { Loader2, Calendar, Clock } from "lucide-react";
 import { Modal } from "../ui/modal";
@@ -122,6 +123,7 @@ function CallSheetBuilder({
   const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
   const [isTrackManagerOpen, setIsTrackManagerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isPrintPortalOpen, setIsPrintPortalOpen] = useState(false);
 
   // Workspace fullscreen mode - keeps both editor and preview visible in an overlay
   const [isWorkspaceFullscreen, setIsWorkspaceFullscreen] = useState(false);
@@ -255,6 +257,7 @@ function CallSheetBuilder({
     config: remoteCallSheetConfig,
     ensureConfig,
     updateConfig,
+    loading: callSheetConfigLoading,
   } = useCallSheetConfig(clientId, projectId, scheduleId);
 
   const { projectRole, canWrite: canWriteProject } = useProjectMemberRole(clientId, projectId);
@@ -418,14 +421,14 @@ function CallSheetBuilder({
     return Array.from(ids);
   }, [resolvedEntries, shotsMap]);
 
-  const { dayDetails } = useDayDetails(clientId, projectId, scheduleId);
-  const { calls: talentCalls = [] } = useTalentCalls(clientId, projectId, scheduleId);
-  const { calls: clientCalls = [] } = useClientCalls(clientId, projectId, scheduleId);
-  const { callsByCrewMemberId } = useCrewCalls(clientId, projectId, scheduleId);
-  const { crewById } = useOrganizationCrew(clientId);
-  const { assignments: crewAssignments = [] } = useProjectCrew(clientId, projectId);
-  const { departments: orgDepartments = [] } = useDepartments(clientId);
-  const { departments: projectDepartments = [] } = useProjectDepartments(clientId, projectId);
+  const { dayDetails, loading: dayDetailsLoading } = useDayDetails(clientId, projectId, scheduleId);
+  const { calls: talentCalls = [], loading: talentCallsLoading } = useTalentCalls(clientId, projectId, scheduleId);
+  const { calls: clientCalls = [], loading: clientCallsLoading } = useClientCalls(clientId, projectId, scheduleId);
+  const { callsByCrewMemberId, loading: crewCallsLoading } = useCrewCalls(clientId, projectId, scheduleId);
+  const { crewById, loading: orgCrewLoading } = useOrganizationCrew(clientId);
+  const { assignments: crewAssignments = [], loading: projectCrewLoading } = useProjectCrew(clientId, projectId);
+  const { departments: orgDepartments = [], loading: orgDepartmentsLoading } = useDepartments(clientId);
+  const { departments: projectDepartments = [], loading: projectDepartmentsLoading } = useProjectDepartments(clientId, projectId);
 
   const talentRows = useMemo(() => {
     return (talentCalls || [])
@@ -517,6 +520,14 @@ function CallSheetBuilder({
         return a.name.localeCompare(b.name);
       });
   }, [callsByCrewMemberId, crewAssignments, crewById, dayDetails?.crewCallTime, orgDepartments, projectDepartments]);
+
+  const crewSectionLoading =
+    Boolean(crewCallsLoading) ||
+    Boolean(orgCrewLoading) ||
+    Boolean(projectCrewLoading) ||
+    Boolean(orgDepartmentsLoading) ||
+    Boolean(projectDepartmentsLoading) ||
+    Boolean(dayDetailsLoading);
 
   const clientRows = useMemo(() => {
     return (clientCalls || [])
@@ -1033,6 +1044,10 @@ function CallSheetBuilder({
     ]
   );
 
+  const handleRequestPrint = useCallback(() => {
+    setIsPrintPortalOpen(true);
+  }, []);
+
   // Loading state
   if (scheduleLoading || entriesLoading) {
     return (
@@ -1243,16 +1258,34 @@ function CallSheetBuilder({
           <CallSheetExportModal
             isOpen={isExportModalOpen}
             onClose={() => setIsExportModalOpen(false)}
+            onRequestPrint={handleRequestPrint}
             schedule={schedule}
             entries={resolvedEntries}
             tracks={tracks}
+          />
+
+          <CallSheetPrintPortal
+            open={isPrintPortalOpen}
+            onDone={() => setIsPrintPortalOpen(false)}
+            schedule={schedule}
+            scheduleLoading={scheduleLoading}
+            entries={resolvedEntries}
+            entriesLoading={entriesLoading}
+            tracks={tracks}
             projectTitle={projectTitle}
             dayDetails={dayDetails}
+            dayDetailsLoading={dayDetailsLoading}
             crewRows={crewRows}
+            crewLoading={crewSectionLoading}
             talentRows={talentRows}
+            talentLoading={talentCallsLoading}
+            clientRows={clientRows}
+            clientLoading={clientCallsLoading}
             sections={orderedSections}
             callSheetConfig={callSheetConfig}
+            callSheetConfigLoading={callSheetConfigLoading}
             layoutV2={layoutV2Local}
+            layoutV2Loading={layoutLoading}
             columnConfig={effectiveColumns}
           />
         </>
