@@ -51,10 +51,11 @@ function CallSheetPage() {
   const { data: projects = [] } = useProjects(clientId);
   const activeProject = useMemo(() => projects.find((p) => p.id === projectId) || null, [projects, projectId]);
   const isPreviewMode = searchParams.get("preview") === "1";
+  const isBuilderBlocked = isMobile && !isPreviewMode;
 
   const isEnabled = FLAGS.callSheetBuilder;
-  const effectiveClientId = clientId;
-  const effectiveProjectId = projectId;
+  const effectiveClientId = isBuilderBlocked ? null : clientId;
+  const effectiveProjectId = isBuilderBlocked ? null : projectId;
 
   // Desktop-only surface: redirect mobile users out of builder mode.
   useEffect(() => {
@@ -64,10 +65,6 @@ function CallSheetPage() {
     toast.info({ title: "Call Sheet builder is desktop-only", description: "Open this page on a larger screen." });
     navigate(`/projects/${projectId}/dashboard`, { replace: true });
   }, [isMobile, isPreviewMode, navigate, projectId]);
-
-  if (isMobile && !isPreviewMode) {
-    return null;
-  }
 
   // Active schedule ID (from URL or first available)
   const [activeScheduleId, setActiveScheduleId] = useState(null);
@@ -221,6 +218,10 @@ function CallSheetPage() {
     },
     [createSchedule]
   );
+
+  if (isBuilderBlocked) {
+    return null;
+  }
 
   // Format schedule date for display
   const formatScheduleDate = (date) => {
