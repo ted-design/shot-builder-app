@@ -5,6 +5,7 @@
 - Treat legacy `shot.notes` as immutable HTML in vNext surfaces (read-only rendering only).
 - Add operational notes via append-only `notesAddendum` field (plain text).
 - Type legacy `shotNumber` in vNext `Shot` model (no schema change).
+- Persist `shareAllowResponses` from Pull Share modal in both Pull detail and full-screen Pull editor.
 
 ## Constraints & Guardrails
 
