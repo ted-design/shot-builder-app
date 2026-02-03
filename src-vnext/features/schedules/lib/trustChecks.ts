@@ -63,6 +63,7 @@ function isTimeBefore(a: string | null | undefined, b: string | null | undefined
 
 interface TrustCheckInput {
   readonly schedule: Schedule | null
+  readonly participatingTalentIds?: readonly string[]
   readonly entries: readonly ScheduleEntry[]
   readonly dayDetails: DayDetails | null
   readonly talentCalls: readonly TalentCallSheet[]
@@ -71,11 +72,19 @@ interface TrustCheckInput {
 }
 
 export function computeTrustWarnings(input: TrustCheckInput): readonly TrustWarning[] {
-  const { schedule, entries, dayDetails, talentCalls, crewCalls, crewLibrary } = input
+  const {
+    schedule,
+    participatingTalentIds,
+    entries,
+    dayDetails,
+    talentCalls,
+    crewCalls,
+    crewLibrary,
+  } = input
   const warnings: TrustWarning[] = []
 
   // 1. Talent expected but no call overrides resolved
-  const participatingIds = schedule?.participatingTalentIds ?? []
+  const participatingIds = participatingTalentIds ?? schedule?.participatingTalentIds ?? []
   if (participatingIds.length > 0) {
     const calledIds = new Set(talentCalls.map((tc) => tc.talentId))
     const uncalled = participatingIds.filter((id) => !calledIds.has(id))

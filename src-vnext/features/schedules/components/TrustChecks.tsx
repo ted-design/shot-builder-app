@@ -12,6 +12,7 @@ import type {
 
 interface TrustChecksProps {
   readonly schedule: Schedule | null
+  readonly participatingTalentIds?: readonly string[]
   readonly entries: readonly ScheduleEntry[]
   readonly dayDetails: DayDetails | null
   readonly talentCalls: readonly TalentCallSheet[]
@@ -21,6 +22,7 @@ interface TrustChecksProps {
 
 export function TrustChecks({
   schedule,
+  participatingTalentIds,
   entries,
   dayDetails,
   talentCalls,
@@ -31,13 +33,14 @@ export function TrustChecks({
     () =>
       computeTrustWarnings({
         schedule,
+        participatingTalentIds,
         entries,
         dayDetails,
         talentCalls,
         crewCalls,
         crewLibrary,
       }),
-    [schedule, entries, dayDetails, talentCalls, crewCalls, crewLibrary],
+    [schedule, participatingTalentIds, entries, dayDetails, talentCalls, crewCalls, crewLibrary],
   )
 
   if (warnings.length === 0) return null

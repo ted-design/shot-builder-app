@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { CalendarDays, ZoomIn, ZoomOut } from "lucide-react"
@@ -14,6 +14,7 @@ import { useScheduleEntries } from "@/features/schedules/hooks/useScheduleEntrie
 import { useScheduleTalentCalls } from "@/features/schedules/hooks/useScheduleTalentCalls"
 import { useScheduleCrewCalls } from "@/features/schedules/hooks/useScheduleCrewCalls"
 import { useTalent } from "@/features/shots/hooks/usePickerData"
+import { useShots } from "@/features/shots/hooks/useShots"
 import { useCrew } from "@/features/schedules/hooks/useCrew"
 import { CallSheetRenderer } from "@/features/schedules/components/CallSheetRenderer"
 import { DayDetailsEditor } from "@/features/schedules/components/DayDetailsEditor"
@@ -69,6 +70,8 @@ export default function CallSheetBuilderPage() {
     data: entries,
   } = useScheduleEntries(clientId, projectId, scheduleId)
 
+  const { data: shots } = useShots()
+
   const {
     data: talentCalls,
   } = useScheduleTalentCalls(clientId, projectId, scheduleId)
@@ -80,6 +83,20 @@ export default function CallSheetBuilderPage() {
   const { data: talentLibrary } = useTalent()
   const { data: crewLibrary } = useCrew(clientId)
   const [previewScale, setPreviewScale] = useState(100)
+
+  const participatingTalentIds = useMemo(() => {
+    if (!entries || entries.length === 0 || shots.length === 0) return [] as string[]
+    const shotMap = new Map(shots.map((s) => [s.id, s]))
+    const set = new Set<string>()
+    for (const e of entries) {
+      if (e.type !== "shot") continue
+      if (!e.shotId) continue
+      const shot = shotMap.get(e.shotId)
+      const ids = shot?.talentIds ?? []
+      for (const id of ids) set.add(id)
+    }
+    return [...set].sort()
+  }, [entries, shots])
 
   // Mobile: render nothing while redirect fires
   if (isMobile) return null
@@ -173,6 +190,7 @@ export default function CallSheetBuilderPage() {
             <ScheduleEntryEditor
               scheduleId={scheduleId}
               entries={entries}
+              shots={shots}
             />
           </div>
 
@@ -187,6 +205,7 @@ export default function CallSheetBuilderPage() {
 
           <TrustChecks
             schedule={schedule}
+            participatingTalentIds={participatingTalentIds}
             entries={entries}
             dayDetails={dayDetails}
             talentCalls={talentCalls}

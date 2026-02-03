@@ -89,7 +89,8 @@ describe("computeTrustWarnings", () => {
     it("warns when participatingTalentIds has uncalled talent", () => {
       const warnings = computeTrustWarnings({
         ...emptyInput,
-        schedule: makeSchedule({ participatingTalentIds: ["t1", "t2"] }),
+        schedule: makeSchedule(),
+        participatingTalentIds: ["t1", "t2"],
         talentCalls: [makeTalentCall({ talentId: "t1" })],
       })
       expect(warnings).toHaveLength(1)
@@ -100,7 +101,8 @@ describe("computeTrustWarnings", () => {
     it("warns with correct plural for multiple missing", () => {
       const warnings = computeTrustWarnings({
         ...emptyInput,
-        schedule: makeSchedule({ participatingTalentIds: ["t1", "t2", "t3"] }),
+        schedule: makeSchedule(),
+        participatingTalentIds: ["t1", "t2", "t3"],
         talentCalls: [],
       })
       expect(warnings[0]!.message).toContain("3 talent members")
@@ -109,7 +111,8 @@ describe("computeTrustWarnings", () => {
     it("does not warn when all participating talent have calls", () => {
       const warnings = computeTrustWarnings({
         ...emptyInput,
-        schedule: makeSchedule({ participatingTalentIds: ["t1"] }),
+        schedule: makeSchedule(),
+        participatingTalentIds: ["t1"],
         talentCalls: [makeTalentCall({ talentId: "t1" })],
       })
       const talentWarning = warnings.find((w) => w.id === "talent-missing-calls")
@@ -119,7 +122,8 @@ describe("computeTrustWarnings", () => {
     it("does not warn when participatingTalentIds is empty", () => {
       const warnings = computeTrustWarnings({
         ...emptyInput,
-        schedule: makeSchedule({ participatingTalentIds: [] }),
+        schedule: makeSchedule(),
+        participatingTalentIds: [],
       })
       const talentWarning = warnings.find((w) => w.id === "talent-missing-calls")
       expect(talentWarning).toBeUndefined()

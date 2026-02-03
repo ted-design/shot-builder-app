@@ -4,7 +4,6 @@ import { toast } from "sonner"
 import { Button } from "@/ui/button"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
-import { useShots } from "@/features/shots/hooks/useShots"
 import {
   addScheduleEntryShot,
   addScheduleEntryCustom,
@@ -19,18 +18,21 @@ import type { ScheduleEntry, Shot, ScheduleEntryType } from "@/shared/types"
 interface ScheduleEntryEditorProps {
   readonly scheduleId: string
   readonly entries: readonly ScheduleEntry[]
+  readonly shots: readonly Shot[]
 }
 
 export function ScheduleEntryEditor({
   scheduleId,
   entries,
+  shots,
 }: ScheduleEntryEditorProps) {
   const { clientId } = useAuth()
   const { projectId } = useProjectScope()
-  const { data: shots } = useShots()
 
   const [shotDialogOpen, setShotDialogOpen] = useState(false)
   const [customDialogOpen, setCustomDialogOpen] = useState(false)
+
+  const nextOrder = entries.reduce((max, e) => Math.max(max, e.order ?? 0), -1) + 1
 
   // --- Add shot entry ---
   const handleAddShot = useCallback(
@@ -40,14 +42,14 @@ export function ScheduleEntryEditor({
         await addScheduleEntryShot(clientId, projectId, scheduleId, {
           shotId: shot.id,
           title: shot.title,
-          order: entries.length,
+          order: nextOrder,
         })
       } catch (err) {
         toast.error("Failed to add shot to schedule.")
         throw err
       }
     },
-    [clientId, projectId, scheduleId, entries.length],
+    [clientId, projectId, scheduleId, nextOrder],
   )
 
   // --- Add custom entry ---
@@ -58,14 +60,14 @@ export function ScheduleEntryEditor({
         await addScheduleEntryCustom(clientId, projectId, scheduleId, {
           type,
           title,
-          order: entries.length,
+          order: nextOrder,
         })
       } catch (err) {
         toast.error("Failed to add entry.")
         throw err
       }
     },
-    [clientId, projectId, scheduleId, entries.length],
+    [clientId, projectId, scheduleId, nextOrder],
   )
 
   // --- Reorder (swap order values) ---
