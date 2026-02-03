@@ -108,3 +108,27 @@ Proof checklist:
 Screenshots (to capture):
 - `wp3-editor-tags-dock.png` — Context dock tag summary renders labels
 - `wp3-mobile-tags.png` — Mobile tags render with TagBadge styling
+
+### WP4 — Pull compatibility: include look-based product assignments
+
+Status: ✅ Completed
+
+Changes:
+- Pull generation now treats shot product assignments as a merged set from:
+  - `shot.products` (legacy/direct)
+  - `shot.looks[].products` (workspace editor)
+  - `shot.productIds` (fallback only when no richer product data exists)
+- Bulk add shot list counts include look-based products so selection UI doesn’t underreport.
+- Added unit tests for the merge + dedupe behavior.
+
+Proof checklist:
+- [x] Auto-generate pull from planner includes products assigned via `shot.looks[].products`
+- [x] Bulk add items includes look-based products
+- [x] No additional Firestore reads introduced (pure in-memory merge)
+- [x] Dedupes identical assignments to avoid double-count quantities
+
+Screenshots (to capture):
+- `wp4-shot-editor-look-products.png` — Shot has products assigned in Looks (no legacy `shot.products`)
+- `wp4-bulk-add-counts.png` — Bulk add shows correct product counts for that shot
+- `wp4-bulk-add-items-preview.png` — Added items include look-based products
+- `wp4-auto-generate-pull.png` — Auto-generated pull includes those items

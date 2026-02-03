@@ -2,11 +2,12 @@
 //
 // Modal for bulk adding items from shots to an existing pull
 
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { shotsPath, lanesPath, productFamiliesPath } from "../../lib/paths";
 import { createPullItemFromProduct, aggregatePullItems } from "../../lib/pullItems";
+import { extractShotProductsForPull } from "../../lib/shotProductsForPull";
 import { Modal } from "../ui/modal";
 import { Card, CardHeader, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
@@ -27,6 +28,8 @@ export default function BulkAddItemsModal({
   const [selectedShots, setSelectedShots] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+
+  const familyById = useMemo(() => new Map(families.map((family) => [family.id, family])), [families]);
 
   useEffect(() => {
     if (!projectId || !clientId) return;
@@ -113,22 +116,18 @@ export default function BulkAddItemsModal({
       const filteredShots = shots.filter((shot) => selectedShots.has(shot.id));
 
       // Build family lookup map
-      const familyMap = new Map();
-      families.forEach((family) => {
-        familyMap.set(family.id, family);
-      });
+      const familyMap = familyById;
 
       // Extract products from shots and create pull items
       const newItems = [];
       filteredShots.forEach((shot) => {
-        if (Array.isArray(shot.products)) {
-          shot.products.forEach((product) => {
-            const familyId = product.familyId || product.productId;
-            const family = familyMap.get(familyId);
-            const pullItem = createPullItemFromProduct(product, family, [shot.id]);
-            newItems.push(pullItem);
-          });
-        }
+        const products = extractShotProductsForPull(shot, { familyById: familyMap });
+        products.forEach((product) => {
+          const familyId = product.familyId || product.productId;
+          const family = familyMap.get(familyId);
+          const pullItem = createPullItemFromProduct(product, family, [shot.id]);
+          newItems.push(pullItem);
+        });
       });
 
       if (newItems.length === 0) {
@@ -218,12 +217,12 @@ export default function BulkAddItemsModal({
                           </span>
                         </label>
                       </div>
-                      <div className="ml-6 space-y-1">
-                        {laneShots.map((shot) => {
-                          const productCount = shot.products?.length || 0;
-                          return (
-                            <label
-                              key={shot.id}
+	                      <div className="ml-6 space-y-1">
+	                        {laneShots.map((shot) => {
+	                          const productCount = extractShotProductsForPull(shot, { familyById }).length;
+	                          return (
+	                            <label
+	                              key={shot.id}
                               className="flex cursor-pointer items-center justify-between rounded-md px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700"
                             >
                               <div className="flex items-center gap-3">
@@ -258,12 +257,12 @@ export default function BulkAddItemsModal({
                         Unassigned Shots
                       </span>
                     </div>
-                    <div className="ml-6 space-y-1">
-                      {unassignedShots.map((shot) => {
-                        const productCount = shot.products?.length || 0;
-                        return (
-                          <label
-                            key={shot.id}
+	                    <div className="ml-6 space-y-1">
+	                      {unassignedShots.map((shot) => {
+	                        const productCount = extractShotProductsForPull(shot, { familyById }).length;
+	                        return (
+	                          <label
+	                            key={shot.id}
                             className="flex cursor-pointer items-center justify-between rounded-md px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700"
                           >
                             <div className="flex items-center gap-3">
