@@ -30,6 +30,7 @@ import { useProducts, useTalent, useLocations } from "../hooks/useFirestoreQuery
 import { FLAGS } from "../lib/flags";
 import { Button } from "../components/ui/button";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { getShotAssignedProductsCount } from "../lib/shotAssignedProducts";
 import {
   ArrowLeft,
   MapPin,
@@ -231,7 +232,7 @@ export default function ShotEditorPageV3() {
       0
     );
     return {
-      products: shot.products?.length || 0,
+      products: getShotAssignedProductsCount(shot),
       talent: shot.talent?.length || 0,
       references: referencesCount,
       tags: shot.tags?.length || 0,

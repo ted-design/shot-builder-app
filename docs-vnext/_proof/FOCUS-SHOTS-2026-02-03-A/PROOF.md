@@ -1,158 +1,51 @@
 # Proof — FOCUS-SHOTS-2026-02-03-A
 
-Date: 2026-02-03
+**Domain:** SHOTS  
+**Focus ID:** FOCUS-SHOTS-2026-02-03-A  
+**Date:** 2026-02-03  
 
-## Scope
+## Governing docs (contract)
 
-Domain: SHOTS
+- `docs-vnext/design/experience-spec.md`
+- `docs-vnext/engineering/build-strategy.md`
+- `docs-vnext/engineering/architecture.md`
+- `docs/claude-code-tooling.md`
+- `docs-vnext/slices/slice-2-shot-editing.md`
 
-In-scope (Slice 2 parity):
-- Shot list: default ordering, dense table scan, navigation to editor
-- Shot detail editor (desktop): notes trust surface, hero/reference image, assignments
-- Shot detail (mobile): read + operational (status + addendum)
+## Packages log
 
-Non-goals:
-- Products domain work (CRUD flows, V3 workspace changes)
-- Pulls domain work (beyond ensuring compatibility)
-- Call sheet domain work
-- Rich-text authoring for legacy `shot.notes` (TipTap)
+### WP1 — Assigned products truth (union + dedupe)
 
-## Verification constraints
+**Spec alignment:** Aligned with `docs-vnext/slices/slice-2-shot-editing.md` (trust: “products assigned” must not contradict editor reality). No schema changes. No new Firestore reads.
 
-- No background servers run by the agent.
-- If Claude-in-Chrome capture is unavailable, screenshots must be captured manually and saved under `docs-vnext/_proof/FOCUS-SHOTS-2026-02-03-A/images/`.
+**Change summary**
+- Introduced a shared derivation for “assigned products” count that unions:
+  - `shot.products[]` (legacy/direct)
+  - `shot.looks[].products[]` (V3 editor)
+  - fallback: `shot.productIds[]` only when no product objects exist
+- Wired this count into:
+  - Shot Editor V3 context counts (dock + mobile reader chips)
+  - Shots “Visual Gallery” cards (product count line)
 
-### Manual QA Required (if no Chrome capture)
+**Touched surfaces**
+- `src/pages/ShotEditorPageV3.jsx`
+- `src/pages/ShotsPage.jsx`
+- `src/lib/shotAssignedProducts.js`
+- `src/lib/__tests__/shotAssignedProducts.test.js`
+
+**Checks (2026-02-03)**
+- `npx tsc --noEmit` ✅
+- `npm test` ✅
+
+**Manual QA required (Chrome proof pending)**
+⚠️ Chrome extension not available in this session for screenshots.
 
 | Scenario | Steps | Expected |
 |---|---|---|
-| Shot list loads | Go to `/projects/:projectId/shots` | Shots render; empty state is calm; no console errors |
-| Custom ordering persists | In table view, set sort to Custom, reorder 2 shots, refresh | Order remains the same after refresh |
-| Custom order is shared | Open same project in a second browser/profile | Order matches (based on `sortOrder`) |
-| Non-custom sort override | Switch sort to Date/Status and back to Custom | UI indicates override; switching back restores custom order |
-| Mobile operational | On narrow viewport, open a shot editor URL | Status change works; addendum appends; HTML notes remain read-only |
+| Look-only products show as assigned | Create/choose a shot where products exist only under `looks[].products` (not `shot.products`). Visit shot list + visual gallery + editor. | Counts show non-zero products everywhere. |
+| Legacy products still count | Use a shot with only `shot.products`. | Counts match previous behavior. |
+| Legacy `productIds` fallback counts | Use a shot with only `productIds` populated. | Counts show assigned products (even without full product objects). |
 
-## Packages
+## Screenshots index
 
-### WP0 — Proof scaffold
-
-Status: ✅ Completed
-
-Changes:
-- Created proof folder and templates
-
-Artifacts:
-- `docs-vnext/_proof/FOCUS-SHOTS-2026-02-03-A/PROOF.md`
-- `docs-vnext/_proof/FOCUS-SHOTS-2026-02-03-A/NOTES.md`
-
-Routes visited:
-- N/A (doc-only)
-
-Screenshots:
-- Pending (see manual QA table above)
-
-### WP1 — Canonical shot ordering (Firestore `sortOrder`)
-
-Status: ✅ Completed
-
-Changes:
-- Shot sort gains **Custom order** (Firestore `shot.sortOrder`) as the default sort.
-- Table reordering writes a single `sortOrder` update (sparse numeric midpoint strategy).
-- One-time **Initialize custom order** CTA when shots are missing `sortOrder` (batch write in bounded chunks).
-- Legacy migration assist: if local-only ordering exists (`localStorage`), offer **Use my order** to seed Firestore `sortOrder`.
-- Reorder guardrails: reordering is disabled while searching/filtering to avoid “reorder a subset” surprises.
-- Added toast action support for **Undo**.
-
-Proof checklist:
-- [x] Reorder updates Firestore `sortOrder` (single write; no fan-out reads)
-- [x] Default sort is Custom (sortOrder-first, legacy-safe fallback)
-- [x] No additional read fan-out introduced (writes only)
-- [x] Undo/feedback exists (toast action) and errors are handled gracefully
-
-Screenshots (to capture):
-- `wp1-shots-table-custom-sort.png` — Sort menu shows Custom active
-- `wp1-shots-reorder-before.png` — Before reorder (IDs/rows visible)
-- `wp1-shots-reorder-after.png` — After reorder (immediate)
-- `wp1-shots-reorder-after-refresh.png` — After browser refresh
-
-### WP2 — Mobile operational parity (status + addendum)
-
-Status: ✅ Completed
-
-Changes:
-- Mobile shot detail adds an operational status control (select) with “Undo” via toast action.
-- Mobile respects `?readonly=1` by disabling status changes and addendum appends.
-
-Proof checklist:
-- [x] Status update is available on mobile and persists to Firestore
-- [x] Undo exists (toast action)
-- [x] Read-only mode blocks mutations
-
-Screenshots (to capture):
-- `wp2-mobile-status-control.png` — Status control visible on mobile
-- `wp2-mobile-status-updated.png` — Status updated + toast shown
-- `wp2-mobile-status-undo.png` — Undo restores prior status
-
-### WP3 — Notes + tags trust hardening
-
-Status: ✅ Completed
-
-Changes:
-- Tags render consistently as label-based summaries in the Shot editor context dock (no `[object Object]`).
-- Mobile shot detail renders tags using the shared `TagList`/`TagBadge` (color-aware when available).
-
-Proof checklist:
-- [x] Tags are visible on shot detail (desktop + mobile)
-- [x] Tag rendering is robust to legacy shapes (string vs object)
-
-Screenshots (to capture):
-- `wp3-editor-tags-dock.png` — Context dock tag summary renders labels
-- `wp3-mobile-tags.png` — Mobile tags render with TagBadge styling
-
-### WP4 — Pull compatibility: include look-based product assignments
-
-Status: ✅ Completed
-
-Changes:
-- Pull generation now treats shot product assignments as a merged set from:
-  - `shot.products` (legacy/direct)
-  - `shot.looks[].products` (workspace editor)
-  - `shot.productIds` (fallback only when no richer product data exists)
-- Bulk add shot list counts include look-based products so selection UI doesn’t underreport.
-- Added unit tests for the merge + dedupe behavior.
-
-Proof checklist:
-- [x] Auto-generate pull from planner includes products assigned via `shot.looks[].products`
-- [x] Bulk add items includes look-based products
-- [x] No additional Firestore reads introduced (pure in-memory merge)
-- [x] Dedupes identical assignments to avoid double-count quantities
-
-Screenshots (to capture):
-- `wp4-shot-editor-look-products.png` — Shot has products assigned in Looks (no legacy `shot.products`)
-- `wp4-bulk-add-counts.png` — Bulk add shows correct product counts for that shot
-- `wp4-bulk-add-items-preview.png` — Added items include look-based products
-- `wp4-auto-generate-pull.png` — Auto-generated pull includes those items
-
-### WP5 — Tags are read-only on shot detail
-
-Status: ✅ Completed
-
-Changes:
-- Shot editor “Assets” section no longer allows editing tags (Slice 2 alignment: tag writes deferred).
-- Tags render reliably even when legacy tags are strings (normalized to `{id,label,color}` for display).
-
-Proof checklist:
-- [x] No tag edit affordance in shot editor assets section
-- [x] Tags display correctly for string + object legacy shapes
-
-Screenshots (to capture):
-- `wp5-editor-assets-tags-readonly.png` — Assets section shows tags with no Edit/Save controls
-
-## Checks
-
-Date: 2026-02-03
-
-- `npx tsc --noEmit` ✅
-- `npm test` ✅
-- `npm run lint` ✅
-- `npm run build` ✅
+_Screenshots live in `docs-vnext/_proof/FOCUS-SHOTS-2026-02-03-A/images/`._

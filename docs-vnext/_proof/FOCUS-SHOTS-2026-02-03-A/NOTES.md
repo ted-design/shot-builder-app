@@ -2,23 +2,13 @@
 
 ## Decisions
 
-- Notes integrity: `shot.notes` (legacy HTML) remains immutable in vNext surfaces; operational additions go to `shot.notesAddendum` only.
-- Ordering: prefer Firestore-backed `shot.sortOrder` for canonical ordering; avoid local-only ordering for shared trust.
-- Ordering migration: legacy local-only table order (`localStorage`) is not auto-applied to Firestore; instead we offer an explicit “Use my order” action to avoid surprising global changes.
-- Reorder safety: disable drag reorder while searching/filtering so producers don’t accidentally change global order based on a subset view.
-- Undo UX: extended toast events to support an action button so reorder can provide a true “Undo” affordance.
-- Mobile operational parity: status changes are allowed on mobile (Limited mode) with Undo; `?readonly=1` disables status + addendum mutations.
-- Tags: normalize tag display by label (object tags) with safe fallback for string tags to prevent unreadable summaries.
-- Pull trust: treat `shot.products` + `shot.looks[].products` as one merged assignment set when generating pulls to prevent “assigned but missing” failures.
-- Slice 2 alignment: tags are read-only on shot detail; tag CRUD happens only in the Library/Tags surface.
+- “Assigned products” is derived from shot doc only (no extra reads): union of `shot.products[]` + `shot.looks[].products[]` (deduped), with a legacy fallback to `shot.productIds[]` only when no product objects exist.
 
-## Risks / Watchouts
+## Tradeoffs
 
-- Firestore indexes: avoid introducing new required composite indexes by sorting client-side when feasible; reads remain bounded.
-- Large projects: reorder writes must not exceed Firestore batch limits; prefer single-doc `sortOrder` adjustments with sparse integer gaps.
-- Product duplication: when both legacy and look sources exist, dedupe assignments per-shot before aggregating pull items to avoid inflated quantities.
-- Tag data shape drift: tag arrays can contain strings or objects; normalize at render boundaries to avoid silent non-rendering.
+- Dedupe key is intentionally simple (familyId + colourId + sizeScope + sizeKey) to avoid overstating counts when the same assignment appears in both legacy and look-based locations.
 
-## Follow-ups (if found)
+## Follow-ups (explicitly out of scope)
 
-- None yet.
+- Add canonical shot detail route per `experience-spec.md` (planned WP2).
+- Remove/neutralize dead inline-editor/autosave code in `src/pages/ShotsPage.jsx` (planned WP3).

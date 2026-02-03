@@ -199,6 +199,7 @@ import {
 } from "../lib/imageHelpers";
 import { InsightsSidebar } from "../components/insights";
 import { calculateTalentTotals, calculateGroupedShotTotals } from "../lib/insightsCalculator";
+import { getShotAssignedProductsCount } from "../lib/shotAssignedProducts";
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
@@ -4879,7 +4880,7 @@ const ShotVisualGalleryCard = memo(function ShotVisualGalleryCard({
     () => (shot.looks || []).reduce((sum, look) => sum + (look.references?.length || 0), 0),
     [shot.looks]
   );
-  const productsCount = shot.products?.length || 0;
+  const productsCount = useMemo(() => getShotAssignedProductsCount(shot), [shot]);
 
   const handleClick = useCallback(() => {
     navigate(`/projects/${projectId}/shots/${shot.id}/editor`);
