@@ -6,6 +6,7 @@
 - Add operational notes via append-only `notesAddendum` field (plain text).
 - Type legacy `shotNumber` in vNext `Shot` model (no schema change).
 - Persist `shareAllowResponses` from Pull Share modal in both Pull detail and full-screen Pull editor.
+- Hero image on shot detail uses existing shot data only (looks displayImageId → first reference → attachments); no extra Storage reads.
 
 ## Constraints & Guardrails
 
