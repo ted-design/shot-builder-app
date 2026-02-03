@@ -50,6 +50,7 @@ export interface PullStatusMapping {
 
 const PULL_STATUS_MAP: Record<PullFirestoreStatus, PullStatusMapping> = {
   draft: { firestoreValue: "draft", label: "Draft", color: "gray" },
+  published: { firestoreValue: "published", label: "Published", color: "blue" },
   "in-progress": { firestoreValue: "in-progress", label: "In Progress", color: "blue" },
   fulfilled: { firestoreValue: "fulfilled", label: "Fulfilled", color: "green" },
 }

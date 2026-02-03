@@ -68,7 +68,7 @@ export interface Shot {
   readonly createdBy: string
 }
 
-export type PullFirestoreStatus = "draft" | "in-progress" | "fulfilled"
+export type PullFirestoreStatus = "draft" | "published" | "in-progress" | "fulfilled"
 
 export type FulfillmentFirestoreStatus =
   | "pending"
@@ -76,29 +76,31 @@ export type FulfillmentFirestoreStatus =
   | "partial"
   | "substituted"
 
+export type PullItemSizeStatus = "pending" | "fulfilled" | "partial" | "substituted"
+
 export interface PullItemSize {
   readonly size: string
   readonly quantity: number
-  readonly fulfilled: boolean
+  /** Number fulfilled (legacy + public responder compatibility) */
+  readonly fulfilled: number
+  readonly status?: PullItemSizeStatus
 }
 
-export interface ChangeOrder {
-  readonly id: string
-  readonly type: string
-  readonly description: string
-  readonly status: string
-  readonly createdAt: Timestamp
-}
+export type ChangeOrder = Record<string, unknown>
 
 export interface PullItem {
+  /** Stable id required for public fulfillment updates */
+  readonly id?: string
   readonly familyId: string
   readonly familyName?: string
-  readonly colourId?: string
-  readonly colourName?: string
+  readonly styleNumber?: string | null
+  readonly gender?: string | null
+  readonly colourId?: string | null
+  readonly colourName?: string | null
   readonly sizes: PullItemSize[]
   readonly fulfillmentStatus: FulfillmentFirestoreStatus
-  readonly notes?: string
-  readonly changeOrders: ChangeOrder[]
+  readonly notes?: string | null
+  readonly changeOrders?: ChangeOrder[]
 }
 
 export interface Pull {
@@ -106,11 +108,17 @@ export interface Pull {
   readonly projectId: string
   readonly clientId: string
   readonly name?: string
+  readonly title?: string
   readonly shotIds: string[]
   readonly items: PullItem[]
   readonly status: PullFirestoreStatus
   readonly shareToken?: string
   readonly shareEnabled: boolean
+  readonly shareAllowResponses?: boolean
+  /** Legacy field name used by callable + public view. */
+  readonly shareExpireAt?: Timestamp | null
+  /** Older/alternate field name. Prefer `shareExpireAt` if present. */
+  readonly shareExpiresAt?: Timestamp | null
   readonly exportSettings?: Record<string, unknown>
   readonly createdAt: Timestamp
   readonly updatedAt: Timestamp

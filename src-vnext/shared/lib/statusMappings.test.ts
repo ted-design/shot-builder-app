@@ -76,24 +76,27 @@ describe("Shot Status Mappings", () => {
 describe("Pull Status Mappings", () => {
   it("maps all Firestore values to labels", () => {
     expect(getPullStatusLabel("draft")).toBe("Draft")
+    expect(getPullStatusLabel("published")).toBe("Published")
     expect(getPullStatusLabel("in-progress")).toBe("In Progress")
     expect(getPullStatusLabel("fulfilled")).toBe("Fulfilled")
   })
 
   it("maps all Firestore values to colors", () => {
     expect(getPullStatusColor("draft")).toBe("gray")
+    expect(getPullStatusColor("published")).toBe("blue")
     expect(getPullStatusColor("in-progress")).toBe("blue")
     expect(getPullStatusColor("fulfilled")).toBe("green")
   })
 
   it("converts label back to Firestore value", () => {
     expect(pullLabelToFirestore("Draft")).toBe("draft")
+    expect(pullLabelToFirestore("Published")).toBe("published")
     expect(pullLabelToFirestore("In Progress")).toBe("in-progress")
     expect(pullLabelToFirestore("Fulfilled")).toBe("fulfilled")
   })
 
-  it("has 3 pull statuses", () => {
-    expect(PULL_STATUSES).toHaveLength(3)
+  it("has 4 pull statuses", () => {
+    expect(PULL_STATUSES).toHaveLength(4)
   })
 
   it("round-trips all pull statuses", () => {

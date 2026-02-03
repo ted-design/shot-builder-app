@@ -20,6 +20,9 @@ const PullListPage = lazy(
 const PullDetailPage = lazy(
   () => import("@/features/pulls/components/PullDetailPage"),
 )
+const PublicPullViewPage = lazy(
+  () => import("@/features/pulls/components/PublicPullViewPage"),
+)
 const ScheduleListPage = lazy(
   () => import("@/features/schedules/components/ScheduleListPage"),
 )
@@ -46,6 +49,7 @@ export function AppRoutes() {
     <Suspense fallback={<PageFallback />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/pulls/shared/:shareToken" element={<PublicPullViewPage />} />
         <Route
           element={
             <RequireAuth>

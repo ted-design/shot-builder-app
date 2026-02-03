@@ -82,7 +82,11 @@ export default function PullDetailPage() {
   const handleShareToggle = async () => {
     if (!pull) return
     const nextEnabled = !pull.shareEnabled
-    const fields: Record<string, unknown> = { shareEnabled: nextEnabled }
+    const fields: Record<string, unknown> = {
+      shareEnabled: nextEnabled,
+      // Warehouse flow depends on callable `publicUpdatePull` which requires this flag.
+      shareAllowResponses: nextEnabled,
+    }
     if (nextEnabled && !pull.shareToken) {
       fields["shareToken"] = crypto.randomUUID()
     }
@@ -160,7 +164,7 @@ export default function PullDetailPage() {
             <p className="text-xs text-[var(--color-text-muted)]">
               Share link:{" "}
               <span className="select-all font-mono text-[var(--color-primary)]">
-                {window.location.origin}/projects/{projectId}/pulls/{pull.id}?token={pull.shareToken}
+                {window.location.origin}/pulls/shared/{pull.shareToken}
               </span>
             </p>
           </div>
@@ -235,7 +239,7 @@ function PullItemRow({
                 <span className="text-[var(--color-text-muted)]">
                   x{s.quantity}
                 </span>
-                {s.fulfilled && (
+                {s.quantity > 0 && s.fulfilled >= s.quantity && (
                   <span className="text-[var(--color-success)]">✓</span>
                 )}
               </span>

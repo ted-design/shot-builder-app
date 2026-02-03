@@ -3,6 +3,7 @@
 ## Decisions
 
 - Proof artifacts live in tracked `docs-vnext/_proof/SPRINT-2026-02-03-A/` (docs/_runtime is gitignored).
+- Public warehouse pull route is `/pulls/shared/:shareToken` (unauth) and uses Cloud Function `publicUpdatePull` for writes.
 
 ## Constraints & Guardrails
 
@@ -14,4 +15,3 @@
 ## Follow-ups
 
 - Add richer warehouse fulfillment actions (unavailable/substituted) only if required by producers.
-
