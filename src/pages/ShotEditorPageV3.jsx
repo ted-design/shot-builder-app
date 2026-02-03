@@ -36,7 +36,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { ShotEditorHeaderBandV3, ShotContextDock, ShotNotesCanvas, ShotLooksCanvas, ShotAssetsSection } from "../components/shots/workspace";
+import { ShotEditorHeaderBandV3, ShotContextDock, ShotHeroImage, ShotNotesCanvas, ShotLooksCanvas, ShotAssetsSection } from "../components/shots/workspace";
 import CommentSection from "../components/comments/CommentSection";
 
 // ============================================================================
@@ -328,6 +328,8 @@ export default function ShotEditorPageV3() {
             ────────────────────────────────────────────────────────── */}
         <main className="flex-1 overflow-auto bg-white dark:bg-slate-800">
           <div className="max-w-3xl mx-auto px-8 py-8 space-y-8">
+            <ShotHeroImage shot={shot} />
+
             {/* Primary canvas: Shot Notes */}
             <ShotNotesCanvas shot={shot} readOnly={isReadOnly} />
 

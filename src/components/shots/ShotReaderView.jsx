@@ -27,6 +27,7 @@ import { useAuth } from "../../context/AuthContext";
 import { updateShotWithVersion } from "../../lib/updateShotWithVersion";
 import { toast } from "../../lib/toast";
 import { format } from "date-fns";
+import { getShotHeroImage } from "../../lib/shotHeroImage";
 
 // ─── Status badge classes (mirrors ShotTableView) ──────────────────────────
 const STATUS_LABEL_MAP = new Map(
@@ -93,6 +94,7 @@ export default function ShotReaderView({ shot, counts = {} }) {
   const notesHtml = typeof shot?.notes === "string" ? shot.notes : "";
   const hasNotes = useMemo(() => !isEmptyHtml(notesHtml), [notesHtml]);
   const existingAddendum = typeof shot?.notesAddendum === "string" ? shot.notesAddendum.trim() : "";
+  const hero = useMemo(() => getShotHeroImage(shot), [shot]);
 
   // Resolve location name from shot metadata
   const locationName =
@@ -169,6 +171,18 @@ export default function ShotReaderView({ shot, counts = {} }) {
             {statusLabel}
           </span>
         </div>
+
+        {/* Reference image */}
+        {hero?.src ? (
+          <div className="rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <img
+              src={hero.src}
+              alt="Shot reference"
+              className="w-full max-h-64 object-contain"
+              loading="lazy"
+            />
+          </div>
+        ) : null}
 
         {/* Shot number (if not already shown in header) */}
         {shot?.shotNumber && (
