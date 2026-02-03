@@ -1,45 +1,47 @@
-# Proof — SPRINT-2026-02-03-A
+# Sprint Proof — SPRINT-2026-02-03-A
 
 Date: 2026-02-03
+Branch: `vnext/slice-3-call-sheet-assembly`
 
-## Scope (Work Packages)
+## Packages
 
-- WP1 — Fix Call Sheet route + preview access
-- WP2 — Print-to-PDF data-ready gate (remove double rAF)
-- WP3 — Call Sheet destructive confirmations + no placeholders
+1) WP5 — Proof scaffolding
+2) WP1 — Pull sharing + public warehouse view
+3) WP2 — Call sheet destination unification
+4) WP3 — Org library read surfaces
+5) WP4 — Project assets page
 
-## Commits (This Sprint)
+## Routes Visited (manual)
 
-- `339d900` — WP1
-- `db0144d` — WP2
-- `a0f491d` — WP3
-- `27ba894` — Lint fix (CallSheetPage hook ordering)
+- [ ] `/projects`
+- [ ] `/projects/:id/pulls`
+- [ ] `/projects/:id/pulls/:pid`
+- [ ] `/pulls/shared/:shareToken`
+- [ ] `/projects/:id/callsheet`
+- [ ] `/projects/:id/callsheet?scheduleId=...`
+- [ ] `/library/talent`
+- [ ] `/library/locations`
+- [ ] `/library/crew`
+- [ ] `/projects/:id/assets`
 
-## Routes Visited (Manual QA)
+## Screenshot Index (must be captured in a real browser)
 
-- Desktop builder: `/projects/:projectId/callsheet`
-- Desktop preview: `/projects/:projectId/callsheet?scheduleId=:scheduleId&preview=1`
-- Mobile preview: `/projects/:projectId/callsheet?scheduleId=:scheduleId&preview=1`
-- Legacy alias redirect: `/projects/:projectId/schedule` → `/projects/:projectId/callsheet`
+Save screenshots under `docs-vnext/_proof/SPRINT-2026-02-03-A/images/`.
 
-## Checks Run (Outputs/Notes)
+- [ ] `pull-share-enabled.png` — Pull detail shows sharing enabled + correct share URL.
+- [ ] `public-pull-loaded.png` — Public pull page loads from `/pulls/shared/:shareToken`.
+- [ ] `public-pull-response-submitted.png` — Warehouse submits an update successfully.
+- [ ] `callsheet-landing-schedules.png` — `/projects/:id/callsheet` shows schedule list/select.
+- [ ] `callsheet-preview.png` — Call sheet preview renders (preview=1 or non-manager).
+- [ ] `library-talent.png` — Talent library list.
+- [ ] `library-locations.png` — Locations library list.
+- [ ] `library-crew.png` — Crew library list.
+- [ ] `project-assets.png` — Project assets overview.
 
-- `npx tsc --noEmit` — PASS
-- `npm test` — PASS
-- `npm run lint` — PASS
-- `npm run build` — PASS
+## Checks Run (paste outputs or excerpts)
 
-## Screenshots (Claude-in-Chrome)
+- [ ] `npx tsc --noEmit`
+- [ ] `npm test`
+- [ ] `npm run lint` (at least once per sprint)
+- [ ] `npm run build` (at least once per sprint)
 
-Save all images to: `docs-vnext/_proof/SPRINT-2026-02-03-A/images/`
-
-- `01-wp1-callsheet-desktop-builder.png` — Call Sheet builder route on desktop (`/callsheet`)
-- `02-wp1-callsheet-mobile-preview.png` — Call Sheet preview renders on mobile (read-only)
-- `03-wp2-export-modal.png` — Export modal UI present on desktop builder
-- `04-wp2-print-gate-preparing.png` — Print flow “preparing / waiting for data” gate state (pre-print)
-- `05-wp3-entry-delete-confirm.png` — Entry delete confirmation dialog
-- `06-wp3-schedule-delete-confirm.png` — Schedule delete confirmation dialog
-
-## Known Gaps / Follow-ups
-
-- (none yet)

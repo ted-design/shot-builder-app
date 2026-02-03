@@ -1,15 +1,17 @@
-# Notes — SPRINT-2026-02-03-A
+# Sprint Notes — SPRINT-2026-02-03-A
 
 ## Decisions
 
-- Standardize Call Sheet route to `/projects/:projectId/callsheet`; keep `/schedule` as a redirect alias.
-- Print-to-PDF uses a readiness gate + timeout before `window.print()`; no timing heuristics.
+- Proof artifacts live in tracked `docs-vnext/_proof/SPRINT-2026-02-03-A/` (docs/_runtime is gitignored).
 
-## Tradeoffs
+## Constraints & Guardrails
 
-- Mobile builder redirects to dashboard; preview remains accessible on mobile (`?preview=1`).
-- Print overlay is rendered in the portal DOM and explicitly hidden in print CSS to avoid artifacts.
+- No `git pull` / merge / rebase.
+- No destructive git operations (`reset --hard`, `clean -fd`).
+- Avoid schema creep; prefer compatibility fields and defensive mapping.
+- Avoid fan-out / N+1 reads in new surfaces.
 
 ## Follow-ups
 
-- Add Claude-in-Chrome screenshots listed in `docs-vnext/_proof/SPRINT-2026-02-03-A/PROOF.md`.
+- Add richer warehouse fulfillment actions (unavailable/substituted) only if required by producers.
+
