@@ -47,6 +47,7 @@ export interface CallSheetConfig {
 // --- Data props ---
 
 export interface CallSheetRendererProps {
+  readonly projectName?: string
   readonly schedule: Schedule | null
   readonly dayDetails: DayDetails | null
   readonly entries?: readonly ScheduleEntry[]
@@ -222,6 +223,7 @@ function RendererEntryRow({
  * Renders safely with partial data — missing sections are hidden, not broken.
  */
 export function CallSheetRenderer({
+  projectName,
   schedule,
   dayDetails,
   entries,
@@ -268,6 +270,8 @@ export function CallSheetRenderer({
   }
 
   const dateStr = formatDate(schedule.date)
+  const headerTitle = projectName?.trim() ? projectName.trim() : schedule.name
+  const headerSubtitle = projectName?.trim() ? schedule.name : ""
 
   return (
     <div
@@ -284,8 +288,13 @@ export function CallSheetRenderer({
       {sections.header && (
         <div className="border-b-2 border-[var(--color-doc-ink)] pb-3">
           <h2 className="text-lg font-bold" style={{ color: "var(--color-doc-ink)" }}>
-            {schedule.name}
+            {headerTitle}
           </h2>
+          {headerSubtitle && (
+            <p className="mt-0.5 text-sm font-medium" style={{ color: "var(--color-doc-ink)", opacity: 0.9 }}>
+              {headerSubtitle}
+            </p>
+          )}
           {dateStr && (
             <p className="mt-0.5 text-sm font-medium" style={{ color: "var(--color-doc-ink)", opacity: 0.7 }}>
               {dateStr}

@@ -176,7 +176,10 @@ export default function CallSheetBuilderPage() {
   const dateStr = formatScheduleDate(schedule.date)
   const rendererConfig = callSheetConfig.config
 
-  const handleExport = () => setPrintOpen(true)
+  const handleExport = () => {
+    toast.info("Tip: enable “Background graphics” in the print dialog to include colors.")
+    setPrintOpen(true)
+  }
 
   return (
     <ErrorBoundary>
@@ -184,6 +187,7 @@ export default function CallSheetBuilderPage() {
         open={printOpen}
         onOpenChange={setPrintOpen}
         data={{
+          projectName,
           schedule,
           dayDetails,
           entries,
@@ -212,8 +216,13 @@ export default function CallSheetBuilderPage() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="truncate text-base font-semibold text-[var(--color-text)]">
-                {schedule.name || "Call Sheet"}
+                {projectName || schedule.name || "Call Sheet"}
               </h1>
+              {projectName && schedule.name && projectName !== schedule.name && (
+                <p className="truncate text-sm text-[var(--color-text-muted)]">
+                  {schedule.name}
+                </p>
+              )}
               {dateStr && (
                 <p className="text-sm text-[var(--color-text-muted)]">{dateStr}</p>
               )}
@@ -239,6 +248,7 @@ export default function CallSheetBuilderPage() {
             <div className="mx-auto w-full doc-page">
               <div className="doc-page-content">
                 <CallSheetRenderer
+                  projectName={projectName}
                   schedule={schedule}
                   dayDetails={dayDetails}
                   entries={entries}
@@ -391,6 +401,7 @@ export default function CallSheetBuilderPage() {
               >
                 <div className="doc-page-content">
                   <CallSheetRenderer
+                    projectName={projectName}
                     schedule={schedule}
                     dayDetails={dayDetails}
                     entries={entries}

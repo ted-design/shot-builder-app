@@ -123,6 +123,7 @@ function PrintApp({
       <div className="doc-page">
         <div className="doc-page-content">
           <CallSheetRenderer
+            projectName={data.projectName}
             schedule={data.schedule}
             dayDetails={data.dayDetails}
             entries={data.entries}
@@ -140,6 +141,7 @@ function PrintApp({
 }
 
 export interface CallSheetPrintData {
+  readonly projectName?: string
   readonly schedule: Schedule | null
   readonly dayDetails: DayDetails | null
   readonly entries: readonly ScheduleEntry[]
