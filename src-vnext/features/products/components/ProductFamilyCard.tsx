@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import { Card, CardContent } from "@/ui/card"
 import { Badge } from "@/ui/badge"
 import { ProductImage } from "@/features/products/components/ProductImage"
@@ -6,10 +6,12 @@ import type { ProductFamily } from "@/shared/types"
 
 interface ProductFamilyCardProps {
   readonly family: ProductFamily
+  readonly returnTo?: string | null
 }
 
-export function ProductFamilyCard({ family }: ProductFamilyCardProps) {
+export function ProductFamilyCard({ family, returnTo }: ProductFamilyCardProps) {
   const navigate = useNavigate()
+  const location = useLocation()
 
   const skuCount = family.skuCount ?? null
   const activeSkuCount = family.activeSkuCount ?? null
@@ -19,10 +21,17 @@ export function ProductFamilyCard({ family }: ProductFamilyCardProps) {
   const categoryLabel = family.productSubcategory ?? family.productType ?? family.category
   const status = (family.status ?? "active").toLowerCase()
 
+  const href = (() => {
+    const base = `/products/${family.id}`
+    const target = returnTo ?? `${location.pathname}${location.search}`
+    if (!target) return base
+    return `${base}?returnTo=${encodeURIComponent(target)}`
+  })()
+
   return (
     <Card
       className="group cursor-pointer overflow-hidden transition-shadow hover:shadow-md"
-      onClick={() => navigate(`/products/${family.id}`)}
+      onClick={() => navigate(href)}
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--color-surface-subtle)]">
         <ProductImage

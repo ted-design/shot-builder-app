@@ -66,7 +66,7 @@ vNext PRODUCTS is intentionally *not* a 1:1 copy of legacy. Parity is defined by
 **Detail**
 - [ ] `/products/:fid` renders family + SKUs (stable sort, calm density)
 - [ ] Mobile is read-only; desktop editing is gated by role
-- [ ] “Return to” preserves list state (no trust loss on back-navigation)
+- [x] “Return to” preserves list state (no trust loss on back-navigation)
 
 **CRUD**
 - [ ] Create family + at least 1 SKU
@@ -87,7 +87,6 @@ vNext PRODUCTS is intentionally *not* a 1:1 copy of legacy. Parity is defined by
 
 ## Current gaps discovered in this session (to close next)
 
-- `/products/:fid` breadcrumb currently drops list filter state (needs a safe `returnTo` param pattern).
 - Family-level archive and soft-delete controls need explicit UI actions (spec-required).
 - Thumbnail usage should be consistent (thumbnail-first on list/detail; fallback rules should be predictable).
 
@@ -194,6 +193,33 @@ vNext PRODUCTS is intentionally *not* a 1:1 copy of legacy. Parity is defined by
 **Checks (2026-02-03)**
 - `npm run lint` ✅ (0 warnings)
 - `npm run build` ✅
+
+### WP6 — Return-to context for vNext product detail (trust)
+
+**Spec alignment:** Aligned with `docs-vnext/design/experience-spec.md` (bookmarkable state + safe internal navigation). No schema changes. No new Firestore reads.
+
+**Change summary**
+- When opening a product from `/products`, the detail route includes a `returnTo` query param pointing at the current list URL (filters included).
+- Product detail breadcrumb “Products” links back to the `returnTo` URL when present.
+- Added a shared safe parser that rejects external return targets.
+
+**Touched surfaces**
+- `src-vnext/features/products/components/ProductFamilyCard.tsx`
+- `src-vnext/features/products/components/ProductDetailPage.tsx`
+- `src-vnext/shared/lib/returnTo.ts`
+- `src-vnext/shared/lib/returnTo.test.ts`
+
+**Checks (2026-02-03)**
+- `npx tsc --noEmit` ✅
+- `npm test` ✅
+
+**Manual QA required (screenshots pending)**
+⚠️ Chrome extension not available in this session for screenshots.
+
+| Scenario | Steps | Expected |
+|---|---|---|
+| Return preserves filters | `/products?q=...&status=...` → open any product → click “Products” breadcrumb | Returns to the exact prior list URL (filters preserved). |
+| ReturnTo is safe | Manually set `returnTo=https://example.com` in URL | Breadcrumb falls back to `/products` (no external navigation). |
 
 ## Screenshots index
 

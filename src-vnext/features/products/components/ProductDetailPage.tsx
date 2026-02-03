@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
@@ -17,9 +17,11 @@ import { Separator } from "@/ui/separator"
 import { Pencil, Palette } from "lucide-react"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { canManageProducts } from "@/shared/lib/rbac"
+import { parseReturnToParam } from "@/shared/lib/returnTo"
 
 export default function ProductDetailPage() {
   const { fid } = useParams<{ fid: string }>()
+  const [searchParams] = useSearchParams()
   const { role } = useAuth()
   const isMobile = useIsMobile()
   const canEdit = !isMobile && canManageProducts(role)
@@ -64,13 +66,14 @@ export default function ProductDetailPage() {
 
   const status = (family.status ?? "active").toLowerCase()
   const categoryLabel = family.productSubcategory ?? family.productType ?? family.category
+  const returnTo = parseReturnToParam(searchParams.get("returnTo"))
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title={family.styleName}
         breadcrumbs={[
-          { label: "Products", to: "/products" },
+          { label: "Products", to: returnTo?.path ?? "/products" },
           { label: family.styleName },
         ]}
         actions={
