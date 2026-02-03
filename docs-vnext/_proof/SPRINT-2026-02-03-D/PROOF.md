@@ -8,6 +8,11 @@ Branch: `vnext/slice-3-call-sheet-assembly`
 1) WP1 — Shots list fidelity + pull generation (producer→warehouse loop)
 2) WP2 — Call sheet output polish (trust + export)
 
+## Commits
+
+- `bf3b4ab` — `feat(vnext): generate pull sheets from shots`
+- `c1f6024` — `feat(vnext): call sheet header includes project`
+
 ## Routes Visited (manual)
 
 - [ ] `/projects`
@@ -32,10 +37,16 @@ Save under `docs-vnext/_proof/SPRINT-2026-02-03-D/images/`.
 
 ## Checks Run (paste outputs or excerpts)
 
-- [ ] `npx tsc --noEmit` (WP1)
-- [ ] `npm test` (WP1)
-- [ ] `npx tsc --noEmit` (WP2)
-- [ ] `npm test` (WP2)
-- [ ] `npm run lint` (sprint)
-- [ ] `npm run build` (sprint)
+- [x] `npx tsc --noEmit` (WP1) — 2026-02-03
+- [x] `npm test` (WP1) — 2026-02-03
+- [x] `npx tsc --noEmit` (WP2) — 2026-02-03
+- [x] `npm test` (WP2) — 2026-02-03
+- [x] `npm run lint` (sprint) — 2026-02-03
+- [x] `npm run build` (sprint) — 2026-02-03
 
+### Excerpts
+
+- `npm run lint`:
+  - `eslint . --ext .js,.jsx,.ts,.tsx --max-warnings=0` ✅
+- `npm run build`:
+  - `vite v7.2.2 building client environment for production...` ✅
