@@ -124,6 +124,14 @@ function LegacyScheduleRedirect() {
   return <Navigate to={`/projects/${projectId}/callsheet${suffix}`} replace />;
 }
 
+function LegacyShotEditorRedirect() {
+  const { projectId, shotId } = useParams();
+  const location = useLocation();
+  const suffix = location?.search || "";
+  if (!projectId || !shotId) return <Navigate to="/projects" replace />;
+  return <Navigate to={`/projects/${projectId}/shots/${shotId}${suffix}`} replace />;
+}
+
 // Inner app component that uses auth context (must be inside DemoModeAuthProvider)
 function AppRoutes() {
   const [user, setUser] = useState(null);
@@ -267,15 +275,16 @@ function AppRoutes() {
                         </Suspense>
                       }
                     />
-                    {/* Shot Editor V3 - feature-flagged workspace-style editor */}
                     <Route
-                      path="shots/:shotId/editor"
+                      path="shots/:shotId"
                       element={
                         <Suspense fallback={<PageLoadingFallback />}>
                           <ShotEditorPageV3 />
                         </Suspense>
                       }
                     />
+                    {/* Back-compat alias (old links/bookmarks) */}
+                    <Route path="shots/:shotId/editor" element={<LegacyShotEditorRedirect />} />
                     <Route
                       path="catalogue"
                       element={

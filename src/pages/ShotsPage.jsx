@@ -1800,10 +1800,10 @@ export function ShotsWorkspace() {
         setIsPreludeOpen(false);
         setIsCreatingFromPrelude(false);
 
-        // Navigate to the first created shot in Editor V3
+        // Navigate to the first created shot (canonical shot detail route)
         if (createdShots.length > 0) {
           const firstShot = createdShots[0];
-          navigate(`/projects/${projectId}/shots/${firstShot.id}/editor`);
+          navigate(`/projects/${projectId}/shots/${firstShot.id}`);
           toast.success(
             createdShots.length > 1
               ? `Created ${createdShots.length} shots. Editing "${firstShot.name || "Shot"}".`
@@ -2281,7 +2281,7 @@ export function ShotsWorkspace() {
   const handleEditShot = useCallback(
     (shot) => {
       if (!canEditShots || !shot?.projectId) return;
-      navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
+      navigate(`/projects/${shot.projectId}/shots/${shot.id}`);
     },
     [canEditShots, navigate]
   );
@@ -4051,7 +4051,7 @@ export function ShotsWorkspace() {
                 onFocusShot={(shot) => {
                   // Delta I.10: Always navigate to V3 editor (legacy modal removed)
                   if (shot?.projectId) {
-                    navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
+                    navigate(`/projects/${shot.projectId}/shots/${shot.id}`);
                   } else {
                     handleFocusShot(shot);
                   }
@@ -4239,7 +4239,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
 
       // Navigate to Shot Editor V3 (always the default after cutover)
       if (shot?.projectId) {
-        navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
+        navigate(`/projects/${shot.projectId}/shots/${shot.id}`);
       }
     },
     [navigate, shot]
@@ -4550,7 +4550,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
                   e.stopPropagation();
                   // Delta I.8: Always navigate to V3 editor (cutover complete)
                   if (shot?.projectId) {
-                    navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
+                    navigate(`/projects/${shot.projectId}/shots/${shot.id}`);
                   }
                 }}
               >
@@ -4883,7 +4883,7 @@ const ShotVisualGalleryCard = memo(function ShotVisualGalleryCard({
   const productsCount = useMemo(() => getShotAssignedProductsCount(shot), [shot]);
 
   const handleClick = useCallback(() => {
-    navigate(`/projects/${projectId}/shots/${shot.id}/editor`);
+    navigate(`/projects/${projectId}/shots/${shot.id}`);
   }, [navigate, projectId, shot.id]);
 
   return (

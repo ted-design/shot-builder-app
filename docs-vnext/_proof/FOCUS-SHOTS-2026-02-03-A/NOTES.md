@@ -3,6 +3,7 @@
 ## Decisions
 
 - “Assigned products” is derived from shot doc only (no extra reads): union of `shot.products[]` + `shot.looks[].products[]` (deduped), with a legacy fallback to `shot.productIds[]` only when no product objects exist.
+- Canonical shot detail URL is `/projects/:projectId/shots/:shotId` (experience spec). The legacy `/editor` suffix is supported via redirect for backwards compatibility.
 
 ## Tradeoffs
 

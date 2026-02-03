@@ -30,10 +30,10 @@ async function renderScenario({ shot, readOnly = false }) {
   const { default: ShotReaderView } = await import("../ShotReaderView.jsx");
 
   render(
-    <MemoryRouter initialEntries={["/projects/p1/shots/s1/editor"]}>
+    <MemoryRouter initialEntries={["/projects/p1/shots/s1"]}>
       <Routes>
         <Route
-          path="/projects/:projectId/shots/:shotId/editor"
+          path="/projects/:projectId/shots/:shotId"
           element={<ShotReaderView shot={shot} readOnly={readOnly} />}
         />
       </Routes>

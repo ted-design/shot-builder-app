@@ -745,7 +745,7 @@ function CallSheetBuilder({
         return;
       }
       // Navigate to V3 editor with return context
-      navigate(`/projects/${projectId}/shots/${shotId}/editor?returnTo=schedule`);
+      navigate(`/projects/${projectId}/shots/${shotId}?returnTo=schedule`);
     },
     [shotsMap, navigate, projectId]
   );
