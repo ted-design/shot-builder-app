@@ -6,6 +6,9 @@ import {
   ClipboardList,
   CalendarDays,
   Package,
+  Users,
+  MapPin,
+  HardHat,
   Menu,
   LogOut,
   ChevronLeft,
@@ -72,6 +75,21 @@ function getNavSections(projectId?: string): readonly NavSection[] {
         label: "Products",
         to: "/products",
         icon: <Package className="h-5 w-5" />,
+      },
+      {
+        label: "Talent",
+        to: "/library/talent",
+        icon: <Users className="h-5 w-5" />,
+      },
+      {
+        label: "Locations",
+        to: "/library/locations",
+        icon: <MapPin className="h-5 w-5" />,
+      },
+      {
+        label: "Crew",
+        to: "/library/crew",
+        icon: <HardHat className="h-5 w-5" />,
       },
     ],
   })

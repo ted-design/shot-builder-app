@@ -5,6 +5,7 @@
 - Proof artifacts live in tracked `docs-vnext/_proof/SPRINT-2026-02-03-A/` (docs/_runtime is gitignored).
 - Public warehouse pull route is `/pulls/shared/:shareToken` (unauth) and uses Cloud Function `publicUpdatePull` for writes.
 - Call sheet nav destination is `/projects/:id/callsheet` (schedule list lives there); `/projects/:id/schedules` redirects for backward compatibility.
+- Org library routes added: `/library/talent`, `/library/locations`, `/library/crew` (read-only).
 
 ## Constraints & Guardrails
 

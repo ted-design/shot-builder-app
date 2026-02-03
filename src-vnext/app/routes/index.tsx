@@ -32,6 +32,15 @@ const ProductListPage = lazy(
 const ProductDetailPage = lazy(
   () => import("@/features/products/components/ProductDetailPage"),
 )
+const LibraryTalentPage = lazy(
+  () => import("@/features/library/components/LibraryTalentPage"),
+)
+const LibraryLocationsPage = lazy(
+  () => import("@/features/library/components/LibraryLocationsPage"),
+)
+const LibraryCrewPage = lazy(
+  () => import("@/features/library/components/LibraryCrewPage"),
+)
 
 function PageFallback() {
   return (
@@ -114,6 +123,10 @@ export function AppRoutes() {
           />
           <Route path="products" element={<ProductListPage />} />
           <Route path="products/:fid" element={<ProductDetailPage />} />
+          <Route path="library" element={<Navigate to="/library/talent" replace />} />
+          <Route path="library/talent" element={<LibraryTalentPage />} />
+          <Route path="library/locations" element={<LibraryLocationsPage />} />
+          <Route path="library/crew" element={<LibraryCrewPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
