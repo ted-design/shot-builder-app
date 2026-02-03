@@ -98,6 +98,12 @@
 | Edit flow still works | From shots list (cards/table/visual), click a shot. | Navigates to `/projects/:projectId/shots/:shotId` and editor loads. |
 | Create prelude still works | Click create shot prelude and submit. | Creates and navigates to canonical shot route. |
 
+### WP4 — Verification gates (focus sign-off)
+
+**Checks (2026-02-03)**
+- `npm run lint` ✅ (0 warnings)
+- `npm run build` ✅
+
 ## Screenshots index
 
 _Screenshots live in `docs-vnext/_proof/FOCUS-SHOTS-2026-02-03-A/images/`._
