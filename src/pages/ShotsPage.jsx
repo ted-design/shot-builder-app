@@ -202,6 +202,7 @@ import { calculateTalentTotals, calculateGroupedShotTotals } from "../lib/insigh
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
+const LEGACY_SHOTS_MANUAL_ORDER_PREFIX = "shots:manualOrder:"; // per-project (legacy local-only ordering)
 
 // Firestore batch write limit
 const FIRESTORE_BATCH_LIMIT = 500;
@@ -221,7 +222,6 @@ const AVAILABLE_SHOT_TYPES = [
 ];
 
 const SHOTS_PREFS_STORAGE_KEY = "shots:viewPrefs";
-const SHOTS_MANUAL_ORDER_PREFIX = "shots:manualOrder:"; // per-project
 const SHOTS_INSIGHTS_STORAGE_KEY = "shots:insightsSidebarOpen";
 const SHOTS_GROUP_BY_STORAGE_KEY = "shots:groupBy";
 
@@ -267,7 +267,7 @@ const defaultViewPrefs = {
   showType: true,
   showDate: true,
   // Sorting + density
-  sort: "alpha",
+  sort: "custom",
   density: DEFAULT_SHOT_DENSITY,
   // Field settings
   fieldOrder: [],
@@ -315,6 +315,7 @@ const SHOT_VIEW_OPTIONS = [
 
 // H.2: Strict allowlist of valid view modes — stale/unknown values fall back to default
 const VALID_SHOT_VIEW_MODES = new Set(SHOT_VIEW_OPTIONS.map((opt) => opt.value));
+const VALID_SHOT_SORT_OPTIONS = new Set(SHOT_SORT_OPTIONS.map((opt) => opt.value));
 
 const SHOT_DENSITY_OPTIONS = [
   { value: "compact", label: "Compact" },
@@ -405,7 +406,10 @@ const readStoredViewPrefs = () => {
       showName: parsed.showName !== false,
       showType: parsed.showType !== false,
       showDate: parsed.showDate !== false,
-      sort: typeof parsed.sort === "string" ? parsed.sort : defaultViewPrefs.sort,
+      sort:
+        typeof parsed.sort === "string" && VALID_SHOT_SORT_OPTIONS.has(parsed.sort)
+          ? parsed.sort
+          : defaultViewPrefs.sort,
       density: normaliseShotDensity(parsed.density),
       fieldOrder,
       lockedFields,
@@ -426,6 +430,7 @@ export function ShotsWorkspace() {
   const [viewMode, setViewMode] = useState(() => readStoredShotsView());
   const [localFilters, setLocalFilters] = useState(() => readStoredShotFilters());
   const [viewPrefs, setViewPrefs] = useState(() => readStoredViewPrefs());
+  const [sortOrderOverrides, setSortOrderOverrides] = useState(() => ({}));
   const [editingShot, setEditingShot] = useState(null);
   const [editAutoStatus, setEditAutoStatus] = useState(() => createInitialSectionStatuses());
   const [isSavingShot, setIsSavingShot] = useState(false);
@@ -737,8 +742,19 @@ export function ShotsWorkspace() {
   }, [shots, debouncedQueryText, filters]);
 
   const sortedShots = useMemo(
-    () => sortShotsForView(filteredShots, { sortBy: viewPrefs.sort }),
-    [filteredShots, viewPrefs.sort]
+    () => {
+      const sortBy = viewPrefs.sort;
+      const hasOverrides = sortBy === "custom" && sortOrderOverrides && Object.keys(sortOrderOverrides).length > 0;
+      const list = hasOverrides
+        ? filteredShots.map((shot) => {
+            const override = sortOrderOverrides[shot?.id];
+            if (override == null) return shot;
+            return { ...shot, sortOrder: override };
+          })
+        : filteredShots;
+      return sortShotsForView(list, { sortBy });
+    },
+    [filteredShots, sortOrderOverrides, viewPrefs.sort]
   );
 
   // H.11: In-memory "Recent" filter for Cards view triage (24h window)
@@ -816,68 +832,241 @@ export function ShotsWorkspace() {
     }
   }, []);
 
-  // Manual table order per project (persisted locally)
-  const manualOrderKey = useMemo(
-    () => `${SHOTS_MANUAL_ORDER_PREFIX}${projectId || 'unknown'}`,
+  // Canonical shot ordering (Slice 2): Firestore-backed `shot.sortOrder`
+  // - Default sort is "Custom order"
+  // - Reordering updates Firestore so ordering is shared across users/devices
+  const reorderableShots = useMemo(
+    () => (Array.isArray(shots) ? shots.filter((shot) => shot?.deleted !== true) : []),
+    [shots]
+  );
+  const missingSortOrderCount = useMemo(
+    () =>
+      reorderableShots.filter((shot) => typeof shot?.sortOrder !== "number" || !Number.isFinite(shot.sortOrder))
+        .length,
+    [reorderableShots]
+  );
+
+  const legacyManualOrderKey = useMemo(
+    () => `${LEGACY_SHOTS_MANUAL_ORDER_PREFIX}${projectId || "unknown"}`,
     [projectId]
   );
-  const [manualOrder, setManualOrder] = useState(() => {
+  const legacyManualOrderIds = useMemo(() => {
     try {
-      const raw = readStorage(manualOrderKey);
+      const raw = readStorage(legacyManualOrderKey);
       const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed)
-        ? parsed.filter((id) => typeof id === 'string' && id)
-        : [];
+      return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string" && id) : [];
     } catch {
       return [];
     }
-  });
-  // Reload manual order when project changes
-  useEffect(() => {
-    try {
-      const raw = readStorage(manualOrderKey);
-      const parsed = raw ? JSON.parse(raw) : [];
-      const reloaded = Array.isArray(parsed)
-        ? parsed.filter((id) => typeof id === 'string' && id)
-        : [];
-      setManualOrder(reloaded);
-    } catch {
-      setManualOrder([]);
-    }
-  }, [manualOrderKey]);
-  useEffect(() => {
-    try {
-      writeStorage(manualOrderKey, JSON.stringify(manualOrder));
-    } catch {}
-  }, [manualOrderKey, manualOrder]);
-  const lastManualRef = useRef(null);
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      const isUndo = (e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z');
-      if (!isUndo) return;
-      const prev = lastManualRef.current;
-      if (!prev) return;
-      e.preventDefault();
-      setManualOrder(prev);
-      lastManualRef.current = null;
-      toast.success('Reorder undone');
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [legacyManualOrderKey]);
+  const hasLegacyManualOrder = legacyManualOrderIds.length > 0;
 
-  // Overlay manual order in table view
-  const tableOrderedShots = useMemo(() => {
-    if (!Array.isArray(sortedShots) || sortedShots.length === 0) return [];
-    if (!Array.isArray(manualOrder) || manualOrder.length === 0) return sortedShots;
-    const indexMap = new Map(manualOrder.map((id, i) => [id, i]));
-    return [...sortedShots].sort((a, b) => {
-      const ai = indexMap.has(a.id) ? indexMap.get(a.id) : Number.POSITIVE_INFINITY;
-      const bi = indexMap.has(b.id) ? indexMap.get(b.id) : Number.POSITIVE_INFINITY;
-      if (ai !== bi) return ai - bi;
-      return 0;
+  const [initializingCustomOrder, setInitializingCustomOrder] = useState(false);
+  const [reorderSaving, setReorderSaving] = useState(false);
+
+  const initializeCustomOrder = useCallback(async ({ useLegacy = false } = {}) => {
+    if (!clientId || !projectId) return;
+    if (!canEditShots) return;
+    if (initializingCustomOrder) return;
+
+    setInitializingCustomOrder(true);
+    try {
+      const byId = new Map(reorderableShots.map((shot) => [shot.id, shot]));
+      const base = sortShotsForView(reorderableShots, { sortBy: "byDate" });
+      const legacySet = new Set(legacyManualOrderIds);
+      const ordered = useLegacy && hasLegacyManualOrder
+        ? [
+            ...legacyManualOrderIds.map((id) => byId.get(id)).filter(Boolean),
+            ...base.filter((shot) => !legacySet.has(shot.id)),
+          ]
+        : base;
+      if (ordered.length === 0) {
+        toast.info({ title: "No shots to initialize" });
+        return;
+      }
+
+      const GAP = 1000;
+      const BATCH_LIMIT = 450;
+      let index = 0;
+      while (index < ordered.length) {
+        const batch = writeBatch(db);
+        const slice = ordered.slice(index, index + BATCH_LIMIT);
+        slice.forEach((shot, offset) => {
+          const sortOrder = (index + offset + 1) * GAP;
+          const ref = doc(db, ...getShotsPath(clientId), shot.id);
+          batch.update(ref, { sortOrder });
+        });
+        await batch.commit();
+        index += slice.length;
+      }
+
+      toast.success({
+        title: "Custom order initialized",
+        description: "This order is now shared across the project.",
+      });
+
+      if (useLegacy && hasLegacyManualOrder) {
+        try {
+          writeStorage(legacyManualOrderKey, "[]");
+        } catch {}
+      }
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Failed to initialize custom order");
+      console.error("[Shots] Failed to initialize custom order:", error);
+      toast.error({ title: "Failed to initialize order", description: `${code}: ${message}` });
+    } finally {
+      setInitializingCustomOrder(false);
+    }
+  }, [
+    canEditShots,
+    clientId,
+    projectId,
+    initializingCustomOrder,
+    reorderableShots,
+    hasLegacyManualOrder,
+    legacyManualOrderIds,
+    legacyManualOrderKey,
+  ]);
+
+  // Clear optimistic sortOrder overrides once Firestore catches up.
+  useEffect(() => {
+    if (viewPrefs.sort !== "custom") return;
+    if (!sortOrderOverrides || Object.keys(sortOrderOverrides).length === 0) return;
+    setSortOrderOverrides((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      reorderableShots.forEach((shot) => {
+        const override = prev[shot.id];
+        if (override == null) return;
+        if (shot?.sortOrder === override) {
+          delete next[shot.id];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
     });
-  }, [sortedShots, manualOrder]);
+  }, [reorderableShots, sortOrderOverrides, viewPrefs.sort]);
+
+  const reorderShot = useCallback(
+    async (from, to) => {
+      if (!clientId || !projectId) return;
+      if (!canEditShots) return;
+      if (viewPrefs.sort !== "custom") return;
+      if (reorderSaving) return;
+
+      if (missingSortOrderCount > 0) {
+        toast.warning({
+          title: "Custom order needs initialization",
+          description: "Initialize custom order before reordering shots.",
+          action: canEditShots ? { label: "Initialize", onClick: initializeCustomOrder } : undefined,
+        });
+        return;
+      }
+
+      const list = Array.isArray(sortedShots) ? sortedShots : [];
+      if (from < 0 || from >= list.length) return;
+
+      const clampedTo = Math.max(0, Math.min(list.length, to));
+      const insertIndex = clampedTo > from ? clampedTo - 1 : clampedTo;
+      if (from === insertIndex) return;
+
+      const nextList = list.slice();
+      const [moved] = nextList.splice(from, 1);
+      nextList.splice(insertIndex, 0, moved);
+
+      const prev = insertIndex > 0 ? nextList[insertIndex - 1] : null;
+      const next = insertIndex < nextList.length - 1 ? nextList[insertIndex + 1] : null;
+
+      const prevOrder = prev?.sortOrder;
+      const nextOrder = next?.sortOrder;
+      const currentOrder = moved?.sortOrder;
+
+      const isNum = (value) => typeof value === "number" && Number.isFinite(value);
+      const GAP = 1000;
+
+      const sortOrder = isNum(prevOrder) && isNum(nextOrder)
+        ? (prevOrder + nextOrder) / 2
+        : isNum(prevOrder)
+          ? prevOrder + GAP
+          : isNum(nextOrder)
+            ? nextOrder - GAP
+            : isNum(currentOrder)
+              ? currentOrder
+              : GAP;
+
+      if (!isNum(sortOrder)) return;
+
+      const shotRef = doc(db, ...getShotsPath(clientId), moved.id);
+
+      setReorderSaving(true);
+      setSortOrderOverrides((prevMap) => ({ ...prevMap, [moved.id]: sortOrder }));
+
+      const undo = async () => {
+        if (!isNum(currentOrder)) return;
+        setSortOrderOverrides((prevMap) => ({ ...prevMap, [moved.id]: currentOrder }));
+        try {
+          await updateDoc(shotRef, { sortOrder: currentOrder });
+        } catch (error) {
+          const { code, message } = describeFirebaseError(error, "Failed to undo reorder");
+          console.error("[Shots] Failed to undo reorder:", error);
+          toast.error({ title: "Undo failed", description: `${code}: ${message}` });
+        }
+      };
+
+      try {
+        await updateDoc(shotRef, { sortOrder });
+        toast.info({
+          title: "Shot reordered",
+          description: "Custom order updated for this project.",
+          action: isNum(currentOrder) ? { label: "Undo", onClick: undo } : undefined,
+        });
+      } catch (error) {
+        const { code, message } = describeFirebaseError(error, "Failed to reorder shot");
+        console.error("[Shots] Failed to reorder shot:", error);
+        setSortOrderOverrides((prevMap) => {
+          if (!Object.prototype.hasOwnProperty.call(prevMap, moved.id)) return prevMap;
+          const nextMap = { ...prevMap };
+          delete nextMap[moved.id];
+          return nextMap;
+        });
+        toast.error({ title: "Reorder failed", description: `${code}: ${message}` });
+      } finally {
+        setReorderSaving(false);
+      }
+    },
+    [
+      canEditShots,
+      clientId,
+      projectId,
+      initializeCustomOrder,
+      missingSortOrderCount,
+      reorderSaving,
+      sortedShots,
+      viewPrefs.sort,
+    ]
+  );
+
+  const sortLabel = useMemo(() => {
+    const match = SHOT_SORT_OPTIONS.find((opt) => opt.value === viewPrefs.sort);
+    return match?.label || "Custom order";
+  }, [viewPrefs.sort]);
+
+  const hasActiveSearch = debouncedQueryText.trim().length > 0;
+  const hasActiveFilters = Boolean(
+    (filters.locationId || "").trim() ||
+      (Array.isArray(filters.talentIds) && filters.talentIds.length) ||
+      (Array.isArray(filters.productFamilyIds) && filters.productFamilyIds.length) ||
+      (Array.isArray(filters.tagIds) && filters.tagIds.length) ||
+      (Array.isArray(filters.statusFilter) && filters.statusFilter.length)
+  );
+
+  const reorderBlockedByContext = hasActiveSearch || hasActiveFilters;
+  const canReorderTable =
+    canEditShots &&
+    viewPrefs.sort === "custom" &&
+    !selectionMode &&
+    !reorderBlockedByContext &&
+    missingSortOrderCount === 0;
 
   useEffect(() => {
     if (viewMode === "gallery" || viewMode === "table" || viewMode === "visual") {
@@ -3630,6 +3819,101 @@ export function ShotsWorkspace() {
             </div>
           )}
           <div className="space-y-4">
+            {/* Ordering trust banners (Slice 2) */}
+            {!isMobile && viewPrefs.sort !== "custom" && sortedShots.length > 0 && (
+              <div className="rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm text-slate-700 dark:text-slate-200 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-medium">
+                    Sorted by {sortLabel}.
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    Custom order is currently hidden.
+                  </div>
+                </div>
+                {canEditShots && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => selectSort("custom")}
+                    className="shrink-0"
+                  >
+                    Custom order
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {!isMobile && viewPrefs.sort === "custom" && canEditShots && missingSortOrderCount > 0 && (
+              <div className="rounded-card border border-amber-200 bg-amber-50 dark:border-amber-700/50 dark:bg-amber-900/20 p-3 text-sm text-amber-900 dark:text-amber-100 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-medium">
+                    Custom order isn’t initialized for this project yet.
+                  </div>
+                  <div className="text-xs text-amber-800/80 dark:text-amber-100/70">
+                    Initialize once to enable shared ordering. Baseline uses Date sort for legacy-safe consistency.
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {hasLegacyManualOrder ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => initializeCustomOrder({ useLegacy: true })}
+                      disabled={initializingCustomOrder}
+                      className="border-amber-300 dark:border-amber-700"
+                    >
+                      Use my order
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => initializeCustomOrder()}
+                    disabled={initializingCustomOrder}
+                    className="border-amber-300 dark:border-amber-700"
+                  >
+                    {initializingCustomOrder ? "Initializing…" : "Initialize"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {!isMobile &&
+              viewPrefs.sort === "custom" &&
+              canEditShots &&
+              missingSortOrderCount === 0 &&
+              reorderBlockedByContext &&
+              viewMode === "table" && (
+                <div className="rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm text-slate-700 dark:text-slate-200 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium">Reordering is disabled while searching or filtering.</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      Clear search/filters to reorder the full shot list safely.
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {hasActiveSearch ? (
+                      <Button type="button" size="sm" variant="outline" onClick={handleSearchClear}>
+                        Clear search
+                      </Button>
+                    ) : null}
+                    {hasActiveFilters ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setFilters({ ...defaultOverviewFilters })}
+                      >
+                        Clear filters
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+
             {sortedShots.length === 0 ? (
               shots.length === 0 ? (
                 <EmptyState
@@ -3745,8 +4029,8 @@ export function ShotsWorkspace() {
             ) : (
               <ShotTableView
                 rows={
-                  // Rebuild rows from table-ordered shots to reflect manual order
-	                  tableOrderedShots.map((shot) => {
+                  // Table uses the current sorted projection (Custom order uses Firestore sortOrder)
+	                  sortedShots.map((shot) => {
 	                    const products = normaliseShotProducts(shot);
 	                    const talentSelection = mapShotTalentToSelection(shot);
 	                    const locationName = shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
@@ -3760,19 +4044,7 @@ export function ShotsWorkspace() {
                 onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}
                 onEditShot={canEditShots ? handleEditShot : null}
                 persistKey={`shots:table:colWidths:${projectId || 'unknown'}`}
-                onRowReorder={canEditShots ? (from, to) => {
-                  // Move within currently visible table order
-                  const visibleIds = tableOrderedShots.map((s) => s.id);
-                  const clampedTo = Math.max(0, Math.min(visibleIds.length, to));
-                  const nextVisible = visibleIds.slice();
-                  const [moved] = nextVisible.splice(from, 1);
-                  nextVisible.splice(clampedTo > from ? clampedTo - 1 : clampedTo, 0, moved);
-                  const prevManual = manualOrder.slice();
-                  lastManualRef.current = prevManual;
-                  // Persist only the visible ordering; unknown ids keep their relative order
-                  setManualOrder(nextVisible);
-                  toast.info('Press Cmd/Ctrl+Z to undo');
-                } : null}
+                onRowReorder={canReorderTable ? reorderShot : null}
                 onChangeStatus={canEditShots ? (shot, value) => updateShot(shot, { status: value }) : null}
                 focusedShotId={focusShotId}
                 onFocusShot={(shot) => {

@@ -4,6 +4,9 @@
 
 - Notes integrity: `shot.notes` (legacy HTML) remains immutable in vNext surfaces; operational additions go to `shot.notesAddendum` only.
 - Ordering: prefer Firestore-backed `shot.sortOrder` for canonical ordering; avoid local-only ordering for shared trust.
+- Ordering migration: legacy local-only table order (`localStorage`) is not auto-applied to Firestore; instead we offer an explicit “Use my order” action to avoid surprising global changes.
+- Reorder safety: disable drag reorder while searching/filtering so producers don’t accidentally change global order based on a subset view.
+- Undo UX: extended toast events to support an action button so reorder can provide a true “Undo” affordance.
 
 ## Risks / Watchouts
 
@@ -13,4 +16,3 @@
 ## Follow-ups (if found)
 
 - None yet.
-

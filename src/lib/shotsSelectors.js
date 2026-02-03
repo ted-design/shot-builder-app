@@ -2,8 +2,10 @@ import { normaliseShotStatus } from "./shotStatus";
 import { DEFAULT_PROJECT_ID } from "./paths";
 
 export const SHOT_SORT_OPTIONS = [
+  { value: "custom", label: "Custom order" },
   { value: "alpha", label: "Title A→Z" },
   { value: "alpha_desc", label: "Title Z→A" },
+  { value: "byStatus", label: "By Status" },
   { value: "byTalent", label: "By Talent" },
   { value: "byDate", label: "By Date" },
 ];
@@ -60,9 +62,51 @@ const compareByDate = (a, b) => {
   return compareByName(a, b);
 };
 
+const sortOrderValue = (shot) => {
+  const value = shot?.sortOrder;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : Number.POSITIVE_INFINITY;
+};
+
+const compareByCustomOrder = (a, b) => {
+  const sortA = sortOrderValue(a);
+  const sortB = sortOrderValue(b);
+  if (sortA !== sortB) return sortA - sortB;
+  // Fallback for legacy shots missing sortOrder: date then name.
+  const millisA = timestampToMillis(a?.date);
+  const millisB = timestampToMillis(b?.date);
+  if (millisA !== millisB) return millisA - millisB;
+  return compareByName(a, b);
+};
+
+const statusRank = (status) => {
+  switch (normaliseShotStatus(status)) {
+    case "todo":
+      return 0;
+    case "in_progress":
+      return 1;
+    case "on_hold":
+      return 2;
+    case "complete":
+      return 3;
+    default:
+      return 99;
+  }
+};
+
+const compareByStatus = (a, b) => {
+  const rankA = statusRank(a?.status);
+  const rankB = statusRank(b?.status);
+  if (rankA !== rankB) return rankA - rankB;
+  return compareByCustomOrder(a, b);
+};
+
 const sortComparators = {
+  custom: compareByCustomOrder,
   alpha: compareByName,
   alpha_desc: (a, b) => compareByName(b, a),
+  byStatus: compareByStatus,
   byTalent: compareByTalent,
   byDate: compareByDate,
   date_asc: compareByDate,

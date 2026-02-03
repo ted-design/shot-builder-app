@@ -48,6 +48,7 @@ export interface Shot {
   notesAddendum?: string;
   shotNumber?: string | null;
   date?: string | Timestamp | null;
+  sortOrder?: number | null;
   projectId: string;
   talent?: ShotTalent[];
   talentIds?: string[];

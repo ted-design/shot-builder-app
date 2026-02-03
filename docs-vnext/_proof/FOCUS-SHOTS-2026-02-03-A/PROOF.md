@@ -53,13 +53,21 @@ Screenshots:
 
 ### WP1 — Canonical shot ordering (Firestore `sortOrder`)
 
-Status: ⏳ Pending
+Status: ✅ Completed
+
+Changes:
+- Shot sort gains **Custom order** (Firestore `shot.sortOrder`) as the default sort.
+- Table reordering writes a single `sortOrder` update (sparse numeric midpoint strategy).
+- One-time **Initialize custom order** CTA when shots are missing `sortOrder` (batch write in bounded chunks).
+- Legacy migration assist: if local-only ordering exists (`localStorage`), offer **Use my order** to seed Firestore `sortOrder`.
+- Reorder guardrails: reordering is disabled while searching/filtering to avoid “reorder a subset” surprises.
+- Added toast action support for **Undo**.
 
 Proof checklist:
-- [ ] Reorder updates Firestore `sortOrder` (single write or bounded batch)
-- [ ] Default sort is Custom (sortOrder-first, legacy-safe fallback)
-- [ ] No additional read fan-out introduced
-- [ ] Undo/feedback exists (toast) and errors are handled gracefully
+- [x] Reorder updates Firestore `sortOrder` (single write; no fan-out reads)
+- [x] Default sort is Custom (sortOrder-first, legacy-safe fallback)
+- [x] No additional read fan-out introduced (writes only)
+- [x] Undo/feedback exists (toast action) and errors are handled gracefully
 
 Screenshots (to capture):
 - `wp1-shots-table-custom-sort.png` — Sort menu shows Custom active
@@ -74,4 +82,3 @@ Status: ⏳ Pending
 ### WP3 — Notes + tags trust hardening
 
 Status: ⏳ Pending
-
