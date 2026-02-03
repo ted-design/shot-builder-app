@@ -46,6 +46,8 @@ Saved under: `docs-vnext/_proof/SPRINT-2026-02-03-B/images/`
 - [x] `npm test` (WP4)
 - [x] `npx tsc --noEmit` (WP5)
 - [x] `npm test` (WP5)
+- [x] `npm run lint` (sprint)
+- [x] `npm run build` (sprint)
 
 ## Progress Log
 
