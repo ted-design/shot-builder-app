@@ -271,12 +271,28 @@ function MobileHeader({
 }
 
 export function AppShell() {
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const { id: projectId } = useParams<{ id: string }>()
   const isMobile = useIsMobile()
   const [collapsed, setCollapsed] = useState(false)
 
   const navSections = getNavSections(projectId)
+  const isCallSheetPreview =
+    pathname.includes("/callsheet") &&
+    new URLSearchParams(search).get("preview") === "1"
+
+  if (isCallSheetPreview) {
+    return (
+      <div className="min-h-screen bg-[var(--color-bg)]">
+        <OfflineBanner />
+        <main className="p-4 sm:p-6">
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">

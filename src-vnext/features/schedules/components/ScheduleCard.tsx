@@ -40,7 +40,8 @@ export function ScheduleCard({
   const navigate = useNavigate()
 
   const handleSelect = () => {
-    navigate(`/projects/${projectId}/callsheet?scheduleId=${schedule.id}`)
+    const previewSuffix = canManage ? "" : "&preview=1"
+    navigate(`/projects/${projectId}/callsheet?scheduleId=${schedule.id}${previewSuffix}`)
   }
 
   return (
