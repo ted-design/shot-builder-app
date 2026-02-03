@@ -293,7 +293,7 @@ export default function ShotEditorPageV3() {
 
   // Mobile: render read-only detail view instead of full editor
   if (isMobile) {
-    return <ShotReaderView shot={shot} counts={counts} />;
+    return <ShotReaderView shot={shot} counts={counts} readOnly={isReadOnly} />;
   }
 
   return (

@@ -77,7 +77,21 @@ Screenshots (to capture):
 
 ### WP2 — Mobile operational parity (status + addendum)
 
-Status: ⏳ Pending
+Status: ✅ Completed
+
+Changes:
+- Mobile shot detail adds an operational status control (select) with “Undo” via toast action.
+- Mobile respects `?readonly=1` by disabling status changes and addendum appends.
+
+Proof checklist:
+- [x] Status update is available on mobile and persists to Firestore
+- [x] Undo exists (toast action)
+- [x] Read-only mode blocks mutations
+
+Screenshots (to capture):
+- `wp2-mobile-status-control.png` — Status control visible on mobile
+- `wp2-mobile-status-updated.png` — Status updated + toast shown
+- `wp2-mobile-status-undo.png` — Undo restores prior status
 
 ### WP3 — Notes + tags trust hardening
 

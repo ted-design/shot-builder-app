@@ -9,7 +9,7 @@
  * dead-end.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -76,7 +76,7 @@ function CountChip({ icon: Icon, label, count }) {
 }
 
 // ─── Main component ────────────────────────────────────────────────────────
-export default function ShotReaderView({ shot, counts = {} }) {
+export default function ShotReaderView({ shot, counts = {}, readOnly = false }) {
   const navigate = useNavigate();
   const { projectId } = useParams();
   const auth = useAuth();
@@ -86,10 +86,18 @@ export default function ShotReaderView({ shot, counts = {} }) {
   const [addendumDraft, setAddendumDraft] = useState("");
   const [addendumSaving, setAddendumSaving] = useState(false);
 
-  const statusValue = normaliseShotStatus(shot?.status);
+  const [statusDraft, setStatusDraft] = useState(() => normaliseShotStatus(shot?.status));
+  const [statusSaving, setStatusSaving] = useState(false);
+
+  const statusValue = normaliseShotStatus(statusDraft ?? shot?.status);
   const statusLabel = STATUS_LABEL_MAP.get(statusValue) || shot?.status || "To do";
   const statusClass =
     statusBadgeClasses[statusValue] || statusBadgeClasses.todo;
+
+  useEffect(() => {
+    if (statusSaving) return;
+    setStatusDraft(normaliseShotStatus(shot?.status));
+  }, [shot?.status, statusSaving]);
 
   const notesHtml = typeof shot?.notes === "string" ? shot.notes : "";
   const hasNotes = useMemo(() => !isEmptyHtml(notesHtml), [notesHtml]);
@@ -106,8 +114,57 @@ export default function ShotReaderView({ shot, counts = {} }) {
     navigate(`/projects/${projectId}/shots`);
   };
 
+  const handleStatusChange = useCallback(async (event) => {
+    if (!clientId || !shot?.id) return;
+    if (readOnly) return;
+    const next = event.target.value;
+    if (!next) return;
+
+    const previous = normaliseShotStatus(shot?.status);
+    if (next === previous) return;
+
+    setStatusDraft(next);
+    setStatusSaving(true);
+
+    const undo = () => {
+      setStatusDraft(previous);
+      return updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch: { status: previous },
+        shot,
+        user,
+        source: "ShotReaderView:status:undo",
+      }).catch((error) => {
+        toast.error({ title: "Undo failed", description: error?.message });
+      });
+    };
+
+    try {
+      await updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch: { status: next },
+        shot,
+        user,
+        source: "ShotReaderView:status",
+      });
+      toast.info({
+        title: "Status updated",
+        description: STATUS_LABEL_MAP.get(next) || next,
+        action: { label: "Undo", onClick: undo },
+      });
+    } catch (error) {
+      setStatusDraft(previous);
+      toast.error({ title: "Failed to update status", description: error?.message });
+    } finally {
+      setStatusSaving(false);
+    }
+  }, [clientId, readOnly, shot, user]);
+
   const appendAddendum = useCallback(async () => {
     if (!clientId || !shot?.id) return;
+    if (readOnly) return;
     const entry = addendumDraft.trim();
     if (!entry) return;
 
@@ -133,7 +190,7 @@ export default function ShotReaderView({ shot, counts = {} }) {
     } finally {
       setAddendumSaving(false);
     }
-  }, [addendumDraft, clientId, existingAddendum, shot, user]);
+  }, [addendumDraft, clientId, existingAddendum, readOnly, shot, user]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
@@ -163,13 +220,34 @@ export default function ShotReaderView({ shot, counts = {} }) {
 
       {/* ── Content ───────────────────────────────────────────────────── */}
       <div className="px-4 py-5 space-y-6">
-        {/* Status badge */}
-        <div>
+        {/* Status (operational on mobile) */}
+        <div className="flex items-center justify-between gap-3">
           <span
             className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${statusClass}`}
           >
             {statusLabel}
           </span>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="sr-only">Shot status</span>
+              <select
+                value={statusValue}
+                onChange={handleStatusChange}
+                disabled={statusSaving || readOnly}
+                className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                aria-label="Shot status"
+              >
+                {shotStatusOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {statusSaving ? (
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">Saving…</span>
+            ) : null}
+          </div>
         </div>
 
         {/* Reference image */}
@@ -227,6 +305,11 @@ export default function ShotReaderView({ shot, counts = {} }) {
           <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
             Producer Addendum
           </span>
+          {readOnly ? (
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              View only
+            </div>
+          ) : null}
           <div className="rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3">
             {existingAddendum ? (
               <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
@@ -242,15 +325,16 @@ export default function ShotReaderView({ shot, counts = {} }) {
             <textarea
               value={addendumDraft}
               onChange={(e) => setAddendumDraft(e.target.value)}
+              disabled={readOnly}
               placeholder="Add a note (append-only)…"
               rows={3}
-              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600 disabled:opacity-60 disabled:cursor-not-allowed"
             />
             <div className="flex items-center justify-end">
               <Button
                 type="button"
                 onClick={appendAddendum}
-                disabled={addendumSaving || !addendumDraft.trim()}
+                disabled={readOnly || addendumSaving || !addendumDraft.trim()}
               >
                 {addendumSaving ? "Saving…" : "Add addendum"}
               </Button>
