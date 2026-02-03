@@ -57,12 +57,12 @@ export default function ScheduleListPage() {
   return (
     <ErrorBoundary>
       <PageHeader
-        title="Schedules"
+        title="Call Sheet"
         actions={
           canManage ? (
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              New Schedule
+              New Call Sheet
             </Button>
           ) : undefined
         }
@@ -71,9 +71,9 @@ export default function ScheduleListPage() {
       {schedules.length === 0 ? (
         <EmptyState
           icon={<CalendarDays className="h-12 w-12" />}
-          title="No schedules yet"
-          description="Create a schedule to start building your call sheet."
-          actionLabel={canManage ? "Create Schedule" : undefined}
+          title="No call sheets yet"
+          description="Create a call sheet for a shoot day."
+          actionLabel={canManage ? "Create Call Sheet" : undefined}
           onAction={canManage ? () => setCreateOpen(true) : undefined}
         />
       ) : (

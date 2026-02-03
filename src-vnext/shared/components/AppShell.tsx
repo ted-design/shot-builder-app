@@ -58,7 +58,7 @@ function getNavSections(projectId?: string): readonly NavSection[] {
         },
         {
           label: "Call Sheet",
-          to: `/projects/${projectId}/schedules`,
+          to: `/projects/${projectId}/callsheet`,
           icon: <CalendarDays className="h-5 w-5" />,
         },
       ],

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react"
-import { Navigate, Route, Routes } from "react-router-dom"
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom"
 import { RequireAuth } from "@/app/routes/guards/RequireAuth"
 import { ProjectScopeProvider } from "@/app/providers/ProjectScopeProvider"
 import { AppShell } from "@/shared/components/AppShell"
@@ -22,9 +22,6 @@ const PullDetailPage = lazy(
 )
 const PublicPullViewPage = lazy(
   () => import("@/features/pulls/components/PublicPullViewPage"),
-)
-const ScheduleListPage = lazy(
-  () => import("@/features/schedules/components/ScheduleListPage"),
 )
 const CallSheetBuilderPage = lazy(
   () => import("@/features/schedules/components/CallSheetBuilderPage"),
@@ -103,7 +100,7 @@ export function AppRoutes() {
             path="projects/:id/schedules"
             element={
               <ProjectScopeProvider>
-                <ScheduleListPage />
+                <SchedulesRedirect />
               </ProjectScopeProvider>
             }
           />
@@ -122,4 +119,11 @@ export function AppRoutes() {
       </Routes>
     </Suspense>
   )
+}
+
+function SchedulesRedirect() {
+  const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const suffix = location.search ?? ""
+  return <Navigate to={id ? `/projects/${id}/callsheet${suffix}` : "/projects"} replace />
 }

@@ -27,6 +27,7 @@ import { CallSheetPrintPortal } from "@/features/schedules/components/CallSheetP
 import { TrustChecks } from "@/features/schedules/components/TrustChecks"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { Button } from "@/ui/button"
+import ScheduleListPage from "@/features/schedules/components/ScheduleListPage"
 
 function formatScheduleDate(date: import("@/shared/types").Schedule["date"]): string {
   if (!date) return ""
@@ -123,17 +124,23 @@ export default function CallSheetBuilderPage() {
   // Mobile: render nothing while redirect fires
   if (isMobile && canManage && !isPreviewParam) return null
 
-  // No schedule selected
+  // No schedule selected: show call sheet list for managers (desktop). Others must use a deep link.
   if (!scheduleId) {
+    if (!canManage) {
+      return (
+        <ErrorBoundary>
+          <EmptyState
+            icon={<CalendarDays className="h-12 w-12" />}
+            title="No call sheet selected"
+            description="Ask a producer to share a call sheet link, or open a specific schedule."
+          />
+        </ErrorBoundary>
+      )
+    }
+
     return (
       <ErrorBoundary>
-        <EmptyState
-          icon={<CalendarDays className="h-12 w-12" />}
-          title="No schedule selected"
-          description="Select a schedule to start building your call sheet."
-          actionLabel="Select a schedule"
-          onAction={() => navigate(`/projects/${projectId}/schedules`)}
-        />
+        <ScheduleListPage />
       </ErrorBoundary>
     )
   }
