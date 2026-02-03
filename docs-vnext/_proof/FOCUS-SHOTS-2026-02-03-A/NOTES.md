@@ -8,6 +8,7 @@
 ## Tradeoffs
 
 - Dedupe key is intentionally simple (familyId + colourId + sizeScope + sizeKey) to avoid overstating counts when the same assignment appears in both legacy and look-based locations.
+- Removing the dead inline editor reduces regression risk but does not attempt to refactor the remaining (still-large) `ShotsPage.jsx` surface in this focus run.
 
 ## Follow-ups (explicitly out of scope)
 

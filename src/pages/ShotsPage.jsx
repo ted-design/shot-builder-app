@@ -136,7 +136,6 @@ import {
 import { stripHtml } from "../lib/stripHtml";
 import {
   isCorruptShotDescription,
-  resolveShotDraftShortDescriptionSource,
   resolveShotShortDescriptionSource,
   resolveShotShortDescriptionText,
 } from "../lib/shotDescription";
@@ -182,12 +181,9 @@ import { getStaggerDelay } from "../lib/animations";
 // D.1: ShotsAssetsTab removed — Assets is now standalone at /projects/:projectId/assets
 import {
   createInitialSectionStatuses,
-  cloneShotDraft,
   deriveSectionStatuses,
   markSectionsForState,
-  buildSectionDiffMap,
 } from "../lib/shotSectionStatus";
-import { convertLegacyImageToAttachment } from "../lib/migrations/migrateShots";
 import {
   resolveShotCoverImage,
   resolveShotCoverWithCrop,
@@ -432,9 +428,6 @@ export function ShotsWorkspace() {
   const [localFilters, setLocalFilters] = useState(() => readStoredShotFilters());
   const [viewPrefs, setViewPrefs] = useState(() => readStoredViewPrefs());
   const [sortOrderOverrides, setSortOrderOverrides] = useState(() => ({}));
-  const [editingShot, setEditingShot] = useState(null);
-  const [editAutoStatus, setEditAutoStatus] = useState(() => createInitialSectionStatuses());
-  const [isSavingShot, setIsSavingShot] = useState(false);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [isPreludeOpen, setIsPreludeOpen] = useState(false);
   const [isCreatingFromPrelude, setIsCreatingFromPrelude] = useState(false);
@@ -461,10 +454,6 @@ export function ShotsWorkspace() {
   const [gallerySectionsExpanded, setGallerySectionsExpanded] = useState(true);
   // H.11: "Recent" filter toggle for Cards view triage (in-memory, 24h window)
   const [recentFilterEnabled, setRecentFilterEnabled] = useState(false);
-  const autoSaveTimerRef = useRef(null);
-  const autoSaveInflightRef = useRef(false);
-  const editingShotRef = useRef(editingShot);
-  const isSavingShotRef = useRef(isSavingShot);
   const overview = useShotsOverview();
   const filters = overview?.filters ?? localFilters;
   const setFilters = overview?.setFilters ?? setLocalFilters;
@@ -544,14 +533,6 @@ export function ShotsWorkspace() {
     }),
     [user, claims]
   );
-
-  useEffect(() => {
-    editingShotRef.current = editingShot;
-  }, [editingShot]);
-
-  useEffect(() => {
-    isSavingShotRef.current = isSavingShot;
-  }, [isSavingShot]);
 
   useEffect(() => {
     setLastVisitedPath("/shots");
@@ -2227,56 +2208,6 @@ export function ShotsWorkspace() {
     };
   }, [focusShotId, setFocusShotId]);
 
-  const openShotEditor = useCallback(
-    (shot) => {
-      if (!shot) return;
-      setFocusShotId(shot.id);
-      try {
-        const products = normaliseShotProducts(shot);
-        const talentSelection = mapShotTalentToSelection(shot);
-        const resolvedDescription = resolveShotShortDescriptionText(shot);
-
-        // AUTO-MIGRATION: Convert legacy referenceImagePath to attachments array if needed
-        let attachments = Array.isArray(shot.attachments) ? shot.attachments : [];
-        if (attachments.length === 0 && shot.referenceImagePath) {
-          const migratedAttachment = convertLegacyImageToAttachment(shot, user?.uid);
-          if (migratedAttachment) {
-            attachments = [migratedAttachment];
-          }
-        }
-
-        const draft = {
-          name: shot.name || "",
-          // Initialize description from shot.description (no legacy fallback).
-          description: resolvedDescription,
-          type: shot.type || "",
-          notes: shot.notes || "",
-          date: toDateInputValue(shot.date),
-          locationId: shot.locationId || "",
-          status: normaliseShotStatus(shot.status || DEFAULT_SHOT_STATUS),
-          talent: talentSelection,
-          products,
-          tags: Array.isArray(shot.tags) ? shot.tags : [],
-          attachments,
-          referenceImagePath: shot.referenceImagePath || "",
-          referenceImageCrop: shot.referenceImageCrop || null,
-          referenceImageFile: null,
-          shotNumber: shot.shotNumber || "",
-        };
-        setEditingShot({
-          shot,
-          draft,
-          initialDraft: cloneShotDraft(draft),
-        });
-        setEditAutoStatus(createInitialSectionStatuses());
-      } catch (error) {
-        console.error("[Shots] Failed to prepare shot for editing", error);
-        toast.error("Unable to open shot editor");
-      }
-  },
-    [mapShotTalentToSelection, normaliseShotProducts, setEditAutoStatus, setFocusShotId, user]
-  );
-
   // Delta I.10: Navigate to V3 editor (legacy modal removed)
   const handleEditShot = useCallback(
     (shot) => {
@@ -2453,381 +2384,6 @@ export function ShotsWorkspace() {
     },
     [setCreateAutoStatus]
   );
-
-  const updateEditingDraft = useCallback(
-    (patch) => {
-      setEditingShot((previous) => {
-        if (!previous) return previous;
-        const nextDraft = {
-          ...previous.draft,
-          ...patch,
-        };
-        const baseline = previous.initialDraft || cloneShotDraft(previous.draft);
-        setEditAutoStatus((current) => deriveSectionStatuses(nextDraft, baseline, current));
-        return {
-          ...previous,
-          draft: nextDraft,
-        };
-      });
-    },
-    [setEditAutoStatus]
-  );
-
-  const closeShotEditor = useCallback(() => {
-    setEditingShot(null);
-    setIsSavingShot(false);
-    setEditAutoStatus(createInitialSectionStatuses());
-  }, [setEditAutoStatus]);
-
-  const performAutoSave = useCallback(async () => {
-    const snapshot = editingShotRef.current;
-    if (!snapshot || isSavingShotRef.current || autoSaveInflightRef.current) {
-      return;
-    }
-
-    const draft = snapshot.draft;
-    const baseline = snapshot.initialDraft || cloneShotDraft(draft);
-    const diffMap = buildSectionDiffMap(draft, baseline);
-    const hasChanges = Object.values(diffMap).some(Boolean);
-    if (!hasChanges) {
-      return;
-    }
-
-    autoSaveInflightRef.current = true;
-
-    setEditAutoStatus((current) => markSectionsForState(current, draft, baseline, "saving"));
-
-    const patch = {};
-
-    if (diffMap.basics) {
-      patch.name = draft.name;
-      patch.status = draft.status ?? DEFAULT_SHOT_STATUS;
-      patch.description = resolveShotDraftShortDescriptionSource(draft);
-      patch.shotNumber = draft.shotNumber || "";
-      patch.date = draft.date || "";
-      patch.locationId = draft.locationId || "";
-
-      // Attachments are part of basics section
-      let referenceImagePath = draft.referenceImagePath || null;
-      const referenceImageCrop = draft.referenceImageCrop || null;
-      if (draft.referenceImageFile) {
-        try {
-          const uploadResult = await uploadImageFile(draft.referenceImageFile, {
-            folder: "shots/references",
-            id: snapshot.shot.id,
-          });
-          referenceImagePath = uploadResult.path;
-        } catch (uploadError) {
-          const { message: uploadMessage } = describeFirebaseError(uploadError, "Unable to upload reference image.");
-          console.error("[Shots] Auto-save upload failed", uploadError);
-          setEditAutoStatus((current) =>
-            markSectionsForState(current, draft, baseline, "error", {
-              message: uploadMessage || "Auto-save failed",
-            })
-          );
-          toast.error({ title: "Auto-save failed", description: uploadMessage });
-          autoSaveInflightRef.current = false;
-          return;
-        }
-      }
-      patch.referenceImagePath = referenceImagePath;
-      patch.referenceImageCrop = referenceImageCrop || null;
-      patch.attachments = draft.attachments || [];
-    }
-
-    if (diffMap["creative-logistics"]) {
-      // Rich notes field
-      patch.notes = draft.notes || "";
-      // Products, talent, and tags
-      patch.products = Array.isArray(draft.products) ? draft.products.map((product) => ({ ...product })) : [];
-      patch.talent = Array.isArray(draft.talent) ? draft.talent.map((entry) => ({ ...entry })) : [];
-      patch.tags = Array.isArray(draft.tags) ? draft.tags.map((tag) => ({ ...tag })) : [];
-    }
-
-    if (!Object.keys(patch).length) {
-      autoSaveInflightRef.current = false;
-      return;
-    }
-
-    try {
-      await updateShot(snapshot.shot, patch);
-      const timestamp = Date.now();
-      const draftUpdate = {
-        ...draft,
-        // Update attachment fields if basics section was saved (attachments are in basics)
-        ...(diffMap.basics
-          ? {
-              referenceImagePath: patch.referenceImagePath || null,
-              referenceImageCrop: patch.referenceImageCrop || null,
-              referenceImageFile: null,
-              attachments: patch.attachments || [],
-            }
-          : {}),
-      };
-
-      setEditAutoStatus((current) =>
-        markSectionsForState(current, draftUpdate, baseline, "saved", { timestamp })
-      );
-
-      setEditingShot((previous) => {
-        if (!previous || previous.shot.id !== snapshot.shot.id) {
-          return previous;
-        }
-
-        const shotUpdate = { ...previous.shot };
-
-        if (diffMap.basics) {
-          shotUpdate.name = draftUpdate.name;
-          shotUpdate.status = normaliseShotStatus(draftUpdate.status ?? DEFAULT_SHOT_STATUS);
-          shotUpdate.description = draftUpdate.description || draftUpdate.type || "";
-          shotUpdate.type = draftUpdate.type || "";
-          shotUpdate.shotNumber = draftUpdate.shotNumber || "";
-          shotUpdate.date = draftUpdate.date || "";
-          shotUpdate.locationId = draftUpdate.locationId || null;
-          shotUpdate.referenceImagePath = draftUpdate.referenceImagePath || null;
-          shotUpdate.referenceImageCrop = draftUpdate.referenceImageCrop || null;
-          shotUpdate.attachments = draftUpdate.attachments || [];
-        }
-
-        if (diffMap["creative-logistics"]) {
-          shotUpdate.notes = draftUpdate.notes || "";
-          shotUpdate.products = Array.isArray(draftUpdate.products)
-            ? draftUpdate.products.map((product) => ({ ...product }))
-            : [];
-          shotUpdate.talent = Array.isArray(draftUpdate.talent)
-            ? draftUpdate.talent.map((entry) => ({ ...entry }))
-            : [];
-          shotUpdate.tags = Array.isArray(draftUpdate.tags)
-            ? draftUpdate.tags.map((tag) => ({ ...tag }))
-            : [];
-        }
-
-        return {
-          ...previous,
-          shot: shotUpdate,
-          draft: draftUpdate,
-          initialDraft: cloneShotDraft(draftUpdate),
-        };
-      });
-    } catch (error) {
-      const { message: errorMessage } = describeFirebaseError(error, "Unable to auto-save shot.");
-      console.error("[Shots] Auto-save failed", error);
-      setEditAutoStatus((current) =>
-        markSectionsForState(current, draft, baseline, "error", {
-          message: errorMessage || "Auto-save failed",
-        })
-      );
-      toast.error({ title: "Auto-save failed", description: errorMessage });
-    } finally {
-      autoSaveInflightRef.current = false;
-    }
-  }, [updateShot, setEditAutoStatus, setEditingShot]);
-
-  const handleSaveShot = useCallback(async () => {
-    if (!editingShot) return;
-    if (!canEditShots) {
-      toast.error("You do not have permission to edit shots.");
-      return;
-    }
-
-    const baselineDraft = editingShot.initialDraft || cloneShotDraft(editingShot.draft);
-    setEditAutoStatus((current) =>
-      markSectionsForState(current, editingShot.draft, baselineDraft, "saving")
-    );
-    setIsSavingShot(true);
-    try {
-      const parsed = shotDraftSchema.parse({
-        ...editingShot.draft,
-        locationId: editingShot.draft.locationId || "",
-      });
-
-      // Handle reference image upload if provided
-      let referenceImagePath = parsed.referenceImagePath || null;
-      if (editingShot.draft.referenceImageFile) {
-        try {
-          const result = await uploadImageFile(editingShot.draft.referenceImageFile, {
-            folder: "shots/references",
-            id: editingShot.shot.id,
-          });
-          referenceImagePath = result.path;
-        } catch (uploadError) {
-          console.error("[Shots] Failed to upload reference image:", uploadError);
-          toast.error({ title: "Image upload failed", description: "Continuing without updating reference image" });
-        }
-      }
-
-      await updateShot(editingShot.shot, {
-        name: parsed.name,
-        description: parsed.description || "",
-        type: parsed.type || "",
-        date: parsed.date || "",
-        locationId: parsed.locationId || null,
-        talent: parsed.talent,
-        products: parsed.products,
-        tags: parsed.tags || [],
-        referenceImagePath,
-        referenceImageCrop: editingShot.draft.referenceImageCrop || null,
-        attachments: editingShot.draft.attachments || [],
-      });
-      toast.success(`Shot "${parsed.name}" updated.`);
-      setEditAutoStatus((current) =>
-        markSectionsForState(current, editingShot.draft, baselineDraft, "saved", {
-          timestamp: Date.now(),
-        })
-      );
-      setEditingShot(null);
-      setEditAutoStatus(createInitialSectionStatuses());
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const message = error.issues.map((issue) => issue.message).join("; ");
-        toast.error({ title: "Invalid shot details", description: message });
-        setEditAutoStatus((current) =>
-          markSectionsForState(current, editingShot.draft, baselineDraft, "error", {
-            message,
-          })
-        );
-      } else {
-        const { code, message } = describeFirebaseError(error, "Unable to update shot.");
-        toast.error({ title: "Failed to update shot", description: `${code}: ${message}` });
-        setEditAutoStatus((current) =>
-          markSectionsForState(current, editingShot.draft, baselineDraft, "error", {
-            message: message || "Auto-save failed",
-          })
-        );
-      }
-      console.error("[Shots] Failed to save shot", error);
-    } finally {
-      setIsSavingShot(false);
-    }
-  }, [editingShot, canEditShots, updateShot, setEditAutoStatus]);
-
-  useEffect(() => {
-    if (!editingShot) {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-        autoSaveTimerRef.current = null;
-      }
-      return;
-    }
-
-    const hasPending = Object.values(editAutoStatus || {}).some((entry) => entry?.state === "pending");
-
-    if (hasPending && !isSavingShot && !autoSaveInflightRef.current) {
-      if (!autoSaveTimerRef.current) {
-        autoSaveTimerRef.current = setTimeout(() => {
-          autoSaveTimerRef.current = null;
-          performAutoSave();
-        }, AUTOSAVE_DELAY_MS);
-      }
-    } else if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current);
-      autoSaveTimerRef.current = null;
-    }
-  }, [editingShot, editAutoStatus, isSavingShot, performAutoSave]);
-
-  useEffect(
-    () => () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-        autoSaveTimerRef.current = null;
-      }
-    },
-    []
-  );
-
-  const handleMoveToProject = useCallback(async (targetProjectId) => {
-    if (!editingShot) return;
-    if (!canEditShots) {
-      toast.error("You do not have permission to move shots.");
-      return;
-    }
-    if (!targetProjectId) return;
-
-    const targetProject = projects.find((p) => p.id === targetProjectId);
-    if (!targetProject) {
-      toast.error({ title: "Project not found" });
-      return;
-    }
-
-    setMovingProject(true);
-    try {
-      await writeDoc("move shot to project", () =>
-        updateDoc(docRef(...currentShotsPath, editingShot.shot.id), {
-          projectId: targetProjectId,
-          laneId: null, // Remove from planner lanes when moving
-          updatedAt: serverTimestamp(),
-        })
-      );
-      toast.success({
-        title: "Shot moved",
-        description: `"${editingShot.shot.name}" has been moved to ${targetProject.name}.`,
-      });
-      setEditingShot(null);
-      setEditAutoStatus(createInitialSectionStatuses());
-    } catch (error) {
-      const { code, message } = describeFirebaseError(error, "Unable to move shot.");
-      console.error("[Shots] Failed to move shot", error);
-      toast.error({ title: "Failed to move shot", description: `${code}: ${message}` });
-    } finally {
-      setMovingProject(false);
-    }
-  }, [editingShot, canEditShots, projects, currentShotsPath, setEditAutoStatus]);
-
-  const handleCopyToProject = useCallback(async (targetProjectId) => {
-    if (!editingShot) return;
-    if (!canEditShots) {
-      toast.error("You do not have permission to copy shots.");
-      return;
-    }
-    if (!targetProjectId) return;
-
-    const targetProject = projects.find((p) => p.id === targetProjectId);
-    if (!targetProject) {
-      toast.error({ title: "Project not found" });
-      return;
-    }
-
-    setCopyingProject(true);
-    try {
-      const shotData = editingShot.shot;
-      // Create a copy without the id and with updated metadata
-      const shotCopy = {
-        name: shotData.name,
-        description: resolveShotShortDescriptionSource(shotData),
-        type: typeof shotData.type === "string" ? shotData.type : "",
-        notes: shotData.notes || "",
-        shotNumber: "",  // Intentionally blank - shot numbers are unique
-        date: shotData.date || "",
-        locationId: shotData.locationId || null,
-        projectId: targetProjectId,
-        laneId: null, // Don't assign to any lane initially
-        status: shotData.status || "todo",
-        products: shotData.products || [],
-        talent: shotData.talent || [],
-        tags: shotData.tags || [],
-        referenceImagePath: shotData.referenceImagePath || null,
-        referenceImageCrop: shotData.referenceImageCrop || null,
-        deleted: false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-
-      await writeDoc("copy shot to project", () =>
-        addDoc(collRef(...currentShotsPath), shotCopy)
-      );
-
-      toast.success({
-        title: "Shot copied",
-        description: `"${shotData.name}" has been copied to ${targetProject.name}.`,
-      });
-    } catch (error) {
-      const { code, message } = describeFirebaseError(error, "Unable to copy shot.");
-      console.error("[Shots] Failed to copy shot", error);
-      toast.error({ title: "Failed to copy shot", description: `${code}: ${message}` });
-    } finally {
-      setCopyingProject(false);
-    }
-  }, [editingShot, canEditShots, projects, currentShotsPath]);
 
   // Bulk tag operations
   const handleBulkApplyTags = useCallback(async (tagsToApply) => {

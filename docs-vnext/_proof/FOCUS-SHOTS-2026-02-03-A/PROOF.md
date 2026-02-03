@@ -75,6 +75,29 @@
 | Legacy editor route redirects | Manually open `/projects/:projectId/shots/:shotId/editor?returnTo=planner`. | Redirects to `/projects/:projectId/shots/:shotId?returnTo=planner`. |
 | Return context preserved | From planner/callsheet, open shot. | Shot header “return” behavior still works (query preserved). |
 
+### WP3 — Remove legacy inline editor hazards (trust hardening)
+
+**Spec alignment:** Aligned with `docs-vnext/slices/slice-2-shot-editing.md` (notes integrity + no accidental overwrite paths). No schema changes.
+
+**Change summary**
+- Removed the dead inline “editingShot” + autosave/editor logic from `src/pages/ShotsPage.jsx`.
+- This eliminates an unsafe write path that could overwrite legacy `shot.notes` HTML and tags from the list surface if reactivated by accident.
+
+**Touched surfaces**
+- `src/pages/ShotsPage.jsx`
+
+**Checks (2026-02-03)**
+- `npx tsc --noEmit` ✅
+- `npm test` ✅
+
+**Manual QA required (Chrome proof pending)**
+⚠️ Chrome extension not available in this session for screenshots.
+
+| Scenario | Steps | Expected |
+|---|---|---|
+| Edit flow still works | From shots list (cards/table/visual), click a shot. | Navigates to `/projects/:projectId/shots/:shotId` and editor loads. |
+| Create prelude still works | Click create shot prelude and submit. | Creates and navigates to canonical shot route. |
+
 ## Screenshots index
 
 _Screenshots live in `docs-vnext/_proof/FOCUS-SHOTS-2026-02-03-A/images/`._
