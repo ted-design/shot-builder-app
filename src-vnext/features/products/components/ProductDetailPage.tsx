@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { PageHeader } from "@/shared/components/PageHeader"
@@ -16,7 +17,6 @@ import { Separator } from "@/ui/separator"
 import { Pencil, Palette } from "lucide-react"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { canManageProducts } from "@/shared/lib/rbac"
-import { useState } from "react"
 
 export default function ProductDetailPage() {
   const { fid } = useParams<{ fid: string }>()
@@ -24,6 +24,7 @@ export default function ProductDetailPage() {
   const isMobile = useIsMobile()
   const canEdit = !isMobile && canManageProducts(role)
   const [editOpen, setEditOpen] = useState(false)
+  const [showDeleted, setShowDeleted] = useState(false)
   const { data: family, loading: famLoading, error: famError } = useProductFamily(fid ?? null)
   const { data: skus, loading: skuLoading } = useProductSkus(fid ?? null)
 
@@ -47,6 +48,23 @@ export default function ProductDetailPage() {
     )
   }
 
+  const status = (family.status ?? "active").toLowerCase()
+  const categoryLabel = family.productSubcategory ?? family.productType ?? family.category
+
+  const activeSkus = useMemo(() => skus.filter((s) => s.deleted !== true), [skus])
+  const deletedSkus = useMemo(() => skus.filter((s) => s.deleted === true), [skus])
+
+  const visibleSkus = useMemo(() => {
+    const source = showDeleted ? skus : activeSkus
+    const next = [...source]
+    next.sort((a, b) => {
+      const aName = (a.colorName ?? a.name).toLowerCase()
+      const bName = (b.colorName ?? b.name).toLowerCase()
+      return aName.localeCompare(bName, undefined, { numeric: true })
+    })
+    return next
+  }, [activeSkus, showDeleted, skus])
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -56,12 +74,24 @@ export default function ProductDetailPage() {
           { label: family.styleName },
         ]}
         actions={
-          canEdit ? (
-            <Button variant="outline" onClick={() => setEditOpen(true)}>
-              <Pencil className="h-4 w-4" />
-              Edit
-            </Button>
-          ) : null
+          <div className="flex items-center gap-2">
+            {!isMobile && deletedSkus.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 px-2 text-xs text-[var(--color-text-muted)]"
+                onClick={() => setShowDeleted((v) => !v)}
+              >
+                {showDeleted ? "Hide deleted" : `Show deleted (${deletedSkus.length})`}
+              </Button>
+            )}
+            {canEdit && (
+              <Button variant="outline" onClick={() => setEditOpen(true)}>
+                <Pencil className="h-4 w-4" />
+                Edit
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -82,18 +112,44 @@ export default function ProductDetailPage() {
               Style {family.styleNumber}
             </span>
           )}
-          {family.category && (
-            <Badge
-              variant="outline"
-              className="w-fit text-xs font-normal text-[var(--color-text-muted)]"
-            >
-              {family.category}
-            </Badge>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {categoryLabel && (
+              <Badge
+                variant="outline"
+                className="w-fit text-xs font-normal text-[var(--color-text-muted)]"
+              >
+                {categoryLabel}
+              </Badge>
+            )}
+            {family.gender && family.gender.trim().length > 0 && (
+              <Badge
+                variant="outline"
+                className="w-fit text-xs font-normal text-[var(--color-text-muted)]"
+              >
+                {family.gender}
+              </Badge>
+            )}
+            {family.archived && (
+              <Badge
+                variant="outline"
+                className="w-fit text-xs font-normal text-[var(--color-text-subtle)]"
+              >
+                Archived
+              </Badge>
+            )}
+            {status !== "active" && (
+              <Badge
+                variant="outline"
+                className="w-fit text-xs font-normal text-[var(--color-text-subtle)]"
+              >
+                {status.split("_").join(" ")}
+              </Badge>
+            )}
+          </div>
           <span className="text-xs text-[var(--color-text-subtle)]">
             {skuLoading
               ? "Loading colorways..."
-              : `${skus.length} ${skus.length === 1 ? "colorway" : "colorways"}`}
+              : `${activeSkus.length} ${activeSkus.length === 1 ? "colorway" : "colorways"}${deletedSkus.length > 0 ? ` · ${deletedSkus.length} deleted` : ""}`}
           </span>
         </div>
       </div>
@@ -108,7 +164,7 @@ export default function ProductDetailPage() {
 
         {skuLoading ? (
           <LoadingState loading />
-        ) : skus.length === 0 ? (
+        ) : activeSkus.length === 0 ? (
           <EmptyState
             icon={<Palette className="h-8 w-8" />}
             title="No colorways"
@@ -116,7 +172,7 @@ export default function ProductDetailPage() {
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {skus.map((sku) => (
+            {visibleSkus.map((sku) => (
               <ProductSkuCard
                 key={sku.id}
                 sku={sku}

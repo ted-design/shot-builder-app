@@ -93,6 +93,24 @@
 | Edit SKUs + images | Desktop: `/products/:fid` → “Edit” → add SKU, remove SKU, upload images. | Saves; images render; removed SKU is marked deleted. |
 | Mobile gating | Mobile viewport: open `/products` and `/products/:fid`. | No edit controls; read-only UI remains usable. |
 
+### WP4 — `/products/:fid` detail resilience + calm density
+
+**Spec alignment:** Aligned with `docs-vnext/design/experience-spec.md` (mobile read-only, desktop full). No new queries; still 1 doc + 1 subcollection subscription.
+
+**Change summary**
+- Product detail shows trustworthy family status/flags (archived/discontinued) and richer classification metadata.
+- Colorways render with calm density (sizes summarized; no “pills everywhere”) and stable sort by color name.
+- Deleted SKU visibility is gated behind a deliberate toggle (desktop only when deleted exist).
+
+**Touched surfaces**
+- `src-vnext/features/products/components/ProductDetailPage.tsx`
+- `src-vnext/features/products/components/ProductSkuCard.tsx`
+- `docs-vnext/_proof/FOCUS-PRODUCTS-2026-02-03-A/PROOF.md`
+
+**Checks (2026-02-03)**
+- `npx tsc --noEmit` ✅
+- `npm test` ✅
+
 ## Screenshots index
 
 _Screenshots live in `docs-vnext/_proof/FOCUS-PRODUCTS-2026-02-03-A/images/`._
