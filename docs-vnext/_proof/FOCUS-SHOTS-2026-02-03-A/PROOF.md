@@ -147,3 +147,12 @@ Proof checklist:
 
 Screenshots (to capture):
 - `wp5-editor-assets-tags-readonly.png` — Assets section shows tags with no Edit/Save controls
+
+## Checks
+
+Date: 2026-02-03
+
+- `npx tsc --noEmit` ✅
+- `npm test` ✅
+- `npm run lint` ✅
+- `npm run build` ✅
