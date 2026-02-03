@@ -1,9 +1,8 @@
 // src/pages/CallSheetPage.jsx
 // Page component for the Call Sheet Builder
 
-import React, { useState, useMemo, useCallback, lazy, Suspense } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
-import DesktopOnlyGuard from "../components/common/DesktopOnlyGuard";
+import React, { useState, useMemo, useCallback, lazy, Suspense, useEffect } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   collection,
   query,
@@ -17,6 +16,7 @@ import { shotsPath, talentPath, locationsPath, productFamiliesPath } from "../li
 import { useFirestoreCollection } from "../hooks/useFirestoreCollection";
 import { useProjects } from "../hooks/useFirestoreQuery";
 import { useSchedules, useCreateSchedule } from "../hooks/useSchedule";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { Button } from "../components/ui/button";
 import {
   DropdownMenu,
@@ -44,8 +44,10 @@ const CallSheetBuilder = lazy(() =>
  */
 function CallSheetPage() {
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, clientId } = useAuth();
+  const { clientId } = useAuth();
+  const isMobile = useIsMobile();
   const { data: projects = [] } = useProjects(clientId);
   const activeProject = useMemo(() => projects.find((p) => p.id === projectId) || null, [projects, projectId]);
   const isPreviewMode = searchParams.get("preview") === "1";
@@ -53,6 +55,19 @@ function CallSheetPage() {
   const isEnabled = FLAGS.callSheetBuilder;
   const effectiveClientId = clientId;
   const effectiveProjectId = projectId;
+
+  // Desktop-only surface: redirect mobile users out of builder mode.
+  useEffect(() => {
+    if (!isMobile) return;
+    if (isPreviewMode) return;
+    if (!projectId) return;
+    toast.info({ title: "Call Sheet builder is desktop-only", description: "Open this page on a larger screen." });
+    navigate(`/projects/${projectId}/dashboard`, { replace: true });
+  }, [isMobile, isPreviewMode, navigate, projectId]);
+
+  if (isMobile && !isPreviewMode) {
+    return null;
+  }
 
   // Active schedule ID (from URL or first available)
   const [activeScheduleId, setActiveScheduleId] = useState(null);
@@ -229,7 +244,6 @@ function CallSheetPage() {
   }
 
   return (
-    <DesktopOnlyGuard surface="The Call Sheet Builder">
     <div className={isPreviewMode ? "flex h-full flex-col" : "flex h-full flex-col gap-4 p-4"}>
       {!isPreviewMode ? (
         <div className="flex items-center justify-between">
@@ -365,7 +379,6 @@ function CallSheetPage() {
         />
       ) : null}
     </div>
-    </DesktopOnlyGuard>
   );
 }
 

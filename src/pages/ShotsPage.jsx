@@ -125,7 +125,7 @@ import {
   FilterMenu,
 } from "../components/overview";
 
-// D.1: CallSheetEmbed removed — Schedule is now standalone at /projects/:projectId/schedule
+// D.1: CallSheetEmbed removed — Call Sheet is now standalone at /projects/:projectId/callsheet
 const PlannerExportModal = lazy(() => import("../components/planner/PlannerExportModal"));
 
 // Import export normalization helpers (extracted from PlannerPage)
@@ -4724,7 +4724,7 @@ export default function ShotsPage() {
   useEffect(() => {
     const viewParam = searchParams.get("view");
     if (viewParam === "schedule" || viewParam === "planner") {
-      navigate(`/projects/${projectId}/schedule`, { replace: true });
+      navigate(`/projects/${projectId}/callsheet`, { replace: true });
       return;
     }
     if (viewParam === "assets") {
