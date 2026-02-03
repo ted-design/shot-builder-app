@@ -161,6 +161,16 @@ export default function ShotContextDock({
     return match?.name || null;
   }, [shot?.locationId, locationOptions]);
 
+  const tagSummary = useMemo(() => {
+    const tags = Array.isArray(shot?.tags) ? shot.tags : [];
+    const labels = tags
+      .map((tag) => (typeof tag === "string" ? tag : tag?.label || tag?.name || ""))
+      .filter((label) => typeof label === "string" && label.trim());
+    if (labels.length === 0) return null;
+    if (labels.length <= 2) return labels.join(", ");
+    return `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
+  }, [shot?.tags]);
+
   return (
     <aside
       onMouseEnter={handleMouseEnter}
@@ -254,11 +264,11 @@ export default function ShotContextDock({
               <span className="text-xs text-slate-600 dark:text-slate-300">
                 {counts.tags} tags
               </span>
-              {shot?.tags?.length > 0 && (
+              {tagSummary ? (
                 <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
-                  {shot.tags.join(", ")}
+                  {tagSummary}
                 </div>
-              )}
+              ) : null}
             </div>
           ) : (
             <span className="text-xs text-slate-400 dark:text-slate-500">

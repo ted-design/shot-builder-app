@@ -95,4 +95,16 @@ Screenshots (to capture):
 
 ### WP3 — Notes + tags trust hardening
 
-Status: ⏳ Pending
+Status: ✅ Completed
+
+Changes:
+- Tags render consistently as label-based summaries in the Shot editor context dock (no `[object Object]`).
+- Mobile shot detail renders tags using the shared `TagList`/`TagBadge` (color-aware when available).
+
+Proof checklist:
+- [x] Tags are visible on shot detail (desktop + mobile)
+- [x] Tag rendering is robust to legacy shapes (string vs object)
+
+Screenshots (to capture):
+- `wp3-editor-tags-dock.png` — Context dock tag summary renders labels
+- `wp3-mobile-tags.png` — Mobile tags render with TagBadge styling

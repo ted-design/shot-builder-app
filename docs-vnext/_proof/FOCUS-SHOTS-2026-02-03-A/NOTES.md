@@ -8,6 +8,7 @@
 - Reorder safety: disable drag reorder while searching/filtering so producers don’t accidentally change global order based on a subset view.
 - Undo UX: extended toast events to support an action button so reorder can provide a true “Undo” affordance.
 - Mobile operational parity: status changes are allowed on mobile (Limited mode) with Undo; `?readonly=1` disables status + addendum mutations.
+- Tags: normalize tag display by label (object tags) with safe fallback for string tags to prevent unreadable summaries.
 
 ## Risks / Watchouts
 

@@ -28,6 +28,7 @@ import { updateShotWithVersion } from "../../lib/updateShotWithVersion";
 import { toast } from "../../lib/toast";
 import { format } from "date-fns";
 import { getShotHeroImage } from "../../lib/shotHeroImage";
+import { TagList } from "../ui/TagBadge";
 
 // ─── Status badge classes (mirrors ShotTableView) ──────────────────────────
 const STATUS_LABEL_MAP = new Map(
@@ -109,6 +110,24 @@ export default function ShotReaderView({ shot, counts = {}, readOnly = false }) 
     shot?.locationName ||
     (Array.isArray(shot?.locations) && shot.locations[0]?.name) ||
     null;
+
+  const tags = useMemo(() => {
+    const raw = Array.isArray(shot?.tags) ? shot.tags : [];
+    return raw
+      .map((tag, index) => {
+        if (!tag) return null;
+        if (typeof tag === "string") {
+          return { id: tag, label: tag, color: "gray" };
+        }
+        if (typeof tag === "object") {
+          const label = tag.label || tag.name || "";
+          if (!label) return null;
+          return { id: tag.id || `${index}`, label, color: tag.color || "gray" };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }, [shot?.tags]);
 
   const handleBack = () => {
     navigate(`/projects/${projectId}/shots`);
@@ -343,21 +362,12 @@ export default function ShotReaderView({ shot, counts = {}, readOnly = false }) 
         </div>
 
         {/* Tags */}
-        {Array.isArray(shot?.tags) && shot.tags.length > 0 && (
+        {tags.length > 0 && (
           <div className="space-y-1.5">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Tags
             </span>
-            <div className="flex flex-wrap gap-1.5">
-              {shot.tags.map((tag, i) => (
-                <span
-                  key={typeof tag === "string" ? tag : tag?.id || i}
-                  className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-0.5 text-xs font-medium text-slate-700 dark:text-slate-300"
-                >
-                  {typeof tag === "string" ? tag : tag?.label || tag?.name || "Tag"}
-                </span>
-              ))}
-            </div>
+            <TagList tags={tags} emptyMessage={null} />
           </div>
         )}
 
