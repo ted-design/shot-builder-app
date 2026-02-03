@@ -36,6 +36,7 @@ export default function ProjectDashboard() {
     <ErrorBoundary>
       <PageHeader
         title="Projects"
+        breadcrumbs={[{ label: "Projects" }]}
         actions={
           showCreate ? (
             <Button onClick={() => setCreateOpen(true)}>

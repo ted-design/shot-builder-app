@@ -7,6 +7,7 @@ import { usePulls } from "@/features/pulls/hooks/usePulls"
 import { PullCard } from "@/features/pulls/components/PullCard"
 import { CreatePullDialog } from "@/features/pulls/components/CreatePullDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { canManagePulls } from "@/shared/lib/rbac"
 import { Button } from "@/ui/button"
 import { ClipboardList, Plus } from "lucide-react"
@@ -14,6 +15,7 @@ import { ClipboardList, Plus } from "lucide-react"
 export default function PullListPage() {
   const { data: pulls, loading, error } = usePulls()
   const { role } = useAuth()
+  const { projectName } = useProjectScope()
   const [createOpen, setCreateOpen] = useState(false)
 
   const showCreate = canManagePulls(role)
@@ -34,6 +36,10 @@ export default function PullListPage() {
     <ErrorBoundary>
       <PageHeader
         title="Pull Sheets"
+        breadcrumbs={[
+          { label: "Projects", to: "/projects" },
+          { label: projectName || "Project" },
+        ]}
         actions={
           showCreate ? (
             <Button onClick={() => setCreateOpen(true)}>

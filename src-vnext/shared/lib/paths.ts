@@ -92,3 +92,56 @@ export const crewPath = (clientId: string): string[] => [
   clientId,
   "crew",
 ]
+
+// --- Schedules (project-scoped) ---
+
+export const schedulesPath = (
+  projectId: string,
+  clientId: string,
+): string[] => [...projectPath(projectId, clientId), "schedules"]
+
+export const schedulePath = (
+  projectId: string,
+  scheduleId: string,
+  clientId: string,
+): string[] => [...schedulesPath(projectId, clientId), scheduleId]
+
+export const scheduleEntriesPath = (
+  projectId: string,
+  scheduleId: string,
+  clientId: string,
+): string[] => [...schedulePath(projectId, scheduleId, clientId), "entries"]
+
+export const scheduleDayDetailsPath = (
+  projectId: string,
+  scheduleId: string,
+  clientId: string,
+): string[] => [...schedulePath(projectId, scheduleId, clientId), "dayDetails"]
+
+export const scheduleTalentCallsPath = (
+  projectId: string,
+  scheduleId: string,
+  clientId: string,
+): string[] => [...schedulePath(projectId, scheduleId, clientId), "talentCalls"]
+
+export const scheduleCrewCallsPath = (
+  projectId: string,
+  scheduleId: string,
+  clientId: string,
+): string[] => [...schedulePath(projectId, scheduleId, clientId), "crewCalls"]
+
+export const scheduleClientCallsPath = (
+  projectId: string,
+  scheduleId: string,
+  clientId: string,
+): string[] => [...schedulePath(projectId, scheduleId, clientId), "clientCalls"]
+
+export const callSheetConfigPath = (
+  projectId: string,
+  scheduleId: string,
+  clientId: string,
+): string[] => [
+  ...schedulePath(projectId, scheduleId, clientId),
+  "callSheet",
+  "config",
+]

@@ -15,7 +15,8 @@ function mapFamily(id: string, data: Record<string, unknown>): ProductFamily {
     styleName: (data["styleName"] as string) ?? "",
     styleNumber: data["styleNumber"] as string | undefined,
     category: data["category"] as string | undefined,
-    imageUrl: data["imageUrl"] as string | undefined,
+    headerImagePath: data["headerImagePath"] as string | undefined,
+    thumbnailImagePath: data["thumbnailImagePath"] as string | undefined,
     clientId: (data["clientId"] as string) ?? "",
   }
 }

@@ -10,6 +10,7 @@ import { DraggableShotList } from "@/features/shots/components/DraggableShotList
 import { ShotReorderControls } from "@/features/shots/components/ShotReorderControls"
 import { CreateShotDialog } from "@/features/shots/components/CreateShotDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { canManageShots } from "@/shared/lib/rbac"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { Button } from "@/ui/button"
@@ -70,6 +71,7 @@ function filterByStatus(
 export default function ShotListPage() {
   const { data: shots, loading, error } = useShots()
   const { role } = useAuth()
+  const { projectName } = useProjectScope()
   const isMobile = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
   const [createOpen, setCreateOpen] = useState(false)
@@ -139,6 +141,10 @@ export default function ShotListPage() {
     <ErrorBoundary>
       <PageHeader
         title="Shots"
+        breadcrumbs={[
+          { label: "Projects", to: "/projects" },
+          { label: projectName || "Project" },
+        ]}
         actions={
           showCreate ? (
             <Button onClick={() => setCreateOpen(true)}>

@@ -20,6 +20,18 @@ const PullListPage = lazy(
 const PullDetailPage = lazy(
   () => import("@/features/pulls/components/PullDetailPage"),
 )
+const ScheduleListPage = lazy(
+  () => import("@/features/schedules/components/ScheduleListPage"),
+)
+const CallSheetBuilderPage = lazy(
+  () => import("@/features/schedules/components/CallSheetBuilderPage"),
+)
+const ProductListPage = lazy(
+  () => import("@/features/products/components/ProductListPage"),
+)
+const ProductDetailPage = lazy(
+  () => import("@/features/products/components/ProductDetailPage"),
+)
 
 function PageFallback() {
   return (
@@ -83,6 +95,24 @@ export function AppRoutes() {
               </ProjectScopeProvider>
             }
           />
+          <Route
+            path="projects/:id/schedules"
+            element={
+              <ProjectScopeProvider>
+                <ScheduleListPage />
+              </ProjectScopeProvider>
+            }
+          />
+          <Route
+            path="projects/:id/callsheet"
+            element={
+              <ProjectScopeProvider>
+                <CallSheetBuilderPage />
+              </ProjectScopeProvider>
+            }
+          />
+          <Route path="products" element={<ProductListPage />} />
+          <Route path="products/:fid" element={<ProductDetailPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>

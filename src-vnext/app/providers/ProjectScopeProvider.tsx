@@ -4,9 +4,11 @@ import {
   type ReactNode,
 } from "react"
 import { useParams } from "react-router-dom"
+import { useProject } from "@/features/projects/hooks/useProject"
 
 interface ProjectScopeContextValue {
   readonly projectId: string
+  readonly projectName: string
 }
 
 const ProjectScopeContext = createContext<ProjectScopeContextValue | null>(null)
@@ -24,8 +26,12 @@ export function ProjectScopeProvider({
     )
   }
 
+  const { data: project } = useProject(id)
+
   return (
-    <ProjectScopeContext.Provider value={{ projectId: id }}>
+    <ProjectScopeContext.Provider
+      value={{ projectId: id, projectName: project?.name ?? "" }}
+    >
       {children}
     </ProjectScopeContext.Provider>
   )

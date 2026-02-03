@@ -13,6 +13,14 @@ import {
   talentPath,
   locationsPath,
   crewPath,
+  schedulesPath,
+  schedulePath,
+  scheduleEntriesPath,
+  scheduleDayDetailsPath,
+  scheduleTalentCallsPath,
+  scheduleCrewCallsPath,
+  scheduleClientCallsPath,
+  callSheetConfigPath,
 } from "./paths"
 
 const CLIENT = "test-client"
@@ -95,6 +103,56 @@ describe("Firestore Path Builders", () => {
 
     it("builds crewPath", () => {
       expect(crewPath(CLIENT)).toEqual(["clients", "test-client", "crew"])
+    })
+  })
+
+  describe("schedules (project-scoped)", () => {
+    it("builds schedulesPath under project", () => {
+      expect(schedulesPath("proj-1", CLIENT)).toEqual([
+        "clients", "test-client", "projects", "proj-1", "schedules",
+      ])
+    })
+
+    it("builds schedulePath", () => {
+      expect(schedulePath("proj-1", "sched-1", CLIENT)).toEqual([
+        "clients", "test-client", "projects", "proj-1", "schedules", "sched-1",
+      ])
+    })
+
+    it("builds scheduleEntriesPath", () => {
+      expect(scheduleEntriesPath("proj-1", "sched-1", CLIENT)).toEqual([
+        "clients", "test-client", "projects", "proj-1", "schedules", "sched-1", "entries",
+      ])
+    })
+
+    it("builds scheduleDayDetailsPath", () => {
+      expect(scheduleDayDetailsPath("proj-1", "sched-1", CLIENT)).toEqual([
+        "clients", "test-client", "projects", "proj-1", "schedules", "sched-1", "dayDetails",
+      ])
+    })
+
+    it("builds scheduleTalentCallsPath", () => {
+      expect(scheduleTalentCallsPath("proj-1", "sched-1", CLIENT)).toEqual([
+        "clients", "test-client", "projects", "proj-1", "schedules", "sched-1", "talentCalls",
+      ])
+    })
+
+    it("builds scheduleCrewCallsPath", () => {
+      expect(scheduleCrewCallsPath("proj-1", "sched-1", CLIENT)).toEqual([
+        "clients", "test-client", "projects", "proj-1", "schedules", "sched-1", "crewCalls",
+      ])
+    })
+
+    it("builds scheduleClientCallsPath", () => {
+      expect(scheduleClientCallsPath("proj-1", "sched-1", CLIENT)).toEqual([
+        "clients", "test-client", "projects", "proj-1", "schedules", "sched-1", "clientCalls",
+      ])
+    })
+
+    it("builds callSheetConfigPath (doc path)", () => {
+      expect(callSheetConfigPath("proj-1", "sched-1", CLIENT)).toEqual([
+        "clients", "test-client", "projects", "proj-1", "schedules", "sched-1", "callSheet", "config",
+      ])
     })
   })
 

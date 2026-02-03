@@ -10,6 +10,7 @@ import { ProductAssignmentPicker } from "@/features/shots/components/ProductAssi
 import { NotesSection } from "@/features/shots/components/NotesSection"
 import { HeroImageSection } from "@/features/shots/components/HeroImageSection"
 import { updateShotField } from "@/features/shots/lib/updateShot"
+import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { canManageShots } from "@/shared/lib/rbac"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
@@ -20,18 +21,8 @@ import { Textarea } from "@/ui/textarea"
 import { Separator } from "@/ui/separator"
 import { Badge } from "@/ui/badge"
 import { ArrowLeft } from "lucide-react"
-import { Timestamp } from "firebase/firestore"
 import { toast } from "sonner"
 import { useState } from "react"
-
-function formatShotDate(date: Timestamp | undefined): string {
-  if (!date) return ""
-  const d = date.toDate()
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, "0")
-  const dd = String(d.getDate()).padStart(2, "0")
-  return `${yyyy}-${mm}-${dd}`
-}
 
 export default function ShotDetailPage() {
   const { sid } = useParams<{ sid: string }>()
@@ -43,17 +34,14 @@ export default function ShotDetailPage() {
   const canEdit = canManageShots(role) && !isMobile
   const canDoOperational = canManageShots(role)
 
-  /**
-   * Save arbitrary fields to the shot document.
-   * SAFETY: Never include `notes` in the fields object.
-   * Legacy HTML notes are read-only. Use `notesAddendum` only.
-   */
-  const save = async (fields: Record<string, unknown>) => {
-    if (!shot || !clientId) return
+  const save = async (fields: Record<string, unknown>): Promise<boolean> => {
+    if (!shot || !clientId) return false
     try {
       await updateShotField(shot.id, clientId, fields)
+      return true
     } catch {
       toast.error("Failed to save changes")
+      return false
     }
   }
 
@@ -76,7 +64,7 @@ export default function ShotDetailPage() {
   return (
     <ErrorBoundary>
       <div className="flex flex-col gap-6">
-        {/* Header: back, title, shot number, status */}
+        {/* ── Header: back, title, shot number, status ── */}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
@@ -117,73 +105,104 @@ export default function ShotDetailPage() {
 
         <Separator />
 
-        {/* Hero image: display on all viewports, upload on desktop only */}
-        <HeroImageSection
-          heroImage={shot.heroImage}
-          shotId={shot.id}
-          canUpload={canEdit}
-        />
+        {/* ── Composition zone: hero + assignments ── */}
+        <div className="grid gap-6 md:grid-cols-[1fr_minmax(280px,360px)]">
+          {/* LEFT: Hero image (visual anchor) */}
+          <div>
+            <HeroImageSection
+              heroImage={shot.heroImage}
+              shotId={shot.id}
+              canUpload={canEdit}
+            />
+          </div>
 
+          {/* RIGHT: Composition panel — what's in the frame */}
+          <div className="flex flex-col gap-5">
+            <SectionLabel>Products</SectionLabel>
+            <ProductAssignmentPicker
+              selected={shot.products}
+              onSave={(products) => save({ products })}
+              disabled={!canEdit}
+            />
+
+            <SectionLabel>Talent</SectionLabel>
+            <TalentPicker
+              selectedIds={shot.talentIds ?? shot.talent}
+              onSave={(ids) => save({ talent: ids, talentIds: ids })}
+              disabled={!canEdit}
+            />
+
+            <SectionLabel>Location</SectionLabel>
+            <LocationPicker
+              selectedId={shot.locationId}
+              selectedName={shot.locationName}
+              onSave={(locationId, locationName) =>
+                save({ locationId, locationName })
+              }
+              disabled={!canEdit}
+            />
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* ── Metadata zone: secondary, below-the-fold ── */}
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Left column: metadata + notes */}
           <div className="flex flex-col gap-4">
-            {/* Date field */}
-            <div>
-              <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                Date
-              </Label>
-              {canEdit ? (
-                <DateEditor
-                  value={formatShotDate(shot.date)}
-                  onSave={(dateStr) => {
-                    if (!dateStr) {
-                      save({ date: null })
-                      return
-                    }
-                    const ms = Date.parse(dateStr)
-                    if (!Number.isNaN(ms)) {
-                      save({ date: Timestamp.fromMillis(ms) })
-                    }
-                  }}
-                />
-              ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  {formatShotDate(shot.date) || "No date set"}
-                </p>
-              )}
-            </div>
+            <SectionLabel>Date</SectionLabel>
+            {canEdit ? (
+              <DateEditor
+                value={formatDateOnly(shot.date)}
+                onSave={(dateStr) => {
+                  if (!dateStr) {
+                    save({ date: null })
+                    return
+                  }
+                  try {
+                    const ts = parseDateOnly(dateStr)
+                    save({ date: ts })
+                  } catch {
+                    toast.error("Invalid date")
+                  }
+                }}
+              />
+            ) : (
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                {formatDateOnly(shot.date) || "No date set"}
+              </p>
+            )}
 
-            {/* Description */}
-            <div>
-              <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                Description
-              </Label>
-              {canEdit ? (
-                <DescriptionEditor
-                  value={shot.description ?? ""}
-                  onSave={(description) => save({ description: description || null })}
-                />
-              ) : (
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  {shot.description || "No description"}
-                </p>
-              )}
-            </div>
+            <SectionLabel>Description</SectionLabel>
+            {canEdit ? (
+              <DescriptionEditor
+                value={shot.description ?? ""}
+                onSave={(description) => save({ description: description || null })}
+              />
+            ) : (
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                {shot.description || "No description"}
+              </p>
+            )}
+          </div>
 
-            {/* Notes: read-only HTML + writable addendum */}
+          <div className="flex flex-col gap-4">
             <NotesSection
               notes={shot.notes}
               notesAddendum={shot.notesAddendum}
-              onSaveAddendum={(value) => save({ notesAddendum: value || null })}
+              onAppendAddendum={async (newEntry) => {
+                const existing = (shot.notesAddendum ?? "").trim()
+                const appended = existing
+                  ? `${existing}\n\n${newEntry}`
+                  : newEntry
+                const ok = await save({ notesAddendum: appended })
+                if (!ok) throw new Error("Failed to save addendum")
+              }}
               canEditAddendum={canDoOperational}
             />
 
-            {/* Tags: read-only badges */}
             {shot.tags && shot.tags.length > 0 && (
               <div>
-                <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                  Tags
-                </Label>
+                <SectionLabel>Tags</SectionLabel>
                 <div className="flex flex-wrap gap-1.5">
                   {shot.tags.map((tag) => (
                     <Badge
@@ -199,48 +218,17 @@ export default function ShotDetailPage() {
               </div>
             )}
           </div>
-
-          {/* Right column: assignments */}
-          <div className="flex flex-col gap-4">
-            <div>
-              <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                Products
-              </Label>
-              <ProductAssignmentPicker
-                selected={shot.products}
-                onSave={(products) => save({ products })}
-                disabled={!canEdit}
-              />
-            </div>
-
-            <div>
-              <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                Talent
-              </Label>
-              <TalentPicker
-                selectedIds={shot.talentIds ?? shot.talent}
-                onSave={(ids) => save({ talent: ids, talentIds: ids })}
-                disabled={!canEdit}
-              />
-            </div>
-
-            <div>
-              <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                Location
-              </Label>
-              <LocationPicker
-                selectedId={shot.locationId}
-                selectedName={shot.locationName}
-                onSave={(locationId, locationName) =>
-                  save({ locationId, locationName })
-                }
-                disabled={!canEdit}
-              />
-            </div>
-          </div>
         </div>
       </div>
     </ErrorBoundary>
+  )
+}
+
+function SectionLabel({ children }: { readonly children: React.ReactNode }) {
+  return (
+    <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+      {children}
+    </span>
   )
 }
 

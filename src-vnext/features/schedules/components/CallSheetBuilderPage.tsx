@@ -1,0 +1,246 @@
+import { useEffect, useState } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
+import { toast } from "sonner"
+import { CalendarDays, ZoomIn, ZoomOut } from "lucide-react"
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
+import { LoadingState } from "@/shared/components/LoadingState"
+import { EmptyState } from "@/shared/components/EmptyState"
+import { useAuth } from "@/app/providers/AuthProvider"
+import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
+import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { useSchedule } from "@/features/schedules/hooks/useSchedule"
+import { useScheduleDayDetails } from "@/features/schedules/hooks/useScheduleDayDetails"
+import { useScheduleEntries } from "@/features/schedules/hooks/useScheduleEntries"
+import { useScheduleTalentCalls } from "@/features/schedules/hooks/useScheduleTalentCalls"
+import { useScheduleCrewCalls } from "@/features/schedules/hooks/useScheduleCrewCalls"
+import { useTalent } from "@/features/shots/hooks/usePickerData"
+import { useCrew } from "@/features/schedules/hooks/useCrew"
+import { CallSheetRenderer } from "@/features/schedules/components/CallSheetRenderer"
+import { DayDetailsEditor } from "@/features/schedules/components/DayDetailsEditor"
+import { ScheduleEntryEditor } from "@/features/schedules/components/ScheduleEntryEditor"
+import { CallOverridesEditor } from "@/features/schedules/components/CallOverridesEditor"
+import { TrustChecks } from "@/features/schedules/components/TrustChecks"
+import { PageHeader } from "@/shared/components/PageHeader"
+import { Button } from "@/ui/button"
+
+function formatScheduleDate(date: import("@/shared/types").Schedule["date"]): string {
+  if (!date) return ""
+  try {
+    return date.toDate().toLocaleDateString(undefined, {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
+  } catch {
+    return ""
+  }
+}
+
+export default function CallSheetBuilderPage() {
+  const { clientId } = useAuth()
+  const { projectId, projectName } = useProjectScope()
+  const isMobile = useIsMobile()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  const scheduleId = searchParams.get("scheduleId")
+
+  // Mobile redirect
+  useEffect(() => {
+    if (isMobile) {
+      toast.info("Call sheet builder is available on desktop only.")
+      navigate(`/projects/${projectId}/shots`, { replace: true })
+    }
+  }, [isMobile, navigate, projectId])
+
+  const {
+    data: schedule,
+    loading: scheduleLoading,
+    error: scheduleError,
+  } = useSchedule(clientId, projectId, scheduleId)
+
+  const {
+    data: dayDetails,
+    loading: dayDetailsLoading,
+  } = useScheduleDayDetails(clientId, projectId, scheduleId)
+
+  const {
+    data: entries,
+  } = useScheduleEntries(clientId, projectId, scheduleId)
+
+  const {
+    data: talentCalls,
+  } = useScheduleTalentCalls(clientId, projectId, scheduleId)
+
+  const {
+    data: crewCalls,
+  } = useScheduleCrewCalls(clientId, projectId, scheduleId)
+
+  const { data: talentLibrary } = useTalent()
+  const { data: crewLibrary } = useCrew(clientId)
+  const [previewScale, setPreviewScale] = useState(100)
+
+  // Mobile: render nothing while redirect fires
+  if (isMobile) return null
+
+  // No schedule selected
+  if (!scheduleId) {
+    return (
+      <ErrorBoundary>
+        <EmptyState
+          icon={<CalendarDays className="h-12 w-12" />}
+          title="No schedule selected"
+          description="Select a schedule to start building your call sheet."
+          actionLabel="Select a schedule"
+          onAction={() => navigate(`/projects/${projectId}/schedules`)}
+        />
+      </ErrorBoundary>
+    )
+  }
+
+  // Loading
+  if (scheduleLoading || dayDetailsLoading) {
+    return <LoadingState loading />
+  }
+
+  // Error or schedule not found
+  if (scheduleError) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-sm text-[var(--color-error)]">{scheduleError}</p>
+      </div>
+    )
+  }
+
+  if (!schedule) {
+    return (
+      <ErrorBoundary>
+        <EmptyState
+          icon={<CalendarDays className="h-12 w-12" />}
+          title="Schedule not found"
+          description="This schedule may have been deleted or you may not have access."
+          actionLabel="Back to schedules"
+          onAction={() => navigate(`/projects/${projectId}/schedules`)}
+        />
+      </ErrorBoundary>
+    )
+  }
+
+  const dateStr = formatScheduleDate(schedule.date)
+
+  return (
+    <ErrorBoundary>
+      {/* E1: Header band */}
+      <div className="mb-3 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] pb-3">
+        <div>
+          <PageHeader
+            title={schedule.name || "Call Sheet"}
+            breadcrumbs={[
+              { label: "Projects", to: "/projects" },
+              { label: projectName || "Project", to: `/projects/${projectId}/shots` },
+              { label: "Call Sheet" },
+            ]}
+          />
+          {dateStr && (
+            <p className="-mt-3 text-sm text-[var(--color-text-muted)]">{dateStr}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/projects/${projectId}/schedules`)}
+          >
+            Change Schedule
+          </Button>
+        </div>
+      </div>
+
+      {/* E2: Split-pane layout — fixed left, flex right */}
+      <div className="flex gap-6" style={{ minHeight: "calc(100vh - 10rem)" }}>
+        {/* Left pane: Editor (fixed width) */}
+        <div className="flex w-[420px] shrink-0 flex-col gap-4 overflow-y-auto">
+          <DayDetailsEditor
+            scheduleId={scheduleId}
+            scheduleName={schedule.name}
+            dateStr={dateStr}
+            dayDetails={dayDetails}
+          />
+
+          {/* E4: Day-stream connector wrapper */}
+          <div className="schedule-entry-stream">
+            <ScheduleEntryEditor
+              scheduleId={scheduleId}
+              entries={entries}
+            />
+          </div>
+
+          <CallOverridesEditor
+            scheduleId={scheduleId}
+            dayDetails={dayDetails}
+            talentCalls={talentCalls}
+            crewCalls={crewCalls}
+            talentLibrary={talentLibrary}
+            crewLibrary={crewLibrary}
+          />
+
+          <TrustChecks
+            schedule={schedule}
+            entries={entries}
+            dayDetails={dayDetails}
+            talentCalls={talentCalls}
+            crewCalls={crewCalls}
+            crewLibrary={crewLibrary}
+          />
+        </div>
+
+        {/* E3: Right pane — preview frame (page-on-desk) */}
+        <div className="flex flex-1 min-w-0 flex-col overflow-y-auto rounded-lg doc-canvas p-5">
+          {/* Scale control */}
+          <div className="mb-3 flex items-center justify-end gap-1">
+            <Button
+              variant={previewScale === 85 ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setPreviewScale(85)}
+            >
+              <ZoomOut className="mr-1 h-3 w-3" />
+              85%
+            </Button>
+            <Button
+              variant={previewScale === 100 ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setPreviewScale(100)}
+            >
+              <ZoomIn className="mr-1 h-3 w-3" />
+              100%
+            </Button>
+          </div>
+
+          {/* Document page */}
+          <div
+            className="mx-auto w-full doc-page"
+            style={{
+              transform: previewScale !== 100 ? `scale(${previewScale / 100})` : undefined,
+              transformOrigin: "top center",
+            }}
+          >
+            <div className="doc-page-content">
+              <CallSheetRenderer
+                schedule={schedule}
+                dayDetails={dayDetails}
+                entries={entries}
+                talentCalls={talentCalls}
+                crewCalls={crewCalls}
+                talentLookup={talentLibrary}
+                crewLookup={crewLibrary}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </ErrorBoundary>
+  )
+}

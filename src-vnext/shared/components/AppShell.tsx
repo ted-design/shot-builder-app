@@ -4,6 +4,8 @@ import {
   FolderKanban,
   Camera,
   ClipboardList,
+  CalendarDays,
+  Package,
   Menu,
   LogOut,
   ChevronLeft,
@@ -22,63 +24,110 @@ interface NavItem {
   readonly label: string
   readonly to: string
   readonly icon: React.ReactNode
+  readonly desktopOnly?: boolean
 }
 
-function getNavItems(projectId?: string): NavItem[] {
-  const items: NavItem[] = [
-    { label: "Dashboard", to: "/projects", icon: <FolderKanban className="h-5 w-5" /> },
+interface NavSection {
+  readonly label: string
+  readonly items: readonly NavItem[]
+}
+
+function getNavSections(projectId?: string): readonly NavSection[] {
+  const sections: NavSection[] = [
+    {
+      label: "Projects",
+      items: [
+        { label: "Dashboard", to: "/projects", icon: <FolderKanban className="h-5 w-5" /> },
+      ],
+    },
   ]
 
   if (projectId) {
-    items.push(
-      {
-        label: "Shots",
-        to: `/projects/${projectId}/shots`,
-        icon: <Camera className="h-5 w-5" />,
-      },
-      {
-        label: "Pulls",
-        to: `/projects/${projectId}/pulls`,
-        icon: <ClipboardList className="h-5 w-5" />,
-      },
-    )
+    sections.push({
+      label: "Project",
+      items: [
+        {
+          label: "Shots",
+          to: `/projects/${projectId}/shots`,
+          icon: <Camera className="h-5 w-5" />,
+        },
+        {
+          label: "Pulls",
+          to: `/projects/${projectId}/pulls`,
+          icon: <ClipboardList className="h-5 w-5" />,
+        },
+        {
+          label: "Call Sheet",
+          to: `/projects/${projectId}/schedules`,
+          icon: <CalendarDays className="h-5 w-5" />,
+        },
+      ],
+    })
   }
 
-  return items
+  sections.push({
+    label: "Org",
+    items: [
+      {
+        label: "Products",
+        to: "/products",
+        icon: <Package className="h-5 w-5" />,
+      },
+    ],
+  })
+
+  return sections
 }
 
 function NavLinks({
-  items,
+  sections,
   pathname,
   collapsed,
   onNavigate,
+  filterDesktopOnly,
 }: {
-  readonly items: NavItem[]
+  readonly sections: readonly NavSection[]
   readonly pathname: string
   readonly collapsed: boolean
   readonly onNavigate?: () => void
+  readonly filterDesktopOnly?: boolean
 }) {
   return (
-    <nav className="flex flex-col gap-1 px-2">
-      {items.map((item) => {
-        const active = pathname === item.to || pathname.startsWith(item.to + "/")
+    <nav className="flex flex-col gap-4 px-2">
+      {sections.map((section) => {
+        const items = filterDesktopOnly
+          ? section.items.filter((item) => !item.desktopOnly)
+          : section.items
+        if (items.length === 0) return null
         return (
-          <Link
-            key={item.to}
-            to={item.to}
-            onClick={onNavigate}
-            className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              active
-                ? "bg-[var(--color-sidebar-active)] text-[var(--color-sidebar-text-active)]"
-                : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-[var(--color-sidebar-text-active)]",
-              collapsed && "justify-center px-2",
+          <div key={section.label} className="flex flex-col gap-1">
+            {!collapsed && (
+              <span className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-sidebar-text)] opacity-50">
+                {section.label}
+              </span>
             )}
-            title={collapsed ? item.label : undefined}
-          >
-            {item.icon}
-            {!collapsed && <span>{item.label}</span>}
-          </Link>
+            {items.map((item) => {
+              const active = pathname === item.to || pathname.startsWith(item.to + "/")
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={onNavigate}
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    active
+                      ? "bg-[var(--color-sidebar-active)] text-[var(--color-sidebar-text-active)]"
+                      : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-[var(--color-sidebar-text-active)]",
+                    collapsed && "justify-center px-2",
+                  )}
+                  title={collapsed ? item.label : undefined}
+                >
+                  {item.icon}
+                  {!collapsed && <span>{item.label}</span>}
+                </Link>
+              )
+            })}
+          </div>
         )
       })}
     </nav>
@@ -86,12 +135,12 @@ function NavLinks({
 }
 
 function DesktopSidebar({
-  items,
+  sections,
   pathname,
   collapsed,
   onToggleCollapse,
 }: {
-  readonly items: NavItem[]
+  readonly sections: readonly NavSection[]
   readonly pathname: string
   readonly collapsed: boolean
   readonly onToggleCollapse: () => void
@@ -122,7 +171,7 @@ function DesktopSidebar({
       <Separator className="bg-[var(--color-sidebar-hover)]" />
 
       <div className="flex-1 overflow-y-auto py-4">
-        <NavLinks items={items} pathname={pathname} collapsed={collapsed} />
+        <NavLinks sections={sections} pathname={pathname} collapsed={collapsed} />
       </div>
 
       <Separator className="bg-[var(--color-sidebar-hover)]" />
@@ -158,10 +207,10 @@ function DesktopSidebar({
 }
 
 function MobileHeader({
-  items,
+  sections,
   pathname,
 }: {
-  readonly items: NavItem[]
+  readonly sections: readonly NavSection[]
   readonly pathname: string
 }) {
   const { user, signOut } = useAuth()
@@ -182,10 +231,11 @@ function MobileHeader({
           <Separator className="bg-[var(--color-sidebar-hover)]" />
           <div className="py-4">
             <NavLinks
-              items={items}
+              sections={sections}
               pathname={pathname}
               collapsed={false}
               onNavigate={() => setDrawerOpen(false)}
+              filterDesktopOnly
             />
           </div>
           <Separator className="bg-[var(--color-sidebar-hover)]" />
@@ -226,17 +276,17 @@ export function AppShell() {
   const isMobile = useIsMobile()
   const [collapsed, setCollapsed] = useState(false)
 
-  const navItems = getNavItems(projectId)
+  const navSections = getNavSections(projectId)
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
       <OfflineBanner />
 
       {isMobile ? (
-        <MobileHeader items={navItems} pathname={pathname} />
+        <MobileHeader sections={navSections} pathname={pathname} />
       ) : (
         <DesktopSidebar
-          items={navItems}
+          sections={navSections}
           pathname={pathname}
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed((c) => !c)}

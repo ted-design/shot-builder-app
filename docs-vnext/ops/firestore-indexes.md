@@ -19,6 +19,31 @@ Keep server-side Firestore queries minimal to avoid index explosion.
 ```typescript
 where("projectId", "==", projectId),
 where("deleted", "==", false),
+orderBy("date", "asc")
+```
+
+**Composite Index:**
+
+| Field | Order |
+|---|---|
+| `projectId` | Ascending |
+| `deleted` | Ascending |
+| `date` | Ascending |
+
+**Scope:** Collection
+
+**Status:** Active. Matches the legacy shots query. Legacy shots lack `sortOrder`, so vNext sorts client-side by `sortOrder` when present, otherwise preserves server order (date asc). The previous index (projectId+deleted+sortOrder) was incorrect and excluded legacy docs missing `sortOrder`.
+
+---
+
+### Shots List — Future (after sortOrder backfill)
+
+**Collection:** `clients/{clientId}/shots`
+
+**Query:**
+```typescript
+where("projectId", "==", projectId),
+where("deleted", "==", false),
 orderBy("sortOrder", "asc")
 ```
 
@@ -32,7 +57,7 @@ orderBy("sortOrder", "asc")
 
 **Scope:** Collection
 
-**Status:** Required for Slice 2 shot list. All other sort modes (name, date, status, created) are client-side sorts of the subscribed array.
+**Status:** Not yet created. Requires a backfill migration to populate `sortOrder` on all legacy shot documents before this index can replace the date-based index. Do not create until backfill is complete and verified. After backfill, the date-based index can be retired.
 
 ## Dev-Only Index URL
 

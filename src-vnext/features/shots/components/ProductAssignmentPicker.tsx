@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from "@/ui/select"
 import { Button } from "@/ui/button"
-import { Badge } from "@/ui/badge"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
 import { Separator } from "@/ui/separator"
@@ -29,12 +28,14 @@ import {
   useProductFamilies,
   useProductSkus,
 } from "@/features/shots/hooks/usePickerData"
-import { Package, Plus, X, ChevronLeft } from "lucide-react"
+import { Package, Plus, X, ChevronLeft, Loader2 } from "lucide-react"
+import { resolveStoragePath } from "@/shared/lib/resolveStoragePath"
+import { toast } from "sonner"
 import type { ProductAssignment, ProductFamily, ProductSku, SizeScope } from "@/shared/types"
 
 interface ProductAssignmentPickerProps {
   readonly selected: ReadonlyArray<ProductAssignment>
-  readonly onSave: (products: ProductAssignment[]) => void
+  readonly onSave: (products: ProductAssignment[]) => Promise<boolean>
   readonly disabled?: boolean
 }
 
@@ -54,6 +55,13 @@ const EMPTY_DRAFT: DraftAssignment = {
   sizeScope: "all",
   size: "",
   quantity: 1,
+}
+
+/** Remove undefined values from an object so Firestore doesn't reject the write. */
+function stripUndefined(obj: ProductAssignment): ProductAssignment {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined),
+  ) as unknown as ProductAssignment
 }
 
 export function ProductAssignmentPicker({
@@ -90,39 +98,82 @@ export function ProductAssignmentPicker({
     setDialogOpen(true)
   }
 
-  const handleRemove = (index: number) => {
-    const next = selected.filter((_, i) => i !== index)
-    onSave([...next])
+  const [removing, setRemoving] = useState<number | null>(null)
+
+  const handleRemove = async (index: number) => {
+    const next = selected.filter((_, i) => i !== index).map(stripUndefined)
+    setRemoving(index)
+    try {
+      const ok = await onSave([...next])
+      if (!ok) {
+        toast.error("Failed to remove product. Try again.")
+      }
+    } finally {
+      setRemoving(null)
+    }
   }
 
-  const handleConfirm = () => {
-    if (!draft.family) return
+  const [confirming, setConfirming] = useState(false)
 
-    const patch: ProductAssignment = {
+  const handleConfirm = async () => {
+    if (!draft.family) return
+    setConfirming(true)
+
+    try {
+      const rawSkuImage = draft.sku?.imagePath ?? undefined
+      const rawFamilyImage = draft.family.headerImagePath ?? draft.family.thumbnailImagePath ?? undefined
+
+      const [skuImageUrl, familyImageUrl] = await Promise.all([
+        rawSkuImage ? resolveStoragePath(rawSkuImage).catch(() => undefined) : Promise.resolve(undefined),
+        rawFamilyImage ? resolveStoragePath(rawFamilyImage).catch(() => undefined) : Promise.resolve(undefined),
+      ])
+
+      const thumbUrl = skuImageUrl ?? familyImageUrl
+
+    // Build patch with only defined fields — Firestore rejects `undefined` values.
+    const patch: Record<string, unknown> = {
       familyId: draft.family.id,
       familyName: draft.family.styleName,
-      skuId: draft.sku?.id,
-      skuName: draft.sku?.name,
-      colourId: draft.sku?.id,
-      colourName: draft.sku ? (draft.sku.colorName ?? draft.sku.name) : undefined,
       sizeScope: draft.sizeScope,
-      size: draft.sizeScope === "single" && draft.size ? draft.size : undefined,
       quantity: draft.quantity,
     }
+    if (draft.sku?.id) {
+      patch.skuId = draft.sku.id
+      patch.colourId = draft.sku.id
+      patch.skuName = draft.sku.name
+      patch.colourName = draft.sku.colorName ?? draft.sku.name
+    }
+    if (draft.sizeScope === "single" && draft.size) {
+      patch.size = draft.size
+    }
+    if (thumbUrl) patch.thumbUrl = thumbUrl
+    if (skuImageUrl) patch.skuImageUrl = skuImageUrl
+    if (familyImageUrl) patch.familyImageUrl = familyImageUrl
 
     let next: ProductAssignment[]
     if (editIndex !== null) {
-      // Spread existing assignment to preserve unknown legacy fields
       const existing = selected[editIndex]
       next = selected.map((item, i) =>
-        i === editIndex ? { ...existing, ...patch } : item,
+        i === editIndex
+          ? stripUndefined({ ...existing, ...patch } as unknown as ProductAssignment)
+          : stripUndefined(item),
       )
     } else {
-      next = [...selected, patch]
+      next = [
+        ...selected.map(stripUndefined),
+        stripUndefined(patch as unknown as ProductAssignment),
+      ]
     }
 
-    onSave(next)
-    setDialogOpen(false)
+    const ok = await onSave(next)
+    if (ok) {
+      setDialogOpen(false)
+    } else {
+      toast.error("Failed to save product assignment. Try again.")
+    }
+    } finally {
+      setConfirming(false)
+    }
   }
 
   return (
@@ -175,6 +226,7 @@ export function ProductAssignmentPicker({
             <SkuStep
               familyId={draft.family.id}
               familyName={draft.family.styleName}
+              familyImageUrl={draft.family.headerImagePath ?? draft.family.thumbnailImagePath}
               onBack={() => setStep("family")}
               onSelect={(sku) => {
                 setDraft({ ...draft, sku })
@@ -190,6 +242,7 @@ export function ProductAssignmentPicker({
           {step === "details" && draft.family && (
             <DetailsStep
               draft={draft}
+              confirming={confirming}
               onBack={() => {
                 if (editIndex !== null) {
                   setDialogOpen(false)
@@ -231,24 +284,24 @@ function AssignmentRow({
     : null
   const qty = assignment.quantity ?? 1
 
+  const meta: string[] = []
+  if (colourLabel) meta.push(colourLabel)
+  if (sizeLabel) meta.push(sizeLabel)
+  if (qty > 1) meta.push(`×${qty}`)
+
   return (
     <div className="flex items-center gap-2 rounded-md border border-[var(--color-border)] px-2.5 py-1.5">
+      <CollapsibleThumb src={assignment.thumbUrl} alt={label} />
       <div
-        className="flex flex-1 cursor-pointer flex-col gap-0.5"
+        className="flex min-w-0 flex-1 cursor-pointer flex-col"
         onClick={disabled ? undefined : onEdit}
       >
-        <span className="text-sm font-medium text-[var(--color-text)]">{label}</span>
-        <div className="flex flex-wrap gap-1">
-          {colourLabel && (
-            <Badge variant="outline" className="text-[10px]">{colourLabel}</Badge>
-          )}
-          {sizeLabel && (
-            <Badge variant="outline" className="text-[10px]">{sizeLabel}</Badge>
-          )}
-          {qty > 1 && (
-            <Badge variant="secondary" className="text-[10px]">×{qty}</Badge>
-          )}
-        </div>
+        <span className="truncate text-sm font-medium text-[var(--color-text)]">{label}</span>
+        {meta.length > 0 && (
+          <span className="truncate text-xs text-[var(--color-text-subtle)]">
+            {meta.join(" · ")}
+          </span>
+        )}
       </div>
       {!disabled && (
         <Button
@@ -264,6 +317,29 @@ function AssignmentRow({
         </Button>
       )}
     </div>
+  )
+}
+
+/* ─── Collapsible thumbnail: renders nothing when src is missing or broken ─── */
+
+function CollapsibleThumb({
+  src,
+  alt,
+}: {
+  readonly src: string | undefined
+  readonly alt: string
+}) {
+  const [errored, setErrored] = useState(false)
+
+  if (!src || errored) return null
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="h-10 w-10 shrink-0 rounded-[var(--radius-md)] border border-[var(--color-border)] object-cover"
+      onError={() => setErrored(true)}
+    />
   )
 }
 
@@ -307,12 +383,14 @@ function FamilyStep({
 function SkuStep({
   familyId,
   familyName,
+  familyImageUrl,
   onBack,
   onSelect,
   onSkip,
 }: {
   readonly familyId: string
   readonly familyName: string
+  readonly familyImageUrl: string | undefined
   readonly onBack: () => void
   readonly onSelect: (sku: ProductSku) => void
   readonly onSkip: () => void
@@ -350,17 +428,21 @@ function SkuStep({
                   <CommandItem
                     key={sku.id}
                     onSelect={() => onSelect(sku)}
-                    className="flex items-center gap-2"
+                    className="flex min-h-[44px] items-center gap-2"
                   >
+                    <CollapsibleThumb
+                      src={sku.imagePath ?? familyImageUrl}
+                      alt={sku.colorName ?? sku.name}
+                    />
                     {sku.colourHex && (
                       <span
-                        className="inline-block h-3 w-3 rounded-full border border-[var(--color-border)]"
+                        className="inline-block h-3 w-3 shrink-0 rounded-full border border-[var(--color-border)]"
                         style={{ backgroundColor: sku.colourHex }}
                       />
                     )}
-                    <span>{sku.colorName ?? sku.name}</span>
+                    <span className="min-w-0 truncate">{sku.colorName ?? sku.name}</span>
                     {sku.skuCode && (
-                      <span className="text-xs text-[var(--color-text-subtle)]">
+                      <span className="shrink-0 text-xs text-[var(--color-text-subtle)]">
                         ({sku.skuCode})
                       </span>
                     )}
@@ -382,11 +464,13 @@ function SkuStep({
 
 function DetailsStep({
   draft,
+  confirming,
   onBack,
   onChange,
   onConfirm,
 }: {
   readonly draft: DraftAssignment
+  readonly confirming: boolean
   readonly onBack: () => void
   readonly onChange: (updates: Partial<DraftAssignment>) => void
   readonly onConfirm: () => void
@@ -490,8 +574,14 @@ function DetailsStep({
         />
       </div>
 
-      <Button onClick={onConfirm} disabled={!canConfirm} className="self-end">
-        {draft.family ? "Confirm" : "Select a product first"}
+      <Button
+        onClick={onConfirm}
+        disabled={!canConfirm || confirming}
+        className="self-end"
+        data-testid="picker-confirm"
+      >
+        {confirming && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+        {confirming ? "Saving…" : draft.family ? "Confirm" : "Select a product first"}
       </Button>
     </div>
   )

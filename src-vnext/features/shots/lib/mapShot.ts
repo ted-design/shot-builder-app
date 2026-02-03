@@ -38,6 +38,9 @@ function normalizeProducts(raw: unknown): ProductAssignment[] {
     size: p["size"] as string | undefined,
     sizeScope: (p["sizeScope"] as ProductAssignment["sizeScope"]) ?? "pending",
     quantity: p["quantity"] as number | undefined,
+    thumbUrl: p["thumbUrl"] as string | undefined,
+    skuImageUrl: p["skuImageUrl"] as string | undefined,
+    familyImageUrl: p["familyImageUrl"] as string | undefined,
   }))
 }
 

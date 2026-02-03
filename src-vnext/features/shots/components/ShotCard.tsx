@@ -1,9 +1,11 @@
+import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
 import { Badge } from "@/ui/badge"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { Package, Users, MapPin } from "lucide-react"
+import { textPreview } from "@/shared/lib/textPreview"
 import type { Shot } from "@/shared/types"
 
 interface ShotCardProps {
@@ -13,10 +15,12 @@ interface ShotCardProps {
 export function ShotCard({ shot }: ShotCardProps) {
   const navigate = useNavigate()
   const { projectId } = useProjectScope()
+  const [imgVisible, setImgVisible] = useState(!!shot.heroImage?.downloadURL)
 
   const hasProducts = shot.products.length > 0
   const hasTalent = (shot.talentIds ?? shot.talent).length > 0
   const hasLocation = !!shot.locationId
+  const heroUrl = shot.heroImage?.downloadURL
 
   return (
     <Card
@@ -24,15 +28,25 @@ export function ShotCard({ shot }: ShotCardProps) {
       onClick={() => navigate(`/projects/${projectId}/shots/${shot.id}`)}
     >
       <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
-        <div className="flex items-baseline gap-2">
-          <CardTitle className="text-sm font-medium leading-tight">
-            {shot.title || "Untitled Shot"}
-          </CardTitle>
-          {shot.shotNumber && (
-            <span className="text-xs text-[var(--color-text-subtle)]">
-              #{shot.shotNumber}
-            </span>
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {heroUrl && imgVisible && (
+            <img
+              src={heroUrl}
+              alt={shot.title || "Shot image"}
+              className="h-10 w-10 flex-shrink-0 rounded-[var(--radius-md)] border border-[var(--color-border)] object-cover"
+              onError={() => setImgVisible(false)}
+            />
           )}
+          <div className="flex items-baseline gap-2 min-w-0">
+            <CardTitle className="text-sm font-medium leading-tight truncate">
+              {shot.title || "Untitled Shot"}
+            </CardTitle>
+            {shot.shotNumber && (
+              <span className="text-xs text-[var(--color-text-subtle)] flex-shrink-0">
+                #{shot.shotNumber}
+              </span>
+            )}
+          </div>
         </div>
         <div onClick={(e) => e.stopPropagation()}>
           <ShotStatusSelect
@@ -43,9 +57,9 @@ export function ShotCard({ shot }: ShotCardProps) {
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
-        {shot.description && (
+        {shot.description && textPreview(shot.description) && (
           <p className="line-clamp-2 text-xs text-[var(--color-text-muted)]">
-            {shot.description}
+            {textPreview(shot.description)}
           </p>
         )}
 

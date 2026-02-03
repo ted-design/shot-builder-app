@@ -4,6 +4,61 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  /* Timeline spine — vertical rhythm scaffold for schedule entries */
+  .schedule-entry-stream {
+    position: relative;
+    padding-left: 28px;
+  }
+
+  /* The continuous vertical spine */
+  .schedule-entry-stream::before {
+    content: "";
+    position: absolute;
+    left: 9px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--color-border);
+    border-radius: 1px;
+  }
+
+  /* Node marker on each entry */
+  .schedule-entry-node {
+    position: relative;
+  }
+
+  .schedule-entry-node::before {
+    content: "";
+    position: absolute;
+    left: -24px;
+    top: 14px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    border: 2px solid var(--color-border-strong);
+    z-index: 1;
+  }
+
+  /* Active node variant (has time set) */
+  .schedule-entry-node--active::before {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+
+  /* Rhythm node variant (break/move) */
+  .schedule-entry-node--rhythm::before {
+    width: 6px;
+    height: 6px;
+    top: 11px;
+    left: -23px;
+    border-radius: 2px;
+    background: var(--color-text-subtle);
+    border-color: var(--color-text-subtle);
+  }
+}
+
 @layer base {
   *,
   *::before,
