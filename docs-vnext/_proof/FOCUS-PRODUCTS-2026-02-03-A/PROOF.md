@@ -13,6 +13,84 @@
 - `docs/claude-code-tooling.md`
 - `docs-vnext/slices/slice-2b-product-library.md`
 
+## Legacy deep analysis (what we’re matching / intentionally not matching)
+
+### Key legacy surfaces
+
+| Surface | Route | Primary file(s) |
+|---|---|---|
+| Product library list | `/products` | `src/pages/ProductsPage.jsx` |
+| Product detail workspace | `/products/:productId` | `src/pages/ProductDetailPageV3.jsx` |
+| Product workspace modules | (within detail) | `src/components/products/workspace/*` |
+| Product modals/forms | (from list) | `src/components/products/NewProductModal.jsx`, `src/components/products/EditProductModal.jsx`, `src/components/products/ProductFamilyForm.jsx` |
+| Product import | `/import-products` | `src/pages/ImportProducts.jsx` |
+
+### Legacy behavior map (high-signal)
+
+| Surface | Primary UX pattern | Data reads | Data writes |
+|---|---|---|---|
+| `/products` list | Dense list cockpit (gallery/table), view presets, selection + batch ops, inline editing | 1x families subscription, plus conditional SKU fan-out for row expansion / wide-preload | Create/edit families + SKUs, batch updates, image upload/delete (Storage) |
+| `/products/:id` detail | Sectioned “workspace” viewer, return-to context | One-time family `getDoc` + SKUs `getDocs` | None (editor lives elsewhere) |
+
+### Legacy principles (why it likely looked like that)
+
+- Minimize context switching: edit from list via modal or inline.
+- Dense scanning beats “pretty cards” for large catalogs; multiple densities + table focus.
+- Batch actions exist because producers need fast bulk normalization (category/status).
+- Visual colorway truth matters: swatches + extraction to identify SKUs quickly.
+
+### Legacy problems / debt (what vNext must not repeat)
+
+- Fan-out risk (N+1) via per-family SKU reads and eager preloading.
+- Scattered persistence (localStorage presets) can cause “my view is different” drift.
+- Inline-edit blur-to-save is fast but increases accidental write risk.
+- Detail page is not real-time; can show stale state vs list editors.
+
+## Parity contract (vNext vs legacy)
+
+vNext PRODUCTS is intentionally *not* a 1:1 copy of legacy. Parity is defined by `docs-vnext/slices/slice-2b-product-library.md`.
+
+**Explicit legacy exclusions (by spec / non-goals)**
+- No SKU fan-out on `/products` (no “expand family to load SKUs” patterns).
+- No inline table editing, no selection/batch actions.
+- No legacy workspace sections (samples/assets/activity).
+- No import tooling in vNext.
+
+## PRODUCTS “Done” checklist (living)
+
+**Browse**
+- [ ] `/products` search + filters + sort (URL-persisted, shareable)
+- [ ] No list fan-out (single families subscription; no per-family SKU reads)
+- [ ] Calm empty/loading/error states
+
+**Detail**
+- [ ] `/products/:fid` renders family + SKUs (stable sort, calm density)
+- [ ] Mobile is read-only; desktop editing is gated by role
+- [ ] “Return to” preserves list state (no trust loss on back-navigation)
+
+**CRUD**
+- [ ] Create family + at least 1 SKU
+- [ ] Edit family fields, add/remove SKUs (soft-delete SKUs)
+- [ ] Archive/unarchive family (non-destructive)
+- [ ] Soft-delete/restore family (when legacy fields exist)
+
+**Images**
+- [ ] Upload/replace/remove family header + thumbnail
+- [ ] Upload/replace/remove SKU image
+- [ ] Thumbnail-first rendering with safe fallbacks (no broken layout)
+
+**Quality gates**
+- [ ] `npx tsc --noEmit`
+- [ ] `npm test`
+- [ ] `npm run lint` (0 warnings)
+- [ ] `npm run build`
+
+## Current gaps discovered in this session (to close next)
+
+- `/products/:fid` breadcrumb currently drops list filter state (needs a safe `returnTo` param pattern).
+- Family-level archive and soft-delete controls need explicit UI actions (spec-required).
+- Thumbnail usage should be consistent (thumbnail-first on list/detail; fallback rules should be predictable).
+
 ## Packages log
 
 ### WP1 — Spec + product data contract alignment
