@@ -77,7 +77,7 @@ vNext PRODUCTS is intentionally *not* a 1:1 copy of legacy. Parity is defined by
 **Images**
 - [ ] Upload/replace/remove family header + thumbnail
 - [ ] Upload/replace/remove SKU image
-- [ ] Thumbnail-first rendering with safe fallbacks (no broken layout)
+- [x] Thumbnail-first rendering with safe fallbacks (no broken layout)
 
 **Quality gates**
 - [ ] `npx tsc --noEmit`
@@ -88,7 +88,6 @@ vNext PRODUCTS is intentionally *not* a 1:1 copy of legacy. Parity is defined by
 ## Current gaps discovered in this session (to close next)
 
 - Family-level archive and soft-delete controls need explicit UI actions (spec-required).
-- Thumbnail usage should be consistent (thumbnail-first on list/detail; fallback rules should be predictable).
 
 ## Packages log
 
@@ -220,6 +219,30 @@ vNext PRODUCTS is intentionally *not* a 1:1 copy of legacy. Parity is defined by
 |---|---|---|
 | Return preserves filters | `/products?q=...&status=...` → open any product → click “Products” breadcrumb | Returns to the exact prior list URL (filters preserved). |
 | ReturnTo is safe | Manually set `returnTo=https://example.com` in URL | Breadcrumb falls back to `/products` (no external navigation). |
+
+### WP7 — Thumbnail-first product imagery (trust + performance)
+
+**Spec alignment:** Aligned with `docs-vnext/slices/slice-2b-product-library.md` (images must render from existing paths; no assumptions about thumbnails). No schema changes. No new reads.
+
+**Change summary**
+- `/products` cards and `/products/:fid` hero prefer `thumbnailImagePath` over `headerImagePath`.
+- SKU cards continue to fall back to the family image when a SKU image is missing.
+
+**Touched surfaces**
+- `src-vnext/features/products/components/ProductFamilyCard.tsx`
+- `src-vnext/features/products/components/ProductDetailPage.tsx`
+
+**Checks (2026-02-03)**
+- `npx tsc --noEmit` ✅
+- `npm test` ✅
+
+**Manual QA required (screenshots pending)**
+⚠️ Chrome extension not available in this session for screenshots.
+
+| Scenario | Steps | Expected |
+|---|---|---|
+| Thumbnail is preferred | Use a family with both `thumbnailImagePath` and `headerImagePath` | List and detail show the thumbnail-first image. |
+| Fallback remains stable | Use a SKU with no `imagePath` | SKU card falls back to family image; placeholder renders if both are absent. |
 
 ## Screenshots index
 

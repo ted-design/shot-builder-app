@@ -35,7 +35,7 @@ export function ProductFamilyCard({ family, returnTo }: ProductFamilyCardProps) 
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--color-surface-subtle)]">
         <ProductImage
-          src={family.headerImagePath ?? family.thumbnailImagePath}
+          src={family.thumbnailImagePath ?? family.headerImagePath}
           alt={family.styleName}
           size="lg"
           className="h-full w-full rounded-none transition-transform duration-200 group-hover:scale-[1.02]"

@@ -101,7 +101,7 @@ export default function ProductDetailPage() {
       {/* Hero area: image + metadata */}
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
         <ProductImage
-          src={family.headerImagePath ?? family.thumbnailImagePath}
+          src={family.thumbnailImagePath ?? family.headerImagePath}
           alt={family.styleName}
           size="lg"
           className="h-48 w-48 shrink-0 sm:h-56 sm:w-56"
@@ -179,7 +179,7 @@ export default function ProductDetailPage() {
               <ProductSkuCard
                 key={sku.id}
                 sku={sku}
-                familyImageUrl={family.headerImagePath ?? family.thumbnailImagePath}
+                familyImageUrl={family.thumbnailImagePath ?? family.headerImagePath}
               />
             ))}
           </div>
