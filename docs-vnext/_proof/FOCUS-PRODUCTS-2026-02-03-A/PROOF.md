@@ -111,6 +111,12 @@
 - `npx tsc --noEmit` ✅
 - `npm test` ✅
 
+### WP5 — Focus run verification gates
+
+**Checks (2026-02-03)**
+- `npm run lint` ✅ (0 warnings)
+- `npm run build` ✅
+
 ## Screenshots index
 
 _Screenshots live in `docs-vnext/_proof/FOCUS-PRODUCTS-2026-02-03-A/images/`._

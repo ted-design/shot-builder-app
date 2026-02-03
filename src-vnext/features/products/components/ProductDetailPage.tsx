@@ -28,6 +28,20 @@ export default function ProductDetailPage() {
   const { data: family, loading: famLoading, error: famError } = useProductFamily(fid ?? null)
   const { data: skus, loading: skuLoading } = useProductSkus(fid ?? null)
 
+  const activeSkus = useMemo(() => skus.filter((s) => s.deleted !== true), [skus])
+  const deletedSkus = useMemo(() => skus.filter((s) => s.deleted === true), [skus])
+
+  const visibleSkus = useMemo(() => {
+    const source = showDeleted ? skus : activeSkus
+    const next = [...source]
+    next.sort((a, b) => {
+      const aName = (a.colorName ?? a.name).toLowerCase()
+      const bName = (b.colorName ?? b.name).toLowerCase()
+      return aName.localeCompare(bName, undefined, { numeric: true })
+    })
+    return next
+  }, [activeSkus, showDeleted, skus])
+
   if (famLoading) return <LoadingState loading />
 
   if (famError) {
@@ -50,20 +64,6 @@ export default function ProductDetailPage() {
 
   const status = (family.status ?? "active").toLowerCase()
   const categoryLabel = family.productSubcategory ?? family.productType ?? family.category
-
-  const activeSkus = useMemo(() => skus.filter((s) => s.deleted !== true), [skus])
-  const deletedSkus = useMemo(() => skus.filter((s) => s.deleted === true), [skus])
-
-  const visibleSkus = useMemo(() => {
-    const source = showDeleted ? skus : activeSkus
-    const next = [...source]
-    next.sort((a, b) => {
-      const aName = (a.colorName ?? a.name).toLowerCase()
-      const bName = (b.colorName ?? b.name).toLowerCase()
-      return aName.localeCompare(bName, undefined, { numeric: true })
-    })
-    return next
-  }, [activeSkus, showDeleted, skus])
 
   return (
     <div className="flex flex-col gap-6">
