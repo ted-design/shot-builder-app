@@ -128,11 +128,40 @@ export interface ProductFamily {
   readonly id: string
   readonly styleName: string
   readonly styleNumber?: string
+  readonly previousStyleNumber?: string
+  readonly gender?: string | null
+  readonly productType?: string
+  readonly productSubcategory?: string
+  /** Legacy/derived label used in some list UIs. Prefer `productSubcategory`/`productType` going forward. */
   readonly category?: string
   /** Firebase Storage path for header image (legacy field: headerImagePath) */
   readonly headerImagePath?: string
   /** Firebase Storage path for thumbnail image (legacy field: thumbnailImagePath) */
   readonly thumbnailImagePath?: string
+  /** Product lifecycle status (legacy string values; vNext treats as opaque). */
+  readonly status?: string
+  readonly archived?: boolean
+  /** Legacy notes may be a string or a structured array. */
+  readonly notes?: unknown
+  readonly sizes?: ReadonlyArray<string>
+
+  // Denormalized aggregates (computed by legacy writers)
+  readonly skuCount?: number
+  readonly activeSkuCount?: number
+  readonly skuCodes?: ReadonlyArray<string>
+  readonly colorNames?: ReadonlyArray<string>
+  readonly sizeOptions?: ReadonlyArray<string>
+  readonly shotIds?: ReadonlyArray<string>
+
+  // Soft-delete (legacy)
+  readonly deleted?: boolean
+  readonly deletedAt?: Timestamp
+
+  // Audit (legacy)
+  readonly createdAt?: Timestamp
+  readonly updatedAt?: Timestamp
+  readonly createdBy?: string
+  readonly updatedBy?: string
   readonly clientId: string
 }
 
@@ -140,10 +169,21 @@ export interface ProductSku {
   readonly id: string
   readonly name: string
   readonly colorName?: string
-  readonly colourHex?: string
-  readonly sizes?: ReadonlyArray<string>
   readonly skuCode?: string
+  readonly sizes?: ReadonlyArray<string>
+  readonly status?: string
+  readonly archived?: boolean
   readonly imagePath?: string
+  readonly colorKey?: string
+  /** Legacy alias for `hexColor`. Prefer `hexColor`. */
+  readonly colourHex?: string
+  readonly hexColor?: string
+  readonly deleted?: boolean
+  readonly deletedAt?: Timestamp
+  readonly createdAt?: Timestamp
+  readonly updatedAt?: Timestamp
+  readonly createdBy?: string
+  readonly updatedBy?: string
 }
 
 export interface TalentRecord {
