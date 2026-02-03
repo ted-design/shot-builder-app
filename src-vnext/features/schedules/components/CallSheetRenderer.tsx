@@ -1,6 +1,16 @@
-import { useMemo } from "react"
+import { useMemo, type CSSProperties } from "react"
 import { textPreview } from "@/shared/lib/textPreview"
-import type { Schedule, DayDetails, ScheduleEntry, ScheduleEntryType, TalentCallSheet, CrewCallSheet, TalentRecord, CrewRecord } from "@/shared/types"
+import type {
+  Schedule,
+  DayDetails,
+  ScheduleEntry,
+  ScheduleEntryType,
+  TalentCallSheet,
+  CrewCallSheet,
+  TalentRecord,
+  CrewRecord,
+  Shot,
+} from "@/shared/types"
 
 // --- Configuration types (Slice 4 will pass these; Slice 3 uses defaults) ---
 
@@ -19,9 +29,19 @@ export interface CallSheetColors {
   readonly text?: string
 }
 
+export interface ScheduleBlockFields {
+  readonly showShotNumber?: boolean
+  readonly showShotName?: boolean
+  readonly showDescription?: boolean
+  readonly showTalent?: boolean
+  readonly showLocation?: boolean
+  readonly showNotes?: boolean
+}
+
 export interface CallSheetConfig {
   readonly sections?: CallSheetSectionVisibility
   readonly colors?: CallSheetColors
+  readonly scheduleBlockFields?: ScheduleBlockFields
 }
 
 // --- Data props ---
@@ -30,6 +50,7 @@ export interface CallSheetRendererProps {
   readonly schedule: Schedule | null
   readonly dayDetails: DayDetails | null
   readonly entries?: readonly ScheduleEntry[]
+  readonly shots?: readonly Shot[]
   readonly talentCalls?: readonly TalentCallSheet[]
   readonly crewCalls?: readonly CrewCallSheet[]
   readonly talentLookup?: readonly TalentRecord[]
@@ -46,6 +67,15 @@ const DEFAULT_SECTIONS: Required<CallSheetSectionVisibility> = {
   talent: true,
   crew: true,
   notes: true,
+}
+
+const DEFAULT_SCHEDULE_FIELDS: Required<ScheduleBlockFields> = {
+  showShotNumber: true,
+  showShotName: true,
+  showDescription: true,
+  showTalent: true,
+  showLocation: true,
+  showNotes: true,
 }
 
 function formatDate(date: Schedule["date"]): string {
@@ -80,7 +110,17 @@ function TimeField({ label, value }: { readonly label: string; readonly value: s
 
 const RHYTHM_TYPES = new Set<ScheduleEntryType>(["break", "move"])
 
-function RendererEntryRow({ entry }: { readonly entry: ScheduleEntry }) {
+function RendererEntryRow({
+  entry,
+  shot,
+  fields,
+  talentNames,
+}: {
+  readonly entry: ScheduleEntry
+  readonly shot: Shot | null
+  readonly fields: Required<ScheduleBlockFields>
+  readonly talentNames: readonly string[]
+}) {
   const isRhythm = RHYTHM_TYPES.has(entry.type)
 
   if (isRhythm) {
@@ -103,21 +143,74 @@ function RendererEntryRow({ entry }: { readonly entry: ScheduleEntry }) {
     )
   }
 
+  const locationLabel =
+    (fields.showLocation ? (shot?.locationName ?? null) : null) ??
+    null
+
+  const notesPreview = fields.showNotes
+    ? textPreview(entry.notes ?? "", 160)
+    : ""
+
   return (
-    <div className="flex items-baseline gap-3 border-b border-[var(--color-border)] py-2 last:border-b-0">
-      {entry.time && (
-        <span className="w-16 shrink-0 font-mono text-xs font-semibold tabular-nums text-[var(--color-text)]">
-          {entry.time}
-        </span>
-      )}
-      <span className="flex-1 truncate text-sm text-[var(--color-text)]">
-        {entry.title}
-      </span>
-      {entry.duration != null && (
-        <span className="shrink-0 font-mono text-xs tabular-nums text-[var(--color-text-muted)]">
-          {entry.duration}m
-        </span>
-      )}
+    <div className="flex flex-col gap-1 border-b border-[var(--color-border)] py-2 last:border-b-0">
+      <div className="flex items-baseline gap-3">
+        {entry.time && (
+          <span className="w-16 shrink-0 font-mono text-xs font-semibold tabular-nums text-[var(--color-text)]">
+            {entry.time}
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-2">
+            {fields.showShotNumber && shot?.shotNumber && (
+              <span className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                {shot.shotNumber}
+              </span>
+            )}
+            <span className="truncate text-sm font-medium text-[var(--color-text)]">
+              {fields.showShotName ? (shot?.title ?? entry.title) : entry.title}
+            </span>
+          </div>
+
+          {fields.showDescription && shot?.description && (
+            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+              {textPreview(shot.description, 220)}
+            </p>
+          )}
+
+          {(fields.showTalent || fields.showLocation) && (talentNames.length > 0 || locationLabel) && (
+            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[var(--color-text-muted)]">
+              {fields.showTalent && talentNames.length > 0 && (
+                <span className="truncate">
+                  <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    Talent
+                  </span>{" "}
+                  {talentNames.join(", ")}
+                </span>
+              )}
+              {fields.showLocation && locationLabel && (
+                <span className="truncate">
+                  <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    Location
+                  </span>{" "}
+                  {locationLabel}
+                </span>
+              )}
+            </div>
+          )}
+
+          {notesPreview && (
+            <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">
+              {notesPreview}
+            </p>
+          )}
+        </div>
+
+        {entry.duration != null && (
+          <span className="shrink-0 font-mono text-xs tabular-nums text-[var(--color-text-muted)]">
+            {entry.duration}m
+          </span>
+        )}
+      </div>
     </div>
   )
 }
@@ -132,6 +225,7 @@ export function CallSheetRenderer({
   schedule,
   dayDetails,
   entries,
+  shots,
   talentCalls,
   crewCalls,
   talentLookup,
@@ -139,6 +233,11 @@ export function CallSheetRenderer({
   config,
 }: CallSheetRendererProps) {
   const sections = { ...DEFAULT_SECTIONS, ...config?.sections }
+  const scheduleFields = { ...DEFAULT_SCHEDULE_FIELDS, ...config?.scheduleBlockFields }
+
+  const colors = config?.colors
+  const primary = colors?.primary
+  const text = colors?.text
 
   const talentMap = useMemo(() => {
     const m = new Map<string, TalentRecord>()
@@ -156,6 +255,14 @@ export function CallSheetRenderer({
     return m
   }, [crewLookup])
 
+  const shotMap = useMemo(() => {
+    const m = new Map<string, Shot>()
+    if (shots) {
+      for (const s of shots) m.set(s.id, s)
+    }
+    return m
+  }, [shots])
+
   if (!schedule) {
     return null
   }
@@ -163,7 +270,16 @@ export function CallSheetRenderer({
   const dateStr = formatDate(schedule.date)
 
   return (
-    <div className="flex flex-col gap-4" style={{ color: "var(--color-doc-ink)" }}>
+    <div
+      className="flex flex-col gap-4"
+      style={{
+        color: "var(--color-doc-ink)",
+        ...(primary
+          ? ({ ["--doc-section-band-bg" as string]: primary } as CSSProperties)
+          : {}),
+        ...(text ? ({ ["--color-doc-ink" as string]: text } as CSSProperties) : {}),
+      }}
+    >
       {/* Header section */}
       {sections.header && (
         <div className="border-b-2 border-[var(--color-doc-ink)] pb-3">
@@ -190,10 +306,25 @@ export function CallSheetRenderer({
             <TimeField label="1st Meal" value={dayDetails.firstMealTime} />
             <TimeField label="2nd Meal" value={dayDetails.secondMealTime} />
           </div>
-          {dayDetails.notes && textPreview(dayDetails.notes, 500) && (
-            <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-              {textPreview(dayDetails.notes, 500)}
+          {dayDetails.weather?.summary && (
+            <p className="text-xs text-[var(--color-text-muted)]">
+              <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                Weather
+              </span>{" "}
+              {dayDetails.weather.summary}
             </p>
+          )}
+          {dayDetails.locations && dayDetails.locations.length > 0 && (
+            <div className="flex flex-col gap-1 text-xs text-[var(--color-text-muted)]">
+              {dayDetails.locations.map((loc) => (
+                <p key={loc.id}>
+                  <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    {loc.title}
+                  </span>{" "}
+                  {loc.ref?.label ?? loc.ref?.locationId ?? ""}
+                </p>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -208,9 +339,23 @@ export function CallSheetRenderer({
             </p>
           ) : (
             <div className="flex flex-col">
-              {entries.map((entry) => (
-                <RendererEntryRow key={entry.id} entry={entry} />
-              ))}
+              {entries.map((entry) => {
+                const shot = entry.shotId ? (shotMap.get(entry.shotId) ?? null) : null
+                const talentNames = (entry.type === "shot" && shot?.talentIds)
+                  ? shot.talentIds
+                    .map((id) => talentMap.get(id)?.name ?? id)
+                    .filter(Boolean)
+                  : []
+                return (
+                  <RendererEntryRow
+                    key={entry.id}
+                    entry={entry}
+                    shot={shot}
+                    fields={scheduleFields}
+                    talentNames={talentNames}
+                  />
+                )
+              })}
             </div>
           )}
         </div>
@@ -297,6 +442,16 @@ export function CallSheetRenderer({
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Notes */}
+      {sections.notes && dayDetails?.notes && dayDetails.notes.trim().length > 0 && (
+        <div className="flex flex-col gap-1">
+          <div className="doc-section-header--band">Notes</div>
+          <div className="whitespace-pre-wrap text-xs text-[var(--color-text)]">
+            {dayDetails.notes}
+          </div>
         </div>
       )}
     </div>

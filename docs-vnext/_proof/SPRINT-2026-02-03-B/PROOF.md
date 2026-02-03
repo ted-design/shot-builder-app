@@ -38,7 +38,10 @@ Saved under: `docs-vnext/_proof/SPRINT-2026-02-03-B/images/`
 
 - [x] `npx tsc --noEmit` (WP1)
 - [x] `npm test` (WP1)
+- [x] `npx tsc --noEmit` (WP2)
+- [x] `npm test` (WP2)
 
 ## Progress Log
 
 - WP1 complete: derive `participatingTalentIds` locally from `entries + shots` (no extra Firestore fan-out), and ensure new schedule entries get a monotonic `order` (prevents duplicate orders after deletes).
+- WP2 complete: `CallSheetRenderer` now joins `ScheduleEntry.shotId` → `Shot` for shot number/title/description, and surfaces talent + location inline per entry; adds a real Notes section (from day details).

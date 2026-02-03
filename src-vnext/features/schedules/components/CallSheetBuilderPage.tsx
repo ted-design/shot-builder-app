@@ -251,6 +251,7 @@ export default function CallSheetBuilderPage() {
                 schedule={schedule}
                 dayDetails={dayDetails}
                 entries={entries}
+                shots={shots}
                 talentCalls={talentCalls}
                 crewCalls={crewCalls}
                 talentLookup={talentLibrary}
