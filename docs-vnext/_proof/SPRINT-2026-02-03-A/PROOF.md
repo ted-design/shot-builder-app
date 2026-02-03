@@ -8,6 +8,13 @@ Date: 2026-02-03
 - WP2 — Print-to-PDF data-ready gate (remove double rAF)
 - WP3 — Call Sheet destructive confirmations + no placeholders
 
+## Commits (This Sprint)
+
+- `339d900` — WP1
+- `db0144d` — WP2
+- `a0f491d` — WP3
+- `27ba894` — Lint fix (CallSheetPage hook ordering)
+
 ## Routes Visited (Manual QA)
 
 - Desktop builder: `/projects/:projectId/callsheet`
@@ -17,10 +24,10 @@ Date: 2026-02-03
 
 ## Checks Run (Outputs/Notes)
 
-- `npx tsc --noEmit` — (paste output excerpt if failing)
-- `npm test` — (paste output excerpt if failing)
-- `npm run lint` — (paste output excerpt if failing)
-- `npm run build` — (paste output excerpt if failing)
+- `npx tsc --noEmit` — PASS
+- `npm test` — PASS
+- `npm run lint` — PASS
+- `npm run build` — PASS
 
 ## Screenshots (Claude-in-Chrome)
 
@@ -36,4 +43,3 @@ Save all images to: `docs-vnext/_proof/SPRINT-2026-02-03-A/images/`
 ## Known Gaps / Follow-ups
 
 - (none yet)
-
