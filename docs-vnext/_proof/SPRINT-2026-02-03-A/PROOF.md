@@ -13,30 +13,30 @@ Branch: `vnext/slice-3-call-sheet-assembly`
 
 ## Routes Visited (manual)
 
-- [ ] `/projects`
-- [ ] `/projects/:id/pulls`
-- [ ] `/projects/:id/pulls/:pid`
-- [ ] `/pulls/shared/:shareToken`
-- [ ] `/projects/:id/callsheet`
-- [ ] `/projects/:id/callsheet?scheduleId=...`
-- [ ] `/library/talent`
-- [ ] `/library/locations`
-- [ ] `/library/crew`
-- [ ] `/projects/:id/assets`
+- [x] `/projects`
+- [x] `/projects/:id/pulls`
+- [x] `/projects/:id/pulls/:pid`
+- [x] `/pulls/shared/:shareToken`
+- [x] `/projects/:id/callsheet`
+- [x] `/projects/:id/callsheet?scheduleId=...`
+- [x] `/library/talent`
+- [x] `/library/locations`
+- [x] `/library/crew`
+- [x] `/projects/:id/assets`
 
 ## Screenshot Index (must be captured in a real browser)
 
 Save screenshots under `docs-vnext/_proof/SPRINT-2026-02-03-A/images/`.
 
-- [ ] `pull-share-enabled.png` — Pull detail shows sharing enabled + correct share URL.
-- [ ] `public-pull-loaded.png` — Public pull page loads from `/pulls/shared/:shareToken`.
-- [ ] `public-pull-response-submitted.png` — Warehouse submits an update successfully.
-- [ ] `callsheet-landing-schedules.png` — `/projects/:id/callsheet` shows schedule list/select.
-- [ ] `callsheet-preview.png` — Call sheet preview renders (preview=1 or non-manager).
-- [ ] `library-talent.png` — Talent library list.
-- [ ] `library-locations.png` — Locations library list.
-- [ ] `library-crew.png` — Crew library list.
-- [ ] `project-assets.png` — Project assets overview.
+- [x] `pull-share-enabled.png` — Pull detail shows sharing enabled + correct share URL.
+- [x] `public-pull-loaded.png` — Public pull page loads from `/pulls/shared/:shareToken`.
+- [ ] `public-pull-response-submitted.png` — Warehouse submits an update successfully. (Requires `shareAllowResponses` flag to be enabled on the pull)
+- [x] `callsheet-landing-schedules.png` — `/projects/:id/callsheet` shows schedule list/select.
+- [x] `callsheet-preview.png` — Call sheet preview renders (preview=1 or non-manager).
+- [x] `library-talent.png` — Talent library list.
+- [x] `library-locations.png` — Locations library list.
+- [x] `library-crew.png` — Crew library list.
+- [x] `project-assets.png` — Project assets overview.
 
 ## Checks Run (paste outputs or excerpts)
 
