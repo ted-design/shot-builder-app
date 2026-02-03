@@ -2,13 +2,14 @@
  * ShotReaderView — Mobile read-only detail surface for a shot.
  *
  * Renders a calm, scrollable overview of shot metadata, notes, and
- * entity counts. No inputs, no editing, no auto-save.
+ * entity counts. Notes HTML is read-only; Producer Addendum is append-only.
  *
  * Used by ShotEditorPageV3 when the viewport is below the md breakpoint
  * so mobile users see useful shot details instead of a DesktopOnlyGuard
  * dead-end.
  */
 
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -16,13 +17,16 @@ import {
   MapPin,
   Users,
   Package,
-  Tag,
   FileText,
   Hash,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { normaliseShotStatus, shotStatusOptions } from "../../lib/shotStatus";
-import { getShotNotesPreview } from "../../lib/shotNotes";
+import { sanitizeHtml, isEmptyHtml } from "../../lib/sanitizeHtml";
+import { useAuth } from "../../context/AuthContext";
+import { updateShotWithVersion } from "../../lib/updateShotWithVersion";
+import { toast } from "../../lib/toast";
+import { format } from "date-fns";
 
 // ─── Status badge classes (mirrors ShotTableView) ──────────────────────────
 const STATUS_LABEL_MAP = new Map(
@@ -74,13 +78,21 @@ function CountChip({ icon: Icon, label, count }) {
 export default function ShotReaderView({ shot, counts = {} }) {
   const navigate = useNavigate();
   const { projectId } = useParams();
+  const auth = useAuth();
+  const clientId = auth?.clientId;
+  const user = auth?.user;
+
+  const [addendumDraft, setAddendumDraft] = useState("");
+  const [addendumSaving, setAddendumSaving] = useState(false);
 
   const statusValue = normaliseShotStatus(shot?.status);
   const statusLabel = STATUS_LABEL_MAP.get(statusValue) || shot?.status || "To do";
   const statusClass =
     statusBadgeClasses[statusValue] || statusBadgeClasses.todo;
 
-  const notesPreview = getShotNotesPreview(shot);
+  const notesHtml = typeof shot?.notes === "string" ? shot.notes : "";
+  const hasNotes = useMemo(() => !isEmptyHtml(notesHtml), [notesHtml]);
+  const existingAddendum = typeof shot?.notesAddendum === "string" ? shot.notesAddendum.trim() : "";
 
   // Resolve location name from shot metadata
   const locationName =
@@ -91,6 +103,35 @@ export default function ShotReaderView({ shot, counts = {} }) {
   const handleBack = () => {
     navigate(`/projects/${projectId}/shots`);
   };
+
+  const appendAddendum = useCallback(async () => {
+    if (!clientId || !shot?.id) return;
+    const entry = addendumDraft.trim();
+    if (!entry) return;
+
+    const timestamp = format(new Date(), "yyyy-MM-dd HH:mm");
+    const author = user?.displayName || user?.email || "Unknown";
+    const line = `[${timestamp}] ${author}: ${entry}`;
+    const nextAddendum = existingAddendum ? `${existingAddendum}\n\n${line}` : line;
+
+    setAddendumSaving(true);
+    try {
+      await updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch: { notesAddendum: nextAddendum },
+        shot,
+        user,
+        source: "ShotReaderView:addendum",
+      });
+      setAddendumDraft("");
+      toast.success({ title: "Addendum added" });
+    } catch (error) {
+      toast.error({ title: "Failed to save addendum", description: error?.message });
+    } finally {
+      setAddendumSaving(false);
+    }
+  }, [addendumDraft, clientId, existingAddendum, shot, user]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
@@ -152,19 +193,56 @@ export default function ShotReaderView({ shot, counts = {} }) {
           <MetadataRow icon={MapPin} label="Location" value={locationName} />
         )}
 
-        {/* Notes preview */}
-        {notesPreview && (
+        {/* Notes (read-only HTML) */}
+        {hasNotes && (
           <div className="space-y-1.5">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Notes
             </span>
             <div className="rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3">
-              <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line line-clamp-6">
-                {notesPreview}
-              </p>
+              <div
+                className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 max-h-56 overflow-auto"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(notesHtml) }}
+              />
             </div>
           </div>
         )}
+
+        {/* Producer Addendum (append-only) */}
+        <div className="space-y-1.5">
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            Producer Addendum
+          </span>
+          <div className="rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3">
+            {existingAddendum ? (
+              <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                {existingAddendum}
+              </p>
+            ) : (
+              <span className="text-sm text-slate-400 dark:text-slate-500 italic">
+                No addendum yet.
+              </span>
+            )}
+          </div>
+          <div className="space-y-2">
+            <textarea
+              value={addendumDraft}
+              onChange={(e) => setAddendumDraft(e.target.value)}
+              placeholder="Add a note (append-only)…"
+              rows={3}
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
+            />
+            <div className="flex items-center justify-end">
+              <Button
+                type="button"
+                onClick={appendAddendum}
+                disabled={addendumSaving || !addendumDraft.trim()}
+              >
+                {addendumSaving ? "Saving…" : "Add addendum"}
+              </Button>
+            </div>
+          </div>
+        </div>
 
         {/* Tags */}
         {Array.isArray(shot?.tags) && shot.tags.length > 0 && (
@@ -210,7 +288,7 @@ export default function ShotReaderView({ shot, counts = {} }) {
         <div className="flex items-center gap-2 rounded-lg bg-slate-100 dark:bg-slate-800 px-3 py-2.5 mt-4">
           <Monitor className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
           <span className="text-xs text-slate-500 dark:text-slate-400">
-            Editing available on desktop
+            Full editing available on desktop
           </span>
         </div>
       </div>

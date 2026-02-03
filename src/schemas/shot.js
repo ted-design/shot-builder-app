@@ -59,6 +59,7 @@ export const shotDraftSchema = z.object({
   description: z.string().trim().max(200).optional().default(""), // Short description
   type: z.string().trim().max(200).optional().default(""), // Legacy short description field (aligned with description)
   notes: z.string().max(50000).optional().default(""), // Rich text notes
+  notesAddendum: z.string().max(50000).optional().default(""), // Append-only operational notes (plain text)
   shotNumber: z.string().trim().max(20).optional().default(""), // Shot number (e.g., "12A")
   status: shotStatusSchema,
   date: z
@@ -130,6 +131,7 @@ export const shotSchema = z.object({
   talentIds: stringArraySchema,
   tags: z.array(shotTagSchema).default([]),
   notes: z.string().nullable().optional(),
+  notesAddendum: z.string().nullable().optional(),
   // Legacy single image fields (kept for backward compatibility)
   referenceImagePath: storagePathSchema,
   referenceImageCrop: imageCropPositionSchema.nullable().optional(),
@@ -151,6 +153,7 @@ export const initialShotDraft = {
   description: "", // Short description
   type: "", // Legacy short description field
   notes: "", // Rich text notes
+  notesAddendum: "",
   shotNumber: "",
   status: "todo",
   date: "",
