@@ -23,6 +23,7 @@ import { DayDetailsEditor } from "@/features/schedules/components/DayDetailsEdit
 import { ScheduleEntryEditor } from "@/features/schedules/components/ScheduleEntryEditor"
 import { CallOverridesEditor } from "@/features/schedules/components/CallOverridesEditor"
 import { CallSheetOutputControls } from "@/features/schedules/components/CallSheetOutputControls"
+import { CallSheetPrintPortal } from "@/features/schedules/components/CallSheetPrintPortal"
 import { TrustChecks } from "@/features/schedules/components/TrustChecks"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { Button } from "@/ui/button"
@@ -83,21 +84,25 @@ export default function CallSheetBuilderPage() {
 
   const {
     data: entries,
+    loading: entriesLoading,
   } = useScheduleEntries(clientId, projectId, scheduleId)
 
-  const { data: shots } = useShots()
+  const { data: shots, loading: shotsLoading } = useShots()
 
   const {
     data: talentCalls,
+    loading: talentCallsLoading,
   } = useScheduleTalentCalls(clientId, projectId, scheduleId)
 
   const {
     data: crewCalls,
+    loading: crewCallsLoading,
   } = useScheduleCrewCalls(clientId, projectId, scheduleId)
 
-  const { data: talentLibrary } = useTalent()
-  const { data: crewLibrary } = useCrew(clientId)
+  const { data: talentLibrary, loading: talentLibraryLoading } = useTalent()
+  const { data: crewLibrary, loading: crewLibraryLoading } = useCrew(clientId)
   const [previewScale, setPreviewScale] = useState(100)
+  const [printOpen, setPrintOpen] = useState(false)
 
   const callSheetConfig = useCallSheetConfig(clientId, projectId, scheduleId)
 
@@ -164,8 +169,36 @@ export default function CallSheetBuilderPage() {
   const dateStr = formatScheduleDate(schedule.date)
   const rendererConfig = callSheetConfig.config
 
+  const handleExport = () => setPrintOpen(true)
+
   return (
     <ErrorBoundary>
+      <CallSheetPrintPortal
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        data={{
+          schedule,
+          dayDetails,
+          entries,
+          shots,
+          talentCalls,
+          crewCalls,
+          talentLibrary,
+          crewLibrary,
+          config: rendererConfig,
+        }}
+        readiness={{
+          scheduleReady: !scheduleLoading,
+          dayDetailsReady: !dayDetailsLoading,
+          entriesReady: !entriesLoading,
+          shotsReady: !shotsLoading,
+          talentCallsReady: !talentCallsLoading,
+          crewCallsReady: !crewCallsLoading,
+          talentLibraryReady: !talentLibraryLoading,
+          crewLibraryReady: !crewLibraryLoading,
+          configReady: !callSheetConfig.loading,
+        }}
+      />
       {isPreviewParam || !canManage ? (
         <div className="flex flex-col gap-3">
           {/* Preview-only header (minimal) */}
@@ -178,13 +211,20 @@ export default function CallSheetBuilderPage() {
                 <p className="text-sm text-[var(--color-text-muted)]">{dateStr}</p>
               )}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/projects/${projectId}/schedules`)}
-            >
-              Schedules
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/projects/${projectId}/schedules`)}
+              >
+                Schedules
+              </Button>
+              {canManage && (
+                <Button size="sm" onClick={handleExport}>
+                  Export PDF
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Full-width preview */}
@@ -230,6 +270,9 @@ export default function CallSheetBuilderPage() {
                 onClick={() => navigate(`/projects/${projectId}/schedules`)}
               >
                 Change Schedule
+              </Button>
+              <Button size="sm" onClick={handleExport}>
+                Export PDF
               </Button>
             </div>
           </div>

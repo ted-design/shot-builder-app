@@ -44,6 +44,8 @@ Saved under: `docs-vnext/_proof/SPRINT-2026-02-03-B/images/`
 - [x] `npm test` (WP3)
 - [x] `npx tsc --noEmit` (WP4)
 - [x] `npm test` (WP4)
+- [x] `npx tsc --noEmit` (WP5)
+- [x] `npm test` (WP5)
 
 ## Progress Log
 
@@ -51,3 +53,4 @@ Saved under: `docs-vnext/_proof/SPRINT-2026-02-03-B/images/`
 - WP2 complete: `CallSheetRenderer` now joins `ScheduleEntry.shotId` → `Shot` for shot number/title/description, and surfaces talent + location inline per entry; adds a real Notes section (from day details).
 - WP3 complete: `?preview=1` renders read-only call sheet with no app chrome (and no mobile redirect); non-managers are forced into preview mode.
 - WP4 complete: call sheet config is persisted to `callSheet/config` (merge-write) and applied to renderer (sections, schedule fields, colors) via an Output control panel.
+- WP5 complete: export-to-PDF via print portal + readiness gate + timeout; print CSS added to vNext styles.

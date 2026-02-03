@@ -125,7 +125,7 @@ function RendererEntryRow({
 
   if (isRhythm) {
     return (
-      <div className="flex items-center gap-3 border-b border-amber-100 bg-amber-50/40 px-2 py-1 last:border-b-0">
+      <div className="callsheet-block flex items-center gap-3 border-b border-amber-100 bg-amber-50/40 px-2 py-1 last:border-b-0">
         {entry.time && (
           <span className="w-16 shrink-0 font-mono text-[10px] font-semibold tabular-nums text-[var(--color-text-muted)]">
             {entry.time}
@@ -152,7 +152,7 @@ function RendererEntryRow({
     : ""
 
   return (
-    <div className="flex flex-col gap-1 border-b border-[var(--color-border)] py-2 last:border-b-0">
+    <div className="callsheet-block flex flex-col gap-1 border-b border-[var(--color-border)] py-2 last:border-b-0">
       <div className="flex items-baseline gap-3">
         {entry.time && (
           <span className="w-16 shrink-0 font-mono text-xs font-semibold tabular-nums text-[var(--color-text)]">
@@ -378,7 +378,7 @@ export function CallSheetRenderer({
                 return (
                   <div
                     key={tc.id}
-                    className="flex items-baseline gap-3 border-b border-[var(--color-border)] py-2 last:border-b-0"
+                    className="callsheet-block flex items-baseline gap-3 border-b border-[var(--color-border)] py-2 last:border-b-0"
                   >
                     {displayTime && (
                       <span className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "text-[var(--color-text)]" : "text-[var(--color-text-muted)]"}`}>
@@ -422,7 +422,7 @@ export function CallSheetRenderer({
                 return (
                   <div
                     key={cc.id}
-                    className="flex items-baseline gap-3 border-b border-[var(--color-border)] py-2 last:border-b-0"
+                    className="callsheet-block flex items-baseline gap-3 border-b border-[var(--color-border)] py-2 last:border-b-0"
                   >
                     {displayTime && (
                       <span className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "text-[var(--color-text)]" : "text-[var(--color-text-muted)]"}`}>
