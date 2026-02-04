@@ -56,5 +56,32 @@ describe("mapShot", () => {
     expect(shot.heroImage?.downloadURL).toBe("https://example.com/2.jpg")
     expect(shot.heroImage?.path).toBe("shots/s1/2.jpg")
   })
-})
 
+  it("maps legacy shot product image paths to thumbUrl", () => {
+    const shot = mapShot("s1", {
+      title: "Shot A",
+      projectId: "p1",
+      clientId: "c1",
+      createdAt: { seconds: 1, nanoseconds: 0 },
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+      createdBy: "u1",
+      deleted: false,
+      products: [
+        {
+          productId: "fam-1",
+          productName: "Classic Tee",
+          thumbnailImagePath: "productFamilies/fam-1/thumb.webp",
+          colourImagePath: "productFamilies/fam-1/skus/sku-1.webp",
+          sizeScope: "all",
+        },
+      ],
+    })
+
+    expect(shot.products).toHaveLength(1)
+    expect(shot.products[0]?.familyId).toBe("fam-1")
+    expect(shot.products[0]?.familyName).toBe("Classic Tee")
+    expect(shot.products[0]?.thumbUrl).toBe("productFamilies/fam-1/thumb.webp")
+    expect(shot.products[0]?.skuImageUrl).toBe("productFamilies/fam-1/skus/sku-1.webp")
+    expect(shot.products[0]?.familyImageUrl).toBe("productFamilies/fam-1/thumb.webp")
+  })
+})

@@ -10,6 +10,7 @@ const MOCK_FAMILY = {
   id: "fam-1",
   styleName: "Classic Tee",
   styleNumber: "CT-100",
+  thumbnailImagePath: "productFamilies/fam-1/thumb.webp",
   clientId: "c1",
 }
 
@@ -20,15 +21,19 @@ const MOCK_SKU = {
   colourHex: "#001f3f",
   sizes: ["S", "M", "L"],
   skuCode: "CT-100-NVY",
+  imagePath: "productFamilies/fam-1/skus/sku-1.webp",
 }
 
 vi.mock("@/features/shots/hooks/usePickerData", () => ({
   useProductFamilies: () => ({ data: [MOCK_FAMILY], loading: false }),
   useProductSkus: () => ({ data: [MOCK_SKU], loading: false }),
+  useProductFamilyDoc: () => ({ data: MOCK_FAMILY, loading: false, error: null }),
+  useProductSkuDoc: () => ({ data: MOCK_SKU, loading: false, error: null }),
 }))
 
 vi.mock("@/shared/lib/resolveStoragePath", () => ({
   resolveStoragePath: () => Promise.resolve("https://img.test/thumb.jpg"),
+  getCachedUrl: () => undefined,
 }))
 
 /* ─── Helpers ─── */
@@ -69,6 +74,22 @@ describe("ProductAssignmentPicker", () => {
 
   beforeEach(() => {
     onSave = vi.fn()
+  })
+
+  it("renders a product thumbnail for existing assignments (no delete/re-add)", async () => {
+    onSave.mockResolvedValue(true)
+
+    render(
+      <ProductAssignmentPicker
+        selected={EXISTING}
+        onSave={onSave}
+        disabled={false}
+      />,
+    )
+
+    // The assignment row should render a thumbnail resolved from storage path.
+    const img = await screen.findByAltText("Classic Tee")
+    expect(img).toHaveAttribute("src", "https://img.test/thumb.jpg")
   })
 
   describe("save-gated confirm", () => {

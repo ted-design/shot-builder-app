@@ -1,6 +1,7 @@
 import { orderBy } from "firebase/firestore"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useFirestoreCollection } from "@/shared/hooks/useFirestoreCollection"
+import { useFirestoreDoc } from "@/shared/hooks/useFirestoreDoc"
 import {
   productFamiliesPath,
   productFamilySkusPath,
@@ -67,6 +68,27 @@ export function useProductSkus(familyId: string | null) {
   return useFirestoreCollection<ProductSku>(
     clientId && familyId ? productFamilySkusPath(familyId, clientId) : null,
     [],
+    mapSku,
+  )
+}
+
+export function useProductFamilyDoc(familyId: string | null) {
+  const { clientId } = useAuth()
+  return useFirestoreDoc<ProductFamily>(
+    clientId && familyId ? [...productFamiliesPath(clientId), familyId] : null,
+    mapFamily,
+  )
+}
+
+export function useProductSkuDoc(
+  familyId: string | null,
+  skuId: string | null,
+) {
+  const { clientId } = useAuth()
+  return useFirestoreDoc<ProductSku>(
+    clientId && familyId && skuId
+      ? [...productFamilySkusPath(familyId, clientId), skuId]
+      : null,
     mapSku,
   )
 }

@@ -28,20 +28,34 @@ function normalizeDate(value: unknown): Timestamp | undefined {
  */
 function normalizeProducts(raw: unknown): ProductAssignment[] {
   if (!Array.isArray(raw)) return []
-  return raw.map((p: Record<string, unknown>) => ({
-    familyId: ((p["familyId"] ?? p["productId"]) as string) ?? "",
-    familyName: (p["familyName"] ?? p["productName"]) as string | undefined,
-    skuId: p["skuId"] as string | undefined,
-    skuName: p["skuName"] as string | undefined,
-    colourId: p["colourId"] as string | undefined,
-    colourName: p["colourName"] as string | undefined,
-    size: p["size"] as string | undefined,
-    sizeScope: (p["sizeScope"] as ProductAssignment["sizeScope"]) ?? "pending",
-    quantity: p["quantity"] as number | undefined,
-    thumbUrl: p["thumbUrl"] as string | undefined,
-    skuImageUrl: p["skuImageUrl"] as string | undefined,
-    familyImageUrl: p["familyImageUrl"] as string | undefined,
-  }))
+
+  const asString = (value: unknown): string | undefined =>
+    typeof value === "string" && value.length > 0 ? value : undefined
+
+  return raw.map((p: Record<string, unknown>) => {
+    // Legacy shots store image *paths* on the assignment:
+    // - thumbnailImagePath (derived thumb)
+    // - colourImagePath (colorway-specific image)
+    // vNext stores denormalized URLs in thumbUrl/skuImageUrl/familyImageUrl.
+    const legacyThumbPath =
+      asString(p["thumbnailImagePath"]) ?? asString(p["colourImagePath"])
+
+    return {
+      familyId: ((p["familyId"] ?? p["productId"]) as string) ?? "",
+      familyName: asString(p["familyName"] ?? p["productName"]),
+      skuId: asString(p["skuId"]),
+      skuName: asString(p["skuName"]),
+      colourId: asString(p["colourId"]),
+      colourName: asString(p["colourName"]),
+      size: asString(p["size"]),
+      sizeScope: (p["sizeScope"] as ProductAssignment["sizeScope"]) ?? "pending",
+      quantity: typeof p["quantity"] === "number" ? (p["quantity"] as number) : undefined,
+      // Prefer vNext denormalized URLs, fall back to legacy storage paths.
+      thumbUrl: asString(p["thumbUrl"]) ?? legacyThumbPath,
+      skuImageUrl: asString(p["skuImageUrl"]) ?? asString(p["colourImagePath"]),
+      familyImageUrl: asString(p["familyImageUrl"]) ?? asString(p["thumbnailImagePath"]),
+    }
+  })
 }
 
 /**

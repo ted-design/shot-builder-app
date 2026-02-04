@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -27,9 +27,12 @@ import { Separator } from "@/ui/separator"
 import {
   useProductFamilies,
   useProductSkus,
+  useProductFamilyDoc,
+  useProductSkuDoc,
 } from "@/features/shots/hooks/usePickerData"
 import { Package, Plus, X, ChevronLeft, Loader2 } from "lucide-react"
 import { resolveStoragePath } from "@/shared/lib/resolveStoragePath"
+import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { toast } from "sonner"
 import type { ProductAssignment, ProductFamily, ProductSku, SizeScope } from "@/shared/types"
 
@@ -273,6 +276,22 @@ function AssignmentRow({
   readonly onEdit: () => void
   readonly onRemove: () => void
 }) {
+  const needsLookup =
+    !assignment.thumbUrl && !assignment.skuImageUrl && !assignment.familyImageUrl
+
+  const familyId =
+    needsLookup && assignment.familyId && assignment.familyId.length > 0
+      ? assignment.familyId
+      : null
+
+  const skuId =
+    needsLookup
+      ? (assignment.skuId ?? assignment.colourId ?? null)
+      : null
+
+  const { data: family } = useProductFamilyDoc(familyId)
+  const { data: sku } = useProductSkuDoc(familyId, skuId)
+
   const label = assignment.familyName ?? assignment.familyId
   const colourLabel = assignment.colourName
   const sizeLabel = assignment.sizeScope === "single" && assignment.size
@@ -289,9 +308,17 @@ function AssignmentRow({
   if (sizeLabel) meta.push(sizeLabel)
   if (qty > 1) meta.push(`×${qty}`)
 
+  const thumbSrc =
+    assignment.thumbUrl ??
+    assignment.skuImageUrl ??
+    assignment.familyImageUrl ??
+    sku?.imagePath ??
+    family?.thumbnailImagePath ??
+    family?.headerImagePath
+
   return (
     <div className="flex items-center gap-2 rounded-md border border-[var(--color-border)] px-2.5 py-1.5">
-      <CollapsibleThumb src={assignment.thumbUrl} alt={label} />
+      <CollapsibleThumb src={thumbSrc} alt={label} />
       <div
         className="flex min-w-0 flex-1 cursor-pointer flex-col"
         onClick={disabled ? undefined : onEdit}
@@ -329,13 +356,18 @@ function CollapsibleThumb({
   readonly src: string | undefined
   readonly alt: string
 }) {
+  const resolvedSrc = useStorageUrl(src)
   const [errored, setErrored] = useState(false)
 
-  if (!src || errored) return null
+  useEffect(() => {
+    setErrored(false)
+  }, [src])
+
+  if (!resolvedSrc || errored) return null
 
   return (
     <img
-      src={src}
+      src={resolvedSrc}
       alt={alt}
       className="h-10 w-10 shrink-0 rounded-[var(--radius-md)] border border-[var(--color-border)] object-cover"
       onError={() => setErrored(true)}
