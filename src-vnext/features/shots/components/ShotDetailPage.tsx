@@ -8,6 +8,7 @@ import { TalentPicker } from "@/features/shots/components/TalentPicker"
 import { LocationPicker } from "@/features/shots/components/LocationPicker"
 import { NotesSection } from "@/features/shots/components/NotesSection"
 import { HeroImageSection } from "@/features/shots/components/HeroImageSection"
+import { ActiveLookCoverReferencesPanel } from "@/features/shots/components/ActiveLookCoverReferencesPanel"
 import { ShotLooksSection } from "@/features/shots/components/ShotLooksSection"
 import { ShotCommentsSection } from "@/features/shots/components/ShotCommentsSection"
 import { ShotVersionHistorySection } from "@/features/shots/components/ShotVersionHistorySection"
@@ -121,12 +122,15 @@ export default function ShotDetailPage() {
         <div className="grid gap-6 md:grid-cols-[1fr_minmax(280px,360px)]">
           {/* LEFT: Hero image (visual anchor) */}
           <div>
-            <HeroImageSection
-              heroImage={shot.heroImage}
-              shot={shot}
-              shotId={shot.id}
-              canUpload={canEdit}
-            />
+            <div className="flex flex-col gap-3">
+              <HeroImageSection
+                heroImage={shot.heroImage}
+                shot={shot}
+                shotId={shot.id}
+                canUpload={canEdit}
+              />
+              <ActiveLookCoverReferencesPanel shot={shot} canEdit={canEdit} />
+            </div>
           </div>
 
           {/* RIGHT: Composition panel — what's in the frame */}
