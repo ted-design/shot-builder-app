@@ -325,6 +325,21 @@ export interface TalentRecord {
     readonly order?: number
     readonly cropData?: unknown
   }>
+  readonly castingSessions?: ReadonlyArray<{
+    readonly id: string
+    /** ISO date string (YYYY-MM-DD). */
+    readonly date: string
+    readonly title?: string | null
+    readonly notes?: string | null
+    readonly images: ReadonlyArray<{
+      readonly id: string
+      readonly path: string
+      readonly downloadURL?: string | null
+      readonly description?: string | null
+      readonly order?: number
+      readonly cropData?: unknown
+    }>
+  }>
   /** Project membership (legacy project-scoped assets). */
   readonly projectIds?: readonly string[]
 }

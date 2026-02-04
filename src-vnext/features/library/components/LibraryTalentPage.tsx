@@ -1,6 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Users, Plus, X, Upload } from "lucide-react"
+import { Users, Plus, X, Upload, Trash2, GripVertical } from "lucide-react"
 import type { ChangeEvent } from "react"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { LoadingState } from "@/shared/components/LoadingState"
@@ -21,9 +38,12 @@ import { useProjects } from "@/features/projects/hooks/useProjects"
 import {
   addTalentToProject,
   createTalent,
+  deleteTalentImagePaths,
   removeTalentFromProject,
   removeTalentHeadshot,
   setTalentHeadshot,
+  uploadTalentCastingImages,
+  uploadTalentPortfolioImages,
   updateTalent,
 } from "@/features/library/lib/talentWrites"
 import {
@@ -70,6 +90,130 @@ function HeadshotThumb({ talent }: { readonly talent: TalentRecord }) {
           {initials(name)}
         </div>
       )}
+    </div>
+  )
+}
+
+type TalentImage = NonNullable<TalentRecord["galleryImages"]>[number]
+type CastingSession = NonNullable<TalentRecord["castingSessions"]>[number]
+
+function normalizeImages(raw: TalentRecord["galleryImages"] | undefined): TalentImage[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((img, index) => {
+      if (!img || typeof img !== "object") return null
+      const id = typeof img.id === "string" && img.id.trim().length > 0 ? img.id.trim() : null
+      const path = typeof img.path === "string" && img.path.trim().length > 0 ? img.path.trim() : null
+      if (!id || !path) return null
+      const order = typeof img.order === "number" ? img.order : index
+      const downloadURL =
+        typeof img.downloadURL === "string" && img.downloadURL.trim().length > 0
+          ? img.downloadURL.trim()
+          : null
+      const description =
+        typeof img.description === "string" ? img.description : null
+      return { ...img, id, path, downloadURL, description, order }
+    })
+    .filter(Boolean)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) as TalentImage[]
+}
+
+function normalizeSessions(raw: TalentRecord["castingSessions"] | undefined): CastingSession[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((s) => {
+      if (!s || typeof s !== "object") return null
+      const id = typeof s.id === "string" && s.id.trim().length > 0 ? s.id.trim() : null
+      const date = typeof s.date === "string" ? s.date.trim() : ""
+      if (!id || !date) return null
+      const title = typeof s.title === "string" ? s.title : null
+      const notes = typeof s.notes === "string" ? s.notes : null
+      const images = normalizeImages(s.images as TalentRecord["galleryImages"])
+      return { ...s, id, date, title, notes, images }
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.date.localeCompare(a.date)) as CastingSession[]
+}
+
+function ImageThumb({ image, alt }: { readonly image: TalentImage; readonly alt: string }) {
+  const url = useStorageUrl(image.downloadURL ?? image.path)
+  return (
+    <div className="aspect-square overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
+      {url ? (
+        <img src={url} alt={alt} className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-xs text-[var(--color-text-muted)]">
+          —
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SortableImageTile({
+  image,
+  disabled,
+  onDelete,
+  onCaptionSave,
+}: {
+  readonly image: TalentImage
+  readonly disabled: boolean
+  readonly onDelete: () => void
+  readonly onCaptionSave: (next: string) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: image.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="group relative">
+      <div className="absolute left-2 top-2 z-10 flex items-center gap-1">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          disabled={disabled}
+          className="rounded bg-black/40 p-1 text-white hover:bg-black/55 disabled:opacity-40"
+          aria-label="Reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="absolute right-2 top-2 z-10">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onDelete}
+          className="rounded bg-black/40 p-1 text-white hover:bg-black/55 disabled:opacity-40"
+          aria-label="Remove image"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+
+      <ImageThumb image={image} alt="Talent image" />
+
+      <div className="mt-2">
+        <InlineEdit
+          value={(image.description ?? "").trim()}
+          disabled={disabled}
+          placeholder="Add caption"
+          onSave={onCaptionSave}
+          className="text-xs text-[var(--color-text-muted)]"
+        />
+      </div>
     </div>
   )
 }
@@ -144,8 +288,7 @@ function InlineTextarea({
       className={className}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
-        const next = draft.trim()
-        if (next !== value.trim()) onCommit(next)
+        if (draft !== value) onCommit(draft)
       }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
@@ -180,6 +323,17 @@ export default function LibraryTalentPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [headshotRemoveOpen, setHeadshotRemoveOpen] = useState(false)
+  const [galleryRemoveOpen, setGalleryRemoveOpen] = useState(false)
+  const [galleryRemoveTarget, setGalleryRemoveTarget] = useState<TalentImage | null>(null)
+  const [sessionRemoveOpen, setSessionRemoveOpen] = useState(false)
+  const [sessionRemoveTarget, setSessionRemoveTarget] = useState<CastingSession | null>(null)
+  const [sessionExpanded, setSessionExpanded] = useState<Record<string, boolean>>({})
+  const [createSessionOpen, setCreateSessionOpen] = useState(false)
+  const [createSessionDate, setCreateSessionDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  )
+  const [createSessionTitle, setCreateSessionTitle] = useState("")
+  const portfolioInputRef = useRef<HTMLInputElement>(null)
 
   const [createName, setCreateName] = useState("")
   const [createAgency, setCreateAgency] = useState("")
@@ -190,6 +344,11 @@ export default function LibraryTalentPage() {
   const [createNotes, setCreateNotes] = useState("")
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -211,6 +370,9 @@ export default function LibraryTalentPage() {
   const selectedHeadshotPath = selected?.headshotPath || selected?.imageUrl || null
   const selectedHeadshotUrl = useStorageUrl(selectedHeadshotPath ?? undefined)
 
+  const portfolioImages = useMemo(() => normalizeImages(selected?.galleryImages), [selected?.galleryImages])
+  const castingSessions = useMemo(() => normalizeSessions(selected?.castingSessions), [selected?.castingSessions])
+
   const projectLookup = useMemo(() => {
     const m = new Map<string, string>()
     for (const p of projects) m.set(p.id, p.name || p.id)
@@ -222,6 +384,66 @@ export default function LibraryTalentPage() {
     const set = new Set(selected.projectIds)
     return projects.filter((p) => !set.has(p.id))
   }, [projects, selected?.projectIds])
+
+  const updateGallery = async (
+    next: TalentImage[],
+    removedPaths: readonly (string | null | undefined)[] = [],
+    successLabel?: string,
+  ) => {
+    if (!clientId || !selected) return
+    setBusy(true)
+    try {
+      const normalized = next.map((img, index) => ({
+        ...img,
+        order: index,
+      }))
+      await updateTalent({
+        clientId,
+        userId: user?.uid ?? null,
+        talentId: selected.id,
+        patch: { galleryImages: normalized },
+      })
+      await deleteTalentImagePaths(removedPaths)
+      if (successLabel) toast.success(successLabel)
+    } catch (err) {
+      toast.error("Failed to update portfolio", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const updateCastingSessions = async (
+    next: CastingSession[],
+    removedPaths: readonly (string | null | undefined)[] = [],
+    successLabel?: string,
+  ) => {
+    if (!clientId || !selected) return
+    setBusy(true)
+    try {
+      const normalized = [...next]
+        .map((s) => ({
+          ...s,
+          images: (s.images ?? []).map((img, index) => ({ ...img, order: index })),
+        }))
+        .sort((a, b) => b.date.localeCompare(a.date))
+      await updateTalent({
+        clientId,
+        userId: user?.uid ?? null,
+        talentId: selected.id,
+        patch: { castingSessions: normalized },
+      })
+      await deleteTalentImagePaths(removedPaths)
+      if (successLabel) toast.success(successLabel)
+    } catch (err) {
+      toast.error("Failed to update castings", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const savePatch = async (id: string, patch: Record<string, unknown>) => {
     if (!clientId) return
@@ -267,6 +489,91 @@ export default function LibraryTalentPage() {
     }
   }
 
+  const onPortfolioFiles = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!clientId || !selected) return
+    const files = Array.from(event.target.files ?? [])
+    event.target.value = ""
+    if (files.length === 0) return
+
+    setBusy(true)
+    try {
+      const uploaded = await uploadTalentPortfolioImages({
+        talentId: selected.id,
+        files,
+      })
+      const next = [
+        ...portfolioImages,
+        ...uploaded.map((u, idx) => ({
+          id: u.id,
+          path: u.path,
+          downloadURL: u.downloadURL,
+          description: null,
+          order: portfolioImages.length + idx,
+        })),
+      ]
+      await updateTalent({
+        clientId,
+        userId: user?.uid ?? null,
+        talentId: selected.id,
+        patch: { galleryImages: next },
+      })
+      toast.success(`Uploaded ${uploaded.length} image${uploaded.length === 1 ? "" : "s"}`)
+    } catch (err) {
+      toast.error("Upload failed", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const onCastingFiles = async (sessionId: string, event: ChangeEvent<HTMLInputElement>) => {
+    if (!clientId || !selected) return
+    const files = Array.from(event.target.files ?? [])
+    event.target.value = ""
+    if (files.length === 0) return
+
+    const session = castingSessions.find((s) => s.id === sessionId) ?? null
+    if (!session) return
+
+    setBusy(true)
+    try {
+      const uploaded = await uploadTalentCastingImages({
+        talentId: selected.id,
+        sessionId,
+        files,
+      })
+      const nextSessions = castingSessions.map((s) => {
+        if (s.id !== sessionId) return s
+        const start = (s.images ?? []).length
+        const nextImages = [
+          ...(s.images ?? []),
+          ...uploaded.map((u, idx) => ({
+            id: u.id,
+            path: u.path,
+            downloadURL: u.downloadURL,
+            description: null,
+            order: start + idx,
+          })),
+        ]
+        return { ...s, images: nextImages }
+      })
+      await updateTalent({
+        clientId,
+        userId: user?.uid ?? null,
+        talentId: selected.id,
+        patch: { castingSessions: nextSessions },
+      })
+      toast.success(`Uploaded ${uploaded.length} image${uploaded.length === 1 ? "" : "s"}`)
+    } catch (err) {
+      toast.error("Upload failed", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const confirmRemoveHeadshot = async () => {
     if (!clientId || !selected) return
     setBusy(true)
@@ -286,6 +593,31 @@ export default function LibraryTalentPage() {
     } finally {
       setBusy(false)
     }
+  }
+
+  const createCastingSession = async () => {
+    if (!clientId || !selected) return
+    const date = createSessionDate.trim()
+    if (!date) {
+      toast.error("Date is required")
+      return
+    }
+    const title = createSessionTitle.trim() || null
+
+    const next: CastingSession[] = [
+      {
+        id: crypto.randomUUID(),
+        date,
+        title,
+        notes: null,
+        images: [],
+      },
+      ...castingSessions,
+    ]
+
+    setCreateSessionOpen(false)
+    setCreateSessionTitle("")
+    await updateCastingSessions(next, [], "Casting added")
   }
 
   const submitCreate = async () => {
@@ -713,9 +1045,288 @@ export default function LibraryTalentPage() {
                             placeholder="Notes about sizing, fit, availability…"
                             className="mt-3 min-h-[140px]"
                             onCommit={(next) => {
-                              void savePatch(selected.id, { notes: next || null })
+                              void savePatch(selected.id, { notes: next.trim() ? next : null })
                             }}
                           />
+                        </div>
+
+                        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                              Portfolio
+                            </div>
+                            {canEdit ? (
+                              <>
+                                <input
+                                  ref={portfolioInputRef}
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  onChange={onPortfolioFiles}
+                                  className="hidden"
+                                />
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={busy}
+                                  onClick={() => portfolioInputRef.current?.click()}
+                                >
+                                  Upload images
+                                </Button>
+                              </>
+                            ) : null}
+                          </div>
+
+                          {portfolioImages.length === 0 ? (
+                            <div className="mt-3 text-sm text-[var(--color-text-muted)]">
+                              {canEdit ? "Upload images to build a portfolio for this talent." : "No portfolio images."}
+                            </div>
+                          ) : (
+                            <DndContext
+                              sensors={sensors}
+                              collisionDetection={closestCenter}
+                              onDragEnd={(event: DragEndEvent) => {
+                                const { active, over } = event
+                                if (!over || active.id === over.id) return
+                                const oldIndex = portfolioImages.findIndex((i) => i.id === active.id)
+                                const newIndex = portfolioImages.findIndex((i) => i.id === over.id)
+                                if (oldIndex === -1 || newIndex === -1) return
+                                const reordered = arrayMove([...portfolioImages], oldIndex, newIndex)
+                                void updateGallery(reordered)
+                              }}
+                            >
+                              <SortableContext
+                                items={portfolioImages.map((i) => i.id)}
+                                strategy={rectSortingStrategy}
+                              >
+                                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                                  {portfolioImages.map((img) => (
+                                    <SortableImageTile
+                                      key={img.id}
+                                      image={img}
+                                      disabled={!canEdit || busy}
+                                      onCaptionSave={(next) => {
+                                        const nextImages = portfolioImages.map((i) =>
+                                          i.id === img.id ? { ...i, description: next || null } : i,
+                                        )
+                                        void updateGallery(nextImages)
+                                      }}
+                                      onDelete={() => {
+                                        setGalleryRemoveTarget(img)
+                                        setGalleryRemoveOpen(true)
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              </SortableContext>
+                            </DndContext>
+                          )}
+                        </div>
+
+                        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                              Castings
+                            </div>
+                            {canEdit ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={busy}
+                                onClick={() => setCreateSessionOpen(true)}
+                              >
+                                Add casting
+                              </Button>
+                            ) : null}
+                          </div>
+
+                          {castingSessions.length === 0 ? (
+                            <div className="mt-3 text-sm text-[var(--color-text-muted)]">
+                              {canEdit
+                                ? "Create a casting session to group audition images and notes."
+                                : "No castings yet."}
+                            </div>
+                          ) : (
+                            <div className="mt-4 flex flex-col gap-3">
+                              {castingSessions.map((session) => {
+                                const expanded = sessionExpanded[session.id] === true
+                                return (
+                                  <div
+                                    key={session.id}
+                                    className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)]"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSessionExpanded((prev) => ({
+                                          ...prev,
+                                          [session.id]: !expanded,
+                                        }))
+                                      }
+                                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+                                    >
+                                      <div className="min-w-0">
+                                        <div className="text-sm font-medium text-[var(--color-text)]">
+                                          {session.title?.trim() ? session.title : "Casting"}
+                                        </div>
+                                        <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                                          {session.date} • {(session.images ?? []).length} image{(session.images ?? []).length === 1 ? "" : "s"}
+                                        </div>
+                                      </div>
+                                      <div className="text-xs text-[var(--color-text-muted)]">
+                                        {expanded ? "Hide" : "Open"}
+                                      </div>
+                                    </button>
+
+                                    {expanded ? (
+                                      <div className="border-t border-[var(--color-border)] px-3 py-3">
+                                        <div className="flex flex-col gap-4">
+                                          <div className="grid gap-3 sm:grid-cols-2">
+                                            <div>
+                                              <div className="text-xs text-[var(--color-text-muted)]">Title</div>
+                                              <InlineEdit
+                                                value={(session.title ?? "").trim()}
+                                                disabled={!canEdit || busy}
+                                                placeholder="Add title"
+                                                onSave={(next) => {
+                                                  const nextSessions = castingSessions.map((s) =>
+                                                    s.id === session.id ? { ...s, title: next || null } : s,
+                                                  )
+                                                  void updateCastingSessions(nextSessions)
+                                                }}
+                                                className="text-sm"
+                                              />
+                                            </div>
+                                            <div>
+                                              <div className="text-xs text-[var(--color-text-muted)]">Date</div>
+                                              <Input
+                                                type="date"
+                                                value={session.date}
+                                                disabled={!canEdit || busy}
+                                                onChange={(e) => {
+                                                  const nextDate = e.target.value
+                                                  const nextSessions = castingSessions.map((s) =>
+                                                    s.id === session.id ? { ...s, date: nextDate } : s,
+                                                  )
+                                                  void updateCastingSessions(nextSessions)
+                                                }}
+                                                className="mt-1"
+                                              />
+                                            </div>
+                                          </div>
+
+                                          <div>
+                                            <div className="text-xs text-[var(--color-text-muted)]">Notes</div>
+                                            <InlineTextarea
+                                              value={session.notes ?? ""}
+                                              disabled={!canEdit || busy}
+                                              placeholder="Notes from casting…"
+                                              className="mt-1 min-h-[110px]"
+                                              onCommit={(next) => {
+                                                const nextSessions = castingSessions.map((s) =>
+                                                  s.id === session.id ? { ...s, notes: next.trim() ? next : null } : s,
+                                                )
+                                                void updateCastingSessions(nextSessions)
+                                              }}
+                                            />
+                                          </div>
+
+                                          <div className="flex items-center justify-between gap-3">
+                                            <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                                              Images
+                                            </div>
+                                            {canEdit ? (
+                                              <div className="flex items-center gap-2">
+                                                <label className="inline-flex">
+                                                  <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    multiple
+                                                    onChange={(e) => void onCastingFiles(session.id, e)}
+                                                    className="hidden"
+                                                  />
+                                                  <span className="inline-flex cursor-pointer select-none items-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-surface-subtle)]">
+                                                    Upload
+                                                  </span>
+                                                </label>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  disabled={busy}
+                                                  onClick={() => {
+                                                    setSessionRemoveTarget(session)
+                                                    setSessionRemoveOpen(true)
+                                                  }}
+                                                  className="gap-1 text-[var(--color-error)] hover:text-[var(--color-error)]"
+                                                >
+                                                  <Trash2 className="h-4 w-4" />
+                                                  Delete
+                                                </Button>
+                                              </div>
+                                            ) : null}
+                                          </div>
+
+                                          {(session.images ?? []).length === 0 ? (
+                                            <div className="text-sm text-[var(--color-text-muted)]">
+                                              No casting images.
+                                            </div>
+                                          ) : (
+                                            <DndContext
+                                              sensors={sensors}
+                                              collisionDetection={closestCenter}
+                                              onDragEnd={(event: DragEndEvent) => {
+                                                const { active, over } = event
+                                                if (!over || active.id === over.id) return
+                                                const imgs = session.images ?? []
+                                                const oldIndex = imgs.findIndex((i) => i.id === active.id)
+                                                const newIndex = imgs.findIndex((i) => i.id === over.id)
+                                                if (oldIndex === -1 || newIndex === -1) return
+                                                const reordered = arrayMove([...imgs], oldIndex, newIndex)
+                                                const nextSessions = castingSessions.map((s) =>
+                                                  s.id === session.id ? { ...s, images: reordered } : s,
+                                                )
+                                                void updateCastingSessions(nextSessions)
+                                              }}
+                                            >
+                                              <SortableContext
+                                                items={(session.images ?? []).map((i) => i.id)}
+                                                strategy={rectSortingStrategy}
+                                              >
+                                                <div className="grid gap-3 sm:grid-cols-3">
+                                                  {(session.images ?? []).map((img) => (
+                                                    <SortableImageTile
+                                                      key={img.id}
+                                                      image={img}
+                                                      disabled={!canEdit || busy}
+                                                      onCaptionSave={(next) => {
+                                                        const nextSessions = castingSessions.map((s) => {
+                                                          if (s.id !== session.id) return s
+                                                          const nextImages = (s.images ?? []).map((i) =>
+                                                            i.id === img.id ? { ...i, description: next || null } : i,
+                                                          )
+                                                          return { ...s, images: nextImages }
+                                                        })
+                                                        void updateCastingSessions(nextSessions)
+                                                      }}
+                                                      onDelete={() => {
+                                                        setGalleryRemoveTarget(img)
+                                                        setGalleryRemoveOpen(true)
+                                                        // reuse gallery removal dialog; deletion handler will detect presence in session below
+                                                      }}
+                                                    />
+                                                  ))}
+                                                </div>
+                                              </SortableContext>
+                                            </DndContext>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -845,6 +1456,96 @@ export default function LibraryTalentPage() {
           void confirmRemoveHeadshot()
         }}
       />
+
+      <ConfirmDialog
+        open={galleryRemoveOpen}
+        onOpenChange={setGalleryRemoveOpen}
+        title="Remove image?"
+        description="This removes the image from this profile."
+        confirmLabel={busy ? "Removing..." : "Remove"}
+        destructive
+        confirmDisabled={busy}
+        onConfirm={() => {
+          if (!galleryRemoveTarget || !selected) return
+          const inPortfolio = portfolioImages.some((i) => i.id === galleryRemoveTarget.id)
+          if (inPortfolio) {
+            const next = portfolioImages.filter((i) => i.id !== galleryRemoveTarget.id)
+            void updateGallery(next, [galleryRemoveTarget.path], "Image removed")
+            setGalleryRemoveTarget(null)
+            return
+          }
+
+          const session = castingSessions.find((s) =>
+            (s.images ?? []).some((i) => i.id === galleryRemoveTarget.id),
+          )
+          if (!session) return
+          const nextSessions = castingSessions.map((s) => {
+            if (s.id !== session.id) return s
+            return { ...s, images: (s.images ?? []).filter((i) => i.id !== galleryRemoveTarget.id) }
+          })
+          void updateCastingSessions(nextSessions, [galleryRemoveTarget.path], "Image removed")
+          setGalleryRemoveTarget(null)
+        }}
+      />
+
+      <ConfirmDialog
+        open={sessionRemoveOpen}
+        onOpenChange={setSessionRemoveOpen}
+        title="Delete casting?"
+        description="This deletes the casting session and all its images."
+        confirmLabel={busy ? "Deleting..." : "Delete"}
+        destructive
+        confirmDisabled={busy}
+        onConfirm={() => {
+          if (!sessionRemoveTarget || !selected) return
+          const removedPaths = (sessionRemoveTarget.images ?? []).map((i) => i.path)
+          const nextSessions = castingSessions.filter((s) => s.id !== sessionRemoveTarget.id)
+          void updateCastingSessions(nextSessions, removedPaths, "Casting deleted")
+          setSessionRemoveTarget(null)
+        }}
+      />
+
+      <Dialog open={createSessionOpen} onOpenChange={setCreateSessionOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add casting</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                Date
+              </div>
+              <Input
+                type="date"
+                value={createSessionDate}
+                onChange={(e) => setCreateSessionDate(e.target.value)}
+                disabled={busy}
+                aria-label="Casting date"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                Title (optional)
+              </div>
+              <Input
+                value={createSessionTitle}
+                onChange={(e) => setCreateSessionTitle(e.target.value)}
+                placeholder="e.g. Jan 30 casting"
+                disabled={busy}
+                aria-label="Casting title"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateSessionOpen(false)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button onClick={() => void createCastingSession()} disabled={busy}>
+              {busy ? "Saving..." : "Add"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ErrorBoundary>
   )
 }

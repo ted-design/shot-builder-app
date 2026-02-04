@@ -24,6 +24,8 @@ function mapTalent(id: string, data: Record<string, unknown>): TalentRecord {
     headshotUrl: (data["headshotUrl"] as string) ?? null,
     galleryImages:
       (data["galleryImages"] as TalentRecord["galleryImages"]) ?? undefined,
+    castingSessions:
+      (data["castingSessions"] as TalentRecord["castingSessions"]) ?? undefined,
     projectIds: Array.isArray(rawProjectIds) ? (rawProjectIds as string[]) : undefined,
   }
 }

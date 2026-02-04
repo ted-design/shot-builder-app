@@ -30,6 +30,14 @@ Headshot fields (legacy-compatible):
 - `headshotUrl?: string | null` (optional denormalized URL)
 - `imageUrl?: string | null` (legacy; vNext sets this to the same Storage path for compatibility)
 
+Portfolio gallery fields (legacy-compatible):
+- `galleryImages?: {id,path,downloadURL?,description?,order?,cropData?}[]`
+
+Casting / audition sessions (vNext, embedded on talent doc):
+- `castingSessions?: {id,date,title?,notes?,images[]}[]`
+  - `date` is `YYYY-MM-DD`
+  - `images[]` uses the same shape as `galleryImages`
+
 ## User workflows
 
 Route: `/library/talent`
@@ -47,6 +55,17 @@ Route: `/library/talent`
 - Measurements and notes are editable with explicit validation-free inputs (producer speed)
 - Errors are never silent (toast on failure)
 
+### 3b) Portfolio gallery (desktop)
+- Upload multiple images to the talent’s portfolio
+- Add/edit captions per image
+- Drag to reorder
+
+### 3c) Casting / auditions (desktop)
+- Create a casting session (date + optional title)
+- Store notes per session
+- Upload + caption + reorder images within the session
+- Each session acts as a time-scoped “bin” for reference under pressure
+
 ### 4) Project linking (desktop)
 - Add/remove project membership from the talent cockpit (`projectIds` array)
 
@@ -58,4 +77,5 @@ Route: `/library/talent`
 - No blank states: empty, loading, error all have explicit UI.
 - No silent failures: write failures show errors and preserve current view.
 - Storage path is consistent with existing rules (`/images/**`), avoiding new Storage rule changes.
-
+  - Portfolio images: `images/talent/{talentId}/gallery/{imageId}.webp`
+  - Casting images: `images/talent/{talentId}/casting/{sessionId}/{imageId}.webp`

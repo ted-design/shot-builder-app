@@ -34,6 +34,9 @@ vi.mock("@/features/library/lib/talentWrites", () => ({
   removeTalentHeadshot: vi.fn(),
   addTalentToProject: vi.fn(),
   removeTalentFromProject: vi.fn(),
+  uploadTalentPortfolioImages: vi.fn(),
+  uploadTalentCastingImages: vi.fn(),
+  deleteTalentImagePaths: vi.fn(),
 }))
 
 import { useTalentLibrary } from "@/features/library/hooks/useTalentLibrary"
@@ -120,6 +123,8 @@ describe("LibraryTalentPage", () => {
           measurements: null,
           headshotPath: null,
           headshotUrl: null,
+          galleryImages: [],
+          castingSessions: [],
         },
       ],
       loading: false,
@@ -148,6 +153,67 @@ describe("LibraryTalentPage", () => {
       userId: "u1",
       talentId: "t1",
       patch: { name: "Alex R." },
+    })
+  })
+
+  it("creates a casting session", async () => {
+    ;(useTalentLibrary as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        {
+          id: "t1",
+          name: "Alex Rivera",
+          agency: "IMG",
+          email: null,
+          phone: null,
+          url: null,
+          gender: null,
+          notes: "",
+          measurements: null,
+          headshotPath: null,
+          headshotUrl: null,
+          galleryImages: [],
+          castingSessions: [],
+        },
+      ],
+      loading: false,
+      error: null,
+    })
+
+    ;(updateTalent as unknown as { mockResolvedValue: () => void }).mockResolvedValue()
+
+    renderPage()
+    fireEvent.click(screen.getByText("Alex Rivera"))
+
+    fireEvent.click(screen.getByRole("button", { name: "Add casting" }))
+    const dialog = await screen.findByRole("dialog")
+
+    fireEvent.change(within(dialog).getByLabelText("Casting date"), {
+      target: { value: "2026-01-30" },
+    })
+    fireEvent.change(within(dialog).getByLabelText("Casting title"), {
+      target: { value: "Jan 30 casting" },
+    })
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }))
+
+    await waitFor(() => {
+      expect(updateTalent).toHaveBeenCalledTimes(1)
+    })
+
+    expect(updateTalent).toHaveBeenCalledWith({
+      clientId: "c1",
+      userId: "u1",
+      talentId: "t1",
+      patch: {
+        castingSessions: [
+          {
+            id: expect.any(String),
+            date: "2026-01-30",
+            title: "Jan 30 casting",
+            notes: null,
+            images: [],
+          },
+        ],
+      },
     })
   })
 })

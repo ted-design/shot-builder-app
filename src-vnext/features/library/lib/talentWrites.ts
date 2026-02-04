@@ -12,6 +12,15 @@ import { db, storage } from "@/shared/lib/firebase"
 import { talentPath } from "@/shared/lib/paths"
 import { compressImageToWebp, validateImageFileForUpload } from "@/shared/lib/uploadImage"
 
+export interface TalentImageRecord {
+  readonly id: string
+  readonly path: string
+  readonly downloadURL: string
+  readonly description?: string | null
+  readonly order?: number
+  readonly cropData?: unknown
+}
+
 async function uploadWebpImage(file: File, storagePath: string): Promise<{ path: string; url: string }> {
   validateImageFileForUpload(file)
   const blob = await compressImageToWebp(file)
@@ -28,6 +37,58 @@ async function deleteStoragePath(path: string | null | undefined): Promise<void>
   } catch {
     // Best-effort cleanup only.
   }
+}
+
+export async function uploadTalentPortfolioImages(args: {
+  readonly talentId: string
+  readonly files: readonly File[]
+}): Promise<readonly TalentImageRecord[]> {
+  const talentId = args.talentId.trim()
+  if (!talentId) throw new Error("Missing talent id")
+  const files = [...args.files].filter(Boolean)
+  if (files.length === 0) return []
+
+  const results = await Promise.all(
+    files.map(async (file) => {
+      const id = crypto.randomUUID()
+      const storagePath = `images/talent/${talentId}/gallery/${id}.webp`
+      const uploaded = await uploadWebpImage(file, storagePath)
+      return { id, path: uploaded.path, downloadURL: uploaded.url }
+    }),
+  )
+
+  return results
+}
+
+export async function uploadTalentCastingImages(args: {
+  readonly talentId: string
+  readonly sessionId: string
+  readonly files: readonly File[]
+}): Promise<readonly TalentImageRecord[]> {
+  const talentId = args.talentId.trim()
+  if (!talentId) throw new Error("Missing talent id")
+  const sessionId = args.sessionId.trim()
+  if (!sessionId) throw new Error("Missing session id")
+  const files = [...args.files].filter(Boolean)
+  if (files.length === 0) return []
+
+  const results = await Promise.all(
+    files.map(async (file) => {
+      const id = crypto.randomUUID()
+      const storagePath = `images/talent/${talentId}/casting/${sessionId}/${id}.webp`
+      const uploaded = await uploadWebpImage(file, storagePath)
+      return { id, path: uploaded.path, downloadURL: uploaded.url }
+    }),
+  )
+
+  return results
+}
+
+export async function deleteTalentImagePaths(paths: readonly (string | null | undefined)[]): Promise<void> {
+  const unique = Array.from(
+    new Set(paths.map((p) => (typeof p === "string" ? p.trim() : "")).filter(Boolean)),
+  )
+  await Promise.all(unique.map((p) => deleteStoragePath(p)))
 }
 
 export async function createTalent(args: {
@@ -174,4 +235,3 @@ export async function removeTalentFromProject(args: {
     updatedBy: args.userId ?? null,
   })
 }
-
