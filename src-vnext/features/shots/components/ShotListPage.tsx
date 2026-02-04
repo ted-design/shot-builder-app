@@ -44,6 +44,8 @@ import { toast } from "sonner"
 import { TagBadge } from "@/shared/components/TagBadge"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { backfillMissingShotDates } from "@/features/shots/lib/backfillShotDates"
+import { useLocations, useTalent } from "@/features/shots/hooks/usePickerData"
+import { getShotPrimaryLookProductLabels, resolveIdsToNames } from "@/features/shots/lib/shotListSummaries"
 
 type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated"
 type SortDir = "asc" | "desc"
@@ -161,10 +163,10 @@ function filterByMissing(
     for (const key of missing) {
       switch (key) {
         case "products":
-          if (s.products.length > 0) return false
+          if (extractShotAssignedProducts(s).length > 0) return false
           break
         case "talent":
-          if ((s.talentIds ?? s.talent).length > 0) return false
+          if ((s.talentIds ?? s.talent).some((t) => typeof t === "string" && t.trim().length > 0)) return false
           break
         case "location":
           if (s.locationId) return false
@@ -204,6 +206,8 @@ export default function ShotListPage() {
   const { projectId, projectName } = useProjectScope()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
+  const { data: talentRecords } = useTalent()
+  const { data: locationRecords } = useLocations()
   const [searchParams, setSearchParams] = useSearchParams()
   const [createOpen, setCreateOpen] = useState(false)
   const [mobileOptimistic, setMobileOptimistic] = useState<ReadonlyArray<Shot> | null>(null)
@@ -392,6 +396,14 @@ export default function ShotListPage() {
     const filteredByQuery = filterByQuery(filteredByMissing, queryParam)
     return sortShots(filteredByQuery, sortKey, sortDir)
   }, [shots, mobileOptimistic, sortKey, sortDir, statusFilter, missingFilter, queryParam])
+
+  const talentNameById = useMemo(() => {
+    return new Map(talentRecords.map((t) => [t.id, t.name]))
+  }, [talentRecords])
+
+  const locationNameById = useMemo(() => {
+    return new Map(locationRecords.map((l) => [l.id, l.name]))
+  }, [locationRecords])
 
   const selectionEnabled = selectionMode && canBulkPull
 
@@ -659,13 +671,7 @@ export default function ShotListPage() {
                 </DropdownMenuCheckboxItem>
 
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel>Table</DropdownMenuLabel>
-                <DropdownMenuCheckboxItem
-                  checked={fields.date}
-                  onCheckedChange={() => setFields({ ...fields, date: !fields.date })}
-                >
-                  Date
-                </DropdownMenuCheckboxItem>
+                <DropdownMenuLabel>Details</DropdownMenuLabel>
                 <DropdownMenuCheckboxItem
                   checked={fields.location}
                   onCheckedChange={() => setFields({ ...fields, location: !fields.location })}
@@ -683,6 +689,15 @@ export default function ShotListPage() {
                   onCheckedChange={() => setFields({ ...fields, talent: !fields.talent })}
                 >
                   Talent
+                </DropdownMenuCheckboxItem>
+
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Table</DropdownMenuLabel>
+                <DropdownMenuCheckboxItem
+                  checked={fields.date}
+                  onCheckedChange={() => setFields({ ...fields, date: !fields.date })}
+                >
+                  Date
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
                   checked={fields.updated}
@@ -776,7 +791,12 @@ export default function ShotListPage() {
                 />
               )}
               <div className="flex-1">
-                <ShotCard shot={shot} visibleFields={fields} />
+                <ShotCard
+                  shot={shot}
+                  visibleFields={fields}
+                  talentNameById={talentNameById}
+                  locationNameById={locationNameById}
+                />
               </div>
             </div>
           ))}
@@ -800,6 +820,8 @@ export default function ShotListPage() {
           <ShotsTable
             shots={displayShots}
             fields={fields}
+            talentNameById={talentNameById}
+            locationNameById={locationNameById}
             selection={
               selectionEnabled
                 ? { enabled: true, selectedIds, onToggle: toggleSelected, onToggleAll: (next) => setSelectedIds(next) }
@@ -814,6 +836,8 @@ export default function ShotListPage() {
           shots={displayShots}
           disabled={!isCustomSort || !canReorder}
           visibleFields={fields}
+          talentNameById={talentNameById}
+          locationNameById={locationNameById}
           selection={
             selectionEnabled
               ? { enabled: true, selectedIds, onToggle: toggleSelected }
@@ -915,11 +939,15 @@ export default function ShotListPage() {
 function ShotsTable({
   shots,
   fields,
+  talentNameById,
+  locationNameById,
   selection,
   onOpenShot,
 }: {
   readonly shots: ReadonlyArray<Shot>
   readonly fields: ShotsListFields
+  readonly talentNameById?: ReadonlyMap<string, string> | null
+  readonly locationNameById?: ReadonlyMap<string, string> | null
   readonly selection?: {
     readonly enabled: boolean
     readonly selectedIds: ReadonlySet<string>
@@ -958,8 +986,8 @@ function ShotsTable({
             <th className="min-w-[240px] px-3 py-2 text-left font-medium">Shot</th>
             {fields.date && <th className="w-32 px-3 py-2 text-left font-medium">Date</th>}
             {fields.location && <th className="min-w-[160px] px-3 py-2 text-left font-medium">Location</th>}
-            {fields.products && <th className="w-24 px-3 py-2 text-left font-medium">Products</th>}
-            {fields.talent && <th className="w-24 px-3 py-2 text-left font-medium">Talent</th>}
+            {fields.products && <th className="min-w-[280px] px-3 py-2 text-left font-medium">Products</th>}
+            {fields.talent && <th className="min-w-[220px] px-3 py-2 text-left font-medium">Talent</th>}
             {fields.tags && <th className="min-w-[180px] px-3 py-2 text-left font-medium">Tags</th>}
             {fields.updated && <th className="w-28 px-3 py-2 text-left font-medium">Updated</th>}
             <th className="w-28 px-3 py-2 text-left font-medium">Status</th>
@@ -968,8 +996,22 @@ function ShotsTable({
         <tbody>
           {shots.map((shot) => {
             const title = shot.title || "Untitled Shot"
-            const productsCount = extractShotAssignedProducts(shot).length
-            const talentCount = (shot.talentIds ?? shot.talent).length
+            const productLabels = getShotPrimaryLookProductLabels(shot)
+
+            const talentIds = shot.talentIds ?? shot.talent
+            const { names: talentNames, unknownCount: unknownTalentCount } = resolveIdsToNames(
+              talentIds,
+              talentNameById,
+            )
+            const hasTalent = talentNames.length + unknownTalentCount > 0
+            const talentTitle =
+              unknownTalentCount > 0
+                ? `${talentNames.join("\n")}${talentNames.length > 0 ? "\n" : ""}${unknownTalentCount} unknown`
+                : talentNames.join("\n")
+
+            const resolvedLocationName =
+              shot.locationName ??
+              (shot.locationId ? locationNameById?.get(shot.locationId) ?? undefined : undefined)
             return (
               <tr
                 key={shot.id}
@@ -1014,17 +1056,58 @@ function ShotsTable({
                 )}
                 {fields.location && (
                   <td className="px-3 py-2 text-[var(--color-text-secondary)]">
-                    {shot.locationName || "—"}
+                    {resolvedLocationName ? (
+                      <div className="max-w-[240px] truncate" title={resolvedLocationName}>
+                        {resolvedLocationName}
+                      </div>
+                    ) : shot.locationId ? (
+                      <div className="max-w-[240px] truncate" title={shot.locationId}>
+                        Location selected
+                      </div>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                 )}
                 {fields.products && (
                   <td className="px-3 py-2 text-[var(--color-text-secondary)]">
-                    {productsCount || "—"}
+                    {productLabels.length === 0 ? (
+                      "—"
+                    ) : (
+                      <div className="flex max-w-[320px] flex-col gap-0.5" title={productLabels.join("\n")}>
+                        {productLabels.map((label, index) => (
+                          <div key={`${label}-${index}`} className="truncate">
+                            {label}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </td>
                 )}
                 {fields.talent && (
                   <td className="px-3 py-2 text-[var(--color-text-secondary)]">
-                    {talentCount || "—"}
+                    {!hasTalent ? (
+                      "—"
+                    ) : (
+                      <div className="flex max-w-[260px] flex-col gap-0.5" title={talentTitle || undefined}>
+                        {talentNames.length > 0 ? (
+                          <>
+                            {talentNames.map((name) => (
+                              <div key={name} className="truncate">
+                                {name}
+                              </div>
+                            ))}
+                            {unknownTalentCount > 0 && (
+                              <div className="truncate text-[var(--color-text-subtle)]">
+                                +{unknownTalentCount} unknown
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="truncate">{unknownTalentCount} selected</div>
+                        )}
+                      </div>
+                    )}
                   </td>
                 )}
                 {fields.tags && (

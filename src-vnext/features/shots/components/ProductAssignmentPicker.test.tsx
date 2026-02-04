@@ -10,6 +10,9 @@ const MOCK_FAMILY = {
   id: "fam-1",
   styleName: "Classic Tee",
   styleNumber: "CT-100",
+  gender: "Women",
+  productType: "Tops",
+  productSubcategory: "Tees",
   thumbnailImagePath: "productFamilies/fam-1/thumb.webp",
   clientId: "c1",
 }
@@ -196,6 +199,23 @@ describe("ProductAssignmentPicker", () => {
         expect(screen.queryByTestId("picker-confirm")).not.toBeInTheDocument()
       })
     })
+  })
+
+  it("shows gender/type scaffolding in the family step list", async () => {
+    onSave.mockResolvedValue(true)
+
+    render(
+      <ProductAssignmentPicker
+        selected={[]}
+        onSave={onSave}
+        disabled={false}
+      />,
+    )
+
+    fireEvent.click(screen.getByText("Add product"))
+
+    expect(await screen.findByText("Women")).toBeInTheDocument()
+    expect(screen.getByText("Tops · Tees")).toBeInTheDocument()
   })
 
   describe("save-gated remove", () => {

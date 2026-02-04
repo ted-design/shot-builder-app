@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
 import { Checkbox } from "@/ui/checkbox"
@@ -6,9 +6,9 @@ import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { Package, Users, MapPin } from "lucide-react"
 import { textPreview } from "@/shared/lib/textPreview"
-import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { TagBadge } from "@/shared/components/TagBadge"
+import { getShotPrimaryLookProductLabels, resolveIdsToNames, summarizeLabels } from "@/features/shots/lib/shotListSummaries"
 import type { Shot } from "@/shared/types"
 
 interface ShotCardProps {
@@ -17,6 +17,8 @@ interface ShotCardProps {
   readonly selected?: boolean
   readonly onSelectedChange?: (selected: boolean) => void
   readonly visibleFields?: Partial<ShotCardVisibleFields>
+  readonly talentNameById?: ReadonlyMap<string, string> | null
+  readonly locationNameById?: ReadonlyMap<string, string> | null
 }
 
 export interface ShotCardVisibleFields {
@@ -24,6 +26,9 @@ export interface ShotCardVisibleFields {
   readonly shotNumber: boolean
   readonly description: boolean
   readonly readiness: boolean
+  readonly location: boolean
+  readonly products: boolean
+  readonly talent: boolean
   readonly tags: boolean
 }
 
@@ -32,6 +37,9 @@ const DEFAULT_VISIBLE_FIELDS: ShotCardVisibleFields = {
   shotNumber: true,
   description: true,
   readiness: true,
+  location: true,
+  products: true,
+  talent: true,
   tags: true,
 }
 
@@ -41,6 +49,8 @@ export function ShotCard({
   selected,
   onSelectedChange,
   visibleFields,
+  talentNameById,
+  locationNameById,
 }: ShotCardProps) {
   const navigate = useNavigate()
   const { projectId } = useProjectScope()
@@ -57,9 +67,39 @@ export function ShotCard({
     ...visibleFields,
   }
 
-  const hasProducts = extractShotAssignedProducts(shot).length > 0
-  const hasTalent = (shot.talentIds ?? shot.talent).length > 0
+  const productLabels = getShotPrimaryLookProductLabels(shot)
+  const hasProducts = productLabels.length > 0
+
+  const talentIds = shot.talentIds ?? shot.talent
+  const { names: talentNames, unknownCount: unknownTalentCount } = resolveIdsToNames(
+    talentIds,
+    talentNameById,
+  )
+  const hasTalent = talentNames.length + unknownTalentCount > 0
+
+  const resolvedLocationName =
+    shot.locationName ??
+    (shot.locationId ? locationNameById?.get(shot.locationId) ?? undefined : undefined)
   const hasLocation = !!shot.locationId
+
+  const talentSummary = summarizeLabels(talentNames, 2)
+
+  const talentPreview =
+    talentNames.length === 0
+      ? unknownTalentCount > 0
+        ? `${unknownTalentCount} selected`
+        : ""
+      : unknownTalentCount > 0
+        ? `${talentSummary.preview} +${unknownTalentCount}`
+        : talentSummary.preview
+
+  const talentTitle =
+    unknownTalentCount > 0
+      ? `${talentSummary.title}${talentSummary.title ? "\n" : ""}${unknownTalentCount} unknown`
+      : talentSummary.title
+
+  const showReadiness =
+    fields.readiness && !(fields.location || fields.products || fields.talent)
 
   return (
     <Card
@@ -114,11 +154,38 @@ export function ShotCard({
         )}
 
         {/* Readiness indicators */}
-        {fields.readiness && (
+        {showReadiness && (
           <div className="flex items-center gap-3 text-xs">
             <ReadinessIndicator icon={Package} ready={hasProducts} label="Products" />
             <ReadinessIndicator icon={Users} ready={hasTalent} label="Talent" />
             <ReadinessIndicator icon={MapPin} ready={hasLocation} label="Location" />
+          </div>
+        )}
+
+        {(fields.location || fields.products || fields.talent) && (
+          <div className="flex flex-col gap-1 text-xs text-[var(--color-text-secondary)]">
+            {fields.location && hasLocation && (
+              <MetaLine
+                icon={MapPin}
+                title={resolvedLocationName ?? shot.locationId ?? undefined}
+              >
+                {resolvedLocationName ?? "Location selected"}
+              </MetaLine>
+            )}
+            {fields.talent && hasTalent && (
+              <MetaLine icon={Users} title={talentTitle || undefined}>
+                {talentPreview || "—"}
+              </MetaLine>
+            )}
+            {fields.products && hasProducts && (
+              <MetaBlock icon={Package} title={productLabels.join("\n")}>
+                {productLabels.map((label, index) => (
+                  <div key={`${label}-${index}`} className="truncate">
+                    {label}
+                  </div>
+                ))}
+              </MetaBlock>
+            )}
           </div>
         )}
 
@@ -156,5 +223,39 @@ function ReadinessIndicator({
       <Icon className="h-3 w-3" />
       <span>{label}</span>
     </span>
+  )
+}
+
+function MetaLine({
+  icon: Icon,
+  title,
+  children,
+}: {
+  readonly icon: React.ComponentType<{ className?: string }>
+  readonly title?: string
+  readonly children: ReactNode
+}) {
+  return (
+    <div className="flex items-center gap-1.5 min-w-0" title={title}>
+      <Icon className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-subtle)]" />
+      <span className="truncate">{children}</span>
+    </div>
+  )
+}
+
+function MetaBlock({
+  icon: Icon,
+  title,
+  children,
+}: {
+  readonly icon: React.ComponentType<{ className?: string }>
+  readonly title?: string
+  readonly children: ReactNode
+}) {
+  return (
+    <div className="flex items-start gap-1.5 min-w-0" title={title}>
+      <Icon className="mt-[1px] h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-subtle)]" />
+      <div className="flex min-w-0 flex-col gap-0.5">{children}</div>
+    </div>
   )
 }

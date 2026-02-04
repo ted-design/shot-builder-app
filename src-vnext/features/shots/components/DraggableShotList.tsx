@@ -27,6 +27,8 @@ interface DraggableShotListProps {
   readonly shots: ReadonlyArray<Shot>
   readonly disabled?: boolean
   readonly visibleFields?: Partial<ShotCardVisibleFields>
+  readonly talentNameById?: ReadonlyMap<string, string> | null
+  readonly locationNameById?: ReadonlyMap<string, string> | null
   readonly selection?: {
     readonly enabled: boolean
     readonly selectedIds: ReadonlySet<string>
@@ -34,7 +36,14 @@ interface DraggableShotListProps {
   }
 }
 
-export function DraggableShotList({ shots, disabled, visibleFields, selection }: DraggableShotListProps) {
+export function DraggableShotList({
+  shots,
+  disabled,
+  visibleFields,
+  talentNameById,
+  locationNameById,
+  selection,
+}: DraggableShotListProps) {
   const { clientId } = useAuth()
   const [optimisticOrder, setOptimisticOrder] = useState<ReadonlyArray<Shot> | null>(null)
   const displayShots = optimisticOrder ?? shots
@@ -77,6 +86,8 @@ export function DraggableShotList({ shots, disabled, visibleFields, selection }:
             selected={selection?.selectedIds.has(shot.id) ?? false}
             onSelectedChange={() => selection?.onToggle(shot.id)}
             visibleFields={visibleFields}
+            talentNameById={talentNameById}
+            locationNameById={locationNameById}
           />
         ))}
       </div>
@@ -95,7 +106,13 @@ export function DraggableShotList({ shots, disabled, visibleFields, selection }:
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {displayShots.map((shot) => (
-            <SortableShotCard key={shot.id} shot={shot} visibleFields={visibleFields} />
+            <SortableShotCard
+              key={shot.id}
+              shot={shot}
+              visibleFields={visibleFields}
+              talentNameById={talentNameById}
+              locationNameById={locationNameById}
+            />
           ))}
         </div>
       </SortableContext>
@@ -106,9 +123,13 @@ export function DraggableShotList({ shots, disabled, visibleFields, selection }:
 function SortableShotCard({
   shot,
   visibleFields,
+  talentNameById,
+  locationNameById,
 }: {
   readonly shot: Shot
   readonly visibleFields?: Partial<ShotCardVisibleFields>
+  readonly talentNameById?: ReadonlyMap<string, string> | null
+  readonly locationNameById?: ReadonlyMap<string, string> | null
 }) {
   const {
     attributes,
@@ -134,7 +155,12 @@ function SortableShotCard({
       >
         <GripVertical className="h-4 w-4" />
       </div>
-      <ShotCard shot={shot} visibleFields={visibleFields} />
+      <ShotCard
+        shot={shot}
+        visibleFields={visibleFields}
+        talentNameById={talentNameById}
+        locationNameById={locationNameById}
+      />
     </div>
   )
 }

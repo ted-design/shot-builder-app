@@ -24,6 +24,7 @@ import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
 import { Separator } from "@/ui/separator"
+import { Badge } from "@/ui/badge"
 import {
   useProductFamilies,
   useProductSkus,
@@ -383,30 +384,196 @@ function FamilyStep({
   readonly onSelect: (family: ProductFamily) => void
 }) {
   const { data: families } = useProductFamilies()
+  const [gender, setGender] = useState<string>("__all__")
+  const [productType, setProductType] = useState<string>("__all__")
+  const [subcategory, setSubcategory] = useState<string>("__all__")
+
+  const normalize = (value: unknown): string | null => {
+    if (typeof value !== "string") return null
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : null
+  }
+
+  const genderKey = (value: unknown): string => {
+    const raw = normalize(value)?.toLowerCase() ?? null
+    if (!raw) return "unknown"
+    if (raw === "women" || raw === "woman" || raw === "womens" || raw === "female" || raw === "w") return "women"
+    if (raw === "men" || raw === "man" || raw === "mens" || raw === "male" || raw === "m") return "men"
+    if (raw === "unisex") return "unisex"
+    return raw
+  }
+
+  const genderLabel = (key: string): string => {
+    if (key === "women") return "Women"
+    if (key === "men") return "Men"
+    if (key === "unisex") return "Unisex"
+    if (key === "unknown") return "Unknown"
+    return key
+      .split(/[\s_-]+/)
+      .map((w) => (w ? w[0]!.toUpperCase() + w.slice(1) : w))
+      .join(" ")
+  }
+
+  const visibleFamilies = useMemo(() => {
+    return families.filter((f) => {
+      const fGender = genderKey(f.gender)
+      const fType = normalize(f.productType) ?? "__unknown__"
+      const fSub = normalize(f.productSubcategory) ?? "__unknown__"
+
+      if (gender !== "__all__" && fGender !== gender) return false
+      if (productType !== "__all__" && fType !== productType) return false
+      if (subcategory !== "__all__" && fSub !== subcategory) return false
+      return true
+    })
+  }, [families, gender, productType, subcategory])
+
+  const genderOptions = useMemo(() => {
+    const keys = new Set<string>()
+    for (const f of families) keys.add(genderKey(f.gender))
+    const list = Array.from(keys)
+    list.sort((a, b) => genderLabel(a).localeCompare(genderLabel(b)))
+    return list
+  }, [families])
+
+  const typeOptions = useMemo(() => {
+    const keys = new Set<string>()
+    for (const f of families) {
+      const fGender = genderKey(f.gender)
+      if (gender !== "__all__" && fGender !== gender) continue
+      const t = normalize(f.productType)
+      if (t) keys.add(t)
+    }
+    return Array.from(keys).sort((a, b) => a.localeCompare(b))
+  }, [families, gender])
+
+  const subcategoryOptions = useMemo(() => {
+    const keys = new Set<string>()
+    for (const f of families) {
+      const fGender = genderKey(f.gender)
+      if (gender !== "__all__" && fGender !== gender) continue
+      const t = normalize(f.productType) ?? null
+      if (productType !== "__all__" && t !== productType) continue
+      const s = normalize(f.productSubcategory)
+      if (s) keys.add(s)
+    }
+    return Array.from(keys).sort((a, b) => a.localeCompare(b))
+  }, [families, gender, productType])
 
   return (
-    <Command className="max-h-[300px]">
-      <CommandInput placeholder="Search product families..." />
-      <CommandList>
-        <CommandEmpty>No product families found.</CommandEmpty>
-        <CommandGroup>
-          {families.map((f) => (
-            <CommandItem
-              key={f.id}
-              onSelect={() => onSelect(f)}
-              className="flex items-center gap-2"
-            >
-              <span>{f.styleName}</span>
-              {f.styleNumber && (
-                <span className="text-xs text-[var(--color-text-subtle)]">
-                  ({f.styleNumber})
-                </span>
-              )}
-            </CommandItem>
-          ))}
-        </CommandGroup>
-      </CommandList>
-    </Command>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Select
+          value={gender}
+          onValueChange={(v) => {
+            setGender(v)
+            setProductType("__all__")
+            setSubcategory("__all__")
+          }}
+        >
+          <SelectTrigger className="h-8 w-[140px]">
+            <SelectValue placeholder="Gender" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All</SelectItem>
+            {genderOptions.map((g) => (
+              <SelectItem key={g} value={g}>
+                {genderLabel(g)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={productType}
+          onValueChange={(v) => {
+            setProductType(v)
+            setSubcategory("__all__")
+          }}
+          disabled={typeOptions.length === 0}
+        >
+          <SelectTrigger className="h-8 w-[160px]">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All</SelectItem>
+            {typeOptions.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={subcategory}
+          onValueChange={(v) => setSubcategory(v)}
+          disabled={subcategoryOptions.length === 0}
+        >
+          <SelectTrigger className="h-8 w-[180px]">
+            <SelectValue placeholder="Subcategory" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All</SelectItem>
+            {subcategoryOptions.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="text-xs text-[var(--color-text-subtle)]">
+        {gender !== "__all__" ? genderLabel(gender) : "All"}
+        {productType !== "__all__" ? ` > ${productType}` : ""}
+        {subcategory !== "__all__" ? ` > ${subcategory}` : ""}
+      </div>
+
+      <Separator />
+
+      <Command className="max-h-[300px]">
+        <CommandInput placeholder="Search product families..." />
+        <CommandList>
+          <CommandEmpty>No product families found.</CommandEmpty>
+          <CommandGroup>
+            {visibleFamilies.map((f) => {
+              const g = genderLabel(genderKey(f.gender))
+              const t = normalize(f.productType)
+              const s = normalize(f.productSubcategory)
+              const secondaryParts = [t, s].filter(Boolean) as string[]
+              return (
+                <CommandItem
+                  key={f.id}
+                  onSelect={() => onSelect(f)}
+                  className="flex min-h-[44px] items-center gap-3"
+                >
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex items-baseline gap-2 min-w-0">
+                      <span className="truncate">{f.styleName}</span>
+                      {f.styleNumber && (
+                        <span className="shrink-0 text-xs text-[var(--color-text-subtle)]">
+                          ({f.styleNumber})
+                        </span>
+                      )}
+                    </div>
+                    {secondaryParts.length > 0 && (
+                      <span className="truncate text-xs text-[var(--color-text-subtle)]">
+                        {secondaryParts.join(" · ")}
+                      </span>
+                    )}
+                  </div>
+                  {g && (
+                    <Badge variant="secondary" className="shrink-0 text-[10px]">
+                      {g}
+                    </Badge>
+                  )}
+                </CommandItem>
+              )
+            })}
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </div>
   )
 }
 

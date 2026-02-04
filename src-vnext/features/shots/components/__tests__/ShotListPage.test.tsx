@@ -9,6 +9,11 @@ vi.mock("@/features/shots/hooks/useShots", () => ({
   useShots: vi.fn(),
 }))
 
+vi.mock("@/features/shots/hooks/usePickerData", () => ({
+  useTalent: vi.fn(),
+  useLocations: vi.fn(),
+}))
+
 vi.mock("@/app/providers/AuthProvider", () => ({
   useAuth: () => ({ role: "producer", clientId: "c1" }),
 }))
@@ -36,6 +41,7 @@ vi.mock("@/features/pulls/components/CreatePullFromShotsDialog", () => ({
 }))
 
 import { useShots } from "@/features/shots/hooks/useShots"
+import { useLocations, useTalent } from "@/features/shots/hooks/usePickerData"
 import ShotListPage from "@/features/shots/components/ShotListPage"
 
 function makeShot(overrides: Partial<Shot>): Shot {
@@ -80,6 +86,16 @@ describe("ShotListPage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.localStorage.clear()
+    ;(useTalent as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [],
+      loading: false,
+      error: null,
+    })
+    ;(useLocations as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [],
+      loading: false,
+      error: null,
+    })
   })
 
   it("renders table view when view=table", () => {
@@ -93,6 +109,50 @@ describe("ShotListPage", () => {
 
     expect(screen.getByRole("table")).toBeInTheDocument()
     expect(screen.getByText("Alpha")).toBeInTheDocument()
+  })
+
+  it("shows attached products, talent, and location in table rows", () => {
+    ;(useTalent as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        { id: "t1", name: "Jane" },
+        { id: "t2", name: "Bob" },
+      ],
+      loading: false,
+      error: null,
+    })
+    ;(useLocations as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [{ id: "loc1", name: "Studio A" }],
+      loading: false,
+      error: null,
+    })
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        makeShot({
+          id: "a",
+          title: "Alpha",
+          locationId: "loc1",
+          products: [
+            {
+              familyId: "f1",
+              familyName: "Jacket",
+              colourName: "Black",
+              sizeScope: "single",
+              size: "M",
+            },
+          ],
+          talent: ["t1", "t2"],
+        }),
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots?view=table&sort=name")
+
+    expect(screen.getByText("Studio A")).toBeInTheDocument()
+    expect(screen.getByText("Jacket (Black • M)")).toBeInTheDocument()
+    expect(screen.getByText("Jane")).toBeInTheDocument()
+    expect(screen.getByText("Bob")).toBeInTheDocument()
   })
 
   it("switches between table and gallery views", () => {
