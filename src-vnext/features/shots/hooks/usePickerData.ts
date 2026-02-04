@@ -36,21 +36,25 @@ function mapSku(id: string, data: Record<string, unknown>): ProductSku {
 }
 
 function mapTalent(id: string, data: Record<string, unknown>): TalentRecord {
+  const rawProjectIds = data["projectIds"]
   return {
     id,
     name: (data["name"] as string) ?? "",
     imageUrl: data["imageUrl"] as string | undefined,
     agency: data["agency"] as string | undefined,
     notes: data["notes"] as string | undefined,
+    projectIds: Array.isArray(rawProjectIds) ? (rawProjectIds as string[]) : undefined,
   }
 }
 
 function mapLocation(id: string, data: Record<string, unknown>): LocationRecord {
+  const rawProjectIds = data["projectIds"]
   return {
     id,
     name: (data["name"] as string) ?? "",
     address: data["address"] as string | undefined,
     notes: data["notes"] as string | undefined,
+    projectIds: Array.isArray(rawProjectIds) ? (rawProjectIds as string[]) : undefined,
   }
 }
 

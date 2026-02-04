@@ -290,6 +290,8 @@ export interface TalentRecord {
   readonly imageUrl?: string
   readonly agency?: string
   readonly notes?: string
+  /** Project membership (legacy project-scoped assets). */
+  readonly projectIds?: readonly string[]
 }
 
 export interface LocationRecord {
@@ -297,6 +299,8 @@ export interface LocationRecord {
   readonly name: string
   readonly address?: string
   readonly notes?: string
+  /** Project membership (legacy project-scoped assets). */
+  readonly projectIds?: readonly string[]
 }
 
 export interface AuthUser {
@@ -321,6 +325,8 @@ export interface CrewRecord {
   readonly email?: string
   readonly phone?: string
   readonly notes?: string
+  /** Project membership (legacy project-scoped assets). */
+  readonly projectIds?: readonly string[]
 }
 
 // --- Schedules (Slice 3: Call Sheet Assembly) ---

@@ -123,6 +123,7 @@ export function mapCrewCall(id: string, data: Record<string, unknown>): CrewCall
 }
 
 export function mapCrewRecord(id: string, data: Record<string, unknown>): CrewRecord {
+  const rawProjectIds = data["projectIds"]
   return {
     id,
     name: (data["name"] as string) ?? "",
@@ -131,5 +132,6 @@ export function mapCrewRecord(id: string, data: Record<string, unknown>): CrewRe
     email: data["email"] as string | undefined,
     phone: data["phone"] as string | undefined,
     notes: data["notes"] as string | undefined,
+    projectIds: Array.isArray(rawProjectIds) ? (rawProjectIds as string[]) : undefined,
   }
 }
