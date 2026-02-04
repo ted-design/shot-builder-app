@@ -66,4 +66,16 @@ describe("ProductDetailPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /edit/i }))
     expect(await screen.findByText("Editor Page")).toBeInTheDocument()
   })
+
+  it("renders the Samples section without crashing", () => {
+    render(
+      <MemoryRouter initialEntries={["/products/fam-1?section=samples"]}>
+        <Routes>
+          <Route path="/products/:fid" element={<ProductDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole("heading", { name: "Samples" })).toBeInTheDocument()
+  })
 })

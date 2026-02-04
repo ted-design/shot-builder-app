@@ -61,6 +61,8 @@ import type { ProductDocument, ProductSample, ProductSampleStatus, ProductSample
 type SampleStatusFilter = "all" | ProductSampleStatus
 type SampleTypeFilter = "all" | ProductSampleType
 
+const SCOPE_ALL_VALUE = "__all__"
+
 function formatDateTime(ts: Timestamp | undefined | null): string {
   if (!ts) return "—"
   try {
@@ -787,19 +789,19 @@ export default function ProductDetailPage() {
                       </div>
 
                       <div className="grid gap-3 md:grid-cols-3">
-                        <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1">
                           <Label className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">
                             Scope
                           </Label>
                           <Select
-                            value={sampleScopeSkuId}
-                            onValueChange={(value) => setSampleScopeSkuId(value)}
+                            value={sampleScopeSkuId || SCOPE_ALL_VALUE}
+                            onValueChange={(value) => setSampleScopeSkuId(value === SCOPE_ALL_VALUE ? "" : value)}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="All colorways" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">All colorways</SelectItem>
+                              <SelectItem value={SCOPE_ALL_VALUE}>All colorways</SelectItem>
                               {scopeSkuOptions.map((opt) => (
                                 <SelectItem key={opt.id} value={opt.id}>
                                   {opt.label}
@@ -1333,15 +1335,17 @@ export default function ProductDetailPage() {
               <div className="flex flex-col gap-1">
                 <Label className="text-xs">Scope</Label>
                 <Select
-                  value={sampleDraft.scopeSkuId}
-                  onValueChange={(value) => setSampleDraft((prev) => ({ ...prev, scopeSkuId: value }))}
+                  value={sampleDraft.scopeSkuId || SCOPE_ALL_VALUE}
+                  onValueChange={(value) =>
+                    setSampleDraft((prev) => ({ ...prev, scopeSkuId: value === SCOPE_ALL_VALUE ? "" : value }))
+                  }
                   disabled={sampleSaving || isMobile}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All colorways" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All colorways</SelectItem>
+                    <SelectItem value={SCOPE_ALL_VALUE}>All colorways</SelectItem>
                     {scopeSkuOptions.map((opt) => (
                       <SelectItem key={opt.id} value={opt.id}>
                         {opt.label}
