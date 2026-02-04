@@ -38,6 +38,7 @@ import { formatDateOnly } from "@/features/shots/lib/dateOnly"
 import { Camera, Plus, Info, LayoutGrid, Table2, SlidersHorizontal, Eye, ArrowUpDown } from "lucide-react"
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
+import { textPreview } from "@/shared/lib/textPreview"
 import type { Shot, ShotFirestoreStatus } from "@/shared/types"
 
 type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated"
@@ -908,7 +909,7 @@ function ShotsTable({
                   </div>
                   {fields.description && shot.description && (
                     <div className="mt-0.5 line-clamp-1 text-xs text-[var(--color-text-muted)]">
-                      {shot.description}
+                      {textPreview(shot.description)}
                     </div>
                   )}
                 </td>

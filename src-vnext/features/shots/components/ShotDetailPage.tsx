@@ -6,7 +6,6 @@ import { useShot } from "@/features/shots/hooks/useShot"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { TalentPicker } from "@/features/shots/components/TalentPicker"
 import { LocationPicker } from "@/features/shots/components/LocationPicker"
-import { ProductAssignmentPicker } from "@/features/shots/components/ProductAssignmentPicker"
 import { NotesSection } from "@/features/shots/components/NotesSection"
 import { HeroImageSection } from "@/features/shots/components/HeroImageSection"
 import { ShotLooksSection } from "@/features/shots/components/ShotLooksSection"
@@ -15,8 +14,8 @@ import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { canManageShots } from "@/shared/lib/rbac"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { textPreview } from "@/shared/lib/textPreview"
 import { Button } from "@/ui/button"
-import { Label } from "@/ui/label"
 import { Input } from "@/ui/input"
 import { Textarea } from "@/ui/textarea"
 import { Separator } from "@/ui/separator"
@@ -61,6 +60,8 @@ export default function ShotDetailPage() {
       </div>
     )
   }
+
+  const safeDescription = textPreview(shot.description, Number.POSITIVE_INFINITY)
 
   return (
     <ErrorBoundary>
@@ -122,13 +123,6 @@ export default function ShotDetailPage() {
             <SectionLabel>Looks</SectionLabel>
             <ShotLooksSection shot={shot} canEdit={canEdit} />
 
-            <SectionLabel>Products</SectionLabel>
-            <ProductAssignmentPicker
-              selected={shot.products}
-              onSave={(products) => save({ products })}
-              disabled={!canEdit}
-            />
-
             <SectionLabel>Talent</SectionLabel>
             <TalentPicker
               selectedIds={shot.talentIds ?? shot.talent}
@@ -179,12 +173,12 @@ export default function ShotDetailPage() {
             <SectionLabel>Description</SectionLabel>
             {canEdit ? (
               <DescriptionEditor
-                value={shot.description ?? ""}
+                value={safeDescription}
                 onSave={(description) => save({ description: description || null })}
               />
             ) : (
               <p className="text-sm text-[var(--color-text-secondary)]">
-                {shot.description || "No description"}
+                {safeDescription || "No description"}
               </p>
             )}
           </div>
