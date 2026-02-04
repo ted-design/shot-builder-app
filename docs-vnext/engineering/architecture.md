@@ -100,6 +100,7 @@ vNext primarily reuses the existing Firestore collections and document shapes (n
 | `clients/{cid}/talent/{tid}` | library | Real-time | Create/Update |
 | `clients/{cid}/locations/{lid}` | library | Real-time | Create/Update |
 | `clients/{cid}/crew/{crid}` | library | Real-time | Create/Update |
+| `clients/{cid}/colorSwatches/{swid}` | library | Real-time | Create/Update/Delete |
 | `clients/{cid}/notifications/{nid}` | shared | Real-time (filtered by userId) | Create (Cloud Function) |
 | `clients/{cid}/activities/{pid}/{aid}` | shared | Paginated query | Create (append-only) |
 

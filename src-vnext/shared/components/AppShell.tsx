@@ -11,6 +11,7 @@ import {
   Users,
   MapPin,
   HardHat,
+  Palette,
   Menu,
   LogOut,
   ChevronLeft,
@@ -103,6 +104,11 @@ function getNavSections(projectId?: string): readonly NavSection[] {
         label: "Crew",
         to: "/library/crew",
         icon: <HardHat className="h-5 w-5" />,
+      },
+      {
+        label: "Palette",
+        to: "/library/palette",
+        icon: <Palette className="h-5 w-5" />,
       },
     ],
   })

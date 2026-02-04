@@ -42,6 +42,21 @@ export interface ShotTag {
   readonly color: string
 }
 
+export interface ColorSwatch {
+  /** Firestore document id (legacy convention: equals `colorKey`). */
+  readonly id: string
+  readonly name: string
+  readonly colorKey?: string
+  readonly normalizedName?: string
+  readonly hexColor?: string | null
+  readonly aliases?: ReadonlyArray<string>
+  readonly swatchImagePath?: string | null
+  /** Firestore Timestamp or epoch ms (legacy compatibility). */
+  readonly createdAt?: unknown
+  /** Firestore Timestamp or epoch ms (legacy compatibility). */
+  readonly updatedAt?: unknown
+}
+
 export interface ShotReferenceImage {
   readonly id: string
   /** Firebase Storage path or a resolved URL (legacy compatibility). */

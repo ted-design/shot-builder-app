@@ -118,6 +118,19 @@ export const crewPath = (clientId: string): string[] => [
   "crew",
 ]
 
+// --- Color Swatches (org-level palette) ---
+
+export const colorSwatchesPath = (clientId: string): string[] => [
+  "clients",
+  clientId,
+  "colorSwatches",
+]
+
+export const colorSwatchPath = (
+  swatchId: string,
+  clientId: string,
+): string[] => [...colorSwatchesPath(clientId), swatchId]
+
 // --- Schedules (project-scoped) ---
 
 export const schedulesPath = (

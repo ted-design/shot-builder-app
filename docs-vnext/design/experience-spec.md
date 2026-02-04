@@ -38,7 +38,7 @@
 |---------|-------|-------|-------|
 | **Projects** | Dashboard | Org | Project selector + readiness overview |
 | **Project** | Shots, Pulls, Assets, Tags, Call Sheet | Project | Visible only when a project is active. Grayed/hidden otherwise. |
-| **Org** | Products, Library (Talent, Locations, Crew) | Org | Always visible. Org-level data. |
+| **Org** | Products, Library (Talent, Locations, Crew, Palette) | Org | Always visible. Org-level data. |
 | **System** | Settings, Account | Org/User | Admin-only for Settings. |
 
 The sidebar is collapsible to icon-only mode on desktop.
@@ -96,6 +96,7 @@ Drawer (slides from left):
 | `/library/talent` | Talent Library | ✓ Read | ✓ Full | Org |
 | `/library/locations` | Location Library | ✓ Read | ✓ Full | Org |
 | `/library/crew` | Crew Library | ✓ Read | ✓ Full | Org |
+| `/library/palette` | Palette (Swatches) | ✓ Read | ✓ Full | Org |
 | `/admin` | Settings | ✗ Desktop Only | ✓ Full | Org |
 | `/account` | Account Settings | ✓ Limited | ✓ Full | User |
 

@@ -50,6 +50,9 @@ const LibraryLocationsPage = lazy(
 const LibraryCrewPage = lazy(
   () => import("@/features/library/components/LibraryCrewPage"),
 )
+const LibraryPalettePage = lazy(
+  () => import("@/features/library/components/LibraryPalettePage"),
+)
 
 function PageFallback() {
   return (
@@ -154,6 +157,7 @@ export function AppRoutes() {
           <Route path="library/talent" element={<LibraryTalentPage />} />
           <Route path="library/locations" element={<LibraryLocationsPage />} />
           <Route path="library/crew" element={<LibraryCrewPage />} />
+          <Route path="library/palette" element={<LibraryPalettePage />} />
         </Route>
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
