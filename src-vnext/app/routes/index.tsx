@@ -35,6 +35,9 @@ const ProductListPage = lazy(
 const ProductDetailPage = lazy(
   () => import("@/features/products/components/ProductDetailPage"),
 )
+const ProductEditorPage = lazy(
+  () => import("@/features/products/components/ProductEditorPage"),
+)
 const LibraryTalentPage = lazy(
   () => import("@/features/library/components/LibraryTalentPage"),
 )
@@ -133,6 +136,8 @@ export function AppRoutes() {
             }
           />
           <Route path="products" element={<ProductListPage />} />
+          <Route path="products/new" element={<ProductEditorPage />} />
+          <Route path="products/:fid/edit" element={<ProductEditorPage />} />
           <Route path="products/:fid" element={<ProductDetailPage />} />
           <Route path="library" element={<Navigate to="/library/talent" replace />} />
           <Route path="library/talent" element={<LibraryTalentPage />} />

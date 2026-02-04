@@ -38,7 +38,7 @@
 - Users can toggle visible fields/columns (persisted locally; safe defaults).
 
 ### Product editor (trust)
-- Clicking **Edit** reliably opens the editor.
+- Clicking **Edit** reliably opens the editor (dedicated editor surface; no modal overflow).
 - Popovers/dialogs/dropdowns are **legible** (no transparent surfaces) and layer above fixed nav.
 
 ### Non-goals (explicit)
@@ -48,21 +48,27 @@
 
 ### WP1 — Fix popup/modals legibility + layering (blocking trust defect)
 
-**Why:** User-reported transparent/illegible popups and “edit does nothing” are consistent with missing shadcn semantic color tokens plus overlay z-index being below the fixed app shell.
+**Why:** User-reported transparent/illegible popups and “edit does nothing” were breaking trust and blocking basic Product CRUD.
 
 **Change summary**
-- Added shadcn semantic color token mappings in Tailwind so `bg-background`, `bg-popover`, `text-muted-foreground`, etc. render correctly.
-- Updated vNext Radix/shadcn primitives to use the repo’s tokenized z-index scale (`--z-modal`, `--z-popover`, etc.) so dialogs/popovers render above fixed navigation.
+- Hardened token loading by importing `tokens.css` from the vNext entrypoint (eliminates reliance on CSS `@import` behavior).
+- Fixed a shadcn `Select` styling bug (`--radix-…` height var) that could cause broken dropdown sizing.
+- Hardened the Dialog primitive so long content can’t render off-screen (scroll clamps to viewport).
+- Converted Products editing from a modal to a dedicated cockpit editor page (desktop-only) to eliminate viewport overflow and enable calm, sectioned IA.
+- Updated `/products/:fid` to a cockpit-inspired surface (left rail + Overview “bento” + Assets (images) section) without adding Firestore fan-out.
 
 **Touched surfaces**
-- `tailwind.config.js`
+- `src-vnext/main.tsx`
+- `src-vnext/index.css`
 - `src-vnext/ui/dialog.tsx`
-- `src-vnext/ui/dropdown-menu.tsx`
-- `src-vnext/ui/popover.tsx`
 - `src-vnext/ui/select.tsx`
-- `src-vnext/ui/sheet.tsx`
-- `src-vnext/ui/tooltip.tsx`
-- `src-vnext/ui/toast.tsx`
+- `src-vnext/app/routes/index.tsx`
+- `src-vnext/features/products/components/ProductListPage.tsx`
+- `src-vnext/features/products/components/ProductDetailPage.tsx`
+- `src-vnext/features/products/components/ProductEditorPage.tsx`
+- `src-vnext/features/products/components/ProductUpsertDialog.tsx`
+- `src-vnext/features/products/components/ProductWorkspaceNav.tsx`
+- `src-vnext/features/products/components/__tests__/ProductDetailPage.test.tsx`
 
 ### WP2 — `/products` view switch + category scaffolding filters + field visibility
 
@@ -80,6 +86,10 @@
 - `src-vnext/features/products/lib/productPreferences.ts`
 - `docs-vnext/slices/slice-2b-product-library.md`
 
+## Legacy schema investigation (workspace collections)
+
+Legacy “workspace” sections (samples/assets/activity) were built as UI scaffolds with in-memory mock data. `src/pages/ProductDetailPageV2.jsx` documents “MOCK DATA (in-memory only, no Firestore)” and only lists **future** collection paths as comments. There are no legacy path helpers or Firestore rules for product workspace collections in this repo today.
+
 ## Verification (2026-02-04)
 
 - `npx tsc --noEmit` ✅
@@ -94,7 +104,7 @@
 | Scenario | Steps | Expected |
 |---|---|---|
 | Popovers legible | Open `/products` → open any Select / Fields dropdown | Popovers have opaque background and readable text |
-| Editor opens | Open any product → click “Edit” | Dialog is visible above sidebar/header |
+| Editor opens | Open any product → click “Edit” | Navigates to editor page; content stays within viewport and scrolls |
 | View toggle | `/products` → switch Gallery/Table | Both render, no layout glitches |
 | Scaffolded filters | Pick Gender → Type → Subcategory | Results update; dependent selects enable progressively |
 | Column visibility | Table view → Fields → toggle columns | Table updates; preference persists on refresh |

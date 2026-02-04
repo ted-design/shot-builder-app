@@ -290,6 +290,7 @@ export function ProductUpsertDialog({
 
   const isEditMode = mode === "edit"
   const title = isEditMode ? "Edit Product" : "New Product"
+  const genderSelectValue = draft.gender.trim().length > 0 ? draft.gender : "__unset__"
 
   const canSave = canEdit && Boolean(clientId) && draft.styleName.trim().length > 0 &&
     skuDrafts.some((s) => s.deleted !== true && s.colorName.trim().length > 0)
@@ -443,15 +444,17 @@ export function ProductUpsertDialog({
               <div className="flex flex-col gap-2">
                 <Label htmlFor="gender">Gender</Label>
                 <Select
-                  value={draft.gender}
-                  onValueChange={(value) => setDraft((p) => ({ ...p, gender: value }))}
+                  value={genderSelectValue}
+                  onValueChange={(value) =>
+                    setDraft((p) => ({ ...p, gender: value === "__unset__" ? "" : value }))
+                  }
                   disabled={!canEdit}
                 >
                   <SelectTrigger id="gender">
                     <SelectValue placeholder="Unspecified" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unspecified</SelectItem>
+                    <SelectItem value="__unset__">Unspecified</SelectItem>
                     <SelectItem value="unisex">Unisex</SelectItem>
                     <SelectItem value="men">Men</SelectItem>
                     <SelectItem value="women">Women</SelectItem>

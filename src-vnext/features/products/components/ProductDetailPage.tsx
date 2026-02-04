@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react"
-import { useParams, useSearchParams } from "react-router-dom"
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { ProductImage } from "@/features/products/components/ProductImage"
 import { ProductSkuCard } from "@/features/products/components/ProductSkuCard"
-import { ProductUpsertDialog } from "@/features/products/components/ProductUpsertDialog"
 import { setProductFamilyDeleted } from "@/features/products/lib/productWrites"
 import {
   useProductFamily,
@@ -15,20 +14,31 @@ import {
 import { Badge } from "@/ui/badge"
 import { Button } from "@/ui/button"
 import { Separator } from "@/ui/separator"
-import { Pencil, Palette, RotateCcw, Trash2 } from "lucide-react"
+import {
+  FileText,
+  LayoutDashboard,
+  Palette,
+  Pencil,
+  RotateCcw,
+  Trash2,
+} from "lucide-react"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { canManageProducts } from "@/shared/lib/rbac"
 import { parseReturnToParam } from "@/shared/lib/returnTo"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { toast } from "@/shared/hooks/use-toast"
+import { ProductWorkspaceNav, type ProductWorkspaceSectionKey } from "@/features/products/components/ProductWorkspaceNav"
+import { Card, CardContent } from "@/ui/card"
+import { cn } from "@/shared/lib/utils"
 
 export default function ProductDetailPage() {
   const { fid } = useParams<{ fid: string }>()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const location = useLocation()
+  const navigate = useNavigate()
   const { role, clientId, user } = useAuth()
   const isMobile = useIsMobile()
   const canEdit = !isMobile && canManageProducts(role)
-  const [editOpen, setEditOpen] = useState(false)
   const [showDeleted, setShowDeleted] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false)
@@ -38,6 +48,38 @@ export default function ProductDetailPage() {
 
   const activeSkus = useMemo(() => skus.filter((s) => s.deleted !== true), [skus])
   const deletedSkus = useMemo(() => skus.filter((s) => s.deleted === true), [skus])
+
+  const familyImages = useMemo(() => {
+    if (!family) return []
+    const out: Array<{ key: string; label: string; path: string }> = []
+    if (family.thumbnailImagePath) out.push({ key: "thumb", label: "Thumbnail", path: family.thumbnailImagePath })
+    if (family.headerImagePath && family.headerImagePath !== family.thumbnailImagePath) {
+      out.push({ key: "header", label: "Header image", path: family.headerImagePath })
+    }
+    return out
+  }, [family])
+
+  const skuImages = useMemo(() => {
+    return skus
+      .filter((s) => s.deleted !== true)
+      .map((s) => ({
+        key: s.id,
+        label: s.colorName ?? s.name,
+        path: s.imagePath ?? null,
+      }))
+      .filter((s) => typeof s.path === "string" && s.path.trim().length > 0) as Array<{ key: string; label: string; path: string }>
+  }, [skus])
+
+  const assetsCount = familyImages.length + skuImages.length
+  const skuPhotosCount = skuImages.length
+
+  const navItems = useMemo(() => {
+    return [
+      { key: "overview", label: "Overview", icon: <LayoutDashboard className="h-4 w-4" /> },
+      { key: "colorways", label: "Colorways", icon: <Palette className="h-4 w-4" />, count: activeSkus.length },
+      { key: "assets", label: "Assets", icon: <FileText className="h-4 w-4" />, count: assetsCount },
+    ] as const
+  }, [activeSkus.length, assetsCount])
 
   const visibleSkus = useMemo(() => {
     const source = showDeleted ? skus : activeSkus
@@ -74,6 +116,22 @@ export default function ProductDetailPage() {
   const categoryLabel = family.productSubcategory ?? family.productType ?? family.category
   const returnTo = parseReturnToParam(searchParams.get("returnTo"))
   const isFamilyDeleted = family.deleted === true
+  const detailUrl = `${location.pathname}${location.search}`
+  const productsReturnTo = returnTo?.path ?? "/products"
+  const sectionParam = searchParams.get("section")
+  const activeSection: ProductWorkspaceSectionKey =
+    sectionParam === "colorways" || sectionParam === "assets" || sectionParam === "overview"
+      ? sectionParam
+      : "overview"
+
+  const setSection = (next: ProductWorkspaceSectionKey) => {
+    setSearchParams((prev) => {
+      const out = new URLSearchParams(prev)
+      if (next === "overview") out.delete("section")
+      else out.set("section", next)
+      return out
+    }, { replace: true })
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -96,7 +154,14 @@ export default function ProductDetailPage() {
               </Button>
             )}
             {canEdit && clientId && !isFamilyDeleted && (
-              <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  navigate(
+                    `/products/${family.id}/edit?returnTo=${encodeURIComponent(detailUrl)}&productsReturnTo=${encodeURIComponent(productsReturnTo)}`,
+                  )
+                }
+              >
                 <Pencil className="h-4 w-4" />
                 Edit
               </Button>
@@ -126,101 +191,283 @@ export default function ProductDetailPage() {
         }
       />
 
-      {/* Hero area: image + metadata */}
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-        <ProductImage
-          src={family.thumbnailImagePath ?? family.headerImagePath}
-          alt={family.styleName}
-          size="lg"
-          className="h-48 w-48 shrink-0 sm:h-56 sm:w-56"
-        />
-        <div className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-[var(--color-text)]">
-            {family.styleName}
-          </h2>
-          {family.styleNumber && (
-            <span className="text-sm text-[var(--color-text-muted)]">
-              Style {family.styleNumber}
+      <div className="flex flex-col gap-6">
+        {/* Identity hero */}
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+          <ProductImage
+            src={family.thumbnailImagePath ?? family.headerImagePath}
+            alt={family.styleName}
+            size="lg"
+            className="h-48 w-48 shrink-0 sm:h-56 sm:w-56"
+          />
+          <div className="flex flex-col gap-2">
+            <h2 className="text-lg font-semibold text-[var(--color-text)]">
+              {family.styleName}
+            </h2>
+            {family.styleNumber && (
+              <span className="text-sm text-[var(--color-text-muted)]">
+                Style {family.styleNumber}
+              </span>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {categoryLabel && (
+                <Badge
+                  variant="outline"
+                  className="w-fit text-xs font-normal text-[var(--color-text-muted)]"
+                >
+                  {categoryLabel}
+                </Badge>
+              )}
+              {family.gender && family.gender.trim().length > 0 && (
+                <Badge
+                  variant="outline"
+                  className="w-fit text-xs font-normal text-[var(--color-text-muted)]"
+                >
+                  {family.gender}
+                </Badge>
+              )}
+              {family.archived && (
+                <Badge
+                  variant="outline"
+                  className="w-fit text-xs font-normal text-[var(--color-text-subtle)]"
+                >
+                  Archived
+                </Badge>
+              )}
+              {status !== "active" && (
+                <Badge
+                  variant="outline"
+                  className="w-fit text-xs font-normal text-[var(--color-text-subtle)]"
+                >
+                  {status.split("_").join(" ")}
+                </Badge>
+              )}
+            </div>
+            <span className="text-xs text-[var(--color-text-subtle)]">
+              {skuLoading
+                ? "Loading colorways..."
+                : `${activeSkus.length} ${activeSkus.length === 1 ? "colorway" : "colorways"}${deletedSkus.length > 0 ? ` · ${deletedSkus.length} deleted` : ""}`}
             </span>
-          )}
-          <div className="flex flex-wrap items-center gap-2">
-            {categoryLabel && (
-              <Badge
-                variant="outline"
-                className="w-fit text-xs font-normal text-[var(--color-text-muted)]"
-              >
-                {categoryLabel}
-              </Badge>
-            )}
-            {family.gender && family.gender.trim().length > 0 && (
-              <Badge
-                variant="outline"
-                className="w-fit text-xs font-normal text-[var(--color-text-muted)]"
-              >
-                {family.gender}
-              </Badge>
-            )}
-            {family.archived && (
-              <Badge
-                variant="outline"
-                className="w-fit text-xs font-normal text-[var(--color-text-subtle)]"
-              >
-                Archived
-              </Badge>
-            )}
-            {status !== "active" && (
-              <Badge
-                variant="outline"
-                className="w-fit text-xs font-normal text-[var(--color-text-subtle)]"
-              >
-                {status.split("_").join(" ")}
-              </Badge>
-            )}
           </div>
-          <span className="text-xs text-[var(--color-text-subtle)]">
-            {skuLoading
-              ? "Loading colorways..."
-              : `${activeSkus.length} ${activeSkus.length === 1 ? "colorway" : "colorways"}${deletedSkus.length > 0 ? ` · ${deletedSkus.length} deleted` : ""}`}
-          </span>
+        </div>
+
+        <Separator />
+
+        <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+          <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
+            <ProductWorkspaceNav items={navItems} activeKey={activeSection} onChange={setSection} />
+            <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                Quick stats
+              </div>
+              <div className="mt-2 grid gap-1 text-xs text-[var(--color-text-muted)]">
+                <div>{activeSkus.length} active colorways</div>
+                <div>{skuPhotosCount} colorway photos</div>
+                <div>{assetsCount} assets</div>
+              </div>
+            </div>
+          </aside>
+
+          <section className="min-w-0">
+            {activeSection === "overview" && (
+              <div className="flex flex-col gap-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--color-text)]">Explore sections</h3>
+                  <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                    Colorways and assets are powered by existing fields—no extra database reads.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card
+                    className={cn("cursor-pointer transition-shadow hover:shadow-md")}
+                    onClick={() => setSection("colorways")}
+                    role="button"
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-md bg-[var(--color-surface-subtle)] p-2 text-[var(--color-text-muted)]">
+                            <Palette className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-[var(--color-text)]">Colorways</div>
+                            <div className="text-xs text-[var(--color-text-muted)]">
+                              Manage SKUs, sizes, and photos.
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-semibold text-[var(--color-text)]">{activeSkus.length}</div>
+                          <div className="text-xs text-[var(--color-text-muted)]">
+                            {skuPhotosCount} with photos
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card
+                    className={cn("cursor-pointer transition-shadow hover:shadow-md")}
+                    onClick={() => setSection("assets")}
+                    role="button"
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-md bg-[var(--color-surface-subtle)] p-2 text-[var(--color-text-muted)]">
+                            <FileText className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-[var(--color-text)]">Assets</div>
+                            <div className="text-xs text-[var(--color-text-muted)]">
+                              Current images attached to this product.
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-semibold text-[var(--color-text)]">{assetsCount}</div>
+                          <div className="text-xs text-[var(--color-text-muted)]">
+                            images
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+                  <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                    Classification
+                  </div>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">Gender</div>
+                      <div className="mt-0.5 text-sm text-[var(--color-text)]">{family.gender || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">Type</div>
+                      <div className="mt-0.5 text-sm text-[var(--color-text)]">{family.productType || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">Subcategory</div>
+                      <div className="mt-0.5 text-sm text-[var(--color-text)]">{family.productSubcategory || "—"}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeSection === "colorways" && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-[var(--color-text)]">Colorways</h3>
+                    <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                      SKU-level status, sizing, and images.
+                    </p>
+                  </div>
+                </div>
+
+                {skuLoading ? (
+                  <LoadingState loading />
+                ) : activeSkus.length === 0 ? (
+                  <EmptyState
+                    icon={<Palette className="h-8 w-8" />}
+                    title="No colorways"
+                    description="This product family has no SKU colorways defined."
+                  />
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {visibleSkus.map((sku) => (
+                      <ProductSkuCard
+                        key={sku.id}
+                        sku={sku}
+                        familyImageUrl={family.thumbnailImagePath ?? family.headerImagePath}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeSection === "assets" && (
+              <div className="flex flex-col gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--color-text)]">Assets</h3>
+                  <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                    Images already attached to the product family and colorways.
+                  </p>
+                </div>
+
+                {assetsCount === 0 ? (
+                  <EmptyState
+                    icon={<FileText className="h-8 w-8" />}
+                    title="No assets"
+                    description="No images are currently attached to this product."
+                  />
+                ) : (
+                  <div className="flex flex-col gap-6">
+                    {familyImages.length > 0 && (
+                      <div className="flex flex-col gap-3">
+                        <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          Family images
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {familyImages.map((img) => (
+                            <Card key={img.key}>
+                              <CardContent className="p-3">
+                                <div className="flex items-center gap-3">
+                                  <ProductImage src={img.path} alt={img.label} size="sm" />
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-medium text-[var(--color-text)]">
+                                      {img.label}
+                                    </div>
+                                    <div className="truncate text-xs text-[var(--color-text-muted)]">
+                                      {img.path}
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {skuImages.length > 0 && (
+                      <div className="flex flex-col gap-3">
+                        <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          Colorway images
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {skuImages.map((img) => (
+                            <Card key={img.key}>
+                              <CardContent className="p-3">
+                                <div className="flex items-center gap-3">
+                                  <ProductImage src={img.path} alt={img.label} size="sm" />
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-medium text-[var(--color-text)]">
+                                      {img.label}
+                                    </div>
+                                    <div className="truncate text-xs text-[var(--color-text-muted)]">
+                                      {img.path}
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
         </div>
       </div>
-
-      <Separator />
-
-      {/* SKU section */}
-      <div className="flex flex-col gap-3">
-        <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
-          Colorways
-        </h3>
-
-        {skuLoading ? (
-          <LoadingState loading />
-        ) : activeSkus.length === 0 ? (
-          <EmptyState
-            icon={<Palette className="h-8 w-8" />}
-            title="No colorways"
-            description="This product family has no SKU colorways defined."
-          />
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleSkus.map((sku) => (
-              <ProductSkuCard
-                key={sku.id}
-                sku={sku}
-                familyImageUrl={family.thumbnailImagePath ?? family.headerImagePath}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <ProductUpsertDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        mode="edit"
-        family={family}
-        skus={skus}
-      />
 
       <ConfirmDialog
         open={deleteConfirmOpen}

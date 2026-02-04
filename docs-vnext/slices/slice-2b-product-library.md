@@ -18,7 +18,9 @@ This slice delivers a trustworthy, producer-grade Product Library in vNext: fast
 | Route | Surface | Mobile | Desktop | Scope |
 |---|---|---:|---:|---|
 | `/products` | Product Library | ✓ Read | ✓ Full | Org |
-| `/products/:fid` | Product Detail | ✓ Read | ✓ Full Edit | Org |
+| `/products/new` | Product Create | ✗ Desktop Only | ✓ Full | Org |
+| `/products/:fid` | Product Detail | ✓ Read | ✓ Read + Actions | Org |
+| `/products/:fid/edit` | Product Edit | ✗ Desktop Only | ✓ Full | Org |
 
 ### Included capabilities (parity)
 
@@ -44,7 +46,7 @@ This slice delivers a trustworthy, producer-grade Product Library in vNext: fast
 ### Exclusions (explicit non-goals)
 
 - CSV import tooling.
-- “Workspace” sections (samples/assets/activity) unless explicitly specced later.
+- “Workspace” extensions (samples/supply tracking, discussion comments, documents) unless explicitly specced later.
 - Cross-entity fan-out (e.g., querying shots to compute usage). If `shotIds` exists on the product family doc it may be displayed as a count only.
 
 ## Data contract (no schema changes)

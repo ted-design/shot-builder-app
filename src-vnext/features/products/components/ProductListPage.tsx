@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { canManageProducts } from "@/shared/lib/rbac"
@@ -9,7 +9,6 @@ import { EmptyState } from "@/shared/components/EmptyState"
 import { useProductFamilies } from "@/features/products/hooks/useProducts"
 import { ProductFamilyCard } from "@/features/products/components/ProductFamilyCard"
 import { ProductFamiliesTable } from "@/features/products/components/ProductFamiliesTable"
-import { ProductUpsertDialog } from "@/features/products/components/ProductUpsertDialog"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
 import { Checkbox } from "@/ui/checkbox"
@@ -55,6 +54,8 @@ export default function ProductListPage() {
   const isMobile = useIsMobile()
   const canEdit = !isMobile && canManageProducts(role)
   const [searchParams, setSearchParams] = useSearchParams()
+  const location = useLocation()
+  const navigate = useNavigate()
 
   const qParam = searchParams.get("q") ?? ""
   const statusParam = (searchParams.get("status") ?? "all") as ProductListStatusFilter
@@ -67,7 +68,6 @@ export default function ProductListPage() {
   const viewParam = searchParams.get("view")
 
   const [searchDraft, setSearchDraft] = useState(qParam)
-  const [createOpen, setCreateOpen] = useState(false)
   const [tableColumns, setTableColumns] = useState(() => readProductTableColumns())
 
   useEffect(() => {
@@ -234,7 +234,13 @@ export default function ProductListPage() {
                 </DropdownMenu>
               )}
 
-              <Button onClick={() => setCreateOpen(true)}>
+              <Button
+                onClick={() => {
+                  const returnTo = `${location.pathname}${location.search}`
+                  const encoded = encodeURIComponent(returnTo)
+                  navigate(`/products/new?returnTo=${encoded}&productsReturnTo=${encoded}`)
+                }}
+              >
                 <Plus className="h-4 w-4" />
                 New product
               </Button>
@@ -580,12 +586,6 @@ export default function ProductListPage() {
           )}
         </>
       )}
-
-      <ProductUpsertDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        mode="create"
-      />
     </div>
   )
 }

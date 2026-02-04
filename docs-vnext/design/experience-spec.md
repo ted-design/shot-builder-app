@@ -89,7 +89,9 @@ Drawer (slides from left):
 | `/projects/:id/assets` | Project Assets | ✓ Read | ✓ Full | Project |
 | `/projects/:id/callsheet` | Call Sheet | ✗ Desktop Only | ✓ Full | Project |
 | `/products` | Product Library | ✓ Read | ✓ Full | Org |
-| `/products/:fid` | Product Detail | ✓ Read | ✓ Full Edit | Org |
+| `/products/new` | Product Create | ✗ Desktop Only | ✓ Full | Org |
+| `/products/:fid` | Product Detail | ✓ Read | ✓ Read + Actions | Org |
+| `/products/:fid/edit` | Product Edit | ✗ Desktop Only | ✓ Full | Org |
 | `/library/talent` | Talent Library | ✓ Read | ✓ Full | Org |
 | `/library/locations` | Location Library | ✓ Read | ✓ Full | Org |
 | `/library/crew` | Crew Library | ✓ Read | ✓ Full | Org |
