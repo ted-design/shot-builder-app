@@ -59,35 +59,35 @@ vNext PRODUCTS is intentionally *not* a 1:1 copy of legacy. Parity is defined by
 ## PRODUCTS “Done” checklist (living)
 
 **Browse**
-- [ ] `/products` search + filters + sort (URL-persisted, shareable)
-- [ ] No list fan-out (single families subscription; no per-family SKU reads)
-- [ ] Calm empty/loading/error states
+- [x] `/products` search + filters + sort (URL-persisted, shareable)
+- [x] No list fan-out (single families subscription; no per-family SKU reads)
+- [x] Calm empty/loading/error states
 
 **Detail**
-- [ ] `/products/:fid` renders family + SKUs (stable sort, calm density)
-- [ ] Mobile is read-only; desktop editing is gated by role
+- [x] `/products/:fid` renders family + SKUs (stable sort, calm density)
+- [x] Mobile is read-only; desktop editing is gated by role
 - [x] “Return to” preserves list state (no trust loss on back-navigation)
 
 **CRUD**
-- [ ] Create family + at least 1 SKU
-- [ ] Edit family fields, add/remove SKUs (soft-delete SKUs)
+- [x] Create family + at least 1 SKU
+- [x] Edit family fields, add/remove SKUs (soft-delete SKUs)
 - [x] Archive/unarchive family (non-destructive)
 - [x] Soft-delete/restore family (when legacy fields exist)
 
 **Images**
-- [ ] Upload/replace/remove family header + thumbnail
-- [ ] Upload/replace/remove SKU image
+- [x] Upload/replace/remove family header + thumbnail
+- [x] Upload/replace/remove SKU image
 - [x] Thumbnail-first rendering with safe fallbacks (no broken layout)
 
 **Quality gates**
-- [ ] `npx tsc --noEmit`
-- [ ] `npm test`
-- [ ] `npm run lint` (0 warnings)
-- [ ] `npm run build`
+- [x] `npx tsc --noEmit`
+- [x] `npm test`
+- [x] `npm run lint` (0 warnings)
+- [x] `npm run build`
 
 ## Current gaps discovered in this session (to close next)
 
-None (feature gaps). Remaining work is proof capture + final lint/build gates for this session.
+None (feature gaps). Proof capture is pending screenshots.
 
 ## Packages log
 
@@ -273,6 +273,12 @@ None (feature gaps). Remaining work is proof capture + final lint/build gates fo
 | Archive toggle works | `/products/:fid` → Edit → toggle Archived → save | Family becomes hidden by default on `/products` unless “Include archived” is enabled. |
 | Delete/restore works | `/products/:fid` → Delete → confirm → then Restore | Family shows “Deleted” state; restored family reappears in default views. |
 | SKU sizes inherit | Set family sizes; leave a SKU’s sizes blank; save | SKU stores family sizes; SKU card shows sizes as expected. |
+
+### WP9 — Session verification gates (lint + build)
+
+**Checks (2026-02-03)**
+- `npm run lint` ✅ (0 warnings)
+- `npm run build` ✅
 
 ## Screenshots index
 
