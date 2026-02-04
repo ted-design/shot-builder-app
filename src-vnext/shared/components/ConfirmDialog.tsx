@@ -16,6 +16,9 @@ interface ConfirmDialogProps {
   readonly confirmLabel?: string
   readonly cancelLabel?: string
   readonly destructive?: boolean
+  readonly closeOnConfirm?: boolean
+  readonly confirmDisabled?: boolean
+  readonly cancelDisabled?: boolean
   readonly onConfirm: () => void
 }
 
@@ -27,6 +30,9 @@ export function ConfirmDialog({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   destructive = false,
+  closeOnConfirm = true,
+  confirmDisabled = false,
+  cancelDisabled = false,
   onConfirm,
 }: ConfirmDialogProps) {
   return (
@@ -37,14 +43,15 @@ export function ConfirmDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={cancelDisabled}>
             {cancelLabel}
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
+            disabled={confirmDisabled}
             onClick={() => {
               onConfirm()
-              onOpenChange(false)
+              if (closeOnConfirm) onOpenChange(false)
             }}
           >
             {confirmLabel}

@@ -41,6 +41,8 @@ import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { textPreview } from "@/shared/lib/textPreview"
 import type { Shot, ShotFirestoreStatus } from "@/shared/types"
 import { toast } from "sonner"
+import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
+import { backfillMissingShotDates } from "@/features/shots/lib/backfillShotDates"
 
 type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated"
 type SortDir = "asc" | "desc"
@@ -197,7 +199,7 @@ function formatUpdatedAt(shot: Shot): string {
 
 export default function ShotListPage() {
   const { data: shots, loading, error } = useShots()
-  const { role, clientId } = useAuth()
+  const { role, clientId, user } = useAuth()
   const { projectId, projectName } = useProjectScope()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -211,6 +213,10 @@ export default function ShotListPage() {
   const showCreate = canManageShots(role)
   const canReorder = canManageShots(role)
   const canBulkPull = canGeneratePulls(role) && !isMobile
+  const canRepair = (role === "admin" || role === "producer") && !isMobile
+
+  const [repairOpen, setRepairOpen] = useState(false)
+  const [repairing, setRepairing] = useState(false)
 
   const sortKey = (searchParams.get("sort") as SortKey) || "custom"
   const sortDir =
@@ -595,6 +601,19 @@ export default function ShotListPage() {
                 >
                   Clear filters
                 </Button>
+
+                {canRepair && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <Button
+                      variant="ghost"
+                      className="h-8 w-full justify-start px-2 text-sm"
+                      onClick={() => setRepairOpen(true)}
+                    >
+                      Repair missing shot dates
+                    </Button>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -843,6 +862,49 @@ export default function ShotListPage() {
         onCreated={(pullId) => {
           clearSelection()
           navigate(`/projects/${projectId}/pulls/${pullId}`)
+        }}
+      />
+
+      <ConfirmDialog
+        open={repairOpen}
+        onOpenChange={(next) => {
+          if (!repairing) setRepairOpen(next)
+        }}
+        title="Repair missing shot dates?"
+        description="This updates older shots missing list-required fields so they reappear in the shot list. Safe: sets date to empty (null) and deleted to false only when missing."
+        confirmLabel={repairing ? "Repairing…" : "Repair"}
+        destructive={false}
+        closeOnConfirm={false}
+        confirmDisabled={repairing}
+        cancelDisabled={repairing}
+        onConfirm={() => {
+          if (!clientId) {
+            toast.error("Repair failed", { description: "Missing clientId." })
+            return
+          }
+          setRepairing(true)
+          void backfillMissingShotDates({
+            clientId,
+            projectId,
+            updatedBy: user?.uid ?? null,
+          })
+            .then(({ scanned, updated }) => {
+              toast.success("Repair complete", {
+                description:
+                  updated > 0
+                    ? `Updated ${updated} of ${scanned} shots.`
+                    : `No shots needed repair (${scanned} scanned).`,
+              })
+            })
+            .catch((err) => {
+              toast.error("Repair failed", {
+                description: err instanceof Error ? err.message : "Unknown error",
+              })
+            })
+            .finally(() => {
+              setRepairing(false)
+              setRepairOpen(false)
+            })
         }}
       />
     </ErrorBoundary>
