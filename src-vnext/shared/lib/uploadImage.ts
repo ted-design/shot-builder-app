@@ -8,7 +8,18 @@ const QUALITY = 0.82
  * Compress an image file to WebP, constraining to MAX_DIMENSION on the longest side.
  * Returns a Blob ready for upload.
  */
-function compressImage(file: File): Promise<Blob> {
+function isHeicLike(file: File): boolean {
+  const type = (file.type || "").toLowerCase()
+  if (type === "image/heic" || type === "image/heif") return true
+  const name = (file.name || "").toLowerCase()
+  return name.endsWith(".heic") || name.endsWith(".heif")
+}
+
+export function compressImageToWebp(file: File): Promise<Blob> {
+  if (isHeicLike(file)) {
+    throw new Error("HEIC images aren’t supported yet. Please upload a JPG or PNG.")
+  }
+
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
@@ -64,7 +75,7 @@ export async function uploadHeroImage(
   clientId: string,
   shotId: string,
 ): Promise<{ path: string; downloadURL: string }> {
-  const blob = await compressImage(file)
+  const blob = await compressImageToWebp(file)
   const storagePath = `clients/${clientId}/shots/${shotId}/hero.webp`
   const storageRef = ref(storage, storagePath)
   await uploadBytes(storageRef, blob, { contentType: "image/webp" })
@@ -82,7 +93,7 @@ export async function uploadShotReferenceImage(
   shotId: string,
   referenceId: string,
 ): Promise<{ path: string; downloadURL: string }> {
-  const blob = await compressImage(file)
+  const blob = await compressImageToWebp(file)
   const storagePath = `clients/${clientId}/shots/${shotId}/references/${referenceId}.webp`
   const storageRef = ref(storage, storagePath)
   await uploadBytes(storageRef, blob, { contentType: "image/webp" })

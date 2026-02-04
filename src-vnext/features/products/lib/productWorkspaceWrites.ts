@@ -13,6 +13,7 @@ import {
   productFamilyDocumentsPath,
   productFamilySamplesPath,
 } from "@/shared/lib/paths"
+import { compressImageToWebp } from "@/shared/lib/uploadImage"
 import type { ProductSampleStatus, ProductSampleType } from "@/shared/types"
 
 function cleanFileName(name: string): string {
@@ -172,18 +173,32 @@ export async function createProductDocument(args: {
   const documentsPath = productFamilyDocumentsPath(familyId, clientId)
   const docRef = doc(collection(db, documentsPath[0]!, ...documentsPath.slice(1)))
 
-  const safeName = cleanFileName(file.name || "document")
+  const isImage = typeof file.type === "string" && file.type.startsWith("image/")
+  const baseName = cleanFileName(file.name || "document")
+  const safeName = isImage
+    ? `${baseName.replace(/\.[^/.]+$/, "") || "image"}.webp`
+    : baseName
   const storagePath = `docs/productFamilies/${familyId}/${docRef.id}/${safeName}`
 
   try {
-    await uploadBytes(storageRef(storage, storagePath), file, {
-      contentType: file.type || undefined,
-    })
+    const contentType = isImage ? "image/webp" : file.type || null
+    let sizeBytes: number | null = typeof file.size === "number" ? file.size : null
+
+    if (isImage) {
+      const blob = await compressImageToWebp(file)
+      sizeBytes = typeof blob.size === "number" ? blob.size : sizeBytes
+      await uploadBytes(storageRef(storage, storagePath), blob, { contentType: "image/webp" })
+    } else {
+      await uploadBytes(storageRef(storage, storagePath), file, {
+        contentType: file.type || undefined,
+      })
+    }
+
     await setDoc(docRef, {
       name: safeName,
       storagePath,
-      contentType: file.type || null,
-      sizeBytes: typeof file.size === "number" ? file.size : null,
+      contentType,
+      sizeBytes,
       createdAt: new Date(),
       createdBy: userId,
       createdByName: userName ?? null,

@@ -18,6 +18,18 @@ import { ImagePlus, Plus, Star, Trash2, X, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { ProductAssignment, Shot, ShotLook, ShotReferenceImage } from "@/shared/types"
 
+function formatUploadError(err: unknown): string {
+  if (err instanceof Error) {
+    const anyErr = err as Error & { readonly code?: unknown }
+    if (typeof anyErr.code === "string" && anyErr.code.length > 0) {
+      return `${anyErr.code}: ${err.message}`
+    }
+    return err.message
+  }
+  if (typeof err === "string") return err
+  return "Unknown error"
+}
+
 const HERO_AUTO_VALUE = "__auto__"
 const HERO_NONE_VALUE = "__none__"
 
@@ -465,7 +477,14 @@ function ReferencesSection({
     setUploading(true)
     try {
       const id = generateReferenceId()
-      const result = await uploadShotReferenceImage(file, clientId, shot.id, id)
+      let result: { path: string; downloadURL: string }
+      try {
+        result = await uploadShotReferenceImage(file, clientId, shot.id, id)
+      } catch (err) {
+        toast.error("Upload failed", { description: formatUploadError(err) })
+        return
+      }
+
       const newRef: ShotReferenceImage = {
         id,
         path: result.path,
@@ -476,9 +495,13 @@ function ReferencesSection({
       const nextLooks = looks.map((l) =>
         l.id === look.id ? { ...l, references: [...(l.references ?? []), newRef] } : l,
       )
-      await onSaveLooks(nextLooks)
-    } catch {
-      toast.error("Failed to upload reference image")
+      try {
+        await onSaveLooks(nextLooks)
+      } catch (err) {
+        toast.error("Uploaded but failed to save", { description: formatUploadError(err) })
+      }
+    } catch (err) {
+      toast.error("Failed to add reference", { description: formatUploadError(err) })
     } finally {
       setUploading(false)
     }

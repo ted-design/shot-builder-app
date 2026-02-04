@@ -66,6 +66,14 @@ service firebase.storage {
       allow write: if isProducerOrWardrobe() && isValidDocumentUpload();
     }
 
+    // vNext shots (hero + per-look references).
+    // clients/{clientId}/shots/{shotId}/hero.webp
+    // clients/{clientId}/shots/{shotId}/references/{refId}.webp
+    match /clients/{clientId}/shots/{shotId}/{rest=**} {
+      allow read: if request.auth != null && (userClient() == clientId || isAdmin());
+      allow write: if isProducerOrWardrobe() && (userClient() == clientId || isAdmin()) && isValidUpload();
+    }
+
     // Legacy org-scoped paths retained for backwards compatibility
     match /orgs/{clientId}/{rest=**} {
       allow read: if request.auth != null && (userClient() == clientId || isAdmin());

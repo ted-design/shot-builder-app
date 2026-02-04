@@ -10,6 +10,18 @@ import { ImagePlus, Loader2, Star, X } from "lucide-react"
 import { toast } from "sonner"
 import type { Shot, ShotLook, ShotReferenceImage } from "@/shared/types"
 
+function formatUploadError(err: unknown): string {
+  if (err instanceof Error) {
+    const anyErr = err as Error & { readonly code?: unknown }
+    if (typeof anyErr.code === "string" && anyErr.code.length > 0) {
+      return `${anyErr.code}: ${err.message}`
+    }
+    return err.message
+  }
+  if (typeof err === "string") return err
+  return "Unknown error"
+}
+
 function sanitizeForFirestore(value: unknown): unknown {
   if (value === undefined) return null
   if (value === null) return null
@@ -130,7 +142,14 @@ export function ActiveLookCoverReferencesPanel({
     setUploading(true)
     try {
       const id = generateReferenceId()
-      const result = await uploadShotReferenceImage(file, clientId, shot.id, id)
+      let result: { path: string; downloadURL: string }
+      try {
+        result = await uploadShotReferenceImage(file, clientId, shot.id, id)
+      } catch (err) {
+        toast.error("Upload failed", { description: formatUploadError(err) })
+        return
+      }
+
       const newRef: ShotReferenceImage = {
         id,
         path: result.path,
@@ -141,9 +160,13 @@ export function ActiveLookCoverReferencesPanel({
       const nextLooks = looks.map((l) =>
         l.id === activeLook.id ? { ...l, references: [...(l.references ?? []), newRef] } : l,
       )
-      await saveLooks(nextLooks)
-    } catch {
-      toast.error("Failed to upload reference image")
+      try {
+        await saveLooks(nextLooks)
+      } catch (err) {
+        toast.error("Uploaded but failed to save", { description: formatUploadError(err) })
+      }
+    } catch (err) {
+      toast.error("Failed to add reference", { description: formatUploadError(err) })
     } finally {
       setUploading(false)
     }
@@ -330,4 +353,3 @@ function ReferenceTile({
     </div>
   )
 }
-

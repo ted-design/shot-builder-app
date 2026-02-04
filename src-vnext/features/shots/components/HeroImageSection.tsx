@@ -8,6 +8,18 @@ import { ImagePlus, Loader2, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import type { Shot } from "@/shared/types"
 
+function formatUploadError(err: unknown): string {
+  if (err instanceof Error) {
+    const anyErr = err as Error & { readonly code?: unknown }
+    if (typeof anyErr.code === "string" && anyErr.code.length > 0) {
+      return `${anyErr.code}: ${err.message}`
+    }
+    return err.message
+  }
+  if (typeof err === "string") return err
+  return "Unknown error"
+}
+
 interface HeroImageSectionProps {
   readonly heroImage: Shot["heroImage"]
   readonly shot: Shot
@@ -47,8 +59,8 @@ export function HeroImageSection({
         user,
         source: "HeroImageSection.upload",
       })
-    } catch {
-      toast.error("Failed to upload image")
+    } catch (err) {
+      toast.error("Upload failed", { description: formatUploadError(err) })
     } finally {
       setUploading(false)
     }
