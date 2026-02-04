@@ -34,8 +34,11 @@ Portfolio gallery fields (legacy-compatible):
 - `galleryImages?: {id,path,downloadURL?,description?,order?,cropData?}[]`
 
 Casting / audition sessions (vNext, embedded on talent doc):
-- `castingSessions?: {id,date,title?,notes?,images[]}[]`
+- `castingSessions?: {id,date,title?,projectId?,location?,brief?,decision?,rating?,notes?,images[]}[]`
   - `date` is `YYYY-MM-DD`
+  - `projectId` is optional (does not imply `projectIds` membership)
+  - `decision` is stored as a string from a controlled list (e.g. `pending|shortlist|hold|pass|booked`)
+  - `rating` is optional and constrained to 1–5
   - `images[]` uses the same shape as `galleryImages`
 
 ## User workflows
@@ -62,9 +65,14 @@ Route: `/library/talent`
 
 ### 3c) Casting / auditions (desktop)
 - Create a casting session (date + optional title)
+- Optional session metadata: project link, location, role/brief, decision, rating
 - Store notes per session
 - Upload + caption + reorder images within the session
 - Each session acts as a time-scoped “bin” for reference under pressure
+
+### 3d) Export casting contact sheet (desktop)
+- From an expanded casting session, `Export PDF` opens the system print dialog (Save as PDF).
+- Export includes: talent contact + headshot (if present), session metadata, notes, and an image grid with captions.
 
 ### 4) Project linking (desktop)
 - Add/remove project membership from the talent cockpit (`projectIds` array)

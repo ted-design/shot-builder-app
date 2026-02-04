@@ -83,10 +83,23 @@
     display: none !important;
   }
 
+  /* Hide the main app root when printing via the talent casting portal */
+  body[data-talent-casting-printing="1"] #root {
+    display: none !important;
+  }
+
   /* Preserve colors and borders when printing (still requires "Background graphics" in the print dialog). */
   body[data-callsheet-printing="1"],
   body[data-callsheet-printing="1"] [data-callsheet-print-portal],
   body[data-callsheet-printing="1"] [data-callsheet-print-portal] * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  body[data-talent-casting-printing="1"],
+  body[data-talent-casting-printing="1"] [data-talent-casting-print-portal],
+  body[data-talent-casting-printing="1"] [data-talent-casting-print-portal] * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
@@ -99,7 +112,23 @@
     overflow: visible !important;
   }
 
+  body[data-talent-casting-printing="1"] [data-talent-casting-print-portal] {
+    position: static !important;
+    inset: auto !important;
+    background: white !important;
+    overflow: visible !important;
+  }
+
   body[data-callsheet-printing="1"] [data-callsheet-print-portal] [data-callsheet-print-root] {
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body[data-talent-casting-printing="1"] [data-talent-casting-print-portal] [data-talent-casting-print-root] {
     width: 100% !important;
     max-width: none !important;
     height: auto !important;
@@ -132,7 +161,17 @@
     cursor: default !important;
   }
 
+  body[data-talent-casting-printing="1"] [data-talent-casting-print-portal] * {
+    pointer-events: none !important;
+    cursor: default !important;
+  }
+
   body[data-callsheet-printing="1"] [data-callsheet-print-portal] a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  body[data-talent-casting-printing="1"] [data-talent-casting-print-portal] a {
     text-decoration: none !important;
     color: inherit !important;
   }

@@ -35,6 +35,7 @@ import { toast } from "sonner"
 import type { TalentRecord } from "@/shared/types"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { useProjects } from "@/features/projects/hooks/useProjects"
+import { TalentCastingPrintPortal } from "@/features/library/components/TalentCastingPrintPortal"
 import {
   addTalentToProject,
   createTalent,
@@ -127,9 +128,27 @@ function normalizeSessions(raw: TalentRecord["castingSessions"] | undefined): Ca
       const date = typeof s.date === "string" ? s.date.trim() : ""
       if (!id || !date) return null
       const title = typeof s.title === "string" ? s.title : null
+      const projectId =
+        typeof s.projectId === "string" && s.projectId.trim().length > 0 ? s.projectId.trim() : null
+      const location =
+        typeof s.location === "string" && s.location.trim().length > 0 ? s.location.trim() : null
+      const brief = typeof s.brief === "string" && s.brief.trim().length > 0 ? s.brief.trim() : null
+      const decision =
+        typeof s.decision === "string" && s.decision.trim().length > 0 ? s.decision.trim() : null
+      const rawRating = (s as { rating?: unknown }).rating
+      const parsedRating =
+        typeof rawRating === "number"
+          ? rawRating
+          : typeof rawRating === "string"
+            ? Number.parseInt(rawRating, 10)
+            : null
+      const rating =
+        typeof parsedRating === "number" && Number.isFinite(parsedRating) && parsedRating >= 1 && parsedRating <= 5
+          ? parsedRating
+          : null
       const notes = typeof s.notes === "string" ? s.notes : null
       const images = normalizeImages(s.images as TalentRecord["galleryImages"])
-      return { ...s, id, date, title, notes, images }
+      return { ...s, id, date, title, projectId, location, brief, decision, rating, notes, images }
     })
     .filter(Boolean)
     .sort((a, b) => b.date.localeCompare(a.date)) as CastingSession[]
@@ -312,6 +331,14 @@ const MEASUREMENT_FIELDS: ReadonlyArray<{ key: string; label: string; placeholde
 
 const SELECT_NONE = "__none__"
 
+const CASTING_DECISION_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "pending", label: "Pending" },
+  { value: "shortlist", label: "Shortlist" },
+  { value: "hold", label: "Hold" },
+  { value: "pass", label: "Pass" },
+  { value: "booked", label: "Booked" },
+]
+
 export default function LibraryTalentPage() {
   const { clientId, role, user } = useAuth()
   const isMobile = useIsMobile()
@@ -329,6 +356,7 @@ export default function LibraryTalentPage() {
   const [sessionRemoveTarget, setSessionRemoveTarget] = useState<CastingSession | null>(null)
   const [sessionExpanded, setSessionExpanded] = useState<Record<string, boolean>>({})
   const [createSessionOpen, setCreateSessionOpen] = useState(false)
+  const [printSessionId, setPrintSessionId] = useState<string | null>(null)
   const [createSessionDate, setCreateSessionDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   )
@@ -372,6 +400,10 @@ export default function LibraryTalentPage() {
 
   const portfolioImages = useMemo(() => normalizeImages(selected?.galleryImages), [selected?.galleryImages])
   const castingSessions = useMemo(() => normalizeSessions(selected?.castingSessions), [selected?.castingSessions])
+  const printSession = useMemo(() => {
+    if (!printSessionId) return null
+    return castingSessions.find((s) => s.id === printSessionId) ?? null
+  }, [castingSessions, printSessionId])
 
   const projectLookup = useMemo(() => {
     const m = new Map<string, string>()
@@ -463,6 +495,11 @@ export default function LibraryTalentPage() {
       setBusy(false)
     }
   }
+
+  useEffect(() => {
+    if (!printSessionId) return
+    if (!selected || !printSession) setPrintSessionId(null)
+  }, [printSession, printSessionId, selected])
 
   const onHeadshotFile = async (event: ChangeEvent<HTMLInputElement>) => {
     if (!clientId || !selected) return
@@ -609,6 +646,11 @@ export default function LibraryTalentPage() {
         id: crypto.randomUUID(),
         date,
         title,
+        projectId: null,
+        location: null,
+        brief: null,
+        decision: null,
+        rating: null,
         notes: null,
         images: [],
       },
@@ -1215,6 +1257,139 @@ export default function LibraryTalentPage() {
                                             </div>
                                           </div>
 
+                                          <div className="grid gap-3 sm:grid-cols-2">
+                                            <div>
+                                              <div className="text-xs text-[var(--color-text-muted)]">Project</div>
+                                              <Select
+                                                value={session.projectId ?? SELECT_NONE}
+                                                onValueChange={(next) => {
+                                                  const nextSessions = castingSessions.map((s) =>
+                                                    s.id === session.id
+                                                      ? { ...s, projectId: next === SELECT_NONE ? null : next }
+                                                      : s,
+                                                  )
+                                                  void updateCastingSessions(nextSessions)
+                                                }}
+                                                disabled={!canEdit || busy}
+                                              >
+                                                <SelectTrigger className="mt-1">
+                                                  <SelectValue placeholder="—" />
+                                                </SelectTrigger>
+                                              <SelectContent>
+                                                  <SelectItem value={SELECT_NONE}>—</SelectItem>
+                                                  {session.projectId &&
+                                                  !projects.some((p) => p.id === session.projectId) ? (
+                                                    <SelectItem value={session.projectId}>
+                                                      {session.projectId}
+                                                    </SelectItem>
+                                                  ) : null}
+                                                  {projects.map((p) => (
+                                                    <SelectItem key={p.id} value={p.id}>
+                                                      {p.name || p.id}
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+                                            </div>
+                                            <div>
+                                              <div className="text-xs text-[var(--color-text-muted)]">Location</div>
+                                              <InlineEdit
+                                                value={(session.location ?? "").trim()}
+                                                disabled={!canEdit || busy}
+                                                placeholder="—"
+                                                onSave={(next) => {
+                                                  const nextSessions = castingSessions.map((s) =>
+                                                    s.id === session.id ? { ...s, location: next || null } : s,
+                                                  )
+                                                  void updateCastingSessions(nextSessions)
+                                                }}
+                                                className="text-sm"
+                                              />
+                                            </div>
+                                            <div>
+                                              <div className="text-xs text-[var(--color-text-muted)]">Decision</div>
+                                              <Select
+                                                value={session.decision ?? SELECT_NONE}
+                                                onValueChange={(next) => {
+                                                  const nextSessions = castingSessions.map((s) =>
+                                                    s.id === session.id
+                                                      ? { ...s, decision: next === SELECT_NONE ? null : next }
+                                                      : s,
+                                                  )
+                                                  void updateCastingSessions(nextSessions)
+                                                }}
+                                                disabled={!canEdit || busy}
+                                              >
+                                                <SelectTrigger className="mt-1">
+                                                  <SelectValue placeholder="—" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value={SELECT_NONE}>—</SelectItem>
+                                                  {session.decision &&
+                                                  !CASTING_DECISION_OPTIONS.some((o) => o.value === session.decision) ? (
+                                                    <SelectItem value={session.decision}>
+                                                      {session.decision}
+                                                    </SelectItem>
+                                                  ) : null}
+                                                  {CASTING_DECISION_OPTIONS.map((o) => (
+                                                    <SelectItem key={o.value} value={o.value}>
+                                                      {o.label}
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+                                            </div>
+                                            <div>
+                                              <div className="text-xs text-[var(--color-text-muted)]">Rating</div>
+                                              <Select
+                                                value={session.rating ? String(session.rating) : SELECT_NONE}
+                                                onValueChange={(next) => {
+                                                  const parsed = next === SELECT_NONE ? null : Number.parseInt(next, 10)
+                                                  const rating =
+                                                    typeof parsed === "number" &&
+                                                    Number.isFinite(parsed) &&
+                                                    parsed >= 1 &&
+                                                    parsed <= 5
+                                                      ? parsed
+                                                      : null
+                                                  const nextSessions = castingSessions.map((s) =>
+                                                    s.id === session.id ? { ...s, rating } : s,
+                                                  )
+                                                  void updateCastingSessions(nextSessions)
+                                                }}
+                                                disabled={!canEdit || busy}
+                                              >
+                                                <SelectTrigger className="mt-1">
+                                                  <SelectValue placeholder="—" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value={SELECT_NONE}>—</SelectItem>
+                                                  {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
+                                                    <SelectItem key={n} value={String(n)}>
+                                                      {n}
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+                                            </div>
+                                            <div className="sm:col-span-2">
+                                              <div className="text-xs text-[var(--color-text-muted)]">Role / brief</div>
+                                              <InlineTextarea
+                                                value={session.brief ?? ""}
+                                                disabled={!canEdit || busy}
+                                                placeholder="Role, brief, usage, etc…"
+                                                className="mt-1 min-h-[80px]"
+                                                onCommit={(next) => {
+                                                  const trimmed = next.trim()
+                                                  const nextSessions = castingSessions.map((s) =>
+                                                    s.id === session.id ? { ...s, brief: trimmed ? trimmed : null } : s,
+                                                  )
+                                                  void updateCastingSessions(nextSessions)
+                                                }}
+                                              />
+                                            </div>
+                                          </div>
+
                                           <div>
                                             <div className="text-xs text-[var(--color-text-muted)]">Notes</div>
                                             <InlineTextarea
@@ -1235,35 +1410,47 @@ export default function LibraryTalentPage() {
                                             <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
                                               Images
                                             </div>
-                                            {canEdit ? (
-                                              <div className="flex items-center gap-2">
-                                                <label className="inline-flex">
-                                                  <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    multiple
-                                                    onChange={(e) => void onCastingFiles(session.id, e)}
-                                                    className="hidden"
-                                                  />
-                                                  <span className="inline-flex cursor-pointer select-none items-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-surface-subtle)]">
-                                                    Upload
-                                                  </span>
-                                                </label>
+                                            <div className="flex items-center gap-2">
+                                              {!isMobile ? (
                                                 <Button
-                                                  variant="ghost"
+                                                  variant="outline"
                                                   size="sm"
-                                                  disabled={busy}
-                                                  onClick={() => {
-                                                    setSessionRemoveTarget(session)
-                                                    setSessionRemoveOpen(true)
-                                                  }}
-                                                  className="gap-1 text-[var(--color-error)] hover:text-[var(--color-error)]"
+                                                  disabled={!selected || busy}
+                                                  onClick={() => setPrintSessionId(session.id)}
                                                 >
-                                                  <Trash2 className="h-4 w-4" />
-                                                  Delete
+                                                  Export PDF
                                                 </Button>
-                                              </div>
-                                            ) : null}
+                                              ) : null}
+                                              {canEdit ? (
+                                                <>
+                                                  <label className="inline-flex">
+                                                    <input
+                                                      type="file"
+                                                      accept="image/*"
+                                                      multiple
+                                                      onChange={(e) => void onCastingFiles(session.id, e)}
+                                                      className="hidden"
+                                                    />
+                                                    <span className="inline-flex cursor-pointer select-none items-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-surface-subtle)]">
+                                                      Upload
+                                                    </span>
+                                                  </label>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    disabled={busy}
+                                                    onClick={() => {
+                                                      setSessionRemoveTarget(session)
+                                                      setSessionRemoveOpen(true)
+                                                    }}
+                                                    className="gap-1 text-[var(--color-error)] hover:text-[var(--color-error)]"
+                                                  >
+                                                    <Trash2 className="h-4 w-4" />
+                                                    Delete
+                                                  </Button>
+                                                </>
+                                              ) : null}
+                                            </div>
                                           </div>
 
                                           {(session.images ?? []).length === 0 ? (
@@ -1546,6 +1733,22 @@ export default function LibraryTalentPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {selected && printSession ? (
+        <TalentCastingPrintPortal
+          open={Boolean(printSessionId)}
+          onOpenChange={(open) => {
+            if (!open) setPrintSessionId(null)
+          }}
+          talent={selected}
+          session={printSession}
+          projectName={
+            printSession.projectId
+              ? projectLookup.get(printSession.projectId) ?? printSession.projectId
+              : null
+          }
+        />
+      ) : null}
     </ErrorBoundary>
   )
 }

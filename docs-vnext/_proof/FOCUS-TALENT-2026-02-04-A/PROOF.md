@@ -12,6 +12,8 @@ Make `/library/talent` a producer-grade casting workspace:
 - Headshot upload supported (Storage rules compatible)
 - Portfolio gallery: multi-image upload + captions + ordering
 - Castings/auditions: grouped images + notes per session
+- Casting session metadata: project link, location, role/brief, decision, rating
+- Casting session export: print-to-PDF contact sheet
 - Mobile is read-only but fully viewable
 
 ## Contract
@@ -23,6 +25,7 @@ Make `/library/talent` a producer-grade casting workspace:
 - `projectIds?: string[]` links talent to projects (membership)
 - `galleryImages[]` stores portfolio images (legacy-compatible)
 - `castingSessions[]` stores casting sessions (embedded on talent doc)
+  - Each session supports `projectId/location/brief/decision/rating` metadata
 
 ## Verification
 
@@ -48,5 +51,7 @@ Make `/library/talent` a producer-grade casting workspace:
 | Create casting | Castings → Add casting → set date/title → Add | Session appears; can open it |
 | Add casting notes | Open a casting → edit notes → blur | Notes persist |
 | Upload casting images | Open a casting → Upload | Images appear under that casting; captions + reorder persist |
+| Edit casting metadata | Open a casting → set Project/Location/Role/Brief/Decision/Rating | Fields persist; failures show error toast |
+| Export casting PDF | Open a casting → Export PDF | Print dialog opens; output includes talent info + session info + images + captions |
 | Delete casting | Open casting → Delete | Session removed; images deleted (best-effort) |
 | Mobile reader | Open `/library/talent` on mobile viewport | Browse + detail works; create/edit/upload disabled |

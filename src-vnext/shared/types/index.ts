@@ -330,6 +330,15 @@ export interface TalentRecord {
     /** ISO date string (YYYY-MM-DD). */
     readonly date: string
     readonly title?: string | null
+    /** Optional: link the session to a project for later export/reference. */
+    readonly projectId?: string | null
+    readonly location?: string | null
+    /** Role / brief / notes about the ask for this session. */
+    readonly brief?: string | null
+    /** Casting decision outcome (free-form string stored from a controlled UI list). */
+    readonly decision?: string | null
+    /** Optional rating (1–5). */
+    readonly rating?: number | null
     readonly notes?: string | null
     readonly images: ReadonlyArray<{
       readonly id: string

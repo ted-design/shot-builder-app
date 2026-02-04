@@ -23,6 +23,13 @@ vi.mock("@/features/library/hooks/useTalentLibrary", () => ({
   useTalentLibrary: vi.fn(),
 }))
 
+vi.mock("@/shared/lib/resolveStoragePath", () => ({
+  isUrl: (value: string) => value.startsWith("https://") || value.startsWith("http://"),
+  resolveStoragePath: async (path: string) => path,
+  getCachedUrl: (path: string) =>
+    path.startsWith("https://") || path.startsWith("http://") ? path : undefined,
+}))
+
 vi.mock("@/features/projects/hooks/useProjects", () => ({
   useProjects: () => ({ data: [], loading: false, error: null }),
 }))
@@ -209,9 +216,133 @@ describe("LibraryTalentPage", () => {
             id: expect.any(String),
             date: "2026-01-30",
             title: "Jan 30 casting",
+            projectId: null,
+            location: null,
+            brief: null,
+            decision: null,
+            rating: null,
             notes: null,
             images: [],
           },
+        ],
+      },
+    })
+  })
+
+  it("exports a casting session (prints)", async () => {
+    ;(useTalentLibrary as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        {
+          id: "t1",
+          name: "Alex Rivera",
+          agency: "IMG",
+          email: null,
+          phone: null,
+          url: null,
+          gender: null,
+          notes: "",
+          measurements: null,
+          headshotPath: null,
+          headshotUrl: null,
+          galleryImages: [],
+          castingSessions: [
+            {
+              id: "s1",
+              date: "2026-01-30",
+              title: "Jan 30 casting",
+              projectId: null,
+              location: null,
+              brief: null,
+              decision: null,
+              rating: null,
+              notes: null,
+              images: [],
+            },
+          ],
+        },
+      ],
+      loading: false,
+      error: null,
+    })
+
+    const originalPrint = window.print
+    const printSpy = vi.fn()
+    Object.defineProperty(window, "print", { value: printSpy, writable: true })
+
+    renderPage()
+    fireEvent.click(screen.getByText("Alex Rivera"))
+
+    fireEvent.click(screen.getByText("Jan 30 casting"))
+    fireEvent.click(await screen.findByRole("button", { name: "Export PDF" }))
+
+    await waitFor(() => {
+      expect(printSpy).toHaveBeenCalledTimes(1)
+    })
+
+    Object.defineProperty(window, "print", { value: originalPrint, writable: true })
+  })
+
+  it("updates casting session location", async () => {
+    ;(useTalentLibrary as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        {
+          id: "t1",
+          name: "Alex Rivera",
+          agency: "IMG",
+          email: null,
+          phone: null,
+          url: null,
+          gender: null,
+          notes: "",
+          measurements: null,
+          headshotPath: null,
+          headshotUrl: null,
+          galleryImages: [],
+          castingSessions: [
+            {
+              id: "s1",
+              date: "2026-01-30",
+              title: "Jan 30 casting",
+              projectId: null,
+              location: "Studio A",
+              brief: null,
+              decision: null,
+              rating: null,
+              notes: null,
+              images: [],
+            },
+          ],
+        },
+      ],
+      loading: false,
+      error: null,
+    })
+
+    ;(updateTalent as unknown as { mockResolvedValue: () => void }).mockResolvedValue()
+
+    renderPage()
+    fireEvent.click(screen.getByText("Alex Rivera"))
+    fireEvent.click(screen.getByText("Jan 30 casting"))
+
+    fireEvent.click(await screen.findByText("Studio A"))
+    const input = screen.getByDisplayValue("Studio A")
+    fireEvent.change(input, { target: { value: "Stage 5" } })
+    fireEvent.blur(input)
+
+    await waitFor(() => {
+      expect(updateTalent).toHaveBeenCalledTimes(1)
+    })
+
+    expect(updateTalent).toHaveBeenCalledWith({
+      clientId: "c1",
+      userId: "u1",
+      talentId: "t1",
+      patch: {
+        castingSessions: [
+          expect.objectContaining({
+            id: "s1",
+            location: "Stage 5",
+          }),
         ],
       },
     })
