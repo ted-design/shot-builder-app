@@ -173,16 +173,6 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
       }
     }
 
-    // D) first reference fallback (this look)
-    const refs = Array.isArray(look.references) ? look.references : []
-    if (refs.length > 0) {
-      const first = refs[0]
-      const downloadURL = asNonEmptyString(first?.downloadURL)
-      const path = asNonEmptyString(first?.path)
-      const resolved = downloadURL ?? path
-      if (resolved) return { path: path ?? resolved, downloadURL: resolved }
-    }
-
     return undefined
   }
 
@@ -251,17 +241,6 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
         asNonEmptyString(p?.["thumbnailImagePath"])
       if (candidate) return { path: candidate, downloadURL: candidate }
     }
-  }
-
-  // Priority 4: First reference from first look with references
-  for (const look of looks) {
-    const refs = Array.isArray(look.references) ? look.references : []
-    if (refs.length === 0) continue
-    const first = refs[0]
-    const downloadURL = asNonEmptyString(first?.downloadURL)
-    const path = asNonEmptyString(first?.path)
-    const resolved = downloadURL ?? path
-    if (resolved) return { path: path ?? resolved, downloadURL: resolved }
   }
 
   // Priority 5: Primary attachment (legacy multi-image system)

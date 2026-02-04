@@ -57,6 +57,31 @@ describe("mapShot", () => {
     expect(shot.heroImage?.path).toBe("shots/s1/2.jpg")
   })
 
+  it("does not fall back to the first reference when no display image is selected", () => {
+    const shot = mapShot("s1", {
+      title: "Shot A",
+      projectId: "p1",
+      clientId: "c1",
+      createdAt: { seconds: 1, nanoseconds: 0 },
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+      createdBy: "u1",
+      deleted: false,
+      looks: [
+        {
+          id: "look-1",
+          references: [
+            { id: "ref-1", downloadURL: "https://example.com/1.jpg", path: "shots/s1/1.jpg" },
+          ],
+          products: [],
+          heroProductId: null,
+          displayImageId: null,
+        },
+      ],
+      activeLookId: "look-1",
+    })
+    expect(shot.heroImage).toBeUndefined()
+  })
+
   it("prefers the active look when activeLookId is set", () => {
     const shot = mapShot("s1", {
       title: "Shot A",

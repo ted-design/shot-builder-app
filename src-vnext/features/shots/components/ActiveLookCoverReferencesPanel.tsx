@@ -6,7 +6,7 @@ import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { Button } from "@/ui/button"
 import { Badge } from "@/ui/badge"
-import { ImagePlus, Loader2, Star, X } from "lucide-react"
+import { ImagePlus, Loader2, Star, X, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import type { Shot, ShotLook, ShotReferenceImage } from "@/shared/types"
 
@@ -164,9 +164,17 @@ export function ActiveLookCoverReferencesPanel({
         uploadedAt: Date.now(),
         uploadedBy: user?.uid ?? undefined,
       }
-      const nextLooks = looks.map((l) =>
-        l.id === activeLook.id ? { ...l, references: [...(l.references ?? []), newRef] } : l,
-      )
+      const nextLooks = looks.map((l) => {
+        if (l.id !== activeLook.id) return l
+        const nextRefs = [...(l.references ?? []), newRef]
+        const nextDisplay = l.displayImageId ?? null
+        return {
+          ...l,
+          references: nextRefs,
+          // Default first uploaded reference to cover (only when unset).
+          displayImageId: nextDisplay === null ? id : nextDisplay,
+        }
+      })
       try {
         await saveLooks(nextLooks)
       } catch (err) {
@@ -176,6 +184,36 @@ export function ActiveLookCoverReferencesPanel({
       toast.error("Failed to add reference", { description: formatUploadError(err) })
     } finally {
       setUploading(false)
+    }
+  }
+
+  const hideHeader = async () => {
+    if (!clientId) {
+      toast.error("Failed to hide header", { description: "Missing clientId." })
+      return
+    }
+    if (!activeLook) return
+
+    const nextLooks = looks.map((l) =>
+      l.id === activeLook.id ? { ...l, displayImageId: null, heroProductId: null } : l,
+    )
+
+    setSaving(true)
+    try {
+      const sanitized = sanitizeForFirestore(nextLooks)
+      await updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch: { heroImage: null, looks: sanitized },
+        shot,
+        user,
+        source: "ActiveLookCoverReferencesPanel.hideHeader",
+      })
+      toast.success("Header hidden")
+    } catch (err) {
+      toast.error("Failed to hide header", { description: formatUploadError(err) })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -220,6 +258,17 @@ export function ActiveLookCoverReferencesPanel({
                 Clear cover
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-[var(--color-text-subtle)]"
+              onClick={() => void hideHeader()}
+              disabled={uploading || saving}
+              title="Hides the header image without deleting references or products"
+            >
+              <EyeOff className="mr-1.5 h-4 w-4" />
+              Hide header
+            </Button>
           </div>
         )}
       </div>

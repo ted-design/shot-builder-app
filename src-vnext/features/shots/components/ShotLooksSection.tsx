@@ -499,9 +499,17 @@ function ReferencesSection({
         uploadedAt: Date.now(),
         uploadedBy: userId ?? undefined,
       }
-      const nextLooks = looks.map((l) =>
-        l.id === look.id ? { ...l, references: [...(l.references ?? []), newRef] } : l,
-      )
+      const nextLooks = looks.map((l) => {
+        if (l.id !== look.id) return l
+        const nextRefs = [...(l.references ?? []), newRef]
+        const nextDisplay = l.displayImageId ?? null
+        return {
+          ...l,
+          references: nextRefs,
+          // Default uploaded reference to cover when this is the active look and cover isn't set yet.
+          displayImageId: isActiveForCover && nextDisplay === null ? id : nextDisplay,
+        }
+      })
       try {
         await onSaveLooks(nextLooks)
       } catch (err) {

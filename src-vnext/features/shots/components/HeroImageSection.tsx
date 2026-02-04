@@ -77,13 +77,14 @@ export function HeroImageSection({
   return (
     <div className="flex flex-col gap-2">
       {resolvedHeroUrl ? (
-        <div className="relative overflow-hidden rounded-lg border border-[var(--color-border)]">
-          <img
-            src={resolvedHeroUrl}
-            alt="Hero"
-            className="w-full object-cover"
-            style={{ maxHeight: 320 }}
-          />
+        <div className="relative overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
+          <div className="aspect-[16/9] w-full">
+            <img
+              src={resolvedHeroUrl}
+              alt="Hero"
+              className="h-full w-full object-contain"
+            />
+          </div>
           {canUpload && !uploading && (
             <div className="absolute bottom-2 right-2 flex items-center gap-2">
               <Button
