@@ -66,6 +66,21 @@ Storage path:
 - `npm run lint` ✅ (0 warnings)
 - `npm run build` ✅
 
+## Deployment (rules)
+
+Deployed to Firebase project `um-shotbuilder`:
+- Firestore rules (`firestore.rules`) ✓ deployed (verification: “already up to date”)
+- Storage rules (`storage.rules`) ✓ deployed (verification: “already up to date”)
+
+## Post-deploy hotfix (UI crash)
+
+Issue: Radix Select forbids `SelectItem value=""`. The Samples scope picker used an empty-string value for “All colorways”, which crashed `/products/:fid?section=samples`.
+
+Fix: Use a sentinel option value (`"__all__"`) and map it to internal empty selection.
+
+- Commit: `f78cc53`
+- User verified: “it works”
+
 ## Manual QA required
 
 ⚠️ Chrome extension unavailable in this session for visual verification.
@@ -82,4 +97,3 @@ Storage path:
 ## Screenshots index
 
 _Screenshots live in `docs-vnext/_proof/FOCUS-PRODUCTS-WORKSPACE-2026-02-04-A/images/`._
-
