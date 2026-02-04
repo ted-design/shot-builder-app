@@ -18,6 +18,8 @@ import { ImagePlus, Plus, Star, Trash2, X, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { ProductAssignment, Shot, ShotLook, ShotReferenceImage } from "@/shared/types"
 
+const HERO_NONE_VALUE = "__none__"
+
 function getLookLabel(order: number): string {
   if (order === 0) return "Primary"
   return `Alt ${String.fromCharCode(64 + order)}`
@@ -323,9 +325,9 @@ export function ShotLooksSection({
               <p className="text-xs text-[var(--color-text-subtle)]">Add products to enable hero selection.</p>
             ) : (
               <Select
-                value={selectedLook.heroProductId ?? ""}
+                value={selectedLook.heroProductId ?? HERO_NONE_VALUE}
                 onValueChange={async (value) => {
-                  const heroProductId = value === "" ? null : value
+                  const heroProductId = value === HERO_NONE_VALUE ? null : value
                   const next = looks.map((l) =>
                     l.id === selectedLook.id ? { ...l, heroProductId } : l,
                   )
@@ -337,7 +339,7 @@ export function ShotLooksSection({
                   <SelectValue placeholder="No hero product" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No hero product</SelectItem>
+                  <SelectItem value={HERO_NONE_VALUE}>No hero product</SelectItem>
                   {productHeroOptions(selectedLook.products).map((o) => (
                     <SelectItem key={o.familyId} value={o.familyId}>
                       {o.label}
