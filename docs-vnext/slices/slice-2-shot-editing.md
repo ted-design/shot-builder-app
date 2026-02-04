@@ -117,7 +117,7 @@ Legacy shot documents may contain `tags: [{id, label, color}]` arrays. Removing 
 | Looks/visual options | E-commerce-specific workflow. Not blocking for general production. |
 | Tag creation/editing/deletion | Read-only display of existing tags is in-scope. Tag write operations deferred. |
 | Move/copy shot between projects | Rare operation. |
-| Version history panel | Audit trail via activity feed (future slice). |
+| Version history panel | Legacy uses `/versions` snapshots; vNext defers UI by default, but can ship a minimal History + Restore panel when required for producer trust. |
 | Active editors / presence | Rare concurrent editing. |
 | Bulk actions from shot list | Desktop convenience. Single-shot operations sufficient for launch. |
 | Column configuration / density | Personal preference. |

@@ -968,6 +968,7 @@ function ShotsTable({
                   <ShotStatusSelect
                     shotId={shot.id}
                     currentStatus={shot.status}
+                    shot={shot}
                     disabled={false}
                   />
                 </td>

@@ -101,6 +101,7 @@ export function ShotCard({
           <ShotStatusSelect
             shotId={shot.id}
             currentStatus={shot.status}
+            shot={shot}
             disabled={false}
           />
         </div>

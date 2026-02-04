@@ -1,7 +1,5 @@
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore"
-import { db } from "@/shared/lib/firebase"
-import { shotPath } from "@/shared/lib/paths"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import {
   Select,
   SelectContent,
@@ -15,22 +13,24 @@ import {
   getShotStatusLabel,
   getShotStatusColor,
 } from "@/shared/lib/statusMappings"
-import type { ShotFirestoreStatus } from "@/shared/types"
+import type { Shot, ShotFirestoreStatus } from "@/shared/types"
 import { useState } from "react"
 import { toast } from "sonner"
 
 interface ShotStatusSelectProps {
   readonly shotId: string
   readonly currentStatus: ShotFirestoreStatus
+  readonly shot: Shot
   readonly disabled?: boolean
 }
 
 export function ShotStatusSelect({
   shotId,
   currentStatus,
+  shot,
   disabled = false,
 }: ShotStatusSelectProps) {
-  const { clientId } = useAuth()
+  const { clientId, user } = useAuth()
   const [optimisticStatus, setOptimisticStatus] = useState<ShotFirestoreStatus | null>(null)
 
   const displayStatus = optimisticStatus ?? currentStatus
@@ -43,11 +43,13 @@ export function ShotStatusSelect({
     setOptimisticStatus(newStatus)
 
     try {
-      const path = shotPath(shotId, clientId)
-      const ref = doc(db, path[0]!, ...path.slice(1))
-      await updateDoc(ref, {
-        status: newStatus,
-        updatedAt: serverTimestamp(),
+      await updateShotWithVersion({
+        clientId,
+        shotId,
+        patch: { status: newStatus },
+        shot,
+        user,
+        source: "ShotStatusSelect",
       })
       setOptimisticStatus(null)
     } catch {

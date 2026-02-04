@@ -106,6 +106,19 @@ export interface ShotComment {
   readonly deleted?: boolean
 }
 
+export type ShotVersionChangeType = "create" | "update" | "rollback"
+
+export interface ShotVersion {
+  readonly id: string
+  readonly snapshot: Record<string, unknown>
+  readonly createdAt?: Timestamp
+  readonly createdBy?: string
+  readonly createdByName?: string | null
+  readonly createdByAvatar?: string | null
+  readonly changeType?: ShotVersionChangeType
+  readonly changedFields?: ReadonlyArray<string>
+}
+
 export type PullFirestoreStatus = "draft" | "published" | "in-progress" | "fulfilled"
 
 export type FulfillmentFirestoreStatus =

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { ProductAssignmentPicker } from "@/features/shots/components/ProductAssignmentPicker"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
-import { updateShotField } from "@/features/shots/lib/updateShot"
+import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { uploadShotReferenceImage } from "@/shared/lib/uploadImage"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { Button } from "@/ui/button"
@@ -119,9 +119,13 @@ export function ShotLooksSection({
     try {
       const normalized = normalizeLooksForWrite(nextLooks)
       const sanitized = sanitizeForFirestore(normalized)
-      await updateShotField(shot.id, clientId, {
-        looks: sanitized,
-        activeLookId: nextActiveLookId,
+      await updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch: { looks: sanitized, activeLookId: nextActiveLookId },
+        shot,
+        user,
+        source: "ShotLooksSection.saveLooks",
       })
       return true
     } catch {
@@ -179,7 +183,14 @@ export function ShotLooksSection({
     if (!clientId) return
     setSaving(true)
     try {
-      await updateShotField(shot.id, clientId, { activeLookId: lookId })
+      await updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch: { activeLookId: lookId },
+        shot,
+        user,
+        source: "ShotLooksSection.setActiveLookForCover",
+      })
     } catch {
       toast.error("Failed to set active look")
     } finally {

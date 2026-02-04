@@ -1,6 +1,6 @@
 import { useRef, useState } from "react"
 import { uploadHeroImage } from "@/shared/lib/uploadImage"
-import { updateShotField } from "@/features/shots/lib/updateShot"
+import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { Button } from "@/ui/button"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
@@ -10,16 +10,18 @@ import type { Shot } from "@/shared/types"
 
 interface HeroImageSectionProps {
   readonly heroImage: Shot["heroImage"]
+  readonly shot: Shot
   readonly shotId: string
   readonly canUpload: boolean
 }
 
 export function HeroImageSection({
   heroImage,
+  shot,
   shotId,
   canUpload,
 }: HeroImageSectionProps) {
-  const { clientId } = useAuth()
+  const { clientId, user } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
 
@@ -37,7 +39,14 @@ export function HeroImageSection({
     setUploading(true)
     try {
       const result = await uploadHeroImage(file, clientId, shotId)
-      await updateShotField(shotId, clientId, { heroImage: result })
+      await updateShotWithVersion({
+        clientId,
+        shotId,
+        patch: { heroImage: result },
+        shot,
+        user,
+        source: "HeroImageSection.upload",
+      })
     } catch {
       toast.error("Failed to upload image")
     } finally {
@@ -74,7 +83,14 @@ export function HeroImageSection({
                   onClick={async () => {
                     if (!clientId) return
                     try {
-                      await updateShotField(shotId, clientId, { heroImage: null })
+                      await updateShotWithVersion({
+                        clientId,
+                        shotId,
+                        patch: { heroImage: null },
+                        shot,
+                        user,
+                        source: "HeroImageSection.reset",
+                      })
                     } catch {
                       toast.error("Failed to reset cover")
                     }

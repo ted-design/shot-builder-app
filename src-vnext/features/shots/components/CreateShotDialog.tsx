@@ -4,6 +4,7 @@ import { db } from "@/shared/lib/firebase"
 import { shotsPath } from "@/shared/lib/paths"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
+import { createShotVersionSnapshot } from "@/features/shots/lib/shotVersioning"
 import {
   Dialog,
   DialogContent,
@@ -41,7 +42,8 @@ export function CreateShotDialog({
 
     try {
       const path = shotsPath(clientId)
-      await addDoc(collection(db, path[0]!, ...path.slice(1)), {
+      const createdBy = user?.uid ?? ""
+      const ref = await addDoc(collection(db, path[0]!, ...path.slice(1)), {
         title: trimmedTitle,
         description: description.trim() || null,
         projectId,
@@ -54,8 +56,41 @@ export function CreateShotDialog({
         notes: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        createdBy: user?.uid ?? "",
+        createdBy,
       })
+
+      if (user?.uid) {
+        void createShotVersionSnapshot({
+          clientId,
+          shotId: ref.id,
+          previousShot: null,
+          patch: {
+            title: trimmedTitle,
+            description: description.trim() || null,
+            status: "todo",
+            talent: [],
+            products: [],
+            sortOrder: Date.now(),
+            deleted: false,
+            notes: null,
+            notesAddendum: null,
+            shotNumber: null,
+            date: null,
+            locationId: null,
+            locationName: null,
+            heroImage: null,
+            looks: null,
+            activeLookId: null,
+            tags: null,
+            laneId: null,
+          },
+          user,
+          changeType: "create",
+        }).catch((err) => {
+          console.error("[CreateShotDialog] Failed to write initial version:", err)
+        })
+      }
+
       setTitle("")
       setDescription("")
       onOpenChange(false)

@@ -10,7 +10,8 @@ import { NotesSection } from "@/features/shots/components/NotesSection"
 import { HeroImageSection } from "@/features/shots/components/HeroImageSection"
 import { ShotLooksSection } from "@/features/shots/components/ShotLooksSection"
 import { ShotCommentsSection } from "@/features/shots/components/ShotCommentsSection"
-import { updateShotField } from "@/features/shots/lib/updateShot"
+import { ShotVersionHistorySection } from "@/features/shots/components/ShotVersionHistorySection"
+import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { canManageShots } from "@/shared/lib/rbac"
@@ -29,7 +30,7 @@ export default function ShotDetailPage() {
   const { sid } = useParams<{ sid: string }>()
   const navigate = useNavigate()
   const { data: shot, loading, error } = useShot(sid)
-  const { role, clientId } = useAuth()
+  const { role, clientId, user } = useAuth()
   const isMobile = useIsMobile()
 
   const canEdit = canManageShots(role) && !isMobile
@@ -38,7 +39,14 @@ export default function ShotDetailPage() {
   const save = async (fields: Record<string, unknown>): Promise<boolean> => {
     if (!shot || !clientId) return false
     try {
-      await updateShotField(shot.id, clientId, fields)
+      await updateShotWithVersion({
+        clientId,
+        shotId: shot.id,
+        patch: fields,
+        shot,
+        user,
+        source: "ShotDetailPage",
+      })
       return true
     } catch {
       toast.error("Failed to save changes")
@@ -102,6 +110,7 @@ export default function ShotDetailPage() {
           <ShotStatusSelect
             shotId={shot.id}
             currentStatus={shot.status}
+            shot={shot}
             disabled={!canDoOperational}
           />
         </div>
@@ -114,6 +123,7 @@ export default function ShotDetailPage() {
           <div>
             <HeroImageSection
               heroImage={shot.heroImage}
+              shot={shot}
               shotId={shot.id}
               canUpload={canEdit}
             />
@@ -222,6 +232,8 @@ export default function ShotDetailPage() {
         <Separator />
 
         <ShotCommentsSection shotId={shot.id} canComment={canDoOperational} />
+
+        <ShotVersionHistorySection shot={shot} />
       </div>
     </ErrorBoundary>
   )

@@ -45,6 +45,10 @@ vi.mock("@/features/shots/components/ShotCommentsSection", () => ({
   ShotCommentsSection: () => <div>Comments</div>,
 }))
 
+vi.mock("@/features/shots/components/ShotVersionHistorySection", () => ({
+  ShotVersionHistorySection: () => <div>History</div>,
+}))
+
 vi.mock("@/features/shots/components/ProductAssignmentPicker", () => ({
   ProductAssignmentPicker: () => <div data-testid="shot-products-picker">ProductsPicker</div>,
 }))
