@@ -10,10 +10,8 @@ import {
 import { deleteObject, ref as storageRef, uploadBytes } from "firebase/storage"
 import { db, storage } from "@/shared/lib/firebase"
 import { productFamiliesPath, productFamilySkusPath } from "@/shared/lib/paths"
+import { compressImageToWebp } from "@/shared/lib/uploadImage"
 import type { ProductFamily, ProductSku } from "@/shared/types"
-
-const MAX_DIMENSION = 1600
-const QUALITY = 0.82
 
 const ACTIVE_SKU_STATUSES = new Set(["active", "phasing_out", "coming_soon"])
 
@@ -38,55 +36,8 @@ function unique(values: ReadonlyArray<string>): string[] {
   return Array.from(new Set(values.map((v) => v.trim()).filter(Boolean)))
 }
 
-function compressImage(file: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-
-      let { width, height } = img
-      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-        const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height)
-        width = Math.round(width * ratio)
-        height = Math.round(height * ratio)
-      }
-
-      const canvas = document.createElement("canvas")
-      canvas.width = width
-      canvas.height = height
-      const ctx = canvas.getContext("2d")
-      if (!ctx) {
-        reject(new Error("Canvas 2D context unavailable"))
-        return
-      }
-      ctx.drawImage(img, 0, 0, width, height)
-
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error("Image compression failed"))
-            return
-          }
-          resolve(blob)
-        },
-        "image/webp",
-        QUALITY,
-      )
-    }
-
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error("Failed to load image"))
-    }
-
-    img.src = url
-  })
-}
-
 async function uploadWebpImage(file: File, storagePath: string): Promise<string> {
-  const blob = await compressImage(file)
+  const blob = await compressImageToWebp(file)
   const ref = storageRef(storage, storagePath)
   await uploadBytes(ref, blob, { contentType: "image/webp" })
   return storagePath

@@ -3,6 +3,8 @@ import { storage } from "@/shared/lib/firebase"
 
 const MAX_DIMENSION = 1600
 const QUALITY = 0.82
+const MAX_INPUT_BYTES = 25 * 1024 * 1024
+const MAX_STORAGE_BYTES_EXCLUSIVE = 10 * 1024 * 1024
 
 /**
  * Compress an image file to WebP, constraining to MAX_DIMENSION on the longest side.
@@ -15,10 +17,33 @@ function isHeicLike(file: File): boolean {
   return name.endsWith(".heic") || name.endsWith(".heif")
 }
 
-export function compressImageToWebp(file: File): Promise<Blob> {
+export function validateImageFileForUpload(file: File): void {
+  if (!file) throw new Error("No file selected.")
+  if (!Number.isFinite(file.size) || file.size <= 0) throw new Error("File is empty.")
+  if (file.size > MAX_INPUT_BYTES) throw new Error("Image is too large (max 25MB).")
   if (isHeicLike(file)) {
     throw new Error("HEIC images aren’t supported yet. Please upload a JPG or PNG.")
   }
+
+  const type = (file.type || "").toLowerCase()
+  const name = (file.name || "").toLowerCase()
+  const allowedTypes = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"])
+  const allowedExt = [".jpg", ".jpeg", ".png", ".webp"]
+
+  if (type) {
+    if (!allowedTypes.has(type)) {
+      throw new Error("Unsupported image type. Please upload a JPG, PNG, or WebP.")
+    }
+    return
+  }
+
+  if (!allowedExt.some((ext) => name.endsWith(ext))) {
+    throw new Error("Unsupported image type. Please upload a JPG, PNG, or WebP.")
+  }
+}
+
+export function compressImageToWebp(file: File): Promise<Blob> {
+  validateImageFileForUpload(file)
 
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -48,6 +73,10 @@ export function compressImageToWebp(file: File): Promise<Blob> {
         (blob) => {
           if (!blob) {
             reject(new Error("Image compression failed"))
+            return
+          }
+          if (blob.size >= MAX_STORAGE_BYTES_EXCLUSIVE) {
+            reject(new Error("Image is too large after optimization (max 10MB)."))
             return
           }
           resolve(blob)

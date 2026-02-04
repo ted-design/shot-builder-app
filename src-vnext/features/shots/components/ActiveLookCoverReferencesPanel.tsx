@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { uploadShotReferenceImage } from "@/shared/lib/uploadImage"
+import { uploadShotReferenceImage, validateImageFileForUpload } from "@/shared/lib/uploadImage"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
@@ -139,6 +139,13 @@ export function ActiveLookCoverReferencesPanel({
       return
     }
 
+    try {
+      validateImageFileForUpload(file)
+    } catch (err) {
+      toast.error("Upload failed", { description: formatUploadError(err) })
+      return
+    }
+
     setUploading(true)
     try {
       const id = generateReferenceId()
@@ -249,7 +256,7 @@ export function ActiveLookCoverReferencesPanel({
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0]

@@ -7,6 +7,7 @@ import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { ImagePlus, Loader2, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import type { Shot } from "@/shared/types"
+import { validateImageFileForUpload } from "@/shared/lib/uploadImage"
 
 function formatUploadError(err: unknown): string {
   if (err instanceof Error) {
@@ -47,6 +48,13 @@ export function HeroImageSection({
 
     // Reset input so same file can be re-selected
     e.target.value = ""
+
+    try {
+      validateImageFileForUpload(file)
+    } catch (err) {
+      toast.error("Upload failed", { description: formatUploadError(err) })
+      return
+    }
 
     setUploading(true)
     try {
@@ -143,7 +151,7 @@ export function HeroImageSection({
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp"
           className="hidden"
           onChange={handleFileChange}
         />

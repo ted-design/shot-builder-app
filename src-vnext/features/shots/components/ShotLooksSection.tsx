@@ -3,7 +3,7 @@ import { ProductAssignmentPicker } from "@/features/shots/components/ProductAssi
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
-import { uploadShotReferenceImage } from "@/shared/lib/uploadImage"
+import { uploadShotReferenceImage, validateImageFileForUpload } from "@/shared/lib/uploadImage"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { Button } from "@/ui/button"
 import { Badge } from "@/ui/badge"
@@ -474,6 +474,13 @@ function ReferencesSection({
       return
     }
 
+    try {
+      validateImageFileForUpload(file)
+    } catch (err) {
+      toast.error("Upload failed", { description: formatUploadError(err) })
+      return
+    }
+
     setUploading(true)
     try {
       const id = generateReferenceId()
@@ -569,7 +576,7 @@ function ReferencesSection({
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0]
