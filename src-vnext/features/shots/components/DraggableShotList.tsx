@@ -16,7 +16,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { ShotCard } from "@/features/shots/components/ShotCard"
+import { ShotCard, type ShotCardVisibleFields } from "@/features/shots/components/ShotCard"
 import { persistShotOrder } from "@/features/shots/lib/reorderShots"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { GripVertical } from "lucide-react"
@@ -26,6 +26,7 @@ import type { Shot } from "@/shared/types"
 interface DraggableShotListProps {
   readonly shots: ReadonlyArray<Shot>
   readonly disabled?: boolean
+  readonly visibleFields?: Partial<ShotCardVisibleFields>
   readonly selection?: {
     readonly enabled: boolean
     readonly selectedIds: ReadonlySet<string>
@@ -33,7 +34,7 @@ interface DraggableShotListProps {
   }
 }
 
-export function DraggableShotList({ shots, disabled, selection }: DraggableShotListProps) {
+export function DraggableShotList({ shots, disabled, visibleFields, selection }: DraggableShotListProps) {
   const { clientId } = useAuth()
   const [optimisticOrder, setOptimisticOrder] = useState<ReadonlyArray<Shot> | null>(null)
   const displayShots = optimisticOrder ?? shots
@@ -75,6 +76,7 @@ export function DraggableShotList({ shots, disabled, selection }: DraggableShotL
             selectable={selectionEnabled}
             selected={selection?.selectedIds.has(shot.id) ?? false}
             onSelectedChange={() => selection?.onToggle(shot.id)}
+            visibleFields={visibleFields}
           />
         ))}
       </div>
@@ -93,7 +95,7 @@ export function DraggableShotList({ shots, disabled, selection }: DraggableShotL
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {displayShots.map((shot) => (
-            <SortableShotCard key={shot.id} shot={shot} />
+            <SortableShotCard key={shot.id} shot={shot} visibleFields={visibleFields} />
           ))}
         </div>
       </SortableContext>
@@ -101,7 +103,13 @@ export function DraggableShotList({ shots, disabled, selection }: DraggableShotL
   )
 }
 
-function SortableShotCard({ shot }: { readonly shot: Shot }) {
+function SortableShotCard({
+  shot,
+  visibleFields,
+}: {
+  readonly shot: Shot
+  readonly visibleFields?: Partial<ShotCardVisibleFields>
+}) {
   const {
     attributes,
     listeners,
@@ -126,7 +134,7 @@ function SortableShotCard({ shot }: { readonly shot: Shot }) {
       >
         <GripVertical className="h-4 w-4" />
       </div>
-      <ShotCard shot={shot} />
+      <ShotCard shot={shot} visibleFields={visibleFields} />
     </div>
   )
 }

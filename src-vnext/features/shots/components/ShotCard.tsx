@@ -14,6 +14,23 @@ interface ShotCardProps {
   readonly selectable?: boolean
   readonly selected?: boolean
   readonly onSelectedChange?: (selected: boolean) => void
+  readonly visibleFields?: Partial<ShotCardVisibleFields>
+}
+
+export interface ShotCardVisibleFields {
+  readonly heroThumb: boolean
+  readonly shotNumber: boolean
+  readonly description: boolean
+  readonly readiness: boolean
+  readonly tags: boolean
+}
+
+const DEFAULT_VISIBLE_FIELDS: ShotCardVisibleFields = {
+  heroThumb: true,
+  shotNumber: true,
+  description: true,
+  readiness: true,
+  tags: true,
 }
 
 export function ShotCard({
@@ -21,10 +38,16 @@ export function ShotCard({
   selectable,
   selected,
   onSelectedChange,
+  visibleFields,
 }: ShotCardProps) {
   const navigate = useNavigate()
   const { projectId } = useProjectScope()
   const [imgVisible, setImgVisible] = useState(!!shot.heroImage?.downloadURL)
+
+  const fields: ShotCardVisibleFields = {
+    ...DEFAULT_VISIBLE_FIELDS,
+    ...visibleFields,
+  }
 
   const hasProducts = shot.products.length > 0
   const hasTalent = (shot.talentIds ?? shot.talent).length > 0
@@ -38,7 +61,7 @@ export function ShotCard({
     >
       <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          {heroUrl && imgVisible && (
+          {fields.heroThumb && heroUrl && imgVisible && (
             <img
               src={heroUrl}
               alt={shot.title || "Shot image"}
@@ -50,7 +73,7 @@ export function ShotCard({
             <CardTitle className="text-sm font-medium leading-tight truncate">
               {shot.title || "Untitled Shot"}
             </CardTitle>
-            {shot.shotNumber && (
+            {fields.shotNumber && shot.shotNumber && (
               <span className="text-xs text-[var(--color-text-subtle)] flex-shrink-0">
                 #{shot.shotNumber}
               </span>
@@ -76,21 +99,23 @@ export function ShotCard({
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
-        {shot.description && textPreview(shot.description) && (
+        {fields.description && shot.description && textPreview(shot.description) && (
           <p className="line-clamp-2 text-xs text-[var(--color-text-muted)]">
             {textPreview(shot.description)}
           </p>
         )}
 
         {/* Readiness indicators */}
-        <div className="flex items-center gap-3 text-xs">
-          <ReadinessIndicator icon={Package} ready={hasProducts} label="Products" />
-          <ReadinessIndicator icon={Users} ready={hasTalent} label="Talent" />
-          <ReadinessIndicator icon={MapPin} ready={hasLocation} label="Location" />
-        </div>
+        {fields.readiness && (
+          <div className="flex items-center gap-3 text-xs">
+            <ReadinessIndicator icon={Package} ready={hasProducts} label="Products" />
+            <ReadinessIndicator icon={Users} ready={hasTalent} label="Talent" />
+            <ReadinessIndicator icon={MapPin} ready={hasLocation} label="Location" />
+          </div>
+        )}
 
         {/* Tag badges (read-only) */}
-        {shot.tags && shot.tags.length > 0 && (
+        {fields.tags && shot.tags && shot.tags.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {shot.tags.map((tag) => (
               <Badge
