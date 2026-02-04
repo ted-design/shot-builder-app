@@ -12,6 +12,7 @@ import { ActiveLookCoverReferencesPanel } from "@/features/shots/components/Acti
 import { ShotLooksSection } from "@/features/shots/components/ShotLooksSection"
 import { ShotCommentsSection } from "@/features/shots/components/ShotCommentsSection"
 import { ShotVersionHistorySection } from "@/features/shots/components/ShotVersionHistorySection"
+import { TagEditor } from "@/features/shots/components/TagEditor"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -22,7 +23,6 @@ import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Textarea } from "@/ui/textarea"
 import { Separator } from "@/ui/separator"
-import { Badge } from "@/ui/badge"
 import { ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
 import { useState } from "react"
@@ -213,23 +213,14 @@ export default function ShotDetailPage() {
               canEditAddendum={canDoOperational}
             />
 
-            {shot.tags && shot.tags.length > 0 && (
-              <div>
-                <SectionLabel>Tags</SectionLabel>
-                <div className="flex flex-wrap gap-1.5">
-                  {shot.tags.map((tag) => (
-                    <Badge
-                      key={tag.id}
-                      variant="outline"
-                      className="text-xs"
-                      style={{ borderColor: tag.color, color: tag.color }}
-                    >
-                      {tag.label}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div>
+              <SectionLabel>Tags</SectionLabel>
+              <TagEditor
+                tags={shot.tags ?? []}
+                onSave={(next) => save({ tags: next })}
+                disabled={!canEdit}
+              />
+            </div>
           </div>
         </div>
 

@@ -41,6 +41,7 @@ import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { textPreview } from "@/shared/lib/textPreview"
 import type { Shot, ShotFirestoreStatus } from "@/shared/types"
 import { toast } from "sonner"
+import { TagBadge } from "@/shared/components/TagBadge"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { backfillMissingShotDates } from "@/features/shots/lib/backfillShotDates"
 
@@ -1031,15 +1032,9 @@ function ShotsTable({
                     {shot.tags && shot.tags.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {shot.tags.slice(0, 3).map((tag) => (
-                          <Badge
-                            key={tag.id}
-                            variant="outline"
-                            className="text-[10px]"
-                            style={{ borderColor: tag.color, color: tag.color }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {tag.label}
-                          </Badge>
+                          <div key={tag.id} onClick={(e) => e.stopPropagation()}>
+                            <TagBadge tag={tag} />
+                          </div>
                         ))}
                         {shot.tags.length > 3 && (
                           <span className="text-[10px] text-[var(--color-text-subtle)]">

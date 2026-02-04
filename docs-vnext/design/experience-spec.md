@@ -37,7 +37,7 @@
 | Section | Items | Scope | Notes |
 |---------|-------|-------|-------|
 | **Projects** | Dashboard | Org | Project selector + readiness overview |
-| **Project** | Shots, Pulls, Assets, Call Sheet | Project | Visible only when a project is active. Grayed/hidden otherwise. |
+| **Project** | Shots, Pulls, Assets, Tags, Call Sheet | Project | Visible only when a project is active. Grayed/hidden otherwise. |
 | **Org** | Products, Library (Talent, Locations, Crew) | Org | Always visible. Org-level data. |
 | **System** | Settings, Account | Org/User | Admin-only for Settings. |
 
@@ -87,6 +87,7 @@ Drawer (slides from left):
 | `/projects/:id/pulls` | Pull Sheet List | ✓ Read + Fulfill | ✓ Full | Project |
 | `/projects/:id/pulls/:pid` | Pull Sheet Detail | ✓ Fulfill | ✓ Full Edit | Project |
 | `/projects/:id/assets` | Project Assets | ✓ Read | ✓ Full | Project |
+| `/projects/:id/tags` | Tag Management | ✗ Desktop Only | ✓ Full | Project |
 | `/projects/:id/callsheet` | Call Sheet | ✗ Desktop Only | ✓ Full | Project |
 | `/products` | Product Library | ✓ Read | ✓ Full | Org |
 | `/products/new` | Product Create | ✗ Desktop Only | ✓ Full | Org |
