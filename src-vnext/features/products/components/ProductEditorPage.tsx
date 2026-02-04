@@ -23,12 +23,13 @@ import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
 import { Separator } from "@/ui/separator"
+import { Textarea } from "@/ui/textarea"
 import { cn } from "@/shared/lib/utils"
 import { toast } from "@/shared/hooks/use-toast"
 import { Package, Plus, Save, X } from "lucide-react"
 
 type Mode = "create" | "edit"
-type EditorSection = "basics" | "colorways"
+type EditorSection = "basics" | "notes" | "colorways"
 
 function makeLocalId(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -40,6 +41,23 @@ function normalizeCsv(value: string): string {
     .map((s) => s.trim())
     .filter(Boolean)
     .join(", ")
+}
+
+function notesToText(value: unknown): string {
+  if (!value) return ""
+  if (typeof value === "string") return value
+  if (Array.isArray(value)) {
+    return value
+      .flatMap((v) => (typeof v === "string" ? [v] : []))
+      .map((v) => v.trim())
+      .filter(Boolean)
+      .join("\n")
+  }
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return ""
+  }
 }
 
 function skuToDraft(sku: ProductSku): ProductSkuDraft {
@@ -87,6 +105,7 @@ function defaultFamilyDraft(existing?: ProductFamily): ProductFamilyDraft {
     status: existing?.status ?? "active",
     archived: existing?.archived ?? false,
     sizesCsv: Array.isArray(existing?.sizes) ? existing!.sizes!.join(", ") : "",
+    notes: notesToText(existing?.notes),
     headerImagePath: existing?.headerImagePath ?? null,
     thumbnailImagePath: existing?.thumbnailImagePath ?? null,
     headerImageFile: null,
@@ -127,6 +146,7 @@ function EditorNav({
     <nav className="flex flex-col gap-1">
       {([
         { key: "basics", label: "Basics", description: "Identity, classification, sizing, images." },
+        { key: "notes", label: "Notes", description: "Producer context and product-specific guidance." },
         { key: "colorways", label: "Colorways", description: "SKUs, sizes, status, images." },
       ] as const).map((item) => (
         <button
@@ -498,6 +518,7 @@ export default function ProductEditorPage() {
         productSubcategory: draft.productSubcategory.trim(),
         status: draft.status.trim() || "active",
         sizesCsv: normalizeCsv(draft.sizesCsv),
+        notes: draft.notes,
       }
 
       const normalizedSkus = skuDrafts.map((s) => ({
@@ -830,6 +851,25 @@ export default function ProductEditorPage() {
                 </div>
               </SectionCard>
             </>
+          ) : section === "notes" ? (
+            <SectionCard
+              title="Notes"
+              description="Add producer-facing context. Keep it concise, actionable, and easy to scan."
+            >
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="notes">Product notes</Label>
+                <Textarea
+                  id="notes"
+                  value={draft.notes}
+                  onChange={(e) => setDraft((p) => ({ ...p, notes: e.target.value }))}
+                  placeholder="Fit notes, fabric, special handling, key styling constraints…"
+                  disabled={!canEdit || saving}
+                />
+                <p className="text-xs text-[var(--color-text-subtle)]">
+                  Notes appear in the product cockpit overview for fast recall.
+                </p>
+              </div>
+            </SectionCard>
           ) : (
             <SectionCard
               title="Colorways"

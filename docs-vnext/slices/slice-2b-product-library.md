@@ -46,7 +46,7 @@ This slice delivers a trustworthy, producer-grade Product Library in vNext: fast
 ### Exclusions (explicit non-goals)
 
 - CSV import tooling.
-- “Workspace” extensions (samples/supply tracking, discussion comments, documents) unless explicitly specced later.
+- “Workspace” extensions (samples/supply tracking, discussion comments, documents) are handled in `docs-vnext/slices/slice-2c-product-workspace.md`.
 - Cross-entity fan-out (e.g., querying shots to compute usage). If `shotIds` exists on the product family doc it may be displayed as a count only.
 
 ## Data contract (no schema changes)

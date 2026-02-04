@@ -84,6 +84,7 @@ function defaultFamilyDraft(existing?: ProductFamily): ProductFamilyDraft {
     status: existing?.status ?? "active",
     archived: existing?.archived ?? false,
     sizesCsv: Array.isArray(existing?.sizes) ? existing!.sizes!.join(", ") : "",
+    notes: typeof existing?.notes === "string" ? existing.notes : "",
     headerImagePath: existing?.headerImagePath ?? null,
     thumbnailImagePath: existing?.thumbnailImagePath ?? null,
     headerImageFile: null,

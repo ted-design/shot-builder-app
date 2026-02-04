@@ -186,6 +186,53 @@ export interface ProductSku {
   readonly updatedBy?: string
 }
 
+// --- Product Workspace (Samples, Comments, Documents) ---
+
+export type ProductSampleType = "shoot" | "pre_production" | "bulk"
+export type ProductSampleStatus = "requested" | "in_transit" | "arrived" | "returned" | "issue"
+
+export interface ProductSample {
+  readonly id: string
+  readonly type: ProductSampleType
+  readonly status: ProductSampleStatus
+  readonly sizeRun: ReadonlyArray<string>
+  readonly carrier?: string | null
+  readonly tracking?: string | null
+  readonly eta?: Timestamp | null
+  readonly arrivedAt?: Timestamp | null
+  readonly notes?: string | null
+  /** Optional: scope sample to a specific colorway SKU id. */
+  readonly scopeSkuId?: string | null
+  readonly deleted?: boolean
+  readonly createdAt?: Timestamp
+  readonly updatedAt?: Timestamp
+  readonly createdBy?: string | null
+  readonly updatedBy?: string | null
+}
+
+export interface ProductComment {
+  readonly id: string
+  readonly body: string
+  readonly createdAt?: Timestamp
+  readonly createdBy?: string
+  readonly createdByName?: string | null
+  readonly createdByAvatar?: string | null
+  readonly deleted?: boolean
+}
+
+export interface ProductDocument {
+  readonly id: string
+  readonly name: string
+  readonly storagePath: string
+  readonly contentType?: string | null
+  readonly sizeBytes?: number | null
+  readonly createdAt?: Timestamp
+  readonly createdBy?: string
+  readonly createdByName?: string | null
+  readonly createdByAvatar?: string | null
+  readonly deleted?: boolean
+}
+
 export interface TalentRecord {
   readonly id: string
   readonly name: string

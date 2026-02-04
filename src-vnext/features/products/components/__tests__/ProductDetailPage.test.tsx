@@ -46,6 +46,12 @@ vi.mock("@/features/products/hooks/useProducts", () => ({
   }),
 }))
 
+vi.mock("@/features/products/hooks/useProductWorkspace", () => ({
+  useProductSamples: () => ({ data: [], loading: false, error: null }),
+  useProductComments: () => ({ data: [], loading: false, error: null }),
+  useProductDocuments: () => ({ data: [], loading: false, error: null }),
+}))
+
 describe("ProductDetailPage", () => {
   it("navigates to the product editor page when Edit is clicked", async () => {
     render(

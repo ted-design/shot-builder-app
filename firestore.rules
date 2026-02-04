@@ -228,6 +228,39 @@ service cloud.firestore {
         allow delete: if clientMatches(clientId) && isAdmin();
       }
 
+      // Samples - supply tracking (shoot / pre-production / bulk)
+      match /samples/{sampleId} {
+        allow read: if clientMatches(clientId) && isAuthed();
+        allow create, update, delete: if clientMatches(clientId) && (isAdmin() || isProducer());
+      }
+
+      // Documents - tech packs, spec sheets, supporting materials
+      match /documents/{documentId} {
+        allow read: if clientMatches(clientId) && isAuthed();
+        allow create, update, delete: if clientMatches(clientId) && (isAdmin() || isProducer());
+      }
+
+      // Comments - discussion thread on a product family
+      match /comments/{commentId} {
+        allow read: if clientMatches(clientId) && isAuthed();
+
+        allow create: if clientMatches(clientId) && isAuthed() &&
+          request.resource.data.createdBy == request.auth.uid;
+
+        // Only comment author can update their own comment.
+        // Prevent modification of immutable fields.
+        allow update: if clientMatches(clientId) && isAuthed() &&
+          resource.data.createdBy == request.auth.uid &&
+          request.resource.data.createdBy == resource.data.createdBy &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.createdByName == resource.data.createdByName &&
+          request.resource.data.createdByAvatar == resource.data.createdByAvatar;
+
+        // Allow hard delete by the author (UI uses soft-delete via update).
+        allow delete: if clientMatches(clientId) && isAuthed() &&
+          resource.data.createdBy == request.auth.uid;
+      }
+
       // Versions - immutable document snapshots for version history
       match /versions/{versionId} {
         allow read: if clientMatches(clientId);

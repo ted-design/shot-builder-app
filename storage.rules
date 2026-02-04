@@ -30,6 +30,20 @@ service firebase.storage {
       return isValidImage() && isValidImageSize();
     }
 
+    function isValidDocument() {
+      return request.resource.contentType.matches('application/pdf') ||
+        request.resource.contentType.matches('image/.*');
+    }
+
+    function isValidDocumentSize() {
+      // Max 25MB per document
+      return request.resource.size < 25 * 1024 * 1024;
+    }
+
+    function isValidDocumentUpload() {
+      return isValidDocument() && isValidDocumentSize();
+    }
+
     // Primary app paths use a flat images/ prefix, e.g.
     // images/productFamilies/{familyId}/thumbnail/{file}
     // images/productFamilies/{familyId}/{file}
@@ -43,6 +57,13 @@ service firebase.storage {
 
       // Limit writes to roles that manage content, with file validation
       allow write: if isProducerOrWardrobe() && isValidUpload();
+    }
+
+    // Product documents (tech packs/spec sheets). Stored outside images/ because not all are images.
+    // docs/productFamilies/{familyId}/{documentId}/{filename}
+    match /docs/{path=**} {
+      allow read: if request.auth != null;
+      allow write: if isProducerOrWardrobe() && isValidDocumentUpload();
     }
 
     // Legacy org-scoped paths retained for backwards compatibility

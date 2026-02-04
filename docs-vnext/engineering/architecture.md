@@ -75,7 +75,12 @@ src/
 
 ## Data Contracts (Firestore)
 
-vNext reuses the existing Firestore collections and document shapes. No migration.
+vNext primarily reuses the existing Firestore collections and document shapes (no migration).
+
+**Exception (explicitly approved):** Some slices may introduce **new subcollections** (schema extensions) under existing parent documents (e.g., `productFamilies/{fid}/...`). These must ship with:
+- Updated Firestore + Storage rules
+- A documented contract in `docs-vnext/slices/`
+- Proof + verification logs in `docs-vnext/_proof/`
 
 ### Collection Reference
 
@@ -89,6 +94,9 @@ vNext reuses the existing Firestore collections and document shapes. No migratio
 | `clients/{cid}/projects/{pid}/lanes/{lid}` | shots (planner) | Real-time | Create/Update/Delete |
 | `clients/{cid}/productFamilies/{fid}` | products | Real-time | Create/Update |
 | `clients/{cid}/productFamilies/{fid}/skus/{skid}` | products | Real-time (nested) | Create/Update |
+| `clients/{cid}/productFamilies/{fid}/samples/{sid}` | products | Real-time (nested) | Create/Update/Delete |
+| `clients/{cid}/productFamilies/{fid}/documents/{did}` | products | Real-time (nested) | Create/Update/Delete |
+| `clients/{cid}/productFamilies/{fid}/comments/{cid}` | products | Real-time (nested) | Create/Update/Delete |
 | `clients/{cid}/talent/{tid}` | library | Real-time | Create/Update |
 | `clients/{cid}/locations/{lid}` | library | Real-time | Create/Update |
 | `clients/{cid}/crew/{crid}` | library | Real-time | Create/Update |

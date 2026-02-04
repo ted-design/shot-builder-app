@@ -69,6 +69,21 @@ export const productFamilySkusPath = (
   clientId: string,
 ): string[] => [...productFamiliesPath(clientId), familyId, "skus"]
 
+export const productFamilySamplesPath = (
+  familyId: string,
+  clientId: string,
+): string[] => [...productFamiliesPath(clientId), familyId, "samples"]
+
+export const productFamilyCommentsPath = (
+  familyId: string,
+  clientId: string,
+): string[] => [...productFamiliesPath(clientId), familyId, "comments"]
+
+export const productFamilyDocumentsPath = (
+  familyId: string,
+  clientId: string,
+): string[] => [...productFamiliesPath(clientId), familyId, "documents"]
+
 // --- Talent ---
 
 export const talentPath = (clientId: string): string[] => [

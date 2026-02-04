@@ -14,6 +14,15 @@ Each slice includes:
 - Empty / error / loading states
 - Tests (unit + component minimum)
 
+### Schema extension rule (rare, explicit)
+
+Default posture is **no schema changes**.
+
+If a slice requires a schema extension (e.g., new subcollections under an existing document), it must be:
+- Explicitly approved
+- Fully implemented end-to-end (UI + hooks + rules + docs + proof)
+- Shipped as its own slice (no partial stubs)
+
 ---
 
 ## First Slice: Project → Shots → Pull Sheets
@@ -99,6 +108,7 @@ The first slice is "done" when all of the following are true:
 |---|-------|------------|------------------|
 | **1** | Project → Shots → Pull Sheets | — | Dashboard, shot list/detail, pull list/detail, public share |
 | **2** | Product Library | Slice 1 (pickers exist) | Product list, product detail, SKU management |
+| **2C** | Product Workspace | Slice 2 | Samples tracking, documents, product activity/comments |
 | **3** | Library (Talent, Locations, Crew) | Slice 1 (pickers exist) | Library pages, profile detail, project assignment |
 | **4** | Comments + Activity | Slice 1 | Comment threads, activity timeline, @mentions |
 | **5** | Planner | Slice 1 | Drag-and-drop board, lane management |

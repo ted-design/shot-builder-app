@@ -126,6 +126,7 @@ export interface ProductFamilyDraft {
   readonly status: string
   readonly archived: boolean
   readonly sizesCsv: string
+  readonly notes: string
   readonly headerImagePath?: string | null
   readonly thumbnailImagePath?: string | null
   readonly headerImageFile?: File | null
@@ -188,6 +189,7 @@ export async function createProductFamilyWithSkus(args: {
     productSubcategory: family.productSubcategory.trim() || null,
     status: family.status.trim() || "active",
     archived: Boolean(family.archived),
+    notes: family.notes.trim() || null,
     headerImagePath: null,
     thumbnailImagePath: null,
     sizes: familySizes,
@@ -333,6 +335,7 @@ export async function updateProductFamilyWithSkus(args: {
     status: family.status.trim() || "active",
     archived: Boolean(family.archived),
     sizes: familySizes,
+    notes: family.notes.trim() || null,
     headerImagePath,
     thumbnailImagePath,
     skuCount: aggregates.skuCount,
