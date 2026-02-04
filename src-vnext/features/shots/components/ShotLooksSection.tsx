@@ -63,14 +63,13 @@ function normalizeLooksForWrite(looks: ReadonlyArray<ShotLook>): ShotLook[] {
 }
 
 function productHeroOptions(products: ReadonlyArray<ProductAssignment>) {
-  const seen = new Set<string>()
-  const options: Array<{ readonly familyId: string; readonly label: string }> = []
+  const options: Array<{ readonly id: string; readonly label: string }> = []
   for (const p of products) {
-    const id = p.familyId
-    if (!id || seen.has(id)) continue
-    seen.add(id)
-    const label = p.familyName ?? id
-    options.push({ familyId: id, label })
+    const id = p.skuId ?? p.colourId ?? p.familyId
+    if (!id) continue
+    const base = p.familyName ?? p.skuName ?? p.colourName ?? id
+    const color = p.colourName && p.familyName ? ` — ${p.colourName}` : ""
+    options.push({ id, label: `${base}${color}` })
   }
   options.sort((a, b) => a.label.localeCompare(b.label))
   return options
@@ -329,7 +328,7 @@ export function ShotLooksSection({
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <Star className="h-4 w-4 text-[var(--color-text-subtle)]" />
-              <p className="text-xs font-medium text-[var(--color-text-subtle)]">Hero product (optional)</p>
+              <p className="text-xs font-medium text-[var(--color-text-subtle)]">Cover product (optional)</p>
             </div>
 
             {selectedLook.products.length === 0 ? (
@@ -352,7 +351,7 @@ export function ShotLooksSection({
                 <SelectContent>
                   <SelectItem value={HERO_NONE_VALUE}>No hero product</SelectItem>
                   {productHeroOptions(selectedLook.products).map((o) => (
-                    <SelectItem key={o.familyId} value={o.familyId}>
+                    <SelectItem key={o.id} value={o.id}>
                       {o.label}
                     </SelectItem>
                   ))}
@@ -360,7 +359,7 @@ export function ShotLooksSection({
               </Select>
             )}
             <p className="text-[11px] text-[var(--color-text-subtle)]">
-              Cover prefers a selected reference image; otherwise it can fall back to the hero product image.
+              Cover prefers a selected reference image; otherwise it falls back to the cover product image.
             </p>
           </div>
 

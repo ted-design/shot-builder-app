@@ -74,8 +74,7 @@ describe("ShotLooksSection", () => {
 
     render(<ShotLooksSection shot={shot} canEdit />)
 
-    expect(screen.getByText("Hero product (optional)")).toBeInTheDocument()
+    expect(screen.getByText("Cover product (optional)")).toBeInTheDocument()
     expect(screen.getByText("No hero product")).toBeInTheDocument()
   })
 })
-

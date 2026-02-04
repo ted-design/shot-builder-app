@@ -137,8 +137,12 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
     if (typeof heroId === "string" && heroId.length > 0) {
       const products = Array.isArray(look.products) ? look.products : []
       const match = products.find((p) => {
-        const rawId = p["familyId"] ?? p["productId"]
-        return typeof rawId === "string" && rawId === heroId
+        const familyId = p["familyId"] ?? p["productId"]
+        const skuId = p["skuId"] ?? p["colourId"]
+        return (
+          (typeof skuId === "string" && skuId === heroId) ||
+          (typeof familyId === "string" && familyId === heroId)
+        )
       }) ?? null
       if (match) {
         const candidate =
@@ -151,7 +155,19 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
       }
     }
 
-    // C) first reference fallback (this look)
+    // C) first product image fallback (when cover product not explicitly selected)
+    const products = Array.isArray(look.products) ? look.products : []
+    for (const p of products) {
+      const candidate =
+        asNonEmptyString(p?.["skuImageUrl"]) ??
+        asNonEmptyString(p?.["thumbUrl"]) ??
+        asNonEmptyString(p?.["familyImageUrl"]) ??
+        asNonEmptyString(p?.["colourImagePath"]) ??
+        asNonEmptyString(p?.["thumbnailImagePath"])
+      if (candidate) return { path: candidate, downloadURL: candidate }
+    }
+
+    // D) first reference fallback (this look)
     const refs = Array.isArray(look.references) ? look.references : []
     if (refs.length > 0) {
       const first = refs[0]
@@ -195,8 +211,12 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
     if (typeof heroId !== "string" || heroId.length === 0) continue
     const products = Array.isArray(look.products) ? look.products : []
     const match = products.find((p) => {
-      const rawId = p["familyId"] ?? p["productId"]
-      return typeof rawId === "string" && rawId === heroId
+      const familyId = p["familyId"] ?? p["productId"]
+      const skuId = p["skuId"] ?? p["colourId"]
+      return (
+        (typeof skuId === "string" && skuId === heroId) ||
+        (typeof familyId === "string" && familyId === heroId)
+      )
     }) ?? null
     if (!match) continue
     const candidate =
@@ -207,6 +227,20 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
       asNonEmptyString(match["thumbnailImagePath"])
     if (candidate) {
       return { path: candidate, downloadURL: candidate }
+    }
+  }
+
+  // Priority 3.5: First product image from looks (when no hero product is chosen)
+  for (const look of looks) {
+    const products = Array.isArray(look.products) ? look.products : []
+    for (const p of products) {
+      const candidate =
+        asNonEmptyString(p?.["skuImageUrl"]) ??
+        asNonEmptyString(p?.["thumbUrl"]) ??
+        asNonEmptyString(p?.["familyImageUrl"]) ??
+        asNonEmptyString(p?.["colourImagePath"]) ??
+        asNonEmptyString(p?.["thumbnailImagePath"])
+      if (candidate) return { path: candidate, downloadURL: candidate }
     }
   }
 
@@ -236,6 +270,20 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
         downloadURL: resolved,
       }
     }
+  }
+
+  // Priority 5.5: legacy shot-level products fallback (when looks aren't used)
+  const rootProducts = Array.isArray(data["products"])
+    ? (data["products"] as Record<string, unknown>[])
+    : []
+  for (const p of rootProducts) {
+    const candidate =
+      asNonEmptyString(p?.["skuImageUrl"]) ??
+      asNonEmptyString(p?.["thumbUrl"]) ??
+      asNonEmptyString(p?.["familyImageUrl"]) ??
+      asNonEmptyString(p?.["colourImagePath"]) ??
+      asNonEmptyString(p?.["thumbnailImagePath"])
+    if (candidate) return { path: candidate, downloadURL: candidate }
   }
 
   // Priority 6: Legacy single image fields

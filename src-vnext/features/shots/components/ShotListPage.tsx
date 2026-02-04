@@ -40,6 +40,7 @@ import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { textPreview } from "@/shared/lib/textPreview"
 import type { Shot, ShotFirestoreStatus } from "@/shared/types"
+import { toast } from "sonner"
 
 type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated"
 type SortDir = "asc" | "desc"
@@ -802,7 +803,32 @@ export default function ShotListPage() {
       )}
 
       {showCreate && (
-        <CreateShotDialog open={createOpen} onOpenChange={setCreateOpen} />
+        <CreateShotDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onCreated={(shotId, title) => {
+            toast.success("Shot created", {
+              description: title,
+            })
+
+            const hiddenByStatus = statusFilter.size > 0 && !statusFilter.has("todo")
+            const q = queryParam.trim().toLowerCase()
+            const hiddenByQuery = q.length > 0 && !title.toLowerCase().includes(q)
+
+            if (hiddenByStatus || hiddenByQuery) {
+              toast("Shot created but hidden by filters", {
+                description: "Clear filters/search to see it in the list.",
+                action: {
+                  label: "Show shot",
+                  onClick: () => {
+                    clearFilters()
+                    navigate(`/projects/${projectId}/shots/${shotId}`)
+                  },
+                },
+              })
+            }
+          }}
+        />
       )}
 
       <CreatePullFromShotsDialog

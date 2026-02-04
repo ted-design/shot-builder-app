@@ -20,11 +20,13 @@ import { Textarea } from "@/ui/textarea"
 interface CreateShotDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
+  readonly onCreated?: (shotId: string, title: string) => void
 }
 
 export function CreateShotDialog({
   open,
   onOpenChange,
+  onCreated,
 }: CreateShotDialogProps) {
   const { clientId, user } = useAuth()
   const { projectId } = useProjectScope()
@@ -35,7 +37,11 @@ export function CreateShotDialog({
 
   const handleCreate = async () => {
     const trimmedTitle = title.trim()
-    if (!trimmedTitle || !clientId) return
+    if (!trimmedTitle) return
+    if (!clientId) {
+      setError("Missing client scope. Try refreshing, then sign in again.")
+      return
+    }
 
     setSaving(true)
     setError(null)
@@ -94,6 +100,7 @@ export function CreateShotDialog({
       setTitle("")
       setDescription("")
       onOpenChange(false)
+      onCreated?.(ref.id, trimmedTitle)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create shot")
     } finally {

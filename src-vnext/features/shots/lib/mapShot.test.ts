@@ -149,6 +149,59 @@ describe("mapShot", () => {
     })
   })
 
+  it("supports heroProductId pointing at skuId (colorway) as well as familyId", () => {
+    const shot = mapShot("s1", {
+      title: "Shot A",
+      projectId: "p1",
+      clientId: "c1",
+      createdAt: { seconds: 1, nanoseconds: 0 },
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+      createdBy: "u1",
+      deleted: false,
+      looks: [
+        {
+          id: "look-1",
+          order: 0,
+          heroProductId: "sku-2",
+          products: [
+            { familyId: "fam-1", skuId: "sku-1", thumbUrl: "clients/c1/productFamilies/fam-1/a.webp" },
+            { familyId: "fam-2", skuId: "sku-2", thumbUrl: "clients/c1/productFamilies/fam-2/b.webp" },
+          ],
+          references: [],
+        },
+      ],
+      activeLookId: "look-1",
+    })
+
+    expect(shot.heroImage?.downloadURL).toBe("clients/c1/productFamilies/fam-2/b.webp")
+  })
+
+  it("falls back to the first product image when no cover is explicitly set", () => {
+    const shot = mapShot("s1", {
+      title: "Shot A",
+      projectId: "p1",
+      clientId: "c1",
+      createdAt: { seconds: 1, nanoseconds: 0 },
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+      createdBy: "u1",
+      deleted: false,
+      looks: [
+        {
+          id: "look-1",
+          order: 0,
+          products: [
+            { familyId: "fam-1", skuId: "sku-1", thumbUrl: "clients/c1/productFamilies/fam-1/a.webp" },
+            { familyId: "fam-2", skuId: "sku-2", thumbUrl: "clients/c1/productFamilies/fam-2/b.webp" },
+          ],
+          references: [],
+        },
+      ],
+      activeLookId: "look-1",
+    })
+
+    expect(shot.heroImage?.downloadURL).toBe("clients/c1/productFamilies/fam-1/a.webp")
+  })
+
   it("maps looks into typed structure", () => {
     const shot = mapShot("s1", {
       title: "Shot A",
