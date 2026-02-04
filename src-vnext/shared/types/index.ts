@@ -302,9 +302,29 @@ export interface ProductDocument {
 export interface TalentRecord {
   readonly id: string
   readonly name: string
+  readonly firstName?: string | null
+  readonly lastName?: string | null
+  /** Legacy: may be a Storage path (preferred) or a URL. */
   readonly imageUrl?: string
+  /** Legacy field used by older talent surfaces. Prefer `imageUrl` going forward. */
+  readonly headshotPath?: string | null
+  /** Optional denormalized download URL (legacy). */
+  readonly headshotUrl?: string | null
   readonly agency?: string
+  readonly email?: string | null
+  readonly phone?: string | null
+  readonly url?: string | null
+  readonly gender?: string | null
+  readonly measurements?: Record<string, number | string | null | undefined> | null
   readonly notes?: string
+  readonly galleryImages?: ReadonlyArray<{
+    readonly id: string
+    readonly path: string
+    readonly downloadURL?: string | null
+    readonly description?: string | null
+    readonly order?: number
+    readonly cropData?: unknown
+  }>
   /** Project membership (legacy project-scoped assets). */
   readonly projectIds?: readonly string[]
 }
