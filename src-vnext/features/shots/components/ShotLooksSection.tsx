@@ -87,29 +87,40 @@ export function ShotLooksSection({
     [shot.looks],
   )
 
-  const [activeLookId, setActiveLookId] = useState<string | null>(() =>
-    looks.length > 0 ? looks[0]!.id : null,
-  )
+  const activeLookIdForCover = useMemo(() => {
+    if (shot.activeLookId && looks.some((l) => l.id === shot.activeLookId)) {
+      return shot.activeLookId
+    }
+    return looks.length > 0 ? looks[0]!.id : null
+  }, [looks, shot.activeLookId])
+
+  const [selectedLookId, setSelectedLookId] = useState<string | null>(() => activeLookIdForCover)
 
   useEffect(() => {
-    setActiveLookId((prev) => {
+    setSelectedLookId((prev) => {
       if (looks.length === 0) return null
       if (prev && looks.some((l) => l.id === prev)) return prev
-      return looks[0]!.id
+      return activeLookIdForCover
     })
-  }, [looks])
+  }, [looks, activeLookIdForCover])
 
-  const activeLook = looks.find((l) => l.id === activeLookId) ?? null
+  const selectedLook = looks.find((l) => l.id === selectedLookId) ?? null
 
   const [saving, setSaving] = useState(false)
 
-  const saveLooks = async (nextLooks: ReadonlyArray<ShotLook>): Promise<boolean> => {
+  const saveLooks = async (
+    nextLooks: ReadonlyArray<ShotLook>,
+    nextActiveLookId?: string | null,
+  ): Promise<boolean> => {
     if (!clientId) return false
     setSaving(true)
     try {
       const normalized = normalizeLooksForWrite(nextLooks)
       const sanitized = sanitizeForFirestore(normalized)
-      await updateShotField(shot.id, clientId, { looks: sanitized })
+      await updateShotField(shot.id, clientId, {
+        looks: sanitized,
+        activeLookId: nextActiveLookId,
+      })
       return true
     } catch {
       toast.error("Failed to save look options")
@@ -130,7 +141,11 @@ export function ShotLooksSection({
   const deleteLook = async () => {
     if (!pendingDeleteLookId) return
     const next = looks.filter((l) => l.id !== pendingDeleteLookId)
-    const ok = await saveLooks(next)
+    const nextActive =
+      pendingDeleteLookId === activeLookIdForCover
+        ? (next[0]?.id ?? null)
+        : undefined
+    const ok = await saveLooks(next, nextActive)
     if (ok) {
       setPendingDeleteLookId(null)
     }
@@ -138,10 +153,11 @@ export function ShotLooksSection({
 
   const addLook = async () => {
     const order = looks.length
+    const nextId = generateLookId()
     const next: ShotLook[] = [
       ...looks,
       {
-        id: generateLookId(),
+        id: nextId,
         order,
         label: getLookLabel(order),
         products: [],
@@ -150,9 +166,22 @@ export function ShotLooksSection({
         displayImageId: null,
       },
     ]
-    const ok = await saveLooks(next)
+    const setActive = looks.length === 0 ? nextId : undefined
+    const ok = await saveLooks(next, setActive)
     if (ok) {
-      setActiveLookId(next[next.length - 1]!.id)
+      setSelectedLookId(next[next.length - 1]!.id)
+    }
+  }
+
+  const setActiveLookForCover = async (lookId: string) => {
+    if (!clientId) return
+    setSaving(true)
+    try {
+      await updateShotField(shot.id, clientId, { activeLookId: lookId })
+    } catch {
+      toast.error("Failed to set active look")
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -200,7 +229,8 @@ export function ShotLooksSection({
       {/* Tabs */}
       <div className="mt-3 flex flex-wrap gap-1.5">
         {looks.map((look) => {
-          const isActive = look.id === activeLookId
+          const isSelected = look.id === selectedLookId
+          const isActiveForCover = look.id === activeLookIdForCover
           const label = getLookLabel(look.order ?? 0)
           const productsCount = look.products?.length ?? 0
           const refsCount = look.references?.length ?? 0
@@ -208,15 +238,20 @@ export function ShotLooksSection({
             <button
               key={look.id}
               type="button"
-              onClick={() => setActiveLookId(look.id)}
+              onClick={() => setSelectedLookId(look.id)}
               className={[
                 "flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs transition-colors",
-                isActive
+                isSelected
                   ? "border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)] text-[var(--color-text)]"
                   : "border-[var(--color-border)] text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]",
               ].join(" ")}
             >
               <span className="font-medium">{label}</span>
+              {isActiveForCover && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  Active
+                </Badge>
+              )}
               <span className="text-[10px] opacity-80">
                 {productsCount}P · {refsCount}R
               </span>
@@ -225,8 +260,31 @@ export function ShotLooksSection({
         })}
       </div>
 
-      {activeLook && (
+      {selectedLook && (
         <div className="mt-4 flex flex-col gap-4">
+          {/* Active look control */}
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-[var(--color-text)]">
+                Cover follows Active look
+              </p>
+              <p className="mt-0.5 text-[11px] text-[var(--color-text-subtle)]">
+                Active: {getLookLabel((looks.find((l) => l.id === activeLookIdForCover)?.order ?? 0))}
+              </p>
+            </div>
+            {canEdit && selectedLook.id !== activeLookIdForCover && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8"
+                onClick={() => setActiveLookForCover(selectedLook.id)}
+                disabled={saving}
+              >
+                Make active
+              </Button>
+            )}
+          </div>
+
           {/* Products */}
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-medium text-[var(--color-text-subtle)]">Products</p>
@@ -235,7 +293,7 @@ export function ShotLooksSection({
                 variant="ghost"
                 size="sm"
                 className="h-8 px-2 text-[var(--color-text-subtle)]"
-                onClick={() => requestDeleteLook(activeLook.id)}
+                onClick={() => requestDeleteLook(selectedLook.id)}
               >
                 <Trash2 className="mr-1.5 h-4 w-4" />
                 Delete look
@@ -244,11 +302,11 @@ export function ShotLooksSection({
           </div>
 
           <ProductAssignmentPicker
-            selected={activeLook.products ?? []}
+            selected={selectedLook.products ?? []}
             disabled={!canEdit}
             onSave={async (products) => {
               const next = looks.map((l) =>
-                l.id === activeLook.id ? { ...l, products } : l,
+                l.id === selectedLook.id ? { ...l, products } : l,
               )
               return saveLooks(next)
             }}
@@ -261,15 +319,15 @@ export function ShotLooksSection({
               <p className="text-xs font-medium text-[var(--color-text-subtle)]">Hero product (optional)</p>
             </div>
 
-            {activeLook.products.length === 0 ? (
+            {selectedLook.products.length === 0 ? (
               <p className="text-xs text-[var(--color-text-subtle)]">Add products to enable hero selection.</p>
             ) : (
               <Select
-                value={activeLook.heroProductId ?? ""}
+                value={selectedLook.heroProductId ?? ""}
                 onValueChange={async (value) => {
                   const heroProductId = value === "" ? null : value
                   const next = looks.map((l) =>
-                    l.id === activeLook.id ? { ...l, heroProductId } : l,
+                    l.id === selectedLook.id ? { ...l, heroProductId } : l,
                   )
                   await saveLooks(next)
                 }}
@@ -280,7 +338,7 @@ export function ShotLooksSection({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">No hero product</SelectItem>
-                  {productHeroOptions(activeLook.products).map((o) => (
+                  {productHeroOptions(selectedLook.products).map((o) => (
                     <SelectItem key={o.familyId} value={o.familyId}>
                       {o.label}
                     </SelectItem>
@@ -296,12 +354,13 @@ export function ShotLooksSection({
           {/* References */}
           <ReferencesSection
             shot={shot}
-            look={activeLook}
+            look={selectedLook}
             looks={looks}
             canEdit={canEdit}
             saving={saving}
             onSaveLooks={saveLooks}
             userId={user?.uid ?? null}
+            isActiveForCover={selectedLook.id === activeLookIdForCover}
           />
         </div>
       )}
@@ -327,6 +386,7 @@ function ReferencesSection({
   saving,
   onSaveLooks,
   userId,
+  isActiveForCover,
 }: {
   readonly shot: Shot
   readonly look: ShotLook
@@ -335,6 +395,7 @@ function ReferencesSection({
   readonly saving: boolean
   readonly onSaveLooks: (nextLooks: ReadonlyArray<ShotLook>) => Promise<boolean>
   readonly userId: string | null
+  readonly isActiveForCover: boolean
 }) {
   const { clientId } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -356,22 +417,17 @@ function ReferencesSection({
     const nextLooks = looks.map((l) => {
       if (l.id !== look.id) return l
       const nextRefs = (l.references ?? []).filter((r) => r.id !== pendingRemoveId)
-      return { ...l, references: nextRefs }
+      const nextDisplay = l.displayImageId === pendingRemoveId ? null : (l.displayImageId ?? null)
+      return { ...l, references: nextRefs, displayImageId: nextDisplay }
     })
-    const removedWasCover = looks.some((l) => l.displayImageId === pendingRemoveId)
-    const finalLooks = removedWasCover
-      ? nextLooks.map((l) => ({ ...l, displayImageId: null }))
-      : nextLooks
-    const ok = await onSaveLooks(finalLooks)
+    const ok = await onSaveLooks(nextLooks)
     if (ok) setPendingRemoveId(null)
   }
 
   const setCoverRef = async (refId: string | null) => {
-    const nextLooks = looks.map((l) => {
-      if (refId === null) return { ...l, displayImageId: null }
-      if (l.id === look.id) return { ...l, displayImageId: refId }
-      return { ...l, displayImageId: null }
-    })
+    const nextLooks = looks.map((l) =>
+      l.id === look.id ? { ...l, displayImageId: refId } : l,
+    )
     await onSaveLooks(nextLooks)
   }
 
@@ -411,7 +467,7 @@ function ReferencesSection({
           <p className="text-xs font-medium text-[var(--color-text-subtle)]">References</p>
           {displayImageId && (
             <Badge variant="secondary" className="text-[10px]">
-              Cover set
+              {isActiveForCover ? "Cover (active)" : "Cover set"}
             </Badge>
           )}
         </div>

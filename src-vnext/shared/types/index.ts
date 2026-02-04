@@ -87,6 +87,8 @@ export interface Shot {
   readonly date?: Timestamp
   readonly heroImage?: { readonly path: string; readonly downloadURL: string }
   readonly looks?: ReadonlyArray<ShotLook>
+  /** Which look is currently active (used for cover derivation). */
+  readonly activeLookId?: string | null
   readonly tags?: ReadonlyArray<ShotTag>
   readonly deleted?: boolean
   readonly createdAt: Timestamp

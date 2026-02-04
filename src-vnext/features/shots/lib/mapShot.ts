@@ -76,6 +76,7 @@ function normalizeTags(raw: unknown): ReadonlyArray<ShotTag> {
 
 type LegacyRef = { readonly id?: unknown; readonly path?: unknown; readonly downloadURL?: unknown }
 type LegacyLook = {
+  readonly id?: unknown
   readonly displayImageId?: unknown
   readonly heroProductId?: unknown
   readonly references?: readonly LegacyRef[]
@@ -90,6 +91,11 @@ type LegacyAttachment = {
 
 function asNonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value : undefined
+}
+
+function normalizeNullableString(value: unknown): string | null | undefined {
+  if (value === null) return null
+  return asNonEmptyString(value)
 }
 
 function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | undefined {
@@ -108,8 +114,64 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
   }
 
   const looks = Array.isArray(data["looks"]) ? (data["looks"] as LegacyLook[]) : []
+  const activeLookId = normalizeNullableString(data["activeLookId"])
 
-  // Priority 1: Designated display image from looks
+  const resolveFromLook = (look: LegacyLook | null): Shot["heroImage"] | undefined => {
+    if (!look) return undefined
+
+    // A) display image from this look (if set)
+    const displayId = look.displayImageId
+    if (typeof displayId === "string" && displayId.length > 0) {
+      const refs = Array.isArray(look.references) ? look.references : []
+      const match = refs.find((r) => r?.id === displayId) ?? null
+      if (match) {
+        const downloadURL = asNonEmptyString(match.downloadURL)
+        const path = asNonEmptyString(match.path)
+        const resolved = downloadURL ?? path
+        if (resolved) return { path: path ?? resolved, downloadURL: resolved }
+      }
+    }
+
+    // B) hero product from this look (if set)
+    const heroId = look.heroProductId
+    if (typeof heroId === "string" && heroId.length > 0) {
+      const products = Array.isArray(look.products) ? look.products : []
+      const match = products.find((p) => {
+        const rawId = p["familyId"] ?? p["productId"]
+        return typeof rawId === "string" && rawId === heroId
+      }) ?? null
+      if (match) {
+        const candidate =
+          asNonEmptyString(match["skuImageUrl"]) ??
+          asNonEmptyString(match["thumbUrl"]) ??
+          asNonEmptyString(match["familyImageUrl"]) ??
+          asNonEmptyString(match["colourImagePath"]) ??
+          asNonEmptyString(match["thumbnailImagePath"])
+        if (candidate) return { path: candidate, downloadURL: candidate }
+      }
+    }
+
+    // C) first reference fallback (this look)
+    const refs = Array.isArray(look.references) ? look.references : []
+    if (refs.length > 0) {
+      const first = refs[0]
+      const downloadURL = asNonEmptyString(first?.downloadURL)
+      const path = asNonEmptyString(first?.path)
+      const resolved = downloadURL ?? path
+      if (resolved) return { path: path ?? resolved, downloadURL: resolved }
+    }
+
+    return undefined
+  }
+
+  // Priority 1: Active look (if present)
+  if (activeLookId) {
+    const active = looks.find((l) => asNonEmptyString(l.id) === activeLookId) ?? null
+    const fromActive = resolveFromLook(active)
+    if (fromActive) return fromActive
+  }
+
+  // Priority 2: Designated display image from looks
   for (const look of looks) {
     const displayId = look?.displayImageId
     if (typeof displayId !== "string" || displayId.length === 0) continue
@@ -127,7 +189,7 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
     }
   }
 
-  // Priority 2: Hero product image from looks
+  // Priority 3: Hero product image from looks
   for (const look of looks) {
     const heroId = look?.heroProductId
     if (typeof heroId !== "string" || heroId.length === 0) continue
@@ -148,7 +210,7 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
     }
   }
 
-  // Priority 3: First reference from first look with references
+  // Priority 4: First reference from first look with references
   for (const look of looks) {
     const refs = Array.isArray(look.references) ? look.references : []
     if (refs.length === 0) continue
@@ -159,7 +221,7 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
     if (resolved) return { path: path ?? resolved, downloadURL: resolved }
   }
 
-  // Priority 4: Primary attachment (legacy multi-image system)
+  // Priority 5: Primary attachment (legacy multi-image system)
   const attachments = Array.isArray(data["attachments"])
     ? (data["attachments"] as LegacyAttachment[])
     : []
@@ -176,7 +238,7 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
     }
   }
 
-  // Priority 5: Legacy single image fields
+  // Priority 6: Legacy single image fields
   const referenceImagePath = data["referenceImagePath"]
   const refPath = asNonEmptyString(referenceImagePath)
   if (refPath) return { path: refPath, downloadURL: refPath }
@@ -269,6 +331,7 @@ export function mapShot(id: string, data: Record<string, unknown>): Shot {
     date: normalizeDate(data["date"]),
     heroImage: normalizeHeroImage(data),
     looks: normalizeLooks(data["looks"]),
+    activeLookId: normalizeNullableString(data["activeLookId"]),
     tags: normalizeTags(data["tags"]),
     deleted: data["deleted"] as boolean | undefined,
     createdAt: data["createdAt"] as Shot["createdAt"],

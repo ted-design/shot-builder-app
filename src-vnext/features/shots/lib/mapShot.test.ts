@@ -57,6 +57,38 @@ describe("mapShot", () => {
     expect(shot.heroImage?.path).toBe("shots/s1/2.jpg")
   })
 
+  it("prefers the active look when activeLookId is set", () => {
+    const shot = mapShot("s1", {
+      title: "Shot A",
+      projectId: "p1",
+      clientId: "c1",
+      createdAt: { seconds: 1, nanoseconds: 0 },
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+      createdBy: "u1",
+      deleted: false,
+      activeLookId: "look-b",
+      looks: [
+        {
+          id: "look-a",
+          displayImageId: "ref-a",
+          references: [
+            { id: "ref-a", downloadURL: "https://example.com/a.jpg", path: "shots/s1/a.jpg" },
+          ],
+        },
+        {
+          id: "look-b",
+          displayImageId: "ref-b",
+          references: [
+            { id: "ref-b", downloadURL: "https://example.com/b.jpg", path: "shots/s1/b.jpg" },
+          ],
+        },
+      ],
+    })
+
+    expect(shot.activeLookId).toBe("look-b")
+    expect(shot.heroImage?.downloadURL).toBe("https://example.com/b.jpg")
+  })
+
   it("maps legacy shot product image paths to thumbUrl", () => {
     const shot = mapShot("s1", {
       title: "Shot A",
