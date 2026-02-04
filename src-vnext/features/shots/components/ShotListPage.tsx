@@ -807,17 +807,13 @@ export default function ShotListPage() {
           open={createOpen}
           onOpenChange={setCreateOpen}
           onCreated={(shotId, title) => {
-            toast.success("Shot created", {
-              description: title,
-            })
-
             const hiddenByStatus = statusFilter.size > 0 && !statusFilter.has("todo")
             const q = queryParam.trim().toLowerCase()
             const hiddenByQuery = q.length > 0 && !title.toLowerCase().includes(q)
 
             if (hiddenByStatus || hiddenByQuery) {
               toast("Shot created but hidden by filters", {
-                description: "Clear filters/search to see it in the list.",
+                description: title,
                 action: {
                   label: "Show shot",
                   onClick: () => {
@@ -826,7 +822,16 @@ export default function ShotListPage() {
                   },
                 },
               })
+              return
             }
+
+            toast.success("Shot created", {
+              description: title,
+              action: {
+                label: "Open",
+                onClick: () => navigate(`/projects/${projectId}/shots/${shotId}`),
+              },
+            })
           }}
         />
       )}

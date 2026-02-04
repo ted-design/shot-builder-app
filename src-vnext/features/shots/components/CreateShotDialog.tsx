@@ -49,6 +49,7 @@ export function CreateShotDialog({
     try {
       const path = shotsPath(clientId)
       const createdBy = user?.uid ?? ""
+      const sortOrder = Date.now()
       const ref = await addDoc(collection(db, path[0]!, ...path.slice(1)), {
         title: trimmedTitle,
         description: description.trim() || null,
@@ -57,7 +58,8 @@ export function CreateShotDialog({
         status: "todo",
         talent: [],
         products: [],
-        sortOrder: Date.now(),
+        sortOrder,
+        date: null,
         deleted: false,
         notes: null,
         createdAt: serverTimestamp(),
@@ -76,7 +78,7 @@ export function CreateShotDialog({
             status: "todo",
             talent: [],
             products: [],
-            sortOrder: Date.now(),
+            sortOrder,
             deleted: false,
             notes: null,
             notesAddendum: null,
