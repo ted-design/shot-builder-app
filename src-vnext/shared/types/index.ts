@@ -96,6 +96,16 @@ export interface Shot {
   readonly createdBy: string
 }
 
+export interface ShotComment {
+  readonly id: string
+  readonly body: string
+  readonly createdAt?: Timestamp
+  readonly createdBy?: string
+  readonly createdByName?: string | null
+  readonly createdByAvatar?: string | null
+  readonly deleted?: boolean
+}
+
 export type PullFirestoreStatus = "draft" | "published" | "in-progress" | "fulfilled"
 
 export type FulfillmentFirestoreStatus =

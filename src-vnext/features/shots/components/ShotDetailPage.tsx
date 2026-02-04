@@ -9,6 +9,7 @@ import { LocationPicker } from "@/features/shots/components/LocationPicker"
 import { NotesSection } from "@/features/shots/components/NotesSection"
 import { HeroImageSection } from "@/features/shots/components/HeroImageSection"
 import { ShotLooksSection } from "@/features/shots/components/ShotLooksSection"
+import { ShotCommentsSection } from "@/features/shots/components/ShotCommentsSection"
 import { updateShotField } from "@/features/shots/lib/updateShot"
 import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -217,6 +218,10 @@ export default function ShotDetailPage() {
             )}
           </div>
         </div>
+
+        <Separator />
+
+        <ShotCommentsSection shotId={shot.id} canComment={canDoOperational} />
       </div>
     </ErrorBoundary>
   )

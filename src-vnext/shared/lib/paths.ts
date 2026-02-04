@@ -36,6 +36,11 @@ export const shotPath = (shotId: string, clientId: string): string[] => [
   shotId,
 ]
 
+export const shotCommentsPath = (shotId: string, clientId: string): string[] => [
+  ...shotPath(shotId, clientId),
+  "comments",
+]
+
 // --- Pulls (project-scoped) ---
 
 export const pullsPath = (

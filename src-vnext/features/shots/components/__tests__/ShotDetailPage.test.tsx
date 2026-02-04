@@ -41,6 +41,10 @@ vi.mock("@/features/shots/components/ShotLooksSection", () => ({
   ShotLooksSection: () => <div>Looks</div>,
 }))
 
+vi.mock("@/features/shots/components/ShotCommentsSection", () => ({
+  ShotCommentsSection: () => <div>Comments</div>,
+}))
+
 vi.mock("@/features/shots/components/ProductAssignmentPicker", () => ({
   ProductAssignmentPicker: () => <div data-testid="shot-products-picker">ProductsPicker</div>,
 }))
@@ -119,4 +123,3 @@ describe("ShotDetailPage", () => {
     expect(screen.queryByTestId("shot-products-picker")).not.toBeInTheDocument()
   })
 })
-
