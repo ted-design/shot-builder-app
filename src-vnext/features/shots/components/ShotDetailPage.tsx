@@ -16,6 +16,7 @@ import { TagEditor } from "@/features/shots/components/TagEditor"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { canManageShots } from "@/shared/lib/rbac"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { textPreview } from "@/shared/lib/textPreview"
@@ -25,17 +26,35 @@ import { Textarea } from "@/ui/textarea"
 import { Separator } from "@/ui/separator"
 import { ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
-import { useState } from "react"
+import { useMemo, useState } from "react"
+import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
+import { ShotPdfExportDialog } from "@/features/shots/components/ShotPdfExportDialog"
+import { useLocations, useTalent } from "@/features/shots/hooks/usePickerData"
 
 export default function ShotDetailPage() {
   const { sid } = useParams<{ sid: string }>()
   const navigate = useNavigate()
   const { data: shot, loading, error } = useShot(sid)
   const { role, clientId, user } = useAuth()
+  const { projectName } = useProjectScope()
   const isMobile = useIsMobile()
+  const { data: talentRecords } = useTalent()
+  const { data: locationRecords } = useLocations()
 
   const canEdit = canManageShots(role) && !isMobile
   const canDoOperational = canManageShots(role)
+  const canShare = role === "admin" || role === "producer"
+  const [shareOpen, setShareOpen] = useState(false)
+  const canExport = !isMobile
+  const [exportOpen, setExportOpen] = useState(false)
+
+  const talentNameById = useMemo(() => {
+    return new Map(talentRecords.map((t) => [t.id, t.name]))
+  }, [talentRecords])
+
+  const locationNameById = useMemo(() => {
+    return new Map(locationRecords.map((l) => [l.id, l.name]))
+  }, [locationRecords])
 
   const save = async (fields: Record<string, unknown>): Promise<boolean> => {
     if (!shot || !clientId) return false
@@ -108,6 +127,16 @@ export default function ShotDetailPage() {
               )
             )}
           </div>
+          {canExport && (
+            <Button variant="outline" onClick={() => setExportOpen(true)}>
+              Export
+            </Button>
+          )}
+          {canShare && (
+            <Button variant="outline" onClick={() => setShareOpen(true)}>
+              Share
+            </Button>
+          )}
           <ShotStatusSelect
             shotId={shot.id}
             currentStatus={shot.status}
@@ -229,6 +258,30 @@ export default function ShotDetailPage() {
         <ShotCommentsSection shotId={shot.id} canComment={canDoOperational} />
 
         <ShotVersionHistorySection shot={shot} />
+
+        {canShare && (
+          <ShotsShareDialog
+            open={shareOpen}
+            onOpenChange={setShareOpen}
+            clientId={clientId}
+            projectId={shot.projectId}
+            projectName={projectName || "Project"}
+            user={user}
+            selectedShotIds={[shot.id]}
+          />
+        )}
+
+        {canExport && (
+          <ShotPdfExportDialog
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+            projectName={projectName || "Project"}
+            shot={shot}
+            talentNameById={talentNameById}
+            locationNameById={locationNameById}
+            storageKeyBase={clientId ? `sb:shots:detail:${clientId}:${shot.projectId}` : null}
+          />
+        )}
       </div>
     </ErrorBoundary>
   )

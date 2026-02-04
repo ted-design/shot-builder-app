@@ -77,6 +77,25 @@ service cloud.firestore {
       allow list, get: if resource.data.shareEnabled == true;
     }
 
+    // Public shot sharing (token-resolved via Cloud Function; Firestore read is NOT public)
+    // Share docs live at /shotShares/{shareToken} (doc id = token).
+    match /shotShares/{shareToken} {
+      allow get, list: if isAuthed() &&
+        (isAdmin() || isProducer()) &&
+        resource.data.clientId == userClient();
+
+      allow create: if isAuthed() &&
+        (isAdmin() || isProducer()) &&
+        request.resource.data.clientId == userClient() &&
+        request.resource.data.projectId is string &&
+        (request.resource.data.shotIds == null || request.resource.data.shotIds is list) &&
+        request.resource.data.enabled is bool;
+
+      allow update, delete: if isAuthed() &&
+        (isAdmin() || isProducer()) &&
+        resource.data.clientId == userClient();
+    }
+
     // LEGACY COLLECTIONS - DEPRECATED
     // These root-level collections are no longer used in the application.
     // All data has been migrated to client-scoped collections under /clients/{clientId}/

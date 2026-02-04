@@ -111,6 +111,22 @@ export interface Shot {
   readonly createdBy: string
 }
 
+// --- Public sharing (Shots) ---
+
+export interface ShotShare {
+  /** Doc id = share token. */
+  readonly id: string
+  readonly clientId: string
+  readonly projectId: string
+  /** Null/undefined means "share all project shots". */
+  readonly shotIds?: readonly string[] | null
+  readonly title?: string | null
+  readonly enabled: boolean
+  readonly expiresAt?: Timestamp | null
+  readonly createdAt?: Timestamp
+  readonly createdBy?: string
+}
+
 export interface ShotComment {
   readonly id: string
   readonly body: string

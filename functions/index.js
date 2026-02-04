@@ -183,6 +183,229 @@ exports.resolvePullShareToken = functions
     }
   });
 
+/**
+ * Callable: resolveShotShareToken (Cloud Functions v1)
+ * Resolves a share token to a read-only shot list payload.
+ *
+ * data: { shareToken: string }
+ * returns: { share, project, shots }
+ *
+ * Notes:
+ * - This is intentionally callable so the SPA can resolve without Firestore public reads.
+ * - Firestore rules deny unauthenticated reads of /shotShares/**.
+ */
+exports.resolveShotShareToken = functions
+  .region("northamerica-northeast1")
+  .https.onCall(async (data) => {
+    const shareToken = data?.shareToken;
+    if (!shareToken || typeof shareToken !== "string" || shareToken.length < 10) {
+      throw new functions.https.HttpsError("invalid-argument", "Invalid share token.");
+    }
+
+    const db = admin.firestore();
+    const shareRef = db.collection("shotShares").doc(shareToken);
+    const shareSnap = await shareRef.get();
+
+    if (!shareSnap.exists) {
+      throw new functions.https.HttpsError("not-found", "Share link not found.");
+    }
+
+    const share = shareSnap.data() || {};
+    if (share.enabled !== true) {
+      throw new functions.https.HttpsError("permission-denied", "Sharing is disabled.");
+    }
+
+    if (share.expiresAt) {
+      try {
+        const expiresAt = share.expiresAt.toDate();
+        if (expiresAt.getTime() < Date.now()) {
+          throw new functions.https.HttpsError("failed-precondition", "Share link has expired.");
+        }
+      } catch (err) {
+        if (err instanceof functions.https.HttpsError) throw err;
+      }
+    }
+
+    const clientId = share.clientId;
+    const projectId = share.projectId;
+    if (!clientId || typeof clientId !== "string" || !projectId || typeof projectId !== "string") {
+      throw new functions.https.HttpsError("failed-precondition", "Share link is misconfigured.");
+    }
+
+    const projectSnap = await db.collection("clients").doc(clientId).collection("projects").doc(projectId).get();
+    const projectData = projectSnap.exists ? (projectSnap.data() || {}) : {};
+    const projectName = typeof projectData.name === "string" ? projectData.name : "Project";
+
+    const normaliseString = (value) => {
+      if (typeof value !== "string") return null;
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    };
+
+    const formatProduct = (p) => {
+      if (!p || typeof p !== "object") return null;
+      const familyName = normaliseString(p.familyName) || normaliseString(p.skuName) || null;
+      if (!familyName) return null;
+
+      const parts = [];
+      const colour = normaliseString(p.colourName);
+      if (colour) parts.push(colour);
+
+      const scope = p.sizeScope;
+      if (scope === "all") parts.push("All sizes");
+      else if (scope === "pending" || !scope) parts.push("Size TBD");
+      else if (scope === "single") {
+        const size = normaliseString(p.size);
+        if (size) parts.push(size);
+      }
+
+      const qty = Number.isFinite(p.quantity) ? p.quantity : null;
+      if (qty && qty > 1) parts.push(`x${qty}`);
+
+      return parts.length > 0 ? `${familyName} (${parts.join(" • ")})` : familyName;
+    };
+
+    const primaryLookProducts = (shot) => {
+      const looks = Array.isArray(shot.looks) ? shot.looks : [];
+      if (looks.length === 0) return null;
+      let primary = looks[0];
+      looks.forEach((l) => {
+        const currentOrder = typeof primary.order === "number" ? primary.order : 0;
+        const nextOrder = typeof l.order === "number" ? l.order : 0;
+        if (nextOrder < currentOrder) primary = l;
+      });
+      const products = primary && Array.isArray(primary.products) ? primary.products : [];
+      return products;
+    };
+
+    const shareShotIds = Array.isArray(share.shotIds)
+      ? share.shotIds.filter((id) => typeof id === "string" && id.trim().length > 0)
+      : null;
+
+    let shotDocs = [];
+    if (shareShotIds && shareShotIds.length > 0) {
+      const refs = shareShotIds.map((sid) => db.collection("clients").doc(clientId).collection("shots").doc(sid));
+      const snaps = await db.getAll(...refs);
+      shotDocs = snaps.filter((s) => s.exists).map((s) => ({ id: s.id, data: s.data() || {} }));
+    } else {
+      // Match the vNext list query index: projectId + deleted + date
+      const snaps = await db
+        .collection("clients")
+        .doc(clientId)
+        .collection("shots")
+        .where("projectId", "==", projectId)
+        .where("deleted", "==", false)
+        .orderBy("date", "asc")
+        .get();
+      shotDocs = snaps.docs.map((d) => ({ id: d.id, data: d.data() || {} }));
+    }
+
+    // Filter to the intended project and non-deleted (defense-in-depth)
+    const shotsRaw = shotDocs
+      .map((d) => ({ id: d.id, ...d.data }))
+      .filter((s) => s && s.projectId === projectId && s.deleted !== true);
+
+    // Resolve talent + locations for name rendering (batch reads).
+    const collectTalentIds = () => {
+      const set = new Set();
+      shotsRaw.forEach((s) => {
+        const list = Array.isArray(s.talentIds) ? s.talentIds : Array.isArray(s.talent) ? s.talent : [];
+        list.forEach((id) => {
+          if (typeof id === "string" && id.trim().length > 0) set.add(id);
+        });
+      });
+      return Array.from(set);
+    };
+
+    const collectLocationIds = () => {
+      const set = new Set();
+      shotsRaw.forEach((s) => {
+        const id = s.locationId;
+        if (typeof id === "string" && id.trim().length > 0) set.add(id);
+      });
+      return Array.from(set);
+    };
+
+    const talentIds = collectTalentIds();
+    const locationIds = collectLocationIds();
+
+    const talentNameById = new Map();
+    if (talentIds.length > 0) {
+      const refs = talentIds.map((tid) => db.collection("clients").doc(clientId).collection("talent").doc(tid));
+      const snaps = await db.getAll(...refs);
+      snaps.forEach((s) => {
+        const name = s.exists ? normaliseString((s.data() || {}).name) : null;
+        if (name) talentNameById.set(s.id, name);
+      });
+    }
+
+    const locationNameById = new Map();
+    if (locationIds.length > 0) {
+      const refs = locationIds.map((lid) => db.collection("clients").doc(clientId).collection("locations").doc(lid));
+      const snaps = await db.getAll(...refs);
+      snaps.forEach((s) => {
+        const name = s.exists ? normaliseString((s.data() || {}).name) : null;
+        if (name) locationNameById.set(s.id, name);
+      });
+    }
+
+    const toIso = (ts) => {
+      if (!ts) return null;
+      try {
+        return ts.toDate().toISOString();
+      } catch {
+        return null;
+      }
+    };
+
+    const shots = shotsRaw.map((s) => {
+      const title = normaliseString(s.title) || normaliseString(s.name) || "Untitled Shot";
+      const shotNumber = normaliseString(s.shotNumber);
+      const status = normaliseString(s.status) || "todo";
+
+      const locationId = normaliseString(s.locationId);
+      const locationName =
+        normaliseString(s.locationName) || (locationId ? locationNameById.get(locationId) || null : null);
+
+      const talentList = Array.isArray(s.talentIds) ? s.talentIds : Array.isArray(s.talent) ? s.talent : [];
+      const talentNames = talentList
+        .map((id) => (typeof id === "string" ? id.trim() : ""))
+        .filter(Boolean)
+        .map((id) => talentNameById.get(id) || null)
+        .filter(Boolean);
+
+      const productsRaw = primaryLookProducts(s) || (Array.isArray(s.products) ? s.products : []);
+      const productLines = productsRaw.map(formatProduct).filter(Boolean);
+
+      return {
+        id: s.id,
+        title,
+        shotNumber,
+        status,
+        date: toIso(s.date),
+        locationName: locationName || null,
+        talentNames,
+        productLines,
+        description: normaliseString(s.description) || null,
+        notesAddendum: normaliseString(s.notesAddendum) || null,
+      };
+    });
+
+    return {
+      share: {
+        id: shareToken,
+        title: normaliseString(share.title) || null,
+        expiresAt: toIso(share.expiresAt),
+        scope: shareShotIds && shareShotIds.length > 0 ? "selected" : "project",
+      },
+      project: {
+        id: projectId,
+        name: projectName,
+      },
+      shots,
+    };
+  });
+
 const isValidEmail = (email) => {
   if (!email || typeof email !== "string") return false;
   const trimmed = email.trim();

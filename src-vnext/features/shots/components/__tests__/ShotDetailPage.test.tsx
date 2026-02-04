@@ -13,8 +13,17 @@ vi.mock("@/app/providers/AuthProvider", () => ({
   useAuth: () => ({ role: "producer", clientId: "c1" }),
 }))
 
+vi.mock("@/app/providers/ProjectScopeProvider", () => ({
+  useProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),
+}))
+
 vi.mock("@/shared/hooks/useMediaQuery", () => ({
   useIsMobile: () => true,
+}))
+
+vi.mock("@/features/shots/hooks/usePickerData", () => ({
+  useTalent: () => ({ data: [], loading: false, error: null }),
+  useLocations: () => ({ data: [], loading: false, error: null }),
 }))
 
 vi.mock("@/features/shots/components/ShotStatusSelect", () => ({

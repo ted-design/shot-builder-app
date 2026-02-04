@@ -46,6 +46,8 @@ import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { backfillMissingShotDates } from "@/features/shots/lib/backfillShotDates"
 import { useLocations, useTalent } from "@/features/shots/hooks/usePickerData"
 import { getShotPrimaryLookProductLabels, resolveIdsToNames } from "@/features/shots/lib/shotListSummaries"
+import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
+import { ShotsPdfExportDialog } from "@/features/shots/components/ShotsPdfExportDialog"
 
 type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated"
 type SortDir = "asc" | "desc"
@@ -214,11 +216,15 @@ export default function ShotListPage() {
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
   const [createPullOpen, setCreatePullOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   const showCreate = canManageShots(role)
   const canReorder = canManageShots(role)
   const canBulkPull = canGeneratePulls(role) && !isMobile
   const canRepair = (role === "admin" || role === "producer") && !isMobile
+  const canShare = role === "admin" || role === "producer"
+  const canExport = !isMobile
 
   const [repairOpen, setRepairOpen] = useState(false)
   const [repairing, setRepairing] = useState(false)
@@ -494,6 +500,16 @@ export default function ShotListPage() {
         ]}
         actions={
           <div className="flex items-center gap-2">
+            {canExport && (
+              <Button variant="outline" onClick={() => setExportOpen(true)}>
+                Export
+              </Button>
+            )}
+            {canShare && (
+              <Button variant="outline" onClick={() => setShareOpen(true)}>
+                Share
+              </Button>
+            )}
             {canBulkPull && (
               <Button
                 variant={selectionEnabled ? "default" : "outline"}
@@ -525,6 +541,26 @@ export default function ShotListPage() {
             {selectedIds.size} selected
           </div>
           <div className="flex items-center gap-2">
+            {canShare && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={selectedIds.size === 0}
+                onClick={() => setShareOpen(true)}
+              >
+                Share link
+              </Button>
+            )}
+            {canExport && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={selectedIds.size === 0}
+                onClick={() => setExportOpen(true)}
+              >
+                Export PDF
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>
               Clear
             </Button>
@@ -932,6 +968,31 @@ export default function ShotListPage() {
             })
         }}
       />
+
+      {canShare && (
+        <ShotsShareDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          clientId={clientId}
+          projectId={projectId}
+          projectName={projectName || "Project"}
+          user={user}
+          selectedShotIds={selectedShots.map((s) => s.id)}
+        />
+      )}
+
+      {canExport && (
+        <ShotsPdfExportDialog
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+          projectName={projectName || "Project"}
+          shotsAll={displayShots}
+          shotsSelected={selectedShots}
+          talentNameById={talentNameById}
+          locationNameById={locationNameById}
+          storageKeyBase={storageKeyBase}
+        />
+      )}
     </ErrorBoundary>
   )
 }
