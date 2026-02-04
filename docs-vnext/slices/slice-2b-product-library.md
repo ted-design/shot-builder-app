@@ -25,8 +25,10 @@ This slice delivers a trustworthy, producer-grade Product Library in vNext: fast
 **Browse**
 - Search by style name / style number / color name (family aggregates).
 - Filter by status (active/discontinued) and archive state.
+- Category scaffolding filters derived from existing fields: **Gender → Type → Subcategory**.
 - Sort (default: style name A→Z).
 - Dense, calm grid and list/table patterns; no “pills everywhere”.
+- Desktop view switch between **Gallery** and **Table**; table column visibility is user-configurable (preference, not domain data).
 
 **CRUD**
 - Create product family with at least 1 SKU (colorway).
@@ -93,6 +95,7 @@ vNext must honor the existing legacy shapes (field names may vary historically).
 - Producer can browse and find products quickly (search + filters) on desktop.
 - Mobile renders read-only surfaces without broken interactions.
 - Empty/loading/error states are explicit and calm.
+- Popovers/dialogs/dropdowns are legible and layer above fixed navigation.
 
 **Correctness**
 - Uses existing Firestore collections and fields only; no schema changes.
@@ -107,4 +110,3 @@ vNext must honor the existing legacy shapes (field names may vary historically).
 - `npx tsc --noEmit` passes.
 - `npm test` passes.
 - `npm run lint` and `npm run build` must pass before focus sign-off (tracked in proof).
-

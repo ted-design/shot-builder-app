@@ -12,7 +12,11 @@ export type ProductListSort =
 export interface ProductListFilters {
   readonly query: string
   readonly status: ProductListStatusFilter
-  readonly category: string | null
+  readonly gender: string | null
+  readonly productType: string | null
+  readonly productSubcategory: string | null
+  /** Back-compat: older list URLs used a single `cat` param. Prefer `gender`/`productType`/`productSubcategory`. */
+  readonly category?: string | null
   readonly includeArchived: boolean
   readonly includeDeleted: boolean
   readonly sort: ProductListSort
@@ -20,6 +24,12 @@ export interface ProductListFilters {
 
 function normalizeText(value: string): string {
   return value.trim().toLowerCase()
+}
+
+function normalizeKey(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null
+  const next = value.trim().toLowerCase()
+  return next.length > 0 ? next : null
 }
 
 function asArray(value: ReadonlyArray<string> | undefined): ReadonlyArray<string> {
@@ -46,13 +56,90 @@ function compareText(a: string, b: string): number {
   return a.localeCompare(b, undefined, { sensitivity: "base", numeric: true })
 }
 
-export function deriveProductCategories(families: ReadonlyArray<ProductFamily>): string[] {
-  const set = new Set<string>()
+export interface ProductScaffoldOptions {
+  readonly genders: ReadonlyArray<{ readonly key: string; readonly label: string }>
+  readonly typesByGender: Record<string, ReadonlyArray<{ readonly key: string; readonly label: string }>>
+  readonly subcategoriesByGenderAndType: Record<string, Record<string, ReadonlyArray<{ readonly key: string; readonly label: string }>>>
+}
+
+function titleize(key: string): string {
+  const cleaned = key.replace(/[_-]+/g, " ").trim()
+  if (!cleaned) return key
+  return cleaned
+    .split(/\s+/g)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ")
+}
+
+function normalizeGenderKey(value: string | null | undefined): string | null {
+  const key = normalizeKey(value)
+  if (!key) return null
+  if (key === "mens" || key === "men's") return "men"
+  if (key === "womens" || key === "women's") return "women"
+  return key
+}
+
+function pushOption(
+  map: Map<string, string>,
+  key: string | null,
+  labelFallback: (key: string) => string,
+) {
+  if (!key) return
+  if (!map.has(key)) map.set(key, labelFallback(key))
+}
+
+export function deriveProductScaffoldOptions(families: ReadonlyArray<ProductFamily>): ProductScaffoldOptions {
+  const genderLabels = new Map<string, string>()
+  const typeLabelsByGender = new Map<string, Map<string, string>>()
+  const subLabelsByGenderType = new Map<string, Map<string, Map<string, string>>>()
+
   for (const f of families) {
-    const cat = f.productSubcategory ?? f.productType ?? f.category
-    if (typeof cat === "string" && cat.trim().length > 0) set.add(cat.trim())
+    const genderKey = normalizeGenderKey(f.gender ?? null)
+    const typeKey = normalizeKey(f.productType)
+    const subKey = normalizeKey(f.productSubcategory)
+
+    if (genderKey) {
+      pushOption(genderLabels, genderKey, titleize)
+    }
+
+    if (genderKey && typeKey) {
+      const typesForGender = typeLabelsByGender.get(genderKey) ?? new Map<string, string>()
+      pushOption(typesForGender, typeKey, titleize)
+      typeLabelsByGender.set(genderKey, typesForGender)
+    }
+
+    if (genderKey && typeKey && subKey) {
+      const types = subLabelsByGenderType.get(genderKey) ?? new Map<string, Map<string, string>>()
+      const subsForType = types.get(typeKey) ?? new Map<string, string>()
+      pushOption(subsForType, subKey, titleize)
+      types.set(typeKey, subsForType)
+      subLabelsByGenderType.set(genderKey, types)
+    }
   }
-  return Array.from(set).sort(compareText)
+
+  const genders = Array.from(genderLabels.entries())
+    .map(([key, label]) => ({ key, label }))
+    .sort((a, b) => compareText(a.label, b.label))
+
+  const typesByGender: Record<string, ReadonlyArray<{ readonly key: string; readonly label: string }>> = {}
+  for (const [genderKey, typeLabels] of typeLabelsByGender.entries()) {
+    typesByGender[genderKey] = Array.from(typeLabels.entries())
+      .map(([key, label]) => ({ key, label }))
+      .sort((a, b) => compareText(a.label, b.label))
+  }
+
+  const subcategoriesByGenderAndType: Record<string, Record<string, ReadonlyArray<{ readonly key: string; readonly label: string }>>> = {}
+  for (const [genderKey, types] of subLabelsByGenderType.entries()) {
+    const out: Record<string, ReadonlyArray<{ readonly key: string; readonly label: string }>> = {}
+    for (const [typeKey, subs] of types.entries()) {
+      out[typeKey] = Array.from(subs.entries())
+        .map(([key, label]) => ({ key, label }))
+        .sort((a, b) => compareText(a.label, b.label))
+    }
+    subcategoriesByGenderAndType[genderKey] = out
+  }
+
+  return { genders, typesByGender, subcategoriesByGenderAndType }
 }
 
 export function filterAndSortProductFamilies(
@@ -61,6 +148,9 @@ export function filterAndSortProductFamilies(
 ): ProductFamily[] {
   const q = normalizeText(filters.query)
   const hasQuery = q.length > 0
+  const genderKey = normalizeGenderKey(filters.gender)
+  const typeKey = normalizeKey(filters.productType)
+  const subKey = normalizeKey(filters.productSubcategory ?? filters.category ?? null)
 
   const filtered = families.filter((f) => {
     const isDeleted = f.deleted === true
@@ -75,9 +165,19 @@ export function filterAndSortProductFamilies(
       if (filters.status === "discontinued" && status !== "discontinued") return false
     }
 
-    if (filters.category) {
-      const cat = f.productSubcategory ?? f.productType ?? f.category ?? ""
-      if (cat !== filters.category) return false
+    if (genderKey) {
+      const famKey = normalizeGenderKey(f.gender ?? null)
+      if (famKey !== genderKey) return false
+    }
+
+    if (typeKey) {
+      const famKey = normalizeKey(f.productType)
+      if (famKey !== typeKey) return false
+    }
+
+    if (subKey) {
+      const famKey = normalizeKey(f.productSubcategory ?? f.category ?? null)
+      if (famKey !== subKey) return false
     }
 
     if (hasQuery) {
@@ -109,4 +209,3 @@ export function filterAndSortProductFamilies(
 
   return sorted
 }
-
