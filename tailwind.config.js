@@ -30,6 +30,7 @@ export default {
         secondary: {
           DEFAULT: "#10b981", // emerald-500
           dark: "#059669",    // emerald-600
+          foreground: "#ffffff",
         },
         // Semantic colors for consistent UI feedback
         warning: {
@@ -65,6 +66,30 @@ export default {
         muted: {
           DEFAULT: 'rgb(241 245 249)', // neutral-100
           dark: 'rgb(51 65 85)',       // neutral-700
+          foreground: 'var(--color-text-muted)',
+        },
+
+        // shadcn/ui semantic tokens (mapped to tokens.css)
+        background: 'var(--color-surface)',
+        foreground: 'var(--color-text)',
+        card: {
+          DEFAULT: 'var(--color-surface)',
+          foreground: 'var(--color-text)',
+        },
+        popover: {
+          DEFAULT: 'var(--color-surface)',
+          foreground: 'var(--color-text)',
+        },
+        accent: {
+          DEFAULT: 'var(--color-surface-subtle)',
+          foreground: 'var(--color-text)',
+        },
+        border: 'var(--color-border)',
+        input: 'var(--color-border)',
+        ring: 'var(--color-primary)',
+        destructive: {
+          DEFAULT: 'var(--color-error)',
+          foreground: '#ffffff',
         },
       },
       // Design system border-radius values for consistency
