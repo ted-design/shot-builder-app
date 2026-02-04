@@ -7,6 +7,7 @@ import { EmptyState } from "@/shared/components/EmptyState"
 import { ProductImage } from "@/features/products/components/ProductImage"
 import { ProductSkuCard } from "@/features/products/components/ProductSkuCard"
 import { ProductUpsertDialog } from "@/features/products/components/ProductUpsertDialog"
+import { setProductFamilyDeleted } from "@/features/products/lib/productWrites"
 import {
   useProductFamily,
   useProductSkus,
@@ -14,19 +15,24 @@ import {
 import { Badge } from "@/ui/badge"
 import { Button } from "@/ui/button"
 import { Separator } from "@/ui/separator"
-import { Pencil, Palette } from "lucide-react"
+import { Pencil, Palette, RotateCcw, Trash2 } from "lucide-react"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { canManageProducts } from "@/shared/lib/rbac"
 import { parseReturnToParam } from "@/shared/lib/returnTo"
+import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
+import { toast } from "@/shared/hooks/use-toast"
 
 export default function ProductDetailPage() {
   const { fid } = useParams<{ fid: string }>()
   const [searchParams] = useSearchParams()
-  const { role } = useAuth()
+  const { role, clientId, user } = useAuth()
   const isMobile = useIsMobile()
   const canEdit = !isMobile && canManageProducts(role)
   const [editOpen, setEditOpen] = useState(false)
   const [showDeleted, setShowDeleted] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false)
+  const [mutating, setMutating] = useState(false)
   const { data: family, loading: famLoading, error: famError } = useProductFamily(fid ?? null)
   const { data: skus, loading: skuLoading } = useProductSkus(fid ?? null)
 
@@ -67,6 +73,7 @@ export default function ProductDetailPage() {
   const status = (family.status ?? "active").toLowerCase()
   const categoryLabel = family.productSubcategory ?? family.productType ?? family.category
   const returnTo = parseReturnToParam(searchParams.get("returnTo"))
+  const isFamilyDeleted = family.deleted === true
 
   return (
     <div className="flex flex-col gap-6">
@@ -88,10 +95,31 @@ export default function ProductDetailPage() {
                 {showDeleted ? "Hide deleted" : `Show deleted (${deletedSkus.length})`}
               </Button>
             )}
-            {canEdit && (
+            {canEdit && clientId && !isFamilyDeleted && (
               <Button variant="outline" onClick={() => setEditOpen(true)}>
                 <Pencil className="h-4 w-4" />
                 Edit
+              </Button>
+            )}
+            {canEdit && clientId && isFamilyDeleted && (
+              <Button
+                variant="outline"
+                disabled={mutating}
+                onClick={() => setRestoreConfirmOpen(true)}
+              >
+                <RotateCcw className="h-4 w-4" />
+                Restore
+              </Button>
+            )}
+            {canEdit && clientId && !isFamilyDeleted && (
+              <Button
+                variant="ghost"
+                className="text-[var(--color-error)] hover:text-[var(--color-error)]"
+                disabled={mutating}
+                onClick={() => setDeleteConfirmOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
               </Button>
             )}
           </div>
@@ -192,6 +220,63 @@ export default function ProductDetailPage() {
         mode="edit"
         family={family}
         skus={skus}
+      />
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete product family?"
+        description="This hides the product family from default lists and selectors. You can restore it later."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => {
+          if (!clientId) return
+          setMutating(true)
+          void (async () => {
+            await setProductFamilyDeleted({
+              clientId,
+              userId: user?.uid ?? null,
+              familyId: family.id,
+              deleted: true,
+            })
+            toast({ title: "Deleted", description: "Product family deleted." })
+          })()
+            .catch((err) => {
+              toast({
+                title: "Delete failed",
+                description: err instanceof Error ? err.message : "Failed to delete product family.",
+              })
+            })
+            .finally(() => setMutating(false))
+        }}
+      />
+
+      <ConfirmDialog
+        open={restoreConfirmOpen}
+        onOpenChange={setRestoreConfirmOpen}
+        title="Restore product family?"
+        description="This makes the product family visible again in default lists and selectors."
+        confirmLabel="Restore"
+        onConfirm={() => {
+          if (!clientId) return
+          setMutating(true)
+          void (async () => {
+            await setProductFamilyDeleted({
+              clientId,
+              userId: user?.uid ?? null,
+              familyId: family.id,
+              deleted: false,
+            })
+            toast({ title: "Restored", description: "Product family restored." })
+          })()
+            .catch((err) => {
+              toast({
+                title: "Restore failed",
+                description: err instanceof Error ? err.message : "Failed to restore product family.",
+              })
+            })
+            .finally(() => setMutating(false))
+        }}
       />
     </div>
   )

@@ -6,6 +6,8 @@
 - vNext product mappers accept legacy aliases (`colorName`/`name`, `hexColor`/`colourHex`, `productType`/`category`) to avoid runtime failures from mixed historical data.
 - vNext list browsing is URL-driven (query params) rather than legacy localStorage presets to keep state shareable and debuggable.
 - vNext explicitly rejects `/products` SKU fan-out; `/products` remains a single-subscription surface to preserve performance trust.
+- SKU sizes treat blank as “inherit family sizes” to match legacy editing expectations and avoid accidentally storing empty sizes.
+- Product family delete/restore is implemented as soft-delete (`deleted`, `deletedAt`) to avoid destructive data loss while still removing items from default pickers.
 
 ## Tradeoffs
 

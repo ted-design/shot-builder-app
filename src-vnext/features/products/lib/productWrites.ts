@@ -29,6 +29,11 @@ function normalizeSizes(value: string): string[] {
     .filter(Boolean)
 }
 
+function skuSizesForWrite(sku: ProductSkuDraft, familySizes: ReadonlyArray<string>): string[] {
+  const normalized = normalizeSizes(sku.sizesCsv)
+  return normalized.length > 0 ? normalized : [...familySizes]
+}
+
 function unique(values: ReadonlyArray<string>): string[] {
   return Array.from(new Set(values.map((v) => v.trim()).filter(Boolean)))
 }
@@ -242,7 +247,7 @@ export async function createProductFamilyWithSkus(args: {
     await setDoc(skuRef, {
       colorName: sku.colorName.trim(),
       skuCode: sku.skuCode.trim() || null,
-      sizes: normalizeSizes(sku.sizesCsv),
+      sizes: skuSizesForWrite(sku, familySizes),
       status: sku.status.trim() || "active",
       archived: Boolean(sku.archived),
       imagePath,
@@ -344,10 +349,15 @@ export async function updateProductFamilyWithSkus(args: {
   const skuCollection = collection(db, skuPath[0]!, ...skuPath.slice(1))
 
   const batch = writeBatch(db)
+  let firstActiveSkuImagePath: string | null = null
 
   for (const draft of usableSkus) {
     const isDeleted = draft.deleted === true
     const id = draft.id
+
+    if (!id && isDeleted) {
+      continue
+    }
 
     const ref = id ? doc(skuCollection, id) : doc(skuCollection)
 
@@ -374,7 +384,7 @@ export async function updateProductFamilyWithSkus(args: {
     const payload = {
       colorName: draft.colorName.trim(),
       skuCode: draft.skuCode.trim() || null,
-      sizes: normalizeSizes(draft.sizesCsv),
+      sizes: skuSizesForWrite(draft, familySizes),
       status: draft.status.trim() || "active",
       archived: Boolean(draft.archived),
       imagePath,
@@ -393,7 +403,55 @@ export async function updateProductFamilyWithSkus(args: {
     }
 
     batch.set(ref, payload, { merge: true })
+
+    if (!isDeleted && !firstActiveSkuImagePath && imagePath) {
+      firstActiveSkuImagePath = imagePath
+    }
   }
 
   await batch.commit()
+
+  if (!thumbnailImagePath) {
+    const fallback = firstActiveSkuImagePath ?? headerImagePath
+    if (fallback) {
+      await updateDoc(familyRef, {
+        thumbnailImagePath: fallback,
+        updatedAt: serverTimestamp(),
+        updatedBy: userId,
+      })
+    }
+  }
+}
+
+export async function setProductFamilyArchived(args: {
+  readonly clientId: string
+  readonly userId: string | null
+  readonly familyId: string
+  readonly archived: boolean
+}): Promise<void> {
+  const { clientId, userId, familyId, archived } = args
+  const famPath = productFamiliesPath(clientId)
+  const familyRef = doc(db, famPath[0]!, ...famPath.slice(1), familyId)
+  await updateDoc(familyRef, {
+    archived: Boolean(archived),
+    updatedAt: serverTimestamp(),
+    updatedBy: userId,
+  })
+}
+
+export async function setProductFamilyDeleted(args: {
+  readonly clientId: string
+  readonly userId: string | null
+  readonly familyId: string
+  readonly deleted: boolean
+}): Promise<void> {
+  const { clientId, userId, familyId, deleted } = args
+  const famPath = productFamiliesPath(clientId)
+  const familyRef = doc(db, famPath[0]!, ...famPath.slice(1), familyId)
+  await updateDoc(familyRef, {
+    deleted: Boolean(deleted),
+    deletedAt: deleted ? serverTimestamp() : null,
+    updatedAt: serverTimestamp(),
+    updatedBy: userId,
+  })
 }

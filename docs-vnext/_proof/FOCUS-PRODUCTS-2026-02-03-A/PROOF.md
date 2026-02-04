@@ -71,8 +71,8 @@ vNext PRODUCTS is intentionally *not* a 1:1 copy of legacy. Parity is defined by
 **CRUD**
 - [ ] Create family + at least 1 SKU
 - [ ] Edit family fields, add/remove SKUs (soft-delete SKUs)
-- [ ] Archive/unarchive family (non-destructive)
-- [ ] Soft-delete/restore family (when legacy fields exist)
+- [x] Archive/unarchive family (non-destructive)
+- [x] Soft-delete/restore family (when legacy fields exist)
 
 **Images**
 - [ ] Upload/replace/remove family header + thumbnail
@@ -87,7 +87,7 @@ vNext PRODUCTS is intentionally *not* a 1:1 copy of legacy. Parity is defined by
 
 ## Current gaps discovered in this session (to close next)
 
-- Family-level archive and soft-delete controls need explicit UI actions (spec-required).
+None (feature gaps). Remaining work is proof capture + final lint/build gates for this session.
 
 ## Packages log
 
@@ -243,6 +243,36 @@ vNext PRODUCTS is intentionally *not* a 1:1 copy of legacy. Parity is defined by
 |---|---|---|
 | Thumbnail is preferred | Use a family with both `thumbnailImagePath` and `headerImagePath` | List and detail show the thumbnail-first image. |
 | Fallback remains stable | Use a SKU with no `imagePath` | SKU card falls back to family image; placeholder renders if both are absent. |
+
+### WP8 — CRUD hardening (archive, delete/restore, write resilience)
+
+**Spec alignment:** Aligned with `docs-vnext/slices/slice-2b-product-library.md` (archive + soft-delete supported; no schema changes). No new list reads; no SKU fan-out added.
+
+**Change summary**
+- Added an `Archived` toggle to the product upsert dialog (desktop-only; role gated).
+- Added product family soft-delete + restore controls on `/products/:fid` (confirmed, role gated).
+- Hardened writes:
+  - SKU sizes: blank now inherits family sizes (legacy-aligned default).
+  - New SKUs marked deleted before save are skipped (prevents creating junk “deleted” docs).
+  - If thumbnail is removed/empty but other images exist, we fall back to a SKU image or header to avoid broken list visuals (no reads, best-effort).
+
+**Touched surfaces**
+- `src-vnext/features/products/components/ProductUpsertDialog.tsx`
+- `src-vnext/features/products/components/ProductDetailPage.tsx`
+- `src-vnext/features/products/lib/productWrites.ts`
+
+**Checks (2026-02-03)**
+- `npx tsc --noEmit` ✅
+- `npm test` ✅
+
+**Manual QA required (screenshots pending)**
+⚠️ Chrome extension not available in this session for screenshots.
+
+| Scenario | Steps | Expected |
+|---|---|---|
+| Archive toggle works | `/products/:fid` → Edit → toggle Archived → save | Family becomes hidden by default on `/products` unless “Include archived” is enabled. |
+| Delete/restore works | `/products/:fid` → Delete → confirm → then Restore | Family shows “Deleted” state; restored family reappears in default views. |
+| SKU sizes inherit | Set family sizes; leave a SKU’s sizes blank; save | SKU stores family sizes; SKU card shows sizes as expected. |
 
 ## Screenshots index
 

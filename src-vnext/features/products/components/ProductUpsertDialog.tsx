@@ -8,6 +8,7 @@ import { createProductFamilyWithSkus, updateProductFamilyWithSkus, type ProductF
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/ui/dialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
+import { Checkbox } from "@/ui/checkbox"
 import { Label } from "@/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
 import { Separator } from "@/ui/separator"
@@ -185,6 +186,9 @@ function SkuRow({
                 onChange={(e) => onChange({ ...sku, sizesCsv: e.target.value })}
                 placeholder="S, M, L"
               />
+              <p className="text-xs text-[var(--color-text-subtle)]">
+                Leave blank to inherit family sizes.
+              </p>
             </div>
 
             {!disabled && !isDeleted && (
@@ -465,6 +469,23 @@ export function ProductUpsertDialog({
                   disabled={!canEdit}
                 />
               </div>
+            </div>
+
+            <div className="flex items-center gap-2 rounded-[var(--radius-lg)] border border-[var(--color-border)] px-3 py-2">
+              <Checkbox
+                id="archived"
+                checked={draft.archived}
+                disabled={!canEdit}
+                onCheckedChange={(checked) =>
+                  setDraft((p) => ({ ...p, archived: checked === true }))
+                }
+              />
+              <Label htmlFor="archived" className="text-sm">
+                Archived
+              </Label>
+              <span className="text-xs text-[var(--color-text-subtle)]">
+                Hidden by default on Products
+              </span>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
