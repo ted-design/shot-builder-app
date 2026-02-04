@@ -176,7 +176,7 @@ describe("mapShot", () => {
     expect(shot.heroImage?.downloadURL).toBe("clients/c1/productFamilies/fam-2/b.webp")
   })
 
-  it("falls back to the first product image when no cover is explicitly set", () => {
+  it("falls back to the first product image when cover mode is auto (heroProductId missing)", () => {
     const shot = mapShot("s1", {
       title: "Shot A",
       projectId: "p1",
@@ -200,6 +200,63 @@ describe("mapShot", () => {
     })
 
     expect(shot.heroImage?.downloadURL).toBe("clients/c1/productFamilies/fam-1/a.webp")
+  })
+
+  it("does not fall back to a product image when heroProductId is explicitly none (null)", () => {
+    const shot = mapShot("s1", {
+      title: "Shot A",
+      projectId: "p1",
+      clientId: "c1",
+      createdAt: { seconds: 1, nanoseconds: 0 },
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+      createdBy: "u1",
+      deleted: false,
+      looks: [
+        {
+          id: "look-1",
+          order: 0,
+          heroProductId: null,
+          products: [
+            { familyId: "fam-1", skuId: "sku-1", thumbUrl: "clients/c1/productFamilies/fam-1/a.webp" },
+          ],
+          references: [],
+        },
+      ],
+      activeLookId: "look-1",
+    })
+
+    expect(shot.heroImage).toBeUndefined()
+  })
+
+  it("locks cover derivation to the active look when activeLookId is set", () => {
+    const shot = mapShot("s1", {
+      title: "Shot A",
+      projectId: "p1",
+      clientId: "c1",
+      createdAt: { seconds: 1, nanoseconds: 0 },
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+      createdBy: "u1",
+      deleted: false,
+      activeLookId: "look-a",
+      looks: [
+        {
+          id: "look-a",
+          order: 0,
+          heroProductId: null,
+          products: [],
+          references: [],
+        },
+        {
+          id: "look-b",
+          order: 1,
+          displayImageId: "ref-b",
+          references: [{ id: "ref-b", downloadURL: "https://example.com/b.jpg", path: "shots/s1/b.jpg" }],
+          products: [],
+        },
+      ],
+    })
+
+    expect(shot.heroImage).toBeUndefined()
   })
 
   it("maps looks into typed structure", () => {

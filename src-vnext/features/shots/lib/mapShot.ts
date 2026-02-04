@@ -133,8 +133,12 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
     }
 
     // B) hero product from this look (if set)
-    const heroId = look.heroProductId
-    if (typeof heroId === "string" && heroId.length > 0) {
+    const heroRaw = look.heroProductId
+    const heroId = typeof heroRaw === "string" ? heroRaw : null
+    const coverMode: "auto" | "none" | "explicit" =
+      heroRaw === null || heroRaw === "" ? "none" : heroId ? "explicit" : "auto"
+
+    if (coverMode === "explicit") {
       const products = Array.isArray(look.products) ? look.products : []
       const match = products.find((p) => {
         const familyId = p["familyId"] ?? p["productId"]
@@ -155,16 +159,18 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
       }
     }
 
-    // C) first product image fallback (when cover product not explicitly selected)
-    const products = Array.isArray(look.products) ? look.products : []
-    for (const p of products) {
-      const candidate =
-        asNonEmptyString(p?.["skuImageUrl"]) ??
-        asNonEmptyString(p?.["thumbUrl"]) ??
-        asNonEmptyString(p?.["familyImageUrl"]) ??
-        asNonEmptyString(p?.["colourImagePath"]) ??
-        asNonEmptyString(p?.["thumbnailImagePath"])
-      if (candidate) return { path: candidate, downloadURL: candidate }
+    // C) first product image fallback (AUTO mode only)
+    if (coverMode === "auto") {
+      const products = Array.isArray(look.products) ? look.products : []
+      for (const p of products) {
+        const candidate =
+          asNonEmptyString(p?.["skuImageUrl"]) ??
+          asNonEmptyString(p?.["thumbUrl"]) ??
+          asNonEmptyString(p?.["familyImageUrl"]) ??
+          asNonEmptyString(p?.["colourImagePath"]) ??
+          asNonEmptyString(p?.["thumbnailImagePath"])
+        if (candidate) return { path: candidate, downloadURL: candidate }
+      }
     }
 
     // D) first reference fallback (this look)
@@ -180,11 +186,10 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
     return undefined
   }
 
-  // Priority 1: Active look (if present)
+  // Priority 1: Active look (if present). If active look is set and found, cover is locked to it.
   if (activeLookId) {
     const active = looks.find((l) => asNonEmptyString(l.id) === activeLookId) ?? null
-    const fromActive = resolveFromLook(active)
-    if (fromActive) return fromActive
+    if (active) return resolveFromLook(active)
   }
 
   // Priority 2: Designated display image from looks
@@ -232,6 +237,10 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
 
   // Priority 3.5: First product image from looks (when no hero product is chosen)
   for (const look of looks) {
+    const heroRaw = look?.heroProductId
+    const explicitNone = heroRaw === null || heroRaw === ""
+    const explicitChosen = typeof heroRaw === "string" && heroRaw.length > 0
+    if (explicitNone || explicitChosen) continue
     const products = Array.isArray(look.products) ? look.products : []
     for (const p of products) {
       const candidate =

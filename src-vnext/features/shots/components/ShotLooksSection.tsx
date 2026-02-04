@@ -18,6 +18,7 @@ import { ImagePlus, Plus, Star, Trash2, X, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { ProductAssignment, Shot, ShotLook, ShotReferenceImage } from "@/shared/types"
 
+const HERO_AUTO_VALUE = "__auto__"
 const HERO_NONE_VALUE = "__none__"
 
 function getLookLabel(order: number): string {
@@ -56,7 +57,7 @@ function normalizeLooksForWrite(looks: ReadonlyArray<ShotLook>): ShotLook[] {
     order: index,
     label: getLookLabel(index),
     products: look.products ?? [],
-    heroProductId: look.heroProductId ?? null,
+    heroProductId: look.heroProductId,
     references: look.references ?? [],
     displayImageId: look.displayImageId ?? null,
   }))
@@ -108,6 +109,15 @@ export function ShotLooksSection({
   const selectedLook = looks.find((l) => l.id === selectedLookId) ?? null
 
   const [saving, setSaving] = useState(false)
+
+  const selectedHeroValue = useMemo(() => {
+    if (!selectedLook) return HERO_AUTO_VALUE
+    if (selectedLook.heroProductId === null) return HERO_NONE_VALUE
+    if (typeof selectedLook.heroProductId === "string" && selectedLook.heroProductId.length > 0) {
+      return selectedLook.heroProductId
+    }
+    return HERO_AUTO_VALUE
+  }, [selectedLook])
 
   const saveLooks = async (
     nextLooks: ReadonlyArray<ShotLook>,
@@ -335,9 +345,10 @@ export function ShotLooksSection({
               <p className="text-xs text-[var(--color-text-subtle)]">Add products to enable hero selection.</p>
             ) : (
               <Select
-                value={selectedLook.heroProductId ?? HERO_NONE_VALUE}
+                value={selectedHeroValue}
                 onValueChange={async (value) => {
-                  const heroProductId = value === HERO_NONE_VALUE ? null : value
+                  const heroProductId =
+                    value === HERO_AUTO_VALUE ? undefined : value === HERO_NONE_VALUE ? null : value
                   const next = looks.map((l) =>
                     l.id === selectedLook.id ? { ...l, heroProductId } : l,
                   )
@@ -346,10 +357,11 @@ export function ShotLooksSection({
                 disabled={!canEdit}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="No hero product" />
+                  <SelectValue placeholder="Auto (first product)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={HERO_NONE_VALUE}>No hero product</SelectItem>
+                  <SelectItem value={HERO_AUTO_VALUE}>Auto (first product)</SelectItem>
+                  <SelectItem value={HERO_NONE_VALUE}>None</SelectItem>
                   {productHeroOptions(selectedLook.products).map((o) => (
                     <SelectItem key={o.id} value={o.id}>
                       {o.label}
@@ -359,7 +371,7 @@ export function ShotLooksSection({
               </Select>
             )}
             <p className="text-[11px] text-[var(--color-text-subtle)]">
-              Cover prefers a selected reference image; otherwise it falls back to the cover product image.
+              Cover prefers a selected reference image; otherwise it uses the chosen cover product (or auto).
             </p>
           </div>
 
