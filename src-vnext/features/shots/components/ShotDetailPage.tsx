@@ -9,6 +9,7 @@ import { LocationPicker } from "@/features/shots/components/LocationPicker"
 import { ProductAssignmentPicker } from "@/features/shots/components/ProductAssignmentPicker"
 import { NotesSection } from "@/features/shots/components/NotesSection"
 import { HeroImageSection } from "@/features/shots/components/HeroImageSection"
+import { ShotLooksSection } from "@/features/shots/components/ShotLooksSection"
 import { updateShotField } from "@/features/shots/lib/updateShot"
 import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -118,6 +119,9 @@ export default function ShotDetailPage() {
 
           {/* RIGHT: Composition panel — what's in the frame */}
           <div className="flex flex-col gap-5">
+            <SectionLabel>Looks</SectionLabel>
+            <ShotLooksSection shot={shot} canEdit={canEdit} />
+
             <SectionLabel>Products</SectionLabel>
             <ProductAssignmentPicker
               selected={shot.products}

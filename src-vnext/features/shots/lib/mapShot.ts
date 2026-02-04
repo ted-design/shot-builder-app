@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase/firestore"
-import type { Shot, ProductAssignment, ShotTag } from "@/shared/types"
+import type { Shot, ProductAssignment, ShotLook, ShotReferenceImage, ShotTag } from "@/shared/types"
 
 /**
  * Normalize a Firestore date field that may be a Timestamp or an ISO string.
@@ -74,17 +74,12 @@ function normalizeTags(raw: unknown): ReadonlyArray<ShotTag> {
   )
 }
 
-function isHttpUrl(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    (value.startsWith("https://") || value.startsWith("http://"))
-  )
-}
-
 type LegacyRef = { readonly id?: unknown; readonly path?: unknown; readonly downloadURL?: unknown }
 type LegacyLook = {
   readonly displayImageId?: unknown
+  readonly heroProductId?: unknown
   readonly references?: readonly LegacyRef[]
+  readonly products?: readonly Record<string, unknown>[]
 }
 
 type LegacyAttachment = {
@@ -93,16 +88,21 @@ type LegacyAttachment = {
   readonly isPrimary?: unknown
 }
 
+function asNonEmptyString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined
+}
+
 function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | undefined {
   const rawHero = data["heroImage"]
   if (rawHero && typeof rawHero === "object") {
     const obj = rawHero as Record<string, unknown>
-    const downloadURL = obj["downloadURL"]
-    const path = obj["path"]
-    if (isHttpUrl(downloadURL)) {
+    const downloadURL = asNonEmptyString(obj["downloadURL"])
+    const path = asNonEmptyString(obj["path"])
+    const resolved = downloadURL ?? path
+    if (resolved) {
       return {
-        path: typeof path === "string" && path.length > 0 ? path : downloadURL,
-        downloadURL,
+        path: path ?? resolved,
+        downloadURL: resolved,
       }
     }
   }
@@ -116,63 +116,126 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
     const refs = Array.isArray(look.references) ? look.references : []
     const match = refs.find((r) => r?.id === displayId) ?? null
     if (!match) continue
-    const downloadURL = match.downloadURL
-    const path = match.path
-    if (isHttpUrl(downloadURL)) {
+    const downloadURL = asNonEmptyString(match.downloadURL)
+    const path = asNonEmptyString(match.path)
+    const resolved = downloadURL ?? path
+    if (resolved) {
       return {
-        path: typeof path === "string" && path.length > 0 ? path : downloadURL,
-        downloadURL,
+        path: path ?? resolved,
+        downloadURL: resolved,
       }
-    }
-    if (isHttpUrl(path)) {
-      return { path, downloadURL: path }
     }
   }
 
-  // Priority 2: First reference from first look with references
+  // Priority 2: Hero product image from looks
+  for (const look of looks) {
+    const heroId = look?.heroProductId
+    if (typeof heroId !== "string" || heroId.length === 0) continue
+    const products = Array.isArray(look.products) ? look.products : []
+    const match = products.find((p) => {
+      const rawId = p["familyId"] ?? p["productId"]
+      return typeof rawId === "string" && rawId === heroId
+    }) ?? null
+    if (!match) continue
+    const candidate =
+      asNonEmptyString(match["skuImageUrl"]) ??
+      asNonEmptyString(match["thumbUrl"]) ??
+      asNonEmptyString(match["familyImageUrl"]) ??
+      asNonEmptyString(match["colourImagePath"]) ??
+      asNonEmptyString(match["thumbnailImagePath"])
+    if (candidate) {
+      return { path: candidate, downloadURL: candidate }
+    }
+  }
+
+  // Priority 3: First reference from first look with references
   for (const look of looks) {
     const refs = Array.isArray(look.references) ? look.references : []
     if (refs.length === 0) continue
     const first = refs[0]
-    const downloadURL = first?.downloadURL
-    const path = first?.path
-    if (isHttpUrl(downloadURL)) {
-      return {
-        path: typeof path === "string" && path.length > 0 ? path : downloadURL,
-        downloadURL,
-      }
-    }
-    if (isHttpUrl(path)) {
-      return { path, downloadURL: path }
-    }
+    const downloadURL = asNonEmptyString(first?.downloadURL)
+    const path = asNonEmptyString(first?.path)
+    const resolved = downloadURL ?? path
+    if (resolved) return { path: path ?? resolved, downloadURL: resolved }
   }
 
-  // Priority 3: Primary attachment (legacy multi-image system)
+  // Priority 4: Primary attachment (legacy multi-image system)
   const attachments = Array.isArray(data["attachments"])
     ? (data["attachments"] as LegacyAttachment[])
     : []
   if (attachments.length > 0) {
     const primary = attachments.find((a) => a?.isPrimary === true) ?? attachments[0]!
-    const downloadURL = primary.downloadURL
-    const path = primary.path
-    if (isHttpUrl(downloadURL)) {
+    const downloadURL = asNonEmptyString(primary.downloadURL)
+    const path = asNonEmptyString(primary.path)
+    const resolved = downloadURL ?? path
+    if (resolved) {
       return {
-        path: typeof path === "string" && path.length > 0 ? path : downloadURL,
-        downloadURL,
+        path: path ?? resolved,
+        downloadURL: resolved,
       }
     }
-    if (isHttpUrl(path)) {
-      return { path, downloadURL: path }
-    }
   }
 
-  // Priority 4: Legacy single image fields
+  // Priority 5: Legacy single image fields
   const referenceImagePath = data["referenceImagePath"]
-  if (isHttpUrl(referenceImagePath)) {
-    return { path: referenceImagePath, downloadURL: referenceImagePath }
-  }
+  const refPath = asNonEmptyString(referenceImagePath)
+  if (refPath) return { path: refPath, downloadURL: refPath }
 
   return undefined
+}
+
+function normalizeReferences(raw: unknown): ReadonlyArray<ShotReferenceImage> {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((r): ShotReferenceImage | null => {
+      if (!r || typeof r !== "object") return null
+      const obj = r as Record<string, unknown>
+      const id = asNonEmptyString(obj["id"])
+      const path = asNonEmptyString(obj["path"])
+      const downloadURL = asNonEmptyString(obj["downloadURL"])
+      const resolvedPath = path ?? downloadURL
+      if (!id || !resolvedPath) return null
+      return {
+        id,
+        path: resolvedPath,
+        downloadURL: downloadURL ?? (path ? undefined : resolvedPath),
+        uploadedAt: obj["uploadedAt"],
+        uploadedBy: asNonEmptyString(obj["uploadedBy"]),
+        cropData: obj["cropData"],
+      }
+    })
+    .filter((r): r is ShotReferenceImage => r !== null)
+}
+
+function normalizeLooks(raw: unknown): ReadonlyArray<ShotLook> {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((l, index): ShotLook | null => {
+      if (!l || typeof l !== "object") return null
+      const obj = l as Record<string, unknown>
+      const id = asNonEmptyString(obj["id"]) ?? `look-${index}`
+      const label = asNonEmptyString(obj["label"])
+      const order = typeof obj["order"] === "number" ? (obj["order"] as number) : index
+      const heroProductId =
+        obj["heroProductId"] === null
+          ? null
+          : asNonEmptyString(obj["heroProductId"])
+      const displayImageId =
+        obj["displayImageId"] === null
+          ? null
+          : asNonEmptyString(obj["displayImageId"])
+
+      return {
+        id,
+        label,
+        order,
+        products: normalizeProducts(obj["products"]),
+        heroProductId,
+        references: normalizeReferences(obj["references"]),
+        displayImageId,
+      }
+    })
+    .filter((l): l is ShotLook => l !== null)
 }
 
 /**
@@ -205,6 +268,7 @@ export function mapShot(id: string, data: Record<string, unknown>): Shot {
     notesAddendum: data["notesAddendum"] as string | undefined,
     date: normalizeDate(data["date"]),
     heroImage: normalizeHeroImage(data),
+    looks: normalizeLooks(data["looks"]),
     tags: normalizeTags(data["tags"]),
     deleted: data["deleted"] as boolean | undefined,
     createdAt: data["createdAt"] as Shot["createdAt"],

@@ -36,6 +36,8 @@ import {
 } from "@/ui/dropdown-menu"
 import { formatDateOnly } from "@/features/shots/lib/dateOnly"
 import { Camera, Plus, Info, LayoutGrid, Table2, SlidersHorizontal, Eye, ArrowUpDown } from "lucide-react"
+import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
+import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import type { Shot, ShotFirestoreStatus } from "@/shared/types"
 
 type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated"
@@ -871,7 +873,7 @@ function ShotsTable({
         <tbody>
           {shots.map((shot) => {
             const title = shot.title || "Untitled Shot"
-            const productsCount = shot.products.length
+            const productsCount = extractShotAssignedProducts(shot).length
             const talentCount = (shot.talentIds ?? shot.talent).length
             return (
               <tr
@@ -894,17 +896,7 @@ function ShotsTable({
                 )}
                 {fields.heroThumb && (
                   <td className="px-3 py-2">
-                    {shot.heroImage?.downloadURL ? (
-                      <img
-                        src={shot.heroImage.downloadURL}
-                        alt={title}
-                        className="h-9 w-9 rounded-[var(--radius-md)] border border-[var(--color-border)] object-cover"
-                        onError={(e) => {
-                          const img = e.currentTarget
-                          img.style.display = "none"
-                        }}
-                      />
-                    ) : null}
+                    <ShotHeroThumb shot={shot} alt={title} />
                   </td>
                 )}
                 <td className="px-3 py-2">
@@ -984,5 +976,30 @@ function ShotsTable({
         </tbody>
       </table>
     </div>
+  )
+}
+
+function ShotHeroThumb({
+  shot,
+  alt,
+}: {
+  readonly shot: Shot
+  readonly alt: string
+}) {
+  const heroCandidate = shot.heroImage?.downloadURL ?? shot.heroImage?.path
+  const url = useStorageUrl(heroCandidate)
+  const [visible, setVisible] = useState(true)
+
+  useEffect(() => setVisible(true), [url])
+
+  if (!url || !visible) return null
+
+  return (
+    <img
+      src={url}
+      alt={alt}
+      className="h-9 w-9 rounded-[var(--radius-md)] border border-[var(--color-border)] object-cover"
+      onError={() => setVisible(false)}
+    />
   )
 }

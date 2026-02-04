@@ -1,4 +1,5 @@
 import type { PullItem, PullItemSize, Shot } from "@/shared/types"
+import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 
 function generateId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -23,7 +24,7 @@ export function buildPullItemsFromShots({
   const itemMap = new Map<string, PullItem & { sizes: PullItemSize[] }>()
 
   for (const shot of shots) {
-    for (const product of shot.products) {
+    for (const product of extractShotAssignedProducts(shot)) {
       const familyId = product.familyId
       if (!familyId) continue
 

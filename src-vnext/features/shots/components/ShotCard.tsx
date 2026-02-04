@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
 import { Badge } from "@/ui/badge"
@@ -7,6 +7,8 @@ import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { Package, Users, MapPin } from "lucide-react"
 import { textPreview } from "@/shared/lib/textPreview"
+import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
+import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import type { Shot } from "@/shared/types"
 
 interface ShotCardProps {
@@ -42,17 +44,22 @@ export function ShotCard({
 }: ShotCardProps) {
   const navigate = useNavigate()
   const { projectId } = useProjectScope()
-  const [imgVisible, setImgVisible] = useState(!!shot.heroImage?.downloadURL)
+  const heroCandidate = shot.heroImage?.downloadURL ?? shot.heroImage?.path
+  const heroUrl = useStorageUrl(heroCandidate)
+  const [imgVisible, setImgVisible] = useState(!!heroCandidate)
+
+  useEffect(() => {
+    setImgVisible(!!heroCandidate)
+  }, [heroCandidate])
 
   const fields: ShotCardVisibleFields = {
     ...DEFAULT_VISIBLE_FIELDS,
     ...visibleFields,
   }
 
-  const hasProducts = shot.products.length > 0
+  const hasProducts = extractShotAssignedProducts(shot).length > 0
   const hasTalent = (shot.talentIds ?? shot.talent).length > 0
   const hasLocation = !!shot.locationId
-  const heroUrl = shot.heroImage?.downloadURL
 
   return (
     <Card

@@ -22,6 +22,7 @@ function makeShot(overrides: Partial<Shot> & Pick<Shot, "id">): Shot {
     notesAddendum: overrides.notesAddendum,
     date: overrides.date,
     heroImage: overrides.heroImage,
+    looks: overrides.looks,
     tags: overrides.tags,
     deleted: overrides.deleted,
     createdAt: overrides.createdAt ?? new Timestamp(1, 0),
@@ -88,5 +89,25 @@ describe("buildPullItemsFromShots", () => {
     const items = buildPullItemsFromShots({ shots })
     expect(items[0]?.sizes[0]?.size).toBe("One Size")
   })
-})
 
+  it("includes products assigned within looks", () => {
+    const shots: Shot[] = [
+      makeShot({
+        id: "s1",
+        looks: [
+          {
+            id: "look-1",
+            products: [
+              { familyId: "f1", familyName: "Hat", colourId: "c1", colourName: "Black", sizeScope: "single", size: "M", quantity: 1 },
+            ],
+          },
+        ],
+      }),
+    ]
+
+    const items = buildPullItemsFromShots({ shots })
+    expect(items).toHaveLength(1)
+    expect(items[0]?.familyId).toBe("f1")
+    expect(items[0]?.colourId).toBe("c1")
+  })
+})

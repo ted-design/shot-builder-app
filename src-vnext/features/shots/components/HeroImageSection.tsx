@@ -3,7 +3,8 @@ import { uploadHeroImage } from "@/shared/lib/uploadImage"
 import { updateShotField } from "@/features/shots/lib/updateShot"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { Button } from "@/ui/button"
-import { ImagePlus, Loader2 } from "lucide-react"
+import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
+import { ImagePlus, Loader2, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import type { Shot } from "@/shared/types"
 
@@ -21,6 +22,10 @@ export function HeroImageSection({
   const { clientId } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+
+  const heroCandidate = heroImage?.downloadURL ?? heroImage?.path
+  const resolvedHeroUrl = useStorageUrl(heroCandidate)
+  const canResetManual = !!heroImage?.path && heroImage.path.includes("/hero.webp")
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -42,24 +47,45 @@ export function HeroImageSection({
 
   return (
     <div className="flex flex-col gap-2">
-      {heroImage?.downloadURL ? (
+      {resolvedHeroUrl ? (
         <div className="relative overflow-hidden rounded-lg border border-[var(--color-border)]">
           <img
-            src={heroImage.downloadURL}
+            src={resolvedHeroUrl}
             alt="Hero"
             className="w-full object-cover"
             style={{ maxHeight: 320 }}
           />
           {canUpload && !uploading && (
-            <Button
-              variant="secondary"
-              size="sm"
-              className="absolute bottom-2 right-2 opacity-80 hover:opacity-100"
-              onClick={() => fileRef.current?.click()}
-            >
-              <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
-              Replace
-            </Button>
+            <div className="absolute bottom-2 right-2 flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="opacity-80 hover:opacity-100"
+                onClick={() => fileRef.current?.click()}
+              >
+                <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
+                Replace
+              </Button>
+              {canResetManual && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="opacity-80 hover:opacity-100"
+                  onClick={async () => {
+                    if (!clientId) return
+                    try {
+                      await updateShotField(shotId, clientId, { heroImage: null })
+                    } catch {
+                      toast.error("Failed to reset cover")
+                    }
+                  }}
+                  title="Reset cover to auto"
+                >
+                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                  Reset
+                </Button>
+              )}
+            </div>
           )}
           {uploading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30">

@@ -42,6 +42,31 @@ export interface ShotTag {
   readonly color: string
 }
 
+export interface ShotReferenceImage {
+  readonly id: string
+  /** Firebase Storage path or a resolved URL (legacy compatibility). */
+  readonly path: string
+  /** Firebase Storage download URL (legacy compatibility). May equal `path`. */
+  readonly downloadURL?: string
+  /** Epoch ms or Firestore Timestamp (legacy compatibility). */
+  readonly uploadedAt?: unknown
+  readonly uploadedBy?: string
+  /** Optional crop payload (legacy). */
+  readonly cropData?: unknown
+}
+
+export interface ShotLook {
+  readonly id: string
+  readonly label?: string
+  readonly order?: number
+  readonly products: ProductAssignment[]
+  /** References `productId`/`familyId` (legacy: productId). */
+  readonly heroProductId?: string | null
+  readonly references?: ReadonlyArray<ShotReferenceImage>
+  /** References `references[].id`. */
+  readonly displayImageId?: string | null
+}
+
 export interface Shot {
   readonly id: string
   readonly title: string
@@ -61,6 +86,7 @@ export interface Shot {
   readonly notesAddendum?: string
   readonly date?: Timestamp
   readonly heroImage?: { readonly path: string; readonly downloadURL: string }
+  readonly looks?: ReadonlyArray<ShotLook>
   readonly tags?: ReadonlyArray<ShotTag>
   readonly deleted?: boolean
   readonly createdAt: Timestamp

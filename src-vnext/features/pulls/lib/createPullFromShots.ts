@@ -2,6 +2,7 @@ import { addDoc, collection, doc, getDoc, serverTimestamp } from "firebase/fires
 import { db } from "@/shared/lib/firebase"
 import { productFamilySkusPath, pullsPath } from "@/shared/lib/paths"
 import { buildPullItemsFromShots } from "@/features/pulls/lib/buildPullItemsFromShots"
+import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import type { Shot } from "@/shared/types"
 
 function collRef(segments: string[]) {
@@ -26,7 +27,7 @@ export async function createPullFromShots({
 }): Promise<string> {
   const skuKeys = new Set<string>()
   for (const shot of shots) {
-    for (const p of shot.products) {
+    for (const p of extractShotAssignedProducts(shot)) {
       if (p.sizeScope !== "all") continue
       if (!p.familyId || !p.skuId) continue
       skuKeys.add(`${p.familyId}::${p.skuId}`)
@@ -75,4 +76,3 @@ export async function createPullFromShots({
 
   return docRef.id
 }
-

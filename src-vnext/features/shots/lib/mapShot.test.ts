@@ -84,4 +84,64 @@ describe("mapShot", () => {
     expect(shot.products[0]?.skuImageUrl).toBe("productFamilies/fam-1/skus/sku-1.webp")
     expect(shot.products[0]?.familyImageUrl).toBe("productFamilies/fam-1/thumb.webp")
   })
+
+  it("derives heroImage from look heroProductId when no display image is set", () => {
+    const shot = mapShot("s1", {
+      title: "Shot A",
+      projectId: "p1",
+      clientId: "c1",
+      createdAt: { seconds: 1, nanoseconds: 0 },
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+      createdBy: "u1",
+      deleted: false,
+      looks: [
+        {
+          id: "look-1",
+          order: 0,
+          heroProductId: "fam-1",
+          products: [
+            {
+              familyId: "fam-1",
+              familyName: "Classic Tee",
+              thumbUrl: "clients/c1/productFamilies/fam-1/thumb.webp",
+            },
+          ],
+          references: [],
+        },
+      ],
+    })
+
+    expect(shot.heroImage).toEqual({
+      path: "clients/c1/productFamilies/fam-1/thumb.webp",
+      downloadURL: "clients/c1/productFamilies/fam-1/thumb.webp",
+    })
+  })
+
+  it("maps looks into typed structure", () => {
+    const shot = mapShot("s1", {
+      title: "Shot A",
+      projectId: "p1",
+      clientId: "c1",
+      createdAt: { seconds: 1, nanoseconds: 0 },
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+      createdBy: "u1",
+      deleted: false,
+      looks: [
+        {
+          id: "look-1",
+          order: 0,
+          label: "Primary",
+          heroProductId: null,
+          displayImageId: "ref-1",
+          products: [{ productId: "fam-1", productName: "Hat", sizeScope: "pending" }],
+          references: [{ id: "ref-1", path: "shots/s1/ref.webp" }],
+        },
+      ],
+    })
+
+    expect(shot.looks).toHaveLength(1)
+    expect(shot.looks?.[0]?.id).toBe("look-1")
+    expect(shot.looks?.[0]?.products?.[0]?.familyId).toBe("fam-1")
+    expect(shot.looks?.[0]?.references?.[0]?.id).toBe("ref-1")
+  })
 })

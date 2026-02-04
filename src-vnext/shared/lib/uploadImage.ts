@@ -71,3 +71,21 @@ export async function uploadHeroImage(
   const downloadURL = await getDownloadURL(storageRef)
   return { path: storagePath, downloadURL }
 }
+
+/**
+ * Upload a reference image for a shot (e.g. per-look references).
+ * Compresses to WebP, uploads to Firebase Storage, returns { path, downloadURL }.
+ */
+export async function uploadShotReferenceImage(
+  file: File,
+  clientId: string,
+  shotId: string,
+  referenceId: string,
+): Promise<{ path: string; downloadURL: string }> {
+  const blob = await compressImage(file)
+  const storagePath = `clients/${clientId}/shots/${shotId}/references/${referenceId}.webp`
+  const storageRef = ref(storage, storagePath)
+  await uploadBytes(storageRef, blob, { contentType: "image/webp" })
+  const downloadURL = await getDownloadURL(storageRef)
+  return { path: storagePath, downloadURL }
+}
