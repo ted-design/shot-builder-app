@@ -1,9 +1,9 @@
 import { formatDateOnly } from "@/features/shots/lib/dateOnly"
-import { resolveStoragePath } from "@/shared/lib/resolveStoragePath"
 import { textPreview } from "@/shared/lib/textPreview"
 import type { Shot } from "@/shared/types"
 import { getShotPrimaryLookProductLabels, resolveIdsToNames } from "@/features/shots/lib/shotListSummaries"
 import type { ShotsPdfRow } from "@/features/shots/lib/shotsPdfTemplates"
+import { resolvePdfImageSrc } from "@/features/shots/lib/resolvePdfImageSrc"
 
 export async function buildShotsPdfRows({
   shots,
@@ -19,10 +19,10 @@ export async function buildShotsPdfRows({
   const rows = await Promise.all(
     shots.map(async (shot): Promise<ShotsPdfRow> => {
       const title = shot.title || "Untitled Shot"
-      const heroCandidate = shot.heroImage?.downloadURL ?? shot.heroImage?.path ?? null
+      const heroCandidate = shot.heroImage?.path ?? shot.heroImage?.downloadURL ?? null
       const heroImageUrl =
         includeHero && heroCandidate
-          ? await resolveStoragePath(heroCandidate).catch(() => null)
+          ? await resolvePdfImageSrc(heroCandidate).catch(() => null)
           : null
 
       const talentIds = shot.talentIds ?? shot.talent
@@ -57,4 +57,3 @@ export async function buildShotsPdfRows({
 
   return rows
 }
-
