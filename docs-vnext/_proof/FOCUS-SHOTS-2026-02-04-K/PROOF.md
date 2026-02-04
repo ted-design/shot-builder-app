@@ -20,6 +20,7 @@ Backfill legacy shots that were created without a `date` field so they re-enter 
 - `src-vnext/features/shots/lib/backfillShotDates.ts`
 - `src-vnext/features/shots/lib/backfillShotDates.test.ts`
 - `src-vnext/features/shots/components/ShotListPage.tsx`
+- `src-vnext/shared/components/ConfirmDialog.tsx`
 
 ## Automated Checks (2026-02-04)
 
