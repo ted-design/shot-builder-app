@@ -74,7 +74,7 @@ export default function SidebarNav({ isExpanded }) {
     if (!isInProjectContext || !currentProjectId) return [];
     const items = [
       { to: `/projects/${currentProjectId}/shots`, label: "Builder", icon: Camera },
-      { to: `/projects/${currentProjectId}/schedule`, label: "Schedule", icon: Calendar, desktopOnly: true },
+      { to: `/projects/${currentProjectId}/callsheet`, label: "Call Sheet", icon: Calendar, desktopOnly: true },
       { to: `/projects/${currentProjectId}/assets`, label: "Assets", icon: Users },
     ];
     return isMobile ? items.filter((item) => !item.desktopOnly) : items;

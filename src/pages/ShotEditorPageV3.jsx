@@ -30,13 +30,14 @@ import { useProducts, useTalent, useLocations } from "../hooks/useFirestoreQuery
 import { FLAGS } from "../lib/flags";
 import { Button } from "../components/ui/button";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { getShotAssignedProductsCount } from "../lib/shotAssignedProducts";
 import {
   ArrowLeft,
   MapPin,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { ShotEditorHeaderBandV3, ShotContextDock, ShotNotesCanvas, ShotLooksCanvas, ShotAssetsSection } from "../components/shots/workspace";
+import { ShotEditorHeaderBandV3, ShotContextDock, ShotHeroImage, ShotNotesCanvas, ShotLooksCanvas, ShotAssetsSection } from "../components/shots/workspace";
 import CommentSection from "../components/comments/CommentSection";
 
 // ============================================================================
@@ -231,7 +232,7 @@ export default function ShotEditorPageV3() {
       0
     );
     return {
-      products: shot.products?.length || 0,
+      products: getShotAssignedProductsCount(shot),
       talent: shot.talent?.length || 0,
       references: referencesCount,
       tags: shot.tags?.length || 0,
@@ -293,7 +294,7 @@ export default function ShotEditorPageV3() {
 
   // Mobile: render read-only detail view instead of full editor
   if (isMobile) {
-    return <ShotReaderView shot={shot} counts={counts} />;
+    return <ShotReaderView shot={shot} counts={counts} readOnly={isReadOnly} />;
   }
 
   return (
@@ -328,6 +329,8 @@ export default function ShotEditorPageV3() {
             ────────────────────────────────────────────────────────── */}
         <main className="flex-1 overflow-auto bg-white dark:bg-slate-800">
           <div className="max-w-3xl mx-auto px-8 py-8 space-y-8">
+            <ShotHeroImage shot={shot} />
+
             {/* Primary canvas: Shot Notes */}
             <ShotNotesCanvas shot={shot} readOnly={isReadOnly} />
 

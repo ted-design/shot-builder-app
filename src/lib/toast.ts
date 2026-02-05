@@ -1,11 +1,17 @@
 type ToastLevel = "success" | "error" | "info" | "warning";
 
+type ToastAction = {
+  label: string;
+  onClick: () => void;
+};
+
 type ToastPayload =
   | string
   | {
       title?: string;
       description?: string;
       duration?: number;
+      action?: ToastAction;
     };
 
 type ToastEvent = {
@@ -14,6 +20,7 @@ type ToastEvent = {
   title?: string;
   description?: string;
   duration?: number;
+  action?: ToastAction;
 };
 
 type ToastListener = (event: ToastEvent) => void;
@@ -27,7 +34,12 @@ function randomId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-function normalisePayload(payload: ToastPayload): { title?: string; description?: string; duration?: number } {
+function normalisePayload(payload: ToastPayload): {
+  title?: string;
+  description?: string;
+  duration?: number;
+  action?: ToastAction;
+} {
   if (typeof payload === "string") {
     return { title: payload };
   }
@@ -42,6 +54,7 @@ function emit(level: ToastLevel, payload: ToastPayload) {
     title: normalised.title,
     description: normalised.description,
     duration: normalised.duration,
+    action: normalised.action,
   };
   if (!listeners.size) {
     const consoleMethod = level === "error" ? "error" : "log";

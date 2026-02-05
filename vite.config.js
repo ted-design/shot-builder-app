@@ -1,6 +1,7 @@
 // vite.config.js
 import { defineConfig } from "vite";
 import { execSync } from "child_process";
+import { resolve } from "path";
 import react from "@vitejs/plugin-react";
 
 // Generate a build identifier: prefer git SHA, fall back to timestamp
@@ -19,6 +20,11 @@ export default defineConfig({
     __BUILD_ID__: JSON.stringify(buildId),
   },
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@": resolve(import.meta.dirname, "src-vnext"),
+    },
+  },
   build: {
     rollupOptions: {
       output: {

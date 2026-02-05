@@ -76,9 +76,10 @@ function SidebarLayoutContent() {
 
   const showBreadcrumbs = shouldShowBreadcrumbs(location.pathname);
 
-  // Full-bleed routes don't get max-width constraint (e.g., catalogue pages with secondary sidebars, schedule builder)
+  // Full-bleed routes don't get max-width constraint (e.g., catalogue pages with secondary sidebars, call sheet builder)
   const isProjectScheduleBuilder =
-    location.pathname.startsWith('/projects/') && location.pathname.endsWith('/schedule');
+    location.pathname.startsWith("/projects/") &&
+    (location.pathname.endsWith("/callsheet") || location.pathname.endsWith("/schedule"));
   const isFullBleedRoute = location.pathname.includes('/catalogue') || isProjectScheduleBuilder;
 
   return (

@@ -196,10 +196,7 @@ function CallSheetEmbedContent({ clientId, projectId, activeProject }) {
   );
 
   // Handle editing an entry
-  const handleEditEntry = useCallback((entry) => {
-    console.log("Edit entry:", entry);
-    toast.info({ title: "Entry editor coming soon" });
-  }, []);
+  const handleEditEntry = useCallback(() => {}, []);
 
   // Handle editing the schedule
   const handleEditSchedule = useCallback(() => {

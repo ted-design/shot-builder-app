@@ -49,6 +49,26 @@ export default function ToastProvider({ children }) {
                   <div className="text-sm leading-snug text-slate-700 dark:text-slate-200">{toast.description}</div>
                 )}
               </div>
+              {toast.action ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      toast.action.onClick?.();
+                    } finally {
+                      const timeout = timeoutsRef.current.get(toast.id);
+                      if (timeout) {
+                        clearTimeout(timeout);
+                        timeoutsRef.current.delete(toast.id);
+                      }
+                      setToasts((prev) => prev.filter((item) => item.id !== toast.id));
+                    }
+                  }}
+                  className="mt-0.5 text-xs font-semibold uppercase text-slate-700 dark:text-slate-100 hover:text-slate-900 dark:hover:text-white"
+                >
+                  {toast.action.label}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {

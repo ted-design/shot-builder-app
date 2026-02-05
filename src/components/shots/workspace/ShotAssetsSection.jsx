@@ -1,15 +1,15 @@
 /**
- * ShotAssetsSection - Editable assets section for Talent, Location, and Tags
+ * ShotAssetsSection - Assets section for Talent, Location, and Tags
  *
  * DESIGN PHILOSOPHY
  * =================
  * Per design-spec.md: "Supporting Sections (Logistics, Talent, etc.)" are
  * collapsed by default and clearly marked as secondary.
  *
- * This component provides editing for three asset types:
+ * This component provides editing for two asset types and read-only tags:
  * - Talent (multi-select)
  * - Location (single-select)
- * - Tags (tag editor with autocomplete)
+ * - Tags (read-only)
  *
  * EDIT PATTERN (consistent across all three)
  * ==========================================
@@ -22,16 +22,12 @@
  * ===============
  * - TalentMultiSelect from components/shots
  * - LocationSelect from components/shots
- * - TagEditor from components/shots
  * - sanitizeForFirestore pattern from ShotLooksCanvas
- * - Direct updateDoc pattern from ShotNotesCanvas/ShotLooksCanvas
+ * - updateShotWithVersion pattern (versioned writes)
  */
 
 import { useState, useCallback, useMemo } from "react";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useQueryClient } from "@tanstack/react-query";
-import { db } from "../../../lib/firebase";
-import { shotsPath } from "../../../lib/paths";
 import { useAuth } from "../../../context/AuthContext";
 import { queryKeys } from "../../../hooks/useFirestoreQuery";
 import { logActivity, createShotUpdatedActivity } from "../../../lib/activityLogger";
@@ -39,7 +35,6 @@ import { updateShotWithVersion } from "../../../lib/updateShotWithVersion";
 import { toast } from "../../../lib/toast";
 import TalentMultiSelect from "../TalentMultiSelect";
 import LocationSelect from "../LocationSelect";
-import { TagEditor } from "../TagEditor";
 import { TagList } from "../../ui/TagBadge";
 import Avatar from "../../ui/Avatar";
 import Thumb from "../../Thumb";
@@ -59,6 +54,28 @@ import {
 // ============================================================================
 // UTILITIES
 // ============================================================================
+
+const normaliseShotTagsForDisplay = (raw) => {
+  const tags = Array.isArray(raw) ? raw : [];
+  return tags
+    .map((tag, index) => {
+      if (!tag) return null;
+      if (typeof tag === "string") {
+        const label = tag.trim();
+        if (!label) return null;
+        return { id: label, label, color: "gray" };
+      }
+      if (typeof tag === "object") {
+        const label = tag.label || tag.name || "";
+        if (!label || typeof label !== "string") return null;
+        const id = tag.id || tag.tagId || `${label}-${index}`;
+        const color = typeof tag.color === "string" ? tag.color : "gray";
+        return { id, label, color };
+      }
+      return null;
+    })
+    .filter(Boolean);
+};
 
 /**
  * Recursively removes undefined values from an object or array.
@@ -410,137 +427,28 @@ function LocationAssetEditor({
 }
 
 /**
- * TagsAssetEditor - Edit tags
+ * TagsAssetViewer - Read-only tags (Slice 2: tag writes deferred)
  */
-function TagsAssetEditor({
-  shot,
-  clientId,
-  projectId,
-  readOnly,
-  onSave,
-  isSaving,
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [draftTags, setDraftTags] = useState(shot?.tags || []);
+function TagsAssetViewer({ shot }) {
+  const tags = useMemo(() => normaliseShotTagsForDisplay(shot?.tags), [shot?.tags]);
+  const tagCount = tags.length;
 
-  const currentTags = shot?.tags || [];
-  const tagCount = currentTags.length;
-
-  const handleStartEdit = useCallback(() => {
-    setDraftTags(shot?.tags || []);
-    setIsEditing(true);
-  }, [shot?.tags]);
-
-  const handleCancel = useCallback(() => {
-    setDraftTags(shot?.tags || []);
-    setIsEditing(false);
-  }, [shot?.tags]);
-
-  const handleSave = useCallback(async () => {
-    await onSave({ tags: draftTags });
-    setIsEditing(false);
-  }, [draftTags, onSave]);
-
-  if (readOnly) {
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Tags className="w-4 h-4 text-slate-400" />
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Tags
-            </span>
-          </div>
-        </div>
-        {tagCount > 0 ? (
-          <TagList tags={currentTags} />
-        ) : (
-          <p className="text-xs text-slate-400 dark:text-slate-500">
-            No tags added
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  if (!isEditing) {
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Tags className="w-4 h-4 text-slate-400" />
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Tags
-            </span>
-            {tagCount > 0 && (
-              <span className="text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-300">
-                {tagCount}
-              </span>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleStartEdit}
-            className="h-7 px-2 text-xs"
-          >
-            <Pencil className="w-3 h-3 mr-1" />
-            Edit
-          </Button>
-        </div>
-        {tagCount > 0 ? (
-          <TagList tags={currentTags} />
-        ) : (
-          <p className="text-xs text-slate-400 dark:text-slate-500">
-            No tags added
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  // Edit mode
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Tags className="w-4 h-4 text-slate-400" />
           <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
             Tags
           </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleCancel}
-            disabled={isSaving}
-            className="h-7 px-2 text-xs"
-          >
-            <X className="w-3 h-3 mr-1" />
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="h-7 px-2 text-xs"
-          >
-            {isSaving ? (
-              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-            ) : (
-              <Check className="w-3 h-3 mr-1" />
-            )}
-            Save
-          </Button>
+          {tagCount > 0 && (
+            <span className="text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-300">
+              {tagCount}
+            </span>
+          )}
         </div>
       </div>
-      <TagEditor
-        tags={draftTags}
-        onChange={setDraftTags}
-        clientId={clientId}
-        projectId={projectId}
-      />
+      <TagList tags={tags} emptyMessage="No tags added" />
     </div>
   );
 }
@@ -573,7 +481,7 @@ export default function ShotAssetsSection({
 
   /**
    * Save handler for all asset types
-   * Uses consistent pattern: sanitize -> updateDoc -> invalidate cache -> log activity
+   * Uses consistent pattern: sanitize -> updateShotWithVersion -> invalidate cache -> log activity
    */
   const handleSave = useCallback(
     async (updates) => {
@@ -683,15 +591,8 @@ export default function ShotAssetsSection({
             isSaving={isSaving}
           />
 
-          {/* Tags Editor */}
-          <TagsAssetEditor
-            shot={shot}
-            clientId={clientId}
-            projectId={projectId}
-            readOnly={readOnly}
-            onSave={handleSave}
-            isSaving={isSaving}
-          />
+          {/* Tags (read-only) */}
+          <TagsAssetViewer shot={shot} />
         </div>
       )}
     </section>

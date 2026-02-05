@@ -179,8 +179,8 @@ export default function ProjectDashboardPage() {
                 className="bg-gradient-to-br from-sky-50 to-white dark:from-sky-950/30 dark:to-neutral-900"
               />
               <StatCard
-                to={`/projects/${projectId}/schedule`}
-                label="Schedule"
+                to={`/projects/${projectId}/callsheet`}
+                label="Call Sheet"
                 value="→"
                 description="Call sheet & timeline"
                 icon={Calendar}

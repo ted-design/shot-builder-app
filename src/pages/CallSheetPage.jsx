@@ -1,9 +1,8 @@
 // src/pages/CallSheetPage.jsx
 // Page component for the Call Sheet Builder
 
-import React, { useState, useMemo, useCallback, lazy, Suspense } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
-import DesktopOnlyGuard from "../components/common/DesktopOnlyGuard";
+import React, { useState, useMemo, useCallback, lazy, Suspense, useEffect } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   collection,
   query,
@@ -16,7 +15,8 @@ import { FLAGS } from "../lib/flags";
 import { shotsPath, talentPath, locationsPath, productFamiliesPath } from "../lib/paths";
 import { useFirestoreCollection } from "../hooks/useFirestoreCollection";
 import { useProjects } from "../hooks/useFirestoreQuery";
-import { useSchedules, useCreateSchedule } from "../hooks/useSchedule";
+import { useSchedules, useCreateSchedule, useDeleteSchedule, useDuplicateSchedule } from "../hooks/useSchedule";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { Button } from "../components/ui/button";
 import {
   DropdownMenu,
@@ -44,15 +44,27 @@ const CallSheetBuilder = lazy(() =>
  */
 function CallSheetPage() {
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, clientId } = useAuth();
+  const { clientId } = useAuth();
+  const isMobile = useIsMobile();
   const { data: projects = [] } = useProjects(clientId);
   const activeProject = useMemo(() => projects.find((p) => p.id === projectId) || null, [projects, projectId]);
   const isPreviewMode = searchParams.get("preview") === "1";
+  const isBuilderBlocked = isMobile && !isPreviewMode;
 
   const isEnabled = FLAGS.callSheetBuilder;
-  const effectiveClientId = clientId;
-  const effectiveProjectId = projectId;
+  const effectiveClientId = isBuilderBlocked ? null : clientId;
+  const effectiveProjectId = isBuilderBlocked ? null : projectId;
+
+  // Desktop-only surface: redirect mobile users out of builder mode.
+  useEffect(() => {
+    if (!isMobile) return;
+    if (isPreviewMode) return;
+    if (!projectId) return;
+    toast.info({ title: "Call Sheet builder is desktop-only", description: "Open this page on a larger screen." });
+    navigate(`/projects/${projectId}/dashboard`, { replace: true });
+  }, [isMobile, isPreviewMode, navigate, projectId]);
 
   // Active schedule ID (from URL or first available)
   const [activeScheduleId, setActiveScheduleId] = useState(null);
@@ -74,6 +86,35 @@ function CallSheetPage() {
       toast.success({ title: "Schedule created" });
     },
   });
+
+  const deleteSchedule = useDeleteSchedule(effectiveClientId, effectiveProjectId, {
+    onSuccess: (_data, variables) => {
+      toast.success({ title: "Schedule deleted" });
+      setActiveScheduleId((prev) => {
+        if (!prev) return prev;
+        if (prev !== variables?.scheduleId) return prev;
+        const remaining = schedules.filter((s) => s.id !== variables?.scheduleId);
+        return remaining[0]?.id || null;
+      });
+    },
+  });
+
+  const duplicateSchedule = useDuplicateSchedule(effectiveClientId, effectiveProjectId, {
+    onSuccess: (newSchedule) => {
+      if (newSchedule?.id) setActiveScheduleId(newSchedule.id);
+    },
+  });
+
+  const handleDeleteActiveSchedule = useCallback(() => {
+    if (!activeScheduleId) return;
+    deleteSchedule.mutate({ scheduleId: activeScheduleId });
+  }, [activeScheduleId, deleteSchedule]);
+
+  const handleDuplicateActiveSchedule = useCallback(() => {
+    const sourceSchedule = schedules.find((s) => s.id === activeScheduleId) || null;
+    if (!sourceSchedule) return;
+    duplicateSchedule.mutate({ sourceSchedule });
+  }, [activeScheduleId, duplicateSchedule, schedules]);
 
   // Fetch shots for the project (for adding to schedule)
   const shotsRef = useMemo(() => {
@@ -178,11 +219,9 @@ function CallSheetPage() {
     [createSchedule]
   );
 
-  // Handle editing an entry (placeholder - will open modal in future phase)
-  const handleEditEntry = useCallback((entry) => {
-    console.log("Edit entry:", entry);
-    toast.info({ title: "Entry editor coming soon" });
-  }, []);
+  if (isBuilderBlocked) {
+    return null;
+  }
 
   // Format schedule date for display
   const formatScheduleDate = (date) => {
@@ -229,7 +268,6 @@ function CallSheetPage() {
   }
 
   return (
-    <DesktopOnlyGuard surface="The Call Sheet Builder">
     <div className={isPreviewMode ? "flex h-full flex-col" : "flex h-full flex-col gap-4 p-4"}>
       {!isPreviewMode ? (
         <div className="flex items-center justify-between">
@@ -344,7 +382,8 @@ function CallSheetPage() {
             talentMap={talentMap}
             productsMap={productsMap}
             locationsMap={locationsMap}
-            onEditEntry={handleEditEntry}
+            onDeleteSchedule={handleDeleteActiveSchedule}
+            onDuplicateSchedule={handleDuplicateActiveSchedule}
           />
         </Suspense>
       ) : (
@@ -365,7 +404,6 @@ function CallSheetPage() {
         />
       ) : null}
     </div>
-    </DesktopOnlyGuard>
   );
 }
 

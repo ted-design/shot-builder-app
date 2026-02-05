@@ -1,5 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import { onIdTokenChanged } from "firebase/auth";
 import { auth } from "./lib/firebase";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -115,6 +115,21 @@ function LegacyPlannerRedirect() {
     return <Navigate to={`/projects/${currentProjectId}/shots?view=planner`} replace />;
   }
   return <Navigate to="/projects" replace />;
+}
+
+function LegacyScheduleRedirect() {
+  const { projectId } = useParams();
+  const location = useLocation();
+  const suffix = location?.search || "";
+  return <Navigate to={`/projects/${projectId}/callsheet${suffix}`} replace />;
+}
+
+function LegacyShotEditorRedirect() {
+  const { projectId, shotId } = useParams();
+  const location = useLocation();
+  const suffix = location?.search || "";
+  if (!projectId || !shotId) return <Navigate to="/projects" replace />;
+  return <Navigate to={`/projects/${projectId}/shots/${shotId}${suffix}`} replace />;
 }
 
 // Inner app component that uses auth context (must be inside DemoModeAuthProvider)
@@ -260,15 +275,16 @@ function AppRoutes() {
                         </Suspense>
                       }
                     />
-                    {/* Shot Editor V3 - feature-flagged workspace-style editor */}
                     <Route
-                      path="shots/:shotId/editor"
+                      path="shots/:shotId"
                       element={
                         <Suspense fallback={<PageLoadingFallback />}>
                           <ShotEditorPageV3 />
                         </Suspense>
                       }
                     />
+                    {/* Back-compat alias (old links/bookmarks) */}
+                    <Route path="shots/:shotId/editor" element={<LegacyShotEditorRedirect />} />
                     <Route
                       path="catalogue"
                       element={
@@ -321,13 +337,14 @@ function AppRoutes() {
                       }
                     />
                     <Route
-                      path="schedule"
+                      path="callsheet"
                       element={
                         <Suspense fallback={<PageLoadingFallback />}>
                           <CallSheetPage />
                         </Suspense>
                       }
                     />
+                    <Route path="schedule" element={<LegacyScheduleRedirect />} />
                   </Route>
                   <Route
                     path="/products"

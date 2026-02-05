@@ -2079,7 +2079,7 @@ function PlannerPageContent({ embedded = false }) {
     (shot) => {
       if (!shot) return;
       // Navigate to V3 editor with returnTo param for context
-      navigate(`/projects/${projectId}/shots/${shot.id}/editor?returnTo=planner`);
+      navigate(`/projects/${projectId}/shots/${shot.id}?returnTo=planner`);
     },
     [navigate, projectId]
   );

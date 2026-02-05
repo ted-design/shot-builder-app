@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   NOTIFICATION_TYPES,
   getNotificationType,
@@ -69,6 +69,10 @@ describe("notifications utilities", () => {
       vi.setSystemTime(new Date("2025-10-14T12:00:00Z"));
     });
 
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('formats seconds ago as "Just now"', () => {
       const timestamp = new Date("2025-10-14T11:59:30Z");
       expect(formatRelativeTime(timestamp)).toBe("Just now");
@@ -116,7 +120,6 @@ describe("notifications utilities", () => {
       expect(formatRelativeTime(undefined)).toBe("");
     });
 
-    vi.useRealTimers();
   });
 
   describe("groupNotificationsByReadStatus", () => {

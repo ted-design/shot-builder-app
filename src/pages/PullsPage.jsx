@@ -24,6 +24,7 @@ import { db } from "../lib/firebase";
 import { showError, showConfirm } from "../lib/toast";
 import { pullsPath, DEFAULT_PROJECT_ID, lanesPath, shotsPath, productFamiliesPath, productFamilySkusPath } from "../lib/paths";
 import { createPullItemFromProduct, aggregatePullItems, normalizePullItem, sortPullItemsByGender, calculateItemFulfillment, getPullItemDisplayName, upsertPullItem } from "../lib/pullItems";
+import { extractShotProductsForPull } from "../lib/shotProductsForPull";
 import { createPullSchema } from "../schemas/index.js";
 import PullItemEditor from "../components/pulls/PullItemEditor";
 import PullItemsTable from "../components/pulls/PullItemsTable";
@@ -549,14 +550,13 @@ function AutoGeneratePullModal({ projectId, clientId, onClose }) {
       // Extract products from shots and create pull items
       const tempItems = [];
       filteredShots.forEach((shot) => {
-        if (Array.isArray(shot.products)) {
-          shot.products.forEach((product) => {
-            const familyId = product.familyId || product.productId;
-            const family = familyMap.get(familyId);
-            const pullItem = createPullItemFromProduct(product, family, [shot.id]);
-            tempItems.push(pullItem);
-          });
-        }
+        const products = extractShotProductsForPull(shot, { familyById: familyMap });
+        products.forEach((product) => {
+          const familyId = product.familyId || product.productId;
+          const family = familyMap.get(familyId);
+          const pullItem = createPullItemFromProduct(product, family, [shot.id]);
+          tempItems.push(pullItem);
+        });
       });
 
       // Aggregate items by product+colour (Option A - Full Aggregation)

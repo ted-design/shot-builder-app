@@ -51,6 +51,7 @@ import EntryFormModal from "./entries/EntryFormModal";
 import ColumnConfigModal from "./columns/ColumnConfigModal";
 import TrackManager from "./tracks/TrackManager";
 import CallSheetExportModal from "./export/CallSheetExportModal";
+import CallSheetPrintPortal from "./print/CallSheetPrintPortal";
 import { toast } from "../../lib/toast";
 import { Loader2, Calendar, Clock } from "lucide-react";
 import { Modal } from "../ui/modal";
@@ -122,6 +123,9 @@ function CallSheetBuilder({
   const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
   const [isTrackManagerOpen, setIsTrackManagerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isPrintPortalOpen, setIsPrintPortalOpen] = useState(false);
+  const [isEntryDeleteConfirmOpen, setIsEntryDeleteConfirmOpen] = useState(false);
+  const [entryPendingDelete, setEntryPendingDelete] = useState(null);
 
   // Workspace fullscreen mode - keeps both editor and preview visible in an overlay
   const [isWorkspaceFullscreen, setIsWorkspaceFullscreen] = useState(false);
@@ -255,6 +259,7 @@ function CallSheetBuilder({
     config: remoteCallSheetConfig,
     ensureConfig,
     updateConfig,
+    loading: callSheetConfigLoading,
   } = useCallSheetConfig(clientId, projectId, scheduleId);
 
   const { projectRole, canWrite: canWriteProject } = useProjectMemberRole(clientId, projectId);
@@ -418,14 +423,14 @@ function CallSheetBuilder({
     return Array.from(ids);
   }, [resolvedEntries, shotsMap]);
 
-  const { dayDetails } = useDayDetails(clientId, projectId, scheduleId);
-  const { calls: talentCalls = [] } = useTalentCalls(clientId, projectId, scheduleId);
-  const { calls: clientCalls = [] } = useClientCalls(clientId, projectId, scheduleId);
-  const { callsByCrewMemberId } = useCrewCalls(clientId, projectId, scheduleId);
-  const { crewById } = useOrganizationCrew(clientId);
-  const { assignments: crewAssignments = [] } = useProjectCrew(clientId, projectId);
-  const { departments: orgDepartments = [] } = useDepartments(clientId);
-  const { departments: projectDepartments = [] } = useProjectDepartments(clientId, projectId);
+  const { dayDetails, loading: dayDetailsLoading } = useDayDetails(clientId, projectId, scheduleId);
+  const { calls: talentCalls = [], loading: talentCallsLoading } = useTalentCalls(clientId, projectId, scheduleId);
+  const { calls: clientCalls = [], loading: clientCallsLoading } = useClientCalls(clientId, projectId, scheduleId);
+  const { callsByCrewMemberId, loading: crewCallsLoading } = useCrewCalls(clientId, projectId, scheduleId);
+  const { crewById, loading: orgCrewLoading } = useOrganizationCrew(clientId);
+  const { assignments: crewAssignments = [], loading: projectCrewLoading } = useProjectCrew(clientId, projectId);
+  const { departments: orgDepartments = [], loading: orgDepartmentsLoading } = useDepartments(clientId);
+  const { departments: projectDepartments = [], loading: projectDepartmentsLoading } = useProjectDepartments(clientId, projectId);
 
   const talentRows = useMemo(() => {
     return (talentCalls || [])
@@ -517,6 +522,14 @@ function CallSheetBuilder({
         return a.name.localeCompare(b.name);
       });
   }, [callsByCrewMemberId, crewAssignments, crewById, dayDetails?.crewCallTime, orgDepartments, projectDepartments]);
+
+  const crewSectionLoading =
+    Boolean(crewCallsLoading) ||
+    Boolean(orgCrewLoading) ||
+    Boolean(projectCrewLoading) ||
+    Boolean(orgDepartmentsLoading) ||
+    Boolean(projectDepartmentsLoading) ||
+    Boolean(dayDetailsLoading);
 
   const clientRows = useMemo(() => {
     return (clientCalls || [])
@@ -732,7 +745,7 @@ function CallSheetBuilder({
         return;
       }
       // Navigate to V3 editor with return context
-      navigate(`/projects/${projectId}/shots/${shotId}/editor?returnTo=schedule`);
+      navigate(`/projects/${projectId}/shots/${shotId}?returnTo=schedule`);
     },
     [shotsMap, navigate, projectId]
   );
@@ -772,11 +785,31 @@ function CallSheetBuilder({
 
   const handleDeleteEntry = useCallback(
     (entryId) => {
-      // TODO: Add confirmation dialog
-      deleteEntry({ entryId });
+      const entry = resolvedEntries.find((item) => item.id === entryId) || null;
+      if (!entry) return;
+
+      const label =
+        entry.type === "shot"
+          ? shotsMap.get(entry.shotRef)?.name || "Shot entry"
+          : entry.title || "Custom entry";
+
+      setEntryPendingDelete({ entryId, label });
+      setIsEntryDeleteConfirmOpen(true);
     },
-    [deleteEntry]
+    [resolvedEntries, shotsMap]
   );
+
+  const handleCancelDeleteEntry = useCallback(() => {
+    setIsEntryDeleteConfirmOpen(false);
+    setEntryPendingDelete(null);
+  }, []);
+
+  const handleConfirmDeleteEntry = useCallback(() => {
+    if (!entryPendingDelete?.entryId) return;
+    deleteEntry({ entryId: entryPendingDelete.entryId });
+    setIsEntryDeleteConfirmOpen(false);
+    setEntryPendingDelete(null);
+  }, [deleteEntry, entryPendingDelete?.entryId]);
 
   const handleReorderEntries = useCallback(
     (entryId, oldIndex, newIndex) => {
@@ -1033,6 +1066,10 @@ function CallSheetBuilder({
     ]
   );
 
+  const handleRequestPrint = useCallback(() => {
+    setIsPrintPortalOpen(true);
+  }, []);
+
   // Loading state
   if (scheduleLoading || entriesLoading) {
     return (
@@ -1243,18 +1280,69 @@ function CallSheetBuilder({
           <CallSheetExportModal
             isOpen={isExportModalOpen}
             onClose={() => setIsExportModalOpen(false)}
+            onRequestPrint={handleRequestPrint}
             schedule={schedule}
             entries={resolvedEntries}
             tracks={tracks}
+          />
+
+          <CallSheetPrintPortal
+            open={isPrintPortalOpen}
+            onDone={() => setIsPrintPortalOpen(false)}
+            schedule={schedule}
+            scheduleLoading={scheduleLoading}
+            entries={resolvedEntries}
+            entriesLoading={entriesLoading}
+            tracks={tracks}
             projectTitle={projectTitle}
             dayDetails={dayDetails}
+            dayDetailsLoading={dayDetailsLoading}
             crewRows={crewRows}
+            crewLoading={crewSectionLoading}
             talentRows={talentRows}
+            talentLoading={talentCallsLoading}
+            clientRows={clientRows}
+            clientLoading={clientCallsLoading}
             sections={orderedSections}
             callSheetConfig={callSheetConfig}
+            callSheetConfigLoading={callSheetConfigLoading}
             layoutV2={layoutV2Local}
+            layoutV2Loading={layoutLoading}
             columnConfig={effectiveColumns}
           />
+
+          <Modal
+            open={isEntryDeleteConfirmOpen}
+            onClose={handleCancelDeleteEntry}
+            labelledBy="delete-entry-title"
+            contentClassName="max-w-md"
+          >
+            <Card className="border-0 shadow-none">
+              <CardHeader>
+                <h2 id="delete-entry-title" className="text-lg font-semibold text-red-600 dark:text-red-400">
+                  Delete entry
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  This action cannot be undone.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950">
+                  <p className="text-sm text-red-800 dark:text-red-200">
+                    You are about to delete <strong>{entryPendingDelete?.label || "this entry"}</strong>.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" type="button" onClick={handleCancelDeleteEntry}>
+                    Cancel
+                  </Button>
+                  <Button type="button" variant="destructive" onClick={handleConfirmDeleteEntry}>
+                    Delete
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </Modal>
         </>
       ) : null}
     </div>

@@ -125,7 +125,7 @@ import {
   FilterMenu,
 } from "../components/overview";
 
-// D.1: CallSheetEmbed removed — Schedule is now standalone at /projects/:projectId/schedule
+// D.1: CallSheetEmbed removed — Call Sheet is now standalone at /projects/:projectId/callsheet
 const PlannerExportModal = lazy(() => import("../components/planner/PlannerExportModal"));
 
 // Import export normalization helpers (extracted from PlannerPage)
@@ -136,7 +136,6 @@ import {
 import { stripHtml } from "../lib/stripHtml";
 import {
   isCorruptShotDescription,
-  resolveShotDraftShortDescriptionSource,
   resolveShotShortDescriptionSource,
   resolveShotShortDescriptionText,
 } from "../lib/shotDescription";
@@ -182,12 +181,9 @@ import { getStaggerDelay } from "../lib/animations";
 // D.1: ShotsAssetsTab removed — Assets is now standalone at /projects/:projectId/assets
 import {
   createInitialSectionStatuses,
-  cloneShotDraft,
   deriveSectionStatuses,
   markSectionsForState,
-  buildSectionDiffMap,
 } from "../lib/shotSectionStatus";
-import { convertLegacyImageToAttachment } from "../lib/migrations/migrateShots";
 import {
   resolveShotCoverImage,
   resolveShotCoverWithCrop,
@@ -199,9 +195,11 @@ import {
 } from "../lib/imageHelpers";
 import { InsightsSidebar } from "../components/insights";
 import { calculateTalentTotals, calculateGroupedShotTotals } from "../lib/insightsCalculator";
+import { getShotAssignedProductsCount } from "../lib/shotAssignedProducts";
 
 const SHOTS_VIEW_STORAGE_KEY = "shots:viewMode";
 const SHOTS_FILTERS_STORAGE_KEY = "shots:filters";
+const LEGACY_SHOTS_MANUAL_ORDER_PREFIX = "shots:manualOrder:"; // per-project (legacy local-only ordering)
 
 // Firestore batch write limit
 const FIRESTORE_BATCH_LIMIT = 500;
@@ -221,7 +219,6 @@ const AVAILABLE_SHOT_TYPES = [
 ];
 
 const SHOTS_PREFS_STORAGE_KEY = "shots:viewPrefs";
-const SHOTS_MANUAL_ORDER_PREFIX = "shots:manualOrder:"; // per-project
 const SHOTS_INSIGHTS_STORAGE_KEY = "shots:insightsSidebarOpen";
 const SHOTS_GROUP_BY_STORAGE_KEY = "shots:groupBy";
 
@@ -267,7 +264,7 @@ const defaultViewPrefs = {
   showType: true,
   showDate: true,
   // Sorting + density
-  sort: "alpha",
+  sort: "custom",
   density: DEFAULT_SHOT_DENSITY,
   // Field settings
   fieldOrder: [],
@@ -315,6 +312,7 @@ const SHOT_VIEW_OPTIONS = [
 
 // H.2: Strict allowlist of valid view modes — stale/unknown values fall back to default
 const VALID_SHOT_VIEW_MODES = new Set(SHOT_VIEW_OPTIONS.map((opt) => opt.value));
+const VALID_SHOT_SORT_OPTIONS = new Set(SHOT_SORT_OPTIONS.map((opt) => opt.value));
 
 const SHOT_DENSITY_OPTIONS = [
   { value: "compact", label: "Compact" },
@@ -405,7 +403,10 @@ const readStoredViewPrefs = () => {
       showName: parsed.showName !== false,
       showType: parsed.showType !== false,
       showDate: parsed.showDate !== false,
-      sort: typeof parsed.sort === "string" ? parsed.sort : defaultViewPrefs.sort,
+      sort:
+        typeof parsed.sort === "string" && VALID_SHOT_SORT_OPTIONS.has(parsed.sort)
+          ? parsed.sort
+          : defaultViewPrefs.sort,
       density: normaliseShotDensity(parsed.density),
       fieldOrder,
       lockedFields,
@@ -426,9 +427,7 @@ export function ShotsWorkspace() {
   const [viewMode, setViewMode] = useState(() => readStoredShotsView());
   const [localFilters, setLocalFilters] = useState(() => readStoredShotFilters());
   const [viewPrefs, setViewPrefs] = useState(() => readStoredViewPrefs());
-  const [editingShot, setEditingShot] = useState(null);
-  const [editAutoStatus, setEditAutoStatus] = useState(() => createInitialSectionStatuses());
-  const [isSavingShot, setIsSavingShot] = useState(false);
+  const [sortOrderOverrides, setSortOrderOverrides] = useState(() => ({}));
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [isPreludeOpen, setIsPreludeOpen] = useState(false);
   const [isCreatingFromPrelude, setIsCreatingFromPrelude] = useState(false);
@@ -455,10 +454,6 @@ export function ShotsWorkspace() {
   const [gallerySectionsExpanded, setGallerySectionsExpanded] = useState(true);
   // H.11: "Recent" filter toggle for Cards view triage (in-memory, 24h window)
   const [recentFilterEnabled, setRecentFilterEnabled] = useState(false);
-  const autoSaveTimerRef = useRef(null);
-  const autoSaveInflightRef = useRef(false);
-  const editingShotRef = useRef(editingShot);
-  const isSavingShotRef = useRef(isSavingShot);
   const overview = useShotsOverview();
   const filters = overview?.filters ?? localFilters;
   const setFilters = overview?.setFilters ?? setLocalFilters;
@@ -538,14 +533,6 @@ export function ShotsWorkspace() {
     }),
     [user, claims]
   );
-
-  useEffect(() => {
-    editingShotRef.current = editingShot;
-  }, [editingShot]);
-
-  useEffect(() => {
-    isSavingShotRef.current = isSavingShot;
-  }, [isSavingShot]);
 
   useEffect(() => {
     setLastVisitedPath("/shots");
@@ -737,8 +724,19 @@ export function ShotsWorkspace() {
   }, [shots, debouncedQueryText, filters]);
 
   const sortedShots = useMemo(
-    () => sortShotsForView(filteredShots, { sortBy: viewPrefs.sort }),
-    [filteredShots, viewPrefs.sort]
+    () => {
+      const sortBy = viewPrefs.sort;
+      const hasOverrides = sortBy === "custom" && sortOrderOverrides && Object.keys(sortOrderOverrides).length > 0;
+      const list = hasOverrides
+        ? filteredShots.map((shot) => {
+            const override = sortOrderOverrides[shot?.id];
+            if (override == null) return shot;
+            return { ...shot, sortOrder: override };
+          })
+        : filteredShots;
+      return sortShotsForView(list, { sortBy });
+    },
+    [filteredShots, sortOrderOverrides, viewPrefs.sort]
   );
 
   // H.11: In-memory "Recent" filter for Cards view triage (24h window)
@@ -816,68 +814,241 @@ export function ShotsWorkspace() {
     }
   }, []);
 
-  // Manual table order per project (persisted locally)
-  const manualOrderKey = useMemo(
-    () => `${SHOTS_MANUAL_ORDER_PREFIX}${projectId || 'unknown'}`,
+  // Canonical shot ordering (Slice 2): Firestore-backed `shot.sortOrder`
+  // - Default sort is "Custom order"
+  // - Reordering updates Firestore so ordering is shared across users/devices
+  const reorderableShots = useMemo(
+    () => (Array.isArray(shots) ? shots.filter((shot) => shot?.deleted !== true) : []),
+    [shots]
+  );
+  const missingSortOrderCount = useMemo(
+    () =>
+      reorderableShots.filter((shot) => typeof shot?.sortOrder !== "number" || !Number.isFinite(shot.sortOrder))
+        .length,
+    [reorderableShots]
+  );
+
+  const legacyManualOrderKey = useMemo(
+    () => `${LEGACY_SHOTS_MANUAL_ORDER_PREFIX}${projectId || "unknown"}`,
     [projectId]
   );
-  const [manualOrder, setManualOrder] = useState(() => {
+  const legacyManualOrderIds = useMemo(() => {
     try {
-      const raw = readStorage(manualOrderKey);
+      const raw = readStorage(legacyManualOrderKey);
       const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed)
-        ? parsed.filter((id) => typeof id === 'string' && id)
-        : [];
+      return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string" && id) : [];
     } catch {
       return [];
     }
-  });
-  // Reload manual order when project changes
-  useEffect(() => {
-    try {
-      const raw = readStorage(manualOrderKey);
-      const parsed = raw ? JSON.parse(raw) : [];
-      const reloaded = Array.isArray(parsed)
-        ? parsed.filter((id) => typeof id === 'string' && id)
-        : [];
-      setManualOrder(reloaded);
-    } catch {
-      setManualOrder([]);
-    }
-  }, [manualOrderKey]);
-  useEffect(() => {
-    try {
-      writeStorage(manualOrderKey, JSON.stringify(manualOrder));
-    } catch {}
-  }, [manualOrderKey, manualOrder]);
-  const lastManualRef = useRef(null);
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      const isUndo = (e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z');
-      if (!isUndo) return;
-      const prev = lastManualRef.current;
-      if (!prev) return;
-      e.preventDefault();
-      setManualOrder(prev);
-      lastManualRef.current = null;
-      toast.success('Reorder undone');
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [legacyManualOrderKey]);
+  const hasLegacyManualOrder = legacyManualOrderIds.length > 0;
 
-  // Overlay manual order in table view
-  const tableOrderedShots = useMemo(() => {
-    if (!Array.isArray(sortedShots) || sortedShots.length === 0) return [];
-    if (!Array.isArray(manualOrder) || manualOrder.length === 0) return sortedShots;
-    const indexMap = new Map(manualOrder.map((id, i) => [id, i]));
-    return [...sortedShots].sort((a, b) => {
-      const ai = indexMap.has(a.id) ? indexMap.get(a.id) : Number.POSITIVE_INFINITY;
-      const bi = indexMap.has(b.id) ? indexMap.get(b.id) : Number.POSITIVE_INFINITY;
-      if (ai !== bi) return ai - bi;
-      return 0;
+  const [initializingCustomOrder, setInitializingCustomOrder] = useState(false);
+  const [reorderSaving, setReorderSaving] = useState(false);
+
+  const initializeCustomOrder = useCallback(async ({ useLegacy = false } = {}) => {
+    if (!clientId || !projectId) return;
+    if (!canEditShots) return;
+    if (initializingCustomOrder) return;
+
+    setInitializingCustomOrder(true);
+    try {
+      const byId = new Map(reorderableShots.map((shot) => [shot.id, shot]));
+      const base = sortShotsForView(reorderableShots, { sortBy: "byDate" });
+      const legacySet = new Set(legacyManualOrderIds);
+      const ordered = useLegacy && hasLegacyManualOrder
+        ? [
+            ...legacyManualOrderIds.map((id) => byId.get(id)).filter(Boolean),
+            ...base.filter((shot) => !legacySet.has(shot.id)),
+          ]
+        : base;
+      if (ordered.length === 0) {
+        toast.info({ title: "No shots to initialize" });
+        return;
+      }
+
+      const GAP = 1000;
+      const BATCH_LIMIT = 450;
+      let index = 0;
+      while (index < ordered.length) {
+        const batch = writeBatch(db);
+        const slice = ordered.slice(index, index + BATCH_LIMIT);
+        slice.forEach((shot, offset) => {
+          const sortOrder = (index + offset + 1) * GAP;
+          const ref = doc(db, ...getShotsPath(clientId), shot.id);
+          batch.update(ref, { sortOrder });
+        });
+        await batch.commit();
+        index += slice.length;
+      }
+
+      toast.success({
+        title: "Custom order initialized",
+        description: "This order is now shared across the project.",
+      });
+
+      if (useLegacy && hasLegacyManualOrder) {
+        try {
+          writeStorage(legacyManualOrderKey, "[]");
+        } catch {}
+      }
+    } catch (error) {
+      const { code, message } = describeFirebaseError(error, "Failed to initialize custom order");
+      console.error("[Shots] Failed to initialize custom order:", error);
+      toast.error({ title: "Failed to initialize order", description: `${code}: ${message}` });
+    } finally {
+      setInitializingCustomOrder(false);
+    }
+  }, [
+    canEditShots,
+    clientId,
+    projectId,
+    initializingCustomOrder,
+    reorderableShots,
+    hasLegacyManualOrder,
+    legacyManualOrderIds,
+    legacyManualOrderKey,
+  ]);
+
+  // Clear optimistic sortOrder overrides once Firestore catches up.
+  useEffect(() => {
+    if (viewPrefs.sort !== "custom") return;
+    if (!sortOrderOverrides || Object.keys(sortOrderOverrides).length === 0) return;
+    setSortOrderOverrides((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      reorderableShots.forEach((shot) => {
+        const override = prev[shot.id];
+        if (override == null) return;
+        if (shot?.sortOrder === override) {
+          delete next[shot.id];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
     });
-  }, [sortedShots, manualOrder]);
+  }, [reorderableShots, sortOrderOverrides, viewPrefs.sort]);
+
+  const reorderShot = useCallback(
+    async (from, to) => {
+      if (!clientId || !projectId) return;
+      if (!canEditShots) return;
+      if (viewPrefs.sort !== "custom") return;
+      if (reorderSaving) return;
+
+      if (missingSortOrderCount > 0) {
+        toast.warning({
+          title: "Custom order needs initialization",
+          description: "Initialize custom order before reordering shots.",
+          action: canEditShots ? { label: "Initialize", onClick: initializeCustomOrder } : undefined,
+        });
+        return;
+      }
+
+      const list = Array.isArray(sortedShots) ? sortedShots : [];
+      if (from < 0 || from >= list.length) return;
+
+      const clampedTo = Math.max(0, Math.min(list.length, to));
+      const insertIndex = clampedTo > from ? clampedTo - 1 : clampedTo;
+      if (from === insertIndex) return;
+
+      const nextList = list.slice();
+      const [moved] = nextList.splice(from, 1);
+      nextList.splice(insertIndex, 0, moved);
+
+      const prev = insertIndex > 0 ? nextList[insertIndex - 1] : null;
+      const next = insertIndex < nextList.length - 1 ? nextList[insertIndex + 1] : null;
+
+      const prevOrder = prev?.sortOrder;
+      const nextOrder = next?.sortOrder;
+      const currentOrder = moved?.sortOrder;
+
+      const isNum = (value) => typeof value === "number" && Number.isFinite(value);
+      const GAP = 1000;
+
+      const sortOrder = isNum(prevOrder) && isNum(nextOrder)
+        ? (prevOrder + nextOrder) / 2
+        : isNum(prevOrder)
+          ? prevOrder + GAP
+          : isNum(nextOrder)
+            ? nextOrder - GAP
+            : isNum(currentOrder)
+              ? currentOrder
+              : GAP;
+
+      if (!isNum(sortOrder)) return;
+
+      const shotRef = doc(db, ...getShotsPath(clientId), moved.id);
+
+      setReorderSaving(true);
+      setSortOrderOverrides((prevMap) => ({ ...prevMap, [moved.id]: sortOrder }));
+
+      const undo = async () => {
+        if (!isNum(currentOrder)) return;
+        setSortOrderOverrides((prevMap) => ({ ...prevMap, [moved.id]: currentOrder }));
+        try {
+          await updateDoc(shotRef, { sortOrder: currentOrder });
+        } catch (error) {
+          const { code, message } = describeFirebaseError(error, "Failed to undo reorder");
+          console.error("[Shots] Failed to undo reorder:", error);
+          toast.error({ title: "Undo failed", description: `${code}: ${message}` });
+        }
+      };
+
+      try {
+        await updateDoc(shotRef, { sortOrder });
+        toast.info({
+          title: "Shot reordered",
+          description: "Custom order updated for this project.",
+          action: isNum(currentOrder) ? { label: "Undo", onClick: undo } : undefined,
+        });
+      } catch (error) {
+        const { code, message } = describeFirebaseError(error, "Failed to reorder shot");
+        console.error("[Shots] Failed to reorder shot:", error);
+        setSortOrderOverrides((prevMap) => {
+          if (!Object.prototype.hasOwnProperty.call(prevMap, moved.id)) return prevMap;
+          const nextMap = { ...prevMap };
+          delete nextMap[moved.id];
+          return nextMap;
+        });
+        toast.error({ title: "Reorder failed", description: `${code}: ${message}` });
+      } finally {
+        setReorderSaving(false);
+      }
+    },
+    [
+      canEditShots,
+      clientId,
+      projectId,
+      initializeCustomOrder,
+      missingSortOrderCount,
+      reorderSaving,
+      sortedShots,
+      viewPrefs.sort,
+    ]
+  );
+
+  const sortLabel = useMemo(() => {
+    const match = SHOT_SORT_OPTIONS.find((opt) => opt.value === viewPrefs.sort);
+    return match?.label || "Custom order";
+  }, [viewPrefs.sort]);
+
+  const hasActiveSearch = debouncedQueryText.trim().length > 0;
+  const hasActiveFilters = Boolean(
+    (filters.locationId || "").trim() ||
+      (Array.isArray(filters.talentIds) && filters.talentIds.length) ||
+      (Array.isArray(filters.productFamilyIds) && filters.productFamilyIds.length) ||
+      (Array.isArray(filters.tagIds) && filters.tagIds.length) ||
+      (Array.isArray(filters.statusFilter) && filters.statusFilter.length)
+  );
+
+  const reorderBlockedByContext = hasActiveSearch || hasActiveFilters;
+  const canReorderTable =
+    canEditShots &&
+    viewPrefs.sort === "custom" &&
+    !selectionMode &&
+    !reorderBlockedByContext &&
+    missingSortOrderCount === 0;
 
   useEffect(() => {
     if (viewMode === "gallery" || viewMode === "table" || viewMode === "visual") {
@@ -1610,10 +1781,10 @@ export function ShotsWorkspace() {
         setIsPreludeOpen(false);
         setIsCreatingFromPrelude(false);
 
-        // Navigate to the first created shot in Editor V3
+        // Navigate to the first created shot (canonical shot detail route)
         if (createdShots.length > 0) {
           const firstShot = createdShots[0];
-          navigate(`/projects/${projectId}/shots/${firstShot.id}/editor`);
+          navigate(`/projects/${projectId}/shots/${firstShot.id}`);
           toast.success(
             createdShots.length > 1
               ? `Created ${createdShots.length} shots. Editing "${firstShot.name || "Shot"}".`
@@ -2037,61 +2208,11 @@ export function ShotsWorkspace() {
     };
   }, [focusShotId, setFocusShotId]);
 
-  const openShotEditor = useCallback(
-    (shot) => {
-      if (!shot) return;
-      setFocusShotId(shot.id);
-      try {
-        const products = normaliseShotProducts(shot);
-        const talentSelection = mapShotTalentToSelection(shot);
-        const resolvedDescription = resolveShotShortDescriptionText(shot);
-
-        // AUTO-MIGRATION: Convert legacy referenceImagePath to attachments array if needed
-        let attachments = Array.isArray(shot.attachments) ? shot.attachments : [];
-        if (attachments.length === 0 && shot.referenceImagePath) {
-          const migratedAttachment = convertLegacyImageToAttachment(shot, user?.uid);
-          if (migratedAttachment) {
-            attachments = [migratedAttachment];
-          }
-        }
-
-        const draft = {
-          name: shot.name || "",
-          // Initialize description from shot.description (no legacy fallback).
-          description: resolvedDescription,
-          type: shot.type || "",
-          notes: shot.notes || "",
-          date: toDateInputValue(shot.date),
-          locationId: shot.locationId || "",
-          status: normaliseShotStatus(shot.status || DEFAULT_SHOT_STATUS),
-          talent: talentSelection,
-          products,
-          tags: Array.isArray(shot.tags) ? shot.tags : [],
-          attachments,
-          referenceImagePath: shot.referenceImagePath || "",
-          referenceImageCrop: shot.referenceImageCrop || null,
-          referenceImageFile: null,
-          shotNumber: shot.shotNumber || "",
-        };
-        setEditingShot({
-          shot,
-          draft,
-          initialDraft: cloneShotDraft(draft),
-        });
-        setEditAutoStatus(createInitialSectionStatuses());
-      } catch (error) {
-        console.error("[Shots] Failed to prepare shot for editing", error);
-        toast.error("Unable to open shot editor");
-      }
-  },
-    [mapShotTalentToSelection, normaliseShotProducts, setEditAutoStatus, setFocusShotId, user]
-  );
-
   // Delta I.10: Navigate to V3 editor (legacy modal removed)
   const handleEditShot = useCallback(
     (shot) => {
       if (!canEditShots || !shot?.projectId) return;
-      navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
+      navigate(`/projects/${shot.projectId}/shots/${shot.id}`);
     },
     [canEditShots, navigate]
   );
@@ -2263,381 +2384,6 @@ export function ShotsWorkspace() {
     },
     [setCreateAutoStatus]
   );
-
-  const updateEditingDraft = useCallback(
-    (patch) => {
-      setEditingShot((previous) => {
-        if (!previous) return previous;
-        const nextDraft = {
-          ...previous.draft,
-          ...patch,
-        };
-        const baseline = previous.initialDraft || cloneShotDraft(previous.draft);
-        setEditAutoStatus((current) => deriveSectionStatuses(nextDraft, baseline, current));
-        return {
-          ...previous,
-          draft: nextDraft,
-        };
-      });
-    },
-    [setEditAutoStatus]
-  );
-
-  const closeShotEditor = useCallback(() => {
-    setEditingShot(null);
-    setIsSavingShot(false);
-    setEditAutoStatus(createInitialSectionStatuses());
-  }, [setEditAutoStatus]);
-
-  const performAutoSave = useCallback(async () => {
-    const snapshot = editingShotRef.current;
-    if (!snapshot || isSavingShotRef.current || autoSaveInflightRef.current) {
-      return;
-    }
-
-    const draft = snapshot.draft;
-    const baseline = snapshot.initialDraft || cloneShotDraft(draft);
-    const diffMap = buildSectionDiffMap(draft, baseline);
-    const hasChanges = Object.values(diffMap).some(Boolean);
-    if (!hasChanges) {
-      return;
-    }
-
-    autoSaveInflightRef.current = true;
-
-    setEditAutoStatus((current) => markSectionsForState(current, draft, baseline, "saving"));
-
-    const patch = {};
-
-    if (diffMap.basics) {
-      patch.name = draft.name;
-      patch.status = draft.status ?? DEFAULT_SHOT_STATUS;
-      patch.description = resolveShotDraftShortDescriptionSource(draft);
-      patch.shotNumber = draft.shotNumber || "";
-      patch.date = draft.date || "";
-      patch.locationId = draft.locationId || "";
-
-      // Attachments are part of basics section
-      let referenceImagePath = draft.referenceImagePath || null;
-      const referenceImageCrop = draft.referenceImageCrop || null;
-      if (draft.referenceImageFile) {
-        try {
-          const uploadResult = await uploadImageFile(draft.referenceImageFile, {
-            folder: "shots/references",
-            id: snapshot.shot.id,
-          });
-          referenceImagePath = uploadResult.path;
-        } catch (uploadError) {
-          const { message: uploadMessage } = describeFirebaseError(uploadError, "Unable to upload reference image.");
-          console.error("[Shots] Auto-save upload failed", uploadError);
-          setEditAutoStatus((current) =>
-            markSectionsForState(current, draft, baseline, "error", {
-              message: uploadMessage || "Auto-save failed",
-            })
-          );
-          toast.error({ title: "Auto-save failed", description: uploadMessage });
-          autoSaveInflightRef.current = false;
-          return;
-        }
-      }
-      patch.referenceImagePath = referenceImagePath;
-      patch.referenceImageCrop = referenceImageCrop || null;
-      patch.attachments = draft.attachments || [];
-    }
-
-    if (diffMap["creative-logistics"]) {
-      // Rich notes field
-      patch.notes = draft.notes || "";
-      // Products, talent, and tags
-      patch.products = Array.isArray(draft.products) ? draft.products.map((product) => ({ ...product })) : [];
-      patch.talent = Array.isArray(draft.talent) ? draft.talent.map((entry) => ({ ...entry })) : [];
-      patch.tags = Array.isArray(draft.tags) ? draft.tags.map((tag) => ({ ...tag })) : [];
-    }
-
-    if (!Object.keys(patch).length) {
-      autoSaveInflightRef.current = false;
-      return;
-    }
-
-    try {
-      await updateShot(snapshot.shot, patch);
-      const timestamp = Date.now();
-      const draftUpdate = {
-        ...draft,
-        // Update attachment fields if basics section was saved (attachments are in basics)
-        ...(diffMap.basics
-          ? {
-              referenceImagePath: patch.referenceImagePath || null,
-              referenceImageCrop: patch.referenceImageCrop || null,
-              referenceImageFile: null,
-              attachments: patch.attachments || [],
-            }
-          : {}),
-      };
-
-      setEditAutoStatus((current) =>
-        markSectionsForState(current, draftUpdate, baseline, "saved", { timestamp })
-      );
-
-      setEditingShot((previous) => {
-        if (!previous || previous.shot.id !== snapshot.shot.id) {
-          return previous;
-        }
-
-        const shotUpdate = { ...previous.shot };
-
-        if (diffMap.basics) {
-          shotUpdate.name = draftUpdate.name;
-          shotUpdate.status = normaliseShotStatus(draftUpdate.status ?? DEFAULT_SHOT_STATUS);
-          shotUpdate.description = draftUpdate.description || draftUpdate.type || "";
-          shotUpdate.type = draftUpdate.type || "";
-          shotUpdate.shotNumber = draftUpdate.shotNumber || "";
-          shotUpdate.date = draftUpdate.date || "";
-          shotUpdate.locationId = draftUpdate.locationId || null;
-          shotUpdate.referenceImagePath = draftUpdate.referenceImagePath || null;
-          shotUpdate.referenceImageCrop = draftUpdate.referenceImageCrop || null;
-          shotUpdate.attachments = draftUpdate.attachments || [];
-        }
-
-        if (diffMap["creative-logistics"]) {
-          shotUpdate.notes = draftUpdate.notes || "";
-          shotUpdate.products = Array.isArray(draftUpdate.products)
-            ? draftUpdate.products.map((product) => ({ ...product }))
-            : [];
-          shotUpdate.talent = Array.isArray(draftUpdate.talent)
-            ? draftUpdate.talent.map((entry) => ({ ...entry }))
-            : [];
-          shotUpdate.tags = Array.isArray(draftUpdate.tags)
-            ? draftUpdate.tags.map((tag) => ({ ...tag }))
-            : [];
-        }
-
-        return {
-          ...previous,
-          shot: shotUpdate,
-          draft: draftUpdate,
-          initialDraft: cloneShotDraft(draftUpdate),
-        };
-      });
-    } catch (error) {
-      const { message: errorMessage } = describeFirebaseError(error, "Unable to auto-save shot.");
-      console.error("[Shots] Auto-save failed", error);
-      setEditAutoStatus((current) =>
-        markSectionsForState(current, draft, baseline, "error", {
-          message: errorMessage || "Auto-save failed",
-        })
-      );
-      toast.error({ title: "Auto-save failed", description: errorMessage });
-    } finally {
-      autoSaveInflightRef.current = false;
-    }
-  }, [updateShot, setEditAutoStatus, setEditingShot]);
-
-  const handleSaveShot = useCallback(async () => {
-    if (!editingShot) return;
-    if (!canEditShots) {
-      toast.error("You do not have permission to edit shots.");
-      return;
-    }
-
-    const baselineDraft = editingShot.initialDraft || cloneShotDraft(editingShot.draft);
-    setEditAutoStatus((current) =>
-      markSectionsForState(current, editingShot.draft, baselineDraft, "saving")
-    );
-    setIsSavingShot(true);
-    try {
-      const parsed = shotDraftSchema.parse({
-        ...editingShot.draft,
-        locationId: editingShot.draft.locationId || "",
-      });
-
-      // Handle reference image upload if provided
-      let referenceImagePath = parsed.referenceImagePath || null;
-      if (editingShot.draft.referenceImageFile) {
-        try {
-          const result = await uploadImageFile(editingShot.draft.referenceImageFile, {
-            folder: "shots/references",
-            id: editingShot.shot.id,
-          });
-          referenceImagePath = result.path;
-        } catch (uploadError) {
-          console.error("[Shots] Failed to upload reference image:", uploadError);
-          toast.error({ title: "Image upload failed", description: "Continuing without updating reference image" });
-        }
-      }
-
-      await updateShot(editingShot.shot, {
-        name: parsed.name,
-        description: parsed.description || "",
-        type: parsed.type || "",
-        date: parsed.date || "",
-        locationId: parsed.locationId || null,
-        talent: parsed.talent,
-        products: parsed.products,
-        tags: parsed.tags || [],
-        referenceImagePath,
-        referenceImageCrop: editingShot.draft.referenceImageCrop || null,
-        attachments: editingShot.draft.attachments || [],
-      });
-      toast.success(`Shot "${parsed.name}" updated.`);
-      setEditAutoStatus((current) =>
-        markSectionsForState(current, editingShot.draft, baselineDraft, "saved", {
-          timestamp: Date.now(),
-        })
-      );
-      setEditingShot(null);
-      setEditAutoStatus(createInitialSectionStatuses());
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const message = error.issues.map((issue) => issue.message).join("; ");
-        toast.error({ title: "Invalid shot details", description: message });
-        setEditAutoStatus((current) =>
-          markSectionsForState(current, editingShot.draft, baselineDraft, "error", {
-            message,
-          })
-        );
-      } else {
-        const { code, message } = describeFirebaseError(error, "Unable to update shot.");
-        toast.error({ title: "Failed to update shot", description: `${code}: ${message}` });
-        setEditAutoStatus((current) =>
-          markSectionsForState(current, editingShot.draft, baselineDraft, "error", {
-            message: message || "Auto-save failed",
-          })
-        );
-      }
-      console.error("[Shots] Failed to save shot", error);
-    } finally {
-      setIsSavingShot(false);
-    }
-  }, [editingShot, canEditShots, updateShot, setEditAutoStatus]);
-
-  useEffect(() => {
-    if (!editingShot) {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-        autoSaveTimerRef.current = null;
-      }
-      return;
-    }
-
-    const hasPending = Object.values(editAutoStatus || {}).some((entry) => entry?.state === "pending");
-
-    if (hasPending && !isSavingShot && !autoSaveInflightRef.current) {
-      if (!autoSaveTimerRef.current) {
-        autoSaveTimerRef.current = setTimeout(() => {
-          autoSaveTimerRef.current = null;
-          performAutoSave();
-        }, AUTOSAVE_DELAY_MS);
-      }
-    } else if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current);
-      autoSaveTimerRef.current = null;
-    }
-  }, [editingShot, editAutoStatus, isSavingShot, performAutoSave]);
-
-  useEffect(
-    () => () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-        autoSaveTimerRef.current = null;
-      }
-    },
-    []
-  );
-
-  const handleMoveToProject = useCallback(async (targetProjectId) => {
-    if (!editingShot) return;
-    if (!canEditShots) {
-      toast.error("You do not have permission to move shots.");
-      return;
-    }
-    if (!targetProjectId) return;
-
-    const targetProject = projects.find((p) => p.id === targetProjectId);
-    if (!targetProject) {
-      toast.error({ title: "Project not found" });
-      return;
-    }
-
-    setMovingProject(true);
-    try {
-      await writeDoc("move shot to project", () =>
-        updateDoc(docRef(...currentShotsPath, editingShot.shot.id), {
-          projectId: targetProjectId,
-          laneId: null, // Remove from planner lanes when moving
-          updatedAt: serverTimestamp(),
-        })
-      );
-      toast.success({
-        title: "Shot moved",
-        description: `"${editingShot.shot.name}" has been moved to ${targetProject.name}.`,
-      });
-      setEditingShot(null);
-      setEditAutoStatus(createInitialSectionStatuses());
-    } catch (error) {
-      const { code, message } = describeFirebaseError(error, "Unable to move shot.");
-      console.error("[Shots] Failed to move shot", error);
-      toast.error({ title: "Failed to move shot", description: `${code}: ${message}` });
-    } finally {
-      setMovingProject(false);
-    }
-  }, [editingShot, canEditShots, projects, currentShotsPath, setEditAutoStatus]);
-
-  const handleCopyToProject = useCallback(async (targetProjectId) => {
-    if (!editingShot) return;
-    if (!canEditShots) {
-      toast.error("You do not have permission to copy shots.");
-      return;
-    }
-    if (!targetProjectId) return;
-
-    const targetProject = projects.find((p) => p.id === targetProjectId);
-    if (!targetProject) {
-      toast.error({ title: "Project not found" });
-      return;
-    }
-
-    setCopyingProject(true);
-    try {
-      const shotData = editingShot.shot;
-      // Create a copy without the id and with updated metadata
-      const shotCopy = {
-        name: shotData.name,
-        description: resolveShotShortDescriptionSource(shotData),
-        type: typeof shotData.type === "string" ? shotData.type : "",
-        notes: shotData.notes || "",
-        shotNumber: "",  // Intentionally blank - shot numbers are unique
-        date: shotData.date || "",
-        locationId: shotData.locationId || null,
-        projectId: targetProjectId,
-        laneId: null, // Don't assign to any lane initially
-        status: shotData.status || "todo",
-        products: shotData.products || [],
-        talent: shotData.talent || [],
-        tags: shotData.tags || [],
-        referenceImagePath: shotData.referenceImagePath || null,
-        referenceImageCrop: shotData.referenceImageCrop || null,
-        deleted: false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-
-      await writeDoc("copy shot to project", () =>
-        addDoc(collRef(...currentShotsPath), shotCopy)
-      );
-
-      toast.success({
-        title: "Shot copied",
-        description: `"${shotData.name}" has been copied to ${targetProject.name}.`,
-      });
-    } catch (error) {
-      const { code, message } = describeFirebaseError(error, "Unable to copy shot.");
-      console.error("[Shots] Failed to copy shot", error);
-      toast.error({ title: "Failed to copy shot", description: `${code}: ${message}` });
-    } finally {
-      setCopyingProject(false);
-    }
-  }, [editingShot, canEditShots, projects, currentShotsPath]);
 
   // Bulk tag operations
   const handleBulkApplyTags = useCallback(async (tagsToApply) => {
@@ -3630,6 +3376,101 @@ export function ShotsWorkspace() {
             </div>
           )}
           <div className="space-y-4">
+            {/* Ordering trust banners (Slice 2) */}
+            {!isMobile && viewPrefs.sort !== "custom" && sortedShots.length > 0 && (
+              <div className="rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm text-slate-700 dark:text-slate-200 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-medium">
+                    Sorted by {sortLabel}.
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    Custom order is currently hidden.
+                  </div>
+                </div>
+                {canEditShots && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => selectSort("custom")}
+                    className="shrink-0"
+                  >
+                    Custom order
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {!isMobile && viewPrefs.sort === "custom" && canEditShots && missingSortOrderCount > 0 && (
+              <div className="rounded-card border border-amber-200 bg-amber-50 dark:border-amber-700/50 dark:bg-amber-900/20 p-3 text-sm text-amber-900 dark:text-amber-100 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-medium">
+                    Custom order isn’t initialized for this project yet.
+                  </div>
+                  <div className="text-xs text-amber-800/80 dark:text-amber-100/70">
+                    Initialize once to enable shared ordering. Baseline uses Date sort for legacy-safe consistency.
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {hasLegacyManualOrder ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => initializeCustomOrder({ useLegacy: true })}
+                      disabled={initializingCustomOrder}
+                      className="border-amber-300 dark:border-amber-700"
+                    >
+                      Use my order
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => initializeCustomOrder()}
+                    disabled={initializingCustomOrder}
+                    className="border-amber-300 dark:border-amber-700"
+                  >
+                    {initializingCustomOrder ? "Initializing…" : "Initialize"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {!isMobile &&
+              viewPrefs.sort === "custom" &&
+              canEditShots &&
+              missingSortOrderCount === 0 &&
+              reorderBlockedByContext &&
+              viewMode === "table" && (
+                <div className="rounded-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm text-slate-700 dark:text-slate-200 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium">Reordering is disabled while searching or filtering.</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      Clear search/filters to reorder the full shot list safely.
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {hasActiveSearch ? (
+                      <Button type="button" size="sm" variant="outline" onClick={handleSearchClear}>
+                        Clear search
+                      </Button>
+                    ) : null}
+                    {hasActiveFilters ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setFilters({ ...defaultOverviewFilters })}
+                      >
+                        Clear filters
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+
             {sortedShots.length === 0 ? (
               shots.length === 0 ? (
                 <EmptyState
@@ -3745,8 +3586,8 @@ export function ShotsWorkspace() {
             ) : (
               <ShotTableView
                 rows={
-                  // Rebuild rows from table-ordered shots to reflect manual order
-	                  tableOrderedShots.map((shot) => {
+                  // Table uses the current sorted projection (Custom order uses Firestore sortOrder)
+	                  sortedShots.map((shot) => {
 	                    const products = normaliseShotProducts(shot);
 	                    const talentSelection = mapShotTalentToSelection(shot);
 	                    const locationName = shot.locationName || locationById.get(shot.locationId || "") || "Unassigned";
@@ -3760,25 +3601,13 @@ export function ShotsWorkspace() {
                 onToggleSelect={selectionMode && canEditShots ? toggleShotSelection : null}
                 onEditShot={canEditShots ? handleEditShot : null}
                 persistKey={`shots:table:colWidths:${projectId || 'unknown'}`}
-                onRowReorder={canEditShots ? (from, to) => {
-                  // Move within currently visible table order
-                  const visibleIds = tableOrderedShots.map((s) => s.id);
-                  const clampedTo = Math.max(0, Math.min(visibleIds.length, to));
-                  const nextVisible = visibleIds.slice();
-                  const [moved] = nextVisible.splice(from, 1);
-                  nextVisible.splice(clampedTo > from ? clampedTo - 1 : clampedTo, 0, moved);
-                  const prevManual = manualOrder.slice();
-                  lastManualRef.current = prevManual;
-                  // Persist only the visible ordering; unknown ids keep their relative order
-                  setManualOrder(nextVisible);
-                  toast.info('Press Cmd/Ctrl+Z to undo');
-                } : null}
+                onRowReorder={canReorderTable ? reorderShot : null}
                 onChangeStatus={canEditShots ? (shot, value) => updateShot(shot, { status: value }) : null}
                 focusedShotId={focusShotId}
                 onFocusShot={(shot) => {
                   // Delta I.10: Always navigate to V3 editor (legacy modal removed)
                   if (shot?.projectId) {
-                    navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
+                    navigate(`/projects/${shot.projectId}/shots/${shot.id}`);
                   } else {
                     handleFocusShot(shot);
                   }
@@ -3966,7 +3795,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
 
       // Navigate to Shot Editor V3 (always the default after cutover)
       if (shot?.projectId) {
-        navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
+        navigate(`/projects/${shot.projectId}/shots/${shot.id}`);
       }
     },
     [navigate, shot]
@@ -4277,7 +4106,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
                   e.stopPropagation();
                   // Delta I.8: Always navigate to V3 editor (cutover complete)
                   if (shot?.projectId) {
-                    navigate(`/projects/${shot.projectId}/shots/${shot.id}/editor`);
+                    navigate(`/projects/${shot.projectId}/shots/${shot.id}`);
                   }
                 }}
               >
@@ -4607,10 +4436,10 @@ const ShotVisualGalleryCard = memo(function ShotVisualGalleryCard({
     () => (shot.looks || []).reduce((sum, look) => sum + (look.references?.length || 0), 0),
     [shot.looks]
   );
-  const productsCount = shot.products?.length || 0;
+  const productsCount = useMemo(() => getShotAssignedProductsCount(shot), [shot]);
 
   const handleClick = useCallback(() => {
-    navigate(`/projects/${projectId}/shots/${shot.id}/editor`);
+    navigate(`/projects/${projectId}/shots/${shot.id}`);
   }, [navigate, projectId, shot.id]);
 
   return (
@@ -4724,7 +4553,7 @@ export default function ShotsPage() {
   useEffect(() => {
     const viewParam = searchParams.get("view");
     if (viewParam === "schedule" || viewParam === "planner") {
-      navigate(`/projects/${projectId}/schedule`, { replace: true });
+      navigate(`/projects/${projectId}/callsheet`, { replace: true });
       return;
     }
     if (viewParam === "assets") {

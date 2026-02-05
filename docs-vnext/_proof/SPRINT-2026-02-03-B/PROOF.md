@@ -1,0 +1,63 @@
+# Proof Log — SPRINT-2026-02-03-B
+
+Date: 2026-02-03
+Branch: `vnext/slice-3-call-sheet-assembly`
+
+## Scope (Work Packages)
+
+1. WP1 — Fix schedule trust data
+2. WP2 — Upgrade CallSheetRenderer parity
+3. WP3 — Preview mode + RBAC gating
+4. WP4 — Persisted config + toggles UI
+5. WP5 — Print/export with readiness gate
+
+## Routes Verified (manual)
+
+- `/projects`
+- `/projects/:id/shots`
+- `/projects/:id/schedules`
+- `/projects/:id/callsheet?scheduleId=:sid`
+- `/projects/:id/callsheet?scheduleId=:sid&preview=1`
+
+## Proof IDs (from screenshot session)
+
+- `PROJECT_ID=K5UpgJI9qeIz2l2oIKQg`
+- `SCHEDULE_ID=DYVTVcjeRH7tId0iBj3s`
+
+## Screenshots (Claude-in-Chrome required)
+
+Saved under: `docs-vnext/_proof/SPRINT-2026-02-03-B/images/`
+
+- `01-wp4-output-controls-desktop.png` — Desktop split pane; Output controls visible; Crew toggled off; preview updates.
+- `02-wp3-preview-mode-mobile.png` — Mobile `?preview=1` renders read-only call sheet; no redirect.
+- `03-wp5-export-print-portal.png` — Clean call sheet render intended for print/export (no app chrome).
+
+## Key UI States Verified (manual)
+
+- [ ] Call sheet builder loads with schedule selected
+- [ ] Trust warnings appear when data missing (talent calls)
+- [ ] Preview mode renders read-only, no mutations
+- [ ] Export blocks until ready (or errors with timeout)
+
+## Engineering Checks
+
+- [x] `npx tsc --noEmit` (WP1)
+- [x] `npm test` (WP1)
+- [x] `npx tsc --noEmit` (WP2)
+- [x] `npm test` (WP2)
+- [x] `npx tsc --noEmit` (WP3)
+- [x] `npm test` (WP3)
+- [x] `npx tsc --noEmit` (WP4)
+- [x] `npm test` (WP4)
+- [x] `npx tsc --noEmit` (WP5)
+- [x] `npm test` (WP5)
+- [x] `npm run lint` (sprint)
+- [x] `npm run build` (sprint)
+
+## Progress Log
+
+- WP1 complete: derive `participatingTalentIds` locally from `entries + shots` (no extra Firestore fan-out), and ensure new schedule entries get a monotonic `order` (prevents duplicate orders after deletes).
+- WP2 complete: `CallSheetRenderer` now joins `ScheduleEntry.shotId` → `Shot` for shot number/title/description, and surfaces talent + location inline per entry; adds a real Notes section (from day details).
+- WP3 complete: `?preview=1` renders read-only call sheet with no app chrome (and no mobile redirect); non-managers are forced into preview mode.
+- WP4 complete: call sheet config is persisted to `callSheet/config` (merge-write) and applied to renderer (sections, schedule fields, colors) via an Output control panel.
+- WP5 complete: export-to-PDF via print portal + readiness gate + timeout; print CSS added to vNext styles.

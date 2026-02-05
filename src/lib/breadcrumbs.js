@@ -24,7 +24,8 @@ function getPageLabel(pathname) {
   if (/^\/projects\/[^/]+\/dashboard$/.test(pathname)) return "Project Dashboard";
   if (/^\/projects\/[^/]+\/shots$/.test(pathname)) return "Shots";
   if (/^\/projects\/[^/]+\/assets$/.test(pathname)) return "Assets";
-  if (/^\/projects\/[^/]+\/schedule$/.test(pathname)) return "Schedule";
+  if (/^\/projects\/[^/]+\/callsheet$/.test(pathname)) return "Call Sheet";
+  if (/^\/projects\/[^/]+\/schedule$/.test(pathname)) return "Call Sheet";
   if (/^\/projects\/[^/]+\/settings$/.test(pathname)) return "Project Settings";
   if (/^\/projects\/[^/]+\/departments$/.test(pathname)) return "Departments";
   if (/^\/projects\/[^/]+\/catalogue\/people\/crew$/.test(pathname)) return "Crew";
@@ -126,13 +127,13 @@ export function generateBreadcrumbs(pathname, context = {}, search = "") {
     if (rest.startsWith("shots")) {
       breadcrumbs.push({ label: "Shots", href: `/projects/${resolvedProjectId}/shots` });
       const tab = parseShotsTab(search);
-      breadcrumbs.push({ label: tab === "schedule" ? "Schedule" : tab === "assets" ? "Assets" : "Builder" });
+      breadcrumbs.push({ label: tab === "schedule" ? "Call Sheet" : tab === "assets" ? "Assets" : "Builder" });
       return breadcrumbs;
     }
 
-    if (rest.startsWith("schedule")) {
+    if (rest.startsWith("callsheet") || rest.startsWith("schedule")) {
       breadcrumbs.push({ label: "Shots", href: `/projects/${resolvedProjectId}/shots` });
-      breadcrumbs.push({ label: "Schedule" });
+      breadcrumbs.push({ label: "Call Sheet" });
       return breadcrumbs;
     }
 
