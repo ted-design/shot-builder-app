@@ -13,6 +13,9 @@ import {
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
+import { Textarea } from "@/ui/textarea"
+import { ShootDatesField } from "@/features/projects/components/ShootDatesField"
+import { toast } from "sonner"
 
 interface CreateProjectDialogProps {
   readonly open: boolean
@@ -25,12 +28,29 @@ export function CreateProjectDialog({
 }: CreateProjectDialogProps) {
   const { clientId } = useAuth()
   const [name, setName] = useState("")
+  const [shootDates, setShootDates] = useState<string[]>([])
+  const [briefUrl, setBriefUrl] = useState("")
+  const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleCreate = async () => {
     const trimmed = name.trim()
     if (!trimmed || !clientId) return
+
+    const brief = briefUrl.trim()
+    if (brief.length > 0) {
+      try {
+        const parsed = new URL(brief)
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          setError("Brief URL must start with http:// or https://")
+          return
+        }
+      } catch {
+        setError("Brief URL must be a valid URL (include https://)")
+        return
+      }
+    }
 
     setSaving(true)
     setError(null)
@@ -41,14 +61,22 @@ export function CreateProjectDialog({
         name: trimmed,
         clientId,
         status: "active",
-        shootDates: [],
+        shootDates,
+        ...(brief ? { briefUrl: brief } : {}),
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
       setName("")
+      setShootDates([])
+      setBriefUrl("")
+      setNotes("")
       onOpenChange(false)
+      toast.success("Project created")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create project")
+      const message = err instanceof Error ? err.message : "Failed to create project"
+      setError(message)
+      toast.error("Failed to create project", { description: message })
     } finally {
       setSaving(false)
     }
@@ -69,11 +97,35 @@ export function CreateProjectDialog({
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Spring Campaign 2026"
               autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && name.trim()) {
-                  handleCreate()
-                }
-              }}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Shoot Dates</Label>
+            <ShootDatesField
+              value={shootDates}
+              onChange={setShootDates}
+              disabled={saving}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="project-brief-url">Brief URL</Label>
+            <Input
+              id="project-brief-url"
+              value={briefUrl}
+              onChange={(e) => setBriefUrl(e.target.value)}
+              placeholder="https://…"
+              disabled={saving}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="project-notes">Notes</Label>
+            <Textarea
+              id="project-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Optional context for the team…"
+              rows={4}
+              disabled={saving}
             />
           </div>
           {error && (

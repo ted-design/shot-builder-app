@@ -1,6 +1,7 @@
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useFirestoreDoc } from "@/shared/hooks/useFirestoreDoc"
 import { projectPath } from "@/shared/lib/paths"
+import { normalizeShootDates } from "@/features/projects/lib/shootDates"
 import type { Project } from "@/shared/types"
 
 function mapProject(id: string, data: Record<string, unknown>): Project {
@@ -9,9 +10,10 @@ function mapProject(id: string, data: Record<string, unknown>): Project {
     name: (data["name"] as string) ?? "",
     clientId: (data["clientId"] as string) ?? "",
     status: (data["status"] as Project["status"]) ?? "active",
-    shootDates: (data["shootDates"] as Project["shootDates"]) ?? [],
+    shootDates: normalizeShootDates(data["shootDates"]),
     notes: data["notes"] as string | undefined,
     briefUrl: data["briefUrl"] as string | undefined,
+    deletedAt: data["deletedAt"],
     createdAt: data["createdAt"] as Project["createdAt"],
     updatedAt: data["updatedAt"] as Project["updatedAt"],
   }

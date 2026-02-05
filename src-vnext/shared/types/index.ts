@@ -9,9 +9,15 @@ export interface Project {
   readonly name: string
   readonly clientId: string
   readonly status: ProjectStatus
-  readonly shootDates: Timestamp[]
+  /**
+   * Legacy-compatible shoot dates (YYYY-MM-DD).
+   * Stored as date-only strings to avoid timezone shifts.
+   */
+  readonly shootDates: string[]
   readonly notes?: string
   readonly briefUrl?: string
+  /** Soft-delete marker (legacy). */
+  readonly deletedAt?: unknown
   readonly createdAt: Timestamp
   readonly updatedAt: Timestamp
 }
