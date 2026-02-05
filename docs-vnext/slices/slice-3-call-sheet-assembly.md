@@ -86,7 +86,7 @@ When a producer builds a call sheet at 1am before a shoot:
 
 ### 6. Assembly Preview via Canonical CallSheetRenderer (Desktop Only)
 
-- Split-pane layout: editor left, preview right
+- Preview is available via a right-side slide-over panel opened with the **Preview** button (keeps the editor full-width by default).
 - **There is ONE canonical `CallSheetRenderer` component.** This single component is the authoritative renderer for the call sheet across both Slice 3 (editor preview) and Slice 4 (PDF export). There are NOT two render paths.
 - In the Slice 3 editor, `CallSheetRenderer` is embedded in the right pane, scaled to fit via CSS `transform: scale()` if needed. It renders live Firestore data via subscriptions.
 - Slice 4 reuses this exact component in a print portal for PDF export. No separate export renderer.
@@ -264,7 +264,7 @@ Source: `src/components/callsheet/CallSheetBuilder.jsx`, `src/pages/CallSheetPag
 | Talent auto-suggest from scheduled shots | TalentCallsCard | Yes |
 | Crew calls: call time, offset, department, notes | CrewCallsCard | Yes |
 | Client/guest calls (ad-hoc) | ClientsCallsCard | No — deferred |
-| Split-pane editor + preview | CallSheetBuilder layout | Yes |
+| Editor + live preview | CallSheetBuilder layout (Preview slide-over) | Yes |
 | Section reordering | Config UI | No — deferred |
 | Section visibility toggles | Config UI | No — Slice 4 |
 

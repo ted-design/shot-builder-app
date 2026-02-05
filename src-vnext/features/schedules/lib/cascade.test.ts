@@ -67,11 +67,13 @@ describe("buildCascadeReorderPatches", () => {
 })
 
 describe("buildCascadeMoveBetweenTracksPatches", () => {
-  it("moves entry to another track and recomputes times for both tracks when cascade is ON", () => {
+  it("moves entry to another track and recomputes moved + downstream per affected track when cascade is ON", () => {
     const entries = [
       makeEntry({ id: "a", trackId: "primary", order: 0, startTime: "06:00", duration: 15 }),
       makeEntry({ id: "b", trackId: "primary", order: 1, startTime: "06:15", duration: 15 }),
+      makeEntry({ id: "d", trackId: "primary", order: 2, startTime: "06:30", duration: 15 }),
       makeEntry({ id: "c", trackId: "track-2", order: 0, startTime: "06:00", duration: 30 }),
+      makeEntry({ id: "e", trackId: "track-2", order: 1, startTime: "06:30", duration: 15 }),
     ]
 
     const patches = buildCascadeMoveBetweenTracksPatches({
@@ -85,10 +87,13 @@ describe("buildCascadeMoveBetweenTracksPatches", () => {
 
     const byId = new Map(patches.map((p) => [p.entryId, p.patch]))
     expect(byId.get("b")?.trackId).toBe("track-2")
-    // Primary now only has "a" at 06:00.
+    // Primary becomes a(06:00), d(06:15) — only downstream of removed entry shifts.
     expect(byId.get("a")?.startTime).toBeUndefined()
-    // Track-2 becomes: c(06:00-06:30), b(06:30)
+    expect(byId.get("d")?.startTime).toBe("06:15")
+    // Track-2 becomes c(06:00-06:30), b(06:30-06:45), e(06:45) — upstream unchanged.
+    expect(byId.get("c")?.startTime).toBeUndefined()
     expect(byId.get("b")?.startTime).toBe("06:30")
+    expect(byId.get("e")?.startTime).toBe("06:45")
   })
 
   it("does not recompute times when cascade is OFF", () => {

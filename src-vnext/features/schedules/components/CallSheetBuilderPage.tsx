@@ -20,7 +20,7 @@ import { useShots } from "@/features/shots/hooks/useShots"
 import { useCrew } from "@/features/schedules/hooks/useCrew"
 import { CallSheetRenderer } from "@/features/schedules/components/CallSheetRenderer"
 import { DayDetailsEditor } from "@/features/schedules/components/DayDetailsEditor"
-import { ScheduleEntryEditor } from "@/features/schedules/components/ScheduleEntryEditor"
+import { ScheduleEntriesBoard } from "@/features/schedules/components/ScheduleEntriesBoard"
 import { ScheduleTrackControls } from "@/features/schedules/components/ScheduleTrackControls"
 import { CallOverridesEditor } from "@/features/schedules/components/CallOverridesEditor"
 import { CallSheetOutputControls } from "@/features/schedules/components/CallSheetOutputControls"
@@ -28,6 +28,7 @@ import { CallSheetPrintPortal } from "@/features/schedules/components/CallSheetP
 import { TrustChecks } from "@/features/schedules/components/TrustChecks"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { Button } from "@/ui/button"
+import { Sheet, SheetContent, SheetTitle } from "@/ui/sheet"
 import ScheduleListPage from "@/features/schedules/components/ScheduleListPage"
 
 function formatScheduleDate(date: import("@/shared/types").Schedule["date"]): string {
@@ -104,6 +105,7 @@ export default function CallSheetBuilderPage() {
   const { data: talentLibrary, loading: talentLibraryLoading } = useTalent()
   const { data: crewLibrary, loading: crewLibraryLoading } = useCrew(clientId)
   const [previewScale, setPreviewScale] = useState(100)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const [printOpen, setPrintOpen] = useState(false)
 
   const callSheetConfig = useCallSheetConfig(clientId, projectId, scheduleId)
@@ -295,16 +297,82 @@ export default function CallSheetBuilderPage() {
               >
                 Change Schedule
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPreviewOpen(true)}
+              >
+                Preview
+              </Button>
               <Button size="sm" onClick={handleExport}>
                 Export PDF
               </Button>
             </div>
           </div>
 
-          {/* E2: Split-pane layout — fixed left, flex right */}
-          <div className="flex gap-6" style={{ minHeight: "calc(100vh - 10rem)" }}>
-            {/* Left pane: Editor (fixed width) */}
-            <div className="flex w-[420px] shrink-0 flex-col gap-4 overflow-y-auto">
+          <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
+            <SheetContent
+              side="right"
+              className="w-[min(1100px,95vw)] p-0 sm:max-w-[1100px]"
+            >
+              <div className="flex h-full flex-col">
+                <div className="flex items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
+                  <SheetTitle className="text-sm font-semibold text-[var(--color-text)]">
+                    Live Preview
+                  </SheetTitle>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant={previewScale === 85 ? "secondary" : "ghost"}
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setPreviewScale(85)}
+                    >
+                      <ZoomOut className="mr-1 h-3 w-3" />
+                      85%
+                    </Button>
+                    <Button
+                      variant={previewScale === 100 ? "secondary" : "ghost"}
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setPreviewScale(100)}
+                    >
+                      <ZoomIn className="mr-1 h-3 w-3" />
+                      100%
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto doc-canvas p-5">
+                  <div
+                    className="mx-auto w-full doc-page"
+                    style={{
+                      transform: previewScale !== 100 ? `scale(${previewScale / 100})` : undefined,
+                      transformOrigin: "top center",
+                    }}
+                  >
+                    <div className="doc-page-content">
+                      <CallSheetRenderer
+                        projectName={projectName}
+                        schedule={schedule}
+                        dayDetails={dayDetails}
+                        entries={entries}
+                        shots={shots}
+                        talentCalls={talentCalls}
+                        crewCalls={crewCalls}
+                        talentLookup={talentLibrary}
+                        crewLookup={crewLibrary}
+                        config={rendererConfig}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          {/* E2: Editor layout (preview is a right-side sheet) */}
+          <div className="mx-auto flex w-full max-w-[1400px] gap-6" style={{ minHeight: "calc(100vh - 10rem)" }}>
+            <div className="flex flex-1 min-w-0 flex-col gap-4 overflow-y-auto">
               <DayDetailsEditor
                 scheduleId={scheduleId}
                 scheduleName={schedule.name}
@@ -312,20 +380,17 @@ export default function CallSheetBuilderPage() {
                 dayDetails={dayDetails}
               />
 
-              {/* E4: Day-stream connector wrapper */}
-              <div className="schedule-entry-stream">
-                <ScheduleTrackControls
-                  scheduleId={scheduleId}
-                  schedule={schedule}
-                  entries={entries}
-                />
-                <ScheduleEntryEditor
-                  scheduleId={scheduleId}
-                  schedule={schedule}
-                  entries={entries}
-                  shots={shots}
-                />
-              </div>
+              <ScheduleTrackControls
+                scheduleId={scheduleId}
+                schedule={schedule}
+                entries={entries}
+              />
+              <ScheduleEntriesBoard
+                scheduleId={scheduleId}
+                schedule={schedule}
+                entries={entries}
+                shots={shots}
+              />
 
               <CallSheetOutputControls
                 sections={{
@@ -378,55 +443,6 @@ export default function CallSheetBuilderPage() {
                 crewCalls={crewCalls}
                 crewLibrary={crewLibrary}
               />
-            </div>
-
-            {/* E3: Right pane — preview frame (page-on-desk) */}
-            <div className="flex flex-1 min-w-0 flex-col overflow-y-auto rounded-lg doc-canvas p-5">
-              {/* Scale control */}
-              <div className="mb-3 flex items-center justify-end gap-1">
-                <Button
-                  variant={previewScale === 85 ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => setPreviewScale(85)}
-                >
-                  <ZoomOut className="mr-1 h-3 w-3" />
-                  85%
-                </Button>
-                <Button
-                  variant={previewScale === 100 ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => setPreviewScale(100)}
-                >
-                  <ZoomIn className="mr-1 h-3 w-3" />
-                  100%
-                </Button>
-              </div>
-
-              {/* Document page */}
-              <div
-                className="mx-auto w-full doc-page"
-                style={{
-                  transform: previewScale !== 100 ? `scale(${previewScale / 100})` : undefined,
-                  transformOrigin: "top center",
-                }}
-              >
-                <div className="doc-page-content">
-                  <CallSheetRenderer
-                    projectName={projectName}
-                    schedule={schedule}
-                    dayDetails={dayDetails}
-                    entries={entries}
-                    shots={shots}
-                    talentCalls={talentCalls}
-                    crewCalls={crewCalls}
-                    talentLookup={talentLibrary}
-                    crewLookup={crewLibrary}
-                    config={rendererConfig}
-                  />
-                </div>
-              </div>
             </div>
           </div>
         </>

@@ -13,6 +13,13 @@ import {
 } from "lucide-react"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/ui/select"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { toast } from "sonner"
 import {
@@ -84,6 +91,12 @@ interface ScheduleEntryCardProps {
   readonly isFirst: boolean
   readonly isLast: boolean
   readonly reorderMode?: "buttons" | "none"
+  readonly showTimelineNode?: boolean
+  readonly trackSelect?: {
+    readonly value: string
+    readonly options: readonly { readonly value: string; readonly label: string }[]
+    readonly onChange: (next: string) => void
+  }
   readonly onMoveUp?: () => void
   readonly onMoveDown?: () => void
   readonly onRemove: () => void
@@ -308,6 +321,36 @@ function nodeClasses(entry: ScheduleEntry, isRhythm: boolean): string {
   return [base, active, rhythm].filter(Boolean).join(" ")
 }
 
+function TrackSelect({
+  value,
+  options,
+  onChange,
+}: {
+  readonly value: string
+  readonly options: readonly { readonly value: string; readonly label: string }[]
+  readonly onChange: (next: string) => void
+}) {
+  if (options.length <= 1) return null
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger
+        className="h-7 w-[124px] px-2 text-xs"
+        aria-label="Move to track"
+        title="Move to track"
+      >
+        <SelectValue placeholder="Track" />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((opt) => (
+          <SelectItem key={opt.value} value={opt.value}>
+            {opt.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
 // --- Main component ---
 
 export function ScheduleEntryCard({
@@ -315,6 +358,8 @@ export function ScheduleEntryCard({
   isFirst,
   isLast,
   reorderMode = "buttons",
+  showTimelineNode = true,
+  trackSelect,
   onMoveUp,
   onMoveDown,
   onRemove,
@@ -327,11 +372,13 @@ export function ScheduleEntryCard({
   const typeConfig = ENTRY_TYPE_CONFIG[entry.type]
   const TypeIcon = typeConfig.icon
 
+  const timelineNodeClass = showTimelineNode ? nodeClasses(entry, typeConfig.isRhythm) : ""
+
   // Rhythm entries (break/move) get a compact, divider-like treatment
   if (typeConfig.isRhythm) {
     return (
       <>
-        <div className={nodeClasses(entry, true)}>
+        <div className={timelineNodeClass}>
           <div className={`group flex items-center gap-2 rounded-md border-l-[3px] ${typeConfig.accent} ${typeConfig.bg} border ${typeConfig.border} px-2.5 py-1.5`}>
             {reorderMode === "buttons" && onMoveUp && onMoveDown && (
               <div className="flex gap-0.5">
@@ -360,6 +407,13 @@ export function ScheduleEntryCard({
 
             {/* Duration inline */}
             <div className="flex flex-1 items-center justify-end gap-2">
+              {trackSelect ? (
+                <TrackSelect
+                  value={trackSelect.value}
+                  options={trackSelect.options}
+                  onChange={trackSelect.onChange}
+                />
+              ) : null}
               <InlineNumberField
                 value={entry.duration != null ? String(entry.duration) : ""}
                 onSave={(v) => {
@@ -399,7 +453,7 @@ export function ScheduleEntryCard({
   // Shot / setup / banner — full card treatment with time-dominant layout
   return (
     <>
-      <div className={nodeClasses(entry, false)}>
+      <div className={timelineNodeClass}>
         <div className={`group flex items-start gap-2.5 rounded-md border-l-[3px] ${typeConfig.accent} border ${typeConfig.border} ${typeConfig.bg} px-3 py-2 transition-colors hover:border-[var(--color-border-strong)]`}>
           {reorderMode === "buttons" && onMoveUp && onMoveDown && (
             <div className="flex flex-col gap-0.5 pt-0.5">
@@ -431,6 +485,15 @@ export function ScheduleEntryCard({
                   {typeConfig.label}
                 </span>
               )}
+              {trackSelect ? (
+                <div className="ml-auto shrink-0">
+                  <TrackSelect
+                    value={trackSelect.value}
+                    options={trackSelect.options}
+                    onChange={trackSelect.onChange}
+                  />
+                </div>
+              ) : null}
             </div>
 
             {/* Row 2: Duration + Notes (tertiary) */}

@@ -68,8 +68,11 @@ Legacy fields are tolerated:
 
 ## UX Rules (Calm + Explicit)
 
-- Default view is **single track** and should feel like the existing list editor.
+- Default view is **single track** and should feel like a simple list editor.
 - Multi-stream is progressive disclosure: tracks appear only when enabled or when multiple tracks exist.
+- Moving entries between tracks must be obvious:
+  - Drag using the handle on the left edge of an entry, **or**
+  - Use the per-entry **Track** selector (non-drag fallback).
 - Explicit states:
   - Invalid time input: entry does not save; show a clear error toast.
   - Cascade ON: show a subtle label “Cascade ON — downstream times update”.
@@ -105,4 +108,3 @@ Legacy fields are tolerated:
   - a shared/banner entry spanning tracks
   - collapse-to-single result
 - Logs: list of manual QA steps executed (desktop + preview + export modal open).
-

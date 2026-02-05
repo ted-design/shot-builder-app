@@ -192,10 +192,14 @@ export function buildCascadeMoveBetweenTracksPatches(params: {
 
   const normalizeTrack = (entry: ScheduleEntry) => entry.trackId ?? "primary"
 
-  const fromList = entries
-    .filter((e) => e.type !== "banner" && normalizeTrack(e) === fromTrackId && e.id !== entryId)
+  const fromWithMoved = entries
+    .filter((e) => e.type !== "banner" && normalizeTrack(e) === fromTrackId)
     .slice()
     .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
+
+  const fromIndex = fromWithMoved.findIndex((e) => e.id === entryId)
+
+  const fromList = fromWithMoved.filter((e) => e.id !== entryId)
 
   const toList = entries
     .filter((e) => e.type !== "banner" && normalizeTrack(e) === toTrackId && e.id !== entryId)
@@ -228,30 +232,33 @@ export function buildCascadeMoveBetweenTracksPatches(params: {
 
   if (!cascadeEnabled) return coalescePatches(patches)
 
-  function computeGaplessStartTimes(trackEntries: readonly ScheduleEntry[]): Map<string, string> {
-    const startMap = new Map<string, string>()
-    if (trackEntries.length === 0) return startMap
+  function computeGaplessStartTimes(trackEntries: readonly ScheduleEntry[]): readonly string[] {
+    if (trackEntries.length === 0) return []
 
     const anchorMin = getAnchorStartMinutes(trackEntries, settings)
     let cursor = anchorMin
+    const computed: string[] = []
     for (const e of trackEntries) {
-      startMap.set(e.id, minutesToHHMM(cursor))
+      computed.push(minutesToHHMM(cursor))
       cursor += getDurationMinutes(e, defaultDurationMinutes)
     }
-    return startMap
+    return computed
   }
 
-  const fromStartTimes = computeGaplessStartTimes(fromList)
-  const toStartTimes = computeGaplessStartTimes(nextTo)
+  const fromComputed = computeGaplessStartTimes(fromList)
+  const toComputed = computeGaplessStartTimes(nextTo)
 
-  for (const e of fromList) {
-    const nextStart = fromStartTimes.get(e.id)
+  const fromAffectedIndex = fromIndex === -1 ? 0 : Math.min(fromIndex, fromList.length)
+  for (let i = fromAffectedIndex; i < fromList.length; i++) {
+    const e = fromList[i]!
+    const nextStart = fromComputed[i]
     if (!nextStart) continue
     if (e.startTime !== nextStart) patches.push({ entryId: e.id, patch: { startTime: nextStart } })
   }
 
-  for (const e of nextTo) {
-    const nextStart = toStartTimes.get(e.id)
+  for (let i = clampedIndex; i < nextTo.length; i++) {
+    const e = nextTo[i]!
+    const nextStart = toComputed[i]
     if (!nextStart) continue
     if (e.startTime !== nextStart) patches.push({ entryId: e.id, patch: { startTime: nextStart } })
   }
