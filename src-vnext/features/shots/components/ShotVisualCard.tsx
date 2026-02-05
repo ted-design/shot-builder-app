@@ -2,13 +2,14 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent } from "@/ui/card"
 import { Checkbox } from "@/ui/checkbox"
-import { Camera } from "lucide-react"
+import { Camera, MapPin, Package, Users } from "lucide-react"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { StatusBadge } from "@/shared/components/StatusBadge"
 import { getShotStatusColor, getShotStatusLabel } from "@/shared/lib/statusMappings"
 import type { Shot } from "@/shared/types"
 import { TagBadge } from "@/shared/components/TagBadge"
+import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 
 interface ShotVisualCardProps {
   readonly shot: Shot
@@ -17,6 +18,7 @@ interface ShotVisualCardProps {
   readonly onSelectedChange?: (next: boolean) => void
   readonly showShotNumber?: boolean
   readonly showTags?: boolean
+  readonly showReadiness?: boolean
 }
 
 export function ShotVisualCard({
@@ -26,6 +28,7 @@ export function ShotVisualCard({
   onSelectedChange,
   showShotNumber = true,
   showTags = true,
+  showReadiness = true,
 }: ShotVisualCardProps) {
   const navigate = useNavigate()
   const { projectId } = useProjectScope()
@@ -39,6 +42,12 @@ export function ShotVisualCard({
   }, [heroCandidate])
 
   const showImage = !!heroUrl && imgVisible
+
+  const hasProducts = extractShotAssignedProducts(shot).length > 0
+  const hasTalent = (shot.talentIds ?? shot.talent).some(
+    (t) => typeof t === "string" && t.trim().length > 0,
+  )
+  const hasLocation = !!shot.locationId
 
   return (
     <Card
@@ -118,8 +127,33 @@ export function ShotVisualCard({
             )}
           </div>
         )}
+
+        {showReadiness && (
+          <div className="flex items-center gap-2 text-xs">
+            <span
+              className={hasProducts ? "text-[var(--color-text-secondary)]" : "text-[var(--color-error)] opacity-80"}
+              title={hasProducts ? "Products assigned" : "No products"}
+            >
+              <Package className="h-3.5 w-3.5" />
+              <span className="sr-only">Products</span>
+            </span>
+            <span
+              className={hasTalent ? "text-[var(--color-text-secondary)]" : "text-[var(--color-error)] opacity-80"}
+              title={hasTalent ? "Talent assigned" : "No talent"}
+            >
+              <Users className="h-3.5 w-3.5" />
+              <span className="sr-only">Talent</span>
+            </span>
+            <span
+              className={hasLocation ? "text-[var(--color-text-secondary)]" : "text-[var(--color-error)] opacity-80"}
+              title={hasLocation ? "Location assigned" : "No location"}
+            >
+              <MapPin className="h-3.5 w-3.5" />
+              <span className="sr-only">Location</span>
+            </span>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
 }
-

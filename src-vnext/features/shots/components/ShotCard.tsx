@@ -98,8 +98,8 @@ export function ShotCard({
       ? `${talentSummary.title}${talentSummary.title ? "\n" : ""}${unknownTalentCount} unknown`
       : talentSummary.title
 
-  const showReadiness =
-    fields.readiness && !(fields.location || fields.products || fields.talent)
+  const showReadiness = fields.readiness
+  const detailsVisible = fields.location || fields.products || fields.talent
 
   return (
     <Card
@@ -172,10 +172,10 @@ export function ShotCard({
 
         {/* Readiness indicators */}
         {showReadiness && (
-          <div className="flex items-center gap-3 text-xs">
-            <ReadinessIndicator icon={Package} ready={hasProducts} label="Products" />
-            <ReadinessIndicator icon={Users} ready={hasTalent} label="Talent" />
-            <ReadinessIndicator icon={MapPin} ready={hasLocation} label="Location" />
+          <div className="flex items-center gap-2 text-xs">
+            <ReadinessIndicator icon={Package} ready={hasProducts} label="Products" compact={detailsVisible} />
+            <ReadinessIndicator icon={Users} ready={hasTalent} label="Talent" compact={detailsVisible} />
+            <ReadinessIndicator icon={MapPin} ready={hasLocation} label="Location" compact={detailsVisible} />
           </div>
         )}
 
@@ -223,22 +223,24 @@ function ReadinessIndicator({
   icon: Icon,
   ready,
   label,
+  compact,
 }: {
   readonly icon: React.ComponentType<{ className?: string }>
   readonly ready: boolean
   readonly label: string
+  readonly compact?: boolean
 }) {
   return (
     <span
       className={`flex items-center gap-1 ${
         ready
           ? "text-[var(--color-text-secondary)]"
-          : "text-[var(--color-text-subtle)] opacity-50"
+          : "text-[var(--color-error)] opacity-80"
       }`}
       title={ready ? `${label} assigned` : `No ${label.toLowerCase()}`}
     >
-      <Icon className="h-3 w-3" />
-      <span>{label}</span>
+      <Icon className={compact ? "h-3.5 w-3.5" : "h-3 w-3"} />
+      {compact ? <span className="sr-only">{label}</span> : <span>{label}</span>}
     </span>
   )
 }

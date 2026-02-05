@@ -26,16 +26,8 @@ import {
   SelectValue,
 } from "@/ui/select"
 import { Input } from "@/ui/input"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/ui/dropdown-menu"
 import { formatDateOnly } from "@/features/shots/lib/dateOnly"
-import { Camera, Plus, Info, LayoutGrid, Table2, SlidersHorizontal, Eye, ArrowUpDown, Image as ImageIcon } from "lucide-react"
+import { Camera, Plus, Info, LayoutGrid, Table2, SlidersHorizontal, Eye, ArrowUpDown, Image as ImageIcon, BarChart3, Search, X } from "lucide-react"
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { textPreview } from "@/shared/lib/textPreview"
@@ -50,11 +42,14 @@ import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ShotsPdfExportDialog } from "@/features/shots/components/ShotsPdfExportDialog"
 import { Skeleton } from "@/ui/skeleton"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
+import { Separator } from "@/ui/separator"
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/ui/sheet"
 
 type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated"
 type SortDir = "asc" | "desc"
 type ViewMode = "gallery" | "visual" | "table"
 type MissingKey = "products" | "talent" | "location" | "image"
+type GroupKey = "none" | "status" | "date" | "talent" | "location"
 
 type ShotsListFields = {
   readonly heroThumb: boolean
@@ -83,6 +78,13 @@ const STATUS_ORDER: Record<ShotFirestoreStatus, number> = {
   in_progress: 1,
   on_hold: 2,
   complete: 3,
+}
+
+const STATUS_LABELS: Record<ShotFirestoreStatus, string> = {
+  todo: "To do",
+  in_progress: "In progress",
+  on_hold: "On hold",
+  complete: "Complete",
 }
 
 function sortShots(
@@ -186,6 +188,33 @@ function filterByMissing(
   })
 }
 
+function filterByTalent(
+  shots: ReadonlyArray<Shot>,
+  talentId: string,
+): ReadonlyArray<Shot> {
+  const id = talentId.trim()
+  if (!id) return shots
+  return shots.filter((s) => (s.talentIds ?? s.talent).some((t) => t === id))
+}
+
+function filterByLocation(
+  shots: ReadonlyArray<Shot>,
+  locationId: string,
+): ReadonlyArray<Shot> {
+  const id = locationId.trim()
+  if (!id) return shots
+  return shots.filter((s) => s.locationId === id)
+}
+
+function filterByTag(
+  shots: ReadonlyArray<Shot>,
+  tagId: string,
+): ReadonlyArray<Shot> {
+  const id = tagId.trim()
+  if (!id) return shots
+  return shots.filter((s) => (s.tags ?? []).some((t) => t.id === id))
+}
+
 function parseCsv(value: string | null): string[] {
   if (!value) return []
   return value
@@ -220,6 +249,8 @@ export default function ShotListPage() {
   const [createPullOpen, setCreatePullOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [displayOpen, setDisplayOpen] = useState(false)
 
   const showCreate = canManageShots(role)
   const canReorder = canManageShots(role)
@@ -236,7 +267,11 @@ export default function ShotListPage() {
     (searchParams.get("dir") as SortDir) ||
     (sortKey === "created" || sortKey === "updated" ? "desc" : "asc")
   const queryParam = searchParams.get("q") ?? ""
+  const talentParam = searchParams.get("talent") ?? ""
+  const locationParam = searchParams.get("location") ?? ""
+  const tagParam = searchParams.get("tag") ?? ""
   const viewParam = (searchParams.get("view") as ViewMode) || null
+  const groupParam = (searchParams.get("group") as GroupKey) || null
 
   const statusFilter = useMemo(() => {
     const values = parseCsv(searchParams.get("status"))
@@ -327,6 +362,12 @@ export default function ShotListPage() {
       ? viewParam
       : storedDefaultView
 
+  const groupKey: GroupKey = isMobile
+    ? "none"
+    : groupParam === "status" || groupParam === "date" || groupParam === "talent" || groupParam === "location"
+      ? groupParam
+      : "none"
+
   const isCustomSort = sortKey === "custom"
 
   const setSortKey = (key: SortKey) => {
@@ -367,6 +408,43 @@ export default function ShotListPage() {
     }
   }
 
+  const setGroupKey = (key: GroupKey) => {
+    const next = new URLSearchParams(searchParams)
+    if (key === "none") next.delete("group")
+    else next.set("group", key)
+    setSearchParams(next, { replace: true })
+  }
+
+  const clearQuery = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete("q")
+    setSearchParams(next, { replace: true })
+  }
+
+  const setTalentFilter = (talentId: string) => {
+    const next = new URLSearchParams(searchParams)
+    const id = talentId.trim()
+    if (!id) next.delete("talent")
+    else next.set("talent", id)
+    setSearchParams(next, { replace: true })
+  }
+
+  const setLocationFilter = (locationId: string) => {
+    const next = new URLSearchParams(searchParams)
+    const id = locationId.trim()
+    if (!id) next.delete("location")
+    else next.set("location", id)
+    setSearchParams(next, { replace: true })
+  }
+
+  const setTagFilter = (tagId: string) => {
+    const next = new URLSearchParams(searchParams)
+    const id = tagId.trim()
+    if (!id) next.delete("tag")
+    else next.set("tag", id)
+    setSearchParams(next, { replace: true })
+  }
+
   const toggleStatus = (status: ShotFirestoreStatus) => {
     const next = new Set(statusFilter)
     if (next.has(status)) next.delete(status)
@@ -394,6 +472,9 @@ export default function ShotListPage() {
     next.delete("q")
     next.delete("status")
     next.delete("missing")
+    next.delete("talent")
+    next.delete("location")
+    next.delete("tag")
     setSearchParams(next, { replace: true })
   }
 
@@ -401,14 +482,61 @@ export default function ShotListPage() {
     const base = mobileOptimistic ?? shots
     const filteredByStatus = filterByStatus(base, statusFilter)
     const filteredByMissing = filterByMissing(filteredByStatus, missingFilter)
-    const filteredByQuery = filterByQuery(filteredByMissing, queryParam)
+    const filteredByTalent = filterByTalent(filteredByMissing, talentParam)
+    const filteredByLocation = filterByLocation(filteredByTalent, locationParam)
+    const filteredByTag = filterByTag(filteredByLocation, tagParam)
+    const filteredByQuery = filterByQuery(filteredByTag, queryParam)
     return sortShots(filteredByQuery, sortKey, sortDir)
-  }, [shots, mobileOptimistic, sortKey, sortDir, statusFilter, missingFilter, queryParam])
+  }, [
+    shots,
+    mobileOptimistic,
+    sortKey,
+    sortDir,
+    statusFilter,
+    missingFilter,
+    talentParam,
+    locationParam,
+    tagParam,
+    queryParam,
+  ])
 
   const hasActiveFilters =
     queryParam.trim().length > 0 ||
     statusFilter.size > 0 ||
-    missingFilter.size > 0
+    missingFilter.size > 0 ||
+    talentParam.trim().length > 0 ||
+    locationParam.trim().length > 0 ||
+    tagParam.trim().length > 0
+
+  const hasActiveGrouping = groupKey !== "none"
+
+  const insights = useMemo(() => {
+    const statusCounts: Record<ShotFirestoreStatus, number> = {
+      todo: 0,
+      in_progress: 0,
+      on_hold: 0,
+      complete: 0,
+    }
+    const missingCounts: Record<MissingKey, number> = {
+      products: 0,
+      talent: 0,
+      location: 0,
+      image: 0,
+    }
+
+    for (const shot of displayShots) {
+      statusCounts[shot.status] = (statusCounts[shot.status] ?? 0) + 1
+
+      if (extractShotAssignedProducts(shot).length === 0) missingCounts.products += 1
+      if ((shot.talentIds ?? shot.talent).filter((t) => typeof t === "string" && t.trim().length > 0).length === 0) {
+        missingCounts.talent += 1
+      }
+      if (!shot.locationId) missingCounts.location += 1
+      if (!shot.heroImage?.downloadURL && !shot.heroImage?.path) missingCounts.image += 1
+    }
+
+    return { statusCounts, missingCounts }
+  }, [displayShots])
 
   const talentNameById = useMemo(() => {
     return new Map(talentRecords.map((t) => [t.id, t.name]))
@@ -417,6 +545,146 @@ export default function ShotListPage() {
   const locationNameById = useMemo(() => {
     return new Map(locationRecords.map((l) => [l.id, l.name]))
   }, [locationRecords])
+
+  const tagLabelById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const shot of shots) {
+      for (const tag of shot.tags ?? []) {
+        if (!map.has(tag.id)) map.set(tag.id, tag.label)
+      }
+    }
+    return map
+  }, [shots])
+
+  const tagOptions = useMemo(() => {
+    const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true })
+    return Array.from(tagLabelById.entries())
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => collator.compare(a.label, b.label))
+  }, [tagLabelById])
+
+  const shotGroups = useMemo(() => {
+    if (groupKey === "none") return null
+
+    const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true })
+
+    type ShotGroup = { readonly key: string; readonly label: string; readonly shots: ReadonlyArray<Shot> }
+
+    if (groupKey === "status") {
+      const groups: ShotGroup[] = []
+      for (const s of ["todo", "in_progress", "on_hold", "complete"] as const) {
+        const list = displayShots.filter((shot) => shot.status === s)
+        if (list.length === 0) continue
+        groups.push({ key: s, label: STATUS_LABELS[s], shots: list })
+      }
+      return groups
+    }
+
+    if (groupKey === "date") {
+      const NO_DATE = "__none"
+      const byKey = new Map<string, Shot[]>()
+      for (const shot of displayShots) {
+        const key = shot.date ? formatDateOnly(shot.date) : NO_DATE
+        const existing = byKey.get(key)
+        if (existing) existing.push(shot)
+        else byKey.set(key, [shot])
+      }
+
+      const keys = Array.from(byKey.keys()).sort((a, b) => {
+        if (a === NO_DATE) return 1
+        if (b === NO_DATE) return -1
+        return collator.compare(a, b)
+      })
+
+      return keys.map((key) => ({
+        key,
+        label: key === NO_DATE ? "No date" : key,
+        shots: byKey.get(key)!,
+      }))
+    }
+
+    if (groupKey === "talent") {
+      const NONE = "__none"
+      const MULTI = "__multiple"
+      const byKey = new Map<string, { readonly label: string; readonly shots: Shot[] }>()
+
+      for (const shot of displayShots) {
+        const ids = (shot.talentIds ?? shot.talent).filter(
+          (t): t is string => typeof t === "string" && t.trim().length > 0,
+        )
+
+        const key =
+          ids.length === 0
+            ? NONE
+            : ids.length === 1
+              ? ids[0]!
+              : MULTI
+
+        const label =
+          key === NONE
+            ? "Unassigned"
+            : key === MULTI
+              ? "Multiple"
+              : talentNameById.get(key) ?? key
+
+        const existing = byKey.get(key)
+        if (existing) existing.shots.push(shot)
+        else byKey.set(key, { label, shots: [shot] })
+      }
+
+      const groups = Array.from(byKey.entries()).map(([key, value]) => ({
+        key,
+        label: value.label,
+        shots: value.shots,
+      }))
+
+      groups.sort((a, b) => {
+        const rank = (key: string) => (key === NONE ? 0 : key === MULTI ? 2 : 1)
+        const ar = rank(a.key)
+        const br = rank(b.key)
+        if (ar !== br) return ar - br
+        if (ar === 1) return collator.compare(a.label, b.label)
+        return 0
+      })
+
+      return groups
+    }
+
+    if (groupKey === "location") {
+      const NONE = "__none"
+      const byKey = new Map<string, { readonly label: string; readonly shots: Shot[] }>()
+
+      for (const shot of displayShots) {
+        const key = shot.locationId ?? NONE
+        const label =
+          key === NONE
+            ? "Unassigned"
+            : locationNameById.get(key) ?? shot.locationName ?? key
+
+        const existing = byKey.get(key)
+        if (existing) existing.shots.push(shot)
+        else byKey.set(key, { label, shots: [shot] })
+      }
+
+      const groups = Array.from(byKey.entries()).map(([key, value]) => ({
+        key,
+        label: value.label,
+        shots: value.shots,
+      }))
+
+      groups.sort((a, b) => {
+        const rank = (key: string) => (key === NONE ? 0 : 1)
+        const ar = rank(a.key)
+        const br = rank(b.key)
+        if (ar !== br) return ar - br
+        return collator.compare(a.label, b.label)
+      })
+
+      return groups
+    }
+
+    return null
+  }, [displayShots, groupKey, locationNameById, talentNameById])
 
   const selectionEnabled = selectionMode && canBulkPull
 
@@ -470,6 +738,42 @@ export default function ShotListPage() {
         },
       })
     }
+    if (talentParam.trim()) {
+      const id = talentParam.trim()
+      badges.push({
+        key: `talent:${id}`,
+        label: `Talent: ${talentNameById.get(id) ?? id}`,
+        onRemove: () => {
+          const next = new URLSearchParams(searchParams)
+          next.delete("talent")
+          setSearchParams(next, { replace: true })
+        },
+      })
+    }
+    if (locationParam.trim()) {
+      const id = locationParam.trim()
+      badges.push({
+        key: `location:${id}`,
+        label: `Location: ${locationNameById.get(id) ?? id}`,
+        onRemove: () => {
+          const next = new URLSearchParams(searchParams)
+          next.delete("location")
+          setSearchParams(next, { replace: true })
+        },
+      })
+    }
+    if (tagParam.trim()) {
+      const id = tagParam.trim()
+      badges.push({
+        key: `tag:${id}`,
+        label: `Tag: ${tagLabelById.get(id) ?? id}`,
+        onRemove: () => {
+          const next = new URLSearchParams(searchParams)
+          next.delete("tag")
+          setSearchParams(next, { replace: true })
+        },
+      })
+    }
     for (const s of statusFilter) {
       badges.push({
         key: `status:${s}`,
@@ -485,7 +789,19 @@ export default function ShotListPage() {
       })
     }
     return badges
-  }, [missingFilter, queryParam, searchParams, setSearchParams, statusFilter])
+  }, [
+    locationNameById,
+    locationParam,
+    missingFilter,
+    queryParam,
+    searchParams,
+    setSearchParams,
+    statusFilter,
+    tagLabelById,
+    tagParam,
+    talentNameById,
+    talentParam,
+  ])
 
   const stuck = useStuckLoading(loading)
 
@@ -642,12 +958,28 @@ export default function ShotListPage() {
       {shots.length > 0 && (
         <>
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <Input
-              value={queryDraft}
-              onChange={(e) => setQueryDraft(e.target.value)}
-              placeholder="Search shots…"
-              className="w-full sm:w-[260px]"
-            />
+            <div className="relative w-full sm:w-[260px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-subtle)]" />
+              <Input
+                value={queryDraft}
+                onChange={(e) => setQueryDraft(e.target.value)}
+                placeholder="Search shots…"
+                className="pl-9 pr-9"
+              />
+              {queryDraft.trim().length > 0 && (
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
+                  onClick={() => {
+                    setQueryDraft("")
+                    clearQuery()
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Clear search</span>
+                </button>
+              )}
+            </div>
 
             <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
               <SelectTrigger className="w-[160px]">
@@ -673,139 +1005,43 @@ export default function ShotListPage() {
               <ArrowUpDown className="h-4 w-4" />
             </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filters
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64">
-                <DropdownMenuLabel>Status</DropdownMenuLabel>
-                {(["todo", "in_progress", "on_hold", "complete"] as const).map((s) => (
-                  <DropdownMenuCheckboxItem
-                    key={s}
-                    checked={statusFilter.has(s)}
-                    onCheckedChange={() => toggleStatus(s)}
-                  >
-                    {s.replace("_", " ")}
-                  </DropdownMenuCheckboxItem>
-                ))}
+            {!isMobile && (
+              <Select value={groupKey} onValueChange={(v) => setGroupKey(v as GroupKey)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Group by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No grouping</SelectItem>
+                  <SelectItem value="status">By status</SelectItem>
+                  <SelectItem value="date">By date</SelectItem>
+                  <SelectItem value="talent">By talent</SelectItem>
+                  <SelectItem value="location">By location</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
 
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Missing</DropdownMenuLabel>
-                {(["products", "talent", "location", "image"] as const).map((k) => (
-                  <DropdownMenuCheckboxItem
-                    key={k}
-                    checked={missingFilter.has(k)}
-                    onCheckedChange={() => toggleMissing(k)}
-                  >
-                    {k === "image" ? "Hero image" : k}
-                  </DropdownMenuCheckboxItem>
-                ))}
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setFiltersOpen(true)}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Filters
+              {activeFilterBadges.length > 0 && (
+                <span className="ml-1 rounded-full bg-[var(--color-surface-subtle)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-subtle)]">
+                  {activeFilterBadges.length}
+                </span>
+              )}
+            </Button>
 
-                <DropdownMenuSeparator />
-                <Button
-                  variant="ghost"
-                  className="h-8 w-full justify-start px-2 text-sm"
-                  onClick={clearFilters}
-                  disabled={activeFilterBadges.length === 0}
-                >
-                  Clear filters
-                </Button>
-
-                {canRepair && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <Button
-                      variant="ghost"
-                      className="h-8 w-full justify-start px-2 text-sm"
-                      onClick={() => setRepairOpen(true)}
-                    >
-                      Repair missing shot dates
-                    </Button>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Eye className="h-4 w-4" />
-                  Fields
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64">
-                <DropdownMenuLabel>Cards</DropdownMenuLabel>
-                <DropdownMenuCheckboxItem
-                  checked={fields.heroThumb}
-                  onCheckedChange={() => setFields({ ...fields, heroThumb: !fields.heroThumb })}
-                >
-                  Hero thumbnail
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={fields.shotNumber}
-                  onCheckedChange={() => setFields({ ...fields, shotNumber: !fields.shotNumber })}
-                >
-                  Shot number
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={fields.description}
-                  onCheckedChange={() => setFields({ ...fields, description: !fields.description })}
-                >
-                  Description preview
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={fields.readiness}
-                  onCheckedChange={() => setFields({ ...fields, readiness: !fields.readiness })}
-                >
-                  Readiness indicators
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={fields.tags}
-                  onCheckedChange={() => setFields({ ...fields, tags: !fields.tags })}
-                >
-                  Tags
-                </DropdownMenuCheckboxItem>
-
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Details</DropdownMenuLabel>
-                <DropdownMenuCheckboxItem
-                  checked={fields.location}
-                  onCheckedChange={() => setFields({ ...fields, location: !fields.location })}
-                >
-                  Location
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={fields.products}
-                  onCheckedChange={() => setFields({ ...fields, products: !fields.products })}
-                >
-                  Products
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={fields.talent}
-                  onCheckedChange={() => setFields({ ...fields, talent: !fields.talent })}
-                >
-                  Talent
-                </DropdownMenuCheckboxItem>
-
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Table</DropdownMenuLabel>
-                <DropdownMenuCheckboxItem
-                  checked={fields.date}
-                  onCheckedChange={() => setFields({ ...fields, date: !fields.date })}
-                >
-                  Date
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={fields.updated}
-                  onCheckedChange={() => setFields({ ...fields, updated: !fields.updated })}
-                >
-                  Updated
-                </DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setDisplayOpen(true)}
+            >
+              <Eye className="h-4 w-4" />
+              Display
+            </Button>
 
             {!isMobile && (
               <div className="ml-auto flex items-center gap-1">
@@ -843,6 +1079,451 @@ export default function ShotListPage() {
             )}
           </div>
 
+          <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <SheetContent side={isMobile ? "bottom" : "right"} className="sm:max-w-md">
+              <SheetHeader>
+                <SheetTitle>Filters</SheetTitle>
+              </SheetHeader>
+
+              <div className="mt-4 space-y-4">
+                <div className="space-y-2">
+                  <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    Status
+                  </div>
+                  <div className="space-y-2">
+                    {(["todo", "in_progress", "on_hold", "complete"] as const).map((s) => (
+                      <label key={s} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={statusFilter.has(s)}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            toggleStatus(s)
+                          }}
+                        />
+                        <span>{STATUS_LABELS[s]}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    Missing
+                  </div>
+                  <div className="space-y-2">
+                    {(["products", "talent", "location", "image"] as const).map((k) => (
+                      <label key={k} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={missingFilter.has(k)}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            toggleMissing(k)
+                          }}
+                        />
+                        <span>{k === "image" ? "Hero image" : k}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                      Talent
+                    </div>
+                    <Select
+                      value={talentParam.trim() ? talentParam.trim() : "__any__"}
+                      onValueChange={(v) => setTalentFilter(v === "__any__" ? "" : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__any__">Any</SelectItem>
+                        {talentRecords.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                      Location
+                    </div>
+                    <Select
+                      value={locationParam.trim() ? locationParam.trim() : "__any__"}
+                      onValueChange={(v) => setLocationFilter(v === "__any__" ? "" : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__any__">Any</SelectItem>
+                        {locationRecords.map((l) => (
+                          <SelectItem key={l.id} value={l.id}>
+                            {l.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    Tag
+                  </div>
+                  <Select
+                    value={tagParam.trim() ? tagParam.trim() : "__any__"}
+                    onValueChange={(v) => setTagFilter(v === "__any__" ? "" : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__any__">Any</SelectItem>
+                      {tagOptions.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearFilters}
+                    disabled={!hasActiveFilters}
+                  >
+                    Clear filters
+                  </Button>
+                  {canRepair && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setFiltersOpen(false)
+                        setRepairOpen(true)
+                      }}
+                    >
+                      Repair missing shot dates
+                    </Button>
+                  )}
+                  <SheetClose asChild>
+                    <Button size="sm">Done</Button>
+                  </SheetClose>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          <Sheet open={displayOpen} onOpenChange={setDisplayOpen}>
+            <SheetContent side={isMobile ? "bottom" : "right"} className="sm:max-w-md">
+              <SheetHeader>
+                <SheetTitle>Display</SheetTitle>
+              </SheetHeader>
+
+              <div className="mt-4 space-y-4">
+                {viewMode !== "table" && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                      Presets
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setFields({
+                            ...fields,
+                            heroThumb: true,
+                            shotNumber: true,
+                            description: false,
+                            readiness: true,
+                            tags: true,
+                            location: false,
+                            products: false,
+                            talent: false,
+                          })
+                        }
+                      >
+                        Storyboard
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setFields({
+                            ...fields,
+                            heroThumb: true,
+                            shotNumber: true,
+                            description: true,
+                            readiness: true,
+                            tags: true,
+                            location: true,
+                            products: true,
+                            talent: true,
+                          })
+                        }
+                      >
+                        Prep
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {viewMode === "visual" ? (
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                      Visual View
+                    </div>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.shotNumber}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, shotNumber: !fields.shotNumber })
+                          }}
+                        />
+                        <span>Shot number</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.tags}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, tags: !fields.tags })
+                          }}
+                        />
+                        <span>Tags</span>
+                      </label>
+                      <p className="text-xs text-[var(--color-text-muted)]">
+                        Visual view always shows the hero image.
+                      </p>
+                    </div>
+                  </div>
+                ) : viewMode === "table" ? (
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                      Table Columns
+                    </div>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.heroThumb}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, heroThumb: !fields.heroThumb })
+                          }}
+                        />
+                        <span>Hero thumbnail</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.shotNumber}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, shotNumber: !fields.shotNumber })
+                          }}
+                        />
+                        <span>Shot number</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.description}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, description: !fields.description })
+                          }}
+                        />
+                        <span>Description preview</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.date}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, date: !fields.date })
+                          }}
+                        />
+                        <span>Date</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.location}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, location: !fields.location })
+                          }}
+                        />
+                        <span>Location</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.products}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, products: !fields.products })
+                          }}
+                        />
+                        <span>Products</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.talent}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, talent: !fields.talent })
+                          }}
+                        />
+                        <span>Talent</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.tags}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, tags: !fields.tags })
+                          }}
+                        />
+                        <span>Tags</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.updated}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, updated: !fields.updated })
+                          }}
+                        />
+                        <span>Updated</span>
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                        Cards
+                      </div>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={fields.heroThumb}
+                            onCheckedChange={(v) => {
+                              if (v === "indeterminate") return
+                              setFields({ ...fields, heroThumb: !fields.heroThumb })
+                            }}
+                          />
+                          <span>Hero thumbnail</span>
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={fields.shotNumber}
+                            onCheckedChange={(v) => {
+                              if (v === "indeterminate") return
+                              setFields({ ...fields, shotNumber: !fields.shotNumber })
+                            }}
+                          />
+                          <span>Shot number</span>
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={fields.description}
+                            onCheckedChange={(v) => {
+                              if (v === "indeterminate") return
+                              setFields({ ...fields, description: !fields.description })
+                            }}
+                          />
+                          <span>Description preview</span>
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={fields.readiness}
+                            onCheckedChange={(v) => {
+                              if (v === "indeterminate") return
+                              setFields({ ...fields, readiness: !fields.readiness })
+                            }}
+                          />
+                          <span>Readiness indicators</span>
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={fields.tags}
+                            onCheckedChange={(v) => {
+                              if (v === "indeterminate") return
+                              setFields({ ...fields, tags: !fields.tags })
+                            }}
+                          />
+                          <span>Tags</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                        Details
+                      </div>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={fields.location}
+                            onCheckedChange={(v) => {
+                              if (v === "indeterminate") return
+                              setFields({ ...fields, location: !fields.location })
+                            }}
+                          />
+                          <span>Location</span>
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={fields.products}
+                            onCheckedChange={(v) => {
+                              if (v === "indeterminate") return
+                              setFields({ ...fields, products: !fields.products })
+                            }}
+                          />
+                          <span>Products</span>
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={fields.talent}
+                            onCheckedChange={(v) => {
+                              if (v === "indeterminate") return
+                              setFields({ ...fields, talent: !fields.talent })
+                            }}
+                          />
+                          <span>Talent</span>
+                        </label>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2 pt-2">
+                  <SheetClose asChild>
+                    <Button size="sm">Done</Button>
+                  </SheetClose>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+
           {activeFilterBadges.length > 0 && (
             <div className="mb-4 flex flex-wrap items-center gap-1.5">
               {activeFilterBadges.map((b) => (
@@ -859,17 +1540,104 @@ export default function ShotListPage() {
             </div>
           )}
 
-          {isCustomSort && canReorder && hasActiveFilters && (
+          {displayShots.length > 0 && (
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+              <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                <BarChart3 className="h-3.5 w-3.5" />
+                <span>
+                  Showing {displayShots.length} of {shots.length}
+                </span>
+              </div>
+
+              <div className="h-4 w-px bg-[var(--color-border)]" />
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                  Status
+                </span>
+                {(["todo", "in_progress", "on_hold", "complete"] as const).map((s) => {
+                  const count = insights.statusCounts[s] ?? 0
+                  const active = statusFilter.has(s)
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => toggleStatus(s)}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors ${
+                        active
+                          ? "border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text)]"
+                          : "border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"
+                      }`}
+                      aria-pressed={active}
+                      title="Click to filter"
+                    >
+                      <span>{STATUS_LABELS[s]}</span>
+                      <span className="text-[var(--color-text-subtle)]">{count}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                  Missing
+                </span>
+                {(["products", "talent", "location", "image"] as const).map((k) => {
+                  const count = insights.missingCounts[k] ?? 0
+                  const active = missingFilter.has(k)
+                  const label =
+                    k === "products"
+                      ? "Products"
+                      : k === "talent"
+                        ? "Talent"
+                        : k === "location"
+                          ? "Location"
+                          : "Image"
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => toggleMissing(k)}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors ${
+                        active
+                          ? "border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text)]"
+                          : "border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"
+                      }`}
+                      aria-pressed={active}
+                      title="Click to filter"
+                    >
+                      <span>{label}</span>
+                      <span className="text-[var(--color-text-subtle)]">{count}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {isCustomSort && canReorder && (hasActiveFilters || hasActiveGrouping) && (
             <div className="mb-4 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
               <Info className="h-3.5 w-3.5 flex-shrink-0" />
               <span>
-                Reordering is disabled while search/filters are active.{" "}
-                <button
-                  className="underline hover:text-[var(--color-text)]"
-                  onClick={clearFilters}
-                >
-                  Clear filters
-                </button>
+                Reordering is disabled while{" "}
+                {hasActiveFilters && hasActiveGrouping ? "search/filters or grouping are active." : hasActiveFilters ? "search/filters are active." : "grouping is active."}{" "}
+                {hasActiveFilters && (
+                  <button
+                    className="underline hover:text-[var(--color-text)]"
+                    onClick={clearFilters}
+                  >
+                    Clear filters
+                  </button>
+                )}
+                {hasActiveFilters && hasActiveGrouping ? " or " : null}
+                {hasActiveGrouping && (
+                  <button
+                    className="underline hover:text-[var(--color-text)]"
+                    onClick={() => setGroupKey("none")}
+                  >
+                    Clear grouping
+                  </button>
+                )}
               </span>
             </div>
           )}
@@ -935,6 +1703,20 @@ export default function ShotListPage() {
         </div>
       ) : viewMode === "table" ? (
         <>
+          {hasActiveGrouping && (
+            <div className="mb-3 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
+              <Info className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>
+                Grouping is available in Gallery or Visual view.{" "}
+                <button
+                  className="underline hover:text-[var(--color-text)]"
+                  onClick={() => setViewMode("gallery")}
+                >
+                  Switch to gallery
+                </button>
+              </span>
+            </div>
+          )}
           {isCustomSort && canReorder && (
             <div className="mb-3 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
               <Info className="h-3.5 w-3.5 flex-shrink-0" />
@@ -963,33 +1745,113 @@ export default function ShotListPage() {
           />
         </>
       ) : viewMode === "visual" ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {displayShots.map((shot) => (
-            <ShotVisualCard
-              key={shot.id}
-              shot={shot}
-              selectable={selectionEnabled}
-              selected={selectionEnabled ? selectedIds.has(shot.id) : false}
-              onSelectedChange={() => toggleSelected(shot.id)}
-              showShotNumber={fields.shotNumber}
-              showTags={fields.tags}
-            />
-          ))}
-        </div>
+        <>
+          {isCustomSort && canReorder && !hasActiveFilters && !hasActiveGrouping && (
+            <div className="mb-3 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
+              <Info className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>
+                Reordering is available in Gallery view.{" "}
+                <button
+                  className="underline hover:text-[var(--color-text)]"
+                  onClick={() => setViewMode("gallery")}
+                >
+                  Switch to gallery
+                </button>
+              </span>
+            </div>
+          )}
+
+          {hasActiveGrouping && shotGroups ? (
+            <div className="space-y-8">
+              {shotGroups.map((group) => (
+                <div key={group.key} className="space-y-3">
+                  <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-2">
+                    <div className="min-w-0 text-sm font-medium text-[var(--color-text)]">
+                      <span className="truncate">{group.label}</span>
+                    </div>
+                    <span className="text-xs text-[var(--color-text-subtle)]">
+                      {group.shots.length}
+                    </span>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {group.shots.map((shot) => (
+                      <ShotVisualCard
+                        key={shot.id}
+                        shot={shot}
+                        selectable={selectionEnabled}
+                        selected={selectionEnabled ? selectedIds.has(shot.id) : false}
+                        onSelectedChange={() => toggleSelected(shot.id)}
+                        showShotNumber={fields.shotNumber}
+                        showTags={fields.tags}
+                        showReadiness={fields.readiness}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {displayShots.map((shot) => (
+                <ShotVisualCard
+                  key={shot.id}
+                  shot={shot}
+                  selectable={selectionEnabled}
+                  selected={selectionEnabled ? selectedIds.has(shot.id) : false}
+                  onSelectedChange={() => toggleSelected(shot.id)}
+                  showShotNumber={fields.shotNumber}
+                  showTags={fields.tags}
+                  showReadiness={fields.readiness}
+                />
+              ))}
+            </div>
+          )}
+        </>
       ) : (
-        /* Desktop: draggable when custom sort, plain grid otherwise */
-        <DraggableShotList
-          shots={displayShots}
-          disabled={!isCustomSort || !canReorder || hasActiveFilters}
-          visibleFields={fields}
-          talentNameById={talentNameById}
-          locationNameById={locationNameById}
-          selection={
-            selectionEnabled
-              ? { enabled: true, selectedIds, onToggle: toggleSelected }
-              : undefined
-          }
-        />
+        hasActiveGrouping && shotGroups ? (
+          <div className="space-y-8">
+            {shotGroups.map((group) => (
+              <div key={group.key} className="space-y-3">
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-2">
+                  <div className="min-w-0 text-sm font-medium text-[var(--color-text)]">
+                    <span className="truncate">{group.label}</span>
+                  </div>
+                  <span className="text-xs text-[var(--color-text-subtle)]">
+                    {group.shots.length}
+                  </span>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {group.shots.map((shot) => (
+                    <ShotCard
+                      key={shot.id}
+                      shot={shot}
+                      selectable={selectionEnabled}
+                      selected={selectionEnabled ? selectedIds.has(shot.id) : false}
+                      onSelectedChange={() => toggleSelected(shot.id)}
+                      visibleFields={fields}
+                      talentNameById={talentNameById}
+                      locationNameById={locationNameById}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Desktop: draggable when custom sort, plain grid otherwise */
+          <DraggableShotList
+            shots={displayShots}
+            disabled={!isCustomSort || !canReorder || hasActiveFilters || hasActiveGrouping}
+            visibleFields={fields}
+            talentNameById={talentNameById}
+            locationNameById={locationNameById}
+            selection={
+              selectionEnabled
+                ? { enabled: true, selectedIds, onToggle: toggleSelected }
+                : undefined
+            }
+          />
+        )
       )}
 
       {showCreate && (
@@ -997,12 +1859,16 @@ export default function ShotListPage() {
           open={createOpen}
           onOpenChange={setCreateOpen}
           onCreated={(shotId, title) => {
-            const hiddenByStatus = statusFilter.size > 0 && !statusFilter.has("todo")
             const q = queryParam.trim().toLowerCase()
             const hiddenByQuery = q.length > 0 && !title.toLowerCase().includes(q)
+            const hiddenByStatus = statusFilter.size > 0 && !statusFilter.has("todo")
+            const maybeHiddenByOtherFilters =
+              talentParam.trim().length > 0 ||
+              locationParam.trim().length > 0 ||
+              tagParam.trim().length > 0
 
-            if (hiddenByStatus || hiddenByQuery) {
-              toast("Shot created but hidden by filters", {
+            if (hiddenByStatus || hiddenByQuery || maybeHiddenByOtherFilters) {
+              toast("Shot created — may be hidden by current filters", {
                 description: title,
                 action: {
                   label: "Show shot",
