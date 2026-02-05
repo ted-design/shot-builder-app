@@ -52,6 +52,11 @@ Why: the reorder persistence path assumes it receives the full ordered list; reo
 ### 7) Thumbnails: No Grey Letterboxing
 - Gallery + Visual hero thumbnails now render with `object-cover` so images fill their containers (no visible grey background bars).
 
+### 8) Share Links: Creation + Public View
+- Shot share link creation now goes through a callable Cloud Function (`createShotShareLink`) instead of a direct Firestore write (more reliable; bypasses client rules edge cases).
+- vNext callable Functions are now explicitly configured for `northamerica-northeast1` (fixes public share link resolution + public pull updates).
+- Share failures now surface the underlying error code/message (instead of a generic toast).
+
 ## Contracts (Persistence)
 
 ### URL query params (shareable)
@@ -92,6 +97,7 @@ Why: the reorder persistence path assumes it receives the full ordered list; reo
 |---|---|---|
 | View modes | Open `/projects/:id/shots`, switch Gallery/Visual/Table | Each view renders correctly; no layout thrash |
 | Thumbnails | In Gallery and Visual views, inspect hero thumbs | Thumbnails fill their frames (no visible grey letterbox bars) |
+| Share link | Click `Share` → `Create link` → open link in an incognito window | Link is created; public page loads and shows the shot list |
 | Group by | Set `group=date` and `group=status` | Section headers appear with correct counts; Table shows guidance banner |
 | Filters sheet | Click `Filters` | Sheet opens (bottom on mobile, right on desktop); selections apply immediately |
 | Talent/location/tag filters | Pick a talent/location/tag | List filters as expected; chip appears and removes correctly |

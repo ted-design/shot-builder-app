@@ -143,7 +143,7 @@ export const provider = new GoogleAuthProvider()
 provider.setCustomParameters({ prompt: "select_account" })
 export const db = getFirestore(app)
 export const storage = getStorage(app)
-export const functions = getFunctions(app)
+export const functions = getFunctions(app, "northamerica-northeast1")
 
 const useEmulators = readBoolEnv("VITE_USE_FIREBASE_EMULATORS")
 

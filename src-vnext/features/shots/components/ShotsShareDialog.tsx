@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
-import { doc, serverTimestamp, setDoc } from "firebase/firestore"
-import { db } from "@/shared/lib/firebase"
+import { httpsCallable } from "firebase/functions"
+import { functions } from "@/shared/lib/firebase"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
@@ -10,16 +10,6 @@ import { toast } from "sonner"
 import type { AuthUser } from "@/shared/types"
 
 type ShareScope = "project" | "selected"
-
-function generateShareToken(): string {
-  try {
-    const token = globalThis.crypto?.randomUUID?.()
-    if (token) return token
-  } catch {
-    // ignore
-  }
-  return `share_${Date.now()}_${Math.random().toString(36).slice(2)}`
-}
 
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
@@ -40,6 +30,16 @@ async function copyToClipboard(text: string): Promise<boolean> {
       return false
     }
   }
+}
+
+function formatShareError(err: unknown): string {
+  if (!err || typeof err !== "object") return "Unknown error"
+  const anyErr = err as { code?: unknown; message?: unknown }
+  const code = typeof anyErr.code === "string" ? anyErr.code : null
+  const message = typeof anyErr.message === "string" ? anyErr.message : null
+  const label = code ? `(${code})` : ""
+  if (!message) return label ? `Share failed ${label}` : "Share failed"
+  return label ? `${message} ${label}` : message
 }
 
 export function ShotsShareDialog({
@@ -94,25 +94,27 @@ export function ShotsShareDialog({
     }
     setCreating(true)
     try {
-      const token = generateShareToken()
+      const callable = httpsCallable(functions, "createShotShareLink")
       const payload = {
-        clientId,
         projectId,
+        scope,
         shotIds: scope === "selected" ? selectedShotIds : null,
-        enabled: true,
         title: (title.trim() || defaultTitle).trim(),
-        expiresAt: null,
-        createdAt: serverTimestamp(),
-        createdBy: user?.uid ?? null,
       }
-      await setDoc(doc(db, "shotShares", token), payload)
-      const url = `${window.location.origin}/shots/shared/${token}`
+      const res = await callable(payload)
+      const shareToken = (res.data as { shareToken?: unknown } | null)?.shareToken
+      if (typeof shareToken !== "string" || shareToken.trim().length < 10) {
+        throw new Error("Invalid share response")
+      }
+
+      const url = `${window.location.origin}/shots/shared/${shareToken}`
       setCreatedUrl(url)
       const copied = await copyToClipboard(url)
       toast.success("Share link created", { description: copied ? "Copied to clipboard." : url })
     } catch (err) {
       console.error("[ShotsShareDialog] Failed to create share link:", err)
-      toast.error("Failed to create share link")
+      const description = formatShareError(err)
+      toast.error("Failed to create share link", { description })
     } finally {
       setCreating(false)
     }
