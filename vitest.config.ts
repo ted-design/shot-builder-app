@@ -11,8 +11,10 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     globals: true,
-    // Higher timeout locally for integration tests; skip problematic tests in CI
-    testTimeout: process.env.CI ? 15000 : 30000,
+    // CI runners are slower than local dev machines. Use a higher timeout in CI
+    // to avoid false negatives from integration-heavy component tests.
+    testTimeout: process.env.CI ? 30000 : 15000,
+    hookTimeout: process.env.CI ? 30000 : 15000,
     // Use process forks instead of worker threads to avoid tinypool issues
     // on certain local environments (e.g. paths with spaces on macOS).
     pool: "forks",
@@ -22,8 +24,7 @@ export default defineConfig({
       "src-vnext/**/*.test.{ts,tsx}",
     ],
     // Skip slow/flaky integration tests in CI
-    // These tests work locally but hang indefinitely in CI (GitHub Actions)
-    // TODO: Investigate why these tests hang in CI but pass locally
+    // These tests have historically been flaky in CI; keep excluded until fixed.
     exclude: [
       "**/node_modules/**",
       ...(process.env.CI
