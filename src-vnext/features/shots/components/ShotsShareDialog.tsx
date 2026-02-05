@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { doc, serverTimestamp, setDoc } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
@@ -123,6 +123,9 @@ export function ShotsShareDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Share shots</DialogTitle>
+          <DialogDescription className="sr-only">
+            Create a share link for project shots or the current selection.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">

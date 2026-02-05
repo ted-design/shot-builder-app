@@ -13,6 +13,7 @@ import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -446,6 +447,9 @@ export default function TagManagementPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Merge tags</DialogTitle>
+            <DialogDescription className="sr-only">
+              Merge multiple tags into a single tag across all shots in this project.
+            </DialogDescription>
           </DialogHeader>
           {mergeTarget && mergeOthers.length > 0 ? (
             <div className="flex flex-col gap-4">

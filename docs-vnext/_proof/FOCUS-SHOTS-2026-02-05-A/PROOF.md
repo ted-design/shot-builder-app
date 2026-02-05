@@ -49,6 +49,9 @@ Why: the reorder persistence path assumes it receives the full ordered list; reo
 - Readiness indicators are now always available when enabled, with compact icon-only mode when details are shown.
 - Added an **Insights strip** showing totals + per-status + missing counts; clicking pills applies/removes filters.
 
+### 7) Thumbnails: No Grey Letterboxing
+- Gallery + Visual hero thumbnails now render with `object-cover` so images fill their containers (no visible grey background bars).
+
 ## Contracts (Persistence)
 
 ### URL query params (shareable)
@@ -88,6 +91,7 @@ Why: the reorder persistence path assumes it receives the full ordered list; reo
 | Scenario | Steps | Expected |
 |---|---|---|
 | View modes | Open `/projects/:id/shots`, switch Gallery/Visual/Table | Each view renders correctly; no layout thrash |
+| Thumbnails | In Gallery and Visual views, inspect hero thumbs | Thumbnails fill their frames (no visible grey letterbox bars) |
 | Group by | Set `group=date` and `group=status` | Section headers appear with correct counts; Table shows guidance banner |
 | Filters sheet | Click `Filters` | Sheet opens (bottom on mobile, right on desktop); selections apply immediately |
 | Talent/location/tag filters | Pick a talent/location/tag | List filters as expected; chip appears and removes correctly |
@@ -100,4 +104,3 @@ Why: the reorder persistence path assumes it receives the full ordered list; reo
 ## Screenshots Index
 
 _Screenshots live in `docs-vnext/_proof/FOCUS-SHOTS-2026-02-05-A/images/`._
-

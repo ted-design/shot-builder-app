@@ -127,6 +127,52 @@ describe("ShotListPage", () => {
     expect(screen.queryByText("status:todo")).not.toBeInTheDocument()
   })
 
+  it("renders gallery thumbnails with object-cover (no letterboxing)", () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        makeShot({
+          id: "a",
+          title: "Alpha",
+          heroImage: {
+            path: "clients/c1/shots/a/hero.webp",
+            downloadURL: "https://example.com/alpha.webp",
+          },
+        }),
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots")
+
+    const img = screen.getByAltText("Alpha")
+    expect(img).toHaveClass("object-cover")
+    expect(img).not.toHaveClass("object-contain")
+  })
+
+  it("renders visual thumbnails with object-cover (no letterboxing)", () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        makeShot({
+          id: "a",
+          title: "Alpha",
+          heroImage: {
+            path: "clients/c1/shots/a/hero.webp",
+            downloadURL: "https://example.com/alpha.webp",
+          },
+        }),
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots?view=visual")
+
+    const img = screen.getByAltText("Alpha")
+    expect(img).toHaveClass("object-cover")
+    expect(img).not.toHaveClass("object-contain")
+  })
+
   it("shows attached products, talent, and location in table rows", () => {
     ;(useTalent as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [
