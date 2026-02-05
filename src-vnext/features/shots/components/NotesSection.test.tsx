@@ -89,6 +89,7 @@ describe("NotesSection", () => {
     })
 
     it("calls onAppendAddendum with trimmed new entry on submit", async () => {
+      const user = userEvent.setup()
       const onAppend = vi.fn().mockResolvedValue(undefined)
       render(
         <NotesSection
@@ -99,10 +100,8 @@ describe("NotesSection", () => {
         />,
       )
 
-      fireEvent.change(screen.getByTestId("addendum-input"), {
-        target: { value: "  New entry  " },
-      })
-      await userEvent.click(screen.getByTestId("addendum-submit"))
+      await user.type(screen.getByTestId("addendum-input"), "  New entry  ")
+      await user.click(screen.getByTestId("addendum-submit"))
 
       await waitFor(() => {
         expect(onAppend).toHaveBeenCalledWith("New entry")
@@ -110,6 +109,7 @@ describe("NotesSection", () => {
     })
 
     it("clears the input after successful append", async () => {
+      const user = userEvent.setup()
       const onAppend = vi.fn().mockResolvedValue(undefined)
       render(
         <NotesSection
@@ -121,8 +121,8 @@ describe("NotesSection", () => {
       )
 
       const textarea = screen.getByTestId("addendum-input") as HTMLTextAreaElement
-      fireEvent.change(textarea, { target: { value: "New entry" } })
-      await userEvent.click(screen.getByTestId("addendum-submit"))
+      await user.type(textarea, "New entry")
+      await user.click(screen.getByTestId("addendum-submit"))
 
       await waitFor(() => {
         expect(textarea.value).toBe("")
@@ -130,6 +130,7 @@ describe("NotesSection", () => {
     })
 
     it("retains input text when append fails", async () => {
+      const user = userEvent.setup()
       const onAppend = vi.fn().mockRejectedValue(new Error("Firestore write failed"))
       render(
         <NotesSection
@@ -141,8 +142,8 @@ describe("NotesSection", () => {
       )
 
       const textarea = screen.getByTestId("addendum-input") as HTMLTextAreaElement
-      fireEvent.change(textarea, { target: { value: "Important note" } })
-      await userEvent.click(screen.getByTestId("addendum-submit"))
+      await user.type(textarea, "Important note")
+      await user.click(screen.getByTestId("addendum-submit"))
 
       await waitFor(() => {
         expect(textarea.value).toBe("Important note")

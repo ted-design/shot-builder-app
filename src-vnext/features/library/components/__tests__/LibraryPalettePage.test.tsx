@@ -51,6 +51,7 @@ describe("LibraryPalettePage", () => {
   })
 
   it("creates a new swatch from the New swatch card", async () => {
+    const user = userEvent.setup()
     ;(useFirestoreCollection as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [],
       loading: false,
@@ -69,7 +70,7 @@ describe("LibraryPalettePage", () => {
     fireEvent.change(screen.getByPlaceholderText("#AABBCC"), {
       target: { value: "aabbcc" },
     })
-    await userEvent.click(screen.getByRole("button", { name: "Create" }))
+    await user.click(screen.getByRole("button", { name: "Create" }))
 
     await waitFor(() => {
       expect(saveColorSwatch).toHaveBeenCalledTimes(1)
@@ -85,6 +86,7 @@ describe("LibraryPalettePage", () => {
   })
 
   it("edits swatch name inline and persists", async () => {
+    const user = userEvent.setup()
     ;(useFirestoreCollection as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [{ id: "olive", name: "Olive", hexColor: "#AABBCC" }],
       loading: false,
@@ -97,7 +99,7 @@ describe("LibraryPalettePage", () => {
 
     renderPage()
 
-    await userEvent.click(screen.getByText("Olive"))
+    await user.click(screen.getByText("Olive"))
     const input = screen.getByDisplayValue("Olive")
     fireEvent.change(input, { target: { value: "Olive Green" } })
     fireEvent.blur(input)
@@ -116,6 +118,7 @@ describe("LibraryPalettePage", () => {
   })
 
   it("allows admin to delete a swatch", async () => {
+    const user = userEvent.setup()
     authRole = "admin"
 
     ;(useFirestoreCollection as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
@@ -128,10 +131,10 @@ describe("LibraryPalettePage", () => {
 
     renderPage()
 
-    await userEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]!)
+    await user.click(screen.getAllByRole("button", { name: "Delete" })[0]!)
 
     const dialog = await screen.findByRole("dialog")
-    await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }))
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }))
 
     await waitFor(() => {
       expect(deleteColorSwatch).toHaveBeenCalledTimes(1)

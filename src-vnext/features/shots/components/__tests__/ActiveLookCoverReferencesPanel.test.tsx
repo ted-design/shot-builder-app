@@ -61,6 +61,7 @@ describe("ActiveLookCoverReferencesPanel", () => {
   })
 
   it("sets displayImageId on the active look when Set as cover is clicked", async () => {
+    const user = userEvent.setup()
     const shot = makeShot({
       activeLookId: "look-1",
       looks: [
@@ -81,7 +82,7 @@ describe("ActiveLookCoverReferencesPanel", () => {
     render(<ActiveLookCoverReferencesPanel shot={shot} canEdit />)
 
     const setButtons = screen.getAllByTitle("Set as cover")
-    await userEvent.click(setButtons[0]!)
+    await user.click(setButtons[0]!)
 
     await waitFor(() => expect(mockUpdateShotWithVersion).toHaveBeenCalledTimes(1))
     const callArgs = mockUpdateShotWithVersion.mock.calls[0]?.[0]

@@ -55,6 +55,7 @@ vi.mock("@/features/products/hooks/useProductWorkspace", () => ({
 
 describe("ProductDetailPage", () => {
   it("navigates to the product editor page when Edit is clicked", async () => {
+    const user = userEvent.setup()
     render(
       <MemoryRouter initialEntries={["/products/fam-1"]}>
         <Routes>
@@ -64,7 +65,7 @@ describe("ProductDetailPage", () => {
       </MemoryRouter>,
     )
 
-    await userEvent.click(screen.getByRole("button", { name: /edit/i }))
+    await user.click(screen.getByRole("button", { name: /edit/i }))
     expect(await screen.findByText("Editor Page")).toBeInTheDocument()
   })
 

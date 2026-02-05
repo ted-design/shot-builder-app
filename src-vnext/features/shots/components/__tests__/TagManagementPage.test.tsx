@@ -78,6 +78,7 @@ describe("TagManagementPage", () => {
   })
 
   it("renames a tag across shots from the Details panel", async () => {
+    const user = userEvent.setup()
     const shots = [
       makeShot({
         id: "s1",
@@ -97,10 +98,10 @@ describe("TagManagementPage", () => {
 
     renderPage()
 
-    await userEvent.click(screen.getAllByText("Outdoor")[0]!)
+    await user.click(screen.getAllByText("Outdoor")[0]!)
 
     const nameField = within(screen.getByTestId("tag-details-name")).getByText("Outdoor")
-    await userEvent.click(nameField)
+    await user.click(nameField)
 
     const input = screen.getByDisplayValue("Outdoor")
     fireEvent.change(input, { target: { value: "Outdoor 2" } })

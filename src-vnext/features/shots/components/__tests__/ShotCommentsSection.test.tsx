@@ -82,6 +82,7 @@ describe("ShotCommentsSection", () => {
   })
 
   it("creates a comment and clears the draft", async () => {
+    const user = userEvent.setup()
     ;(useShotComments as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [],
       loading: false,
@@ -92,8 +93,8 @@ describe("ShotCommentsSection", () => {
     render(<ShotCommentsSection shotId="s1" canComment />)
 
     const textarea = screen.getByPlaceholderText("Leave a note for your team…")
-    fireEvent.change(textarea, { target: { value: "New comment" } })
-    await userEvent.click(screen.getByRole("button", { name: "Post" }))
+    await user.type(textarea, "New comment")
+    await user.click(screen.getByRole("button", { name: "Post" }))
 
     expect(createShotComment).toHaveBeenCalledWith({
       clientId: "c1",
@@ -110,6 +111,7 @@ describe("ShotCommentsSection", () => {
   })
 
   it("allows deleting your own comment", async () => {
+    const user = userEvent.setup()
     ;(useShotComments as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [makeComment({ id: "cm-1", body: "To delete", createdBy: "u1" })],
       loading: false,
@@ -119,9 +121,9 @@ describe("ShotCommentsSection", () => {
 
     render(<ShotCommentsSection shotId="s1" canComment />)
 
-    await userEvent.click(screen.getByRole("button", { name: "Delete" }))
+    await user.click(screen.getByRole("button", { name: "Delete" }))
     const dialog = await screen.findByRole("dialog")
-    await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }))
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }))
 
     expect(setShotCommentDeleted).toHaveBeenCalledWith({
       clientId: "c1",

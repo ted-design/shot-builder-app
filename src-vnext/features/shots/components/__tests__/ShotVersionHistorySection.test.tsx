@@ -88,6 +88,7 @@ describe("ShotVersionHistorySection", () => {
   })
 
   it("shows empty state when no versions exist", async () => {
+    const user = userEvent.setup()
     ;(useShotVersions as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [],
       loading: false,
@@ -95,12 +96,13 @@ describe("ShotVersionHistorySection", () => {
     })
 
     render(<ShotVersionHistorySection shot={makeShot({})} />)
-    await userEvent.click(screen.getByRole("button", { name: /history/i }))
+    await user.click(screen.getByRole("button", { name: /history/i }))
 
     expect(screen.getByText("No history yet.")).toBeInTheDocument()
   })
 
   it("restores a selected version after confirmation", async () => {
+    const user = userEvent.setup()
     ;(useShotVersions as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [makeVersion({ id: "v-1" })],
       loading: false,
@@ -111,11 +113,11 @@ describe("ShotVersionHistorySection", () => {
     const shot = makeShot({})
     render(<ShotVersionHistorySection shot={shot} />)
 
-    await userEvent.click(screen.getByRole("button", { name: /history/i }))
-    await userEvent.click(screen.getByRole("button", { name: "Restore" }))
+    await user.click(screen.getByRole("button", { name: /history/i }))
+    await user.click(screen.getByRole("button", { name: "Restore" }))
 
     const dialog = await screen.findByRole("dialog")
-    await userEvent.click(within(dialog).getByRole("button", { name: "Restore" }))
+    await user.click(within(dialog).getByRole("button", { name: "Restore" }))
 
     expect(restoreShotVersion).toHaveBeenCalledWith({
       clientId: "c1",
