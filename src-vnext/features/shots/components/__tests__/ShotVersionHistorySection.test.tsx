@@ -1,6 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { Timestamp } from "firebase/firestore"
 import type { Shot, ShotVersion } from "@/shared/types"
 
@@ -86,7 +87,7 @@ describe("ShotVersionHistorySection", () => {
     vi.clearAllMocks()
   })
 
-  it("shows empty state when no versions exist", () => {
+  it("shows empty state when no versions exist", async () => {
     ;(useShotVersions as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [],
       loading: false,
@@ -94,7 +95,7 @@ describe("ShotVersionHistorySection", () => {
     })
 
     render(<ShotVersionHistorySection shot={makeShot({})} />)
-    fireEvent.click(screen.getByRole("button", { name: /history/i }))
+    await userEvent.click(screen.getByRole("button", { name: /history/i }))
 
     expect(screen.getByText("No history yet.")).toBeInTheDocument()
   })
@@ -110,11 +111,11 @@ describe("ShotVersionHistorySection", () => {
     const shot = makeShot({})
     render(<ShotVersionHistorySection shot={shot} />)
 
-    fireEvent.click(screen.getByRole("button", { name: /history/i }))
-    fireEvent.click(screen.getByRole("button", { name: "Restore" }))
+    await userEvent.click(screen.getByRole("button", { name: /history/i }))
+    await userEvent.click(screen.getByRole("button", { name: "Restore" }))
 
     const dialog = await screen.findByRole("dialog")
-    fireEvent.click(within(dialog).getByRole("button", { name: "Restore" }))
+    await userEvent.click(within(dialog).getByRole("button", { name: "Restore" }))
 
     expect(restoreShotVersion).toHaveBeenCalledWith({
       clientId: "c1",

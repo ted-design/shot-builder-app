@@ -1,6 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import type { ShotTag } from "@/shared/types"
 
 vi.mock("@/features/shots/hooks/useAvailableTags", () => ({
@@ -23,14 +24,14 @@ describe("TagEditor", () => {
 
     render(<TagEditor tags={[]} onSave={onSave} />)
 
-    fireEvent.click(screen.getByRole("button", { name: /add tags/i }))
+    await userEvent.click(screen.getByRole("button", { name: /add tags/i }))
 
     fireEvent.change(screen.getByPlaceholderText("Search or create…"), {
       target: { value: "New Tag" },
     })
 
-    fireEvent.click(screen.getByRole("button", { name: "Create" }))
-    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+    await userEvent.click(screen.getByRole("button", { name: "Create" }))
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledTimes(1)
@@ -46,9 +47,9 @@ describe("TagEditor", () => {
 
     render(<TagEditor tags={[]} onSave={onSave} />)
 
-    fireEvent.click(screen.getByRole("button", { name: /add tags/i }))
-    fireEvent.click(screen.getByTestId("tag-option-t1"))
-    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+    await userEvent.click(screen.getByRole("button", { name: /add tags/i }))
+    await userEvent.click(screen.getByTestId("tag-option-t1"))
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledTimes(1)

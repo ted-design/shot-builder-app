@@ -1,6 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { Timestamp } from "firebase/firestore"
 import type { ShotComment } from "@/shared/types"
 
@@ -92,7 +93,7 @@ describe("ShotCommentsSection", () => {
 
     const textarea = screen.getByPlaceholderText("Leave a note for your team…")
     fireEvent.change(textarea, { target: { value: "New comment" } })
-    fireEvent.click(screen.getByRole("button", { name: "Post" }))
+    await userEvent.click(screen.getByRole("button", { name: "Post" }))
 
     expect(createShotComment).toHaveBeenCalledWith({
       clientId: "c1",
@@ -118,9 +119,9 @@ describe("ShotCommentsSection", () => {
 
     render(<ShotCommentsSection shotId="s1" canComment />)
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }))
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }))
     const dialog = await screen.findByRole("dialog")
-    fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }))
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }))
 
     expect(setShotCommentDeleted).toHaveBeenCalledWith({
       clientId: "c1",

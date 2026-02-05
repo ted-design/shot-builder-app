@@ -1,6 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 
 let authRole: "admin" | "producer" = "producer"
@@ -68,7 +69,7 @@ describe("LibraryPalettePage", () => {
     fireEvent.change(screen.getByPlaceholderText("#AABBCC"), {
       target: { value: "aabbcc" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create" }))
+    await userEvent.click(screen.getByRole("button", { name: "Create" }))
 
     await waitFor(() => {
       expect(saveColorSwatch).toHaveBeenCalledTimes(1)
@@ -96,7 +97,7 @@ describe("LibraryPalettePage", () => {
 
     renderPage()
 
-    fireEvent.click(screen.getByText("Olive"))
+    await userEvent.click(screen.getByText("Olive"))
     const input = screen.getByDisplayValue("Olive")
     fireEvent.change(input, { target: { value: "Olive Green" } })
     fireEvent.blur(input)
@@ -127,10 +128,10 @@ describe("LibraryPalettePage", () => {
 
     renderPage()
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]!)
+    await userEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]!)
 
     const dialog = await screen.findByRole("dialog")
-    fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }))
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }))
 
     await waitFor(() => {
       expect(deleteColorSwatch).toHaveBeenCalledTimes(1)

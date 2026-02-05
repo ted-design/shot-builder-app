@@ -1,6 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import { Timestamp } from "firebase/firestore"
 import type { Shot } from "@/shared/types"
@@ -96,10 +97,10 @@ describe("TagManagementPage", () => {
 
     renderPage()
 
-    fireEvent.click(screen.getAllByText("Outdoor")[0]!)
+    await userEvent.click(screen.getAllByText("Outdoor")[0]!)
 
     const nameField = within(screen.getByTestId("tag-details-name")).getByText("Outdoor")
-    fireEvent.click(nameField)
+    await userEvent.click(nameField)
 
     const input = screen.getByDisplayValue("Outdoor")
     fireEvent.change(input, { target: { value: "Outdoor 2" } })

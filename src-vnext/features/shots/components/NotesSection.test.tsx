@@ -1,6 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { NotesSection } from "./NotesSection"
 
 describe("NotesSection", () => {
@@ -101,7 +102,7 @@ describe("NotesSection", () => {
       fireEvent.change(screen.getByTestId("addendum-input"), {
         target: { value: "  New entry  " },
       })
-      fireEvent.click(screen.getByTestId("addendum-submit"))
+      await userEvent.click(screen.getByTestId("addendum-submit"))
 
       await waitFor(() => {
         expect(onAppend).toHaveBeenCalledWith("New entry")
@@ -121,7 +122,7 @@ describe("NotesSection", () => {
 
       const textarea = screen.getByTestId("addendum-input") as HTMLTextAreaElement
       fireEvent.change(textarea, { target: { value: "New entry" } })
-      fireEvent.click(screen.getByTestId("addendum-submit"))
+      await userEvent.click(screen.getByTestId("addendum-submit"))
 
       await waitFor(() => {
         expect(textarea.value).toBe("")
@@ -141,7 +142,7 @@ describe("NotesSection", () => {
 
       const textarea = screen.getByTestId("addendum-input") as HTMLTextAreaElement
       fireEvent.change(textarea, { target: { value: "Important note" } })
-      fireEvent.click(screen.getByTestId("addendum-submit"))
+      await userEvent.click(screen.getByTestId("addendum-submit"))
 
       await waitFor(() => {
         expect(textarea.value).toBe("Important note")

@@ -1,6 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { Timestamp } from "firebase/firestore"
 import type { Shot } from "@/shared/types"
 
@@ -80,7 +81,7 @@ describe("ActiveLookCoverReferencesPanel", () => {
     render(<ActiveLookCoverReferencesPanel shot={shot} canEdit />)
 
     const setButtons = screen.getAllByTitle("Set as cover")
-    fireEvent.click(setButtons[0]!)
+    await userEvent.click(setButtons[0]!)
 
     await waitFor(() => expect(mockUpdateShotWithVersion).toHaveBeenCalledTimes(1))
     const callArgs = mockUpdateShotWithVersion.mock.calls[0]?.[0]

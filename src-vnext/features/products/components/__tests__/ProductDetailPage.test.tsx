@@ -1,6 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes } from "react-router-dom"
 import ProductDetailPage from "../ProductDetailPage"
 
@@ -63,7 +64,7 @@ describe("ProductDetailPage", () => {
       </MemoryRouter>,
     )
 
-    fireEvent.click(screen.getByRole("button", { name: /edit/i }))
+    await userEvent.click(screen.getByRole("button", { name: /edit/i }))
     expect(await screen.findByText("Editor Page")).toBeInTheDocument()
   })
 
