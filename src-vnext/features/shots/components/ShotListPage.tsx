@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
-import { LoadingState } from "@/shared/components/LoadingState"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { useShots } from "@/features/shots/hooks/useShots"
 import { ShotCard } from "@/features/shots/components/ShotCard"
 import { DraggableShotList } from "@/features/shots/components/DraggableShotList"
+import { ShotVisualCard } from "@/features/shots/components/ShotVisualCard"
 import { ShotReorderControls } from "@/features/shots/components/ShotReorderControls"
 import { CreateShotDialog } from "@/features/shots/components/CreateShotDialog"
 import { CreatePullFromShotsDialog } from "@/features/pulls/components/CreatePullFromShotsDialog"
@@ -35,7 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/ui/dropdown-menu"
 import { formatDateOnly } from "@/features/shots/lib/dateOnly"
-import { Camera, Plus, Info, LayoutGrid, Table2, SlidersHorizontal, Eye, ArrowUpDown } from "lucide-react"
+import { Camera, Plus, Info, LayoutGrid, Table2, SlidersHorizontal, Eye, ArrowUpDown, Image as ImageIcon } from "lucide-react"
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { textPreview } from "@/shared/lib/textPreview"
@@ -48,10 +48,12 @@ import { useLocations, useTalent } from "@/features/shots/hooks/usePickerData"
 import { getShotPrimaryLookProductLabels, resolveIdsToNames } from "@/features/shots/lib/shotListSummaries"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ShotsPdfExportDialog } from "@/features/shots/components/ShotsPdfExportDialog"
+import { Skeleton } from "@/ui/skeleton"
+import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
 
 type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated"
 type SortDir = "asc" | "desc"
-type ViewMode = "gallery" | "table"
+type ViewMode = "gallery" | "visual" | "table"
 type MissingKey = "products" | "talent" | "location" | "image"
 
 type ShotsListFields = {
@@ -174,7 +176,7 @@ function filterByMissing(
           if (s.locationId) return false
           break
         case "image":
-          if (s.heroImage?.downloadURL) return false
+          if (s.heroImage?.downloadURL || s.heroImage?.path) return false
           break
         default:
           break
@@ -313,7 +315,7 @@ export default function ShotListPage() {
     if (!storageKeyBase) return "gallery"
     try {
       const raw = window.localStorage.getItem(`${storageKeyBase}:view:v1`)
-      return raw === "table" || raw === "gallery" ? raw : "gallery"
+      return raw === "table" || raw === "gallery" || raw === "visual" ? raw : "gallery"
     } catch {
       return "gallery"
     }
@@ -321,7 +323,7 @@ export default function ShotListPage() {
 
   const viewMode: ViewMode = isMobile
     ? "gallery"
-    : viewParam === "table" || viewParam === "gallery"
+    : viewParam === "table" || viewParam === "gallery" || viewParam === "visual"
       ? viewParam
       : storedDefaultView
 
@@ -403,6 +405,11 @@ export default function ShotListPage() {
     return sortShots(filteredByQuery, sortKey, sortDir)
   }, [shots, mobileOptimistic, sortKey, sortDir, statusFilter, missingFilter, queryParam])
 
+  const hasActiveFilters =
+    queryParam.trim().length > 0 ||
+    statusFilter.size > 0 ||
+    missingFilter.size > 0
+
   const talentNameById = useMemo(() => {
     return new Map(talentRecords.map((t) => [t.id, t.name]))
   }, [talentRecords])
@@ -412,6 +419,23 @@ export default function ShotListPage() {
   }, [locationRecords])
 
   const selectionEnabled = selectionMode && canBulkPull
+
+  const visibleShotIds = useMemo(() => {
+    return new Set(displayShots.map((s) => s.id))
+  }, [displayShots])
+
+  // Selection is view-scoped: changing filters/search prunes selection to visible shots.
+  useEffect(() => {
+    if (!selectionEnabled) return
+    setSelectedIds((prev) => {
+      if (prev.size === 0) return prev
+      const next = new Set<string>()
+      for (const id of prev) {
+        if (visibleShotIds.has(id)) next.add(id)
+      }
+      return next.size === prev.size ? prev : next
+    })
+  }, [selectionEnabled, visibleShotIds])
 
   const toggleSelected = (shotId: string) => {
     setSelectedIds((prev) => {
@@ -463,7 +487,46 @@ export default function ShotListPage() {
     return badges
   }, [missingFilter, queryParam, searchParams, setSearchParams, statusFilter])
 
-  if (loading) return <LoadingState loading />
+  const stuck = useStuckLoading(loading)
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <PageHeader
+          title="Shots"
+          breadcrumbs={[
+            { label: "Projects", to: "/projects" },
+            { label: projectName || "Project" },
+          ]}
+        />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Skeleton className="h-9 w-full sm:w-[260px]" />
+          <Skeleton className="h-9 w-[160px]" />
+          <Skeleton className="h-9 w-9" />
+          <Skeleton className="h-9 w-[110px]" />
+          <Skeleton className="h-9 w-[110px]" />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <Skeleton key={idx} className="h-[170px] rounded-lg" />
+          ))}
+        </div>
+
+        {stuck && (
+          <div className="flex flex-col items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-center">
+            <p className="text-sm text-[var(--color-text-muted)]">
+              This is taking longer than expected…
+            </p>
+            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+              Reload
+            </Button>
+          </div>
+        )}
+      </div>
+    )
+  }
   if (error) {
     return (
       <div className="p-8 text-center">
@@ -757,6 +820,16 @@ export default function ShotListPage() {
                   <LayoutGrid className="h-4 w-4" />
                 </Button>
                 <Button
+                  variant={viewMode === "visual" ? "default" : "outline"}
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={() => setViewMode("visual")}
+                  aria-label="Visual view"
+                  title="Visual view"
+                >
+                  <ImageIcon className="h-4 w-4" />
+                </Button>
+                <Button
                   variant={viewMode === "table" ? "default" : "outline"}
                   size="icon"
                   className="h-9 w-9"
@@ -783,6 +856,21 @@ export default function ShotListPage() {
                   {b.label} &times;
                 </Badge>
               ))}
+            </div>
+          )}
+
+          {isCustomSort && canReorder && hasActiveFilters && (
+            <div className="mb-4 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
+              <Info className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>
+                Reordering is disabled while search/filters are active.{" "}
+                <button
+                  className="underline hover:text-[var(--color-text)]"
+                  onClick={clearFilters}
+                >
+                  Clear filters
+                </button>
+              </span>
             </div>
           )}
         </>
@@ -812,12 +900,20 @@ export default function ShotListPage() {
           actionLabel={showCreate ? "Create Shot" : undefined}
           onAction={showCreate ? () => setCreateOpen(true) : undefined}
         />
+      ) : displayShots.length === 0 ? (
+        <EmptyState
+          icon={<Camera className="h-12 w-12" />}
+          title="No matching shots"
+          description="Try adjusting your search, filters, or sort."
+          actionLabel={hasActiveFilters ? "Clear filters" : undefined}
+          onAction={hasActiveFilters ? clearFilters : undefined}
+        />
       ) : isMobile ? (
         /* Mobile: card list with up/down controls when custom sort */
         <div className="grid gap-4">
           {displayShots.map((shot, index) => (
             <div key={shot.id} className="flex items-start gap-2">
-              {isCustomSort && canReorder && (
+              {isCustomSort && canReorder && !hasActiveFilters && (
                 <ShotReorderControls
                   shot={shot}
                   shots={displayShots}
@@ -866,11 +962,25 @@ export default function ShotListPage() {
             onOpenShot={(shotId) => navigate(`/projects/${projectId}/shots/${shotId}`)}
           />
         </>
+      ) : viewMode === "visual" ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {displayShots.map((shot) => (
+            <ShotVisualCard
+              key={shot.id}
+              shot={shot}
+              selectable={selectionEnabled}
+              selected={selectionEnabled ? selectedIds.has(shot.id) : false}
+              onSelectedChange={() => toggleSelected(shot.id)}
+              showShotNumber={fields.shotNumber}
+              showTags={fields.tags}
+            />
+          ))}
+        </div>
       ) : (
         /* Desktop: draggable when custom sort, plain grid otherwise */
         <DraggableShotList
           shots={displayShots}
-          disabled={!isCustomSort || !canReorder}
+          disabled={!isCustomSort || !canReorder || hasActiveFilters}
           visibleFields={fields}
           talentNameById={talentNameById}
           locationNameById={locationNameById}
