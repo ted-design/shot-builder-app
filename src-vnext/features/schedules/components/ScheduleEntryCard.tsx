@@ -14,6 +14,12 @@ import {
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
+import { toast } from "sonner"
+import {
+  formatHHMMTo12h,
+  minutesToHHMM,
+  parseTimeToMinutes,
+} from "@/features/schedules/lib/time"
 import type { ScheduleEntry, ScheduleEntryType } from "@/shared/types"
 
 // --- Type visual config ---
@@ -77,10 +83,11 @@ interface ScheduleEntryCardProps {
   readonly entry: ScheduleEntry
   readonly isFirst: boolean
   readonly isLast: boolean
-  readonly onMoveUp: () => void
-  readonly onMoveDown: () => void
+  readonly reorderMode?: "buttons" | "none"
+  readonly onMoveUp?: () => void
+  readonly onMoveDown?: () => void
   readonly onRemove: () => void
-  readonly onUpdateTime: (time: string) => void
+  readonly onUpdateStartTime: (startTime: string | null) => void
   readonly onUpdateDuration: (duration: number | undefined) => void
   readonly onUpdateNotes: (notes: string) => void
 }
@@ -93,20 +100,33 @@ function InlineTimeField({
   placeholder,
   icon: Icon,
 }: {
-  readonly value: string
-  readonly onSave: (v: string) => void
+  readonly value: string | null
+  readonly onSave: (v: string | null) => void
   readonly placeholder: string
   readonly icon: typeof Clock
 }) {
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value)
+  const display = formatHHMMTo12h(value)
+  const [draft, setDraft] = useState(display)
 
   function handleSave() {
-    setEditing(false)
     const trimmed = draft.trim()
-    if (trimmed !== value) {
-      onSave(trimmed)
+
+    if (!trimmed) {
+      setEditing(false)
+      if (value) onSave(null)
+      return
     }
+
+    const minutes = parseTimeToMinutes(trimmed)
+    if (minutes == null) {
+      toast.error("Invalid time. Use “6:00 AM” or “18:00”.")
+      return
+    }
+
+    const next = minutesToHHMM(minutes)
+    if (next !== value) onSave(next)
+    setEditing(false)
   }
 
   if (editing) {
@@ -119,12 +139,12 @@ function InlineTimeField({
         onKeyDown={(e) => {
           if (e.key === "Enter") handleSave()
           if (e.key === "Escape") {
-            setDraft(value)
+            setDraft(display)
             setEditing(false)
           }
         }}
         placeholder={placeholder}
-        className="h-7 w-24 text-xs"
+        className="h-7 w-28 text-xs"
       />
     )
   }
@@ -135,7 +155,7 @@ function InlineTimeField({
     <button
       type="button"
       onClick={() => {
-        setDraft(value)
+        setDraft(display)
         setEditing(true)
       }}
       className={`flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:bg-[var(--color-surface-subtle)] ${
@@ -145,7 +165,7 @@ function InlineTimeField({
       }`}
     >
       <Icon className="h-3 w-3 shrink-0" />
-      {value || placeholder}
+      {display || placeholder}
     </button>
   )
 }
@@ -218,11 +238,72 @@ function InlineNotesField({
   )
 }
 
+function InlineNumberField({
+  value,
+  onSave,
+  placeholder,
+  icon: Icon,
+}: {
+  readonly value: string
+  readonly onSave: (v: string) => void
+  readonly placeholder: string
+  readonly icon: typeof Timer
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+
+  function handleSave() {
+    setEditing(false)
+    const trimmed = draft.trim()
+    if (trimmed !== value) onSave(trimmed)
+  }
+
+  if (editing) {
+    return (
+      <Input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleSave()
+          if (e.key === "Escape") {
+            setDraft(value)
+            setEditing(false)
+          }
+        }}
+        placeholder={placeholder}
+        className="h-7 w-20 text-xs"
+      />
+    )
+  }
+
+  const hasValue = !!value
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setDraft(value)
+        setEditing(true)
+      }}
+      className={`flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:bg-[var(--color-surface-subtle)] ${
+        hasValue
+          ? "font-mono text-xs font-semibold tabular-nums text-[var(--color-text)] hover:text-[var(--color-text)]"
+          : "text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+      }`}
+    >
+      <Icon className="h-3 w-3 shrink-0" />
+      {value || placeholder}
+    </button>
+  )
+}
+
 // --- Node class helper ---
 
 function nodeClasses(entry: ScheduleEntry, isRhythm: boolean): string {
   const base = "schedule-entry-node"
-  const active = entry.time ? "schedule-entry-node--active" : ""
+  const active = (entry.startTime ?? entry.time) ? "schedule-entry-node--active" : ""
   const rhythm = isRhythm ? "schedule-entry-node--rhythm" : ""
   return [base, active, rhythm].filter(Boolean).join(" ")
 }
@@ -233,10 +314,11 @@ export function ScheduleEntryCard({
   entry,
   isFirst,
   isLast,
+  reorderMode = "buttons",
   onMoveUp,
   onMoveDown,
   onRemove,
-  onUpdateTime,
+  onUpdateStartTime,
   onUpdateDuration,
   onUpdateNotes,
 }: ScheduleEntryCardProps) {
@@ -251,22 +333,24 @@ export function ScheduleEntryCard({
       <>
         <div className={nodeClasses(entry, true)}>
           <div className={`group flex items-center gap-2 rounded-md border-l-[3px] ${typeConfig.accent} ${typeConfig.bg} border ${typeConfig.border} px-2.5 py-1.5`}>
-            {/* Reorder */}
-            <div className="flex gap-0.5">
-              <Button variant="ghost" size="icon" className="h-5 w-5" disabled={isFirst} onClick={onMoveUp} aria-label="Move up">
-                <ArrowUp className="h-3 w-3" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-5 w-5" disabled={isLast} onClick={onMoveDown} aria-label="Move down">
-                <ArrowDown className="h-3 w-3" />
-              </Button>
-            </div>
+            {reorderMode === "buttons" && onMoveUp && onMoveDown && (
+              <div className="flex gap-0.5">
+                <Button variant="ghost" size="icon" className="h-5 w-5" disabled={isFirst} onClick={onMoveUp} aria-label="Move up">
+                  <ArrowUp className="h-3 w-3" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-5 w-5" disabled={isLast} onClick={onMoveDown} aria-label="Move down">
+                  <ArrowDown className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
 
             {/* Time — dominant when set */}
-            {entry.time ? (
-              <InlineTimeField value={entry.time} onSave={onUpdateTime} placeholder="Time" icon={Clock} />
-            ) : (
-              <InlineTimeField value="" onSave={onUpdateTime} placeholder="Time" icon={Clock} />
-            )}
+            <InlineTimeField
+              value={(entry.startTime ?? entry.time ?? null) as string | null}
+              onSave={onUpdateStartTime}
+              placeholder="Time"
+              icon={Clock}
+            />
 
             <TypeIcon className="h-3 w-3 shrink-0 text-[var(--color-text-muted)]" />
 
@@ -276,7 +360,7 @@ export function ScheduleEntryCard({
 
             {/* Duration inline */}
             <div className="flex flex-1 items-center justify-end gap-2">
-              <InlineTimeField
+              <InlineNumberField
                 value={entry.duration != null ? String(entry.duration) : ""}
                 onSave={(v) => {
                   const parsed = parseInt(v, 10)
@@ -317,21 +401,27 @@ export function ScheduleEntryCard({
     <>
       <div className={nodeClasses(entry, false)}>
         <div className={`group flex items-start gap-2.5 rounded-md border-l-[3px] ${typeConfig.accent} border ${typeConfig.border} ${typeConfig.bg} px-3 py-2 transition-colors hover:border-[var(--color-border-strong)]`}>
-          {/* Reorder controls */}
-          <div className="flex flex-col gap-0.5 pt-0.5">
-            <Button variant="ghost" size="icon" className="h-5 w-5" disabled={isFirst} onClick={onMoveUp} aria-label="Move up">
-              <ArrowUp className="h-3 w-3" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-5 w-5" disabled={isLast} onClick={onMoveDown} aria-label="Move down">
-              <ArrowDown className="h-3 w-3" />
-            </Button>
-          </div>
+          {reorderMode === "buttons" && onMoveUp && onMoveDown && (
+            <div className="flex flex-col gap-0.5 pt-0.5">
+              <Button variant="ghost" size="icon" className="h-5 w-5" disabled={isFirst} onClick={onMoveUp} aria-label="Move up">
+                <ArrowUp className="h-3 w-3" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-5 w-5" disabled={isLast} onClick={onMoveDown} aria-label="Move down">
+                <ArrowDown className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
 
           {/* Entry content — time dominant */}
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             {/* Row 1: Time (dominant) + Type icon + Title */}
             <div className="flex items-center gap-2">
-              <InlineTimeField value={entry.time ?? ""} onSave={onUpdateTime} placeholder="Set time" icon={Clock} />
+              <InlineTimeField
+                value={(entry.startTime ?? entry.time ?? null) as string | null}
+                onSave={onUpdateStartTime}
+                placeholder="Set time (e.g. 6:00 AM)"
+                icon={Clock}
+              />
               <TypeIcon className="h-3.5 w-3.5 shrink-0 text-[var(--color-primary)]" />
               <span className="truncate text-sm font-medium text-[var(--color-text)]">
                 {entry.title}
@@ -345,7 +435,7 @@ export function ScheduleEntryCard({
 
             {/* Row 2: Duration + Notes (tertiary) */}
             <div className="flex items-center gap-3">
-              <InlineTimeField
+              <InlineNumberField
                 value={entry.duration != null ? String(entry.duration) : ""}
                 onSave={(v) => {
                   const parsed = parseInt(v, 10)

@@ -1,5 +1,7 @@
 import { useMemo, type CSSProperties } from "react"
 import { textPreview } from "@/shared/lib/textPreview"
+import { formatHHMMTo12h } from "@/features/schedules/lib/time"
+import { AdvancedScheduleBlockSection } from "@/features/schedules/components/AdvancedScheduleBlockSection"
 import type {
   Schedule,
   DayDetails,
@@ -123,13 +125,14 @@ function RendererEntryRow({
   readonly talentNames: readonly string[]
 }) {
   const isRhythm = RHYTHM_TYPES.has(entry.type)
+  const timeLabel = formatHHMMTo12h(entry.startTime ?? entry.time ?? null)
 
   if (isRhythm) {
     return (
       <div className="callsheet-block flex items-center gap-3 border-b border-amber-100 bg-amber-50/40 px-2 py-1 last:border-b-0">
-        {entry.time && (
+        {timeLabel && (
           <span className="w-16 shrink-0 font-mono text-[10px] font-semibold tabular-nums text-[var(--color-text-muted)]">
-            {entry.time}
+            {timeLabel}
           </span>
         )}
         <span className="flex-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -155,9 +158,9 @@ function RendererEntryRow({
   return (
     <div className="callsheet-block flex flex-col gap-1 border-b border-[var(--color-border)] py-2 last:border-b-0">
       <div className="flex items-baseline gap-3">
-        {entry.time && (
+        {timeLabel && (
           <span className="w-16 shrink-0 font-mono text-xs font-semibold tabular-nums text-[var(--color-text)]">
-            {entry.time}
+            {timeLabel}
           </span>
         )}
         <div className="min-w-0 flex-1">
@@ -265,6 +268,16 @@ export function CallSheetRenderer({
     return m
   }, [shots])
 
+  const hasMultiStream = useMemo(() => {
+    const trackCount = schedule?.tracks?.length ?? 0
+    if (trackCount > 1) return true
+    return (entries ?? []).some((e) => {
+      if (e.type === "banner") return true
+      if (e.trackId && e.trackId !== "primary") return true
+      return Array.isArray(e.appliesToTrackIds) && e.appliesToTrackIds.length > 0
+    })
+  }, [entries, schedule?.tracks])
+
   if (!schedule) {
     return null
   }
@@ -347,25 +360,39 @@ export function CallSheetRenderer({
               No entries scheduled.
             </p>
           ) : (
-            <div className="flex flex-col">
-              {entries.map((entry) => {
-                const shot = entry.shotId ? (shotMap.get(entry.shotId) ?? null) : null
-                const talentNames = (entry.type === "shot" && shot?.talentIds)
-                  ? shot.talentIds
-                    .map((id) => talentMap.get(id)?.name ?? id)
-                    .filter(Boolean)
-                  : []
-                return (
-                  <RendererEntryRow
-                    key={entry.id}
-                    entry={entry}
-                    shot={shot}
-                    fields={scheduleFields}
-                    talentNames={talentNames}
-                  />
-                )
-              })}
-            </div>
+            hasMultiStream ? (
+              <AdvancedScheduleBlockSection
+                schedule={schedule}
+                entries={entries}
+                shots={shots ?? []}
+                talentLookup={talentLookup ?? []}
+                fields={scheduleFields}
+              />
+            ) : (
+              <div className="flex flex-col">
+                {entries.map((entry) => {
+                  const shot = entry.shotId ? (shotMap.get(entry.shotId) ?? null) : null
+                  const talentIds =
+                    shot?.talentIds && shot.talentIds.length > 0
+                      ? shot.talentIds
+                      : (shot?.talent ?? [])
+                  const talentNames = entry.type === "shot" && shot
+                    ? talentIds
+                        .map((id) => talentMap.get(id)?.name ?? id)
+                        .filter(Boolean)
+                    : []
+                  return (
+                    <RendererEntryRow
+                      key={entry.id}
+                      entry={entry}
+                      shot={shot}
+                      fields={scheduleFields}
+                      talentNames={talentNames}
+                    />
+                  )
+                })}
+              </div>
+            )
           )}
         </div>
       )}

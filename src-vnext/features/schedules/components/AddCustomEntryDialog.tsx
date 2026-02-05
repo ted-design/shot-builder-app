@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Coffee, Truck, Wrench } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Coffee, Truck, Wrench, StickyNote } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -10,9 +10,17 @@ import {
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
 import { Label } from "@/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/ui/select"
 import type { ScheduleEntryType } from "@/shared/types"
+import type { ScheduleTrack } from "@/shared/types"
 
-type CustomEntryType = Exclude<ScheduleEntryType, "shot" | "banner">
+type CustomEntryType = Exclude<ScheduleEntryType, "shot">
 
 const CUSTOM_TYPES: readonly {
   readonly value: CustomEntryType
@@ -23,26 +31,43 @@ const CUSTOM_TYPES: readonly {
   { value: "setup", label: "Setup", icon: Wrench, defaultTitle: "Setup" },
   { value: "break", label: "Break", icon: Coffee, defaultTitle: "Break" },
   { value: "move", label: "Move", icon: Truck, defaultTitle: "Company Move" },
+  { value: "banner", label: "Banner", icon: StickyNote, defaultTitle: "Note" },
 ]
 
 interface AddCustomEntryDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
-  readonly onAdd: (type: CustomEntryType, title: string) => void
+  readonly tracks: readonly ScheduleTrack[]
+  readonly defaultTrackId?: string
+  readonly defaultType?: CustomEntryType
+  readonly onAdd: (type: CustomEntryType, title: string, trackId: string) => void
 }
 
 export function AddCustomEntryDialog({
   open,
   onOpenChange,
+  tracks,
+  defaultTrackId,
+  defaultType,
   onAdd,
 }: AddCustomEntryDialogProps) {
   const [selectedType, setSelectedType] = useState<CustomEntryType>("setup")
   const [title, setTitle] = useState("")
+  const [trackId, setTrackId] = useState(tracks[0]?.id ?? "primary")
+
+  useEffect(() => {
+    if (!open) return
+    if (defaultType) setSelectedType(defaultType)
+    const next = defaultTrackId && tracks.some((t) => t.id === defaultTrackId)
+      ? defaultTrackId
+      : (tracks[0]?.id ?? "primary")
+    setTrackId(next)
+  }, [defaultTrackId, defaultType, open, tracks])
 
   function handleSubmit() {
     const selected = CUSTOM_TYPES.find((t) => t.value === selectedType)
     const finalTitle = title.trim() || selected?.defaultTitle || selectedType
-    onAdd(selectedType, finalTitle)
+    onAdd(selectedType, finalTitle, selectedType === "banner" ? "primary" : trackId)
     setTitle("")
     setSelectedType("setup")
     onOpenChange(false)
@@ -83,6 +108,26 @@ export function AddCustomEntryDialog({
               })}
             </div>
           </div>
+
+          {tracks.length > 1 && selectedType !== "banner" && (
+            <div className="flex flex-col gap-2">
+              <Label className="text-xs font-medium text-[var(--color-text-muted)]">
+                Track
+              </Label>
+              <Select value={trackId} onValueChange={setTrackId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select track" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tracks.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Title */}
           <div className="flex flex-col gap-2">

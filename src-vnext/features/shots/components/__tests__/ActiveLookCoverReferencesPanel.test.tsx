@@ -4,7 +4,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { Timestamp } from "firebase/firestore"
 import type { Shot } from "@/shared/types"
 
-const mockUpdateShotWithVersion = vi.fn(async () => undefined)
+const mockUpdateShotWithVersion = vi.fn(async (_args: unknown) => undefined)
 
 vi.mock("@/features/shots/lib/updateShotWithVersion", () => ({
   updateShotWithVersion: (args: unknown) => mockUpdateShotWithVersion(args),
@@ -83,7 +83,9 @@ describe("ActiveLookCoverReferencesPanel", () => {
     fireEvent.click(setButtons[0]!)
 
     await waitFor(() => expect(mockUpdateShotWithVersion).toHaveBeenCalledTimes(1))
-    const call = mockUpdateShotWithVersion.mock.calls[0]?.[0] as Record<string, unknown>
+    const callArgs = mockUpdateShotWithVersion.mock.calls[0]?.[0]
+    expect(callArgs).toBeDefined()
+    const call = callArgs as Record<string, unknown>
     expect(call.source).toBe("ActiveLookCoverReferencesPanel.saveLooks")
 
     const patch = call.patch as Record<string, unknown>

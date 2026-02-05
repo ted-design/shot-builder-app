@@ -38,7 +38,8 @@ export async function renameTagAcrossShots(args: {
     const batch = writeBatch(db)
     for (const shot of group) {
       const nextTags = replaceTag(shot, tagId, { label })
-      batch.update(doc(db, ...shotPath(shot.id, clientId)), {
+      const path = shotPath(shot.id, clientId)
+      batch.update(doc(db, path[0]!, ...path.slice(1)), {
         tags: nextTags,
         updatedAt: serverTimestamp(),
       })
@@ -66,7 +67,8 @@ export async function recolorTagAcrossShots(args: {
     const batch = writeBatch(db)
     for (const shot of group) {
       const nextTags = replaceTag(shot, tagId, { color })
-      batch.update(doc(db, ...shotPath(shot.id, clientId)), {
+      const path = shotPath(shot.id, clientId)
+      batch.update(doc(db, path[0]!, ...path.slice(1)), {
         tags: nextTags,
         updatedAt: serverTimestamp(),
       })
@@ -91,7 +93,8 @@ export async function deleteTagAcrossShots(args: {
     const batch = writeBatch(db)
     for (const shot of group) {
       const nextTags = (shot.tags ?? []).filter((t) => t.id !== tagId)
-      batch.update(doc(db, ...shotPath(shot.id, clientId)), {
+      const path = shotPath(shot.id, clientId)
+      batch.update(doc(db, path[0]!, ...path.slice(1)), {
         tags: nextTags,
         updatedAt: serverTimestamp(),
       })
@@ -124,7 +127,8 @@ export async function mergeTagsAcrossShots(args: {
       const filtered = (shot.tags ?? []).filter((t) => !mergeIdSet.has(t.id))
       const hasTarget = filtered.some((t) => t.id === target.id)
       const nextTags = hasTarget ? filtered : [...filtered, target]
-      batch.update(doc(db, ...shotPath(shot.id, clientId)), {
+      const path = shotPath(shot.id, clientId)
+      batch.update(doc(db, path[0]!, ...path.slice(1)), {
         tags: nextTags,
         updatedAt: serverTimestamp(),
       })
@@ -134,4 +138,3 @@ export async function mergeTagsAcrossShots(args: {
   }
   return updated
 }
-

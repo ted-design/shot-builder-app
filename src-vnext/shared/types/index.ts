@@ -406,12 +406,28 @@ export interface CrewRecord {
 
 // --- Schedules (Slice 3: Call Sheet Assembly) ---
 
+export interface ScheduleTrack {
+  readonly id: string
+  readonly name: string
+  readonly order: number
+}
+
+export interface ScheduleSettings {
+  readonly cascadeChanges: boolean
+  /** Canonical day start time (stored as 24h HH:MM). Display is 12h in UI. */
+  readonly dayStartTime: string
+  /** Default duration used when an entry has no duration set. */
+  readonly defaultEntryDurationMinutes: number
+}
+
 export interface Schedule {
   readonly id: string
   readonly projectId: string
   readonly name: string
   readonly date: Timestamp | null
   readonly participatingTalentIds?: readonly string[]
+  readonly tracks?: readonly ScheduleTrack[]
+  readonly settings?: ScheduleSettings
   readonly createdAt: Timestamp
   readonly updatedAt: Timestamp
   readonly createdBy?: string
@@ -424,9 +440,15 @@ export interface ScheduleEntry {
   readonly type: ScheduleEntryType
   readonly title: string
   readonly shotId?: string
+  /** Canonical time (24h HH:MM). Prefer this over legacy `time`. */
+  readonly startTime?: string | null
+  /** Legacy/compat display field (may be 12h or 24h). Prefer `startTime` for logic. */
   readonly time?: string
   readonly duration?: number
   readonly order: number
+  readonly trackId?: string
+  /** Shared/subset applicability (multi-stream). Null/undefined means track-local. */
+  readonly appliesToTrackIds?: readonly string[] | null
   readonly notes?: string
   readonly createdAt?: Timestamp
   readonly updatedAt?: Timestamp

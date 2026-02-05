@@ -21,6 +21,7 @@ import { useCrew } from "@/features/schedules/hooks/useCrew"
 import { CallSheetRenderer } from "@/features/schedules/components/CallSheetRenderer"
 import { DayDetailsEditor } from "@/features/schedules/components/DayDetailsEditor"
 import { ScheduleEntryEditor } from "@/features/schedules/components/ScheduleEntryEditor"
+import { ScheduleTrackControls } from "@/features/schedules/components/ScheduleTrackControls"
 import { CallOverridesEditor } from "@/features/schedules/components/CallOverridesEditor"
 import { CallSheetOutputControls } from "@/features/schedules/components/CallSheetOutputControls"
 import { CallSheetPrintPortal } from "@/features/schedules/components/CallSheetPrintPortal"
@@ -115,8 +116,14 @@ export default function CallSheetBuilderPage() {
       if (e.type !== "shot") continue
       if (!e.shotId) continue
       const shot = shotMap.get(e.shotId)
-      const ids = shot?.talentIds ?? []
-      for (const id of ids) set.add(id)
+      const ids =
+        shot?.talentIds && shot.talentIds.length > 0
+          ? shot.talentIds
+          : (shot?.talent ?? [])
+      for (const id of ids) {
+        const trimmed = (id ?? "").trim()
+        if (trimmed) set.add(trimmed)
+      }
     }
     return [...set].sort()
   }, [entries, shots])
@@ -307,8 +314,14 @@ export default function CallSheetBuilderPage() {
 
               {/* E4: Day-stream connector wrapper */}
               <div className="schedule-entry-stream">
+                <ScheduleTrackControls
+                  scheduleId={scheduleId}
+                  schedule={schedule}
+                  entries={entries}
+                />
                 <ScheduleEntryEditor
                   scheduleId={scheduleId}
+                  schedule={schedule}
                   entries={entries}
                   shots={shots}
                 />

@@ -5,6 +5,7 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import {
@@ -16,6 +17,7 @@ import {
   scheduleCrewCallsPath,
   callSheetConfigPath,
 } from "@/shared/lib/paths"
+import type { ScheduleTrack, ScheduleSettings } from "@/shared/types"
 
 function ref(segments: string[]) {
   return doc(db, segments[0]!, ...segments.slice(1))
@@ -34,10 +36,20 @@ export async function createSchedule(
 ): Promise<string> {
   const coll = collRef(schedulesPath(projectId, clientId))
   const docRef = doc(coll)
+
+  const tracks: readonly ScheduleTrack[] = [{ id: "primary", name: "Primary", order: 0 }]
+  const settings: ScheduleSettings = {
+    cascadeChanges: true,
+    dayStartTime: "06:00",
+    defaultEntryDurationMinutes: 15,
+  }
+
   await setDoc(docRef, {
     projectId,
     name: fields.name,
     date: fields.date ?? null,
+    tracks,
+    settings,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
@@ -52,6 +64,18 @@ export async function deleteSchedule(
   await deleteDoc(ref(schedulePath(projectId, scheduleId, clientId)))
 }
 
+export async function updateScheduleFields(
+  clientId: string,
+  projectId: string,
+  scheduleId: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  await updateDoc(ref(schedulePath(projectId, scheduleId, clientId)), {
+    ...patch,
+    updatedAt: serverTimestamp(),
+  })
+}
+
 // --- Schedule Entries ---
 
 export async function addScheduleEntryShot(
@@ -62,8 +86,9 @@ export async function addScheduleEntryShot(
     readonly shotId: string
     readonly title: string
     readonly order: number
-    readonly time?: string
+    readonly startTime?: string | null
     readonly duration?: number
+    readonly trackId?: string
   },
 ): Promise<string> {
   const coll = collRef(scheduleEntriesPath(projectId, scheduleId, clientId))
@@ -73,8 +98,9 @@ export async function addScheduleEntryShot(
     shotId: fields.shotId,
     title: fields.title,
     order: fields.order,
-    time: fields.time ?? null,
+    startTime: fields.startTime ?? null,
     duration: fields.duration ?? null,
+    trackId: fields.trackId ?? "primary",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
@@ -89,8 +115,10 @@ export async function addScheduleEntryCustom(
     readonly type: "setup" | "break" | "move" | "banner"
     readonly title: string
     readonly order: number
-    readonly time?: string
+    readonly startTime?: string | null
     readonly duration?: number
+    readonly trackId?: string
+    readonly appliesToTrackIds?: readonly string[] | null
   },
 ): Promise<string> {
   const coll = collRef(scheduleEntriesPath(projectId, scheduleId, clientId))
@@ -99,8 +127,10 @@ export async function addScheduleEntryCustom(
     type: fields.type,
     title: fields.title,
     order: fields.order,
-    time: fields.time ?? null,
+    startTime: fields.startTime ?? null,
     duration: fields.duration ?? null,
+    trackId: fields.trackId ?? "primary",
+    appliesToTrackIds: fields.appliesToTrackIds ?? null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
@@ -122,6 +152,64 @@ export async function updateScheduleEntryFields(
     ...patch,
     updatedAt: serverTimestamp(),
   })
+}
+
+export async function batchUpdateScheduleEntries(
+  clientId: string,
+  projectId: string,
+  scheduleId: string,
+  updates: readonly { readonly entryId: string; readonly patch: Record<string, unknown> }[],
+): Promise<void> {
+  if (updates.length === 0) return
+  const batch = writeBatch(db)
+  for (const update of updates) {
+    const segments = [
+      ...scheduleEntriesPath(projectId, scheduleId, clientId),
+      update.entryId,
+    ]
+    batch.update(ref(segments), {
+      ...update.patch,
+      updatedAt: serverTimestamp(),
+    })
+  }
+  await batch.commit()
+}
+
+export async function batchUpdateScheduleAndEntries(
+  clientId: string,
+  projectId: string,
+  scheduleId: string,
+  input: {
+    readonly schedulePatch?: Record<string, unknown>
+    readonly entryUpdates?: readonly { readonly entryId: string; readonly patch: Record<string, unknown> }[]
+  },
+): Promise<void> {
+  const hasSchedulePatch = !!input.schedulePatch && Object.keys(input.schedulePatch).length > 0
+  const entryUpdates = input.entryUpdates ?? []
+  if (!hasSchedulePatch && entryUpdates.length === 0) return
+
+  const batch = writeBatch(db)
+
+  if (hasSchedulePatch) {
+    const segments = schedulePath(projectId, scheduleId, clientId)
+    batch.update(ref(segments), {
+      ...input.schedulePatch,
+      updatedAt: serverTimestamp(),
+    })
+  }
+
+  for (const update of entryUpdates) {
+    const segments = [
+      ...scheduleEntriesPath(projectId, scheduleId, clientId),
+      update.entryId,
+    ]
+    batch.update(ref(segments), {
+      ...update.patch,
+      updatedAt: serverTimestamp(),
+    })
+  }
+
+  await batch.commit()
 }
 
 export async function removeScheduleEntry(

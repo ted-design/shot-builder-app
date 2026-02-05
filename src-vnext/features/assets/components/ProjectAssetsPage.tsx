@@ -86,7 +86,7 @@ export default function ProjectAssetsPage() {
   const error =
     shotsError || talentError || locationsError || familiesError || crewError
 
-  const canEdit = canManageProjects(role) && !isMobile
+  const canEdit = canManageProjects(role) && !isMobile && !!clientId
 
   const heroCount = useMemo(() => countHeroImages(shots), [shots])
 
@@ -208,20 +208,29 @@ export default function ProjectAssetsPage() {
           icon={<Users className="h-4 w-4" />}
           kindLabel="talent"
           projectId={projectId}
-          clientId={clientId}
+          clientId={clientId ?? ""}
           items={talentItems}
           usageRows={talentUsageRows}
           canEdit={canEdit}
-          onAdd={async (ids) => addTalentToProject({ clientId, projectId, ids })}
-          onRemove={async (id) => removeTalentFromProject({ clientId, projectId, id })}
+          onAdd={async (ids) => {
+            if (!clientId) return
+            await addTalentToProject({ clientId, projectId, ids })
+          }}
+          onRemove={async (id) => {
+            if (!clientId) return
+            await removeTalentFromProject({ clientId, projectId, id })
+          }}
           onCreate={async ({ name, sublabel, notes }) =>
-            createTalentAndAddToProject({
-              clientId,
-              projectId,
-              name,
-              agency: sublabel,
-              notes,
-            })
+            {
+              if (!clientId) return
+              await createTalentAndAddToProject({
+                clientId,
+                projectId,
+                name,
+                agency: sublabel,
+                notes,
+              })
+            }
           }
           createFields={{
             nameLabel: "Name",
@@ -235,20 +244,29 @@ export default function ProjectAssetsPage() {
           icon={<MapPin className="h-4 w-4" />}
           kindLabel="locations"
           projectId={projectId}
-          clientId={clientId}
+          clientId={clientId ?? ""}
           items={locationItems}
           usageRows={locationUsageRows}
           canEdit={canEdit}
-          onAdd={async (ids) => addLocationsToProject({ clientId, projectId, ids })}
-          onRemove={async (id) => removeLocationFromProject({ clientId, projectId, id })}
+          onAdd={async (ids) => {
+            if (!clientId) return
+            await addLocationsToProject({ clientId, projectId, ids })
+          }}
+          onRemove={async (id) => {
+            if (!clientId) return
+            await removeLocationFromProject({ clientId, projectId, id })
+          }}
           onCreate={async ({ name, sublabel, notes }) =>
-            createLocationAndAddToProject({
-              clientId,
-              projectId,
-              name,
-              address: sublabel,
-              notes,
-            })
+            {
+              if (!clientId) return
+              await createLocationAndAddToProject({
+                clientId,
+                projectId,
+                name,
+                address: sublabel,
+                notes,
+              })
+            }
           }
           createFields={{
             nameLabel: "Name",
@@ -262,20 +280,29 @@ export default function ProjectAssetsPage() {
           icon={<HardHat className="h-4 w-4" />}
           kindLabel="crew"
           projectId={projectId}
-          clientId={clientId}
+          clientId={clientId ?? ""}
           items={crewItems}
           usageRows={[]}
           canEdit={canEdit}
-          onAdd={async (ids) => addCrewToProject({ clientId, projectId, ids })}
-          onRemove={async (id) => removeCrewFromProject({ clientId, projectId, id })}
+          onAdd={async (ids) => {
+            if (!clientId) return
+            await addCrewToProject({ clientId, projectId, ids })
+          }}
+          onRemove={async (id) => {
+            if (!clientId) return
+            await removeCrewFromProject({ clientId, projectId, id })
+          }}
           onCreate={async ({ name, sublabel, notes }) =>
-            createCrewAndAddToProject({
-              clientId,
-              projectId,
-              name,
-              position: sublabel,
-              notes,
-            })
+            {
+              if (!clientId) return
+              await createCrewAndAddToProject({
+                clientId,
+                projectId,
+                name,
+                position: sublabel,
+                notes,
+              })
+            }
           }
           createFields={{
             nameLabel: "Name",

@@ -10,15 +10,51 @@ import type {
   CrewRecord,
   LocationBlock,
   WeatherData,
+  ScheduleTrack,
+  ScheduleSettings,
 } from "@/shared/types"
+import { minutesToHHMM, parseTimeToMinutes } from "@/features/schedules/lib/time"
 
 export function mapSchedule(id: string, data: Record<string, unknown>): Schedule {
+  const rawTracks = data["tracks"]
+  const tracks: readonly ScheduleTrack[] | undefined = Array.isArray(rawTracks)
+    ? (rawTracks as unknown[])
+        .map((t) => {
+          if (!t || typeof t !== "object") return null
+          const obj = t as Record<string, unknown>
+          const tid = typeof obj["id"] === "string" ? obj["id"].trim() : ""
+          if (!tid) return null
+          const name = typeof obj["name"] === "string" ? obj["name"].trim() : ""
+          const order = typeof obj["order"] === "number" ? obj["order"] : 0
+          return { id: tid, name: name || "Track", order }
+        })
+        .filter(Boolean) as ScheduleTrack[]
+    : undefined
+
+  const rawSettings = data["settings"]
+  const settings: ScheduleSettings | undefined =
+    rawSettings && typeof rawSettings === "object"
+      ? {
+          cascadeChanges:
+            (rawSettings as Record<string, unknown>)["cascadeChanges"] !== false,
+          dayStartTime:
+            typeof (rawSettings as Record<string, unknown>)["dayStartTime"] === "string"
+              ? ((rawSettings as Record<string, unknown>)["dayStartTime"] as string)
+              : "06:00",
+          defaultEntryDurationMinutes:
+            ((rawSettings as Record<string, unknown>)["defaultEntryDurationMinutes"] as number) ??
+            15,
+        }
+      : undefined
+
   return {
     id,
     projectId: (data["projectId"] as string) ?? "",
     name: (data["name"] as string) ?? "",
     date: (data["date"] as Schedule["date"]) ?? null,
     participatingTalentIds: data["participatingTalentIds"] as readonly string[] | undefined,
+    tracks,
+    settings,
     createdAt: data["createdAt"] as Schedule["createdAt"],
     updatedAt: data["updatedAt"] as Schedule["updatedAt"],
     createdBy: data["createdBy"] as string | undefined,
@@ -33,15 +69,29 @@ export function mapScheduleEntry(id: string, data: Record<string, unknown>): Sch
     ? (rawType as ScheduleEntryType)
     : "shot"
 
+  const rawStart = data["startTime"]
+  const startTimeFromDoc =
+    typeof rawStart === "string" && rawStart.trim().length > 0 ? rawStart.trim() : null
+  const legacyTime = data["time"] as string | undefined
+  const startTime =
+    startTimeFromDoc ??
+    (() => {
+      const mins = parseTimeToMinutes(legacyTime)
+      return mins == null ? null : minutesToHHMM(mins)
+    })()
+
   return {
     id,
     type,
     title: (data["title"] as string) ?? "",
     shotId: data["shotId"] as string | undefined,
-    time: data["time"] as string | undefined,
+    startTime,
+    time: legacyTime,
     duration: data["duration"] as number | undefined,
     order: (data["order"] as number) ?? 0,
     notes: data["notes"] as string | undefined,
+    trackId: data["trackId"] as string | undefined,
+    appliesToTrackIds: data["appliesToTrackIds"] as readonly string[] | null | undefined,
     createdAt: data["createdAt"] as ScheduleEntry["createdAt"],
     updatedAt: data["updatedAt"] as ScheduleEntry["updatedAt"],
   }

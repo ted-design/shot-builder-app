@@ -192,7 +192,8 @@ export async function restoreShotVersion(args: {
   delete patch.createdAt
   delete patch.createdBy
 
-  const shotRef = doc(db, ...shotPath(shotId, clientId))
+  const path = shotPath(shotId, clientId)
+  const shotRef = doc(db, path[0]!, ...path.slice(1))
   await updateDoc(shotRef, {
     ...patch,
     updatedAt: serverTimestamp(),
@@ -229,4 +230,3 @@ export async function restoreShotVersionById(args: {
   const version = { id: snap.id, ...(snap.data() as Record<string, unknown>) } as ShotVersion
   await restoreShotVersion({ clientId, shotId, version, currentShot, user })
 }
-

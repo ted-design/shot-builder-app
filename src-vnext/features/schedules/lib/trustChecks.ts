@@ -137,11 +137,21 @@ export function computeTrustWarnings(input: TrustCheckInput): readonly TrustWarn
   // 4. Estimated wrap earlier than last scheduled entry
   const estimatedWrap = dayDetails?.estimatedWrap
   if (estimatedWrap && entries.length > 0) {
-    const lastEntry = [...entries].sort((a, b) => b.order - a.order)[0]
-    if (lastEntry?.time && isTimeBefore(estimatedWrap, lastEntry.time)) {
+    const candidates = entries
+      .map((e) => {
+        const label = e.startTime ?? e.time ?? null
+        const startMin = parseTimeToMinutes(label)
+        return startMin == null ? null : { label, startMin }
+      })
+      .filter(Boolean) as { label: string; startMin: number }[]
+
+    const latest = candidates.sort((a, b) => b.startMin - a.startMin)[0] ?? null
+    const latestLabel = latest?.label ?? null
+
+    if (latestLabel && isTimeBefore(estimatedWrap, latestLabel)) {
       warnings.push({
         id: "wrap-before-last-entry",
-        message: `Estimated wrap (${estimatedWrap}) is earlier than the last scheduled entry (${lastEntry.time}).`,
+        message: `Estimated wrap (${estimatedWrap}) is earlier than the last scheduled entry (${latestLabel}).`,
       })
     }
   }

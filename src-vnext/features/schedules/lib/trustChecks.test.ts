@@ -200,6 +200,19 @@ describe("computeTrustWarnings", () => {
       expect(warning!.message).toContain("6:00 PM")
     })
 
+    it("uses startTime when present", () => {
+      const warnings = computeTrustWarnings({
+        ...emptyInput,
+        dayDetails: makeDayDetails({ estimatedWrap: "5:00 PM" }),
+        entries: [
+          makeEntry({ id: "e2", order: 2, startTime: "18:00" }),
+        ],
+      })
+      const warning = warnings.find((w) => w.id === "wrap-before-last-entry")
+      expect(warning).toBeDefined()
+      expect(warning!.message).toContain("18:00")
+    })
+
     it("does not warn when wrap is after last entry", () => {
       const warnings = computeTrustWarnings({
         ...emptyInput,

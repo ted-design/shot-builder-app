@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Camera, Plus, Search } from "lucide-react"
 import {
   Dialog,
@@ -8,14 +8,24 @@ import {
 } from "@/ui/dialog"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/ui/select"
 import type { Shot, ScheduleEntry } from "@/shared/types"
+import type { ScheduleTrack } from "@/shared/types"
 
 interface AddShotToScheduleDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly shots: readonly Shot[]
   readonly existingEntries: readonly ScheduleEntry[]
-  readonly onAdd: (shot: Shot) => void
+  readonly tracks: readonly ScheduleTrack[]
+  readonly defaultTrackId?: string
+  readonly onAdd: (shot: Shot, trackId: string) => void
 }
 
 export function AddShotToScheduleDialog({
@@ -23,9 +33,20 @@ export function AddShotToScheduleDialog({
   onOpenChange,
   shots,
   existingEntries,
+  tracks,
+  defaultTrackId,
   onAdd,
 }: AddShotToScheduleDialogProps) {
   const [search, setSearch] = useState("")
+  const [trackId, setTrackId] = useState(tracks[0]?.id ?? "primary")
+
+  useEffect(() => {
+    if (!open) return
+    const next = defaultTrackId && tracks.some((t) => t.id === defaultTrackId)
+      ? defaultTrackId
+      : (tracks[0]?.id ?? "primary")
+    setTrackId(next)
+  }, [defaultTrackId, open, tracks])
 
   const existingShotIds = useMemo(
     () => new Set(existingEntries.filter((e) => e.shotId).map((e) => e.shotId)),
@@ -44,7 +65,7 @@ export function AddShotToScheduleDialog({
   }, [shots, existingShotIds, search])
 
   function handleAdd(shot: Shot) {
-    onAdd(shot)
+    onAdd(shot, trackId)
   }
 
   return (
@@ -53,6 +74,26 @@ export function AddShotToScheduleDialog({
         <DialogHeader>
           <DialogTitle>Add shot to schedule</DialogTitle>
         </DialogHeader>
+
+        {tracks.length > 1 && (
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-medium text-[var(--color-text-muted)]">
+              Track
+            </span>
+            <Select value={trackId} onValueChange={setTrackId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select track" />
+              </SelectTrigger>
+              <SelectContent>
+                {tracks.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--color-text-muted)]" />
