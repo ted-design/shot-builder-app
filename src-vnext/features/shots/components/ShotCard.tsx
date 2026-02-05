@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
 import { Checkbox } from "@/ui/checkbox"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
-import { Package, Users, MapPin } from "lucide-react"
+import { Camera, Package, Users, MapPin } from "lucide-react"
 import { textPreview } from "@/shared/lib/textPreview"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { TagBadge } from "@/shared/components/TagBadge"
@@ -98,33 +98,50 @@ export function ShotCard({
       ? `${talentSummary.title}${talentSummary.title ? "\n" : ""}${unknownTalentCount} unknown`
       : talentSummary.title
 
-  const showReadiness =
-    fields.readiness && !(fields.location || fields.products || fields.talent)
+  const showReadiness = fields.readiness
+  const detailsVisible = fields.location || fields.products || fields.talent
 
   return (
     <Card
       className="cursor-pointer transition-shadow hover:shadow-md"
       onClick={() => navigate(`/projects/${projectId}/shots/${shot.id}`)}
     >
-      <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          {fields.heroThumb && heroUrl && imgVisible && (
-            <img
-              src={heroUrl}
-              alt={shot.title || "Shot image"}
-              className="h-10 w-10 flex-shrink-0 rounded-[var(--radius-md)] border border-[var(--color-border)] object-cover"
-              onError={() => setImgVisible(false)}
-            />
+      <CardHeader className="flex flex-row items-start justify-between gap-3 p-4 pb-2">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          {fields.heroThumb && (
+            <div className="w-24 flex-shrink-0 sm:w-28">
+              <div className="aspect-[16/9] overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
+                {heroUrl && imgVisible ? (
+                  <img
+                    src={heroUrl}
+                    alt={shot.title || "Shot image"}
+                    className="h-full w-full object-contain"
+                    loading="lazy"
+                    decoding="async"
+                    onError={() => setImgVisible(false)}
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[var(--color-text-subtle)]">
+                    <Camera className="h-4 w-4" />
+                  </div>
+                )}
+              </div>
+            </div>
           )}
-          <div className="flex items-baseline gap-2 min-w-0">
-            <CardTitle className="text-sm font-medium leading-tight truncate">
-              {shot.title || "Untitled Shot"}
-            </CardTitle>
-            {fields.shotNumber && shot.shotNumber && (
-              <span className="text-xs text-[var(--color-text-subtle)] flex-shrink-0">
-                #{shot.shotNumber}
-              </span>
-            )}
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start gap-2">
+              <div className="min-h-[2.25rem] min-w-0 flex-1">
+                <CardTitle className="line-clamp-2 text-sm font-medium leading-tight">
+                  {shot.title || "Untitled Shot"}
+                </CardTitle>
+              </div>
+              {fields.shotNumber && shot.shotNumber && (
+                <span className="flex-shrink-0 pt-0.5 text-xs text-[var(--color-text-subtle)]">
+                  #{shot.shotNumber}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -146,7 +163,7 @@ export function ShotCard({
           />
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2">
+      <CardContent className="flex flex-col gap-2 p-4 pt-0">
         {fields.description && shot.description && textPreview(shot.description) && (
           <p className="line-clamp-2 text-xs text-[var(--color-text-muted)]">
             {textPreview(shot.description)}
@@ -155,10 +172,10 @@ export function ShotCard({
 
         {/* Readiness indicators */}
         {showReadiness && (
-          <div className="flex items-center gap-3 text-xs">
-            <ReadinessIndicator icon={Package} ready={hasProducts} label="Products" />
-            <ReadinessIndicator icon={Users} ready={hasTalent} label="Talent" />
-            <ReadinessIndicator icon={MapPin} ready={hasLocation} label="Location" />
+          <div className="flex items-center gap-2 text-xs">
+            <ReadinessIndicator icon={Package} ready={hasProducts} label="Products" compact={detailsVisible} />
+            <ReadinessIndicator icon={Users} ready={hasTalent} label="Talent" compact={detailsVisible} />
+            <ReadinessIndicator icon={MapPin} ready={hasLocation} label="Location" compact={detailsVisible} />
           </div>
         )}
 
@@ -206,22 +223,24 @@ function ReadinessIndicator({
   icon: Icon,
   ready,
   label,
+  compact,
 }: {
   readonly icon: React.ComponentType<{ className?: string }>
   readonly ready: boolean
   readonly label: string
+  readonly compact?: boolean
 }) {
   return (
     <span
       className={`flex items-center gap-1 ${
         ready
           ? "text-[var(--color-text-secondary)]"
-          : "text-[var(--color-text-subtle)] opacity-50"
+          : "text-[var(--color-error)] opacity-80"
       }`}
       title={ready ? `${label} assigned` : `No ${label.toLowerCase()}`}
     >
-      <Icon className="h-3 w-3" />
-      <span>{label}</span>
+      <Icon className={compact ? "h-3.5 w-3.5" : "h-3 w-3"} />
+      {compact ? <span className="sr-only">{label}</span> : <span>{label}</span>}
     </span>
   )
 }

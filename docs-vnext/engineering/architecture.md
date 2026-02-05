@@ -163,7 +163,8 @@ interface Project {
   name: string;
   clientId: string;
   status: 'active' | 'completed' | 'archived';
-  shootDates: Timestamp[];
+  /** Legacy contract: date-only strings (YYYY-MM-DD). */
+  shootDates: string[];
   notes?: string;
   briefUrl?: string;
   createdAt: Timestamp;

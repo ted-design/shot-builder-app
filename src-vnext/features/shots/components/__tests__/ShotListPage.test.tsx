@@ -111,6 +111,22 @@ describe("ShotListPage", () => {
     expect(screen.getByText("Alpha")).toBeInTheDocument()
   })
 
+  it("renders visual view when view=visual", () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha", status: "todo" })],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots?view=visual")
+
+    expect(screen.queryByRole("table")).not.toBeInTheDocument()
+    expect(screen.getByText("Alpha")).toBeInTheDocument()
+    // Visual cards render StatusBadge (Draft) instead of ShotStatusSelect mock (status:todo).
+    expect(screen.getByText("Draft")).toBeInTheDocument()
+    expect(screen.queryByText("status:todo")).not.toBeInTheDocument()
+  })
+
   it("shows attached products, talent, and location in table rows", () => {
     ;(useTalent as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [
@@ -204,6 +220,73 @@ describe("ShotListPage", () => {
     expect(screen.getByText("Alpha")).toBeInTheDocument()
     expect(screen.getByText("Bravo")).toBeInTheDocument()
     expect(screen.queryByText("Charlie")).not.toBeInTheDocument()
+  })
+
+  it("shows a grouped layout when group=date", () => {
+    const withDate = makeShot({
+      id: "a",
+      title: "Alpha",
+      date: Timestamp.fromDate(new Date("2026-02-05T00:00:00Z")),
+    })
+    const noDate = makeShot({ id: "b", title: "Bravo", date: undefined })
+
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [withDate, noDate],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots?group=date")
+
+    expect(screen.getByText("2026-02-05")).toBeInTheDocument()
+    expect(screen.getByText("No date")).toBeInTheDocument()
+  })
+
+  it("shows a no-matching empty state when filters eliminate all shots", () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha", status: "todo" })],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots?status=complete")
+
+    expect(screen.getByText("No matching shots")).toBeInTheDocument()
+  })
+
+  it("treats heroImage.path as present for missing=image filtering", () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        makeShot({
+          id: "with-path",
+          title: "Has Path",
+          heroImage: { path: "shots/s1/hero.webp", downloadURL: "" },
+        }),
+        makeShot({ id: "missing", title: "Missing Image", heroImage: undefined }),
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots?missing=image")
+
+    expect(screen.getByText("Missing Image")).toBeInTheDocument()
+    expect(screen.queryByText("Has Path")).not.toBeInTheDocument()
+  })
+
+  it("shows a reorder-disabled banner when search is active", () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        makeShot({ id: "a", title: "Alpha" }),
+        makeShot({ id: "b", title: "Bravo" }),
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots?q=alp")
+
+    expect(screen.getByText(/Reordering is disabled while/i)).toBeInTheDocument()
   })
 
   it("respects persisted field visibility (description hidden)", () => {
