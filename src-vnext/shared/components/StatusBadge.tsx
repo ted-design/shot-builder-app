@@ -4,6 +4,7 @@ import { cn } from "@/shared/lib/utils"
 interface StatusBadgeProps {
   readonly label: string
   readonly color: string
+  readonly className?: string
 }
 
 const COLOR_CLASSES: Record<string, string> = {
@@ -13,13 +14,14 @@ const COLOR_CLASSES: Record<string, string> = {
   amber: "bg-amber-50 text-amber-700 border-amber-200",
 }
 
-export function StatusBadge({ label, color }: StatusBadgeProps) {
+export function StatusBadge({ label, color, className }: StatusBadgeProps) {
   return (
     <Badge
       variant="outline"
       className={cn(
         "text-xs font-medium",
         COLOR_CLASSES[color] ?? COLOR_CLASSES["gray"],
+        className,
       )}
     >
       {label}

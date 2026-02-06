@@ -22,6 +22,7 @@ interface ShotStatusSelectProps {
   readonly currentStatus: ShotFirestoreStatus
   readonly shot: Shot
   readonly disabled?: boolean
+  readonly compact?: boolean
 }
 
 export function ShotStatusSelect({
@@ -29,6 +30,7 @@ export function ShotStatusSelect({
   currentStatus,
   shot,
   disabled = false,
+  compact = false,
 }: ShotStatusSelectProps) {
   const { clientId, user } = useAuth()
   const [optimisticStatus, setOptimisticStatus] = useState<ShotFirestoreStatus | null>(null)
@@ -66,11 +68,12 @@ export function ShotStatusSelect({
       onValueChange={handleChange}
       disabled={disabled}
     >
-      <SelectTrigger className="h-8 w-[128px]">
+      <SelectTrigger className={compact ? "h-7 w-[108px] px-2 text-xs" : "h-8 w-[128px]"}>
         <SelectValue>
           <StatusBadge
             label={getShotStatusLabel(displayStatus)}
             color={getShotStatusColor(displayStatus)}
+            className={compact ? "px-1.5 py-0 text-[10px] leading-4" : undefined}
           />
         </SelectValue>
       </SelectTrigger>

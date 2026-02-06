@@ -149,22 +149,39 @@ export function ShotCard({
       onClick={() => navigate(`/projects/${projectId}/shots/${shot.id}`)}
     >
       <CardContent className="flex flex-col gap-2.5 px-4 py-3.5">
-        <div className="space-y-1">
-          <CardTitle className="line-clamp-2 text-[14px] font-semibold leading-[1.3] md:text-[15px]">
-            {shot.title || "Untitled Shot"}
-          </CardTitle>
-          {fields.description && shot.description && textPreview(shot.description) && (
-            <p className="line-clamp-2 text-[11px] leading-4 text-[var(--color-text-muted)]">
-              {textPreview(shot.description)}
-            </p>
-          )}
+        <div className="flex items-start justify-between gap-2.5">
+          <div className="min-w-0 flex-1 space-y-1">
+            <CardTitle className="line-clamp-2 text-[14px] font-semibold leading-[1.3] md:text-[15px]">
+              {shot.title || "Untitled Shot"}
+            </CardTitle>
+            {fields.shotNumber && shot.shotNumber && (
+              <span className="block text-[11px] text-[var(--color-text-subtle)]">
+                #{shot.shotNumber}
+              </span>
+            )}
+            {fields.description && shot.description && textPreview(shot.description) && (
+              <p className="line-clamp-2 text-[11px] leading-4 text-[var(--color-text-muted)]">
+                {textPreview(shot.description)}
+              </p>
+            )}
+          </div>
+          <div
+            className="flex-shrink-0"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <ShotStatusSelect
+              shotId={shot.id}
+              currentStatus={shot.status}
+              shot={shot}
+              disabled={false}
+              compact
+            />
+          </div>
         </div>
 
-        <div
-          className="flex items-center justify-between gap-2.5"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center gap-2">
+        {(leadingControl || selectable) && (
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             {leadingControl}
             {selectable && (
               <Checkbox
@@ -177,20 +194,7 @@ export function ShotCard({
               />
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {fields.shotNumber && shot.shotNumber && (
-              <span className="flex-shrink-0 text-[11px] text-[var(--color-text-subtle)]">
-                #{shot.shotNumber}
-              </span>
-            )}
-            <ShotStatusSelect
-              shotId={shot.id}
-              currentStatus={shot.status}
-              shot={shot}
-              disabled={false}
-            />
-          </div>
-        </div>
+        )}
 
         {(showHeroImage || showTalentDetails || showLocationDetails || showProductsDetails || showReadiness) && (
           <div
