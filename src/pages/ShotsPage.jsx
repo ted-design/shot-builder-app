@@ -4016,22 +4016,23 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     </div>
   );
 
-  // Status display - interactive dropdown if editable, static pill otherwise
-  // In compact mode, use smaller padding and fit-content width
-  const statusPadding = isCompact ? "px-2 py-1" : "px-3 py-1.5";
-  const statusIconSize = isCompact ? "h-3 w-3" : "h-3.5 w-3.5";
+  // Status display - interactive dropdown if editable, static pill otherwise.
+  // Keep footprint small so it can sit in the top-right header slot.
+  const statusPadding = isCompact ? "px-1.5 py-0.5" : "px-2 py-0.5";
+  const statusTextSize = "text-[10px]";
+  const statusIconSize = "h-2.5 w-2.5";
   const statusElement = showStatus && orderedFields.includes("status") ? (
     canEditShots && onChangeStatus ? (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className={`inline-flex w-fit items-center gap-1 rounded-full border ${statusPadding} text-[11px] font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 ${statusTone[statusValue] || statusTone.default}`}
+            className={`inline-flex w-fit items-center gap-1 rounded-full border ${statusPadding} ${statusTextSize} font-medium leading-none transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 ${statusTone[statusValue] || statusTone.default}`}
             onClick={(e) => e.stopPropagation()}
             aria-label={`Change status: ${statusLabel}`}
           >
             <CircleDot className={statusIconSize} />
             <span>{statusLabel}</span>
-            <ChevronDown className="h-3 w-3 opacity-60" />
+            <ChevronDown className="h-2.5 w-2.5 opacity-60" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="min-w-[120px]" onClick={(e) => e.stopPropagation()}>
@@ -4051,7 +4052,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
       </DropdownMenu>
     ) : (
       <span
-        className={`inline-flex w-fit items-center gap-1 rounded-full border ${statusPadding} text-[11px] font-medium ${statusTone[statusValue] || statusTone.default}`}
+        className={`inline-flex w-fit items-center gap-1 rounded-full border ${statusPadding} ${statusTextSize} font-medium leading-none ${statusTone[statusValue] || statusTone.default}`}
         title={`Status: ${statusLabel}`}
       >
         <CircleDot className={statusIconSize} />
@@ -4175,22 +4176,26 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
       {/* Comfy Density: Header (Name + Description + Status) Above Image */}
       {!isCompact && (showName || (showType && (descriptionText || isCorruptDescription)) || statusElement) && (
         <div className={`border-b border-slate-200 dark:border-slate-700 ${cardPadding} space-y-2`}>
-          {/* Shot Name */}
-          {showName && (
-            <h3 className={`${titleClass} font-semibold leading-5 text-slate-900 dark:text-slate-50 line-clamp-2`} title={shot.name}>
-              {shot.name}
-            </h3>
-          )}
+          <div className={`flex items-start justify-between gap-3 ${canEditShots ? "pr-10" : ""}`}>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              {/* Shot Name */}
+              {showName && (
+                <h3 className={`${titleClass} font-semibold leading-5 text-slate-900 dark:text-slate-50 line-clamp-2`} title={shot.name}>
+                  {shot.name}
+                </h3>
+              )}
 
-          {/* Description/Type */}
-          {showType && (descriptionText || isCorruptDescription) && (
-            <p className="min-w-0 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={isCorruptDescription ? undefined : descriptionText}>
-              {isCorruptDescription ? "No description" : descriptionText}
-            </p>
-          )}
+              {/* Description/Type */}
+              {showType && (descriptionText || isCorruptDescription) && (
+                <p className="min-w-0 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={isCorruptDescription ? undefined : descriptionText}>
+                  {isCorruptDescription ? "No description" : descriptionText}
+                </p>
+              )}
+            </div>
 
-          {/* Status - in comfy mode, below description */}
-          {statusElement}
+            {/* Status - moved to top-right */}
+            {statusElement && <div className="shrink-0">{statusElement}</div>}
+          </div>
 
           {/* Updated timestamp for triage (Delta H.9) */}
           {updatedElement}
@@ -4319,11 +4324,18 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
 
           {/* Header Info (Right ~60%) */}
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            {/* Shot Name */}
-            {showName && (
-              <h3 className={`${titleClass} font-semibold leading-5 text-slate-900 dark:text-slate-50 line-clamp-2`} title={shot.name}>
-                {shot.name}
-              </h3>
+            {/* Shot Name + Status (top row) */}
+            {(showName || statusElement) && (
+              <div className={`flex items-start justify-between gap-2 ${canEditShots ? "pr-8" : ""}`}>
+                {showName ? (
+                  <h3 className={`${titleClass} min-w-0 flex-1 font-semibold leading-5 text-slate-900 dark:text-slate-50 line-clamp-2`} title={shot.name}>
+                    {shot.name}
+                  </h3>
+                ) : (
+                  <div className="flex-1" />
+                )}
+                {statusElement && <div className="shrink-0">{statusElement}</div>}
+              </div>
             )}
 
             {/* Description/Type */}
@@ -4339,9 +4351,6 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
                 {metaEntries}
               </div>
             )}
-
-            {/* Status Dropdown */}
-            {statusElement}
 
             {/* Updated timestamp for triage (Delta H.9) */}
             {updatedElement}
