@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { pdf } from "@react-pdf/renderer"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog"
 import { Button } from "@/ui/button"
 import { Label } from "@/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
@@ -153,6 +153,9 @@ export function ShotPdfExportDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Export shot PDF</DialogTitle>
+          <DialogDescription className="sr-only">
+            Export this shot as a PDF.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
@@ -207,4 +210,3 @@ export function ShotPdfExportDialog({
     </Dialog>
   )
 }
-

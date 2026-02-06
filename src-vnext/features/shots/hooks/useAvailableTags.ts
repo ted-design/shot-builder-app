@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import { useShots } from "@/features/shots/hooks/useShots"
 import { DEFAULT_TAGS } from "@/shared/lib/defaultTags"
 import type { ShotTag } from "@/shared/types"
+import { resolveShotTagCategory } from "@/shared/lib/tagCategories"
 
 export type AvailableTag = ShotTag & {
   readonly usageCount: number
@@ -12,13 +13,18 @@ const DEFAULT_TAG_INDEX = new Map(DEFAULT_TAGS.map((t) => [t.id, t]))
 
 function normalizeTag(raw: unknown): ShotTag | null {
   if (!raw || typeof raw !== "object") return null
-  const t = raw as { id?: unknown; label?: unknown; color?: unknown }
+  const t = raw as { id?: unknown; label?: unknown; color?: unknown; category?: unknown }
   if (typeof t.id !== "string") return null
   if (typeof t.label !== "string") return null
   if (typeof t.color !== "string") return null
   const label = t.label.trim()
   if (!label) return null
-  return { id: t.id, label, color: t.color }
+  return {
+    id: t.id,
+    label,
+    color: t.color,
+    category: resolveShotTagCategory({ id: t.id, category: t.category as ShotTag["category"] }),
+  }
 }
 
 export function useAvailableTags() {
@@ -44,6 +50,7 @@ export function useAvailableTags() {
           id: normalized.id,
           label: normalized.label || defaultTag?.label || "Untitled",
           color: normalized.color || defaultTag?.color || "gray",
+          category: normalized.category ?? defaultTag?.category ?? "other",
           usageCount: 1,
           isDefault: Boolean(defaultTag),
         }
@@ -54,6 +61,7 @@ export function useAvailableTags() {
             ...existing,
             label: next.label || existing.label,
             color: next.color || existing.color,
+            category: next.category ?? existing.category,
             usageCount: existing.usageCount + 1,
             isDefault: existing.isDefault || next.isDefault,
           })
@@ -70,4 +78,3 @@ export function useAvailableTags() {
 
   return { tags, loading, error }
 }
-

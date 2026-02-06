@@ -59,7 +59,7 @@ export function ShotVisualCard({
           <img
             src={heroUrl}
             alt={shot.title || "Shot image"}
-            className="h-full w-full object-contain"
+            className="h-full w-full object-cover"
             loading="lazy"
             decoding="async"
             onError={() => setImgVisible(false)}

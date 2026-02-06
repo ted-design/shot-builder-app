@@ -1,7 +1,7 @@
 import { doc, serverTimestamp, writeBatch } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { shotPath } from "@/shared/lib/paths"
-import type { Shot, ShotTag } from "@/shared/types"
+import type { Shot, ShotTag, ShotTagCategory } from "@/shared/types"
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
   const result: T[][] = []
@@ -67,6 +67,34 @@ export async function recolorTagAcrossShots(args: {
     const batch = writeBatch(db)
     for (const shot of group) {
       const nextTags = replaceTag(shot, tagId, { color })
+      const path = shotPath(shot.id, clientId)
+      batch.update(doc(db, path[0]!, ...path.slice(1)), {
+        tags: nextTags,
+        updatedAt: serverTimestamp(),
+      })
+      updated += 1
+    }
+    await batch.commit()
+  }
+  return updated
+}
+
+export async function recategorizeTagAcrossShots(args: {
+  readonly clientId: string
+  readonly shots: readonly Shot[]
+  readonly tagId: string
+  readonly nextCategory: ShotTagCategory
+}) {
+  const { clientId, shots, tagId, nextCategory } = args
+
+  const shotsToUpdate = shots.filter((s) => hasTag(s, tagId))
+  if (shotsToUpdate.length === 0) return 0
+
+  let updated = 0
+  for (const group of chunk(shotsToUpdate, 450)) {
+    const batch = writeBatch(db)
+    for (const shot of group) {
+      const nextTags = replaceTag(shot, tagId, { category: nextCategory })
       const path = shotPath(shot.id, clientId)
       batch.update(doc(db, path[0]!, ...path.slice(1)), {
         tags: nextTags,

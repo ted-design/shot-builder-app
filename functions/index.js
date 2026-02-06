@@ -406,6 +406,100 @@ exports.resolveShotShareToken = functions
     };
   });
 
+/**
+ * Callable: createShotShareLink (Cloud Functions v1)
+ * Creates a share token doc in /shotShares for a project or selection.
+ *
+ * data: { projectId: string, scope: "project"|"selected", shotIds?: string[]|null, title: string }
+ * returns: { shareToken: string }
+ */
+exports.createShotShareLink = functions
+  .region("northamerica-northeast1")
+  .https.onCall(async (data, context) => {
+    if (!context.auth || !context.auth.uid) {
+      throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
+    }
+
+    const rawRole = context.auth.token?.role;
+    const role = typeof rawRole === "string" ? rawRole.trim().toLowerCase() : "";
+    const rawClientId = context.auth.token?.clientId ?? context.auth.token?.orgId;
+    const clientId = typeof rawClientId === "string" ? rawClientId.trim() : "";
+
+    if (!clientId) {
+      throw new functions.https.HttpsError("failed-precondition", "Missing client scope.");
+    }
+
+    const canCreate = role === "admin" || role === "producer" || role === "wardrobe";
+    if (!canCreate) {
+      throw new functions.https.HttpsError("permission-denied", "Not authorized to share shots.");
+    }
+
+    const projectId = data?.projectId;
+    if (!projectId || typeof projectId !== "string" || projectId.trim().length === 0) {
+      throw new functions.https.HttpsError("invalid-argument", "Invalid projectId.");
+    }
+
+    const scopeRaw = data?.scope;
+    const scope = scopeRaw === "selected" ? "selected" : "project";
+
+    const titleRaw = data?.title;
+    const title = typeof titleRaw === "string" ? titleRaw.trim() : "";
+    if (!title) {
+      throw new functions.https.HttpsError("invalid-argument", "Title is required.");
+    }
+
+    const shotIdsRaw = data?.shotIds;
+    let shotIds = null;
+    if (scope === "selected") {
+      if (!Array.isArray(shotIdsRaw)) {
+        throw new functions.https.HttpsError("invalid-argument", "shotIds must be a list when scope is selected.");
+      }
+      const ids = shotIdsRaw
+        .filter((id) => typeof id === "string")
+        .map((id) => id.trim())
+        .filter(Boolean);
+      if (ids.length === 0) {
+        throw new functions.https.HttpsError("invalid-argument", "Select at least one shot to share.");
+      }
+      // Keep payload bounded: long lists degrade link usefulness and response size.
+      if (ids.length > 500) {
+        throw new functions.https.HttpsError("invalid-argument", "Too many shots selected (max 500).");
+      }
+      shotIds = ids;
+    }
+
+    const db = admin.firestore();
+
+    const projectRef = db.collection("clients").doc(clientId).collection("projects").doc(projectId.trim());
+    const projectSnap = await projectRef.get();
+    if (!projectSnap.exists) {
+      throw new functions.https.HttpsError("not-found", "Project not found.");
+    }
+
+    // Defense-in-depth: ensure the caller is a member of the project unless they're an admin.
+    if (role !== "admin") {
+      const memberRef = projectRef.collection("members").doc(context.auth.uid);
+      const memberSnap = await memberRef.get();
+      if (!memberSnap.exists) {
+        throw new functions.https.HttpsError("permission-denied", "You don't have access to this project.");
+      }
+    }
+
+    const shareRef = db.collection("shotShares").doc();
+    await shareRef.set({
+      clientId,
+      projectId: projectId.trim(),
+      shotIds,
+      enabled: true,
+      title,
+      expiresAt: null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: context.auth.uid,
+    });
+
+    return { shareToken: shareRef.id };
+  });
+
 const isValidEmail = (email) => {
   if (!email || typeof email !== "string") return false;
   const trimmed = email.trim();

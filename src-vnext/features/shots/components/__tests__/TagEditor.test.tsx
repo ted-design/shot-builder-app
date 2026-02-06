@@ -39,7 +39,7 @@ describe("TagEditor", () => {
     })
 
     expect(onSave).toHaveBeenCalledWith([
-      expect.objectContaining({ label: "New Tag", color: "blue" }),
+      expect.objectContaining({ label: "New Tag", color: "blue", category: "other" }),
     ])
   })
 
@@ -58,7 +58,7 @@ describe("TagEditor", () => {
     })
 
     expect(onSave).toHaveBeenCalledWith([
-      expect.objectContaining({ id: "t1", label: "Photo", color: "emerald" }),
+      expect.objectContaining({ id: "t1", label: "Photo", color: "emerald", category: "other" }),
     ])
   })
 })

@@ -8,6 +8,7 @@ import { createShotVersionSnapshot } from "@/features/shots/lib/shotVersioning"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -115,6 +116,9 @@ export function CreateShotDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create Shot</DialogTitle>
+          <DialogDescription className="sr-only">
+            Create a new shot in this project.
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-4">
           <div className="flex flex-col gap-2">

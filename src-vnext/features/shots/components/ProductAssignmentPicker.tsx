@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/ui/dialog"
@@ -215,6 +216,9 @@ export function ProductAssignmentPicker({
             <DialogTitle>
               {editIndex !== null ? "Edit Product" : "Add Product"}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Select a product family and configure color, size scope, and quantity.
+            </DialogDescription>
           </DialogHeader>
 
           {step === "family" && (
