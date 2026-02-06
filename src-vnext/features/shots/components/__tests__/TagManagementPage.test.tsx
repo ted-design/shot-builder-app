@@ -118,4 +118,5 @@ describe("TagManagementPage", () => {
       nextLabel: "Outdoor 2",
     })
   })
+
 })

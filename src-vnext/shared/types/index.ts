@@ -42,10 +42,13 @@ export interface ProductAssignment {
   readonly familyImageUrl?: string
 }
 
+export type ShotTagCategory = "priority" | "gender" | "media" | "other"
+
 export interface ShotTag {
   readonly id: string
   readonly label: string
   readonly color: string
+  readonly category?: ShotTagCategory
 }
 
 export interface ColorSwatch {

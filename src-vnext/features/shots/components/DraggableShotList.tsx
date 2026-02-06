@@ -147,16 +147,21 @@ function SortableShotCard({
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="relative">
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute left-1 top-3 z-10 cursor-grab rounded p-1 text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-subtle)] active:cursor-grabbing"
-      >
-        <GripVertical className="h-4 w-4" />
-      </div>
+    <div ref={setNodeRef} style={style} className="group">
       <ShotCard
         shot={shot}
+        leadingControl={
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            className="inline-flex h-7 w-7 cursor-grab items-center justify-center rounded-[var(--radius-sm)] border border-transparent text-[var(--color-text-subtle)] opacity-100 transition-opacity hover:border-[var(--color-border)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)] md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 focus-visible:opacity-100 active:cursor-grabbing"
+            aria-label="Reorder shot"
+            title="Drag to reorder"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        }
         visibleFields={visibleFields}
         talentNameById={talentNameById}
         locationNameById={locationNameById}

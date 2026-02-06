@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase/firestore"
 import type { Shot, ProductAssignment, ShotLook, ShotReferenceImage, ShotTag } from "@/shared/types"
+import { resolveShotTagCategory } from "@/shared/lib/tagCategories"
 
 /**
  * Normalize a Firestore date field that may be a Timestamp or an ISO string.
@@ -64,14 +65,29 @@ function normalizeProducts(raw: unknown): ProductAssignment[] {
  */
 function normalizeTags(raw: unknown): ReadonlyArray<ShotTag> {
   if (!Array.isArray(raw)) return []
-  return raw.filter(
-    (t): t is ShotTag =>
-      typeof t === "object" &&
-      t !== null &&
-      typeof t.id === "string" &&
-      typeof t.label === "string" &&
-      typeof t.color === "string",
-  )
+  return raw
+    .map((t): ShotTag | null => {
+      if (typeof t !== "object" || t === null) return null
+      const tag = t as Record<string, unknown>
+      if (typeof tag["id"] !== "string") return null
+      if (typeof tag["label"] !== "string") return null
+      if (typeof tag["color"] !== "string") return null
+
+      const base: ShotTag = {
+        id: tag["id"],
+        label: tag["label"],
+        color: tag["color"],
+      }
+
+      return {
+        ...base,
+        category: resolveShotTagCategory({
+          id: base.id,
+          category: tag["category"] as ShotTag["category"],
+        }),
+      }
+    })
+    .filter((tag): tag is ShotTag => tag !== null)
 }
 
 type LegacyRef = { readonly id?: unknown; readonly path?: unknown; readonly downloadURL?: unknown }

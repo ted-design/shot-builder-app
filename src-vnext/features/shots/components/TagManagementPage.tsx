@@ -9,6 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
 import { Checkbox } from "@/ui/checkbox"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/ui/select"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import {
   Dialog,
@@ -28,10 +35,12 @@ import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { useShots } from "@/features/shots/hooks/useShots"
 import { canManageShots } from "@/shared/lib/rbac"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
-import type { Shot, ShotTag } from "@/shared/types"
+import type { Shot, ShotTag, ShotTagCategory } from "@/shared/types"
+import { getShotTagCategoryLabel, normalizeShotTagCategory, resolveShotTagCategory } from "@/shared/lib/tagCategories"
 import {
   deleteTagAcrossShots,
   mergeTagsAcrossShots,
+  recategorizeTagAcrossShots,
   recolorTagAcrossShots,
   renameTagAcrossShots,
 } from "@/features/shots/lib/tagManagementWrites"
@@ -47,13 +56,21 @@ const DEFAULT_TAG_INDEX = new Map(DEFAULT_TAGS.map((t) => [t.id, t]))
 
 function normalizeTag(raw: unknown): ShotTag | null {
   if (!raw || typeof raw !== "object") return null
-  const t = raw as { id?: unknown; label?: unknown; color?: unknown }
+  const t = raw as { id?: unknown; label?: unknown; color?: unknown; category?: unknown }
   if (typeof t.id !== "string") return null
   if (typeof t.label !== "string") return null
   if (typeof t.color !== "string") return null
   const label = t.label.trim()
   if (!label) return null
-  return { id: t.id, label, color: t.color }
+  return {
+    id: t.id,
+    label,
+    color: t.color,
+    category: resolveShotTagCategory({
+      id: t.id,
+      category: normalizeShotTagCategory(t.category),
+    }),
+  }
 }
 
 function buildTagLibrary(shots: readonly Shot[]): readonly TagEntry[] {
@@ -76,6 +93,10 @@ function buildTagLibrary(shots: readonly Shot[]): readonly TagEntry[] {
         id: normalized.id,
         label: normalized.label || defaultTag?.label || "Untitled",
         color: normalized.color || defaultTag?.color || "gray",
+        category: resolveShotTagCategory({
+          id: normalized.id,
+          category: normalized.category ?? defaultTag?.category,
+        }),
         usageCount: 1,
         shotIds: [shot.id],
         isDefault: Boolean(defaultTag),
@@ -87,6 +108,7 @@ function buildTagLibrary(shots: readonly Shot[]): readonly TagEntry[] {
           ...existing,
           label: next.label || existing.label,
           color: next.color || existing.color,
+          category: next.category || existing.category,
           usageCount: existing.usageCount + 1,
           shotIds: [...existing.shotIds, shot.id],
           isDefault: existing.isDefault || next.isDefault,
@@ -200,6 +222,31 @@ export default function TagManagementPage() {
     }
   }
 
+  const applyCategory = async (tag: TagEntry, nextCategory: ShotTagCategory) => {
+    if (!clientId) return
+    if (tag.usageCount === 0) {
+      toast.info("Add this tag to a shot to customize it.")
+      return
+    }
+
+    setBusy(true)
+    try {
+      const updated = await recategorizeTagAcrossShots({
+        clientId,
+        shots,
+        tagId: tag.id,
+        nextCategory,
+      })
+      toast.success(`Updated ${updated} shot${updated === 1 ? "" : "s"}`)
+    } catch (err) {
+      toast.error("Failed to update category", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const openDelete = (tag: TagEntry) => {
     if (tag.isDefault) {
       toast.info("Default tags can’t be deleted.")
@@ -238,7 +285,12 @@ export default function TagManagementPage() {
       const updated = await mergeTagsAcrossShots({
         clientId,
         shots,
-        target: { id: mergeTarget.id, label: mergeTarget.label, color: mergeTarget.color },
+        target: {
+          id: mergeTarget.id,
+          label: mergeTarget.label,
+          color: mergeTarget.color,
+          category: resolveShotTagCategory(mergeTarget),
+        },
         mergeIds: mergeOthers.map((t) => t.id),
       })
       toast.success(`Merged into "${mergeTarget.label}" (${updated} shot${updated === 1 ? "" : "s"})`)
@@ -334,15 +386,18 @@ export default function TagManagementPage() {
                           </div>
                         ) : null}
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <TagBadge tag={t} />
-                            <span className="text-xs text-[var(--color-text-muted)]">
-                              {t.usageCount}
-                            </span>
-                          </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <TagBadge tag={t} />
+                          <span className="text-xs text-[var(--color-text-muted)]">
+                            {t.usageCount}
+                          </span>
                         </div>
-                      </button>
-                    )
+                        <div className="mt-1 text-[10px] uppercase tracking-wide text-[var(--color-text-subtle)]">
+                          {getShotTagCategoryLabel(resolveShotTagCategory(t))}
+                        </div>
+                      </div>
+                    </button>
+                  )
                   })}
                 </div>
               )}
@@ -403,6 +458,37 @@ export default function TagManagementPage() {
                         onChange={(next) => applyColor(selected, next)}
                         disabled={!canEdit || busy || selected.usageCount === 0}
                       />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                      Category
+                    </div>
+                    <div className="mt-2 max-w-[220px]">
+                      <Select
+                        value={resolveShotTagCategory(selected)}
+                        onValueChange={(next) => applyCategory(selected, next as ShotTagCategory)}
+                        disabled={!canEdit || busy || selected.usageCount === 0}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="priority">
+                            {getShotTagCategoryLabel("priority")}
+                          </SelectItem>
+                          <SelectItem value="gender">
+                            {getShotTagCategoryLabel("gender")}
+                          </SelectItem>
+                          <SelectItem value="media">
+                            {getShotTagCategoryLabel("media")}
+                          </SelectItem>
+                          <SelectItem value="other">
+                            {getShotTagCategoryLabel("other")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 

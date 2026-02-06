@@ -127,7 +127,7 @@ describe("ShotListPage", () => {
     expect(screen.queryByText("status:todo")).not.toBeInTheDocument()
   })
 
-  it("renders gallery thumbnails with object-cover (no letterboxing)", () => {
+  it("renders gallery thumbnails with bounded native aspect ratio", () => {
     ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [
         makeShot({
@@ -146,8 +146,10 @@ describe("ShotListPage", () => {
     renderPage("/projects/p1/shots")
 
     const img = screen.getByAltText("Alpha")
-    expect(img).toHaveClass("object-cover")
-    expect(img).not.toHaveClass("object-contain")
+    expect(img).toHaveClass("object-contain")
+    expect(img).toHaveClass("max-h-[150px]")
+    expect(img).toHaveClass("max-w-[150px]")
+    expect(img).not.toHaveClass("object-cover")
   })
 
   it("renders visual thumbnails with object-cover (no letterboxing)", () => {
@@ -171,6 +173,45 @@ describe("ShotListPage", () => {
     const img = screen.getByAltText("Alpha")
     expect(img).toHaveClass("object-cover")
     expect(img).not.toHaveClass("object-contain")
+  })
+
+  it("does not render a hero placeholder when no hero image exists", () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha", heroImage: undefined })],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots")
+
+    expect(screen.queryByAltText("Alpha")).not.toBeInTheDocument()
+  })
+
+  it("groups tags into categorized columns in gallery cards", () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        makeShot({
+          id: "a",
+          title: "Alpha",
+          tags: [
+            { id: "g1", label: "Women", color: "#22c55e", category: "gender" },
+            { id: "p1", label: "High Priority", color: "#ef4444", category: "priority" },
+            { id: "m1", label: "Video", color: "#3b82f6", category: "media" },
+          ],
+        }),
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots")
+
+    expect(screen.getByText("Gender")).toBeInTheDocument()
+    expect(screen.getByText("Priority Tag")).toBeInTheDocument()
+    expect(screen.getByText("Media")).toBeInTheDocument()
+    expect(screen.getByText("Women")).toBeInTheDocument()
+    expect(screen.getByText("High Priority")).toBeInTheDocument()
+    expect(screen.getByText("Video")).toBeInTheDocument()
   })
 
   it("shows attached products, talent, and location in table rows", () => {

@@ -11,11 +11,19 @@ import {
 } from "@/ui/command"
 import { Button } from "@/ui/button"
 import { Checkbox } from "@/ui/checkbox"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/ui/select"
 import { TagBadge } from "@/shared/components/TagBadge"
 import { TagColorPicker } from "@/shared/components/TagColorPicker"
 import { useAvailableTags } from "@/features/shots/hooks/useAvailableTags"
-import type { ShotTag } from "@/shared/types"
+import type { ShotTag, ShotTagCategory } from "@/shared/types"
 import type { TagColorKey } from "@/shared/lib/tagColors"
+import { getShotTagCategoryLabel, resolveShotTagCategory } from "@/shared/lib/tagCategories"
 
 function normalizeLabel(value: string): string {
   return value.trim().replace(/\s+/g, " ")
@@ -40,6 +48,7 @@ export function TagEditor({
   const [saving, setSaving] = useState(false)
   const [createLabel, setCreateLabel] = useState("")
   const [createColor, setCreateColor] = useState<TagColorKey>("blue")
+  const [createCategory, setCreateCategory] = useState<ShotTagCategory>("other")
 
   const normalizedCreateLabel = normalizeLabel(createLabel)
   const normalizedCreateKey = normalizedCreateLabel.toLowerCase()
@@ -47,7 +56,12 @@ export function TagEditor({
   const availableByLabel = useMemo(() => {
     const map = new Map<string, ShotTag>()
     for (const t of available) {
-      map.set(t.label.trim().toLowerCase(), { id: t.id, label: t.label, color: t.color })
+      map.set(t.label.trim().toLowerCase(), {
+        id: t.id,
+        label: t.label,
+        color: t.color,
+        category: resolveShotTagCategory(t),
+      })
     }
     return map
   }, [available])
@@ -61,7 +75,12 @@ export function TagEditor({
     const q = normalizedCreateKey
     return available
       .filter((t) => (!q ? true : t.label.toLowerCase().includes(q)))
-      .map((t) => ({ id: t.id, label: t.label, color: t.color }))
+      .map((t) => ({
+        id: t.id,
+        label: t.label,
+        color: t.color,
+        category: resolveShotTagCategory(t),
+      }))
   }, [available, normalizedCreateKey])
 
   const toggle = (tag: ShotTag) => {
@@ -75,6 +94,7 @@ export function TagEditor({
       setDraft(tags.slice())
       setCreateLabel("")
       setCreateColor("blue")
+      setCreateCategory("other")
     }
   }
 
@@ -96,13 +116,20 @@ export function TagEditor({
       toggle(reuse)
       setCreateLabel("")
       setCreateColor("blue")
+      setCreateCategory("other")
       return
     }
 
-    const next: ShotTag = { id: newTagId(), label: normalizedCreateLabel, color: createColor }
+    const next: ShotTag = {
+      id: newTagId(),
+      label: normalizedCreateLabel,
+      color: createColor,
+      category: createCategory,
+    }
     toggle(next)
     setCreateLabel("")
     setCreateColor("blue")
+    setCreateCategory("other")
   }
 
   return (
@@ -156,6 +183,28 @@ export function TagEditor({
                 </div>
                 <div className="flex items-center gap-2">
                   <TagColorPicker value={createColor} onChange={setCreateColor} size="sm" />
+                  <Select
+                    value={createCategory}
+                    onValueChange={(next) => setCreateCategory(next as ShotTagCategory)}
+                  >
+                    <SelectTrigger className="w-[130px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="priority">
+                        {getShotTagCategoryLabel("priority")}
+                      </SelectItem>
+                      <SelectItem value="gender">
+                        {getShotTagCategoryLabel("gender")}
+                      </SelectItem>
+                      <SelectItem value="media">
+                        {getShotTagCategoryLabel("media")}
+                      </SelectItem>
+                      <SelectItem value="other">
+                        {getShotTagCategoryLabel("other")}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button
                     type="button"
                     size="sm"
@@ -194,7 +243,12 @@ export function TagEditor({
                     className="flex items-center gap-2"
                   >
                     <Checkbox checked={draft.some((d) => d.id === t.id)} />
-                    <TagBadge tag={t} />
+                    <div className="min-w-0">
+                      <TagBadge tag={t} />
+                      <div className="mt-1 text-[10px] uppercase tracking-wide text-[var(--color-text-subtle)]">
+                        {getShotTagCategoryLabel(resolveShotTagCategory(t))}
+                      </div>
+                    </div>
                   </CommandItem>
                 ))}
               </CommandGroup>
