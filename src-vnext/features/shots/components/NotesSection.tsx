@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { SanitizedHtml } from "@/shared/components/SanitizedHtml"
 import { Label } from "@/ui/label"
 import { Textarea } from "@/ui/textarea"
@@ -8,11 +8,11 @@ import { Separator } from "@/ui/separator"
 interface NotesSectionProps {
   /** Legacy HTML notes — rendered read-only, NEVER written to. */
   readonly notes: string | null | undefined
-  /** Plain-text addendum — displayed read-only. Only appended to. */
+  /** Plain-text addendum — editable operational notes. */
   readonly notesAddendum: string | null | undefined
-  /** Called with the new entry string to append. Must return a Promise. */
-  readonly onAppendAddendum: (newEntry: string) => Promise<void>
-  /** Whether the addendum append control is available (status + role check). */
+  /** Called with the full addendum value. Must return a Promise. */
+  readonly onSaveAddendum: (value: string) => Promise<void>
+  /** Whether the addendum edit control is available (status + role check). */
   readonly canEditAddendum: boolean
 }
 
@@ -20,27 +20,32 @@ interface NotesSectionProps {
  * Notes section for shot detail page.
  *
  * - Legacy HTML notes: read-only via SanitizedHtml. No write path.
- * - Producer addendum: existing text displayed read-only. Separate input
- *   appends new entries — prior content cannot be edited in-place.
+ * - Producer addendum: editable plain text for operational updates.
  */
 export function NotesSection({
   notes,
   notesAddendum,
-  onAppendAddendum,
+  onSaveAddendum,
   canEditAddendum,
 }: NotesSectionProps) {
-  const [newEntry, setNewEntry] = useState("")
+  const [draft, setDraft] = useState(notesAddendum ?? "")
   const [saving, setSaving] = useState(false)
 
-  const handleAppend = async () => {
-    const trimmed = newEntry.trim()
-    if (!trimmed) return
+  useEffect(() => {
+    setDraft(notesAddendum ?? "")
+  }, [notesAddendum])
+
+  const normalizedInitial = (notesAddendum ?? "").trim()
+  const normalizedDraft = draft.trim()
+  const hasChanges = normalizedDraft !== normalizedInitial
+
+  const handleSave = async () => {
+    if (!hasChanges) return
     setSaving(true)
     try {
-      await onAppendAddendum(trimmed)
-      setNewEntry("")
+      await onSaveAddendum(normalizedDraft)
     } catch {
-      // Keep user's typed entry on failure — no silent data loss.
+      // Keep user's typed changes on failure — no silent data loss.
     } finally {
       setSaving(false)
     }
@@ -62,39 +67,39 @@ export function NotesSection({
           Producer Addendum
         </Label>
 
-        {/* Existing addendum — always read-only */}
-        {notesAddendum ? (
-          <p className="whitespace-pre-wrap text-sm text-[var(--color-text-secondary)]">
-            {notesAddendum}
-          </p>
-        ) : (
-          <p className="text-sm text-[var(--color-text-muted)]">
-            No addendum yet
-          </p>
-        )}
-
-        {/* Append control — only shown when user has permission */}
         {canEditAddendum && (
           <div className="mt-3 flex flex-col gap-2">
             <Textarea
-              value={newEntry}
-              onChange={(e) => setNewEntry(e.target.value)}
-              rows={2}
-              placeholder="Add to addendum..."
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={4}
+              placeholder="Add operational notes..."
               className="text-sm"
               data-testid="addendum-input"
             />
             <Button
               variant="outline"
               size="sm"
-              onClick={handleAppend}
-              disabled={saving || !newEntry.trim()}
+              onClick={handleSave}
+              disabled={saving || !hasChanges}
               className="self-end"
               data-testid="addendum-submit"
             >
-              Add to addendum
+              {saving ? "Saving…" : "Save addendum"}
             </Button>
           </div>
+        )}
+
+        {!canEditAddendum && (
+          notesAddendum ? (
+            <p className="whitespace-pre-wrap text-sm text-[var(--color-text-secondary)]">
+              {notesAddendum}
+            </p>
+          ) : (
+            <p className="text-sm text-[var(--color-text-muted)]">
+              No addendum yet
+            </p>
+          )
         )}
       </div>
     </div>

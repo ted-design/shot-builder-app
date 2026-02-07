@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shot Detail Wireframe Proposal</title>
+    <style>
+      :root {
+        --bg: #f4f6f8;
+        --surface: #ffffff;
+        --line: #d7dde5;
+        --text: #1f2a37;
+        --muted: #5d6b82;
+        --accent: #2f7ef7;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Inter", "Segoe UI", Roboto, sans-serif;
+      }
+      .app {
+        min-height: 100vh;
+        padding: 20px;
+      }
+      .header {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px 16px;
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 12px;
+        align-items: center;
+      }
+      .title { font-size: 20px; font-weight: 700; }
+      .meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+      .btnrow { display: flex; gap: 8px; }
+      .btn {
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+      }
+      .status {
+        border: 1px solid #f4d8a3;
+        background: #fff7e6;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .main {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 14px;
+      }
+      .left { display: grid; gap: 12px; }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      .cardh {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .hero {
+        padding: 10px 12px 12px;
+      }
+      .hero-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 220px;
+        gap: 10px;
+        align-items: start;
+      }
+      .hero-frame {
+        height: min(34vh, 340px);
+        border: 1px dashed #c6cfda;
+        border-radius: 10px;
+        background: repeating-linear-gradient(
+          -45deg,
+          #f6f8fb,
+          #f6f8fb 12px,
+          #eef2f7 12px,
+          #eef2f7 24px
+        );
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .hero-refs {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #fafbfd;
+      }
+      .hero-refs-h {
+        border-bottom: 1px solid var(--line);
+        padding: 7px 8px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .quick-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        padding: 10px 12px 12px;
+      }
+      .quick-item {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 9px;
+      }
+      .quick-item .k { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+      .quick-item .v { margin-top: 5px; font-size: 13px; font-weight: 600; }
+      .content-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .section-body { padding: 10px 12px 12px; }
+      .wire-lines > div {
+        height: 9px;
+        border-radius: 5px;
+        background: #ebf0f6;
+        margin-bottom: 8px;
+      }
+      .wire-lines > div:nth-child(2) { width: 88%; }
+      .wire-lines > div:nth-child(3) { width: 70%; }
+      .rail {
+        position: sticky;
+        top: 16px;
+        height: fit-content;
+        display: grid;
+        gap: 12px;
+      }
+      .thumb-grid {
+        padding: 8px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      .thumb {
+        aspect-ratio: 1 / 1;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f7f9fc;
+        display: grid;
+        place-items: center;
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .thumb.cover {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+      }
+      @media (max-width: 1240px) {
+        .main { grid-template-columns: 1fr; }
+        .rail { position: static; }
+      }
+      @media (max-width: 980px) {
+        .hero-layout { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 720px) {
+        .header { grid-template-columns: 1fr; }
+        .content-grid { grid-template-columns: 1fr; }
+        .quick-grid { grid-template-columns: repeat(2, 1fr); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="header">
+        <div>
+          <div class="title">Merino Trench Coat</div>
+          <div class="meta">Shot #1 · Project Name · Updated 2m ago</div>
+        </div>
+        <div class="btnrow">
+          <button class="btn">Export</button>
+          <button class="btn">Share</button>
+        </div>
+        <div class="status">Shot</div>
+      </div>
+
+      <div class="main">
+        <div class="left">
+          <section class="card">
+            <div class="cardh">
+              <span>Hero / Header</span>
+              <span>Add image · Hide header · Replace</span>
+            </div>
+            <div class="hero">
+              <div class="hero-layout">
+                <div class="hero-frame">Big hero image (native ratio, slightly reduced height)</div>
+                <div class="hero-refs">
+                  <div class="hero-refs-h">Cover images / references</div>
+                  <div class="thumb-grid">
+                    <div class="thumb cover">Cover</div>
+                    <div class="thumb">Ref</div>
+                    <div class="thumb">Ref</div>
+                    <div class="thumb">Ref</div>
+                    <div class="thumb">Ref</div>
+                    <div class="thumb">Ref</div>
+                  </div>
+                </div>
+              </div>
+              <div class="quick-grid">
+                <div class="quick-item"><div class="k">Date</div><div class="v">2026-02-10</div></div>
+                <div class="quick-item"><div class="k">Location</div><div class="v">Studio A</div></div>
+                <div class="quick-item"><div class="k">Talent</div><div class="v">1 assigned</div></div>
+                <div class="quick-item"><div class="k">Products</div><div class="v">3 assigned</div></div>
+              </div>
+            </div>
+          </section>
+
+          <div class="content-grid">
+            <section class="card">
+              <div class="cardh">Description</div>
+              <div class="section-body">
+                <div class="wire-lines">
+                  <div></div><div></div><div></div>
+                </div>
+              </div>
+            </section>
+            <section class="card">
+              <div class="cardh">Notes / Addendum</div>
+              <div class="section-body">
+                <div class="wire-lines">
+                  <div></div><div></div><div></div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <section class="card">
+            <div class="cardh">Comments + History</div>
+            <div class="section-body">
+              <div class="wire-lines">
+                <div></div><div></div><div></div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <aside class="rail">
+          <section class="card">
+            <div class="cardh">Looks + Products</div>
+            <div class="section-body">
+              <div class="wire-lines">
+                <div></div><div></div><div></div>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </body>
+</html>

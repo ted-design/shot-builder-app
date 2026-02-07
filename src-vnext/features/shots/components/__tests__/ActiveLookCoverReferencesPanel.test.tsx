@@ -94,4 +94,34 @@ describe("ActiveLookCoverReferencesPanel", () => {
     const looks = patch.looks as Array<Record<string, unknown>>
     expect(looks[0]?.displayImageId).toBe("ref-1")
   })
+
+  it("locks active look when hiding header so derived hero stays disabled", async () => {
+    const user = userEvent.setup()
+    const shot = makeShot({
+      activeLookId: null,
+      looks: [
+        {
+          id: "look-1",
+          order: 0,
+          products: [{ familyId: "fam-1", familyName: "Coat", thumbUrl: "clients/c1/fam-1.webp" }],
+          heroProductId: undefined,
+          references: [],
+          displayImageId: null,
+        },
+      ],
+    })
+
+    render(<ActiveLookCoverReferencesPanel shot={shot} canEdit />)
+    await user.click(screen.getByRole("button", { name: "Hide header" }))
+
+    await waitFor(() => expect(mockUpdateShotWithVersion).toHaveBeenCalledTimes(1))
+    const callArgs = mockUpdateShotWithVersion.mock.calls[0]?.[0]
+    expect(callArgs).toBeDefined()
+    const call = callArgs as Record<string, unknown>
+    expect(call.source).toBe("ActiveLookCoverReferencesPanel.hideHeader")
+
+    const patch = call.patch as Record<string, unknown>
+    expect(patch.activeLookId).toBe("look-1")
+    expect(patch.heroImage).toBeNull()
+  })
 })

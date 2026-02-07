@@ -201,6 +201,38 @@ describe("ProductAssignmentPicker", () => {
     })
   })
 
+  it("keeps modal open in edit mode when navigating back to change product selection", async () => {
+    onSave.mockResolvedValue(true)
+
+    render(
+      <ProductAssignmentPicker
+        selected={EXISTING}
+        onSave={onSave}
+        disabled={false}
+      />,
+    )
+
+    fireEvent.click(screen.getByText("Classic Tee"))
+    await screen.findByTestId("picker-confirm")
+
+    const dialog = screen.getByRole("dialog")
+    const firstBackButton = dialog.querySelector("button.h-7.w-7") as HTMLButtonElement | null
+    expect(firstBackButton).toBeTruthy()
+    fireEvent.click(firstBackButton!)
+
+    // Back from details should go to SKU step (not close dialog).
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(await screen.findByText("Skip — no specific colorway")).toBeInTheDocument()
+
+    const dialogAfterFirstBack = screen.getByRole("dialog")
+    const secondBackButton = dialogAfterFirstBack.querySelector("button.h-7.w-7") as HTMLButtonElement | null
+    expect(secondBackButton).toBeTruthy()
+    fireEvent.click(secondBackButton!)
+
+    // Back from SKU should return to family selection.
+    expect(await screen.findByPlaceholderText("Search product families...")).toBeInTheDocument()
+  })
+
   it("shows gender/type scaffolding in the family step list", async () => {
     onSave.mockResolvedValue(true)
 

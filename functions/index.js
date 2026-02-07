@@ -470,17 +470,24 @@ exports.createShotShareLink = functions
 
     const db = admin.firestore();
 
-    const projectRef = db.collection("clients").doc(clientId).collection("projects").doc(projectId.trim());
+    const normalizedProjectId = projectId.trim();
+    const projectRef = db.collection("clients").doc(clientId).collection("projects").doc(normalizedProjectId);
     const projectSnap = await projectRef.get();
     if (!projectSnap.exists) {
       throw new functions.https.HttpsError("not-found", "Project not found.");
     }
 
-    // Defense-in-depth: ensure the caller is a member of the project unless they're an admin.
+    // Compatibility contract:
+    // - If members are configured, enforce membership.
+    // - If no members exist (legacy projects), fall back to role-based access.
     if (role !== "admin") {
-      const memberRef = projectRef.collection("members").doc(context.auth.uid);
-      const memberSnap = await memberRef.get();
-      if (!memberSnap.exists) {
+      const membersRef = projectRef.collection("members");
+      const [memberSnap, anyMembersSnap] = await Promise.all([
+        membersRef.doc(context.auth.uid).get(),
+        membersRef.limit(1).get(),
+      ]);
+      const membersConfigured = !anyMembersSnap.empty;
+      if (membersConfigured && !memberSnap.exists) {
         throw new functions.https.HttpsError("permission-denied", "You don't have access to this project.");
       }
     }
@@ -488,7 +495,7 @@ exports.createShotShareLink = functions
     const shareRef = db.collection("shotShares").doc();
     await shareRef.set({
       clientId,
-      projectId: projectId.trim(),
+      projectId: normalizedProjectId,
       shotIds,
       enabled: true,
       title,

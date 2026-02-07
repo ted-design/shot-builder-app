@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { httpsCallable } from "firebase/functions"
-import { functions } from "@/shared/lib/firebase"
+import { doc, serverTimestamp, setDoc } from "firebase/firestore"
+import { db, functions } from "@/shared/lib/firebase"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
@@ -40,6 +41,35 @@ function formatShareError(err: unknown): string {
   const label = code ? `(${code})` : ""
   if (!message) return label ? `Share failed ${label}` : "Share failed"
   return label ? `${message} ${label}` : message
+}
+
+function generateShareToken(): string {
+  try {
+    const token = globalThis.crypto?.randomUUID?.()
+    if (token && token.length >= 10) return token
+  } catch {
+    // ignore
+  }
+  const bytes = new Uint8Array(16)
+  globalThis.crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+function getErrorCode(err: unknown): string | null {
+  if (!err || typeof err !== "object") return null
+  const code = (err as { code?: unknown }).code
+  return typeof code === "string" ? code : null
+}
+
+function shouldFallbackToFirestore(err: unknown): boolean {
+  const code = getErrorCode(err)
+  if (!code) return false
+  return (
+    code === "functions/not-found" ||
+    code === "not-found" ||
+    code === "functions/unimplemented" ||
+    code === "unimplemented"
+  )
 }
 
 export function ShotsShareDialog({
@@ -94,17 +124,38 @@ export function ShotsShareDialog({
     }
     setCreating(true)
     try {
-      const callable = httpsCallable(functions, "createShotShareLink")
       const payload = {
         projectId,
         scope,
         shotIds: scope === "selected" ? selectedShotIds : null,
         title: (title.trim() || defaultTitle).trim(),
       }
-      const res = await callable(payload)
-      const shareToken = (res.data as { shareToken?: unknown } | null)?.shareToken
-      if (typeof shareToken !== "string" || shareToken.trim().length < 10) {
-        throw new Error("Invalid share response")
+      let shareToken: string
+      try {
+        const callable = httpsCallable(functions, "createShotShareLink")
+        const res = await callable(payload)
+        const callableToken = (res.data as { shareToken?: unknown } | null)?.shareToken
+        if (typeof callableToken !== "string" || callableToken.trim().length < 10) {
+          throw new Error("Invalid share response")
+        }
+        shareToken = callableToken
+      } catch (callableErr) {
+        if (!shouldFallbackToFirestore(callableErr)) {
+          throw callableErr
+        }
+        console.warn("[ShotsShareDialog] createShotShareLink unavailable, using Firestore fallback")
+        const fallbackToken = generateShareToken()
+        await setDoc(doc(db, "shotShares", fallbackToken), {
+          clientId,
+          projectId: projectId.trim(),
+          shotIds: scope === "selected" ? selectedShotIds : null,
+          enabled: true,
+          title: (title.trim() || defaultTitle).trim(),
+          expiresAt: null,
+          createdAt: serverTimestamp(),
+          createdBy: user?.uid ?? null,
+        })
+        shareToken = fallbackToken
       }
 
       const url = `${window.location.origin}/shots/shared/${shareToken}`

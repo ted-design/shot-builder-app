@@ -91,9 +91,11 @@ function productHeroOptions(products: ReadonlyArray<ProductAssignment>) {
 export function ShotLooksSection({
   shot,
   canEdit,
+  showReferencesSection = true,
 }: {
   readonly shot: Shot
   readonly canEdit: boolean
+  readonly showReferencesSection?: boolean
 }) {
   const { clientId, user } = useAuth()
   const looks = useMemo(
@@ -387,17 +389,19 @@ export function ShotLooksSection({
             </p>
           </div>
 
-          {/* References */}
-          <ReferencesSection
-            shot={shot}
-            look={selectedLook}
-            looks={looks}
-            canEdit={canEdit}
-            saving={saving}
-            onSaveLooks={saveLooks}
-            userId={user?.uid ?? null}
-            isActiveForCover={selectedLook.id === activeLookIdForCover}
-          />
+          {/* References live in the hero/header rail for this layout mode. */}
+          {showReferencesSection && (
+            <ReferencesSection
+              shot={shot}
+              look={selectedLook}
+              looks={looks}
+              canEdit={canEdit}
+              saving={saving}
+              onSaveLooks={saveLooks}
+              userId={user?.uid ?? null}
+              isActiveForCover={selectedLook.id === activeLookIdForCover}
+            />
+          )}
         </div>
       )}
 
@@ -634,12 +638,14 @@ function ReferenceTile({
       ].join(" ")}
     >
       {resolved && !errored ? (
-        <img
-          src={resolved}
-          alt="Reference"
-          className="h-20 w-full object-cover"
-          onError={() => setErrored(true)}
-        />
+        <div className="h-20 w-full bg-[var(--color-surface-subtle)]">
+          <img
+            src={resolved}
+            alt="Reference"
+            className="h-full w-full object-contain"
+            onError={() => setErrored(true)}
+          />
+        </div>
       ) : (
         <div className="flex h-20 w-full items-center justify-center text-xs text-[var(--color-text-subtle)]">
           —
