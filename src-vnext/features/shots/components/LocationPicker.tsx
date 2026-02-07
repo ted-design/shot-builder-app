@@ -18,6 +18,7 @@ interface LocationPickerProps {
   readonly selectedName: string | undefined
   readonly onSave: (id: string, name: string) => void
   readonly disabled?: boolean
+  readonly compact?: boolean
 }
 
 export function LocationPicker({
@@ -25,6 +26,7 @@ export function LocationPicker({
   selectedName,
   onSave,
   disabled,
+  compact = false,
 }: LocationPickerProps) {
   const { data: locations } = useLocations()
   const [open, setOpen] = useState(false)
@@ -34,7 +36,10 @@ export function LocationPicker({
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="h-auto min-h-[2.5rem] w-full justify-start text-left font-normal"
+          className={cn(
+            "w-full justify-start text-left font-normal",
+            compact ? "h-8 px-2 text-xs" : "h-auto min-h-[2.5rem]",
+          )}
           disabled={disabled}
         >
           {selectedName ? (

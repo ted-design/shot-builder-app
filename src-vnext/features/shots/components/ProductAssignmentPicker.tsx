@@ -252,11 +252,7 @@ export function ProductAssignmentPicker({
               draft={draft}
               confirming={confirming}
               onBack={() => {
-                if (editIndex !== null) {
-                  setDialogOpen(false)
-                } else {
-                  setStep("sku")
-                }
+                setStep("sku")
               }}
               onChange={(updates) => setDraft({ ...draft, ...updates })}
               onConfirm={handleConfirm}

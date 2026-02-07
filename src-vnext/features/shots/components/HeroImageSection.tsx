@@ -78,7 +78,7 @@ export function HeroImageSection({
     <div className="flex flex-col gap-2">
       {resolvedHeroUrl ? (
         <div className="relative overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
-          <div className="aspect-[16/9] w-full">
+          <div className="h-[clamp(210px,30vh,320px)] w-full">
             <img
               src={resolvedHeroUrl}
               alt="Hero"

@@ -13,14 +13,21 @@ import { Checkbox } from "@/ui/checkbox"
 import { Badge } from "@/ui/badge"
 import { useTalent } from "@/features/shots/hooks/usePickerData"
 import { Users } from "lucide-react"
+import { cn } from "@/shared/lib/utils"
 
 interface TalentPickerProps {
   readonly selectedIds: string[]
   readonly onSave: (ids: string[]) => void
   readonly disabled?: boolean
+  readonly compact?: boolean
 }
 
-export function TalentPicker({ selectedIds, onSave, disabled }: TalentPickerProps) {
+export function TalentPicker({
+  selectedIds,
+  onSave,
+  disabled,
+  compact = false,
+}: TalentPickerProps) {
   const { data: talent } = useTalent()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<string[]>(selectedIds)
@@ -51,7 +58,10 @@ export function TalentPicker({ selectedIds, onSave, disabled }: TalentPickerProp
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="h-auto min-h-[2.5rem] w-full justify-start text-left font-normal"
+          className={cn(
+            "w-full justify-start text-left font-normal",
+            compact ? "h-8 px-2 text-xs" : "h-auto min-h-[2.5rem]",
+          )}
           disabled={disabled}
         >
           {selectedNames.length > 0 ? (

@@ -91,10 +91,11 @@ export default function ShotDetailPage() {
   }
 
   const safeDescription = textPreview(shot.description, Number.POSITIVE_INFINITY)
+  const talentCount = (shot.talentIds ?? shot.talent ?? []).length
 
   return (
     <ErrorBoundary>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         {/* ── Header: back, title, shot number, status ── */}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -147,117 +148,122 @@ export default function ShotDetailPage() {
 
         <Separator />
 
-        {/* ── Composition zone: hero + assignments ── */}
-        <div className="grid gap-6 md:grid-cols-[1fr_minmax(280px,360px)]">
-          {/* LEFT: Hero image (visual anchor) */}
-          <div>
-            <div className="flex flex-col gap-3">
-              <HeroImageSection
-                heroImage={shot.heroImage}
-                shot={shot}
-                shotId={shot.id}
-                canUpload={canEdit}
-              />
-              <ActiveLookCoverReferencesPanel shot={shot} canEdit={canEdit} />
-            </div>
-          </div>
-
-          {/* RIGHT: Composition panel — what's in the frame */}
-          <div className="flex flex-col gap-5">
-            <SectionLabel>Looks</SectionLabel>
-            <ShotLooksSection shot={shot} canEdit={canEdit} />
-
-            <SectionLabel>Talent</SectionLabel>
-            <TalentPicker
-              selectedIds={shot.talentIds ?? shot.talent}
-              onSave={(ids) => save({ talent: ids, talentIds: ids })}
-              disabled={!canEdit}
-            />
-
-            <SectionLabel>Location</SectionLabel>
-            <LocationPicker
-              selectedId={shot.locationId}
-              selectedName={shot.locationName}
-              onSave={(locationId, locationName) =>
-                save({ locationId, locationName })
-              }
-              disabled={!canEdit}
-            />
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* ── Metadata zone: secondary, below-the-fold ── */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
           <div className="flex flex-col gap-4">
-            <SectionLabel>Date</SectionLabel>
-            {canEdit ? (
-              <DateEditor
-                value={formatDateOnly(shot.date)}
-                onSave={(dateStr) => {
-                  if (!dateStr) {
-                    save({ date: null })
-                    return
-                  }
-                  try {
-                    const ts = parseDateOnly(dateStr)
-                    save({ date: ts })
-                  } catch {
-                    toast.error("Invalid date")
-                  }
+            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
+              <SectionLabel>Description</SectionLabel>
+              <div className="mt-1.5">
+                {canEdit ? (
+                  <DescriptionEditor
+                    value={safeDescription}
+                    onSave={(description) => save({ description: description || null })}
+                  />
+                ) : (
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    {safeDescription || "No description"}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <SectionLabel>Hero / Header</SectionLabel>
+              </div>
+              <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_240px]">
+                <HeroImageSection
+                  heroImage={shot.heroImage}
+                  shot={shot}
+                  shotId={shot.id}
+                  canUpload={canEdit}
+                />
+                <ActiveLookCoverReferencesPanel shot={shot} canEdit={canEdit} />
+              </div>
+              <div className="mt-2 grid grid-cols-1 gap-1.5 md:grid-cols-3">
+                <MetaEditorCard label="Date">
+                  {canEdit ? (
+                    <DateEditor
+                      value={formatDateOnly(shot.date)}
+                      onSave={(dateStr) => {
+                        if (!dateStr) {
+                          save({ date: null })
+                          return
+                        }
+                        try {
+                          const ts = parseDateOnly(dateStr)
+                          save({ date: ts })
+                        } catch {
+                          toast.error("Invalid date")
+                        }
+                      }}
+                    />
+                  ) : (
+                    <ReadOnlyMetaValue value={formatDateOnly(shot.date) || "Not set"} />
+                  )}
+                </MetaEditorCard>
+
+                <MetaEditorCard label="Location">
+                  {canEdit ? (
+                    <LocationPicker
+                      selectedId={shot.locationId}
+                      selectedName={shot.locationName}
+                      onSave={(locationId, locationName) =>
+                        save({ locationId, locationName })
+                      }
+                      disabled={!canEdit}
+                      compact
+                    />
+                  ) : (
+                    <ReadOnlyMetaValue value={shot.locationName?.trim() || "Not set"} />
+                  )}
+                </MetaEditorCard>
+
+                <MetaEditorCard label="Talent">
+                  {canEdit ? (
+                    <TalentPicker
+                      selectedIds={shot.talentIds ?? shot.talent}
+                      onSave={(ids) => save({ talent: ids, talentIds: ids })}
+                      disabled={!canEdit}
+                      compact
+                    />
+                  ) : (
+                    <ReadOnlyMetaValue value={`${talentCount} assigned`} />
+                  )}
+                </MetaEditorCard>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <NotesSection
+                notes={shot.notes}
+                notesAddendum={shot.notesAddendum}
+                onSaveAddendum={async (value) => {
+                  const ok = await save({ notesAddendum: value || null })
+                  if (!ok) throw new Error("Failed to save addendum")
                 }}
+                canEditAddendum={canDoOperational}
               />
-            ) : (
-              <p className="text-sm text-[var(--color-text-secondary)]">
-                {formatDateOnly(shot.date) || "No date set"}
-              </p>
-            )}
 
-            <SectionLabel>Description</SectionLabel>
-            {canEdit ? (
-              <DescriptionEditor
-                value={safeDescription}
-                onSave={(description) => save({ description: description || null })}
-              />
-            ) : (
-              <p className="text-sm text-[var(--color-text-secondary)]">
-                {safeDescription || "No description"}
-              </p>
-            )}
+              <div>
+                <SectionLabel>Tags</SectionLabel>
+                <TagEditor
+                  tags={shot.tags ?? []}
+                  onSave={(next) => save({ tags: next })}
+                  disabled={!canEdit}
+                />
+              </div>
+            </div>
+
+            <ShotCommentsSection shotId={shot.id} canComment={canDoOperational} />
+
+            <ShotVersionHistorySection shot={shot} />
           </div>
 
-          <div className="flex flex-col gap-4">
-            <NotesSection
-              notes={shot.notes}
-              notesAddendum={shot.notesAddendum}
-              onAppendAddendum={async (newEntry) => {
-                const existing = (shot.notesAddendum ?? "").trim()
-                const appended = existing
-                  ? `${existing}\n\n${newEntry}`
-                  : newEntry
-                const ok = await save({ notesAddendum: appended })
-                if (!ok) throw new Error("Failed to save addendum")
-              }}
-              canEditAddendum={canDoOperational}
-            />
-
-            <div>
-              <SectionLabel>Tags</SectionLabel>
-              <TagEditor
-                tags={shot.tags ?? []}
-                onSave={(next) => save({ tags: next })}
-                disabled={!canEdit}
-              />
-            </div>
+          <div className="flex flex-col gap-4 xl:sticky xl:top-4">
+            <SectionLabel>Looks + Products</SectionLabel>
+            <ShotLooksSection shot={shot} canEdit={canEdit} showReferencesSection={false} />
           </div>
         </div>
-
-        <Separator />
-
-        <ShotCommentsSection shotId={shot.id} canComment={canDoOperational} />
-
-        <ShotVersionHistorySection shot={shot} />
 
         {canShare && (
           <ShotsShareDialog
@@ -295,6 +301,27 @@ function SectionLabel({ children }: { readonly children: React.ReactNode }) {
   )
 }
 
+function MetaEditorCard({
+  label,
+  children,
+}: {
+  readonly label: string
+  readonly children: React.ReactNode
+}) {
+  return (
+    <div className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
+      <p className="text-[9px] font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+        {label}
+      </p>
+      <div className="mt-0.5">{children}</div>
+    </div>
+  )
+}
+
+function ReadOnlyMetaValue({ value }: { readonly value: string }) {
+  return <p className="text-xs font-semibold text-[var(--color-text)]">{value}</p>
+}
+
 function DescriptionEditor({
   value,
   onSave,
@@ -315,7 +342,7 @@ function DescriptionEditor({
   if (!editing) {
     return (
       <p
-        className="cursor-pointer rounded px-2 py-1 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-subtle)]"
+        className="cursor-pointer rounded px-1.5 py-0.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-subtle)]"
         onClick={() => setEditing(true)}
       >
         {value || "Click to add..."}
@@ -329,7 +356,7 @@ function DescriptionEditor({
       onChange={(e) => setDraft(e.target.value)}
       onBlur={handleBlur}
       autoFocus
-      rows={3}
+      rows={2}
       className="text-sm"
     />
   )
@@ -355,7 +382,7 @@ function DateEditor({
   if (!editing) {
     return (
       <p
-        className="cursor-pointer rounded px-2 py-1 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-subtle)]"
+        className="cursor-pointer rounded px-1.5 py-0.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-subtle)]"
         onClick={() => {
           setDraft(value)
           setEditing(true)
@@ -373,7 +400,7 @@ function DateEditor({
       onChange={(e) => setDraft(e.target.value)}
       onBlur={handleBlur}
       autoFocus
-      className="text-sm"
+      className="h-8 px-2 text-xs"
     />
   )
 }

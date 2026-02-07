@@ -204,7 +204,7 @@ export function ActiveLookCoverReferencesPanel({
       await updateShotWithVersion({
         clientId,
         shotId: shot.id,
-        patch: { heroImage: null, looks: sanitized },
+        patch: { heroImage: null, looks: sanitized, activeLookId: activeLook.id },
         shot,
         user,
         source: "ActiveLookCoverReferencesPanel.hideHeader",
@@ -218,10 +218,12 @@ export function ActiveLookCoverReferencesPanel({
   }
 
   return (
-    <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-      <div className="flex items-center justify-between gap-2">
+    <div className="h-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <p className="text-xs font-medium text-[var(--color-text-subtle)]">Cover images</p>
+          <p className="text-xs font-medium text-[var(--color-text-subtle)]">
+            Cover images / references
+          </p>
           {displayImageId && (
             <Badge variant="secondary" className="text-[10px]">
               Reference cover set
@@ -236,11 +238,11 @@ export function ActiveLookCoverReferencesPanel({
         </div>
 
         {canEdit && activeLook && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1">
             <Button
               variant="outline"
               size="sm"
-              className="h-8"
+              className="h-7 rounded-md px-2 text-[11px] font-medium"
               onClick={() => fileRef.current?.click()}
               disabled={uploading || saving || refs.length >= 10}
             >
@@ -251,7 +253,7 @@ export function ActiveLookCoverReferencesPanel({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 text-[var(--color-text-subtle)]"
+                className="h-7 rounded-md px-2 text-[11px] font-medium text-[var(--color-text-subtle)]"
                 onClick={() => setCoverRef(null)}
                 disabled={uploading || saving}
               >
@@ -261,7 +263,7 @@ export function ActiveLookCoverReferencesPanel({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 px-2 text-[var(--color-text-subtle)]"
+              className="h-7 rounded-md px-2 text-[11px] font-medium text-[var(--color-text-subtle)]"
               onClick={() => void hideHeader()}
               disabled={uploading || saving}
               title="Hides the header image without deleting references or products"
@@ -274,19 +276,19 @@ export function ActiveLookCoverReferencesPanel({
       </div>
 
       {!activeLook ? (
-        <p className="mt-2 text-xs text-[var(--color-text-subtle)]">
+        <p className="mt-1.5 text-xs text-[var(--color-text-subtle)]">
           Create a Primary look to add reference images and set a cover.
         </p>
       ) : manualOverrideEnabled ? (
-        <p className="mt-2 text-xs text-[var(--color-text-subtle)]">
+        <p className="mt-1.5 text-xs text-[var(--color-text-subtle)]">
           A manual cover image is enabled. Reset the cover to use reference/product cover selection.
         </p>
       ) : refs.length === 0 ? (
-        <p className="mt-2 text-xs text-[var(--color-text-subtle)]">
+        <p className="mt-1.5 text-xs text-[var(--color-text-subtle)]">
           No reference images in the active look.
         </p>
       ) : (
-        <div className="mt-2 grid grid-cols-5 gap-2">
+        <div className="mt-1.5 grid grid-cols-3 gap-1.5">
           {refs.map((ref) => (
             <ReferenceTile
               key={ref.id}
@@ -362,14 +364,16 @@ function ReferenceTile({
       ].join(" ")}
     >
       {resolved && !errored ? (
-        <img
-          src={resolved}
-          alt="Reference"
-          className="h-16 w-full object-cover"
-          onError={() => setErrored(true)}
-        />
+        <div className="aspect-square w-full bg-[var(--color-surface-subtle)]">
+          <img
+            src={resolved}
+            alt="Reference"
+            className="h-full w-full object-contain"
+            onError={() => setErrored(true)}
+          />
+        </div>
       ) : (
-        <div className="flex h-16 w-full items-center justify-center text-xs text-[var(--color-text-subtle)]">
+        <div className="flex aspect-square w-full items-center justify-center text-xs text-[var(--color-text-subtle)]">
           —
         </div>
       )}
