@@ -4,10 +4,17 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 
 vi.mock("@/shared/lib/firebase", () => ({
   functions: {},
+  db: {},
 }))
 
 vi.mock("firebase/functions", () => ({
   httpsCallable: vi.fn(),
+}))
+
+vi.mock("firebase/firestore", () => ({
+  doc: vi.fn(),
+  serverTimestamp: vi.fn(() => "server-timestamp"),
+  setDoc: vi.fn(),
 }))
 
 vi.mock("sonner", () => ({
@@ -18,6 +25,7 @@ vi.mock("sonner", () => ({
 }))
 
 import { httpsCallable } from "firebase/functions"
+import { doc, setDoc } from "firebase/firestore"
 import { toast } from "sonner"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 
@@ -98,5 +106,36 @@ describe("ShotsShareDialog", () => {
       )
     })
   })
-})
 
+  it("falls back to Firestore when callable is unavailable", async () => {
+    const callable = vi.fn().mockRejectedValue({
+      code: "functions/not-found",
+      message: "Function not found",
+    })
+    ;(httpsCallable as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue(callable)
+    ;(doc as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue("doc-ref")
+    ;(setDoc as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(undefined)
+
+    render(
+      <ShotsShareDialog
+        open
+        onOpenChange={vi.fn()}
+        clientId="c1"
+        projectId="p1"
+        projectName="Project 1"
+        user={{ uid: "u1", email: "producer@test.com", displayName: null, photoURL: null }}
+        selectedShotIds={[]}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Create link" }))
+
+    await waitFor(() => {
+      expect(setDoc).toHaveBeenCalled()
+    })
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalled()
+    })
+  })
+})
