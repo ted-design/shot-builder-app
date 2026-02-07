@@ -50,7 +50,9 @@ function generateShareToken(): string {
   } catch {
     // ignore
   }
-  return `share_${Date.now()}_${Math.random().toString(36).slice(2)}`
+  const bytes = new Uint8Array(16)
+  globalThis.crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 function getErrorCode(err: unknown): string | null {
