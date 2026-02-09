@@ -74,6 +74,12 @@ export const productFamiliesPath = (clientId: string): string[] => [
   "productFamilies",
 ]
 
+export const productClassificationsPath = (clientId: string): string[] => [
+  "clients",
+  clientId,
+  "productClassifications",
+]
+
 export const productFamilySkusPath = (
   familyId: string,
   clientId: string,

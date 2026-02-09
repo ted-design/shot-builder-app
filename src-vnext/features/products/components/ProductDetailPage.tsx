@@ -57,6 +57,7 @@ import { Card, CardContent } from "@/ui/card"
 import { cn } from "@/shared/lib/utils"
 import type { Timestamp } from "firebase/firestore"
 import type { ProductDocument, ProductSample, ProductSampleStatus, ProductSampleType } from "@/shared/types"
+import { humanizeClassificationKey } from "@/features/products/lib/productClassifications"
 
 type SampleStatusFilter = "all" | ProductSampleStatus
 type SampleTypeFilter = "all" | ProductSampleType
@@ -348,7 +349,8 @@ export default function ProductDetailPage() {
   }
 
   const status = (family.status ?? "active").toLowerCase()
-  const categoryLabel = family.productSubcategory ?? family.productType ?? family.category
+  const categoryRaw = family.productSubcategory ?? family.productType ?? family.category
+  const categoryLabel = categoryRaw ? humanizeClassificationKey(categoryRaw) : null
   const returnTo = parseReturnToParam(searchParams.get("returnTo"))
   const isFamilyDeleted = family.deleted === true
   const detailUrl = `${location.pathname}${location.search}`
@@ -673,15 +675,21 @@ export default function ProductDetailPage() {
                   <div className="mt-2 grid gap-2 sm:grid-cols-3">
                     <div>
                       <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">Gender</div>
-                      <div className="mt-0.5 text-sm text-[var(--color-text)]">{family.gender || "—"}</div>
+                      <div className="mt-0.5 text-sm text-[var(--color-text)]">
+                        {family.gender ? humanizeClassificationKey(family.gender) : "—"}
+                      </div>
                     </div>
                     <div>
                       <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">Type</div>
-                      <div className="mt-0.5 text-sm text-[var(--color-text)]">{family.productType || "—"}</div>
+                      <div className="mt-0.5 text-sm text-[var(--color-text)]">
+                        {family.productType ? humanizeClassificationKey(family.productType) : "—"}
+                      </div>
                     </div>
                     <div>
                       <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">Subcategory</div>
-                      <div className="mt-0.5 text-sm text-[var(--color-text)]">{family.productSubcategory || "—"}</div>
+                      <div className="mt-0.5 text-sm text-[var(--color-text)]">
+                        {family.productSubcategory ? humanizeClassificationKey(family.productSubcategory) : "—"}
+                      </div>
                     </div>
                   </div>
                   {notesSnippet && (

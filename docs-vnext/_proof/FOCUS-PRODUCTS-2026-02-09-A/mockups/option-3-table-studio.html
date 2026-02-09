@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Option 3 - Table Studio</title>
+    <style>
+      :root {
+        --bg: #f3f4f8;
+        --ink: #121826;
+        --muted: #5d6778;
+        --line: #d6dbe6;
+        --card: #ffffff;
+        --accent: #1f5ea9;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Manrope", "Trebuchet MS", sans-serif;
+        color: var(--ink);
+        background:
+          linear-gradient(165deg, #eef3ff, transparent 34%),
+          linear-gradient(330deg, #f2fff6, transparent 34%),
+          var(--bg);
+        padding: 16px;
+      }
+      .page {
+        max-width: 1220px;
+        margin: 0 auto;
+        display: grid;
+        gap: 12px;
+      }
+      .header {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--card);
+        padding: 12px 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .header h1 { margin: 0; font-size: 24px; }
+      .header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        padding: 9px 12px;
+        font-size: 12px;
+      }
+      .btn.primary { background: var(--accent); color: #fff; border-color: #1c4d88; }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--card);
+        overflow: hidden;
+      }
+      .filters {
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .field small { display: block; margin-bottom: 4px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+      .input {
+        min-height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 8px 10px;
+        font-size: 13px;
+      }
+      .table-wrap { overflow: auto; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 860px;
+      }
+      thead th {
+        text-align: left;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        background: #f8faff;
+        border-bottom: 1px solid var(--line);
+        padding: 10px;
+      }
+      tbody td {
+        border-bottom: 1px solid #edf1f6;
+        padding: 10px;
+        font-size: 13px;
+        vertical-align: top;
+      }
+      .pill {
+        display: inline-block;
+        font-size: 10px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid #c9d5e8;
+        color: #294f80;
+      }
+      .quick {
+        padding: 12px;
+        border-top: 1px solid var(--line);
+        background: #fafcff;
+        display: grid;
+        gap: 8px;
+      }
+      .quick .input { min-height: 58px; }
+      .mobile-note {
+        display: none;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      @media (max-width: 860px) {
+        .filters { grid-template-columns: 1fr; }
+        table { min-width: 640px; }
+        .mobile-note { display: block; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="header">
+        <div>
+          <h1>Colorway Studio</h1>
+          <p>Dense editing for SKU-heavy styles with controlled taxonomy selectors.</p>
+          <div class="mobile-note">On mobile, table collapses to horizontal scroll and read-only edits.</div>
+        </div>
+        <div>
+          <button class="btn">Manage Classifications</button>
+          <button class="btn primary">Save</button>
+        </div>
+      </header>
+
+      <section class="card">
+        <div class="filters">
+          <div class="field"><small>Gender</small><div class="input">Men</div></div>
+          <div class="field"><small>Type</small><div class="input">Tops</div></div>
+          <div class="field"><small>Subcategory</small><div class="input">Hoodies & Sweaters</div></div>
+          <div class="field"><small>Family sizes</small><div class="input">M, L</div></div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Colorway</th>
+                <th>SKU</th>
+                <th>Sizes</th>
+                <th>Status</th>
+                <th>Color key</th>
+                <th>Hex</th>
+                <th>State</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Forest</td>
+                <td>Optional</td>
+                <td>M, L</td>
+                <td>Active</td>
+                <td>forest</td>
+                <td>#1b4332</td>
+                <td><span class="pill">Ready</span></td>
+              </tr>
+              <tr>
+                <td>Navy</td>
+                <td>Optional</td>
+                <td>M, L</td>
+                <td>Active</td>
+                <td>navy</td>
+                <td>#1d3557</td>
+                <td><span class="pill">Ready</span></td>
+              </tr>
+              <tr>
+                <td>Untitled</td>
+                <td>Optional</td>
+                <td>Inherit</td>
+                <td>Coming soon</td>
+                <td>—</td>
+                <td>—</td>
+                <td><span class="pill">Needs name</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="quick">
+          <strong style="font-size:13px;">Bulk add row seeds</strong>
+          <div class="input">Forest, Oxblood, Navy, Charcoal</div>
+          <div style="font-size:12px;color:var(--muted);">Paste list, generate rows, then fill only exceptions.</div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

@@ -2,7 +2,7 @@
 
 > Draft v1 — 2026-02-03
 
-This slice delivers a trustworthy, producer-grade Product Library in vNext: fast browsing, safe CRUD, and robust image handling — without introducing new Firestore schema or read fan-out.
+This slice delivers a trustworthy, producer-grade Product Library in vNext: fast browsing, safe CRUD, robust image handling, and controlled classification taxonomy.
 
 ## Governing docs
 
@@ -49,9 +49,17 @@ This slice delivers a trustworthy, producer-grade Product Library in vNext: fast
 - “Workspace” extensions (samples/supply tracking, discussion comments, documents) are handled in `docs-vnext/slices/slice-2c-product-workspace.md`.
 - Cross-entity fan-out (e.g., querying shots to compute usage). If `shotIds` exists on the product family doc it may be displayed as a count only.
 
-## Data contract (no schema changes)
+## Data contract
 
-vNext must honor the existing legacy shapes (field names may vary historically). The mapping layer must accept aliases and render safely.
+vNext must honor legacy product shapes (field names may vary historically). The mapping layer must accept aliases and render safely.
+
+### Schema extension (explicit)
+
+To prevent classification drift in editor flows, this slice introduces:
+
+- `clients/{clientId}/productClassifications/{classificationId}`
+
+This is an org-scoped taxonomy catalog for editor dropdown values (Gender → Type → Subcategory).
 
 ### Product Family document
 
@@ -85,6 +93,19 @@ vNext must honor the existing legacy shapes (field names may vary historically).
 - Soft-delete: `deleted`, `deletedAt`
 - Audit: `createdAt`, `updatedAt`, `createdBy`, `updatedBy`
 
+### Product Classification document (new)
+
+**Collection:** `clients/{clientId}/productClassifications/{classificationId}`
+
+**Read pattern:** real-time subscription for editor taxonomy controls.
+
+**Key fields**
+- `gender` (normalized key)
+- `typeKey`, `typeLabel`
+- `subcategoryKey?`, `subcategoryLabel?` (nullable for type-only entries)
+- `archived` (hide from dropdowns without deleting history)
+- Audit: `createdAt`, `updatedAt`, `createdBy`, `updatedBy`
+
 ## Performance & trust constraints (non-negotiable)
 
 - No N+1 reads. `/products` must not fetch SKUs per family.
@@ -100,7 +121,7 @@ vNext must honor the existing legacy shapes (field names may vary historically).
 - Popovers/dialogs/dropdowns are legible and layer above fixed navigation.
 
 **Correctness**
-- Uses existing Firestore collections and fields only; no schema changes.
+- Uses existing product collections plus the explicit `productClassifications` extension.
 - Image paths are compatible with legacy Storage conventions.
 - RBAC hides or disables edit controls for non-edit roles.
 

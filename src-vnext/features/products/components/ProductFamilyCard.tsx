@@ -4,6 +4,7 @@ import { Badge } from "@/ui/badge"
 import { ProductImage } from "@/features/products/components/ProductImage"
 import type { ProductCardPropertyVisibility } from "@/features/products/lib/productPreferences"
 import type { ProductFamily } from "@/shared/types"
+import { humanizeClassificationKey } from "@/features/products/lib/productClassifications"
 
 interface ProductFamilyCardProps {
   readonly family: ProductFamily
@@ -26,7 +27,8 @@ export function ProductFamilyCard({ family, returnTo, properties = DEFAULT_PROPE
   const colorCount = family.colorNames?.length ?? null
   const sizeCount = family.sizeOptions?.length ?? null
 
-  const categoryLabel = family.productSubcategory ?? family.productType ?? family.category
+  const categoryRaw = family.productSubcategory ?? family.productType ?? family.category
+  const categoryLabel = categoryRaw ? humanizeClassificationKey(categoryRaw) : null
   const status = (family.status ?? "active").toLowerCase()
 
   const href = (() => {

@@ -302,6 +302,13 @@ service cloud.firestore {
       allow delete: if clientMatches(clientId) && isAdmin();
     }
 
+    // Product classifications - org-level taxonomy for product type/subcategory controls
+    match /clients/{clientId}/productClassifications/{classificationId} {
+      allow read: if clientMatches(clientId);
+      allow create, update: if clientMatches(clientId) && (isAdmin() || isProducer());
+      allow delete: if clientMatches(clientId) && isAdmin();
+    }
+
 	    match /clients/{clientId}/projects/{projectId} {
 	      allow read: if clientMatches(clientId) &&
 	        (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));

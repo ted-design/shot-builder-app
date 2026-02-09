@@ -3,6 +3,7 @@ import type { ProductFamily } from "@/shared/types"
 import { ProductImage } from "@/features/products/components/ProductImage"
 import type { ProductTableColumnVisibility } from "@/features/products/lib/productPreferences"
 import { cn } from "@/shared/lib/utils"
+import { humanizeClassificationKey } from "@/features/products/lib/productClassifications"
 
 function formatUpdatedAt(value: ProductFamily["updatedAt"]): string {
   if (!value?.toDate) return "—"
@@ -20,7 +21,7 @@ function formatCategoryPath(family: ProductFamily): string {
     family.productSubcategory ?? null,
   ]
     .filter((p): p is string => typeof p === "string" && p.trim().length > 0)
-    .map((p) => p.trim())
+    .map((p) => humanizeClassificationKey(p))
 
   return parts.length > 0 ? parts.join(" · ") : "—"
 }
@@ -130,4 +131,3 @@ export function ProductFamiliesTable({
     </div>
   )
 }
-

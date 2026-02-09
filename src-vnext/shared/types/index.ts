@@ -277,6 +277,20 @@ export interface ProductSku {
   readonly updatedBy?: string
 }
 
+export interface ProductClassification {
+  readonly id: string
+  readonly gender: string
+  readonly typeKey: string
+  readonly typeLabel: string
+  readonly subcategoryKey?: string | null
+  readonly subcategoryLabel?: string | null
+  readonly archived?: boolean
+  readonly createdAt?: Timestamp
+  readonly updatedAt?: Timestamp
+  readonly createdBy?: string | null
+  readonly updatedBy?: string | null
+}
+
 // --- Product Workspace (Samples, Comments, Documents) ---
 
 export type ProductSampleType = "shoot" | "pre_production" | "bulk"
