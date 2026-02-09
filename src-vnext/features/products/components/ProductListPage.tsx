@@ -11,7 +11,6 @@ import { ProductFamilyCard } from "@/features/products/components/ProductFamilyC
 import { ProductFamiliesTable } from "@/features/products/components/ProductFamiliesTable"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
-import { Checkbox } from "@/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
 import {
   DropdownMenu,
@@ -19,10 +18,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/ui/dropdown-menu"
-import { LayoutGrid, Package, Plus, Search, Table, X } from "lucide-react"
+import { LayoutGrid, Package, Plus, Search, SlidersHorizontal, Table, X } from "lucide-react"
 import {
   deriveProductScaffoldOptions,
   filterAndSortProductFamilies,
@@ -31,10 +32,14 @@ import {
 } from "@/features/products/lib/productList"
 import {
   defaultProductTableColumns,
+  defaultProductCardProperties,
   readProductListViewMode,
+  readProductCardProperties,
   readProductTableColumns,
   writeProductListViewMode,
+  writeProductCardProperties,
   writeProductTableColumns,
+  type ProductCardPropertyKey,
   type ProductListViewMode,
   type ProductTableColumnKey,
 } from "@/features/products/lib/productPreferences"
@@ -46,6 +51,12 @@ const COLUMN_LABELS: Record<ProductTableColumnKey, string> = {
   colorways: "Colorways",
   status: "Status",
   updatedAt: "Updated",
+}
+
+const CARD_PROPERTY_LABELS: Record<ProductCardPropertyKey, string> = {
+  styleNumber: "Style #",
+  category: "Category",
+  status: "Status badges",
 }
 
 export default function ProductListPage() {
@@ -69,6 +80,7 @@ export default function ProductListPage() {
 
   const [searchDraft, setSearchDraft] = useState(qParam)
   const [tableColumns, setTableColumns] = useState(() => readProductTableColumns())
+  const [cardProperties, setCardProperties] = useState(() => readProductCardProperties())
 
   useEffect(() => {
     setSearchDraft(qParam)
@@ -77,6 +89,10 @@ export default function ProductListPage() {
   useEffect(() => {
     writeProductTableColumns(tableColumns)
   }, [tableColumns])
+
+  useEffect(() => {
+    writeProductCardProperties(cardProperties)
+  }, [cardProperties])
 
   useEffect(() => {
     const next = searchDraft.trim()
@@ -117,6 +133,16 @@ export default function ProductListPage() {
     const options = scaffold.subcategoriesByGenderAndType[genderKey]?.[typeKey] ?? []
     return options.some((s) => s.key === subParam) ? subParam : null
   }, [genderKey, typeKey, subParam, scaffold.subcategoriesByGenderAndType])
+
+  const orderedGenders = useMemo(() => {
+    const rank: Record<string, number> = { men: 0, women: 1, unisex: 2 }
+    return [...scaffold.genders].sort((a, b) => {
+      const left = rank[a.key] ?? 99
+      const right = rank[b.key] ?? 99
+      if (left !== right) return left - right
+      return a.label.localeCompare(b.label, undefined, { sensitivity: "base" })
+    })
+  }, [scaffold.genders])
 
   const filtered = useMemo(() => {
     return filterAndSortProductFamilies(families, {
@@ -196,44 +222,6 @@ export default function ProductListPage() {
                 </div>
               )}
 
-              {viewMode === "table" && !isMobile && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button type="button" variant="outline" size="sm" className="h-9">
-                      Fields
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Table columns</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {(Object.keys(COLUMN_LABELS) as ProductTableColumnKey[]).map((key) => (
-                      <DropdownMenuCheckboxItem
-                        key={key}
-                        checked={tableColumns[key]}
-                        onCheckedChange={(checked) =>
-                          setTableColumns((prev) => ({
-                            ...prev,
-                            [key]: Boolean(checked),
-                          }))
-                        }
-                      >
-                        {COLUMN_LABELS[key]}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-xs"
-                      onSelect={(e) => {
-                        e.preventDefault()
-                        setTableColumns(defaultProductTableColumns())
-                      }}
-                    >
-                      Reset to defaults
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-
               <Button
                 onClick={() => {
                   const returnTo = `${location.pathname}${location.search}`
@@ -275,27 +263,6 @@ export default function ProductListPage() {
 
               <div className="flex flex-wrap items-center gap-2">
                 <Select
-                  value={statusParam}
-                  onValueChange={(value) => {
-                    setSearchParams((prev) => {
-                      const out = new URLSearchParams(prev)
-                      if (value === "all") out.delete("status")
-                      else out.set("status", value)
-                      return out
-                    }, { replace: true })
-                  }}
-                >
-                  <SelectTrigger className="h-9 w-[150px] text-sm">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All statuses</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="discontinued">Discontinued</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select
                   value={genderKey ?? "all"}
                   onValueChange={(value) => {
                     setSearchParams((prev) => {
@@ -314,7 +281,7 @@ export default function ProductListPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All genders</SelectItem>
-                    {scaffold.genders.map((g) => (
+                    {orderedGenders.map((g) => (
                       <SelectItem key={g.key} value={g.key}>
                         {g.label}
                       </SelectItem>
@@ -322,61 +289,60 @@ export default function ProductListPage() {
                   </SelectContent>
                 </Select>
 
-                <Select
-                  value={typeKey ?? "all"}
-                  onValueChange={(value) => {
-                    setSearchParams((prev) => {
-                      const out = new URLSearchParams(prev)
-                      out.delete("sub")
-                      out.delete("cat")
-                      if (value === "all") out.delete("type")
-                      else out.set("type", value)
-                      return out
-                    }, { replace: true })
-                  }}
-                  disabled={!genderKey}
-                >
-                  <SelectTrigger className="h-9 w-[160px] text-sm">
-                    <SelectValue placeholder="Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All types</SelectItem>
-                    {(genderKey ? scaffold.typesByGender[genderKey] ?? [] : []).map((t) => (
-                      <SelectItem key={t.key} value={t.key}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {genderKey && (
+                  <Select
+                    value={typeKey ?? "all"}
+                    onValueChange={(value) => {
+                      setSearchParams((prev) => {
+                        const out = new URLSearchParams(prev)
+                        out.delete("sub")
+                        out.delete("cat")
+                        if (value === "all") out.delete("type")
+                        else out.set("type", value)
+                        return out
+                      }, { replace: true })
+                    }}
+                  >
+                    <SelectTrigger className="h-9 w-[160px] text-sm">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All types</SelectItem>
+                      {(scaffold.typesByGender[genderKey] ?? []).map((t) => (
+                        <SelectItem key={t.key} value={t.key}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
 
-                <Select
-                  value={subKey ?? "all"}
-                  onValueChange={(value) => {
-                    setSearchParams((prev) => {
-                      const out = new URLSearchParams(prev)
-                      out.delete("cat")
-                      if (value === "all") out.delete("sub")
-                      else out.set("sub", value)
-                      return out
-                    }, { replace: true })
-                  }}
-                  disabled={!genderKey || !typeKey}
-                >
-                  <SelectTrigger className="h-9 w-[170px] text-sm">
-                    <SelectValue placeholder="Subcategory" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All subcategories</SelectItem>
-                    {(genderKey && typeKey
-                      ? scaffold.subcategoriesByGenderAndType[genderKey]?.[typeKey] ?? []
-                      : []
-                    ).map((s) => (
-                      <SelectItem key={s.key} value={s.key}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {genderKey && typeKey && (
+                  <Select
+                    value={subKey ?? "all"}
+                    onValueChange={(value) => {
+                      setSearchParams((prev) => {
+                        const out = new URLSearchParams(prev)
+                        out.delete("cat")
+                        if (value === "all") out.delete("sub")
+                        else out.set("sub", value)
+                        return out
+                      }, { replace: true })
+                    }}
+                  >
+                    <SelectTrigger className="h-9 w-[170px] text-sm">
+                      <SelectValue placeholder="Subcategory" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All subcategories</SelectItem>
+                      {(scaffold.subcategoriesByGenderAndType[genderKey]?.[typeKey] ?? []).map((s) => (
+                        <SelectItem key={s.key} value={s.key}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
 
                 <Select
                   value={sortParam}
@@ -401,23 +367,117 @@ export default function ProductListPage() {
                   </SelectContent>
                 </Select>
 
-                <div className="flex items-center gap-2 rounded-md border border-input bg-transparent px-2 py-1">
-                  <Checkbox
-                    id="arch"
-                    checked={includeArchived}
-                    onCheckedChange={(checked) => {
-                      setSearchParams((prev) => {
-                        const out = new URLSearchParams(prev)
-                        if (checked) out.set("arch", "1")
-                        else out.delete("arch")
-                        return out
-                      }, { replace: true })
-                    }}
-                  />
-                  <label htmlFor="arch" className="text-xs text-[var(--color-text-muted)]">
-                    Include archived
-                  </label>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" className="h-9">
+                      <SlidersHorizontal className="h-4 w-4" />
+                      View options
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuLabel>Filters</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={statusParam}
+                      onValueChange={(value) => {
+                        setSearchParams((prev) => {
+                          const out = new URLSearchParams(prev)
+                          if (value === "all") out.delete("status")
+                          else out.set("status", value)
+                          return out
+                        }, { replace: true })
+                      }}
+                    >
+                      <DropdownMenuRadioItem value="all">All statuses</DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="active">Active only</DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="discontinued">Discontinued only</DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={includeArchived}
+                      onCheckedChange={(checked) => {
+                        setSearchParams((prev) => {
+                          const out = new URLSearchParams(prev)
+                          if (checked) out.set("arch", "1")
+                          else out.delete("arch")
+                          return out
+                        }, { replace: true })
+                      }}
+                    >
+                      Include archived
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={includeDeleted}
+                      onCheckedChange={(checked) => {
+                        setSearchParams((prev) => {
+                          const out = new URLSearchParams(prev)
+                          if (checked) out.set("del", "1")
+                          else out.delete("del")
+                          return out
+                        }, { replace: true })
+                      }}
+                    >
+                      Show deleted
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuSeparator />
+                    {viewMode === "table" && !isMobile ? (
+                      <>
+                        <DropdownMenuLabel>Property visibility</DropdownMenuLabel>
+                        {(Object.keys(COLUMN_LABELS) as ProductTableColumnKey[]).map((key) => (
+                          <DropdownMenuCheckboxItem
+                            key={key}
+                            checked={tableColumns[key]}
+                            onCheckedChange={(checked) =>
+                              setTableColumns((prev) => ({
+                                ...prev,
+                                [key]: Boolean(checked),
+                              }))
+                            }
+                          >
+                            {COLUMN_LABELS[key]}
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-xs"
+                          onSelect={(e) => {
+                            e.preventDefault()
+                            setTableColumns(defaultProductTableColumns())
+                          }}
+                        >
+                          Reset table properties
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      <>
+                        <DropdownMenuLabel>Property visibility</DropdownMenuLabel>
+                        {(Object.keys(CARD_PROPERTY_LABELS) as ProductCardPropertyKey[]).map((key) => (
+                          <DropdownMenuCheckboxItem
+                            key={key}
+                            checked={cardProperties[key]}
+                            onCheckedChange={(checked) =>
+                              setCardProperties((prev) => ({
+                                ...prev,
+                                [key]: Boolean(checked),
+                              }))
+                            }
+                          >
+                            {CARD_PROPERTY_LABELS[key]}
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-xs"
+                          onSelect={(e) => {
+                            e.preventDefault()
+                            setCardProperties(defaultProductCardProperties())
+                          }}
+                        >
+                          Reset card properties
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
 
@@ -429,23 +489,6 @@ export default function ProductListPage() {
               includeDeleted ||
               sortParam !== "styleNameAsc") && (
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 px-2 text-xs text-[var(--color-text-muted)]"
-                  onClick={() => {
-                    setSearchParams((prev) => {
-                      const out = new URLSearchParams(prev)
-                      if (includeDeleted) out.delete("del")
-                      else out.set("del", "1")
-                      return out
-                    }, { replace: true })
-                  }}
-                >
-                  {includeDeleted ? "Hide deleted" : "Show deleted"}
-                </Button>
-
                 {statusParam !== "all" && (
                   <button
                     type="button"
@@ -580,6 +623,7 @@ export default function ProductListPage() {
                 <ProductFamilyCard
                   key={family.id}
                   family={family}
+                  properties={cardProperties}
                 />
               ))}
             </div>
