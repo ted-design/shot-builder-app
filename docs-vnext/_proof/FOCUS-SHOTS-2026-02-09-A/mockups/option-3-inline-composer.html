@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Option 3 - Inline Composer</title>
+    <style>
+      :root {
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --line: #dbe3ee;
+        --text: #0f172a;
+        --muted: #64748b;
+        --accent: #065f46;
+        --accent-soft: #ecfdf5;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "SF Pro Text", "Segoe UI", sans-serif;
+        background: linear-gradient(170deg, #e2e8f0, #f8fafc 42%);
+        color: var(--text);
+        min-height: 100vh;
+        padding: 24px;
+      }
+      .layout {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 380px;
+        gap: 16px;
+      }
+      .surface {
+        border: 1px solid var(--line);
+        background: var(--card);
+        border-radius: 12px;
+        min-height: 78vh;
+      }
+      .ghost {
+        opacity: 0.45;
+        background: repeating-linear-gradient(
+          45deg,
+          #f1f5f9,
+          #f1f5f9 10px,
+          #e2e8f0 10px,
+          #e2e8f0 20px
+        );
+      }
+      .rail {
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+        align-content: start;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        padding: 10px;
+      }
+      .card h1 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 650;
+      }
+      .muted {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .search {
+        margin-top: 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 9px 10px;
+        width: 100%;
+      }
+      .chips {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .chip {
+        background: #f1f5f9;
+        border-radius: 999px;
+        font-size: 11px;
+        padding: 4px 8px;
+      }
+      .result {
+        border: 1px solid #edf2f7;
+        border-radius: 8px;
+        padding: 8px;
+        margin-top: 8px;
+      }
+      .name { font-size: 13px; font-weight: 600; }
+      .meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 7px;
+        font-size: 11px;
+        padding: 5px 8px;
+      }
+      .btn-primary {
+        border-color: #047857;
+        background: var(--accent);
+        color: #fff;
+      }
+      .step {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .step-dot {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        border: 1px solid #a7f3d0;
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .field {
+        margin-top: 8px;
+      }
+      .field label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      select, input[type="number"] {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 8px;
+        font-size: 12px;
+      }
+      @media (max-width: 920px) {
+        .layout { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="layout">
+      <section class="surface ghost"></section>
+      <aside class="surface rail">
+        <article class="card">
+          <h1>Products (Inline Composer)</h1>
+          <div class="muted">No modal. Add directly in the Looks rail.</div>
+          <input class="search" type="search" value="all season" />
+          <div class="chips">
+            <span class="chip">Women</span>
+            <span class="chip">Bottoms</span>
+            <span class="chip">Socks</span>
+          </div>
+          <div class="row" style="margin-top: 8px">
+            <button class="btn btn-primary">+ Create Product</button>
+            <button class="btn">+ Add Colorway</button>
+          </div>
+          <div class="result">
+            <div class="row">
+              <div>
+                <div class="name">All Season Crew Socks</div>
+                <div class="meta">UM2019-501</div>
+              </div>
+              <button class="btn">Choose</button>
+            </div>
+          </div>
+          <div class="result">
+            <div class="row">
+              <div>
+                <div class="name">All Seasons Ankle Socks</div>
+                <div class="meta">UM2022-502</div>
+              </div>
+              <button class="btn">Choose</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="step">
+            <div class="step-dot">2</div>
+            <strong style="font-size: 12px">Select Colorway</strong>
+          </div>
+          <div class="result">
+            <div class="row">
+              <div>
+                <div class="name">Black</div>
+                <div class="meta">SKU CT-100-BLK</div>
+              </div>
+              <button class="btn btn-primary">Selected</button>
+            </div>
+          </div>
+          <div class="result">
+            <div class="row">
+              <div>
+                <div class="name">Desert Stripe</div>
+                <div class="meta">SKU CT-100-DSR</div>
+              </div>
+              <button class="btn">Select</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="step">
+            <div class="step-dot">3</div>
+            <strong style="font-size: 12px">Assignment Details</strong>
+          </div>
+          <div class="field">
+            <label>Size Scope</label>
+            <select>
+              <option>All sizes (bulk)</option>
+              <option>Single size</option>
+              <option>Pending</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Quantity</label>
+            <input type="number" value="1" />
+          </div>
+          <div class="row" style="margin-top: 10px">
+            <button class="btn">Cancel</button>
+            <button class="btn btn-primary">Add to Primary Look</button>
+          </div>
+        </article>
+      </aside>
+    </main>
+  </body>
+</html>

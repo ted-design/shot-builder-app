@@ -10,31 +10,82 @@ import {
 } from "@/shared/lib/paths"
 import type { ProductFamily, ProductSku, TalentRecord, LocationRecord } from "@/shared/types"
 
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined
+}
+
+function asBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((v): v is string => typeof v === "string" && v.length > 0)
+}
+
 function mapFamily(id: string, data: Record<string, unknown>): ProductFamily {
+  const productType =
+    asString(data["productType"]) ??
+    asString(data["type"]) ??
+    undefined
+
+  const productSubcategory =
+    asString(data["productSubcategory"]) ??
+    asString(data["subcategory"]) ??
+    undefined
+
+  const category =
+    asString(data["category"]) ??
+    productSubcategory ??
+    productType
+
   return {
     id,
-    styleName: (data["styleName"] as string) ?? "",
-    styleNumber: data["styleNumber"] as string | undefined,
-    category: data["category"] as string | undefined,
-    gender: (data["gender"] as string) ?? undefined,
-    productType: data["productType"] as string | undefined,
-    productSubcategory: data["productSubcategory"] as string | undefined,
-    headerImagePath: data["headerImagePath"] as string | undefined,
-    thumbnailImagePath: data["thumbnailImagePath"] as string | undefined,
-    clientId: (data["clientId"] as string) ?? "",
+    styleName: asString(data["styleName"]) ?? "",
+    styleNumber: asString(data["styleNumber"]),
+    previousStyleNumber: asString(data["previousStyleNumber"]),
+    category,
+    gender: asString(data["gender"]) ?? null,
+    productType,
+    productSubcategory,
+    status: asString(data["status"]) ?? "active",
+    archived: asBoolean(data["archived"]) ?? false,
+    notes: data["notes"] as ProductFamily["notes"],
+    headerImagePath: asString(data["headerImagePath"]),
+    thumbnailImagePath: asString(data["thumbnailImagePath"]),
+    sizes: asStringArray(data["sizes"]),
+    skuCount: asNumber(data["skuCount"]),
+    activeSkuCount: asNumber(data["activeSkuCount"]),
+    skuCodes: asStringArray(data["skuCodes"]),
+    colorNames: asStringArray(data["colorNames"]),
+    sizeOptions: asStringArray(data["sizeOptions"]),
+    shotIds: asStringArray(data["shotIds"]),
+    deleted: asBoolean(data["deleted"]),
+    clientId: asString(data["clientId"]) ?? "",
   }
 }
 
 function mapSku(id: string, data: Record<string, unknown>): ProductSku {
-  const rawSizes = data["sizes"]
+  const colorName = asString(data["colorName"]) ?? asString(data["name"]) ?? ""
+  const hexColor = asString(data["hexColor"]) ?? asString(data["colourHex"])
+
   return {
     id,
-    name: (data["colorName"] as string) ?? (data["name"] as string) ?? "",
-    colorName: (data["colorName"] as string) ?? (data["name"] as string) ?? undefined,
-    colourHex: (data["hexColor"] as string) ?? (data["colourHex"] as string) ?? undefined,
-    sizes: Array.isArray(rawSizes) ? (rawSizes as string[]) : [],
-    skuCode: (data["skuCode"] as string) ?? (data["sku"] as string) ?? undefined,
-    imagePath: data["imagePath"] as string | undefined,
+    name: colorName,
+    colorName,
+    colourHex: hexColor,
+    hexColor,
+    sizes: asStringArray(data["sizes"]),
+    status: asString(data["status"]) ?? "active",
+    archived: asBoolean(data["archived"]) ?? false,
+    skuCode: asString(data["skuCode"]) ?? asString(data["sku"]),
+    imagePath: asString(data["imagePath"]),
+    colorKey: asString(data["colorKey"]),
+    deleted: asBoolean(data["deleted"]),
   }
 }
 

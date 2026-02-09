@@ -246,7 +246,7 @@ describe("ProductAssignmentPicker", () => {
 
     fireEvent.click(screen.getByText("Add product"))
 
-    expect(await screen.findByText("Women")).toBeInTheDocument()
+    expect((await screen.findAllByText("Women")).length).toBeGreaterThan(0)
     expect(screen.getByText("Tops · Tees")).toBeInTheDocument()
   })
 

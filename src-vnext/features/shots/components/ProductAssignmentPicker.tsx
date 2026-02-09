@@ -7,14 +7,6 @@ import {
   DialogTitle,
 } from "@/ui/dialog"
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/ui/command"
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -32,9 +24,11 @@ import {
   useProductFamilyDoc,
   useProductSkuDoc,
 } from "@/features/shots/hooks/usePickerData"
-import { Package, Plus, X, ChevronLeft, Loader2 } from "lucide-react"
+import { ProductUpsertDialog } from "@/features/products/components/ProductUpsertDialog"
+import { Package, Plus, X, ChevronLeft, Loader2, Search } from "lucide-react"
 import { resolveStoragePath } from "@/shared/lib/resolveStoragePath"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
+import { getTagColorClasses } from "@/shared/lib/tagColors"
 import { toast } from "sonner"
 import type { ProductAssignment, ProductFamily, ProductSku, SizeScope } from "@/shared/types"
 
@@ -42,6 +36,7 @@ interface ProductAssignmentPickerProps {
   readonly selected: ReadonlyArray<ProductAssignment>
   readonly onSave: (products: ProductAssignment[]) => Promise<boolean>
   readonly disabled?: boolean
+  readonly canManageCatalog?: boolean
 }
 
 type AddStep = "family" | "sku" | "details"
@@ -69,15 +64,71 @@ function stripUndefined(obj: ProductAssignment): ProductAssignment {
   ) as unknown as ProductAssignment
 }
 
+function normalizeText(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function canonicalGenderKey(value: unknown): string {
+  const raw = normalizeText(value)?.toLowerCase() ?? null
+  if (!raw) return "unknown"
+  if (raw === "women" || raw === "woman" || raw === "womens" || raw === "female" || raw === "w") return "women"
+  if (raw === "men" || raw === "man" || raw === "mens" || raw === "male" || raw === "m") return "men"
+  if (raw === "unisex") return "unisex"
+  return raw
+}
+
+function humanizeLabel(value: string): string {
+  return value
+    .split(/[\s_-]+/)
+    .map((part) => (part ? part[0]!.toUpperCase() + part.slice(1) : part))
+    .join(" ")
+}
+
+function genderLabel(key: string): string {
+  if (key === "women") return "Women"
+  if (key === "men") return "Men"
+  if (key === "unisex") return "Unisex"
+  if (key === "unknown") return "Unknown"
+  return humanizeLabel(key)
+}
+
+function genderTagClass(key: string): string {
+  if (key === "men") {
+    return getTagColorClasses("blue")
+  }
+  if (key === "women") {
+    return getTagColorClasses("pink")
+  }
+  if (key === "unisex") {
+    return getTagColorClasses("purple")
+  }
+  return getTagColorClasses("gray")
+}
+
+function taxonomyLabelForFamily(family: ProductFamily): string {
+  const parts = [normalizeText(family.productType), normalizeText(family.productSubcategory)].filter(Boolean) as string[]
+  return parts.join(" · ")
+}
+
 export function ProductAssignmentPicker({
   selected,
   onSave,
   disabled,
+  canManageCatalog = false,
 }: ProductAssignmentPickerProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [step, setStep] = useState<AddStep>("family")
   const [draft, setDraft] = useState<DraftAssignment>(EMPTY_DRAFT)
   const [editIndex, setEditIndex] = useState<number | null>(null)
+
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [pendingCreatedFamilyId, setPendingCreatedFamilyId] = useState<string | null>(null)
+  const [manageColorwayPayload, setManageColorwayPayload] = useState<{
+    readonly family: ProductFamily
+    readonly skus: ReadonlyArray<ProductSku>
+  } | null>(null)
 
   const openAdd = () => {
     setDraft(EMPTY_DRAFT)
@@ -103,18 +154,11 @@ export function ProductAssignmentPicker({
     setDialogOpen(true)
   }
 
-  const [removing, setRemoving] = useState<number | null>(null)
-
   const handleRemove = async (index: number) => {
     const next = selected.filter((_, i) => i !== index).map(stripUndefined)
-    setRemoving(index)
-    try {
-      const ok = await onSave([...next])
-      if (!ok) {
-        toast.error("Failed to remove product. Try again.")
-      }
-    } finally {
-      setRemoving(null)
+    const ok = await onSave([...next])
+    if (!ok) {
+      toast.error("Failed to remove product. Try again.")
     }
   }
 
@@ -135,47 +179,47 @@ export function ProductAssignmentPicker({
 
       const thumbUrl = skuImageUrl ?? familyImageUrl
 
-    // Build patch with only defined fields — Firestore rejects `undefined` values.
-    const patch: Record<string, unknown> = {
-      familyId: draft.family.id,
-      familyName: draft.family.styleName,
-      sizeScope: draft.sizeScope,
-      quantity: draft.quantity,
-    }
-    if (draft.sku?.id) {
-      patch.skuId = draft.sku.id
-      patch.colourId = draft.sku.id
-      patch.skuName = draft.sku.name
-      patch.colourName = draft.sku.colorName ?? draft.sku.name
-    }
-    if (draft.sizeScope === "single" && draft.size) {
-      patch.size = draft.size
-    }
-    if (thumbUrl) patch.thumbUrl = thumbUrl
-    if (skuImageUrl) patch.skuImageUrl = skuImageUrl
-    if (familyImageUrl) patch.familyImageUrl = familyImageUrl
+      // Build patch with only defined fields — Firestore rejects `undefined` values.
+      const patch: Record<string, unknown> = {
+        familyId: draft.family.id,
+        familyName: draft.family.styleName,
+        sizeScope: draft.sizeScope,
+        quantity: draft.quantity,
+      }
+      if (draft.sku?.id) {
+        patch.skuId = draft.sku.id
+        patch.colourId = draft.sku.id
+        patch.skuName = draft.sku.name
+        patch.colourName = draft.sku.colorName ?? draft.sku.name
+      }
+      if (draft.sizeScope === "single" && draft.size) {
+        patch.size = draft.size
+      }
+      if (thumbUrl) patch.thumbUrl = thumbUrl
+      if (skuImageUrl) patch.skuImageUrl = skuImageUrl
+      if (familyImageUrl) patch.familyImageUrl = familyImageUrl
 
-    let next: ProductAssignment[]
-    if (editIndex !== null) {
-      const existing = selected[editIndex]
-      next = selected.map((item, i) =>
-        i === editIndex
-          ? stripUndefined({ ...existing, ...patch } as unknown as ProductAssignment)
-          : stripUndefined(item),
-      )
-    } else {
-      next = [
-        ...selected.map(stripUndefined),
-        stripUndefined(patch as unknown as ProductAssignment),
-      ]
-    }
+      let next: ProductAssignment[]
+      if (editIndex !== null) {
+        const existing = selected[editIndex]
+        next = selected.map((item, i) =>
+          i === editIndex
+            ? stripUndefined({ ...existing, ...patch } as unknown as ProductAssignment)
+            : stripUndefined(item),
+        )
+      } else {
+        next = [
+          ...selected.map(stripUndefined),
+          stripUndefined(patch as unknown as ProductAssignment),
+        ]
+      }
 
-    const ok = await onSave(next)
-    if (ok) {
-      setDialogOpen(false)
-    } else {
-      toast.error("Failed to save product assignment. Try again.")
-    }
+      const ok = await onSave(next)
+      if (ok) {
+        setDialogOpen(false)
+      } else {
+        toast.error("Failed to save product assignment. Try again.")
+      }
     } finally {
       setConfirming(false)
     }
@@ -211,55 +255,93 @@ export function ProductAssignmentPicker({
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-h-[calc(100vh-1.5rem)] w-[min(960px,calc(100vw-1rem))] max-w-none overflow-hidden p-0">
+          <DialogHeader className="border-b border-[var(--color-border)] px-4 py-3">
             <DialogTitle>
               {editIndex !== null ? "Edit Product" : "Add Product"}
             </DialogTitle>
-            <DialogDescription className="sr-only">
-              Select a product family and configure color, size scope, and quantity.
+            <DialogDescription className="text-xs text-[var(--color-text-subtle)]">
+              Search first, refine with chips, then set colorway and sizing.
             </DialogDescription>
           </DialogHeader>
 
-          {step === "family" && (
-            <FamilyStep
-              onSelect={(family) => {
-                setDraft({ ...EMPTY_DRAFT, family })
-                setStep("sku")
-              }}
-            />
-          )}
+          <div className="max-h-[calc(100vh-8.5rem)] overflow-y-auto px-4 py-3">
+            {step === "family" && (
+              <FamilyStep
+                canManageCatalog={canManageCatalog}
+                autoSelectFamilyId={pendingCreatedFamilyId}
+                onAutoSelectHandled={() => setPendingCreatedFamilyId(null)}
+                onCreateProduct={() => setCreateDialogOpen(true)}
+                onSelect={(family) => {
+                  setDraft({ ...EMPTY_DRAFT, family })
+                  setStep("sku")
+                }}
+              />
+            )}
 
-          {step === "sku" && draft.family && (
-            <SkuStep
-              familyId={draft.family.id}
-              familyName={draft.family.styleName}
-              familyImageUrl={draft.family.headerImagePath ?? draft.family.thumbnailImagePath}
-              onBack={() => setStep("family")}
-              onSelect={(sku) => {
-                setDraft({ ...draft, sku })
-                setStep("details")
-              }}
-              onSkip={() => {
-                setDraft({ ...draft, sku: null })
-                setStep("details")
-              }}
-            />
-          )}
+            {step === "sku" && draft.family && (
+              <SkuStep
+                family={draft.family}
+                familyImageUrl={draft.family.headerImagePath ?? draft.family.thumbnailImagePath}
+                canManageCatalog={canManageCatalog}
+                onManageColorways={(family, skus) => {
+                  setManageColorwayPayload({ family, skus })
+                }}
+                onBack={() => setStep("family")}
+                onSelect={(sku) => {
+                  setDraft({ ...draft, sku })
+                  setStep("details")
+                }}
+                onSkip={() => {
+                  setDraft({ ...draft, sku: null })
+                  setStep("details")
+                }}
+              />
+            )}
 
-          {step === "details" && draft.family && (
-            <DetailsStep
-              draft={draft}
-              confirming={confirming}
-              onBack={() => {
-                setStep("sku")
-              }}
-              onChange={(updates) => setDraft({ ...draft, ...updates })}
-              onConfirm={handleConfirm}
-            />
-          )}
+            {step === "details" && draft.family && (
+              <DetailsStep
+                draft={draft}
+                confirming={confirming}
+                onBack={() => {
+                  setStep("sku")
+                }}
+                onChange={(updates) => setDraft({ ...draft, ...updates })}
+                onConfirm={handleConfirm}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
+
+      {createDialogOpen && (
+        <ProductUpsertDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          mode="create"
+          redirectOnCreate={false}
+          onSaved={({ mode, familyId }) => {
+            if (mode !== "create") return
+            setPendingCreatedFamilyId(familyId)
+            setStep("family")
+            setDraft(EMPTY_DRAFT)
+            setDialogOpen(true)
+          }}
+        />
+      )}
+
+      {manageColorwayPayload && (
+        <ProductUpsertDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setManageColorwayPayload(null)
+          }}
+          mode="edit"
+          family={manageColorwayPayload.family}
+          skus={manageColorwayPayload.skus}
+          redirectOnCreate={false}
+        />
+      )}
     </div>
   )
 }
@@ -376,203 +458,357 @@ function CollapsibleThumb({
   )
 }
 
+function StepBadge({
+  label,
+  value,
+  onClear,
+}: {
+  readonly label: string
+  readonly value: string
+  readonly onClear: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClear}
+      className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs text-[var(--color-text)]"
+      title={`Clear ${label}`}
+    >
+      <span className="text-[var(--color-text-subtle)]">{label}:</span>
+      <span className="font-medium">{value}</span>
+      <X className="h-3 w-3 text-[var(--color-text-subtle)]" />
+    </button>
+  )
+}
+
 /* ─── Step 1: Family selection ─── */
 
 function FamilyStep({
   onSelect,
+  canManageCatalog,
+  onCreateProduct,
+  autoSelectFamilyId,
+  onAutoSelectHandled,
 }: {
   readonly onSelect: (family: ProductFamily) => void
+  readonly canManageCatalog: boolean
+  readonly onCreateProduct: () => void
+  readonly autoSelectFamilyId: string | null
+  readonly onAutoSelectHandled: () => void
 }) {
   const { data: families } = useProductFamilies()
+  const [query, setQuery] = useState("")
   const [gender, setGender] = useState<string>("__all__")
   const [productType, setProductType] = useState<string>("__all__")
   const [subcategory, setSubcategory] = useState<string>("__all__")
 
-  const normalize = (value: unknown): string | null => {
-    if (typeof value !== "string") return null
-    const trimmed = value.trim()
-    return trimmed.length > 0 ? trimmed : null
-  }
-
-  const genderKey = (value: unknown): string => {
-    const raw = normalize(value)?.toLowerCase() ?? null
-    if (!raw) return "unknown"
-    if (raw === "women" || raw === "woman" || raw === "womens" || raw === "female" || raw === "w") return "women"
-    if (raw === "men" || raw === "man" || raw === "mens" || raw === "male" || raw === "m") return "men"
-    if (raw === "unisex") return "unisex"
-    return raw
-  }
-
-  const genderLabel = (key: string): string => {
-    if (key === "women") return "Women"
-    if (key === "men") return "Men"
-    if (key === "unisex") return "Unisex"
-    if (key === "unknown") return "Unknown"
-    return key
-      .split(/[\s_-]+/)
-      .map((w) => (w ? w[0]!.toUpperCase() + w.slice(1) : w))
-      .join(" ")
-  }
-
-  const visibleFamilies = useMemo(() => {
-    return families.filter((f) => {
-      const fGender = genderKey(f.gender)
-      const fType = normalize(f.productType) ?? "__unknown__"
-      const fSub = normalize(f.productSubcategory) ?? "__unknown__"
-
-      if (gender !== "__all__" && fGender !== gender) return false
-      if (productType !== "__all__" && fType !== productType) return false
-      if (subcategory !== "__all__" && fSub !== subcategory) return false
-      return true
-    })
-  }, [families, gender, productType, subcategory])
-
   const genderOptions = useMemo(() => {
+    const explicitOrder = new Map<string, number>([
+      ["men", 0],
+      ["women", 1],
+      ["unisex", 2],
+    ])
     const keys = new Set<string>()
-    for (const f of families) keys.add(genderKey(f.gender))
-    const list = Array.from(keys)
-    list.sort((a, b) => genderLabel(a).localeCompare(genderLabel(b)))
-    return list
+    for (const family of families) keys.add(canonicalGenderKey(family.gender))
+    return Array.from(keys)
+      .sort((a, b) => {
+        const aRank = explicitOrder.get(a)
+        const bRank = explicitOrder.get(b)
+        if (aRank !== undefined && bRank !== undefined) return aRank - bRank
+        if (aRank !== undefined) return -1
+        if (bRank !== undefined) return 1
+        return genderLabel(a).localeCompare(genderLabel(b))
+      })
+      .map((key) => ({ key, label: genderLabel(key) }))
   }, [families])
 
   const typeOptions = useMemo(() => {
     const keys = new Set<string>()
-    for (const f of families) {
-      const fGender = genderKey(f.gender)
-      if (gender !== "__all__" && fGender !== gender) continue
-      const t = normalize(f.productType)
-      if (t) keys.add(t)
+    for (const family of families) {
+      const familyGender = canonicalGenderKey(family.gender)
+      if (gender !== "__all__" && familyGender !== gender) continue
+      const type = normalizeText(family.productType)
+      if (type) keys.add(type)
     }
-    return Array.from(keys).sort((a, b) => a.localeCompare(b))
+    return Array.from(keys)
+      .sort((a, b) => a.localeCompare(b))
+      .map((key) => ({ key, label: humanizeLabel(key) }))
   }, [families, gender])
 
   const subcategoryOptions = useMemo(() => {
     const keys = new Set<string>()
-    for (const f of families) {
-      const fGender = genderKey(f.gender)
-      if (gender !== "__all__" && fGender !== gender) continue
-      const t = normalize(f.productType) ?? null
-      if (productType !== "__all__" && t !== productType) continue
-      const s = normalize(f.productSubcategory)
-      if (s) keys.add(s)
+    for (const family of families) {
+      const familyGender = canonicalGenderKey(family.gender)
+      if (gender !== "__all__" && familyGender !== gender) continue
+      const type = normalizeText(family.productType) ?? null
+      if (productType !== "__all__" && type !== productType) continue
+      const sub = normalizeText(family.productSubcategory)
+      if (sub) keys.add(sub)
     }
-    return Array.from(keys).sort((a, b) => a.localeCompare(b))
+    return Array.from(keys)
+      .sort((a, b) => a.localeCompare(b))
+      .map((key) => ({ key, label: humanizeLabel(key) }))
   }, [families, gender, productType])
+
+  const visibleFamilies = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    return families.filter((family) => {
+      const familyGender = canonicalGenderKey(family.gender)
+      const familyType = normalizeText(family.productType) ?? "__unknown__"
+      const familySubcategory = normalizeText(family.productSubcategory) ?? "__unknown__"
+
+      if (gender !== "__all__" && familyGender !== gender) return false
+      if (productType !== "__all__" && familyType !== productType) return false
+      if (subcategory !== "__all__" && familySubcategory !== subcategory) return false
+
+      if (!normalizedQuery) return true
+
+      const haystack = [
+        family.styleName,
+        family.styleNumber,
+        family.gender,
+        family.productType,
+        family.productSubcategory,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+
+      return haystack.includes(normalizedQuery)
+    })
+  }, [families, gender, productType, subcategory, query])
+
+  useEffect(() => {
+    if (!autoSelectFamilyId) return
+    const created = families.find((family) => family.id === autoSelectFamilyId)
+    if (!created) return
+    onSelect(created)
+    onAutoSelectHandled()
+  }, [autoSelectFamilyId, families, onSelect, onAutoSelectHandled])
+
+  const hasActiveFilters =
+    gender !== "__all__" ||
+    productType !== "__all__" ||
+    subcategory !== "__all__" ||
+    query.trim().length > 0
+
+  const canPickType = gender !== "__all__"
+  const canPickSubcategory = canPickType && productType !== "__all__" && subcategoryOptions.length > 0
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Select
-          value={gender}
-          onValueChange={(v) => {
-            setGender(v)
-            setProductType("__all__")
-            setSubcategory("__all__")
-          }}
-        >
-          <SelectTrigger className="h-8 w-[140px]">
-            <SelectValue placeholder="Gender" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">All</SelectItem>
-            {genderOptions.map((g) => (
-              <SelectItem key={g} value={g}>
-                {genderLabel(g)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={productType}
-          onValueChange={(v) => {
-            setProductType(v)
-            setSubcategory("__all__")
-          }}
-          disabled={typeOptions.length === 0}
-        >
-          <SelectTrigger className="h-8 w-[160px]">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">All</SelectItem>
-            {typeOptions.map((t) => (
-              <SelectItem key={t} value={t}>
-                {t}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={subcategory}
-          onValueChange={(v) => setSubcategory(v)}
-          disabled={subcategoryOptions.length === 0}
-        >
-          <SelectTrigger className="h-8 w-[180px]">
-            <SelectValue placeholder="Subcategory" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">All</SelectItem>
-            {subcategoryOptions.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="relative min-w-[220px] flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-subtle)]" />
+          <Input
+            placeholder="Search product families..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        {canManageCatalog && (
+          <Button variant="outline" size="sm" onClick={onCreateProduct}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Create product
+          </Button>
+        )}
       </div>
 
-      <div className="text-xs text-[var(--color-text-subtle)]">
-        {gender !== "__all__" ? genderLabel(gender) : "All"}
-        {productType !== "__all__" ? ` > ${productType}` : ""}
-        {subcategory !== "__all__" ? ` > ${subcategory}` : ""}
+      <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          {gender === "__all__" ? (
+            <Select
+              value={gender}
+              onValueChange={(next) => {
+                setGender(next)
+                setProductType("__all__")
+                setSubcategory("__all__")
+              }}
+            >
+              <SelectTrigger className="h-8 w-[190px] bg-[var(--color-surface)] text-xs">
+                <SelectValue placeholder="Gender" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Gender</SelectItem>
+                {genderOptions.map((option) => (
+                  <SelectItem key={option.key} value={option.key}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <StepBadge
+              label="Gender"
+              value={genderLabel(gender)}
+              onClear={() => {
+                setGender("__all__")
+                setProductType("__all__")
+                setSubcategory("__all__")
+              }}
+            />
+          )}
+
+          {canPickType && (
+            productType === "__all__" ? (
+              <Select
+                value={productType}
+              onValueChange={(next) => {
+                setProductType(next)
+                setSubcategory("__all__")
+              }}
+            >
+              <SelectTrigger className="h-8 w-[210px] bg-[var(--color-surface)] text-xs">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Type</SelectItem>
+                {typeOptions.map((option) => (
+                  <SelectItem key={option.key} value={option.key}>
+                    {option.label}
+                  </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <StepBadge
+                label="Type"
+                value={humanizeLabel(productType)}
+                onClear={() => {
+                  setProductType("__all__")
+                  setSubcategory("__all__")
+                }}
+              />
+            )
+          )}
+
+          {canPickSubcategory && (
+            subcategory === "__all__" ? (
+              <Select
+              value={subcategory}
+              onValueChange={setSubcategory}
+            >
+              <SelectTrigger className="h-8 w-[230px] bg-[var(--color-surface)] text-xs">
+                <SelectValue placeholder="Subcategory" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Subcategory</SelectItem>
+                {subcategoryOptions.map((option) => (
+                  <SelectItem key={option.key} value={option.key}>
+                    {option.label}
+                  </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <StepBadge
+                label="Subcategory"
+                value={humanizeLabel(subcategory)}
+                onClear={() => setSubcategory("__all__")}
+              />
+            )
+          )}
+
+          {!canPickType && (
+            <span className="text-xs text-[var(--color-text-subtle)]">
+              Choose a gender to unlock type filters.
+            </span>
+          )}
+          {canPickType && productType === "__all__" && (
+            <span className="text-xs text-[var(--color-text-subtle)]">
+              Choose a type to unlock subcategory.
+            </span>
+          )}
+          {canPickType && productType !== "__all__" && subcategoryOptions.length === 0 && (
+            <span className="text-xs text-[var(--color-text-subtle)]">
+              No subcategories available for this type.
+            </span>
+          )}
+
+          {hasActiveFilters && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-[var(--color-text-subtle)]"
+              onClick={() => {
+                setQuery("")
+                setGender("__all__")
+                setProductType("__all__")
+                setSubcategory("__all__")
+              }}
+            >
+              Clear all
+            </Button>
+          )}
+        </div>
       </div>
 
-      <Separator />
+      <div className="flex items-center justify-between text-xs text-[var(--color-text-subtle)]">
+        <span>{visibleFamilies.length} families</span>
+        <span className="truncate">
+          {gender !== "__all__" ? genderLabel(gender) : "All"}
+          {productType !== "__all__" ? ` > ${humanizeLabel(productType)}` : ""}
+          {subcategory !== "__all__" ? ` > ${humanizeLabel(subcategory)}` : ""}
+        </span>
+      </div>
 
-      <Command className="max-h-[300px]">
-        <CommandInput placeholder="Search product families..." />
-        <CommandList>
-          <CommandEmpty>No product families found.</CommandEmpty>
-          <CommandGroup>
-            {visibleFamilies.map((f) => {
-              const g = genderLabel(genderKey(f.gender))
-              const t = normalize(f.productType)
-              const s = normalize(f.productSubcategory)
-              const secondaryParts = [t, s].filter(Boolean) as string[]
+      <div className="max-h-[340px] overflow-y-auto rounded-md border border-[var(--color-border)]">
+        {visibleFamilies.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+            <p className="text-sm font-medium text-[var(--color-text)]">No product families found</p>
+            <p className="text-xs text-[var(--color-text-subtle)]">
+              Try a broader search or clear filters.
+            </p>
+            {canManageCatalog && (
+              <Button variant="outline" size="sm" onClick={onCreateProduct}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Create new product
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="divide-y divide-[var(--color-border)]">
+            {visibleFamilies.map((family) => {
+              const taxonomy = taxonomyLabelForFamily(family)
+              const genderBadge = genderLabel(canonicalGenderKey(family.gender))
               return (
-                <CommandItem
-                  key={f.id}
-                  onSelect={() => onSelect(f)}
-                  className="flex min-h-[44px] items-center gap-3"
+                <button
+                  key={family.id}
+                  type="button"
+                  onClick={() => onSelect(family)}
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-[var(--color-surface-subtle)]"
                 >
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <div className="flex items-baseline gap-2 min-w-0">
-                      <span className="truncate">{f.styleName}</span>
-                      {f.styleNumber && (
+                  <CollapsibleThumb
+                    src={family.thumbnailImagePath ?? family.headerImagePath}
+                    alt={family.styleName}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-baseline gap-2">
+                      <span className="truncate text-sm font-medium text-[var(--color-text)]">{family.styleName}</span>
+                      {family.styleNumber && (
                         <span className="shrink-0 text-xs text-[var(--color-text-subtle)]">
-                          ({f.styleNumber})
+                          ({family.styleNumber})
                         </span>
                       )}
                     </div>
-                    {secondaryParts.length > 0 && (
-                      <span className="truncate text-xs text-[var(--color-text-subtle)]">
-                        {secondaryParts.join(" · ")}
-                      </span>
+                    {taxonomy.length > 0 && (
+                      <p className="truncate text-xs text-[var(--color-text-subtle)]">{taxonomy}</p>
                     )}
                   </div>
-                  {g && (
-                    <Badge variant="secondary" className="shrink-0 text-[10px]">
-                      {g}
-                    </Badge>
-                  )}
-                </CommandItem>
+                  <Badge
+                    variant="outline"
+                    className={`shrink-0 border text-[10px] ${genderTagClass(canonicalGenderKey(family.gender))}`}
+                  >
+                    {genderBadge}
+                  </Badge>
+                </button>
               )
             })}
-          </CommandGroup>
-        </CommandList>
-      </Command>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -580,29 +816,61 @@ function FamilyStep({
 /* ─── Step 2: SKU / Colorway selection ─── */
 
 function SkuStep({
-  familyId,
-  familyName,
+  family,
   familyImageUrl,
+  canManageCatalog,
+  onManageColorways,
   onBack,
   onSelect,
   onSkip,
 }: {
-  readonly familyId: string
-  readonly familyName: string
+  readonly family: ProductFamily
   readonly familyImageUrl: string | undefined
+  readonly canManageCatalog: boolean
+  readonly onManageColorways: (family: ProductFamily, skus: ReadonlyArray<ProductSku>) => void
   readonly onBack: () => void
   readonly onSelect: (sku: ProductSku) => void
   readonly onSkip: () => void
 }) {
-  const { data: skus, loading } = useProductSkus(familyId)
+  const { data: skus, loading } = useProductSkus(family.id)
+  const [query, setQuery] = useState("")
+
+  const visibleSkus = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) return skus
+    return skus.filter((sku) => {
+      const haystack = [
+        sku.colorName ?? sku.name,
+        sku.skuCode,
+        sku.colorKey,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+      return haystack.includes(normalizedQuery)
+    })
+  }, [skus, query])
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onBack}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-sm font-medium">{familyName}</span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onBack}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="truncate text-sm font-medium">{family.styleName}</span>
+        </div>
+        {canManageCatalog && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onManageColorways(family, skus)}
+            disabled={loading}
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Add colorway
+          </Button>
+        )}
       </div>
 
       {loading ? (
@@ -612,44 +880,66 @@ function SkuStep({
       ) : skus.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-4">
           <p className="text-sm text-[var(--color-text-subtle)]">No colorways found</p>
-          <Button variant="outline" size="sm" onClick={onSkip}>
+          {canManageCatalog && (
+            <Button variant="outline" size="sm" onClick={() => onManageColorways(family, skus)}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Add new colorway
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={onSkip}>
             Continue without colorway
           </Button>
         </div>
       ) : (
         <>
-          <Command className="max-h-[250px]">
-            <CommandInput placeholder="Search colorways..." />
-            <CommandList>
-              <CommandEmpty>No colorways match.</CommandEmpty>
-              <CommandGroup>
-                {skus.map((sku) => (
-                  <CommandItem
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-subtle)]" />
+            <Input
+              placeholder="Search colorways..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+
+          <div className="max-h-[280px] overflow-y-auto rounded-md border border-[var(--color-border)]">
+            {visibleSkus.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-[var(--color-text-subtle)]">
+                No colorways match.
+              </p>
+            ) : (
+              <div className="divide-y divide-[var(--color-border)]">
+                {visibleSkus.map((sku) => (
+                  <button
                     key={sku.id}
-                    onSelect={() => onSelect(sku)}
-                    className="flex min-h-[44px] items-center gap-2"
+                    type="button"
+                    onClick={() => onSelect(sku)}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-[var(--color-surface-subtle)]"
                   >
                     <CollapsibleThumb
                       src={sku.imagePath ?? familyImageUrl}
                       alt={sku.colorName ?? sku.name}
                     />
-                    {sku.colourHex && (
+                    {(sku.hexColor ?? sku.colourHex) && (
                       <span
                         className="inline-block h-3 w-3 shrink-0 rounded-full border border-[var(--color-border)]"
-                        style={{ backgroundColor: sku.colourHex }}
+                        style={{ backgroundColor: sku.hexColor ?? sku.colourHex }}
                       />
                     )}
-                    <span className="min-w-0 truncate">{sku.colorName ?? sku.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-[var(--color-text)]">
+                      {sku.colorName ?? sku.name}
+                    </span>
                     {sku.skuCode && (
                       <span className="shrink-0 text-xs text-[var(--color-text-subtle)]">
                         ({sku.skuCode})
                       </span>
                     )}
-                  </CommandItem>
+                  </button>
                 ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
+              </div>
+            )}
+          </div>
+
           <Button variant="ghost" size="sm" className="self-start" onClick={onSkip}>
             Skip — no specific colorway
           </Button>
@@ -684,8 +974,8 @@ function DetailsStep({
     const allSizes = new Set<string>()
     for (const sku of skus) {
       if (sku.sizes) {
-        for (const s of sku.sizes) {
-          allSizes.add(s)
+        for (const size of sku.sizes) {
+          allSizes.add(size)
         }
       }
     }
@@ -720,7 +1010,7 @@ function DetailsStep({
         <Label className="mb-1.5 block text-xs font-medium">Size Scope</Label>
         <Select
           value={draft.sizeScope}
-          onValueChange={(v) => onChange({ sizeScope: v as SizeScope, size: "" })}
+          onValueChange={(value) => onChange({ sizeScope: value as SizeScope, size: "" })}
         >
           <SelectTrigger className="w-full">
             <SelectValue />
@@ -738,14 +1028,14 @@ function DetailsStep({
         <div>
           <Label className="mb-1.5 block text-xs font-medium">Size</Label>
           {availableSizes.length > 0 ? (
-            <Select value={draft.size} onValueChange={(v) => onChange({ size: v })}>
+            <Select value={draft.size} onValueChange={(value) => onChange({ size: value })}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select size..." />
               </SelectTrigger>
               <SelectContent>
-                {availableSizes.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
+                {availableSizes.map((size) => (
+                  <SelectItem key={size} value={size}>
+                    {size}
                   </SelectItem>
                 ))}
               </SelectContent>
