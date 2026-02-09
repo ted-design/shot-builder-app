@@ -307,7 +307,7 @@ service cloud.firestore {
 	        (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe', 'viewer']));
 	      allow create: if clientMatches(clientId) && (isAdmin() || isProducer());
 	      allow update, delete: if clientMatches(clientId) &&
-	        (isAdmin() || hasProjectRole(projectId, ['producer', 'wardrobe']));
+	        (isAdmin() || isProducer() || hasProjectRole(projectId, ['producer', 'wardrobe']));
 
 	      // Project departments and positions (project-scoped role taxonomy)
 	      match /departments/{departmentId} {

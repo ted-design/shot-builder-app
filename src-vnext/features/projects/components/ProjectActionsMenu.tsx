@@ -23,7 +23,7 @@ interface ProjectActionsMenuProps {
 export function ProjectActionsMenu({ project, onEdit }: ProjectActionsMenuProps) {
   const { role, clientId } = useAuth()
   const canManage = canManageProjects(role)
-  const canDelete = role === "admin"
+  const canDelete = canManage
 
   const [busy, setBusy] = useState(false)
   const [confirmArchiveOpen, setConfirmArchiveOpen] = useState(false)
@@ -66,7 +66,10 @@ export function ProjectActionsMenu({ project, onEdit }: ProjectActionsMenuProps)
       toast.success("Project updated")
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update project"
-      toast.error("Failed to update project", { description: message })
+      const description = message.includes("Missing or insufficient permissions")
+        ? "You do not have permission to update this project."
+        : message
+      toast.error("Failed to update project", { description })
     } finally {
       setBusy(false)
     }
@@ -83,7 +86,10 @@ export function ProjectActionsMenu({ project, onEdit }: ProjectActionsMenuProps)
       toast.success("Project deleted", { description: "It is now hidden from the dashboard." })
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to delete project"
-      toast.error("Failed to delete project", { description: message })
+      const description = message.includes("Missing or insufficient permissions")
+        ? "You do not have permission to delete this project."
+        : message
+      toast.error("Failed to delete project", { description })
     } finally {
       setBusy(false)
     }
@@ -174,4 +180,3 @@ export function ProjectActionsMenu({ project, onEdit }: ProjectActionsMenuProps)
     </>
   )
 }
-
