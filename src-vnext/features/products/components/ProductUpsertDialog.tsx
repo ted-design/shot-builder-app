@@ -25,6 +25,8 @@ interface ProductUpsertDialogProps {
   readonly mode: Mode
   readonly family?: ProductFamily
   readonly skus?: ReadonlyArray<ProductSku>
+  readonly redirectOnCreate?: boolean
+  readonly onSaved?: (result: { readonly mode: Mode; readonly familyId: string }) => void
 }
 
 function makeLocalId(): string {
@@ -261,6 +263,8 @@ export function ProductUpsertDialog({
   mode,
   family,
   skus,
+  redirectOnCreate = true,
+  onSaved,
 }: ProductUpsertDialogProps) {
   const { clientId, role, user } = useAuth()
   const isMobile = useIsMobile()
@@ -338,6 +342,7 @@ export function ProductUpsertDialog({
         })
         toast({ title: "Saved", description: "Product updated." })
         onOpenChange(false)
+        onSaved?.({ mode: "edit", familyId: family.id })
         return
       }
 
@@ -349,7 +354,10 @@ export function ProductUpsertDialog({
       })
       toast({ title: "Created", description: "Product created." })
       onOpenChange(false)
-      navigate(`/products/${familyId}`)
+      onSaved?.({ mode: "create", familyId })
+      if (redirectOnCreate) {
+        navigate(`/products/${familyId}`)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save product")
     } finally {

@@ -5,6 +5,7 @@ import { useAuth } from "@/app/providers/AuthProvider"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { uploadShotReferenceImage, validateImageFileForUpload } from "@/shared/lib/uploadImage"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
+import { canManageProducts } from "@/shared/lib/rbac"
 import { Button } from "@/ui/button"
 import { Badge } from "@/ui/badge"
 import {
@@ -97,7 +98,8 @@ export function ShotLooksSection({
   readonly canEdit: boolean
   readonly showReferencesSection?: boolean
 }) {
-  const { clientId, user } = useAuth()
+  const { clientId, user, role } = useAuth()
+  const canManageCatalog = canEdit && canManageProducts(role)
   const looks = useMemo(
     () => (shot.looks ? [...shot.looks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : []),
     [shot.looks],
@@ -340,6 +342,7 @@ export function ShotLooksSection({
           <ProductAssignmentPicker
             selected={selectedLook.products ?? []}
             disabled={!canEdit}
+            canManageCatalog={canManageCatalog}
             onSave={async (products) => {
               const next = looks.map((l) =>
                 l.id === selectedLook.id ? { ...l, products } : l,

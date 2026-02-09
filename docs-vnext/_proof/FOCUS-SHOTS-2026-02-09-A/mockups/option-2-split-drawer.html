@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Option 2 - Split Drawer</title>
+    <style>
+      :root {
+        --bg: #f1f5f9;
+        --shell: #e2e8f0;
+        --panel: #ffffff;
+        --line: #dbe3ee;
+        --text: #0f172a;
+        --muted: #64748b;
+        --accent: #0369a1;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "SF Pro Text", "Segoe UI", sans-serif;
+        background: linear-gradient(120deg, #dbeafe, #f8fafc 40%);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 620px;
+      }
+      .shot-context {
+        background: var(--shell);
+        opacity: 0.65;
+      }
+      .drawer {
+        background: var(--panel);
+        border-left: 1px solid var(--line);
+        display: grid;
+        grid-template-rows: auto auto 1fr auto;
+        max-height: 100vh;
+      }
+      .header, .subhead, .footer {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 650;
+      }
+      .muted {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 8px;
+        padding: 7px 10px;
+        font-size: 12px;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: #075985;
+      }
+      .subhead {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 8px;
+      }
+      input {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 9px 10px;
+        font-size: 13px;
+      }
+      .content {
+        display: grid;
+        grid-template-columns: 190px minmax(0, 1fr);
+        min-height: 0;
+      }
+      .filters {
+        border-right: 1px solid var(--line);
+        padding: 12px;
+        overflow: auto;
+      }
+      .filters h2 {
+        margin: 0 0 8px 0;
+        font-size: 11px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .pill {
+        display: inline-block;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 5px 9px;
+        font-size: 12px;
+        margin: 4px 4px 0 0;
+      }
+      .results {
+        overflow: auto;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr) 92px;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid #edf2f7;
+      }
+      .thumb {
+        width: 42px;
+        height: 42px;
+        border-radius: 8px;
+        background: linear-gradient(150deg, #dbeafe, #bfdbfe);
+      }
+      .name {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .row-btn {
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        border-radius: 7px;
+        padding: 5px 8px;
+        font-size: 11px;
+      }
+      .footer {
+        border-top: 1px solid var(--line);
+        border-bottom: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .cart {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .cta { display: flex; gap: 8px; }
+      @media (max-width: 900px) {
+        .app { grid-template-columns: 1fr; }
+        .shot-context { display: none; }
+      }
+      @media (max-width: 680px) {
+        .content { grid-template-columns: 1fr; }
+        .filters { border-right: 0; border-bottom: 1px solid var(--line); }
+        .subhead { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <section class="shot-context"></section>
+      <section class="drawer">
+        <header class="header">
+          <div>
+            <h1 class="title">Add Product to Look</h1>
+            <div class="muted">Wider surface removes horizontal scroll pressure.</div>
+          </div>
+          <div>
+            <button class="btn">Close</button>
+          </div>
+        </header>
+        <section class="subhead">
+          <input type="text" value="merino" />
+          <button class="btn">+ Colorway</button>
+          <button class="btn btn-primary">+ Product</button>
+        </section>
+        <section class="content">
+          <aside class="filters">
+            <h2>Gender</h2>
+            <span class="pill">All</span><span class="pill">Women</span><span class="pill">Men</span>
+            <h2 style="margin-top: 14px">Type</h2>
+            <span class="pill">Bottoms</span><span class="pill">Tops</span><span class="pill">Outerwear</span>
+            <h2 style="margin-top: 14px">Subcategory</h2>
+            <span class="pill">Socks</span><span class="pill">Shorts</span><span class="pill">Crew</span>
+          </aside>
+          <div class="results">
+            <article class="row">
+              <div class="thumb"></div>
+              <div>
+                <div class="name">All Season Crew Socks</div>
+                <div class="meta">UM2019-501 · Women · Bottoms > Socks</div>
+              </div>
+              <div class="actions">
+                <button class="row-btn">Select</button>
+                <button class="row-btn">Colorways</button>
+              </div>
+            </article>
+            <article class="row">
+              <div class="thumb"></div>
+              <div>
+                <div class="name">Bermuda Travel Shorts</div>
+                <div class="meta">UM2025-293 · Women · Bottoms > Shorts</div>
+              </div>
+              <div class="actions">
+                <button class="row-btn">Select</button>
+                <button class="row-btn">Colorways</button>
+              </div>
+            </article>
+            <article class="row">
+              <div class="thumb"></div>
+              <div>
+                <div class="name">Carryology Merino Tee</div>
+                <div class="meta">M-TP-TS-1207 · Men · Tops > T-Shirts</div>
+              </div>
+              <div class="actions">
+                <button class="row-btn">Select</button>
+                <button class="row-btn">Colorways</button>
+              </div>
+            </article>
+          </div>
+        </section>
+        <footer class="footer">
+          <div class="cart">2 items selected. Active look: Primary.</div>
+          <div class="cta">
+            <button class="btn">Cancel</button>
+            <button class="btn btn-primary">Continue</button>
+          </div>
+        </footer>
+      </section>
+    </main>
+  </body>
+</html>
