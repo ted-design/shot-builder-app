@@ -6,6 +6,7 @@ import type {
   CrewCallSheet,
   CrewRecord,
 } from "@/shared/types"
+import { findTrackOverlapConflicts } from "@/features/schedules/lib/conflicts"
 
 // --- Warning model ---
 
@@ -13,6 +14,7 @@ export type TrustWarningId =
   | "talent-missing-calls"
   | "crew-before-crew-call"
   | "no-schedule-entries"
+  | "track-overlap-conflicts"
   | "wrap-before-last-entry"
 
 export interface TrustWarning {
@@ -154,6 +156,29 @@ export function computeTrustWarnings(input: TrustCheckInput): readonly TrustWarn
         message: `Estimated wrap (${estimatedWrap}) is earlier than the last scheduled entry (${latestLabel}).`,
       })
     }
+  }
+
+  // 5. Same-track overlaps (simultaneous items in one track are invalid).
+  const overlapConflicts = findTrackOverlapConflicts({
+    entries,
+    tracks: schedule?.tracks,
+    settings: schedule?.settings,
+  })
+  if (overlapConflicts.length === 1) {
+    const conflict = overlapConflicts[0]!
+    warnings.push({
+      id: "track-overlap-conflicts",
+      message: `Schedule conflict in ${conflict.trackName}: "${conflict.firstTitle}" overlaps "${conflict.secondTitle}".`,
+    })
+  } else if (overlapConflicts.length > 1) {
+    const uniqueTrackNames = [...new Set(overlapConflicts.map((conflict) => conflict.trackName))]
+    const label = uniqueTrackNames.length <= 2
+      ? uniqueTrackNames.join(" and ")
+      : `${uniqueTrackNames[0]} and ${uniqueTrackNames.length - 1} other tracks`
+    warnings.push({
+      id: "track-overlap-conflicts",
+      message: `${overlapConflicts.length} schedule conflicts detected in ${label}.`,
+    })
   }
 
   return warnings

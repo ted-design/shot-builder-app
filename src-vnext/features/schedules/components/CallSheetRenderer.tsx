@@ -97,16 +97,25 @@ function formatDate(date: Schedule["date"]): string {
 
 function TimeField({ label, value }: { readonly label: string; readonly value: string | null | undefined }) {
   if (!value) return null
+  const formatted = formatHHMMTo12h(value)
+  const display = formatted || value
+  if (!display) return null
   return (
     <div className="flex items-baseline gap-2">
       <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
         {label}
       </span>
       <span className="text-sm font-semibold text-[var(--color-text)]">
-        {value}
+        {display}
       </span>
     </div>
   )
+}
+
+function formatTimeOrText(value: string | null | undefined): string {
+  if (!value) return ""
+  const formatted = formatHHMMTo12h(value)
+  return formatted || value
 }
 
 // --- Entry type styles for renderer ---
@@ -125,6 +134,7 @@ function RendererEntryRow({
   readonly talentNames: readonly string[]
 }) {
   const isRhythm = RHYTHM_TYPES.has(entry.type)
+  const isHighlight = entry.type !== "shot" && !!entry.highlight
   const timeLabel = formatHHMMTo12h(entry.startTime ?? entry.time ?? null)
 
   if (isRhythm) {
@@ -155,8 +165,29 @@ function RendererEntryRow({
     ? textPreview(entry.notes ?? "", 160)
     : ""
 
+  const highlightStyle: CSSProperties | undefined = isHighlight
+    ? (entry.highlight?.variant === "outline"
+      ? {
+          borderColor: entry.highlight.color,
+          borderLeftColor: entry.highlight.color,
+          borderLeftWidth: "3px",
+          backgroundColor: "white",
+        }
+      : {
+          borderColor: entry.highlight?.color,
+          borderLeftColor: entry.highlight?.color,
+          borderLeftWidth: "3px",
+          backgroundColor: `${entry.highlight?.color ?? "#2563eb"}1a`,
+        })
+    : undefined
+
   return (
-    <div className="callsheet-block flex flex-col gap-1 border-b border-[var(--color-border)] py-2 last:border-b-0">
+    <div
+      className={`callsheet-block flex flex-col gap-1 border-b border-[var(--color-border)] py-2 last:border-b-0 ${
+        isHighlight ? "rounded px-2" : ""
+      }`}
+      style={highlightStyle}
+    >
       <div className="flex items-baseline gap-3">
         {timeLabel && (
           <span className="w-16 shrink-0 font-mono text-xs font-semibold tabular-nums text-[var(--color-text)]">
@@ -171,6 +202,7 @@ function RendererEntryRow({
               </span>
             )}
             <span className="truncate text-sm font-medium text-[var(--color-text)]">
+              {entry.highlight?.emoji ? `${entry.highlight.emoji} ` : ""}
               {fields.showShotName ? (shot?.title ?? entry.title) : entry.title}
             </span>
           </div>
@@ -273,6 +305,7 @@ export function CallSheetRenderer({
     if (trackCount > 1) return true
     return (entries ?? []).some((e) => {
       if (e.type === "banner") return true
+      if (e.trackId === "shared" || e.trackId === "all") return true
       if (e.trackId && e.trackId !== "primary") return true
       return Array.isArray(e.appliesToTrackIds) && e.appliesToTrackIds.length > 0
     })
@@ -409,8 +442,8 @@ export function CallSheetRenderer({
             <div className="flex flex-col">
               {talentCalls.map((tc) => {
                 const talent = talentMap.get(tc.talentId)
-                const displayTime = tc.callTime ?? dayDetails?.shootingCallTime ?? ""
-                const isOverridden = !!tc.callTime
+                const displayTime = tc.callTime ?? tc.callText ?? dayDetails?.shootingCallTime ?? ""
+                const isOverridden = !!(tc.callTime || tc.callText)
                 return (
                   <div
                     key={tc.id}
@@ -418,7 +451,7 @@ export function CallSheetRenderer({
                   >
                     {displayTime && (
                       <span className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "text-[var(--color-text)]" : "text-[var(--color-text-muted)]"}`}>
-                        {displayTime}
+                        {formatTimeOrText(displayTime)}
                       </span>
                     )}
                     <span className="flex-1 truncate text-sm text-[var(--color-text)]">
@@ -449,8 +482,8 @@ export function CallSheetRenderer({
             <div className="flex flex-col">
               {crewCalls.map((cc) => {
                 const crew = crewMap.get(cc.crewMemberId)
-                const displayTime = cc.callTime ?? dayDetails?.crewCallTime ?? ""
-                const isOverridden = !!cc.callTime
+                const displayTime = cc.callTime ?? cc.callText ?? dayDetails?.crewCallTime ?? ""
+                const isOverridden = !!(cc.callTime || cc.callText)
                 const deptPosition = [
                   cc.department ?? crew?.department,
                   cc.position ?? crew?.position,
@@ -462,7 +495,7 @@ export function CallSheetRenderer({
                   >
                     {displayTime && (
                       <span className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "text-[var(--color-text)]" : "text-[var(--color-text-muted)]"}`}>
-                        {displayTime}
+                        {formatTimeOrText(displayTime)}
                       </span>
                     )}
                     <span className="flex-1 truncate text-sm text-[var(--color-text)]">

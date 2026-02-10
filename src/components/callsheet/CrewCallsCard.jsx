@@ -14,14 +14,14 @@ import { useOrganizationCrew } from "../../hooks/useOrganizationCrew";
 import { useProjectCrew } from "../../hooks/useProjectCrew";
 import { useCrewCalls } from "../../hooks/useCrewCalls";
 import { useProjectDepartments } from "../../hooks/useProjectDepartments";
-import { parseTimeToMinutes, minutesToTimeString } from "../../lib/timeUtils";
+import { parseTimeToMinutes } from "../../lib/timeUtils";
 import {
   isTimeString,
-  isAmbiguousTimeInput,
-  parseTimeInputToMinutes,
   computeEffectiveCrewCallDisplay,
   timeStringToMinutes,
 } from "../../lib/time/crewCallEffective";
+import { classifyCallsheetTimeInput } from "../../lib/time/callsheetTimeEntry";
+import { toast } from "../../lib/toast";
 import {
   GripVertical,
   Eye,
@@ -692,9 +692,8 @@ export default function CrewCallsCard({
         return;
       }
 
-      // 0. Reject ambiguous time inputs (e.g., "6:17" without AM/PM)
-      // Must come BEFORE isTimeString check since isTimeString matches these
-      if (isAmbiguousTimeInput(raw)) {
+      const callResult = classifyCallsheetTimeInput(raw, { allowText: true });
+      if (callResult.kind === "invalid-time") {
         // Revert to last persisted value
         const call = callsByCrewMemberId.get(crewMemberId);
         const lastValid = (call?.callTime || call?.callText || "").trim();
@@ -702,47 +701,28 @@ export default function CrewCallsCard({
           ...prev,
           [crewMemberId]: lastValid,
         }));
+        toast.error({
+          title: "Invalid crew call time",
+          description: "Use AM/PM (e.g. 6:17 AM), 24h (e.g. 14:30), or text like OFF.",
+        });
         // Don't save - input was invalid
         return;
       }
 
-      // 1. Check if already HH:MM format (unambiguous 24-hour: 0:xx, 13:xx-23:xx)
-      if (isTimeString(raw)) {
+      if (callResult.kind === "time") {
         upsertCrewCall.mutate({
           crewMemberId,
           updates: {
-            callTime: raw,
+            callTime: callResult.canonical,
             callText: null,
             callOffsetDirection: null,
             callOffsetMinutes: null,
           },
         });
-        // Clear local offset state
-        setOffsetByCrewMemberId((prev) => ({
-          ...prev,
-          [crewMemberId]: { direction: null, minutes: 0 },
-        }));
-        return;
-      }
-
-      // 2. Try typed time bypass (e.g., "6:17 AM")
-      const parsed = parseTimeInputToMinutes(raw);
-      if (parsed) {
-        // Convert minutes to HH:MM for storage
-        const timeStr = minutesToTimeString(parsed.minutes);
-        upsertCrewCall.mutate({
-          crewMemberId,
-          updates: {
-            callTime: timeStr,
-            callText: null,
-            callOffsetDirection: null,
-            callOffsetMinutes: null,
-          },
-        });
-        // Update draft to normalized HH:MM format
+        // Normalize local draft to canonical HH:MM
         setDraftByCrewMemberId((prev) => ({
           ...prev,
-          [crewMemberId]: timeStr,
+          [crewMemberId]: callResult.canonical,
         }));
         // Clear local offset state
         setOffsetByCrewMemberId((prev) => ({
@@ -752,12 +732,12 @@ export default function CrewCallsCard({
         return;
       }
 
-      // 3. Treat as text override (OFF/O/C/etc)
+      // Treat as text override (OFF/O/C/etc)
       upsertCrewCall.mutate({
         crewMemberId,
         updates: {
           callTime: null,
-          callText: raw,
+          callText: callResult.text,
           callOffsetDirection: null,
           callOffsetMinutes: null,
         },
@@ -882,13 +862,21 @@ export default function CrewCallsCard({
   const applyDepartmentPrecall = useCallback(() => {
     if (!deptPrecallTarget || !deptPrecallTime.trim()) return;
     const rows = grouped.get(deptPrecallTarget) || [];
-    const timeValue = deptPrecallTime.trim();
-    const isTime = isTimeString(timeValue);
+    const parsedValue = classifyCallsheetTimeInput(deptPrecallTime.trim(), { allowText: true });
+
+    if (parsedValue.kind === "invalid-time") {
+      toast.error({
+        title: "Invalid department precall",
+        description: "Use AM/PM (e.g. 6:17 AM), 24h (e.g. 14:30), or text like OFF.",
+      });
+      return;
+    }
 
     rows.forEach(({ assignment }) => {
-      const updates = isTime
-        ? { callTime: timeValue, callText: null }
-        : { callTime: null, callText: timeValue };
+      const updates =
+        parsedValue.kind === "time"
+          ? { callTime: parsedValue.canonical, callText: null }
+          : { callTime: null, callText: parsedValue.text };
       upsertCrewCall.mutate({ crewMemberId: assignment.crewMemberId, updates });
     });
 
@@ -1221,7 +1209,7 @@ export default function CrewCallsCard({
               type="text"
               value={deptPrecallTime}
               onChange={(e) => setDeptPrecallTime(e.target.value)}
-              placeholder="HH:MM or text like OFF"
+              placeholder="6:17 AM, 14:30, or OFF"
               className="mt-1 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               autoFocus
             />

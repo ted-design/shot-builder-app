@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   DndContext,
   closestCenter,
@@ -36,12 +36,16 @@ import {
 import {
   buildCascadeMoveBetweenTracksPatches,
   buildCascadeDurationPatches,
+  buildCascadeDirectStartEditPatches,
   buildCascadeReorderPatches,
-  buildCascadeStartTimePatches,
 } from "@/features/schedules/lib/cascade"
+import { buildAutoDurationFillPatches } from "@/features/schedules/lib/autoDuration"
+import { findTrackOverlapConflicts, type TrackOverlapConflict } from "@/features/schedules/lib/conflicts"
 import type { Schedule, ScheduleEntry, ScheduleTrack, Shot } from "@/shared/types"
 
 type ContainerId = string | "shared"
+type EntryPatch = { readonly entryId: string; readonly patch: Record<string, unknown> }
+const SHARED_TRACK_IDS = new Set(["shared", "all"])
 
 function normalizeTracks(schedule: Schedule | null): readonly ScheduleTrack[] {
   const raw = schedule?.tracks
@@ -72,6 +76,45 @@ function parseContainerKey(id: string): ContainerId {
   return raw === "shared" ? "shared" : raw
 }
 
+function isSharedBannerEntry(entry: ScheduleEntry): boolean {
+  if (entry.type === "banner") return true
+  return !!entry.trackId && SHARED_TRACK_IDS.has(entry.trackId)
+}
+
+function applyEntryPatches(
+  entries: readonly ScheduleEntry[],
+  patches: readonly EntryPatch[],
+): readonly ScheduleEntry[] {
+  if (patches.length === 0) return entries
+  const byId = new Map(patches.map((patch) => [patch.entryId, patch.patch]))
+  return entries.map((entry) => {
+    const patch = byId.get(entry.id)
+    if (!patch) return entry
+    return { ...entry, ...patch } as ScheduleEntry
+  })
+}
+
+function conflictKey(conflict: TrackOverlapConflict): string {
+  const pair = [conflict.firstEntryId, conflict.secondEntryId].sort().join("::")
+  return `${conflict.trackId}:${pair}`
+}
+
+function findIntroducedConflict(params: {
+  readonly before: readonly TrackOverlapConflict[]
+  readonly after: readonly TrackOverlapConflict[]
+  readonly scopedEntryIds: ReadonlySet<string>
+}): TrackOverlapConflict | null {
+  const { before, after, scopedEntryIds } = params
+  const beforeSet = new Set(before.map(conflictKey))
+  for (const conflict of after) {
+    const touchesScoped =
+      scopedEntryIds.has(conflict.firstEntryId) || scopedEntryIds.has(conflict.secondEntryId)
+    if (!touchesScoped) continue
+    if (!beforeSet.has(conflictKey(conflict))) return conflict
+  }
+  return null
+}
+
 function DroppableColumn({ id, children }: { readonly id: ContainerId; readonly children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: containerKey(id) })
   return (
@@ -93,6 +136,7 @@ function SortableEntry({
   isFirst,
   isLast,
   onRemove,
+  onUpdateTitle,
   onUpdateStartTime,
   onUpdateDuration,
   onUpdateNotes,
@@ -107,6 +151,7 @@ function SortableEntry({
   readonly isFirst: boolean
   readonly isLast: boolean
   readonly onRemove: () => void
+  readonly onUpdateTitle: (title: string) => void
   readonly onUpdateStartTime: (startTime: string | null) => void
   readonly onUpdateDuration: (duration: number | undefined) => void
   readonly onUpdateNotes: (notes: string) => void
@@ -146,6 +191,7 @@ function SortableEntry({
           showTimelineNode={showTimelineNode}
           trackSelect={trackSelect}
           onRemove={onRemove}
+          onUpdateTitle={onUpdateTitle}
           onUpdateStartTime={onUpdateStartTime}
           onUpdateDuration={onUpdateDuration}
           onUpdateNotes={onUpdateNotes}
@@ -179,7 +225,7 @@ export function ScheduleEntriesBoard({
     by.shared = []
 
     for (const entry of entries) {
-      if (entry.type === "banner") {
+      if (isSharedBannerEntry(entry)) {
         by.shared.push(entry)
         continue
       }
@@ -204,8 +250,34 @@ export function ScheduleEntriesBoard({
 
   const [activeId, setActiveId] = useState<string | null>(null)
   const [shotDialog, setShotDialog] = useState<{ open: boolean; trackId: string }>({ open: false, trackId: "primary" })
-  const [customDialog, setCustomDialog] = useState<{ open: boolean; trackId: string; defaultType?: "setup" | "break" | "move" | "banner" }>({ open: false, trackId: "primary" })
+  const [customDialog, setCustomDialog] = useState<{ open: boolean; trackId: string }>({ open: false, trackId: "primary" })
   const showTimelineNode = false
+
+  const autoDurationPatches = useMemo(() => buildAutoDurationFillPatches({ entries, tracks }), [entries, tracks])
+  const autoDurationFingerprint = useMemo(
+    () => autoDurationPatches.map((p) => `${p.entryId}:${String(p.patch.duration ?? "")}`).sort().join("|"),
+    [autoDurationPatches],
+  )
+  const lastAutoDurationFingerprintRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!clientId) return
+    if (autoDurationPatches.length === 0) {
+      lastAutoDurationFingerprintRef.current = null
+      return
+    }
+    if (lastAutoDurationFingerprintRef.current === autoDurationFingerprint) return
+
+    lastAutoDurationFingerprintRef.current = autoDurationFingerprint
+
+    void batchUpdateScheduleEntries(clientId, projectId, scheduleId, autoDurationPatches)
+      .catch(() => {
+        if (lastAutoDurationFingerprintRef.current === autoDurationFingerprint) {
+          lastAutoDurationFingerprintRef.current = null
+        }
+        toast.error("Failed to auto-fill duration.")
+      })
+  }, [autoDurationFingerprint, autoDurationPatches, clientId, projectId, scheduleId])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -224,26 +296,80 @@ export function ScheduleEntriesBoard({
     })
   }, [clientId, projectId, scheduleId])
 
+  const handleUpdateTitle = useCallback(async (entryId: string, title: string) => {
+    if (!clientId) return
+    const trimmed = title.trim()
+    if (!trimmed) return
+    await updateScheduleEntryFields(clientId, projectId, scheduleId, entryId, {
+      title: trimmed,
+    })
+  }, [clientId, projectId, scheduleId])
+
+  const commitPatchesWithConflictGuard = useCallback(
+    async (params: {
+      readonly patches: readonly EntryPatch[]
+      readonly affectedTrackIds: readonly string[]
+      readonly scopedEntryIds: readonly string[]
+    }): Promise<boolean> => {
+      if (!clientId) return false
+      const { patches, affectedTrackIds, scopedEntryIds } = params
+      if (patches.length === 0) return true
+
+      const before = findTrackOverlapConflicts({
+        entries,
+        tracks,
+        settings,
+        trackIds: affectedTrackIds,
+      })
+      const simulated = applyEntryPatches(entries, patches)
+      const after = findTrackOverlapConflicts({
+        entries: simulated,
+        tracks,
+        settings,
+        trackIds: affectedTrackIds,
+      })
+      const introduced = findIntroducedConflict({
+        before,
+        after,
+        scopedEntryIds: new Set(scopedEntryIds),
+      })
+      if (introduced) {
+        toast.error(
+          `Time conflict in ${introduced.trackName}: "${introduced.firstTitle}" overlaps "${introduced.secondTitle}".`,
+        )
+        return false
+      }
+
+      await batchUpdateScheduleEntries(clientId, projectId, scheduleId, patches)
+      return true
+    },
+    [clientId, entries, projectId, scheduleId, settings, tracks],
+  )
+
   const handleUpdateStartTime = useCallback(async (entry: ScheduleEntry, startTime: string | null) => {
     if (!clientId) return
-    if (entry.type === "banner") {
+    if (isSharedBannerEntry(entry)) {
       await updateScheduleEntryFields(clientId, projectId, scheduleId, entry.id, { startTime })
       return
     }
     const trackId = entry.trackId && trackIdSet.has(entry.trackId) ? entry.trackId : "primary"
-    const patches = buildCascadeStartTimePatches({
+    const patches = buildCascadeDirectStartEditPatches({
       entries,
       trackId,
       entryId: entry.id,
       nextStartTime: startTime,
       settings,
     })
-    await batchUpdateScheduleEntries(clientId, projectId, scheduleId, patches)
-  }, [batchUpdateScheduleEntries, clientId, entries, projectId, scheduleId, settings, trackIdSet])
+    await commitPatchesWithConflictGuard({
+      patches,
+      affectedTrackIds: [trackId],
+      scopedEntryIds: [entry.id, ...patches.map((patch) => patch.entryId)],
+    })
+  }, [clientId, commitPatchesWithConflictGuard, entries, projectId, scheduleId, settings, trackIdSet])
 
   const handleUpdateDuration = useCallback(async (entry: ScheduleEntry, duration: number | undefined) => {
     if (!clientId) return
-    if (entry.type === "banner") {
+    if (isSharedBannerEntry(entry)) {
       await updateScheduleEntryFields(clientId, projectId, scheduleId, entry.id, { duration: duration ?? null })
       return
     }
@@ -255,8 +381,12 @@ export function ScheduleEntriesBoard({
       nextDurationMinutes: duration ?? null,
       settings,
     })
-    await batchUpdateScheduleEntries(clientId, projectId, scheduleId, patches)
-  }, [batchUpdateScheduleEntries, clientId, entries, projectId, scheduleId, settings, trackIdSet])
+    await commitPatchesWithConflictGuard({
+      patches,
+      affectedTrackIds: [trackId],
+      scopedEntryIds: [entry.id, ...patches.map((patch) => patch.entryId)],
+    })
+  }, [clientId, commitPatchesWithConflictGuard, entries, projectId, scheduleId, settings, trackIdSet])
 
   const trackOptions = useMemo(
     () => tracks.map((t) => ({ value: t.id, label: t.name })),
@@ -266,7 +396,7 @@ export function ScheduleEntriesBoard({
   const handleMoveToTrack = useCallback(
     async (entry: ScheduleEntry, nextTrackId: string) => {
       if (!clientId) return
-      if (entry.type === "banner") return
+      if (isSharedBannerEntry(entry)) return
 
       const fromTrackId = entry.trackId && trackIdSet.has(entry.trackId) ? entry.trackId : "primary"
       if (fromTrackId === nextTrackId) return
@@ -280,9 +410,13 @@ export function ScheduleEntriesBoard({
         insertIndex,
         settings,
       })
-      await batchUpdateScheduleEntries(clientId, projectId, scheduleId, patches)
+      await commitPatchesWithConflictGuard({
+        patches,
+        affectedTrackIds: [fromTrackId, nextTrackId],
+        scopedEntryIds: [entry.id, ...patches.map((patch) => patch.entryId)],
+      })
     },
-    [batchUpdateScheduleEntries, clientId, entries, entriesByContainer, projectId, scheduleId, settings, trackIdSet],
+    [clientId, commitPatchesWithConflictGuard, entries, entriesByContainer, settings, trackIdSet],
   )
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
@@ -315,12 +449,12 @@ export function ScheduleEntriesBoard({
     const activeEntry = entries.find((e) => e.id === activeEntryId) ?? null
     if (!activeEntry) return
 
-    // Shared container only accepts banner entries for now.
-    if (toContainer === "shared" && activeEntry.type !== "banner") {
-      toast.info("Shared is for Banner entries. Use “Add Entry → Banner”.")
+    // Shared container only accepts shared highlight blocks.
+    if (toContainer === "shared" && !isSharedBannerEntry(activeEntry)) {
+      toast.info("Shared is for shared highlights. Use “Add Highlight” in Shared.")
       return
     }
-    if (fromContainer === "shared" && activeEntry.type !== "banner") return
+    if (fromContainer === "shared" && !isSharedBannerEntry(activeEntry)) return
 
     try {
       if (fromContainer === toContainer) {
@@ -346,7 +480,11 @@ export function ScheduleEntriesBoard({
           nextOrderedIds: next.map((e) => e.id),
           settings,
         })
-        await batchUpdateScheduleEntries(clientId, projectId, scheduleId, patches)
+        await commitPatchesWithConflictGuard({
+          patches,
+          affectedTrackIds: [fromContainer],
+          scopedEntryIds: [activeEntryId, ...patches.map((patch) => patch.entryId)],
+        })
         return
       }
 
@@ -361,15 +499,19 @@ export function ScheduleEntriesBoard({
         insertIndex,
         settings,
       })
-      await batchUpdateScheduleEntries(clientId, projectId, scheduleId, patches)
+      await commitPatchesWithConflictGuard({
+        patches,
+        affectedTrackIds: [fromContainer, toContainer],
+        scopedEntryIds: [activeEntryId, ...patches.map((patch) => patch.entryId)],
+      })
     } catch (err) {
       toast.error("Failed to move entry.")
       throw err
     }
-  }, [clientId, containerByEntryId, entries, entriesByContainer, projectId, scheduleId, settings])
+  }, [clientId, commitPatchesWithConflictGuard, containerByEntryId, entries, entriesByContainer, projectId, scheduleId, settings])
 
   const activeEntry = activeId ? entries.find((e) => e.id === activeId) ?? null : null
-  const hasBanners = (entriesByContainer.shared ?? []).length > 0
+  const hasSharedHighlights = (entriesByContainer.shared ?? []).length > 0
   const isMulti = tracks.length > 1
 
   return (
@@ -418,8 +560,8 @@ export function ScheduleEntriesBoard({
                         size="icon"
                         className="h-7 w-7"
                         onClick={() => setCustomDialog({ open: true, trackId: track.id })}
-                        aria-label="Add entry"
-                        title="Add entry"
+                        aria-label="Add highlight"
+                        title="Add highlight"
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
@@ -450,6 +592,10 @@ export function ScheduleEntriesBoard({
                             isFirst={idx === 0}
                             isLast={idx === list.length - 1}
                             onRemove={() => void handleRemove(entry.id).catch(() => toast.error("Failed to remove entry."))}
+                            onUpdateTitle={(title) =>
+                              void handleUpdateTitle(entry.id, title)
+                                .catch(() => toast.error("Failed to update title."))
+                            }
                             onUpdateStartTime={(startTime) =>
                               void handleUpdateStartTime(entry, startTime)
                                 .catch(() => toast.error("Failed to update time."))
@@ -478,16 +624,16 @@ export function ScheduleEntriesBoard({
                     Shared
                   </div>
                   <div className="text-[10px] text-[var(--color-text-subtle)]">
-                    {(entriesByContainer.shared ?? []).length} banners
+                    {(entriesByContainer.shared ?? []).length} highlights
                   </div>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7"
-                  onClick={() => setCustomDialog({ open: true, trackId: "primary", defaultType: "banner" })}
-                  aria-label="Add banner"
-                  title="Add banner"
+                  onClick={() => setCustomDialog({ open: true, trackId: "shared" })}
+                  aria-label="Add shared highlight"
+                  title="Add shared highlight"
                 >
                   <StickyNote className="h-4 w-4" />
                 </Button>
@@ -500,7 +646,7 @@ export function ScheduleEntriesBoard({
                 <div className="flex flex-col gap-2">
                   {(entriesByContainer.shared ?? []).length === 0 ? (
                     <div className="rounded border border-dashed border-[var(--color-border)] px-3 py-4 text-xs text-[var(--color-text-subtle)]">
-                      Add banners for shared notes or beats.
+                      Add shared highlights for notes, transitions, or reminders.
                     </div>
                   ) : (
                     (entriesByContainer.shared ?? []).map((entry, idx, arr) => (
@@ -511,6 +657,10 @@ export function ScheduleEntriesBoard({
                         isFirst={idx === 0}
                         isLast={idx === arr.length - 1}
                         onRemove={() => void handleRemove(entry.id).catch(() => toast.error("Failed to remove entry."))}
+                        onUpdateTitle={(title) =>
+                          void handleUpdateTitle(entry.id, title)
+                            .catch(() => toast.error("Failed to update title."))
+                        }
                         onUpdateStartTime={(startTime) =>
                           void handleUpdateStartTime(entry, startTime)
                             .catch(() => toast.error("Failed to update time."))
@@ -561,8 +711,8 @@ export function ScheduleEntriesBoard({
                         size="icon"
                         className="h-7 w-7"
                         onClick={() => setCustomDialog({ open: true, trackId: track.id })}
-                        aria-label="Add entry"
-                        title="Add entry"
+                        aria-label="Add highlight"
+                        title="Add highlight"
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
@@ -576,7 +726,7 @@ export function ScheduleEntriesBoard({
                     <div className="flex flex-col gap-2">
                       {list.length === 0 ? (
                         <div className="rounded border border-dashed border-[var(--color-border)] px-3 py-6 text-center text-xs text-[var(--color-text-subtle)]">
-                          Add a shot or a custom entry to start.
+                          Add a shot or a highlight block to start.
                         </div>
                       ) : (
                         list.map((entry, idx) => (
@@ -587,6 +737,10 @@ export function ScheduleEntriesBoard({
                             isFirst={idx === 0}
                             isLast={idx === list.length - 1}
                             onRemove={() => void handleRemove(entry.id).catch(() => toast.error("Failed to remove entry."))}
+                            onUpdateTitle={(title) =>
+                              void handleUpdateTitle(entry.id, title)
+                                .catch(() => toast.error("Failed to update title."))
+                            }
                             onUpdateStartTime={(startTime) =>
                               void handleUpdateStartTime(entry, startTime)
                                 .catch(() => toast.error("Failed to update time."))
@@ -608,7 +762,7 @@ export function ScheduleEntriesBoard({
               )
             })}
 
-            {hasBanners ? (
+            {hasSharedHighlights ? (
               <DroppableColumn id="shared">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div className="min-w-0">
@@ -616,16 +770,16 @@ export function ScheduleEntriesBoard({
                       Banners
                     </div>
                     <div className="text-[10px] text-[var(--color-text-subtle)]">
-                      {(entriesByContainer.shared ?? []).length} banner{(entriesByContainer.shared ?? []).length === 1 ? "" : "s"}
+                      {(entriesByContainer.shared ?? []).length} highlight{(entriesByContainer.shared ?? []).length === 1 ? "" : "s"}
                     </div>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => setCustomDialog({ open: true, trackId: "primary", defaultType: "banner" })}
-                    aria-label="Add banner"
-                    title="Add banner"
+                    onClick={() => setCustomDialog({ open: true, trackId: "shared" })}
+                    aria-label="Add shared highlight"
+                    title="Add shared highlight"
                   >
                     <StickyNote className="h-4 w-4" />
                   </Button>
@@ -644,6 +798,10 @@ export function ScheduleEntriesBoard({
                         isFirst={idx === 0}
                         isLast={idx === arr.length - 1}
                         onRemove={() => void handleRemove(entry.id).catch(() => toast.error("Failed to remove entry."))}
+                        onUpdateTitle={(title) =>
+                          void handleUpdateTitle(entry.id, title)
+                            .catch(() => toast.error("Failed to update title."))
+                        }
                         onUpdateStartTime={(startTime) =>
                           void handleUpdateStartTime(entry, startTime)
                             .catch(() => toast.error("Failed to update time."))
@@ -675,6 +833,7 @@ export function ScheduleEntriesBoard({
                 reorderMode="none"
                 showTimelineNode={false}
                 onRemove={() => {}}
+                onUpdateTitle={() => {}}
                 onUpdateStartTime={() => {}}
                 onUpdateDuration={() => {}}
                 onUpdateNotes={() => {}}
@@ -709,19 +868,21 @@ export function ScheduleEntriesBoard({
         onOpenChange={(open) => setCustomDialog((s) => ({ ...s, open }))}
         tracks={tracks}
         defaultTrackId={customDialog.trackId}
-        defaultType={customDialog.defaultType}
-        onAdd={async (type, title, trackId) => {
+        onAdd={async (input) => {
           if (!clientId) return
-          const isBanner = type === "banner"
+          const { title, description, trackId, highlight } = input
+          const isBanner = trackId === "shared"
           const container: ContainerId = isBanner ? "shared" : trackId
           const list = entriesByContainer[container] ?? []
           const nextOrder = list.reduce((max, e) => Math.max(max, e.order ?? 0), -1) + 1
           await addScheduleEntryCustom(clientId, projectId, scheduleId, {
-            type,
+            type: isBanner ? "banner" : "setup",
             title,
+            notes: description || null,
             order: nextOrder,
-            trackId: isBanner ? "primary" : trackId,
-            appliesToTrackIds: isBanner && tracks.length > 1 ? tracks.map((t) => t.id) : null,
+            trackId: isBanner ? "shared" : trackId,
+            appliesToTrackIds: isBanner ? tracks.map((t) => t.id) : null,
+            highlight,
           })
         }}
       />

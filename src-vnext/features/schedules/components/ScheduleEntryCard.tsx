@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type CSSProperties } from "react"
 import {
   ArrowUp,
   ArrowDown,
@@ -10,6 +10,7 @@ import {
   Wrench,
   Coffee,
   Truck,
+  Sparkles,
 } from "lucide-react"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
@@ -23,10 +24,10 @@ import {
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { toast } from "sonner"
 import {
-  formatHHMMTo12h,
   minutesToHHMM,
   parseTimeToMinutes,
 } from "@/features/schedules/lib/time"
+import { TypedTimeInput } from "@/features/schedules/components/TypedTimeInput"
 import type { ScheduleEntry, ScheduleEntryType } from "@/shared/types"
 
 // --- Type visual config ---
@@ -100,6 +101,7 @@ interface ScheduleEntryCardProps {
   readonly onMoveUp?: () => void
   readonly onMoveDown?: () => void
   readonly onRemove: () => void
+  readonly onUpdateTitle: (title: string) => void
   readonly onUpdateStartTime: (startTime: string | null) => void
   readonly onUpdateDuration: (duration: number | undefined) => void
   readonly onUpdateNotes: (notes: string) => void
@@ -118,77 +120,42 @@ function InlineTimeField({
   readonly placeholder: string
   readonly icon: typeof Clock
 }) {
-  const [editing, setEditing] = useState(false)
-  const display = formatHHMMTo12h(value)
-  const [draft, setDraft] = useState(display)
-
-  function handleSave() {
-    const trimmed = draft.trim()
-
-    if (!trimmed) {
-      setEditing(false)
-      if (value) onSave(null)
-      return
-    }
-
-    const minutes = parseTimeToMinutes(trimmed)
-    if (minutes == null) {
-      toast.error("Invalid time. Use “6:00 AM” or “18:00”.")
-      return
-    }
-
-    const next = minutesToHHMM(minutes)
-    if (next !== value) onSave(next)
-    setEditing(false)
-  }
-
-  if (editing) {
-    return (
-      <Input
-        autoFocus
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") handleSave()
-          if (e.key === "Escape") {
-            setDraft(display)
-            setEditing(false)
-          }
-        }}
-        placeholder={placeholder}
-        className="h-7 w-28 text-xs"
-      />
-    )
-  }
-
-  const hasValue = !!value
-
   return (
-    <button
-      type="button"
-      onClick={() => {
-        setDraft(display)
-        setEditing(true)
-      }}
-      className={`flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:bg-[var(--color-surface-subtle)] ${
-        hasValue
-          ? "font-mono text-xs font-semibold tabular-nums text-[var(--color-text)] hover:text-[var(--color-text)]"
-          : "text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+    <TypedTimeInput
+      value={value ?? ""}
+      placeholder={placeholder}
+      icon={<Icon className="h-3 w-3" />}
+      triggerClassName={`h-7 w-28 ${
+        value
+          ? "font-mono text-xs font-semibold tabular-nums text-[var(--color-text)]"
+          : "text-xs text-[var(--color-text-muted)]"
       }`}
-    >
-      <Icon className="h-3 w-3 shrink-0" />
-      {display || placeholder}
-    </button>
+      onSave={(nextValue) => {
+        const trimmed = nextValue.trim()
+        if (!trimmed) {
+          if (value) onSave(null)
+          return
+        }
+        const minutes = parseTimeToMinutes(trimmed)
+        if (minutes == null) {
+          toast.error("Invalid time. Use “6:00 AM” or “18:00”.")
+          return
+        }
+        const next = minutesToHHMM(minutes)
+        if (next !== value) onSave(next)
+      }}
+    />
   )
 }
 
 function InlineNotesField({
   value,
   onSave,
+  emptyLabel = "Add notes",
 }: {
   readonly value: string
   readonly onSave: (v: string) => void
+  readonly emptyLabel?: string
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
@@ -232,7 +199,7 @@ function InlineNotesField({
         className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-muted)]"
       >
         <StickyNote className="h-3 w-3" />
-        Add notes
+        {emptyLabel}
       </button>
     )
   }
@@ -245,6 +212,60 @@ function InlineNotesField({
         setEditing(true)
       }}
       className="rounded px-1.5 py-0.5 text-left text-xs text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)]"
+    >
+      {value}
+    </button>
+  )
+}
+
+function InlineTitleField({
+  value,
+  onSave,
+}: {
+  readonly value: string
+  readonly onSave: (v: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+
+  function handleSave() {
+    setEditing(false)
+    const trimmed = draft.trim()
+    if (!trimmed) {
+      setDraft(value)
+      return
+    }
+    if (trimmed !== value) onSave(trimmed)
+  }
+
+  if (editing) {
+    return (
+      <Input
+        autoFocus
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") handleSave()
+          if (event.key === "Escape") {
+            setDraft(value)
+            setEditing(false)
+          }
+        }}
+        className="h-7 text-sm"
+      />
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setDraft(value)
+        setEditing(true)
+      }}
+      className="truncate rounded px-1 py-0.5 text-left text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-subtle)]"
+      title="Click to edit title"
     >
       {value}
     </button>
@@ -321,6 +342,24 @@ function nodeClasses(entry: ScheduleEntry, isRhythm: boolean): string {
   return [base, active, rhythm].filter(Boolean).join(" ")
 }
 
+function highlightCardStyle(
+  highlight: NonNullable<ScheduleEntry["highlight"]>,
+): CSSProperties {
+  const color = highlight.color
+  if (highlight.variant === "outline") {
+    return {
+      borderColor: color,
+      borderLeftColor: color,
+      backgroundColor: "var(--color-surface)",
+    }
+  }
+  return {
+    borderColor: color,
+    borderLeftColor: color,
+    backgroundColor: `${color}1a`,
+  }
+}
+
 function TrackSelect({
   value,
   options,
@@ -363,6 +402,7 @@ export function ScheduleEntryCard({
   onMoveUp,
   onMoveDown,
   onRemove,
+  onUpdateTitle,
   onUpdateStartTime,
   onUpdateDuration,
   onUpdateNotes,
@@ -370,7 +410,9 @@ export function ScheduleEntryCard({
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const typeConfig = ENTRY_TYPE_CONFIG[entry.type]
-  const TypeIcon = typeConfig.icon
+  const isCustomHighlight = entry.type !== "shot" && !!entry.highlight
+  const TypeIcon = isCustomHighlight ? Sparkles : typeConfig.icon
+  const entryLabel = isCustomHighlight ? "Highlight" : typeConfig.label
 
   const timelineNodeClass = showTimelineNode ? nodeClasses(entry, typeConfig.isRhythm) : ""
 
@@ -454,7 +496,14 @@ export function ScheduleEntryCard({
   return (
     <>
       <div className={timelineNodeClass}>
-        <div className={`group flex items-start gap-2.5 rounded-md border-l-[3px] ${typeConfig.accent} border ${typeConfig.border} ${typeConfig.bg} px-3 py-2 transition-colors hover:border-[var(--color-border-strong)]`}>
+        <div
+          className={`group flex items-start gap-2.5 rounded-md border-l-[3px] border px-3 py-2 transition-colors ${
+            isCustomHighlight
+              ? "border-[var(--color-border)] bg-[var(--color-surface)]"
+              : `${typeConfig.accent} ${typeConfig.border} ${typeConfig.bg} hover:border-[var(--color-border-strong)]`
+          }`}
+          style={isCustomHighlight && entry.highlight ? highlightCardStyle(entry.highlight) : undefined}
+        >
           {reorderMode === "buttons" && onMoveUp && onMoveDown && (
             <div className="flex flex-col gap-0.5 pt-0.5">
               <Button variant="ghost" size="icon" className="h-5 w-5" disabled={isFirst} onClick={onMoveUp} aria-label="Move up">
@@ -476,13 +525,19 @@ export function ScheduleEntryCard({
                 placeholder="Set time (e.g. 6:00 AM)"
                 icon={Clock}
               />
-              <TypeIcon className="h-3.5 w-3.5 shrink-0 text-[var(--color-primary)]" />
-              <span className="truncate text-sm font-medium text-[var(--color-text)]">
-                {entry.title}
-              </span>
+              <TypeIcon className={`h-3.5 w-3.5 shrink-0 ${isCustomHighlight ? "text-[var(--color-text)]" : "text-[var(--color-primary)]"}`} />
+              <InlineTitleField
+                value={`${entry.highlight?.emoji ? `${entry.highlight.emoji} ` : ""}${entry.title}`}
+                onSave={(nextValue) => {
+                  const withoutEmojiPrefix = entry.highlight?.emoji
+                    ? nextValue.replace(`${entry.highlight.emoji} `, "").trim()
+                    : nextValue.trim()
+                  onUpdateTitle(withoutEmojiPrefix || entry.title)
+                }}
+              />
               {entry.type !== "shot" && (
                 <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
-                  {typeConfig.label}
+                  {entryLabel}
                 </span>
               )}
               {trackSelect ? (
@@ -510,6 +565,7 @@ export function ScheduleEntryCard({
               <InlineNotesField
                 value={entry.notes ?? ""}
                 onSave={onUpdateNotes}
+                emptyLabel={isCustomHighlight ? "Add description" : "Add notes"}
               />
             </div>
           </div>

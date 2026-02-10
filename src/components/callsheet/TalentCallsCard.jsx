@@ -7,11 +7,7 @@ import { useTalentCalls } from "../../hooks/useTalentCalls";
 import { toast } from "../../lib/toast";
 import PeopleFieldsModal from "./people/PeopleFieldsModal";
 import { DEFAULT_TALENT_ROSTER_COLUMNS, normalizeRosterColumns } from "../../lib/callsheet/peopleColumns";
-
-function isTimeString(value) {
-  if (!value) return false;
-  return /^\d{1,2}:\d{2}$/.test(String(value).trim());
-}
+import { classifyCallsheetTimeInput } from "../../lib/time/callsheetTimeEntry";
 
 function getWidthClass(width) {
   const widthMap = {
@@ -112,6 +108,7 @@ export default function TalentCallsCard({
   const applyTalentCall = (talentId) => {
     if (readOnly) return;
     const draft = draftByTalentId[talentId] || {};
+    const persistedCall = callsByTalentId.get(talentId);
     const rawCall = (draft.call || "").trim();
     const rawSet = (draft.set || "").trim();
     const rawWrap = (draft.wrap || "").trim();
@@ -137,21 +134,67 @@ export default function TalentCallsCard({
       return;
     }
 
+    const restoreFieldFromPersisted = (fieldKey) => {
+      const persistedValue =
+        fieldKey === "call"
+          ? (persistedCall?.callTime || persistedCall?.callText || "").trim()
+          : fieldKey === "set"
+            ? (persistedCall?.setTime || "").trim()
+            : (persistedCall?.wrapTime || "").trim();
+      setDraftByTalentId((prev) => ({
+        ...prev,
+        [talentId]: {
+          ...(prev[talentId] || {}),
+          [fieldKey]: persistedValue,
+        },
+      }));
+    };
+
+    const callResult = classifyCallsheetTimeInput(rawCall, { allowText: true });
+    if (callResult.kind === "invalid-time") {
+      restoreFieldFromPersisted("call");
+      toast.error({
+        title: "Invalid call time",
+        description: "Use AM/PM (e.g. 6:17 AM), 24h (e.g. 14:30), or text like OFF.",
+      });
+      return;
+    }
+
+    const setResult = classifyCallsheetTimeInput(rawSet);
+    if (setResult.kind === "invalid-time") {
+      restoreFieldFromPersisted("set");
+      toast.error({
+        title: "Invalid set time",
+        description: "Use AM/PM (e.g. 6:17 AM) or unambiguous 24h time (e.g. 14:30).",
+      });
+      return;
+    }
+
+    const wrapResult = classifyCallsheetTimeInput(rawWrap);
+    if (wrapResult.kind === "invalid-time") {
+      restoreFieldFromPersisted("wrap");
+      toast.error({
+        title: "Invalid wrap time",
+        description: "Use AM/PM (e.g. 6:17 AM) or unambiguous 24h time (e.g. 14:30).",
+      });
+      return;
+    }
+
     const updates = {};
 
-    if (!rawCall) {
+    if (callResult.kind === "empty") {
       updates.callTime = null;
       updates.callText = null;
-    } else if (isTimeString(rawCall)) {
-      updates.callTime = rawCall;
+    } else if (callResult.kind === "time") {
+      updates.callTime = callResult.canonical;
       updates.callText = null;
     } else {
       updates.callTime = null;
-      updates.callText = rawCall;
+      updates.callText = callResult.text;
     }
 
-    updates.setTime = rawSet && isTimeString(rawSet) ? rawSet : null;
-    updates.wrapTime = rawWrap && isTimeString(rawWrap) ? rawWrap : null;
+    updates.setTime = setResult.kind === "time" ? setResult.canonical : null;
+    updates.wrapTime = wrapResult.kind === "time" ? wrapResult.canonical : null;
     updates.role = rawRole ? rawRole : null;
     updates.blockRhs = rawBlockRhs ? rawBlockRhs : null;
     updates.muWard = rawMuWard ? rawMuWard : null;
@@ -328,18 +371,26 @@ export default function TalentCallsCard({
                                       ? draft.blockRhs || ""
                                       : key === "muWard"
                                         ? draft.muWard || ""
-                                        : key === "set"
-                                          ? draft.set || ""
-                                          : key === "remarks"
-                                            ? draft.remarks || ""
-                                            : "";
+                                : key === "set"
+                                  ? draft.set || ""
+                                  : key === "wrap"
+                                    ? draft.wrap || ""
+                                  : key === "remarks"
+                                    ? draft.remarks || ""
+                                    : "";
 
-                            const inputType = key === "set" ? "time" : "text";
+                            const isCallField = key === "call";
+                            const isTimeOnlyField = key === "set" || key === "wrap";
+                            const placeholder = isCallField
+                              ? "6:17 AM or text (OFF / O/C)"
+                              : isTimeOnlyField
+                                ? "e.g. 6:17 AM"
+                                : col.label;
 
                             return (
                               <td key={key} className="px-3 py-2">
                                 <input
-                                  type={inputType}
+                                  type="text"
                                   value={value}
                                   onChange={(e) =>
                                     setDraftByTalentId((prev) => ({
@@ -351,7 +402,7 @@ export default function TalentCallsCard({
                                     if (event.key === "Enter") event.currentTarget.blur();
                                   }}
                                   onBlur={() => applyTalentCall(talentId)}
-                                  placeholder={key === "call" ? "HH:MM or text (OFF / O/C)" : col.label}
+                                  placeholder={placeholder}
                                   disabled={readOnly}
                                   className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
                                 />
