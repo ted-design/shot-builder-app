@@ -18,18 +18,28 @@ import { MoreHorizontal } from "lucide-react"
 interface ProjectActionsMenuProps {
   readonly project: Project
   readonly onEdit: () => void
+  readonly onActionInteraction?: () => void
 }
 
-export function ProjectActionsMenu({ project, onEdit }: ProjectActionsMenuProps) {
+export function ProjectActionsMenu({ project, onEdit, onActionInteraction }: ProjectActionsMenuProps) {
   const { role, clientId } = useAuth()
   const canManage = canManageProjects(role)
-  const canDelete = role === "admin"
+  const canDelete = canManage
 
   const [busy, setBusy] = useState(false)
   const [confirmArchiveOpen, setConfirmArchiveOpen] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   const status = project.status ?? "active"
+  const markActionInteraction = () => onActionInteraction?.()
+  const handleArchiveOpenChange = (open: boolean) => {
+    setConfirmArchiveOpen(open)
+    markActionInteraction()
+  }
+  const handleDeleteOpenChange = (open: boolean) => {
+    setConfirmDeleteOpen(open)
+    markActionInteraction()
+  }
 
   const archiveCopy = useMemo(() => {
     if (status === "archived") {
@@ -66,7 +76,10 @@ export function ProjectActionsMenu({ project, onEdit }: ProjectActionsMenuProps)
       toast.success("Project updated")
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update project"
-      toast.error("Failed to update project", { description: message })
+      const description = message.includes("Missing or insufficient permissions")
+        ? "You do not have permission to update this project."
+        : message
+      toast.error("Failed to update project", { description })
     } finally {
       setBusy(false)
     }
@@ -83,7 +96,10 @@ export function ProjectActionsMenu({ project, onEdit }: ProjectActionsMenuProps)
       toast.success("Project deleted", { description: "It is now hidden from the dashboard." })
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to delete project"
-      toast.error("Failed to delete project", { description: message })
+      const description = message.includes("Missing or insufficient permissions")
+        ? "You do not have permission to delete this project."
+        : message
+      toast.error("Failed to delete project", { description })
     } finally {
       setBusy(false)
     }
@@ -100,16 +116,35 @@ export function ProjectActionsMenu({ project, onEdit }: ProjectActionsMenuProps)
             size="icon"
             className="h-8 w-8"
             title="Project actions"
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              markActionInteraction()
+            }}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              markActionInteraction()
+            }}
             disabled={busy}
           >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent
+          align="end"
+          className="w-48"
+          onClick={(e) => {
+            e.stopPropagation()
+            markActionInteraction()
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation()
+            markActionInteraction()
+          }}
+        >
           <DropdownMenuItem
-            onSelect={() => {
+            onSelect={(e) => {
+              e.stopPropagation()
+              markActionInteraction()
               onEdit()
             }}
           >
@@ -117,7 +152,9 @@ export function ProjectActionsMenu({ project, onEdit }: ProjectActionsMenuProps)
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onSelect={() => {
+            onSelect={(e) => {
+              e.stopPropagation()
+              markActionInteraction()
               if (status !== completeCopy.nextStatus) updateStatus(completeCopy.nextStatus)
             }}
             disabled={busy}
@@ -125,7 +162,9 @@ export function ProjectActionsMenu({ project, onEdit }: ProjectActionsMenuProps)
             {completeCopy.label}
           </DropdownMenuItem>
           <DropdownMenuItem
-            onSelect={() => {
+            onSelect={(e) => {
+              e.stopPropagation()
+              markActionInteraction()
               setConfirmArchiveOpen(true)
             }}
             disabled={busy}
@@ -138,7 +177,11 @@ export function ProjectActionsMenu({ project, onEdit }: ProjectActionsMenuProps)
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-[var(--color-error)] focus:text-[var(--color-error)]"
-                onSelect={() => setConfirmDeleteOpen(true)}
+                onSelect={(e) => {
+                  e.stopPropagation()
+                  markActionInteraction()
+                  setConfirmDeleteOpen(true)
+                }}
                 disabled={busy}
               >
                 Delete…
@@ -150,28 +193,33 @@ export function ProjectActionsMenu({ project, onEdit }: ProjectActionsMenuProps)
 
       <ConfirmDialog
         open={confirmArchiveOpen}
-        onOpenChange={setConfirmArchiveOpen}
+        onOpenChange={handleArchiveOpenChange}
         title={archiveCopy.title}
         description={archiveCopy.description}
         confirmLabel={archiveCopy.confirmLabel}
         destructive={status !== "archived"}
         confirmDisabled={busy}
         cancelDisabled={busy}
-        onConfirm={() => updateStatus(archiveCopy.nextStatus)}
+        onConfirm={() => {
+          markActionInteraction()
+          void updateStatus(archiveCopy.nextStatus)
+        }}
       />
 
       <ConfirmDialog
         open={confirmDeleteOpen}
-        onOpenChange={setConfirmDeleteOpen}
+        onOpenChange={handleDeleteOpenChange}
         title="Delete project?"
         description="This will hide the project from the dashboard. This action cannot be undone from the UI."
         confirmLabel="Delete"
         destructive
         confirmDisabled={busy}
         cancelDisabled={busy}
-        onConfirm={deleteProject}
+        onConfirm={() => {
+          markActionInteraction()
+          void deleteProject()
+        }}
       />
     </>
   )
 }
-

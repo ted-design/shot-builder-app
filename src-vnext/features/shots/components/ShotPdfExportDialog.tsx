@@ -62,6 +62,7 @@ export function ShotPdfExportDialog({
   const [includeDescription, setIncludeDescription] = useState(true)
   const [includeNotesAddendum, setIncludeNotesAddendum] = useState(true)
   const [exporting, setExporting] = useState(false)
+  const [heroStatus, setHeroStatus] = useState<"idle" | "loading" | "ready" | "missing" | "none">("idle")
 
   // Load prefs on open.
   useEffect(() => {
@@ -103,6 +104,44 @@ export function ShotPdfExportDialog({
     }
   }, [includeDescription, includeHero, includeNotesAddendum, open, orientation, storageKeyBase])
 
+  useEffect(() => {
+    if (!open) return
+    if (!includeHero) {
+      setHeroStatus("none")
+      return
+    }
+
+    let active = true
+    const t = window.setTimeout(() => {
+      setHeroStatus("loading")
+      void buildShotsPdfRows({
+        shots: [shot],
+        includeHero: true,
+        talentNameById,
+        locationNameById,
+      })
+        .then((rows) => {
+          if (!active) return
+          const row = rows[0]
+          if (!row?.heroImageRequested) {
+            setHeroStatus("none")
+            return
+          }
+          setHeroStatus(row.heroImageUrl ? "ready" : "missing")
+        })
+        .catch((err) => {
+          if (!active) return
+          console.error("[ShotPdfExportDialog] Hero preflight failed:", err)
+          setHeroStatus("missing")
+        })
+    }, 120)
+
+    return () => {
+      active = false
+      window.clearTimeout(t)
+    }
+  }, [includeHero, locationNameById, open, shot, talentNameById])
+
   const fileName = useMemo(() => {
     const base = safeFileName(projectName || "Project")
     const shotName = safeFileName(shot.title || "Shot")
@@ -138,7 +177,12 @@ export function ShotPdfExportDialog({
       )
       const blob = await pdf(doc).toBlob()
       downloadBlob(blob, fileName)
-      toast.success("PDF exported")
+      toast.success("PDF exported", {
+        description:
+          includeHero && row.heroImageRequested && !row.heroImageUrl
+            ? "Hero image could not be embedded and was marked as unavailable."
+            : undefined,
+      })
       onOpenChange(false)
     } catch (err) {
       console.error("[ShotPdfExportDialog] Export failed:", err)
@@ -179,6 +223,17 @@ export function ShotPdfExportDialog({
               <span>Include hero image</span>
               <Checkbox checked={includeHero} onCheckedChange={(v) => v !== "indeterminate" && setIncludeHero(v)} />
             </label>
+            {includeHero && (
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {heroStatus === "loading"
+                  ? "Checking hero image availability…"
+                  : heroStatus === "ready"
+                    ? "Hero image ready for export."
+                    : heroStatus === "missing"
+                      ? "Hero image is unavailable for export and will be marked in the PDF."
+                      : "No hero image on this shot."}
+              </p>
+            )}
             <label className="flex items-center justify-between gap-2 text-sm">
               <span>Include description</span>
               <Checkbox

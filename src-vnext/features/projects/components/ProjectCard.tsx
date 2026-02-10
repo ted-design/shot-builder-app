@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useMemo, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
 import { StatusBadge } from "@/shared/components/StatusBadge"
@@ -28,6 +28,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export function ProjectCard({ project, showActions = false, onEdit }: ProjectCardProps) {
   const navigate = useNavigate()
+  const suppressNavigateUntilRef = useRef(0)
 
   const briefUrl = project.briefUrl?.trim() ?? ""
   const notes = project.notes?.trim() ?? ""
@@ -40,10 +41,19 @@ export function ProjectCard({ project, showActions = false, onEdit }: ProjectCar
     }
   }, [briefUrl])
 
+  const markActionInteraction = () => {
+    suppressNavigateUntilRef.current = Date.now() + 800
+  }
+
+  const navigateToProject = () => {
+    if (Date.now() < suppressNavigateUntilRef.current) return
+    navigate(`/projects/${project.id}/shots`)
+  }
+
   return (
     <Card
       className="cursor-pointer transition-shadow hover:shadow-md"
-      onClick={() => navigate(`/projects/${project.id}/shots`)}
+      onClick={navigateToProject}
     >
       <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
         <div className="min-w-0 space-y-1">
@@ -61,7 +71,11 @@ export function ProjectCard({ project, showActions = false, onEdit }: ProjectCar
           </div>
         </div>
         {showActions && onEdit && (
-          <ProjectActionsMenu project={project} onEdit={() => onEdit(project)} />
+          <ProjectActionsMenu
+            project={project}
+            onEdit={() => onEdit(project)}
+            onActionInteraction={markActionInteraction}
+          />
         )}
       </CardHeader>
       <CardContent className="space-y-2">

@@ -2,14 +2,23 @@ import { useLocation, useNavigate } from "react-router-dom"
 import { Card, CardContent } from "@/ui/card"
 import { Badge } from "@/ui/badge"
 import { ProductImage } from "@/features/products/components/ProductImage"
+import type { ProductCardPropertyVisibility } from "@/features/products/lib/productPreferences"
 import type { ProductFamily } from "@/shared/types"
+import { humanizeClassificationKey } from "@/features/products/lib/productClassifications"
 
 interface ProductFamilyCardProps {
   readonly family: ProductFamily
   readonly returnTo?: string | null
+  readonly properties?: ProductCardPropertyVisibility
 }
 
-export function ProductFamilyCard({ family, returnTo }: ProductFamilyCardProps) {
+const DEFAULT_PROPERTIES: ProductCardPropertyVisibility = {
+  styleNumber: true,
+  category: true,
+  status: true,
+}
+
+export function ProductFamilyCard({ family, returnTo, properties = DEFAULT_PROPERTIES }: ProductFamilyCardProps) {
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -18,7 +27,8 @@ export function ProductFamilyCard({ family, returnTo }: ProductFamilyCardProps) 
   const colorCount = family.colorNames?.length ?? null
   const sizeCount = family.sizeOptions?.length ?? null
 
-  const categoryLabel = family.productSubcategory ?? family.productType ?? family.category
+  const categoryRaw = family.productSubcategory ?? family.productType ?? family.category
+  const categoryLabel = categoryRaw ? humanizeClassificationKey(categoryRaw) : null
   const status = (family.status ?? "active").toLowerCase()
 
   const href = (() => {
@@ -46,12 +56,12 @@ export function ProductFamilyCard({ family, returnTo }: ProductFamilyCardProps) 
           {family.styleName}
         </span>
         <div className="flex flex-wrap items-center gap-2">
-          {family.styleNumber && (
+          {properties.styleNumber && family.styleNumber && (
             <span className="text-xs text-[var(--color-text-muted)]">
               {family.styleNumber}
             </span>
           )}
-          {categoryLabel && (
+          {properties.category && categoryLabel && (
             <Badge
               variant="outline"
               className="text-[10px] font-normal text-[var(--color-text-muted)]"
@@ -59,29 +69,33 @@ export function ProductFamilyCard({ family, returnTo }: ProductFamilyCardProps) 
               {categoryLabel}
             </Badge>
           )}
-          {family.archived && (
-            <Badge
-              variant="outline"
-              className="text-[10px] font-normal text-[var(--color-text-subtle)]"
-            >
-              Archived
-            </Badge>
-          )}
-          {family.deleted && (
-            <Badge
-              variant="outline"
-              className="text-[10px] font-normal text-[var(--color-text-subtle)]"
-            >
-              Deleted
-            </Badge>
-          )}
-          {status === "discontinued" && (
-            <Badge
-              variant="outline"
-              className="text-[10px] font-normal text-[var(--color-text-subtle)]"
-            >
-              Discontinued
-            </Badge>
+          {properties.status && (
+            <>
+              {family.archived && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-normal text-[var(--color-text-subtle)]"
+                >
+                  Archived
+                </Badge>
+              )}
+              {family.deleted && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-normal text-[var(--color-text-subtle)]"
+                >
+                  Deleted
+                </Badge>
+              )}
+              {status === "discontinued" && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-normal text-[var(--color-text-subtle)]"
+                >
+                  Discontinued
+                </Badge>
+              )}
+            </>
           )}
         </div>
         <span className="text-xs text-[var(--color-text-subtle)]">

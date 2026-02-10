@@ -10,13 +10,29 @@ import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { ProductImage } from "@/features/products/components/ProductImage"
-import { useProductFamily, useProductSkus } from "@/features/products/hooks/useProducts"
+import {
+  useProductFamily,
+  useProductFamilies,
+  useProductSkus,
+} from "@/features/products/hooks/useProducts"
+import { useProductClassifications } from "@/features/products/hooks/useProductClassifications"
 import {
   createProductFamilyWithSkus,
   updateProductFamilyWithSkus,
   type ProductFamilyDraft,
   type ProductSkuDraft,
 } from "@/features/products/lib/productWrites"
+import {
+  deriveProductClassificationScaffold,
+  humanizeClassificationKey,
+  normalizeClassificationGender,
+  normalizeClassificationKey,
+  slugifyClassificationKey,
+} from "@/features/products/lib/productClassifications"
+import {
+  createSubcategoryClassification,
+  createTypeClassification,
+} from "@/features/products/lib/productClassificationWrites"
 import { Button } from "@/ui/button"
 import { Checkbox } from "@/ui/checkbox"
 import { Input } from "@/ui/input"
@@ -41,6 +57,24 @@ function normalizeCsv(value: string): string {
     .map((s) => s.trim())
     .filter(Boolean)
     .join(", ")
+}
+
+function parseColorwayQuickAdd(value: string): string[] {
+  const seen = new Set<string>()
+  const output: string[] = []
+  const tokens = value
+    .split(/[\n,]+/g)
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  for (const token of tokens) {
+    const key = token.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    output.push(token)
+  }
+
+  return output
 }
 
 function notesToText(value: unknown): string {
@@ -417,7 +451,9 @@ export default function ProductEditorPage() {
   const { data: family, loading: familyLoading, error: familyError } = useProductFamily(
     mode === "edit" ? (fid ?? null) : null,
   )
+  const { data: families } = useProductFamilies()
   const { data: skus, loading: skuLoading } = useProductSkus(mode === "edit" ? (fid ?? null) : null)
+  const { data: classifications } = useProductClassifications()
 
   const existingSkus = useMemo(
     () => (skus ?? []).filter((s) => s.deleted !== true),
@@ -429,6 +465,11 @@ export default function ProductEditorPage() {
   const [skuDrafts, setSkuDrafts] = useState<ReadonlyArray<ProductSkuFormState>>(
     () => [toFormState(emptySkuDraft())],
   )
+  const [quickColorways, setQuickColorways] = useState("")
+  const [newTypeLabel, setNewTypeLabel] = useState("")
+  const [newSubcategoryLabel, setNewSubcategoryLabel] = useState("")
+  const [creatingType, setCreatingType] = useState(false)
+  const [creatingSubcategory, setCreatingSubcategory] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -440,7 +481,69 @@ export default function ProductEditorPage() {
     setError(null)
   }, [existingSkus, family, mode])
 
-  const genderSelectValue = draft.gender.trim().length > 0 ? draft.gender : "__unset__"
+  const classificationScaffold = useMemo(
+    () => deriveProductClassificationScaffold({ classifications, families }),
+    [classifications, families],
+  )
+
+  const draftGenderKey = normalizeClassificationGender(draft.gender) ?? ""
+  const draftTypeKey = normalizeClassificationKey(draft.productType) ?? ""
+  const draftSubcategoryKey = normalizeClassificationKey(draft.productSubcategory) ?? ""
+
+  const genderOptions = useMemo(() => {
+    const base = [...classificationScaffold.genders]
+    if (draftGenderKey.length > 0 && !base.some((g) => g.key === draftGenderKey)) {
+      base.push({ key: draftGenderKey, label: humanizeClassificationKey(draftGenderKey) })
+    }
+    return base.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }))
+  }, [classificationScaffold.genders, draftGenderKey])
+
+  const typeOptions = useMemo(() => {
+    if (!draftGenderKey) return [] as Array<{ key: string; label: string }>
+    const base = [...(classificationScaffold.typesByGender[draftGenderKey] ?? [])]
+    if (draftTypeKey.length > 0 && !base.some((t) => t.key === draftTypeKey)) {
+      base.push({ key: draftTypeKey, label: humanizeClassificationKey(draftTypeKey) })
+    }
+    return base.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }))
+  }, [classificationScaffold.typesByGender, draftGenderKey, draftTypeKey])
+
+  const subcategoryOptions = useMemo(() => {
+    if (!draftGenderKey || !draftTypeKey) return [] as Array<{ key: string; label: string }>
+    const base = [...(classificationScaffold.subcategoriesByGenderAndType[draftGenderKey]?.[draftTypeKey] ?? [])]
+    if (draftSubcategoryKey.length > 0 && !base.some((s) => s.key === draftSubcategoryKey)) {
+      base.push({ key: draftSubcategoryKey, label: humanizeClassificationKey(draftSubcategoryKey) })
+    }
+    return base.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }))
+  }, [classificationScaffold.subcategoriesByGenderAndType, draftGenderKey, draftTypeKey, draftSubcategoryKey])
+
+  const genderSelectValue = draftGenderKey.length > 0 ? draftGenderKey : "__unset__"
+  const typeSelectValue = draftTypeKey.length > 0 ? draftTypeKey : "__unset__"
+  const subcategorySelectValue = draftSubcategoryKey.length > 0 ? draftSubcategoryKey : "__unset__"
+  const selectedTypeLabel = typeOptions.find((option) => option.key === draftTypeKey)?.label ?? null
+  const activeColorwayCount = skuDrafts.filter((sku) => sku.deleted !== true).length
+  const removedColorwayCount = skuDrafts.filter((sku) => sku.deleted === true).length
+  const existingColorwayNames = useMemo(
+    () =>
+      new Set(
+        skuDrafts
+          .filter((sku) => sku.deleted !== true)
+          .map((sku) => sku.colorName.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    [skuDrafts],
+  )
+  const quickParsedColorways = useMemo(
+    () => parseColorwayQuickAdd(quickColorways),
+    [quickColorways],
+  )
+  const quickOverlapCount = useMemo(
+    () =>
+      quickParsedColorways.filter((name) =>
+        existingColorwayNames.has(name.toLowerCase()),
+      ).length,
+    [existingColorwayNames, quickParsedColorways],
+  )
+  const quickNewCount = Math.max(quickParsedColorways.length - quickOverlapCount, 0)
 
   const canSave = canEdit &&
     Boolean(clientId) &&
@@ -573,6 +676,99 @@ export default function ProductEditorPage() {
 
   const addSku = () => setSkuDrafts((prev) => [...prev, toFormState(emptySkuDraft())])
 
+  const addTypeFromToolbar = async () => {
+    if (!clientId || !canEdit || !draftGenderKey) return
+    const label = newTypeLabel.trim()
+    if (!label) return
+
+    setCreatingType(true)
+    try {
+      await createTypeClassification({
+        clientId,
+        userId: user?.uid ?? null,
+        gender: draftGenderKey,
+        typeLabel: label,
+      })
+      const key = slugifyClassificationKey(label)
+      setDraft((prev) => ({ ...prev, productType: key, productSubcategory: "" }))
+      setNewTypeLabel("")
+      toast({ title: "Type added", description: `${label} is now available.` })
+    } catch (err) {
+      toast({
+        title: "Unable to add type",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      })
+    } finally {
+      setCreatingType(false)
+    }
+  }
+
+  const addSubcategoryFromToolbar = async () => {
+    if (!clientId || !canEdit || !draftGenderKey || !draftTypeKey) return
+    const label = newSubcategoryLabel.trim()
+    if (!label) return
+
+    setCreatingSubcategory(true)
+    try {
+      await createSubcategoryClassification({
+        clientId,
+        userId: user?.uid ?? null,
+        gender: draftGenderKey,
+        typeKey: draftTypeKey,
+        typeLabel: selectedTypeLabel ?? humanizeClassificationKey(draftTypeKey),
+        subcategoryLabel: label,
+      })
+      const key = slugifyClassificationKey(label)
+      setDraft((prev) => ({ ...prev, productSubcategory: key }))
+      setNewSubcategoryLabel("")
+      toast({ title: "Subcategory added", description: `${label} is now available.` })
+    } catch (err) {
+      toast({
+        title: "Unable to add subcategory",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      })
+    } finally {
+      setCreatingSubcategory(false)
+    }
+  }
+
+  const addColorwaysFromQuickList = () => {
+    const parsed = quickParsedColorways
+    if (parsed.length === 0) {
+      toast({
+        title: "No colorways added",
+        description: "Enter one or more names, separated by commas or line breaks.",
+      })
+      return
+    }
+
+    const toCreate = parsed.filter((name) => !existingColorwayNames.has(name.toLowerCase()))
+    if (toCreate.length === 0) {
+      toast({
+        title: "No new colorways",
+        description: "All entered names already exist in this product.",
+      })
+      return
+    }
+
+    setSkuDrafts((prev) => [
+      ...prev,
+      ...toCreate.map((name) =>
+        toFormState({
+          ...emptySkuDraft(),
+          colorName: name,
+        }),
+      ),
+    ])
+    setQuickColorways("")
+    toast({
+      title: "Colorways added",
+      description: `${toCreate.length} colorway${toCreate.length === 1 ? "" : "s"} added.`,
+    })
+  }
+
   const familyImagePath = (draft.thumbnailImagePath || draft.headerImagePath) ?? null
 
   return (
@@ -688,9 +884,14 @@ export default function ProductEditorPage() {
                     <Label htmlFor="gender">Gender</Label>
                     <Select
                       value={genderSelectValue}
-                      onValueChange={(value) =>
-                        setDraft((p) => ({ ...p, gender: value === "__unset__" ? "" : value }))
-                      }
+                      onValueChange={(value) => {
+                        setDraft((p) => ({
+                          ...p,
+                          gender: value === "__unset__" ? "" : value,
+                          productType: "",
+                          productSubcategory: "",
+                        }))
+                      }}
                       disabled={!canEdit || saving}
                     >
                       <SelectTrigger id="gender">
@@ -698,32 +899,107 @@ export default function ProductEditorPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__unset__">Unspecified</SelectItem>
-                        <SelectItem value="unisex">Unisex</SelectItem>
-                        <SelectItem value="men">Men</SelectItem>
-                        <SelectItem value="women">Women</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        {genderOptions.map((option) => (
+                          <SelectItem key={option.key} value={option.key}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="type">Type</Label>
-                    <Input
-                      id="type"
-                      value={draft.productType}
-                      onChange={(e) => setDraft((p) => ({ ...p, productType: e.target.value }))}
-                      placeholder="tops"
-                      disabled={!canEdit || saving}
-                    />
+                    <Select
+                      value={typeSelectValue}
+                      onValueChange={(value) =>
+                        setDraft((p) => ({
+                          ...p,
+                          productType: value === "__unset__" ? "" : value,
+                          productSubcategory: "",
+                        }))
+                      }
+                      disabled={!canEdit || saving || !draftGenderKey}
+                    >
+                      <SelectTrigger id="type">
+                        <SelectValue placeholder={draftGenderKey ? "Select type" : "Select gender first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__unset__">Unspecified</SelectItem>
+                        {typeOptions.map((option) => (
+                          <SelectItem key={option.key} value={option.key}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="subcategory">Subcategory</Label>
+                    <Select
+                      value={subcategorySelectValue}
+                      onValueChange={(value) =>
+                        setDraft((p) => ({
+                          ...p,
+                          productSubcategory: value === "__unset__" ? "" : value,
+                        }))
+                      }
+                      disabled={!canEdit || saving || !draftGenderKey || !draftTypeKey}
+                    >
+                      <SelectTrigger id="subcategory">
+                        <SelectValue placeholder={draftTypeKey ? "Select subcategory" : "Select type first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__unset__">Unspecified</SelectItem>
+                        {subcategoryOptions.map((option) => (
+                          <SelectItem key={option.key} value={option.key}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-3">
+                  <div className="text-xs text-[var(--color-text-muted)]">
+                    Reclassifying this family updates the classification used across all colorways.
+                  </div>
+                  <div className="mt-2 grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto]">
                     <Input
-                      id="subcategory"
-                      value={draft.productSubcategory}
-                      onChange={(e) => setDraft((p) => ({ ...p, productSubcategory: e.target.value }))}
-                      placeholder="t-shirt"
-                      disabled={!canEdit || saving}
+                      value={newTypeLabel}
+                      onChange={(e) => setNewTypeLabel(e.target.value)}
+                      placeholder={draftGenderKey ? "Create new type…" : "Select gender first"}
+                      disabled={!canEdit || saving || creatingType || !draftGenderKey}
+                      className="h-8 bg-[var(--color-surface)] text-sm"
                     />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={!canEdit || saving || creatingType || !draftGenderKey || newTypeLabel.trim().length === 0}
+                      onClick={() => {
+                        void addTypeFromToolbar()
+                      }}
+                    >
+                      {creatingType ? "Adding…" : "Add type"}
+                    </Button>
+                    <Input
+                      value={newSubcategoryLabel}
+                      onChange={(e) => setNewSubcategoryLabel(e.target.value)}
+                      placeholder={draftTypeKey ? "Create new subcategory…" : "Select type first"}
+                      disabled={!canEdit || saving || creatingSubcategory || !draftGenderKey || !draftTypeKey}
+                      className="h-8 bg-[var(--color-surface)] text-sm"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={!canEdit || saving || creatingSubcategory || !draftGenderKey || !draftTypeKey || newSubcategoryLabel.trim().length === 0}
+                      onClick={() => {
+                        void addSubcategoryFromToolbar()
+                      }}
+                    >
+                      {creatingSubcategory ? "Adding…" : "Add subcategory"}
+                    </Button>
                   </div>
                 </div>
               </SectionCard>
@@ -875,15 +1151,50 @@ export default function ProductEditorPage() {
               title="Colorways"
               description={skuLoading ? "Loading..." : "Expand a colorway for sizes and image controls."}
             >
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-xs text-[var(--color-text-muted)]">
-                  {skuDrafts.filter((s) => s.deleted !== true).length} active
-                  {skuDrafts.some((s) => s.deleted === true) ? ` · ${skuDrafts.filter((s) => s.deleted === true).length} removed` : ""}
+                  {activeColorwayCount} active
+                  {removedColorwayCount > 0 ? ` · ${removedColorwayCount} removed` : ""}
                 </div>
                 <Button type="button" variant="outline" onClick={addSku} disabled={!canEdit || saving}>
                   <Plus className="h-4 w-4" />
                   Add colorway
                 </Button>
+              </div>
+              <div className="mt-3 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3">
+                <Label htmlFor="quickColorways" className="text-xs">
+                  Quick add colorways
+                </Label>
+                <Textarea
+                  id="quickColorways"
+                  value={quickColorways}
+                  onChange={(e) => setQuickColorways(e.target.value)}
+                  placeholder="Forest, Oxblood, Navy"
+                  disabled={!canEdit || saving}
+                  className="mt-2 min-h-[72px] bg-[var(--color-surface)]"
+                />
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-[var(--color-text-subtle)]">
+                    Paste names separated by commas or line breaks.
+                    {quickParsedColorways.length > 0 && (
+                      <>
+                        {" "}
+                        {quickParsedColorways.length} parsed
+                        {quickOverlapCount > 0 ? ` · ${quickOverlapCount} already exist` : ""}
+                        {quickNewCount > 0 ? ` · ${quickNewCount} new` : ""}
+                      </>
+                    )}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={addColorwaysFromQuickList}
+                    disabled={!canEdit || saving || quickNewCount === 0}
+                  >
+                    Add listed colorways
+                  </Button>
+                </div>
               </div>
               <div className="mt-4 flex flex-col gap-3">
                 {skuDrafts.map((sku, idx) => (
@@ -904,6 +1215,7 @@ export default function ProductEditorPage() {
             </SectionCard>
           )}
         </div>
+
       </div>
     </div>
   )

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Option 2 - Guided Flow</title>
+    <style>
+      :root {
+        --bg: #f5f6f3;
+        --ink: #161b22;
+        --muted: #5d6570;
+        --line: #d8ddd2;
+        --card: #ffffff;
+        --accent: #7a5c2f;
+        --accent-soft: #f6eee1;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", "Gill Sans", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 15% -15%, #fff8df, transparent 30%),
+          radial-gradient(circle at 88% 0, #e6f5ec, transparent 34%),
+          var(--bg);
+        padding: 18px;
+      }
+      .frame {
+        max-width: 1080px;
+        margin: 0 auto;
+        display: grid;
+        gap: 14px;
+      }
+      .hero {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--card);
+        padding: 14px;
+      }
+      .hero h1 {
+        margin: 0;
+        font-size: 30px;
+        letter-spacing: -0.02em;
+      }
+      .hero p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+      .steps {
+        margin-top: 12px;
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .step {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        font-size: 13px;
+        background: #fafaf8;
+      }
+      .step.active {
+        background: var(--accent-soft);
+        border-color: #e4d2b3;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 14px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--card);
+      }
+      .content { padding: 14px; display: grid; gap: 14px; }
+      .section h2 { margin: 0; font-size: 14px; }
+      .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+      .grid {
+        margin-top: 10px;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .field label { display: block; font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+      .input { border: 1px solid var(--line); border-radius: 10px; min-height: 38px; padding: 9px 10px; font-size: 14px; }
+      .cta {
+        margin-top: 8px;
+        border: 1px solid #d7c2a3;
+        border-radius: 10px;
+        background: #fff9ef;
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+        font-size: 12px;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 11px;
+        background: #fff;
+        font-size: 12px;
+      }
+      .sku-list { margin-top: 8px; display: grid; gap: 8px; }
+      .sku {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 110px;
+        gap: 8px;
+      }
+      .sku strong { font-size: 14px; }
+      .sku small { display: block; margin-top: 3px; color: var(--muted); }
+      .side {
+        padding: 14px;
+        background: linear-gradient(180deg, #fdfcf8, #f9f7f1);
+      }
+      .meter {
+        margin-top: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #ece6da;
+        overflow: hidden;
+      }
+      .meter > span {
+        display: block;
+        height: 100%;
+        width: 66%;
+        background: linear-gradient(90deg, #7a5c2f, #9d7440);
+      }
+      .mini {
+        margin-top: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        font-size: 12px;
+      }
+      @media (max-width: 900px) {
+        body { padding: 10px; }
+        .layout { grid-template-columns: 1fr; }
+        .steps { grid-template-columns: 1fr; }
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <section class="hero">
+        <h1>Guided Product Setup</h1>
+        <p>Deliberate step flow to prevent taxonomy errors and speed colorway entry.</p>
+        <div class="steps">
+          <div class="step">1. Identity</div>
+          <div class="step active">2. Classification</div>
+          <div class="step">3. Colorways</div>
+        </div>
+      </section>
+
+      <section class="layout">
+        <article class="card content">
+          <div class="section">
+            <h2>Step 2: Classification</h2>
+            <div class="hint">Only managed values are selectable. Create missing values in context.</div>
+            <div class="grid">
+              <div class="field"><label>Gender</label><div class="input">Men</div></div>
+              <div class="field"><label>Type</label><div class="input">Tops</div></div>
+              <div class="field"><label>Subcategory</label><div class="input">Hoodies & Sweaters</div></div>
+            </div>
+            <div class="cta">
+              <span>Need a missing classification? Add or rename without leaving this flow.</span>
+              <button class="btn">Manage classifications</button>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Step 3 Preview: Colorways</h2>
+            <div class="hint">Paste a list to spawn rows instantly, then tune status/sizes as needed.</div>
+            <div class="input" style="min-height:64px;">Forest, Oxblood, Navy</div>
+            <div class="sku-list">
+              <div class="sku"><div><strong>Forest</strong><small>Sizes inherit family default</small></div><div class="input">Active</div></div>
+              <div class="sku"><div><strong>Navy</strong><small>Sizes inherit family default</small></div><div class="input">Active</div></div>
+            </div>
+          </div>
+        </article>
+
+        <aside class="card side">
+          <strong style="font-size:13px;">Completion</strong>
+          <div class="meter"><span></span></div>
+          <div style="margin-top:8px;font-size:12px;color:var(--muted);">2/3 complete</div>
+
+          <div class="mini">
+            <strong style="font-size:12px;">Quality checks</strong>
+            <div style="margin-top:6px;color:var(--muted);">• Classification selected from catalog</div>
+            <div style="margin-top:4px;color:var(--muted);">• At least one active colorway</div>
+            <div style="margin-top:4px;color:var(--muted);">• No silent archived defaults</div>
+          </div>
+        </aside>
+      </section>
+    </div>
+  </body>
+</html>
