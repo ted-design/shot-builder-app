@@ -59,7 +59,7 @@ function getLaneTrackIdsSorted(tracksById) {
  * 1. **Invalid (none)**: entry has missing/invalid trackId AND no appliesToTrackIds
  *    - kind="none", trackIds=[]
  *
- * 2. **Shared-to-all (all)**: entry.trackId === "shared" OR track.scope === "shared"
+ * 2. **Shared-to-all (all)**: entry.trackId === "shared" OR entry.trackId === "all" OR track.scope === "shared"
  *    - kind="all", trackIds = all lane trackIds (excludes shared scope tracks)
  *
  * 3. **Subset (subset)**: entry.appliesToTrackIds is a non-empty array
@@ -104,11 +104,11 @@ export function getApplicableTrackIds(entry, tracksById) {
   // Rule 2: Check for shared-to-all (before checking appliesToTrackIds)
   // This takes precedence because explicit "shared" trackId means ALL lanes
   if (hasTrackId) {
-    if (entry.trackId === "shared") {
+    if (entry.trackId === "shared" || entry.trackId === "all") {
       return {
         kind: "all",
         trackIds: allLaneTrackIds,
-        reason: 'trackId === "shared" (explicit shared-to-all)',
+        reason: `trackId === "${entry.trackId}" (explicit shared-to-all)`,
       };
     }
 

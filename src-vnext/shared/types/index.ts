@@ -458,6 +458,14 @@ export interface Schedule {
 
 export type ScheduleEntryType = "shot" | "setup" | "break" | "move" | "banner"
 
+export type ScheduleEntryHighlightVariant = "solid" | "outline"
+
+export interface ScheduleEntryHighlight {
+  readonly variant: ScheduleEntryHighlightVariant
+  readonly color: string
+  readonly emoji?: string | null
+}
+
 export interface ScheduleEntry {
   readonly id: string
   readonly type: ScheduleEntryType
@@ -472,6 +480,7 @@ export interface ScheduleEntry {
   readonly trackId?: string
   /** Shared/subset applicability (multi-stream). Null/undefined means track-local. */
   readonly appliesToTrackIds?: readonly string[] | null
+  readonly highlight?: ScheduleEntryHighlight | null
   readonly notes?: string
   readonly createdAt?: Timestamp
   readonly updatedAt?: Timestamp

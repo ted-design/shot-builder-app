@@ -184,6 +184,41 @@ describe("computeTrustWarnings", () => {
     })
   })
 
+  describe("track-overlap-conflicts", () => {
+    it("warns when two entries overlap within the same track", () => {
+      const warnings = computeTrustWarnings({
+        ...emptyInput,
+        entries: [
+          makeEntry({ id: "e1", title: "Load In", order: 1, trackId: "primary", startTime: "09:00", duration: 60 }),
+          makeEntry({ id: "e2", title: "Shot 1", order: 2, trackId: "primary", startTime: "09:30", duration: 15 }),
+        ],
+      })
+      const warning = warnings.find((w) => w.id === "track-overlap-conflicts")
+      expect(warning).toBeDefined()
+      expect(warning!.message).toContain("Primary")
+      expect(warning!.message).toContain("Load In")
+      expect(warning!.message).toContain("Shot 1")
+    })
+
+    it("does not warn for simultaneous times across different tracks", () => {
+      const warnings = computeTrustWarnings({
+        ...emptyInput,
+        schedule: makeSchedule({
+          tracks: [
+            { id: "primary", name: "Primary", order: 0 },
+            { id: "track-2", name: "Track 2", order: 1 },
+          ],
+        }),
+        entries: [
+          makeEntry({ id: "e1", order: 1, trackId: "primary", startTime: "09:00", duration: 60 }),
+          makeEntry({ id: "e2", order: 2, trackId: "track-2", startTime: "09:00", duration: 60 }),
+        ],
+      })
+      const warning = warnings.find((w) => w.id === "track-overlap-conflicts")
+      expect(warning).toBeUndefined()
+    })
+  })
+
   describe("wrap-before-last-entry", () => {
     it("warns when estimated wrap is before last entry time", () => {
       const warnings = computeTrustWarnings({

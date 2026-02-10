@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest"
-import { buildCascadeMoveBetweenTracksPatches, buildCascadeReorderPatches } from "./cascade"
+import {
+  buildCascadeDirectStartEditPatches,
+  buildCascadeMoveBetweenTracksPatches,
+  buildCascadeReorderPatches,
+} from "./cascade"
 import type { ScheduleEntry, ScheduleSettings } from "@/shared/types"
 
 const settings: ScheduleSettings = {
@@ -116,5 +120,50 @@ describe("buildCascadeMoveBetweenTracksPatches", () => {
     expect(merged).toHaveProperty("trackId")
     expect(merged).toHaveProperty("order")
     expect(merged).not.toHaveProperty("startTime")
+  })
+})
+
+describe("buildCascadeDirectStartEditPatches", () => {
+  it("reorders by edited start time and cascades downstream from edited entry", () => {
+    const entries = [
+      makeEntry({ id: "a", trackId: "primary", order: 0, startTime: "09:40", duration: 10 }),
+      makeEntry({ id: "b", trackId: "primary", order: 1, startTime: "10:00", duration: 15 }),
+      makeEntry({ id: "c", trackId: "primary", order: 2, startTime: "10:30", duration: 15 }),
+    ]
+
+    const patches = buildCascadeDirectStartEditPatches({
+      entries,
+      trackId: "primary",
+      entryId: "c",
+      nextStartTime: "09:30",
+      settings,
+    })
+
+    const byId = new Map(patches.map((p) => [p.entryId, p.patch]))
+
+    expect(byId.get("c")).toMatchObject({ order: 0, startTime: "09:30" })
+    expect(byId.get("a")).toMatchObject({ order: 1, startTime: "09:45" })
+    expect(byId.get("b")).toMatchObject({ order: 2, startTime: "09:55" })
+  })
+
+  it("infers edited entry duration from next explicit start when duration is missing", () => {
+    const entries = [
+      makeEntry({ id: "a", trackId: "primary", order: 0, startTime: "09:50", duration: undefined }),
+      makeEntry({ id: "b", trackId: "primary", order: 1, startTime: "10:00", duration: 15 }),
+      makeEntry({ id: "c", trackId: "primary", order: 2, startTime: "10:15", duration: 15 }),
+    ]
+
+    const patches = buildCascadeDirectStartEditPatches({
+      entries,
+      trackId: "primary",
+      entryId: "a",
+      nextStartTime: "09:40",
+      settings,
+    })
+
+    const byId = new Map(patches.map((p) => [p.entryId, p.patch]))
+    expect(byId.get("a")).toMatchObject({ startTime: "09:40", duration: 20 })
+    expect(byId.get("b")?.startTime).toBeUndefined()
+    expect(byId.get("c")?.startTime).toBeUndefined()
   })
 })

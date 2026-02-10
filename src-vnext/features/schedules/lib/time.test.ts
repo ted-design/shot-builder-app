@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { formatMinutesTo12h, minutesToHHMM, parseTimeToMinutes } from "./time"
+import { classifyTimeInput, formatMinutesTo12h, minutesToHHMM, parseTimeToMinutes } from "./time"
 
 describe("time", () => {
   describe("parseTimeToMinutes", () => {
@@ -39,5 +39,36 @@ describe("time", () => {
     expect(minutesToHHMM(0)).toBe("00:00")
     expect(minutesToHHMM(6 * 60 + 5)).toBe("06:05")
   })
-})
 
+  describe("classifyTimeInput", () => {
+    it("classifies valid times as canonical HH:MM", () => {
+      expect(classifyTimeInput("6:05 AM")).toEqual({
+        kind: "time",
+        canonical: "06:05",
+      })
+      expect(classifyTimeInput("18:30")).toEqual({
+        kind: "time",
+        canonical: "18:30",
+      })
+    })
+
+    it("supports text override only when allowed", () => {
+      expect(classifyTimeInput("OFF", { allowText: true })).toEqual({
+        kind: "text",
+        text: "OFF",
+      })
+      expect(classifyTimeInput("OFF")).toEqual({
+        kind: "invalid-time",
+      })
+    })
+
+    it("rejects malformed time-like input", () => {
+      expect(classifyTimeInput("24:00")).toEqual({
+        kind: "invalid-time",
+      })
+      expect(classifyTimeInput("12:61")).toEqual({
+        kind: "invalid-time",
+      })
+    })
+  })
+})

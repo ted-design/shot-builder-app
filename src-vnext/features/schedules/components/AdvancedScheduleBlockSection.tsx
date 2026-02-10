@@ -137,9 +137,28 @@ export function AdvancedScheduleBlockSection({
     const notesPreview = fields.showNotes ? textPreview(entry.notes ?? "", 140) : ""
     const timeRange = computeTimeRange(row)
     const isRhythm = entry.type === "break" || entry.type === "move"
+    const isHighlight = entry.type !== "shot" && !!entry.highlight
+    const highlightStyle = isHighlight
+      ? (entry.highlight?.variant === "outline"
+        ? {
+            borderColor: entry.highlight.color,
+            borderLeftColor: entry.highlight.color,
+            borderLeftWidth: "3px",
+            backgroundColor: "white",
+          }
+        : {
+            borderColor: entry.highlight?.color,
+            borderLeftColor: entry.highlight?.color,
+            borderLeftWidth: "3px",
+            backgroundColor: `${entry.highlight?.color ?? "#2563eb"}1a`,
+          })
+      : undefined
 
     return (
-      <div className={`callsheet-block rounded border px-2.5 py-2 ${isRhythm ? "border-amber-200 bg-amber-50/40" : "border-[var(--color-border)] bg-white"}`}>
+      <div
+        className={`callsheet-block rounded border px-2.5 py-2 ${isRhythm ? "border-amber-200 bg-amber-50/40" : "border-[var(--color-border)] bg-white"}`}
+        style={highlightStyle}
+      >
         <div className="flex items-start gap-2">
           <div className="w-24 shrink-0 font-mono text-[10px] font-semibold tabular-nums text-[var(--color-text)]">
             {timeRange || "—"}
@@ -158,6 +177,7 @@ export function AdvancedScheduleBlockSection({
                 </span>
               )}
               <span className="truncate text-sm font-medium text-[var(--color-text)]">
+                {entry.highlight?.emoji ? `${entry.highlight.emoji} ` : ""}
                 {title}
               </span>
               {projection.tracks.length > 1 && (

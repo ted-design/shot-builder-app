@@ -77,10 +77,11 @@ function isAllTracks(
 
 function computeApplicability(params: {
   readonly entry: ScheduleEntry
+  readonly rawTrackId: string | null
   readonly trackId: string
   readonly trackIds: ReadonlySet<string>
 }): { appliesToTrackIds: readonly string[] | null; applicabilityKind: ApplicabilityKind; isBanner: boolean } {
-  const { entry, trackId, trackIds } = params
+  const { entry, rawTrackId, trackId, trackIds } = params
 
   const raw = Array.isArray(entry.appliesToTrackIds)
     ? entry.appliesToTrackIds.filter((id) => typeof id === "string" && id.trim().length > 0)
@@ -88,8 +89,9 @@ function computeApplicability(params: {
   const appliesToTrackIds = raw && raw.length > 0 ? raw : null
 
   const bannerByType = entry.type === "banner"
+  const bannerByTrackMarker = rawTrackId === "shared" || rawTrackId === "all"
   const bannerByApplicability = appliesToTrackIds ? isAllTracks(appliesToTrackIds, trackIds) : false
-  const isBanner = bannerByType || bannerByApplicability
+  const isBanner = bannerByType || bannerByTrackMarker || bannerByApplicability
 
   if (isBanner) {
     return { appliesToTrackIds: appliesToTrackIds ?? [...trackIds], applicabilityKind: "all", isBanner: true }
@@ -173,7 +175,12 @@ export function buildScheduleProjection(params: {
   const rows: ProjectedScheduleRow[] = entries.map((entry) => {
     const rawTrackId = entry.trackId ?? "primary"
     const trackId = trackIdSet.has(rawTrackId) ? rawTrackId : "primary"
-    const applicability = computeApplicability({ entry, trackId, trackIds: trackIdSet })
+    const applicability = computeApplicability({
+      entry,
+      rawTrackId,
+      trackId,
+      trackIds: trackIdSet,
+    })
 
     const derived = derivedTimesById.get(entry.id) ?? { startMin: null as number | null, timeSource: "none" as TimeSource }
     const startMin = derived.startMin
@@ -219,4 +226,3 @@ export function buildScheduleProjection(params: {
 
   return { mode, tracks, rows: sorted }
 }
-

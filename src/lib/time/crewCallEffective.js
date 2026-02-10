@@ -10,7 +10,16 @@ import { parseTimeToMinutes, minutesToTime12h } from "../timeUtils";
  */
 export function isTimeString(value) {
   if (!value) return false;
-  return /^\d{1,2}:\d{2}$/.test(String(value).trim());
+  const match = String(value)
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return false;
+
+  const hour = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  if (!Number.isFinite(hour) || !Number.isFinite(minutes)) return false;
+
+  return hour >= 0 && hour <= 23 && minutes >= 0 && minutes <= 59;
 }
 
 /**

@@ -6,11 +6,7 @@ import { useClientCalls } from "../../hooks/useClientCalls";
 import { toast } from "../../lib/toast";
 import PeopleFieldsModal from "./people/PeopleFieldsModal";
 import { DEFAULT_CLIENT_ROSTER_COLUMNS, normalizeRosterColumns } from "../../lib/callsheet/peopleColumns";
-
-function isTimeString(value) {
-  if (!value) return false;
-  return /^\d{1,2}:\d{2}$/.test(String(value).trim());
-}
+import { classifyCallsheetTimeInput } from "../../lib/time/callsheetTimeEntry";
 
 function getWidthClass(width) {
   const widthMap = {
@@ -32,7 +28,7 @@ export default function ClientsCallsCard({
   onUpdateSectionConfig,
   readOnly = false,
 }) {
-  const { calls, createClientCall, upsertClientCall, deleteClientCall, loading, error } = useClientCalls(
+  const { calls, callsById, createClientCall, upsertClientCall, deleteClientCall, loading, error } = useClientCalls(
     clientId,
     projectId,
     scheduleId
@@ -82,6 +78,7 @@ export default function ClientsCallsCard({
   const applyClientCall = (id) => {
     if (readOnly) return;
     const draft = draftById[id] || {};
+    const persistedCall = callsById.get(id);
     const rawName = (draft.name || "").trim();
     const rawRole = (draft.role || "").trim();
     const rawStatus = (draft.status || "").trim();
@@ -111,17 +108,51 @@ export default function ClientsCallsCard({
       return;
     }
 
+    const restoreFieldFromPersisted = (fieldKey) => {
+      const persistedValue =
+        fieldKey === "call"
+          ? (persistedCall?.callTime || persistedCall?.callText || "").trim()
+          : (persistedCall?.setTime || "").trim();
+      setDraftById((prev) => ({
+        ...prev,
+        [id]: {
+          ...(prev[id] || {}),
+          [fieldKey]: persistedValue,
+        },
+      }));
+    };
+
+    const callResult = classifyCallsheetTimeInput(rawCall, { allowText: true });
+    if (callResult.kind === "invalid-time") {
+      restoreFieldFromPersisted("call");
+      toast.error({
+        title: "Invalid call time",
+        description: "Use AM/PM (e.g. 6:17 AM), 24h (e.g. 14:30), or text like OFF.",
+      });
+      return;
+    }
+
+    const setResult = classifyCallsheetTimeInput(rawSet);
+    if (setResult.kind === "invalid-time") {
+      restoreFieldFromPersisted("set");
+      toast.error({
+        title: "Invalid set time",
+        description: "Use AM/PM (e.g. 6:17 AM) or unambiguous 24h time (e.g. 14:30).",
+      });
+      return;
+    }
+
     const updates = { name: rawName };
 
-    if (!rawCall) {
+    if (callResult.kind === "empty") {
       updates.callTime = null;
       updates.callText = null;
-    } else if (isTimeString(rawCall)) {
-      updates.callTime = rawCall;
+    } else if (callResult.kind === "time") {
+      updates.callTime = callResult.canonical;
       updates.callText = null;
     } else {
       updates.callTime = null;
-      updates.callText = rawCall;
+      updates.callText = callResult.text;
     }
 
     updates.role = rawRole ? rawRole : null;
@@ -129,7 +160,7 @@ export default function ClientsCallsCard({
     updates.transportation = rawTransportation ? rawTransportation : null;
     updates.blockRhs = rawBlockRhs ? rawBlockRhs : null;
     updates.muWard = rawMuWard ? rawMuWard : null;
-    updates.setTime = rawSet && isTimeString(rawSet) ? rawSet : null;
+    updates.setTime = setResult.kind === "time" ? setResult.canonical : null;
     updates.notes = rawRemarks ? rawRemarks : null;
 
     upsertClientCall.mutate({ id, updates });
@@ -268,12 +299,18 @@ export default function ClientsCallsCard({
                                           ? draft.remarks || ""
                                           : "";
 
-                        const inputType = key === "set" ? "time" : "text";
+                        const isCallField = key === "call";
+                        const isSetField = key === "set";
+                        const placeholder = isCallField
+                          ? "6:17 AM or text (OFF / O/C)"
+                          : isSetField
+                            ? "e.g. 6:17 AM"
+                            : col.label;
 
                         return (
                           <td key={key} className="px-3 py-2">
                             <input
-                              type={inputType}
+                              type="text"
                               value={value}
                               onChange={(e) =>
                                 setDraftById((prev) => ({
@@ -285,7 +322,7 @@ export default function ClientsCallsCard({
                                 if (event.key === "Enter") event.currentTarget.blur();
                               }}
                               onBlur={() => applyClientCall(id)}
-                              placeholder={key === "call" ? "HH:MM or text (OFF / O/C)" : col.label}
+                              placeholder={placeholder}
                               disabled={readOnly}
                               className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
                             />
@@ -393,4 +430,3 @@ export default function ClientsCallsCard({
     </Card>
   );
 }
-

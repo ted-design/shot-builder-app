@@ -28,6 +28,7 @@ import {
   buildGaplessReorderUpdates,
   getTrackAnchorStartMinutes,
 } from "../../lib/gaplessSchedule";
+import { buildEntryTimeCascadePlan } from "../../lib/callsheet/buildEntryTimeCascadePlan";
 import {
   deriveOrderFromEntries,
   buildCascadeReorderUpdates,
@@ -649,11 +650,36 @@ function CallSheetBuilder({
       // If updating only duration, use resizeEntry for proper cascade handling
       if ("duration" in updates && Object.keys(updates).length === 1) {
         resizeEntry(entryId, updates.duration, resolvedEntries);
-      } else {
-        updateEntry({ entryId, updates });
+        return;
       }
+
+      const timePlan = buildEntryTimeCascadePlan(resolvedEntries, entryId, updates, {
+        cascadeChanges: schedule?.settings?.cascadeChanges ?? true,
+      });
+
+      if (timePlan) {
+        if (timePlan.mode === "none") return;
+
+        if (timePlan.mode === "single") {
+          const [singleUpdate] = timePlan.updates;
+          const { entryId: targetId, ...singleEntryUpdates } = singleUpdate;
+          updateEntry({ entryId: targetId, updates: singleEntryUpdates });
+          return;
+        }
+
+        batchUpdateEntries({ updates: timePlan.updates });
+        return;
+      }
+
+      updateEntry({ entryId, updates });
     },
-    [updateEntry, resizeEntry, resolvedEntries]
+    [
+      batchUpdateEntries,
+      resolvedEntries,
+      resizeEntry,
+      schedule?.settings?.cascadeChanges,
+      updateEntry,
+    ]
   );
 
   const handleAddCustomItem = useCallback(

@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react"
 import { UserPlus, X, Users, Clapperboard } from "lucide-react"
-import { InlineEdit } from "@/shared/components/InlineEdit"
+import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import {
@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/select"
-import { Button } from "@/ui/button"
+import { classifyTimeInput, formatHHMMTo12h } from "@/features/schedules/lib/time"
+import { TypedTimeInput } from "@/features/schedules/components/TypedTimeInput"
 import type { TalentCallSheet, CrewCallSheet, TalentRecord, CrewRecord, DayDetails } from "@/shared/types"
 
 // --- Props ---
@@ -41,6 +42,17 @@ interface TalentOverrideRowProps {
   readonly onRemove: () => void
 }
 
+function displayCallValue(call: { readonly callTime?: string | null; readonly callText?: string | null }): string {
+  if (call.callText && call.callText.trim()) return call.callText.trim()
+  const formatted = formatHHMMTo12h(call.callTime ?? "")
+  return formatted || (call.callTime ?? "")
+}
+
+function displayDefaultTime(value: string): string {
+  const formatted = formatHHMMTo12h(value)
+  return formatted || value
+}
+
 function TalentOverrideRow({
   call,
   name,
@@ -49,7 +61,7 @@ function TalentOverrideRow({
   onSaveCallTime,
   onRemove,
 }: TalentOverrideRowProps) {
-  const hasOverride = !!call.callTime
+  const hasOverride = !!(call.callTime || call.callText)
   return (
     <div className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-subtle)]">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -64,11 +76,12 @@ function TalentOverrideRow({
       </div>
       <div className="flex items-center gap-1.5">
         <div className="w-24">
-          <InlineEdit
-            value={call.callTime ?? ""}
+          <TypedTimeInput
+            value={displayCallValue(call)}
             onSave={onSaveCallTime}
-            placeholder={defaultTime || "Set time"}
-            className="text-xs font-semibold"
+            placeholder={displayDefaultTime(defaultTime) || "Set time"}
+            allowText
+            triggerClassName="w-full text-xs font-semibold"
           />
         </div>
         {hasOverride && (
@@ -106,7 +119,7 @@ function CrewOverrideRow({
   onSaveCallTime,
   onRemove,
 }: CrewOverrideRowProps) {
-  const hasOverride = !!call.callTime
+  const hasOverride = !!(call.callTime || call.callText)
   return (
     <div className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-subtle)]">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -121,11 +134,12 @@ function CrewOverrideRow({
       </div>
       <div className="flex items-center gap-1.5">
         <div className="w-24">
-          <InlineEdit
-            value={call.callTime ?? ""}
+          <TypedTimeInput
+            value={displayCallValue(call)}
             onSave={onSaveCallTime}
-            placeholder={defaultTime || "Set time"}
-            className="text-xs font-semibold"
+            placeholder={displayDefaultTime(defaultTime) || "Set time"}
+            allowText
+            triggerClassName="w-full text-xs font-semibold"
           />
         </div>
         {hasOverride && (
@@ -218,8 +232,21 @@ export function CallOverridesEditor({
   const handleSaveTalentCallTime = useCallback(
     (talentCallId: string) => (value: string) => {
       if (!clientId) return
-      upsertTalentCall(clientId, projectId, scheduleId, talentCallId, {
-        callTime: value || null,
+      const parsed = classifyTimeInput(value, { allowText: true })
+      if (parsed.kind === "invalid-time") {
+        toast.error("Invalid time. Use “6:00 AM” or “18:00”.")
+        return
+      }
+
+      const patch =
+        parsed.kind === "time"
+          ? { callTime: parsed.canonical, callText: null }
+          : parsed.kind === "text"
+            ? { callTime: null, callText: parsed.text }
+            : { callTime: null, callText: null }
+
+      void upsertTalentCall(clientId, projectId, scheduleId, talentCallId, patch).catch(() => {
+        toast.error("Failed to save talent override.")
       })
     },
     [clientId, projectId, scheduleId],
@@ -251,8 +278,21 @@ export function CallOverridesEditor({
   const handleSaveCrewCallTime = useCallback(
     (crewCallId: string) => (value: string) => {
       if (!clientId) return
-      upsertCrewCall(clientId, projectId, scheduleId, crewCallId, {
-        callTime: value || null,
+      const parsed = classifyTimeInput(value, { allowText: true })
+      if (parsed.kind === "invalid-time") {
+        toast.error("Invalid time. Use “6:00 AM” or “18:00”.")
+        return
+      }
+
+      const patch =
+        parsed.kind === "time"
+          ? { callTime: parsed.canonical, callText: null }
+          : parsed.kind === "text"
+            ? { callTime: null, callText: parsed.text }
+            : { callTime: null, callText: null }
+
+      void upsertCrewCall(clientId, projectId, scheduleId, crewCallId, patch).catch(() => {
+        toast.error("Failed to save crew override.")
       })
     },
     [clientId, projectId, scheduleId],
@@ -277,7 +317,7 @@ export function CallOverridesEditor({
           </h3>
           {defaultShootingCall && (
             <span className="ml-auto text-[10px] text-[var(--color-text-subtle)]">
-              Default: {defaultShootingCall}
+              Default: {displayDefaultTime(defaultShootingCall)}
             </span>
           )}
         </div>
@@ -333,7 +373,7 @@ export function CallOverridesEditor({
           </h3>
           {defaultCrewCall && (
             <span className="ml-auto text-[10px] text-[var(--color-text-subtle)]">
-              Default: {defaultCrewCall}
+              Default: {displayDefaultTime(defaultCrewCall)}
             </span>
           )}
         </div>

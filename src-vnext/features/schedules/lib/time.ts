@@ -34,6 +34,14 @@ export function parseTimeToMinutes(input: string | null | undefined): number | n
   return null
 }
 
+function looksTimeLike(input: string): boolean {
+  const upper = input.toUpperCase()
+  if (/\d/.test(upper)) return true
+  if (upper.includes(":")) return true
+  if (upper.includes("AM") || upper.includes("PM")) return true
+  return false
+}
+
 export function minutesToHHMM(minutes: number): string {
   const clamped = ((Math.floor(minutes) % (24 * 60)) + (24 * 60)) % (24 * 60)
   const h = Math.floor(clamped / 60)
@@ -56,3 +64,28 @@ export function formatHHMMTo12h(hhmm: string | null | undefined): string {
   return formatMinutesTo12h(mins)
 }
 
+export type ClassifiedTimeInput =
+  | { readonly kind: "empty" }
+  | { readonly kind: "time"; readonly canonical: string }
+  | { readonly kind: "text"; readonly text: string }
+  | { readonly kind: "invalid-time" }
+
+export function classifyTimeInput(
+  input: string | null | undefined,
+  options?: { readonly allowText?: boolean },
+): ClassifiedTimeInput {
+  const trimmed = (input ?? "").trim()
+  if (!trimmed) return { kind: "empty" }
+
+  const minutes = parseTimeToMinutes(trimmed)
+  if (minutes != null) {
+    return { kind: "time", canonical: minutesToHHMM(minutes) }
+  }
+
+  const allowText = options?.allowText === true
+  if (allowText && !looksTimeLike(trimmed)) {
+    return { kind: "text", text: trimmed }
+  }
+
+  return { kind: "invalid-time" }
+}

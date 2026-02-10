@@ -12,6 +12,10 @@ function getDurationMinutes(entry: ScheduleEntry, defaultDurationMinutes: number
   return Math.round(raw)
 }
 
+function hasExplicitDuration(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+}
+
 function getTrackEntries(entries: readonly ScheduleEntry[], trackId: string): ScheduleEntry[] {
   return entries
     .filter((e) => (e.trackId ?? "primary") === trackId && e.type !== "banner")
@@ -124,6 +128,87 @@ export function buildCascadeStartTimePatches(params: {
     const entry = trackEntries[i]!
     const next = minutesToHHMM(cursor)
     if (entry.startTime !== next) patches.push({ entryId: entry.id, patch: { startTime: next } })
+    cursor += getDurationMinutes(entry, defaultDurationMinutes)
+  }
+
+  return coalescePatches(patches)
+}
+
+export function buildCascadeDirectStartEditPatches(params: {
+  readonly entries: readonly ScheduleEntry[]
+  readonly trackId: string
+  readonly entryId: string
+  readonly nextStartTime: string | null
+  readonly settings?: ScheduleSettings | null
+}): readonly EntryPatch[] {
+  const { entries, trackId, entryId, nextStartTime, settings } = params
+
+  const defaultDurationMinutes = settings?.defaultEntryDurationMinutes ?? 15
+  const cascadeEnabled = settings?.cascadeChanges !== false
+
+  if (!cascadeEnabled) {
+    return coalescePatches([{ entryId, patch: { startTime: nextStartTime } }])
+  }
+
+  const editedStartMin = parseTimeToMinutes(nextStartTime)
+  if (editedStartMin == null) {
+    return buildCascadeStartTimePatches(params)
+  }
+
+  const trackEntries = getTrackEntries(entries, trackId)
+  const byId = new Map(trackEntries.map((e) => [e.id, e]))
+  const editedEntry = byId.get(entryId)
+  if (!editedEntry) return []
+
+  const ranked = trackEntries
+    .map((entry, index) => {
+      const startMin = entry.id === entryId
+        ? editedStartMin
+        : (parseTimeToMinutes(entry.startTime ?? entry.time) ?? Number.MAX_SAFE_INTEGER)
+      return { entry, startMin, index }
+    })
+    .sort((a, b) => {
+      if (a.startMin !== b.startMin) return a.startMin - b.startMin
+      if (a.index !== b.index) return a.index - b.index
+      return a.entry.id.localeCompare(b.entry.id)
+    })
+
+  const reorderedIds = ranked.map((r) => r.entry.id)
+  const editedIndex = reorderedIds.indexOf(entryId)
+  if (editedIndex === -1) return []
+
+  const patches: EntryPatch[] = []
+
+  for (let i = 0; i < reorderedIds.length; i++) {
+    const id = reorderedIds[i]!
+    const entry = byId.get(id)
+    if (!entry) continue
+    if (entry.order !== i) {
+      patches.push({ entryId: id, patch: { order: i } })
+    }
+  }
+
+  patches.push({ entryId, patch: { startTime: nextStartTime } })
+
+  let editedDurationMinutes = getDurationMinutes(editedEntry, defaultDurationMinutes)
+  if (!hasExplicitDuration(editedEntry.duration)) {
+    const nextRanked = ranked[editedIndex + 1]
+    const nextStartMin = nextRanked?.startMin
+    if (typeof nextStartMin === "number" && nextStartMin > editedStartMin && nextStartMin < Number.MAX_SAFE_INTEGER) {
+      editedDurationMinutes = Math.round(nextStartMin - editedStartMin)
+      patches.push({ entryId, patch: { duration: editedDurationMinutes } })
+    }
+  }
+
+  let cursor = editedStartMin + editedDurationMinutes
+  for (let i = editedIndex + 1; i < reorderedIds.length; i++) {
+    const id = reorderedIds[i]!
+    const entry = byId.get(id)
+    if (!entry) continue
+    const next = minutesToHHMM(cursor)
+    if (entry.startTime !== next) {
+      patches.push({ entryId: id, patch: { startTime: next } })
+    }
     cursor += getDurationMinutes(entry, defaultDurationMinutes)
   }
 

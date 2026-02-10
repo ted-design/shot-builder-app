@@ -10,7 +10,8 @@ import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { updateScheduleFields, batchUpdateScheduleAndEntries } from "@/features/schedules/lib/scheduleWrites"
 import { buildCollapseToSingleTrack } from "@/features/schedules/lib/transforms"
-import { minutesToHHMM, parseTimeToMinutes } from "@/features/schedules/lib/time"
+import { classifyTimeInput } from "@/features/schedules/lib/time"
+import { TypedTimeInput } from "@/features/schedules/components/TypedTimeInput"
 import type { Schedule, ScheduleEntry, ScheduleSettings, ScheduleTrack } from "@/shared/types"
 
 function normalizeSettings(settings: Schedule["settings"] | undefined): ScheduleSettings {
@@ -58,7 +59,8 @@ export function ScheduleTrackControls({
     const counts = new Map<string, number>()
     for (const t of tracks) counts.set(t.id, 0)
     for (const e of entries) {
-      const tid = e.type === "banner" ? "primary" : (e.trackId ?? "primary")
+      if (e.type === "banner" || e.trackId === "shared" || e.trackId === "all") continue
+      const tid = e.trackId ?? "primary"
       counts.set(tid, (counts.get(tid) ?? 0) + 1)
     }
     return counts
@@ -203,22 +205,17 @@ export function ScheduleTrackControls({
           <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
             Day Start
           </span>
-          <Input
-            defaultValue={settings.dayStartTime}
+          <TypedTimeInput
+            value={settings.dayStartTime}
             placeholder="06:00"
-            className="h-8 text-xs"
-            onBlur={(e) => {
-              const raw = e.target.value.trim()
-              if (!raw) return
-              const minutes = parseTimeToMinutes(raw)
-              if (minutes == null) {
-                toast.error("Invalid day start time. Use “6:00 AM” or “06:00”.")
-                e.target.value = settings.dayStartTime
+            triggerClassName="h-8 text-xs"
+            onSave={(raw) => {
+              const parsed = classifyTimeInput(raw)
+              if (parsed.kind !== "time") {
+                toast.error("Day start requires a valid time.")
                 return
               }
-              const next = minutesToHHMM(minutes)
-              e.target.value = next
-              void patchScheduleSettings({ dayStartTime: next })
+              void patchScheduleSettings({ dayStartTime: parsed.canonical })
             }}
           />
         </div>
@@ -269,4 +266,3 @@ export function ScheduleTrackControls({
     </div>
   )
 }
-

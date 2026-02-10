@@ -15,8 +15,74 @@ import { describeFirebaseError } from "../lib/firebaseErrors";
 import { toast } from "../lib/toast";
 import { isDemoModeActive } from "../lib/flags";
 import { useAuth } from "../context/AuthContext";
+import { classifyCallsheetTimeInput } from "../lib/time/callsheetTimeEntry";
+
+function hasOwn(obj: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function normalizeCallTimePair(
+  updates: Partial<CrewCallSheet>,
+  fieldLabel: string
+): Partial<CrewCallSheet> {
+  if (!hasOwn(updates as Record<string, unknown>, "callTime") && !hasOwn(updates as Record<string, unknown>, "callText")) {
+    return updates;
+  }
+
+  const next: Partial<CrewCallSheet> = { ...updates };
+  const rawCallTime = updates.callTime;
+  const rawCallText = updates.callText;
+
+  if (rawCallTime != null && String(rawCallTime).trim()) {
+    const result = classifyCallsheetTimeInput(String(rawCallTime), { allowText: true });
+    if (result.kind !== "time") throw new Error(`Invalid ${fieldLabel}`);
+    next.callTime = result.canonical;
+    next.callText = null;
+    return next;
+  }
+
+  if (rawCallText != null && String(rawCallText).trim()) {
+    const result = classifyCallsheetTimeInput(String(rawCallText), { allowText: true });
+    if (result.kind === "invalid-time") throw new Error(`Invalid ${fieldLabel}`);
+    if (result.kind === "time") {
+      next.callTime = result.canonical;
+      next.callText = null;
+    } else {
+      next.callTime = null;
+      next.callText = result.text;
+    }
+    return next;
+  }
+
+  next.callTime = null;
+  next.callText = null;
+  return next;
+}
+
+function normalizeTimeOnlyField(
+  updates: Partial<CrewCallSheet>,
+  key: "wrapTime",
+  fieldLabel: string
+): Partial<CrewCallSheet> {
+  if (!hasOwn(updates as Record<string, unknown>, key)) return updates;
+  const next: Partial<CrewCallSheet> = { ...updates };
+  const raw = updates[key];
+
+  if (raw == null || !String(raw).trim()) {
+    next[key] = null;
+    return next;
+  }
+
+  const result = classifyCallsheetTimeInput(String(raw));
+  if (result.kind !== "time") throw new Error(`Invalid ${fieldLabel}`);
+  next[key] = result.canonical;
+  return next;
+}
 
 function normalizeCrewCall(crewMemberId: string, raw: any): CrewCallSheet {
+  const callResult = classifyCallsheetTimeInput(String(raw?.callTime || "").trim(), { allowText: true });
+  const rawCallText = raw?.callText != null ? String(raw.callText).trim() : "";
+  const wrapResult = classifyCallsheetTimeInput(String(raw?.wrapTime || "").trim());
   // Normalize offset direction to valid values or null
   const rawDirection = raw?.callOffsetDirection;
   const callOffsetDirection =
@@ -28,11 +94,11 @@ function normalizeCrewCall(crewMemberId: string, raw: any): CrewCallSheet {
 
   return {
     crewMemberId,
-    callTime: raw?.callTime ?? null,
-    callText: raw?.callText ?? null,
+    callTime: callResult.kind === "time" ? callResult.canonical : null,
+    callText: callResult.kind === "time" ? null : rawCallText || null,
     callOffsetDirection,
     callOffsetMinutes,
-    wrapTime: raw?.wrapTime ?? null,
+    wrapTime: wrapResult.kind === "time" ? wrapResult.canonical : null,
     wrapText: raw?.wrapText ?? null,
     notes: raw?.notes ?? null,
     createdAt: raw?.createdAt ?? null,
@@ -93,12 +159,16 @@ export function useCrewCalls(
       if (!crewMemberId) throw new Error("Missing crewMemberId");
       if (isDemoModeActive()) return { crewMemberId, updates };
 
+      let normalizedUpdates: Partial<CrewCallSheet> = { ...updates };
+      normalizedUpdates = normalizeCallTimePair(normalizedUpdates, "crew call time");
+      normalizedUpdates = normalizeTimeOnlyField(normalizedUpdates, "wrapTime", "wrap time");
+
       const existed = callsByCrewMemberId.has(crewMemberId);
       const ref = doc(db, ...scheduleCrewCallPath(projectId, scheduleId, crewMemberId, clientId));
       await setDoc(
         ref,
         {
-          ...updates,
+          ...normalizedUpdates,
           crewMemberId,
           ...(existed ? {} : { createdBy: user?.uid ?? null, createdAt: serverTimestamp() }),
           updatedAt: serverTimestamp(),

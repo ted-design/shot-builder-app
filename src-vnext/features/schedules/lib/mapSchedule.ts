@@ -12,8 +12,45 @@ import type {
   WeatherData,
   ScheduleTrack,
   ScheduleSettings,
+  LocationRecord,
+  ScheduleEntryHighlight,
 } from "@/shared/types"
-import { minutesToHHMM, parseTimeToMinutes } from "@/features/schedules/lib/time"
+import { classifyTimeInput, minutesToHHMM, parseTimeToMinutes } from "@/features/schedules/lib/time"
+
+function normalizeTimeOnly(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const parsed = classifyTimeInput(value)
+  return parsed.kind === "time" ? parsed.canonical : null
+}
+
+function normalizeTimeOrText(
+  rawTime: unknown,
+  rawText: unknown,
+): { readonly callTime: string | null; readonly callText: string | null } {
+  const parsed = classifyTimeInput(typeof rawTime === "string" ? rawTime : null, {
+    allowText: true,
+  })
+  const explicitText = typeof rawText === "string" ? rawText.trim() : ""
+
+  if (parsed.kind === "time") {
+    return {
+      callTime: parsed.canonical,
+      callText: null,
+    }
+  }
+
+  if (parsed.kind === "text") {
+    return {
+      callTime: null,
+      callText: explicitText || parsed.text,
+    }
+  }
+
+  return {
+    callTime: null,
+    callText: explicitText || null,
+  }
+}
 
 export function mapSchedule(id: string, data: Record<string, unknown>): Schedule {
   const rawTracks = data["tracks"]
@@ -63,6 +100,14 @@ export function mapSchedule(id: string, data: Record<string, unknown>): Schedule
 
 const VALID_ENTRY_TYPES = new Set<ScheduleEntryType>(["shot", "setup", "break", "move", "banner"])
 
+function normalizeTrackId(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined
+  const trimmed = raw.trim()
+  if (!trimmed) return undefined
+  if (trimmed === "all") return "shared"
+  return trimmed
+}
+
 export function mapScheduleEntry(id: string, data: Record<string, unknown>): ScheduleEntry {
   const rawType = data["type"] as string
   const type: ScheduleEntryType = VALID_ENTRY_TYPES.has(rawType as ScheduleEntryType)
@@ -90,10 +135,25 @@ export function mapScheduleEntry(id: string, data: Record<string, unknown>): Sch
     duration: data["duration"] as number | undefined,
     order: (data["order"] as number) ?? 0,
     notes: data["notes"] as string | undefined,
-    trackId: data["trackId"] as string | undefined,
+    trackId: normalizeTrackId(data["trackId"]),
     appliesToTrackIds: data["appliesToTrackIds"] as readonly string[] | null | undefined,
+    highlight: mapScheduleEntryHighlight(data["highlight"]),
     createdAt: data["createdAt"] as ScheduleEntry["createdAt"],
     updatedAt: data["updatedAt"] as ScheduleEntry["updatedAt"],
+  }
+}
+
+function mapScheduleEntryHighlight(raw: unknown): ScheduleEntryHighlight | null {
+  if (!raw || typeof raw !== "object") return null
+  const obj = raw as Record<string, unknown>
+  const variant = obj["variant"] === "outline" ? "outline" : obj["variant"] === "solid" ? "solid" : null
+  const color = asTrimmedText(obj["color"])
+  const emoji = asTrimmedText(obj["emoji"])
+  if (!variant || !color) return null
+  return {
+    variant,
+    color,
+    emoji,
   }
 }
 
@@ -101,13 +161,13 @@ export function mapDayDetails(id: string, data: Record<string, unknown>): DayDet
   return {
     id,
     scheduleId: (data["scheduleId"] as string) ?? "",
-    crewCallTime: (data["crewCallTime"] as string) ?? "",
-    shootingCallTime: (data["shootingCallTime"] as string) ?? "",
-    breakfastTime: data["breakfastTime"] as string | null | undefined,
-    firstMealTime: data["firstMealTime"] as string | null | undefined,
-    secondMealTime: data["secondMealTime"] as string | null | undefined,
-    estimatedWrap: (data["estimatedWrap"] as string) ?? "",
-    locations: data["locations"] as readonly LocationBlock[] | null | undefined,
+    crewCallTime: normalizeTimeOnly(data["crewCallTime"]) ?? "",
+    shootingCallTime: normalizeTimeOnly(data["shootingCallTime"]) ?? "",
+    breakfastTime: normalizeTimeOnly(data["breakfastTime"]),
+    firstMealTime: normalizeTimeOnly(data["firstMealTime"]),
+    secondMealTime: normalizeTimeOnly(data["secondMealTime"]),
+    estimatedWrap: normalizeTimeOnly(data["estimatedWrap"]) ?? "",
+    locations: mapDayDetailsLocations(data),
     weather: data["weather"] as WeatherData | null | undefined,
     keyPeople: data["keyPeople"] as string | null | undefined,
     setMedic: data["setMedic"] as string | null | undefined,
@@ -120,6 +180,129 @@ export function mapDayDetails(id: string, data: Record<string, unknown>): DayDet
   }
 }
 
+function asTrimmedText(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function mapLocationRef(raw: unknown): LocationBlock["ref"] {
+  if (!raw || typeof raw !== "object") return null
+  const obj = raw as Record<string, unknown>
+  const locationId = asTrimmedText(obj["locationId"])
+  const label = asTrimmedText(obj["label"])
+  const notes = asTrimmedText(obj["notes"])
+  if (!locationId && !label && !notes) return null
+  return { locationId, label, notes }
+}
+
+function hasLocationRefContent(ref: LocationBlock["ref"]): boolean {
+  if (!ref) return false
+  return Boolean(
+    (ref.locationId && ref.locationId.trim()) ||
+      (ref.label && ref.label.trim()) ||
+      (ref.notes && ref.notes.trim()),
+  )
+}
+
+function mapLocationBlock(raw: unknown, fallback: {
+  readonly id: string
+  readonly title: string
+  readonly showName: boolean
+  readonly showPhone: boolean
+}): LocationBlock | null {
+  if (!raw || typeof raw !== "object") return null
+  const obj = raw as Record<string, unknown>
+  const ref = mapLocationRef(obj["ref"])
+  const title = asTrimmedText(obj["title"]) ?? fallback.title
+  const id = asTrimmedText(obj["id"]) ?? fallback.id
+  const showName = typeof obj["showName"] === "boolean" ? obj["showName"] : fallback.showName
+  const showPhone = typeof obj["showPhone"] === "boolean" ? obj["showPhone"] : fallback.showPhone
+
+  if (!title && !hasLocationRefContent(ref)) return null
+
+  return {
+    id,
+    title,
+    ref,
+    showName,
+    showPhone,
+  }
+}
+
+function mapLegacyLocationRef(raw: unknown): LocationBlock["ref"] {
+  if (!raw || typeof raw !== "object") return null
+  const obj = raw as Record<string, unknown>
+  const locationId = asTrimmedText(obj["locationId"])
+  const label = asTrimmedText(obj["label"])
+  const notes = asTrimmedText(obj["notes"])
+  if (!locationId && !label && !notes) return null
+  return { locationId, label, notes }
+}
+
+function mapDayDetailsLocations(data: Record<string, unknown>): readonly LocationBlock[] | null | undefined {
+  const rawLocations = data["locations"]
+  if (rawLocations === null) return null
+  if (Array.isArray(rawLocations)) {
+    return rawLocations
+      .map((raw, index) =>
+        mapLocationBlock(raw, {
+          id: `location-${index + 1}`,
+          title: "Location",
+          showName: true,
+          showPhone: false,
+        }),
+      )
+      .filter((loc): loc is LocationBlock => loc != null)
+  }
+
+  const legacyFixed = [
+    { key: "productionOffice", title: "Production Office", showName: true, showPhone: true },
+    { key: "nearestHospital", title: "Hospital", showName: true, showPhone: true },
+    { key: "basecamp", title: "Basecamp", showName: true, showPhone: false },
+    { key: "parking", title: "Parking", showName: true, showPhone: false },
+  ] as const
+
+  const fromLegacyFixed = legacyFixed
+    .map((entry) => {
+      const ref = mapLegacyLocationRef(data[entry.key])
+      if (!hasLocationRefContent(ref)) return null
+      return {
+        id: `legacy-${entry.key}`,
+        title: entry.title,
+        ref,
+        showName: entry.showName,
+        showPhone: entry.showPhone,
+      } satisfies LocationBlock
+    })
+    .filter((loc): loc is LocationBlock => loc != null)
+
+  const custom = Array.isArray(data["customLocations"])
+    ? (data["customLocations"] as unknown[])
+        .map((raw, index) => {
+          if (!raw || typeof raw !== "object") return null
+          const obj = raw as Record<string, unknown>
+          const ref = {
+            locationId: asTrimmedText(obj["locationId"]),
+            label: asTrimmedText(obj["label"]),
+            notes: asTrimmedText(obj["notes"]),
+          } satisfies NonNullable<LocationBlock["ref"]>
+          if (!hasLocationRefContent(ref)) return null
+          return {
+            id: asTrimmedText(obj["id"]) ?? `legacy-custom-${index + 1}`,
+            title: asTrimmedText(obj["title"]) ?? "Location",
+            ref,
+            showName: true,
+            showPhone: false,
+          } satisfies LocationBlock
+        })
+        .filter((loc): loc is LocationBlock => loc != null)
+    : []
+
+  const combined = [...fromLegacyFixed, ...custom]
+  return combined.length > 0 ? combined : undefined
+}
+
 const VALID_TALENT_STATUSES = new Set<TalentCallStatus>(["confirmed", "pending", "cancelled"])
 
 export function mapTalentCall(id: string, data: Record<string, unknown>): TalentCallSheet {
@@ -129,13 +312,15 @@ export function mapTalentCall(id: string, data: Record<string, unknown>): Talent
       ? (rawStatus as TalentCallStatus)
       : null
 
+  const call = normalizeTimeOrText(data["callTime"], data["callText"])
+
   return {
     id,
     talentId: (data["talentId"] as string) ?? "",
-    callTime: data["callTime"] as string | null | undefined,
-    callText: data["callText"] as string | null | undefined,
-    setTime: data["setTime"] as string | null | undefined,
-    wrapTime: data["wrapTime"] as string | null | undefined,
+    callTime: call.callTime,
+    callText: call.callText,
+    setTime: normalizeTimeOnly(data["setTime"]),
+    wrapTime: normalizeTimeOnly(data["wrapTime"]),
     role: data["role"] as string | null | undefined,
     status,
     notes: data["notes"] as string | null | undefined,
@@ -154,14 +339,16 @@ export function mapCrewCall(id: string, data: Record<string, unknown>): CrewCall
       ? (rawDir as CallOffsetDirection)
       : null
 
+  const call = normalizeTimeOrText(data["callTime"], data["callText"])
+
   return {
     id,
     crewMemberId: (data["crewMemberId"] as string) ?? "",
-    callTime: data["callTime"] as string | null | undefined,
-    callText: data["callText"] as string | null | undefined,
+    callTime: call.callTime,
+    callText: call.callText,
     callOffsetDirection,
     callOffsetMinutes: data["callOffsetMinutes"] as number | null | undefined,
-    wrapTime: data["wrapTime"] as string | null | undefined,
+    wrapTime: normalizeTimeOnly(data["wrapTime"]),
     wrapText: data["wrapText"] as string | null | undefined,
     department: data["department"] as string | null | undefined,
     position: data["position"] as string | null | undefined,
@@ -181,6 +368,28 @@ export function mapCrewRecord(id: string, data: Record<string, unknown>): CrewRe
     position: data["position"] as string | undefined,
     email: data["email"] as string | undefined,
     phone: data["phone"] as string | undefined,
+    notes: data["notes"] as string | undefined,
+    projectIds: Array.isArray(rawProjectIds) ? (rawProjectIds as string[]) : undefined,
+  }
+}
+
+export function mapLocationRecord(id: string, data: Record<string, unknown>): LocationRecord {
+  const rawProjectIds = data["projectIds"]
+  const explicitAddress = asTrimmedText(data["address"])
+  const street = asTrimmedText(data["street"])
+  const unit = asTrimmedText(data["unit"])
+  const city = asTrimmedText(data["city"])
+  const province = asTrimmedText(data["province"])
+  const postal = asTrimmedText(data["postal"])
+
+  const line1 = [street, unit].filter(Boolean).join(" ").trim()
+  const line2 = [city, province].filter(Boolean).join(", ").trim()
+  const derivedAddress = [line1, line2, postal].filter(Boolean).join(" · ").trim()
+
+  return {
+    id,
+    name: (data["name"] as string) ?? "",
+    address: explicitAddress ?? (derivedAddress || undefined),
     notes: data["notes"] as string | undefined,
     projectIds: Array.isArray(rawProjectIds) ? (rawProjectIds as string[]) : undefined,
   }

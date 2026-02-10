@@ -6,6 +6,7 @@ import {
   deleteDoc,
   serverTimestamp,
   writeBatch,
+  arrayUnion,
 } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import {
@@ -16,8 +17,13 @@ import {
   scheduleTalentCallsPath,
   scheduleCrewCallsPath,
   callSheetConfigPath,
+  locationsPath,
 } from "@/shared/lib/paths"
-import type { ScheduleTrack, ScheduleSettings } from "@/shared/types"
+import type {
+  ScheduleTrack,
+  ScheduleSettings,
+  ScheduleEntryHighlight,
+} from "@/shared/types"
 
 function ref(segments: string[]) {
   return doc(db, segments[0]!, ...segments.slice(1))
@@ -119,6 +125,8 @@ export async function addScheduleEntryCustom(
     readonly duration?: number
     readonly trackId?: string
     readonly appliesToTrackIds?: readonly string[] | null
+    readonly notes?: string | null
+    readonly highlight?: ScheduleEntryHighlight | null
   },
 ): Promise<string> {
   const coll = collRef(scheduleEntriesPath(projectId, scheduleId, clientId))
@@ -131,6 +139,8 @@ export async function addScheduleEntryCustom(
     duration: fields.duration ?? null,
     trackId: fields.trackId ?? "primary",
     appliesToTrackIds: fields.appliesToTrackIds ?? null,
+    notes: fields.notes ?? null,
+    highlight: fields.highlight ?? null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
@@ -340,6 +350,54 @@ export async function removeCrewCall(
     crewCallId,
   ]
   await deleteDoc(ref(segments))
+}
+
+// --- Location helpers for day details ---
+
+export async function createLocationAndAssignToProject(
+  clientId: string,
+  projectId: string,
+  fields: {
+    readonly name: string
+    readonly address?: string | null
+    readonly notes?: string | null
+  },
+): Promise<{ readonly id: string; readonly name: string; readonly address: string | null }> {
+  const name = fields.name.trim() || "Unnamed location"
+  const address = fields.address?.trim() || null
+  const notes = fields.notes?.trim() || null
+
+  const coll = collRef(locationsPath(clientId))
+  const docRef = doc(coll)
+  await setDoc(docRef, {
+    clientId,
+    name,
+    address,
+    notes,
+    projectIds: [projectId],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+
+  return {
+    id: docRef.id,
+    name,
+    address,
+  }
+}
+
+export async function ensureLocationAssignedToProject(
+  clientId: string,
+  projectId: string,
+  locationId: string,
+): Promise<void> {
+  const trimmed = locationId.trim()
+  if (!trimmed) return
+  const segments = [...locationsPath(clientId), trimmed]
+  await updateDoc(ref(segments), {
+    projectIds: arrayUnion(projectId),
+    updatedAt: serverTimestamp(),
+  })
 }
 
 // --- Call Sheet Config (Slice 4: Output + Distribution) ---

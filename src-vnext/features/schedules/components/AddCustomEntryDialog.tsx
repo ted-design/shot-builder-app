@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react"
-import { Coffee, Truck, Wrench, StickyNote } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { Sparkles } from "lucide-react"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/ui/dialog"
 import { Input } from "@/ui/input"
+import { Textarea } from "@/ui/textarea"
 import { Button } from "@/ui/button"
 import { Label } from "@/ui/label"
 import {
@@ -17,30 +19,46 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/select"
-import type { ScheduleEntryType } from "@/shared/types"
-import type { ScheduleTrack } from "@/shared/types"
+import type { ScheduleEntryHighlight, ScheduleTrack } from "@/shared/types"
 
-type CustomEntryType = Exclude<ScheduleEntryType, "shot">
+const SHARED_TRACK_ID = "shared"
+const DEFAULT_COLOR = "#2563eb"
 
-const CUSTOM_TYPES: readonly {
-  readonly value: CustomEntryType
-  readonly label: string
-  readonly icon: typeof Wrench
-  readonly defaultTitle: string
-}[] = [
-  { value: "setup", label: "Setup", icon: Wrench, defaultTitle: "Setup" },
-  { value: "break", label: "Break", icon: Coffee, defaultTitle: "Break" },
-  { value: "move", label: "Move", icon: Truck, defaultTitle: "Company Move" },
-  { value: "banner", label: "Banner", icon: StickyNote, defaultTitle: "Note" },
-]
+const COLOR_PRESETS = [
+  "#2563eb",
+  "#16a34a",
+  "#f97316",
+  "#d946ef",
+  "#dc2626",
+  "#0f172a",
+] as const
+
+const EMOJI_PRESETS = [
+  "✨",
+  "🎬",
+  "🎥",
+  "📍",
+  "⏰",
+  "☕",
+  "🚚",
+  "⚠️",
+  "✅",
+  "🧵",
+  "💄",
+  "👗",
+] as const
 
 interface AddCustomEntryDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly tracks: readonly ScheduleTrack[]
   readonly defaultTrackId?: string
-  readonly defaultType?: CustomEntryType
-  readonly onAdd: (type: CustomEntryType, title: string, trackId: string) => void
+  readonly onAdd: (input: {
+    readonly title: string
+    readonly description: string
+    readonly trackId: string
+    readonly highlight: ScheduleEntryHighlight
+  }) => void
 }
 
 export function AddCustomEntryDialog({
@@ -48,80 +66,78 @@ export function AddCustomEntryDialog({
   onOpenChange,
   tracks,
   defaultTrackId,
-  defaultType,
   onAdd,
 }: AddCustomEntryDialogProps) {
-  const [selectedType, setSelectedType] = useState<CustomEntryType>("setup")
   const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [emoji, setEmoji] = useState("")
   const [trackId, setTrackId] = useState(tracks[0]?.id ?? "primary")
+  const [variant, setVariant] = useState<ScheduleEntryHighlight["variant"]>("solid")
+  const [color, setColor] = useState(DEFAULT_COLOR)
 
   useEffect(() => {
     if (!open) return
-    if (defaultType) setSelectedType(defaultType)
-    const next = defaultTrackId && tracks.some((t) => t.id === defaultTrackId)
+    setTitle("")
+    setDescription("")
+    setEmoji("")
+    setVariant("solid")
+    setColor(DEFAULT_COLOR)
+    if (defaultTrackId === SHARED_TRACK_ID) {
+      setTrackId(SHARED_TRACK_ID)
+      return
+    }
+    const nextTrack = defaultTrackId && tracks.some((track) => track.id === defaultTrackId)
       ? defaultTrackId
       : (tracks[0]?.id ?? "primary")
-    setTrackId(next)
-  }, [defaultTrackId, defaultType, open, tracks])
+    setTrackId(nextTrack)
+  }, [defaultTrackId, open, tracks])
+
+  const isShared = trackId === SHARED_TRACK_ID
+
+  const trackLabel = useMemo(() => {
+    if (isShared) return "Shared"
+    return tracks.find((track) => track.id === trackId)?.name ?? "Track"
+  }, [isShared, trackId, tracks])
 
   function handleSubmit() {
-    const selected = CUSTOM_TYPES.find((t) => t.value === selectedType)
-    const finalTitle = title.trim() || selected?.defaultTitle || selectedType
-    onAdd(selectedType, finalTitle, selectedType === "banner" ? "primary" : trackId)
-    setTitle("")
-    setSelectedType("setup")
+    const finalTitle = title.trim() || "Highlight"
+    const finalDescription = description.trim()
+    const finalEmoji = emoji.trim() || null
+    onAdd({
+      title: finalTitle,
+      description: finalDescription,
+      trackId,
+      highlight: {
+        variant,
+        color,
+        emoji: finalEmoji,
+      },
+    })
     onOpenChange(false)
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add custom entry</DialogTitle>
+          <DialogTitle>Add Highlight Block</DialogTitle>
+          <DialogDescription>
+            Create a styled block with title and description for beats, reminders, or timing notes.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
-          {/* Type selector */}
-          <div className="flex flex-col gap-2">
-            <Label className="text-xs font-medium text-[var(--color-text-muted)]">
-              Type
-            </Label>
-            <div className="flex gap-2">
-              {CUSTOM_TYPES.map((t) => {
-                const Icon = t.icon
-                const isSelected = selectedType === t.value
-                return (
-                  <button
-                    key={t.value}
-                    type="button"
-                    onClick={() => setSelectedType(t.value)}
-                    className={`flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-1 ${
-                      isSelected
-                        ? "border-[var(--color-primary)] bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
-                        : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {t.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {tracks.length > 1 && selectedType !== "banner" && (
-            <div className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-[var(--color-text-muted)]">
-                Track
-              </Label>
+          {!isShared && tracks.length > 1 && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="custom-entry-track">Track</Label>
               <Select value={trackId} onValueChange={setTrackId}>
-                <SelectTrigger>
+                <SelectTrigger id="custom-entry-track">
                   <SelectValue placeholder="Select track" />
                 </SelectTrigger>
                 <SelectContent>
-                  {tracks.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
+                  {tracks.map((track) => (
+                    <SelectItem key={track.id} value={track.id}>
+                      {track.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -129,20 +145,127 @@ export function AddCustomEntryDialog({
             </div>
           )}
 
-          {/* Title */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="entry-title" className="text-xs font-medium text-[var(--color-text-muted)]">
-              Title
-            </Label>
-            <Input
-              id="entry-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={CUSTOM_TYPES.find((t) => t.value === selectedType)?.defaultTitle}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSubmit()
-              }}
+          {isShared && (
+            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-muted)]">
+              Adding to <span className="font-semibold text-[var(--color-text)]">{trackLabel}</span> (visible across tracks).
+            </div>
+          )}
+
+          <div className="grid grid-cols-[72px_1fr] gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="custom-entry-emoji">Emoji</Label>
+              <Input
+                id="custom-entry-emoji"
+                value={emoji}
+                onChange={(event) => setEmoji(event.target.value)}
+                placeholder="✨"
+                className="text-center"
+                maxLength={4}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="custom-entry-title">Title</Label>
+              <Input
+                id="custom-entry-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Bold heading"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") handleSubmit()
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label>Emoji Presets</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {EMOJI_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setEmoji(preset)}
+                  className={`flex h-8 w-8 items-center justify-center rounded-md border text-base transition-colors ${
+                    emoji === preset
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary-subtle)]"
+                      : "border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-subtle)]"
+                  }`}
+                  aria-label={`Use emoji ${preset}`}
+                  title={preset}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="custom-entry-description">Description</Label>
+            <Textarea
+              id="custom-entry-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Regular sub-heading / details"
+              className="min-h-[96px]"
             />
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label>Style</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVariant("solid")}
+                  className={`flex items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                    variant === "solid"
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
+                      : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Solid
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVariant("outline")}
+                  className={`flex items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                    variant === "outline"
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
+                      : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Outline
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="custom-entry-color">Color</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="custom-entry-color"
+                  type="color"
+                  value={color}
+                  onChange={(event) => setColor(event.target.value)}
+                  className="h-9 w-12 p-1"
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {COLOR_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setColor(preset)}
+                      className={`h-6 w-6 rounded border ${color === preset ? "border-[var(--color-text)]" : "border-[var(--color-border)]"}`}
+                      style={{ backgroundColor: preset }}
+                      aria-label={`Set highlight color ${preset}`}
+                      title={preset}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -151,7 +274,7 @@ export function AddCustomEntryDialog({
             Cancel
           </Button>
           <Button onClick={handleSubmit}>
-            Add
+            Add Highlight
           </Button>
         </DialogFooter>
       </DialogContent>

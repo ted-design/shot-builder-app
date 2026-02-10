@@ -23,7 +23,7 @@ import type {
   Schedule,
   ScheduleEntry,
   Shot,
-  ScheduleEntryType,
+  ScheduleEntryHighlight,
   ScheduleTrack,
 } from "@/shared/types"
 
@@ -45,6 +45,7 @@ export function ScheduleEntryEditor({
 
   const [shotDialogOpen, setShotDialogOpen] = useState(false)
   const [customDialogOpen, setCustomDialogOpen] = useState(false)
+  const [customTrackId, setCustomTrackId] = useState("primary")
 
   const tracks: readonly ScheduleTrack[] = useMemo(() => {
     const raw = schedule?.tracks
@@ -108,16 +109,25 @@ export function ScheduleEntryEditor({
   )
 
   const handleAddCustom = useCallback(
-    async (type: Exclude<ScheduleEntryType, "shot">, title: string, trackId: string) => {
+    async (input: {
+      readonly title: string
+      readonly description: string
+      readonly trackId: string
+      readonly highlight: ScheduleEntryHighlight
+    }) => {
       if (!clientId) return
       try {
+        const isBanner = input.trackId === "shared"
+        const targetTrackId = isBanner ? "primary" : input.trackId
         await addScheduleEntryCustom(clientId, projectId, scheduleId, {
-          type,
-          title,
-          order: nextOrderForTrack(trackId),
-          trackId,
+          type: isBanner ? "banner" : "setup",
+          title: input.title,
+          notes: input.description || null,
+          order: nextOrderForTrack(targetTrackId),
+          trackId: isBanner ? "shared" : targetTrackId,
           appliesToTrackIds:
-            type === "banner" && tracks.length > 1 ? tracks.map((t) => t.id) : null,
+            isBanner && tracks.length > 1 ? tracks.map((t) => t.id) : null,
+          highlight: input.highlight,
         })
       } catch (err) {
         toast.error("Failed to add entry.")
@@ -258,9 +268,16 @@ export function ScheduleEntryEditor({
             <Camera className="mr-1.5 h-3.5 w-3.5" />
             Add Shot
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setCustomDialogOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setCustomTrackId("primary")
+              setCustomDialogOpen(true)
+            }}
+          >
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Add Entry
+            Add Highlight
           </Button>
         </div>
       </div>
@@ -304,6 +321,9 @@ export function ScheduleEntryEditor({
                         onMoveUp={() => handleMoveWithinTrack(track.id, idx, idx - 1)}
                         onMoveDown={() => handleMoveWithinTrack(track.id, idx, idx + 1)}
                         onRemove={() => handleRemove(entry.id)}
+                        onUpdateTitle={(title) =>
+                          handleUpdateField(entry.id, { title: title || entry.title })
+                        }
                         onUpdateStartTime={(startTime) =>
                           handleUpdateStartTime(track.id, entry.id, startTime)
                         }
@@ -338,6 +358,9 @@ export function ScheduleEntryEditor({
                     onMoveUp={() => handleSwapBanner(idx, idx - 1)}
                     onMoveDown={() => handleSwapBanner(idx, idx + 1)}
                     onRemove={() => handleRemove(entry.id)}
+                    onUpdateTitle={(title) =>
+                      handleUpdateField(entry.id, { title: title || entry.title })
+                    }
                     onUpdateStartTime={(startTime) =>
                       handleUpdateField(entry.id, { startTime: startTime ?? null })
                     }
@@ -367,6 +390,7 @@ export function ScheduleEntryEditor({
         open={customDialogOpen}
         onOpenChange={setCustomDialogOpen}
         tracks={tracks}
+        defaultTrackId={customTrackId}
         onAdd={handleAddCustom}
       />
     </div>

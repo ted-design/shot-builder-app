@@ -8,15 +8,78 @@ import { describeFirebaseError } from "../lib/firebaseErrors";
 import { toast } from "../lib/toast";
 import { isDemoModeActive } from "../lib/flags";
 import { useAuth } from "../context/AuthContext";
+import { classifyCallsheetTimeInput } from "../lib/time/callsheetTimeEntry";
+
+function hasOwn(obj: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function normalizeCallTimePair(
+  updates: Partial<ClientCallSheet>,
+  fieldLabel: string
+): Partial<ClientCallSheet> {
+  if (!hasOwn(updates as Record<string, unknown>, "callTime") && !hasOwn(updates as Record<string, unknown>, "callText")) {
+    return updates;
+  }
+
+  const next: Partial<ClientCallSheet> = { ...updates };
+  const rawCallTime = updates.callTime;
+  const rawCallText = updates.callText;
+
+  if (rawCallTime != null && String(rawCallTime).trim()) {
+    const result = classifyCallsheetTimeInput(String(rawCallTime), { allowText: true });
+    if (result.kind !== "time") throw new Error(`Invalid ${fieldLabel}`);
+    next.callTime = result.canonical;
+    next.callText = null;
+    return next;
+  }
+
+  if (rawCallText != null && String(rawCallText).trim()) {
+    const result = classifyCallsheetTimeInput(String(rawCallText), { allowText: true });
+    if (result.kind === "invalid-time") throw new Error(`Invalid ${fieldLabel}`);
+    if (result.kind === "time") {
+      next.callTime = result.canonical;
+      next.callText = null;
+    } else {
+      next.callTime = null;
+      next.callText = result.text;
+    }
+    return next;
+  }
+
+  next.callTime = null;
+  next.callText = null;
+  return next;
+}
+
+function normalizeSetTimeField(updates: Partial<ClientCallSheet>): Partial<ClientCallSheet> {
+  if (!hasOwn(updates as Record<string, unknown>, "setTime")) return updates;
+  const next: Partial<ClientCallSheet> = { ...updates };
+  const raw = updates.setTime;
+
+  if (raw == null || !String(raw).trim()) {
+    next.setTime = null;
+    return next;
+  }
+
+  const result = classifyCallsheetTimeInput(String(raw));
+  if (result.kind !== "time") throw new Error("Invalid set time");
+  next.setTime = result.canonical;
+  return next;
+}
 
 function normalizeClientCall(id: string, raw: any): ClientCallSheet {
+  const callResult = classifyCallsheetTimeInput(String(raw?.callTime || "").trim(), { allowText: true });
+  const rawCallText = raw?.callText != null ? String(raw.callText).trim() : "";
+  const setResult = classifyCallsheetTimeInput(String(raw?.setTime || "").trim());
+
   return {
     id,
     name: raw?.name ?? "",
     role: raw?.role ?? null,
-    callTime: raw?.callTime ?? null,
-    callText: raw?.callText ?? null,
-    setTime: raw?.setTime ?? null,
+    callTime: callResult.kind === "time" ? callResult.canonical : null,
+    callText: callResult.kind === "time" ? null : rawCallText || null,
+    setTime: setResult.kind === "time" ? setResult.canonical : null,
     status: raw?.status ?? null,
     transportation: raw?.transportation ?? null,
     blockRhs: raw?.blockRhs ?? null,
@@ -106,12 +169,16 @@ export function useClientCalls(clientId: string | null, projectId: string | null
       if (!id) throw new Error("Missing id");
       if (isDemoModeActive()) return { id, updates };
 
+      let normalizedUpdates: Partial<ClientCallSheet> = { ...updates };
+      normalizedUpdates = normalizeCallTimePair(normalizedUpdates, "call time");
+      normalizedUpdates = normalizeSetTimeField(normalizedUpdates);
+
       const existed = callsById.has(id);
       const ref = doc(db, ...scheduleClientCallPath(projectId, scheduleId, id, clientId));
       await setDoc(
         ref,
         {
-          ...updates,
+          ...normalizedUpdates,
           id,
           ...(existed ? {} : { createdBy: user?.uid ?? null, createdAt: serverTimestamp() }),
           updatedAt: serverTimestamp(),
@@ -150,4 +217,3 @@ export function useClientCalls(clientId: string | null, projectId: string | null
     deleteClientCall,
   };
 }
-

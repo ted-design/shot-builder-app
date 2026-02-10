@@ -28,6 +28,9 @@ describe("crewCallEffective", () => {
       expect(isTimeString("630")).toBe(false);
       expect(isTimeString("OFF")).toBe(false);
       expect(isTimeString("text")).toBe(false);
+      expect(isTimeString("24:00")).toBe(false);
+      expect(isTimeString("12:60")).toBe(false);
+      expect(isTimeString("-1:30")).toBe(false);
     });
 
     it("trims whitespace", () => {

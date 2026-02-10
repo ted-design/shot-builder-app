@@ -15,14 +15,89 @@ import { describeFirebaseError } from "../lib/firebaseErrors";
 import { toast } from "../lib/toast";
 import { isDemoModeActive } from "../lib/flags";
 import { useAuth } from "../context/AuthContext";
+import { classifyCallsheetTimeInput } from "../lib/time/callsheetTimeEntry";
+
+function hasOwn(obj: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function normalizeCallTimePair(
+  updates: Partial<TalentCallSheet>,
+  fieldLabel: string
+): Partial<TalentCallSheet> {
+  if (!hasOwn(updates as Record<string, unknown>, "callTime") && !hasOwn(updates as Record<string, unknown>, "callText")) {
+    return updates;
+  }
+
+  const next: Partial<TalentCallSheet> = { ...updates };
+  const rawCallTime = updates.callTime;
+  const rawCallText = updates.callText;
+
+  if (rawCallTime != null && String(rawCallTime).trim()) {
+    const result = classifyCallsheetTimeInput(String(rawCallTime), { allowText: true });
+    if (result.kind !== "time") {
+      throw new Error(`Invalid ${fieldLabel}`);
+    }
+    next.callTime = result.canonical;
+    next.callText = null;
+    return next;
+  }
+
+  if (rawCallText != null && String(rawCallText).trim()) {
+    const result = classifyCallsheetTimeInput(String(rawCallText), { allowText: true });
+    if (result.kind === "invalid-time") {
+      throw new Error(`Invalid ${fieldLabel}`);
+    }
+    if (result.kind === "time") {
+      next.callTime = result.canonical;
+      next.callText = null;
+    } else {
+      next.callTime = null;
+      next.callText = result.text;
+    }
+    return next;
+  }
+
+  next.callTime = null;
+  next.callText = null;
+  return next;
+}
+
+function normalizeTimeOnlyField(
+  updates: Partial<TalentCallSheet>,
+  key: "setTime" | "wrapTime",
+  fieldLabel: string
+): Partial<TalentCallSheet> {
+  if (!hasOwn(updates as Record<string, unknown>, key)) return updates;
+  const next: Partial<TalentCallSheet> = { ...updates };
+  const raw = updates[key];
+
+  if (raw == null || !String(raw).trim()) {
+    next[key] = null;
+    return next;
+  }
+
+  const result = classifyCallsheetTimeInput(String(raw));
+  if (result.kind !== "time") {
+    throw new Error(`Invalid ${fieldLabel}`);
+  }
+
+  next[key] = result.canonical;
+  return next;
+}
 
 function normalizeTalentCall(talentId: string, raw: any): TalentCallSheet {
+  const callResult = classifyCallsheetTimeInput(String(raw?.callTime || "").trim(), { allowText: true });
+  const rawCallText = raw?.callText != null ? String(raw.callText).trim() : "";
+  const setResult = classifyCallsheetTimeInput(String(raw?.setTime || "").trim());
+  const wrapResult = classifyCallsheetTimeInput(String(raw?.wrapTime || "").trim());
+
   return {
     talentId,
-    callTime: raw?.callTime ?? null,
-    callText: raw?.callText ?? null,
-    setTime: raw?.setTime ?? null,
-    wrapTime: raw?.wrapTime ?? null,
+    callTime: callResult.kind === "time" ? callResult.canonical : null,
+    callText: callResult.kind === "time" ? null : rawCallText || null,
+    setTime: setResult.kind === "time" ? setResult.canonical : null,
+    wrapTime: wrapResult.kind === "time" ? wrapResult.canonical : null,
     role: raw?.role ?? null,
     blockRhs: raw?.blockRhs ?? null,
     muWard: raw?.muWard ?? null,
@@ -88,12 +163,17 @@ export function useTalentCalls(
       if (!talentId) throw new Error("Missing talentId");
       if (isDemoModeActive()) return { talentId, updates };
 
+      let normalizedUpdates: Partial<TalentCallSheet> = { ...updates };
+      normalizedUpdates = normalizeCallTimePair(normalizedUpdates, "call time");
+      normalizedUpdates = normalizeTimeOnlyField(normalizedUpdates, "setTime", "set time");
+      normalizedUpdates = normalizeTimeOnlyField(normalizedUpdates, "wrapTime", "wrap time");
+
       const existed = callsByTalentId.has(talentId);
       const ref = doc(db, ...scheduleTalentCallPath(projectId, scheduleId, talentId, clientId));
       await setDoc(
         ref,
         {
-          ...updates,
+          ...normalizedUpdates,
           talentId,
           ...(existed ? {} : { createdBy: user?.uid ?? null, createdAt: serverTimestamp() }),
           updatedAt: serverTimestamp(),
