@@ -40,6 +40,12 @@ const DEFAULT_SECTION_ORDER: readonly (keyof Required<CallSheetSectionVisibility
   "notes",
 ]
 
+export const DEFAULT_CALLSHEET_COLORS: Required<CallSheetColors> = {
+  primary: "#111111",
+  accent: "#2563eb",
+  text: "#111111",
+}
+
 export function normalizeCallSheetConfig(raw: Record<string, unknown> | null): CallSheetConfig {
   const legacy = (raw ?? {}) as LegacyConfig
 

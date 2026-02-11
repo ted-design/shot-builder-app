@@ -40,4 +40,51 @@ describe("ScheduleEntryCard", () => {
 
     expect(onUpdateTitle).toHaveBeenCalledWith("New Title")
   })
+
+  it("shows explicit edit action and invokes callback", async () => {
+    const user = userEvent.setup()
+    const onEdit = vi.fn()
+
+    render(
+      <ScheduleEntryCard
+        entry={makeEntry({ title: "Needs Edit" })}
+        isFirst
+        isLast
+        onRemove={() => {}}
+        onEdit={onEdit}
+        onUpdateTitle={() => {}}
+        onUpdateStartTime={() => {}}
+        onUpdateDuration={() => {}}
+        onUpdateNotes={() => {}}
+      />,
+    )
+
+    await user.click(screen.getByRole("button", { name: "Edit entry" }))
+    expect(onEdit).toHaveBeenCalledTimes(1)
+  })
+
+  it("renders passive track badge instead of a dropdown selector", () => {
+    render(
+      <ScheduleEntryCard
+        entry={makeEntry({ title: "Track Badge", trackId: "track-2" })}
+        isFirst
+        isLast
+        trackSelect={{
+          value: "track-2",
+          options: [
+            { value: "primary", label: "Primary" },
+            { value: "track-2", label: "Track 2" },
+          ],
+        }}
+        onRemove={() => {}}
+        onUpdateTitle={() => {}}
+        onUpdateStartTime={() => {}}
+        onUpdateDuration={() => {}}
+        onUpdateNotes={() => {}}
+      />,
+    )
+
+    expect(screen.getByText("Track 2")).toBeInTheDocument()
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+  })
 })

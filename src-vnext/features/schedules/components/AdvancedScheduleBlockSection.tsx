@@ -172,7 +172,10 @@ export function AdvancedScheduleBlockSection({
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
               {shotNumber && (
-                <span className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                <span
+                  className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide"
+                  style={{ color: "var(--doc-accent,#2563eb)" }}
+                >
                   {shotNumber}
                 </span>
               )}
@@ -197,7 +200,10 @@ export function AdvancedScheduleBlockSection({
               <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[var(--color-text-muted)]">
                 {talentNames.length > 0 && (
                   <span className="truncate">
-                    <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    <span
+                      className="font-semibold uppercase tracking-wide"
+                      style={{ color: "var(--doc-accent,#2563eb)" }}
+                    >
                       Talent
                     </span>{" "}
                     {talentNames.join(", ")}
@@ -205,7 +211,10 @@ export function AdvancedScheduleBlockSection({
                 )}
                 {location && (
                   <span className="truncate">
-                    <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    <span
+                      className="font-semibold uppercase tracking-wide"
+                      style={{ color: "var(--doc-accent,#2563eb)" }}
+                    >
                       Location
                     </span>{" "}
                     {location}
@@ -280,7 +289,10 @@ export function AdvancedScheduleBlockSection({
               <span className="text-xs font-semibold text-[var(--color-text)]">
                 {formatMinutesTo12h(group.bandStart)}–{formatMinutesTo12h(group.bandEnd)}
               </span>
-              <span className="text-[10px] font-medium text-[var(--color-text-subtle)]">
+              <span
+                className="text-[10px] font-medium"
+                style={{ color: "var(--doc-accent,#2563eb)" }}
+              >
                 Simultaneous
               </span>
             </div>

@@ -19,34 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/select"
+import {
+  DEFAULT_HIGHLIGHT_COLOR,
+  HIGHLIGHT_COLOR_PRESETS,
+  HIGHLIGHT_EMOJI_PRESETS,
+} from "@/features/schedules/lib/highlightPresets"
 import type { ScheduleEntryHighlight, ScheduleTrack } from "@/shared/types"
 
 const SHARED_TRACK_ID = "shared"
-const DEFAULT_COLOR = "#2563eb"
-
-const COLOR_PRESETS = [
-  "#2563eb",
-  "#16a34a",
-  "#f97316",
-  "#d946ef",
-  "#dc2626",
-  "#0f172a",
-] as const
-
-const EMOJI_PRESETS = [
-  "✨",
-  "🎬",
-  "🎥",
-  "📍",
-  "⏰",
-  "☕",
-  "🚚",
-  "⚠️",
-  "✅",
-  "🧵",
-  "💄",
-  "👗",
-] as const
 
 interface AddCustomEntryDialogProps {
   readonly open: boolean
@@ -73,7 +53,7 @@ export function AddCustomEntryDialog({
   const [emoji, setEmoji] = useState("")
   const [trackId, setTrackId] = useState(tracks[0]?.id ?? "primary")
   const [variant, setVariant] = useState<ScheduleEntryHighlight["variant"]>("solid")
-  const [color, setColor] = useState(DEFAULT_COLOR)
+  const [color, setColor] = useState(DEFAULT_HIGHLIGHT_COLOR)
 
   useEffect(() => {
     if (!open) return
@@ -81,7 +61,7 @@ export function AddCustomEntryDialog({
     setDescription("")
     setEmoji("")
     setVariant("solid")
-    setColor(DEFAULT_COLOR)
+    setColor(DEFAULT_HIGHLIGHT_COLOR)
     if (defaultTrackId === SHARED_TRACK_ID) {
       setTrackId(SHARED_TRACK_ID)
       return
@@ -180,7 +160,7 @@ export function AddCustomEntryDialog({
           <div className="flex flex-col gap-1.5">
             <Label>Emoji Presets</Label>
             <div className="flex flex-wrap gap-1.5">
-              {EMOJI_PRESETS.map((preset) => (
+              {HIGHLIGHT_EMOJI_PRESETS.map((preset) => (
                 <button
                   key={preset}
                   type="button"
@@ -252,7 +232,7 @@ export function AddCustomEntryDialog({
                   className="h-9 w-12 p-1"
                 />
                 <div className="flex flex-wrap gap-1.5">
-                  {COLOR_PRESETS.map((preset) => (
+                  {HIGHLIGHT_COLOR_PRESETS.map((preset) => (
                     <button
                       key={preset}
                       type="button"

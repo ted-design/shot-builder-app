@@ -197,7 +197,10 @@ function RendererEntryRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             {fields.showShotNumber && shot?.shotNumber && (
-              <span className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+              <span
+                className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide"
+                style={{ color: "var(--doc-accent,#2563eb)" }}
+              >
                 {shot.shotNumber}
               </span>
             )}
@@ -217,7 +220,10 @@ function RendererEntryRow({
             <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[var(--color-text-muted)]">
               {fields.showTalent && talentNames.length > 0 && (
                 <span className="truncate">
-                  <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                  <span
+                    className="font-semibold uppercase tracking-wide"
+                    style={{ color: "var(--doc-accent,#2563eb)" }}
+                  >
                     Talent
                   </span>{" "}
                   {talentNames.join(", ")}
@@ -225,7 +231,10 @@ function RendererEntryRow({
               )}
               {fields.showLocation && locationLabel && (
                 <span className="truncate">
-                  <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                  <span
+                    className="font-semibold uppercase tracking-wide"
+                    style={{ color: "var(--doc-accent,#2563eb)" }}
+                  >
                     Location
                   </span>{" "}
                   {locationLabel}
@@ -274,6 +283,7 @@ export function CallSheetRenderer({
 
   const colors = config?.colors
   const primary = colors?.primary
+  const accent = colors?.accent
   const text = colors?.text
 
   const talentMap = useMemo(() => {
@@ -327,6 +337,9 @@ export function CallSheetRenderer({
         ...(primary
           ? ({ ["--doc-section-band-bg" as string]: primary } as CSSProperties)
           : {}),
+        ...(accent
+          ? ({ ["--doc-accent" as string]: accent } as CSSProperties)
+          : {}),
         ...(text ? ({ ["--color-doc-ink" as string]: text } as CSSProperties) : {}),
       }}
     >
@@ -363,7 +376,10 @@ export function CallSheetRenderer({
           </div>
           {dayDetails.weather?.summary && (
             <p className="text-xs text-[var(--color-text-muted)]">
-              <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+              <span
+                className="font-semibold uppercase tracking-wide"
+                style={{ color: "var(--doc-accent,#2563eb)" }}
+              >
                 Weather
               </span>{" "}
               {dayDetails.weather.summary}
@@ -373,7 +389,10 @@ export function CallSheetRenderer({
             <div className="flex flex-col gap-1 text-xs text-[var(--color-text-muted)]">
               {dayDetails.locations.map((loc) => (
                 <p key={loc.id}>
-                  <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                  <span
+                    className="font-semibold uppercase tracking-wide"
+                    style={{ color: "var(--doc-accent,#2563eb)" }}
+                  >
                     {loc.title}
                   </span>{" "}
                   {loc.ref?.label ?? loc.ref?.locationId ?? ""}
@@ -450,7 +469,10 @@ export function CallSheetRenderer({
                     className="callsheet-block flex items-baseline gap-3 border-b border-[var(--color-border)] py-2 last:border-b-0"
                   >
                     {displayTime && (
-                      <span className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "text-[var(--color-text)]" : "text-[var(--color-text-muted)]"}`}>
+                      <span
+                        className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "" : "text-[var(--color-text-muted)]"}`}
+                        style={isOverridden ? { color: "var(--doc-accent,#2563eb)" } : undefined}
+                      >
                         {formatTimeOrText(displayTime)}
                       </span>
                     )}
@@ -494,7 +516,10 @@ export function CallSheetRenderer({
                     className="callsheet-block flex items-baseline gap-3 border-b border-[var(--color-border)] py-2 last:border-b-0"
                   >
                     {displayTime && (
-                      <span className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "text-[var(--color-text)]" : "text-[var(--color-text-muted)]"}`}>
+                      <span
+                        className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "" : "text-[var(--color-text-muted)]"}`}
+                        style={isOverridden ? { color: "var(--doc-accent,#2563eb)" } : undefined}
+                      >
                         {formatTimeOrText(displayTime)}
                       </span>
                     )}

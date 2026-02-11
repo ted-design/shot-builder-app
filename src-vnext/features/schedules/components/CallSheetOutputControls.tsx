@@ -3,6 +3,8 @@ import { Sliders } from "lucide-react"
 import { Checkbox } from "@/ui/checkbox"
 import { Label } from "@/ui/label"
 import { Input } from "@/ui/input"
+import { Button } from "@/ui/button"
+import { DEFAULT_CALLSHEET_COLORS } from "@/features/schedules/lib/callSheetConfig"
 import type {
   CallSheetColors,
   CallSheetSectionVisibility,
@@ -37,6 +39,10 @@ export function CallSheetOutputControls({
     },
     [],
   )
+
+  const isDefaultColors = colors.primary === DEFAULT_CALLSHEET_COLORS.primary
+    && colors.accent === DEFAULT_CALLSHEET_COLORS.accent
+    && colors.text === DEFAULT_CALLSHEET_COLORS.text
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
@@ -186,9 +192,21 @@ export function CallSheetOutputControls({
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-          Colors
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+            Colors
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-[10px] font-semibold uppercase tracking-wide"
+            disabled={isDefaultColors}
+            onClick={() => onPatchColors({ ...DEFAULT_CALLSHEET_COLORS })}
+          >
+            Reset Defaults
+          </Button>
+        </div>
 
         <div className="grid grid-cols-3 gap-3">
           <div className="flex flex-col gap-1">
@@ -198,7 +216,7 @@ export function CallSheetOutputControls({
             <Input
               id="cs-color-primary"
               type="color"
-              value={colors.primary || "#111111"}
+              value={colors.primary || DEFAULT_CALLSHEET_COLORS.primary}
               onChange={(e) => onPatchColors({ primary: e.target.value })}
               className="h-9 p-1"
             />
@@ -210,7 +228,7 @@ export function CallSheetOutputControls({
             <Input
               id="cs-color-accent"
               type="color"
-              value={colors.accent || "#2563eb"}
+              value={colors.accent || DEFAULT_CALLSHEET_COLORS.accent}
               onChange={(e) => onPatchColors({ accent: e.target.value })}
               className="h-9 p-1"
             />
@@ -222,7 +240,7 @@ export function CallSheetOutputControls({
             <Input
               id="cs-color-text"
               type="color"
-              value={colors.text || "#111111"}
+              value={colors.text || DEFAULT_CALLSHEET_COLORS.text}
               onChange={(e) => onPatchColors({ text: e.target.value })}
               className="h-9 p-1"
             />
@@ -232,4 +250,3 @@ export function CallSheetOutputControls({
     </div>
   )
 }
-
