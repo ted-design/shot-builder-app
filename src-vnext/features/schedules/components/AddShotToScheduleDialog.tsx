@@ -152,7 +152,7 @@ export function AddShotToScheduleDialog({
         <div className="flex max-h-[24rem] flex-col gap-1 overflow-y-auto">
           {availableShots.length === 0 && (
             <p className="py-6 text-center text-sm text-[var(--color-text-muted)]">
-              {shots.length === searchableRows.length + existingShotIds.size
+              {searchableRows.length === 0
                 ? "All shots are already scheduled."
                 : "No matching shots found."}
             </p>
