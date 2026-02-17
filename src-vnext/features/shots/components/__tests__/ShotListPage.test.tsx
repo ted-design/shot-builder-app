@@ -465,4 +465,29 @@ describe("ShotListPage", () => {
 
     expect(screen.getByText("Use 50mm lens, low angle.")).toBeInTheDocument()
   })
+
+  it("renders note URLs as clickable links", () => {
+    window.localStorage.setItem(
+      "sb:shots:list:c1:p1:fields:v1",
+      JSON.stringify({ notes: true }),
+    )
+
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        makeShot({
+          id: "a",
+          title: "Alpha",
+          notesAddendum: "Reference: https://example.com/lookbook",
+        }),
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots")
+
+    const link = screen.getByRole("link", { name: "https://example.com/lookbook" })
+    expect(link).toHaveAttribute("href", "https://example.com/lookbook")
+    expect(link).toHaveAttribute("target", "_blank")
+  })
 })

@@ -44,6 +44,7 @@ import { Skeleton } from "@/ui/skeleton"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
 import { Separator } from "@/ui/separator"
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/ui/sheet"
+import { NotesPreviewText } from "@/features/shots/components/NotesPreviewText"
 
 type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated"
 type SortDir = "asc" | "desc"
@@ -2071,7 +2072,7 @@ function ShotsTable({
           {shots.map((shot) => {
             const title = shot.title || "Untitled Shot"
             const productLabels = getShotPrimaryLookProductLabels(shot)
-            const notesPreview = getShotNotesPreview(shot, 180)
+            const notesPreview = getShotNotesPreview(shot, 420)
 
             const talentIds = shot.talentIds ?? shot.talent
             const { names: talentNames, unknownCount: unknownTalentCount } = resolveIdsToNames(
@@ -2132,8 +2133,12 @@ function ShotsTable({
                 {fields.notes && (
                   <td className="px-3 py-2 text-[var(--color-text-secondary)]">
                     {notesPreview ? (
-                      <div className="line-clamp-2 max-w-[360px] text-xs leading-4" title={notesPreview}>
-                        {notesPreview}
+                      <div className="max-w-[420px] text-xs leading-4" title={notesPreview}>
+                        <NotesPreviewText
+                          text={notesPreview}
+                          className="line-clamp-3 min-w-0"
+                          onLinkClick={(event) => event.stopPropagation()}
+                        />
                       </div>
                     ) : (
                       "—"

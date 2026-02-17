@@ -11,6 +11,7 @@ import type { Shot } from "@/shared/types"
 import { TagBadge } from "@/shared/components/TagBadge"
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { getShotNotesPreview } from "@/features/shots/lib/shotListSummaries"
+import { NotesPreviewText } from "@/features/shots/components/NotesPreviewText"
 
 interface ShotVisualCardProps {
   readonly shot: Shot
@@ -51,7 +52,7 @@ export function ShotVisualCard({
     (t) => typeof t === "string" && t.trim().length > 0,
   )
   const hasLocation = !!shot.locationId
-  const notesPreview = showNotes ? getShotNotesPreview(shot, 120) : ""
+  const notesPreview = showNotes ? getShotNotesPreview(shot, 220) : ""
 
   return (
     <Card
@@ -135,7 +136,11 @@ export function ShotVisualCard({
         {showNotes && notesPreview && (
           <div className="flex items-start gap-1 text-xs text-[var(--color-text-muted)]">
             <StickyNote className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-subtle)]" />
-            <p className="line-clamp-2">{notesPreview}</p>
+            <NotesPreviewText
+              text={notesPreview}
+              className="line-clamp-3 min-w-0"
+              onLinkClick={(event) => event.stopPropagation()}
+            />
           </div>
         )}
 

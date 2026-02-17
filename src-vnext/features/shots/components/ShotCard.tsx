@@ -9,6 +9,7 @@ import { textPreview } from "@/shared/lib/textPreview"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { TagBadge } from "@/shared/components/TagBadge"
 import { getShotNotesPreview, getShotPrimaryLookProductLabels, resolveIdsToNames, summarizeLabels } from "@/features/shots/lib/shotListSummaries"
+import { NotesPreviewText } from "@/features/shots/components/NotesPreviewText"
 import type { Shot, ShotTag } from "@/shared/types"
 import { getShotTagCategoryLabel, resolveShotTagCategory } from "@/shared/lib/tagCategories"
 
@@ -144,7 +145,7 @@ export function ShotCard({
   const tagGroups = groupTagsByCategory(shot.tags ?? [])
   const productPreview = productLabels.slice(0, PRODUCT_PREVIEW_LIMIT)
   const hiddenProductCount = Math.max(0, productLabels.length - productPreview.length)
-  const notesPreview = fields.notes ? getShotNotesPreview(shot, 160) : ""
+  const notesPreview = fields.notes ? getShotNotesPreview(shot, 320) : ""
 
   return (
     <Card
@@ -170,15 +171,20 @@ export function ShotCard({
             {fields.notes && notesPreview && (
               <div className="flex items-start gap-1 text-[11px] leading-4 text-[var(--color-text-muted)]">
                 <StickyNote className="mt-0.5 h-3 w-3 flex-shrink-0 text-[var(--color-text-subtle)]" />
-                <p className="line-clamp-2">{notesPreview}</p>
+                <NotesPreviewText
+                  text={notesPreview}
+                  className="line-clamp-4 min-w-0"
+                  onLinkClick={(event) => event.stopPropagation()}
+                />
               </div>
             )}
           </div>
           <div
-            className="flex-shrink-0"
+            className="flex flex-shrink-0 items-center gap-1"
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
           >
+            {leadingControl}
             <ShotStatusSelect
               shotId={shot.id}
               currentStatus={shot.status}
@@ -189,9 +195,8 @@ export function ShotCard({
           </div>
         </div>
 
-        {(leadingControl || selectable) && (
+        {selectable && (
           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            {leadingControl}
             {selectable && (
               <Checkbox
                 checked={!!selected}
