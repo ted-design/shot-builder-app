@@ -20,6 +20,7 @@ function buildProps() {
       showDescription: true,
       showTalent: true,
       showLocation: true,
+      showTags: true,
       showNotes: true,
     },
     colors: {

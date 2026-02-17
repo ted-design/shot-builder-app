@@ -180,6 +180,16 @@ export function CallSheetOutputControls({
           </div>
           <div className="flex items-center gap-2">
             <Checkbox
+              id="cs-f-tags"
+              checked={scheduleBlockFields.showTags}
+              onCheckedChange={onChecked((v) => onPatchScheduleFields({ showTags: v }))}
+            />
+            <Label htmlFor="cs-f-tags" className="text-xs">
+              Tags
+            </Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
               id="cs-f-notes"
               checked={scheduleBlockFields.showNotes}
               onCheckedChange={onChecked((v) => onPatchScheduleFields({ showNotes: v }))}

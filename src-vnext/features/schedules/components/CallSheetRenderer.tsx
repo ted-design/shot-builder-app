@@ -2,6 +2,7 @@ import { useMemo, type CSSProperties } from "react"
 import { textPreview } from "@/shared/lib/textPreview"
 import { formatHHMMTo12h } from "@/features/schedules/lib/time"
 import { AdvancedScheduleBlockSection } from "@/features/schedules/components/AdvancedScheduleBlockSection"
+import { TagBadge } from "@/shared/components/TagBadge"
 import type {
   Schedule,
   DayDetails,
@@ -37,6 +38,7 @@ export interface ScheduleBlockFields {
   readonly showDescription?: boolean
   readonly showTalent?: boolean
   readonly showLocation?: boolean
+  readonly showTags?: boolean
   readonly showNotes?: boolean
 }
 
@@ -78,6 +80,7 @@ const DEFAULT_SCHEDULE_FIELDS: Required<ScheduleBlockFields> = {
   showDescription: true,
   showTalent: true,
   showLocation: true,
+  showTags: true,
   showNotes: true,
 }
 
@@ -118,6 +121,18 @@ function formatTimeOrText(value: string | null | undefined): string {
   return formatted || value
 }
 
+function formatDurationLabel(durationMinutes: number | null | undefined): string {
+  if (durationMinutes == null || !Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+    return ""
+  }
+  const rounded = Math.round(durationMinutes)
+  const hours = Math.floor(rounded / 60)
+  const minutes = rounded % 60
+  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`
+  if (hours > 0) return `${hours}h`
+  return `${minutes}m`
+}
+
 // --- Entry type styles for renderer ---
 
 const RHYTHM_TYPES = new Set<ScheduleEntryType>(["break", "move"])
@@ -136,23 +151,26 @@ function RendererEntryRow({
   const isRhythm = RHYTHM_TYPES.has(entry.type)
   const isHighlight = entry.type !== "shot" && !!entry.highlight
   const timeLabel = formatHHMMTo12h(entry.startTime ?? entry.time ?? null)
+  const durationLabel = formatDurationLabel(entry.duration)
 
   if (isRhythm) {
     return (
-      <div className="callsheet-block flex items-center gap-3 border-b border-amber-100 bg-amber-50/40 px-2 py-1 last:border-b-0">
+      <div className="callsheet-block flex items-start gap-3 border-b border-amber-100 bg-amber-50/40 px-2 py-1.5 last:border-b-0">
         {timeLabel && (
-          <span className="w-16 shrink-0 font-mono text-[10px] font-semibold tabular-nums text-[var(--color-text-muted)]">
-            {timeLabel}
-          </span>
+          <div className="w-16 shrink-0 space-y-0.5">
+            <p className="font-mono text-xs font-semibold leading-tight tabular-nums text-[var(--color-text)]">
+              {timeLabel}
+            </p>
+            {durationLabel && (
+              <p className="font-mono text-[10px] leading-tight tabular-nums text-[var(--color-text-subtle)]">
+                {durationLabel}
+              </p>
+            )}
+          </div>
         )}
         <span className="flex-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
           {entry.title}
         </span>
-        {entry.duration != null && (
-          <span className="shrink-0 font-mono text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-            {entry.duration}m
-          </span>
-        )}
       </div>
     )
   }
@@ -164,6 +182,9 @@ function RendererEntryRow({
   const notesPreview = fields.showNotes
     ? textPreview(entry.notes ?? "", 160)
     : ""
+  const shotTags = fields.showTags && Array.isArray(shot?.tags)
+    ? shot.tags.filter((tag) => (tag.label ?? "").trim().length > 0)
+    : []
 
   const highlightStyle: CSSProperties | undefined = isHighlight
     ? (entry.highlight?.variant === "outline"
@@ -188,11 +209,18 @@ function RendererEntryRow({
       }`}
       style={highlightStyle}
     >
-      <div className="flex items-baseline gap-3">
+      <div className="flex items-start gap-3">
         {timeLabel && (
-          <span className="w-16 shrink-0 font-mono text-xs font-semibold tabular-nums text-[var(--color-text)]">
-            {timeLabel}
-          </span>
+          <div className="w-16 shrink-0 space-y-0.5">
+            <p className="font-mono text-xs font-semibold leading-tight tabular-nums text-[var(--color-text)]">
+              {timeLabel}
+            </p>
+            {durationLabel && (
+              <p className="font-mono text-[10px] leading-tight tabular-nums text-[var(--color-text-subtle)]">
+                {durationLabel}
+              </p>
+            )}
+          </div>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
@@ -214,6 +242,14 @@ function RendererEntryRow({
             <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
               {textPreview(shot.description, 220)}
             </p>
+          )}
+
+          {shotTags.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {shotTags.map((tag) => (
+                <TagBadge key={tag.id} tag={tag} />
+              ))}
+            </div>
           )}
 
           {(fields.showTalent || fields.showLocation) && (talentNames.length > 0 || locationLabel) && (
@@ -249,12 +285,6 @@ function RendererEntryRow({
             </p>
           )}
         </div>
-
-        {entry.duration != null && (
-          <span className="shrink-0 font-mono text-xs tabular-nums text-[var(--color-text-muted)]">
-            {entry.duration}m
-          </span>
-        )}
       </div>
     </div>
   )

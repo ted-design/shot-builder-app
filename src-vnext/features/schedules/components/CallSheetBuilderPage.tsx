@@ -409,6 +409,7 @@ export default function CallSheetBuilderPage() {
                   showDescription: rendererConfig.scheduleBlockFields?.showDescription ?? true,
                   showTalent: rendererConfig.scheduleBlockFields?.showTalent ?? true,
                   showLocation: rendererConfig.scheduleBlockFields?.showLocation ?? true,
+                  showTags: rendererConfig.scheduleBlockFields?.showTags ?? true,
                   showNotes: rendererConfig.scheduleBlockFields?.showNotes ?? true,
                 }}
                 colors={{

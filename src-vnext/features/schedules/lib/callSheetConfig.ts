@@ -76,6 +76,7 @@ export function normalizeCallSheetConfig(raw: Record<string, unknown> | null): C
     showDescription: legacy.scheduleBlockFields?.["showDescription"] as boolean | undefined,
     showTalent: legacy.scheduleBlockFields?.["showTalent"] as boolean | undefined,
     showLocation: legacy.scheduleBlockFields?.["showLocation"] as boolean | undefined,
+    showTags: legacy.scheduleBlockFields?.["showTags"] as boolean | undefined,
     showNotes: legacy.scheduleBlockFields?.["showNotes"] as boolean | undefined,
   }
 
