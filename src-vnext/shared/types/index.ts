@@ -91,6 +91,15 @@ export interface ShotLook {
   readonly displayImageId?: string | null
 }
 
+export type ShotReferenceLinkType = "web" | "video" | "document"
+
+export interface ShotReferenceLink {
+  readonly id: string
+  readonly title: string
+  readonly url: string
+  readonly type: ShotReferenceLinkType
+}
+
 export interface Shot {
   readonly id: string
   readonly title: string
@@ -114,6 +123,7 @@ export interface Shot {
   /** Which look is currently active (used for cover derivation). */
   readonly activeLookId?: string | null
   readonly tags?: ReadonlyArray<ShotTag>
+  readonly referenceLinks?: ReadonlyArray<ShotReferenceLink>
   readonly deleted?: boolean
   readonly createdAt: Timestamp
   readonly updatedAt: Timestamp

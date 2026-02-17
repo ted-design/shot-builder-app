@@ -4,13 +4,13 @@ import { Card, CardContent, CardTitle } from "@/ui/card"
 import { Checkbox } from "@/ui/checkbox"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
-import { Package, Users, MapPin, StickyNote } from "lucide-react"
+import { Package, Users, MapPin, StickyNote, Link2, Globe, Video, FileText } from "lucide-react"
 import { textPreview } from "@/shared/lib/textPreview"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { TagBadge } from "@/shared/components/TagBadge"
 import { getShotNotesPreview, getShotPrimaryLookProductLabels, resolveIdsToNames, summarizeLabels } from "@/features/shots/lib/shotListSummaries"
 import { NotesPreviewText } from "@/features/shots/components/NotesPreviewText"
-import type { Shot, ShotTag } from "@/shared/types"
+import type { Shot, ShotReferenceLinkType, ShotTag } from "@/shared/types"
 import { getShotTagCategoryLabel, resolveShotTagCategory } from "@/shared/lib/tagCategories"
 
 interface ShotCardProps {
@@ -19,6 +19,7 @@ interface ShotCardProps {
   readonly selected?: boolean
   readonly onSelectedChange?: (selected: boolean) => void
   readonly leadingControl?: ReactNode
+  readonly actionControl?: ReactNode
   readonly visibleFields?: Partial<ShotCardVisibleFields>
   readonly talentNameById?: ReadonlyMap<string, string> | null
   readonly locationNameById?: ReadonlyMap<string, string> | null
@@ -32,6 +33,7 @@ export interface ShotCardVisibleFields {
   readonly readiness: boolean
   readonly location: boolean
   readonly products: boolean
+  readonly links: boolean
   readonly talent: boolean
   readonly tags: boolean
 }
@@ -44,11 +46,25 @@ const DEFAULT_VISIBLE_FIELDS: ShotCardVisibleFields = {
   readiness: true,
   location: true,
   products: true,
+  links: false,
   talent: true,
   tags: true,
 }
 
 const PRODUCT_PREVIEW_LIMIT = 2
+const REFERENCE_LINK_PREVIEW_LIMIT = 2
+
+function getReferenceLinkIcon(type: ShotReferenceLinkType) {
+  switch (type) {
+    case "video":
+      return Video
+    case "document":
+      return FileText
+    case "web":
+    default:
+      return Globe
+  }
+}
 
 function groupTagsByCategory(tags: ReadonlyArray<ShotTag>): ReadonlyArray<{
   readonly key: "priority" | "gender" | "media" | "other"
@@ -83,6 +99,7 @@ export function ShotCard({
   selected,
   onSelectedChange,
   leadingControl,
+  actionControl,
   visibleFields,
   talentNameById,
   locationNameById,
@@ -104,6 +121,7 @@ export function ShotCard({
 
   const productLabels = getShotPrimaryLookProductLabels(shot)
   const hasProducts = productLabels.length > 0
+  const referenceLinks = shot.referenceLinks ?? []
 
   const talentIds = shot.talentIds ?? shot.talent
   const { names: talentNames, unknownCount: unknownTalentCount } = resolveIdsToNames(
@@ -136,6 +154,7 @@ export function ShotCard({
   const showTalentDetails = fields.talent && hasTalent
   const showLocationDetails = fields.location && hasLocation
   const showProductsDetails = fields.products && hasProducts
+  const showReferenceLinksDetails = fields.links && referenceLinks.length > 0
   const showReadiness =
     fields.readiness &&
     !showTalentDetails &&
@@ -145,6 +164,8 @@ export function ShotCard({
   const tagGroups = groupTagsByCategory(shot.tags ?? [])
   const productPreview = productLabels.slice(0, PRODUCT_PREVIEW_LIMIT)
   const hiddenProductCount = Math.max(0, productLabels.length - productPreview.length)
+  const referenceLinkPreview = referenceLinks.slice(0, REFERENCE_LINK_PREVIEW_LIMIT)
+  const hiddenReferenceLinkCount = Math.max(0, referenceLinks.length - referenceLinkPreview.length)
   const notesPreview = fields.notes ? getShotNotesPreview(shot, 320) : ""
 
   return (
@@ -185,6 +206,7 @@ export function ShotCard({
             onPointerDown={(e) => e.stopPropagation()}
           >
             {leadingControl}
+            {actionControl}
             <ShotStatusSelect
               shotId={shot.id}
               currentStatus={shot.status}
@@ -210,13 +232,13 @@ export function ShotCard({
           </div>
         )}
 
-        {(showHeroImage || showTalentDetails || showLocationDetails || showProductsDetails || showReadiness) && (
+        {(showHeroImage || showTalentDetails || showLocationDetails || showProductsDetails || showReferenceLinksDetails || showReadiness) && (
           <div
             className={`grid gap-3.5 ${
               showHeroImage ? "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start" : "grid-cols-1"
             }`}
           >
-            {(showTalentDetails || showLocationDetails || showProductsDetails || showReadiness) && (
+            {(showTalentDetails || showLocationDetails || showProductsDetails || showReferenceLinksDetails || showReadiness) && (
               <div className="min-w-0 space-y-2.5">
                 {(showTalentDetails || showLocationDetails) && (
                   <div
@@ -252,6 +274,36 @@ export function ShotCard({
                       {hiddenProductCount > 0 && (
                         <div className="text-[10px] text-[var(--color-text-subtle)]">
                           +{hiddenProductCount} more
+                        </div>
+                      )}
+                    </div>
+                  </MetaField>
+                )}
+
+                {showReferenceLinksDetails && (
+                  <MetaField icon={Link2} label="Reference links" title={referenceLinks.map((entry) => `${entry.title} — ${entry.url}`).join("\n")}>
+                    <div className="space-y-1">
+                      {referenceLinkPreview.map((entry) => {
+                        const Icon = getReferenceLinkIcon(entry.type)
+                        return (
+                          <a
+                            key={entry.id}
+                            href={entry.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex max-w-full items-center gap-1 hover:underline"
+                            onClick={(event) => event.stopPropagation()}
+                            onPointerDown={(event) => event.stopPropagation()}
+                            title={entry.url}
+                          >
+                            <Icon className="h-3 w-3 flex-shrink-0 text-[var(--color-text-subtle)]" />
+                            <span className="truncate">{entry.title}</span>
+                          </a>
+                        )
+                      })}
+                      {hiddenReferenceLinkCount > 0 && (
+                        <div className="text-[10px] text-[var(--color-text-subtle)]">
+                          +{hiddenReferenceLinkCount} more
                         </div>
                       )}
                     </div>

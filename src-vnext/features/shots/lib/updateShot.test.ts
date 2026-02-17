@@ -52,6 +52,7 @@ describe("buildShotWritePayload", () => {
       talent: ["t1"],
       locationId: "loc1",
       locationName: "Studio A",
+      referenceLinks: [{ id: "lk-1", title: "Deck", url: "https://example.com", type: "web" }],
     }
     const result = buildShotWritePayload(fields)
     expect(result).toEqual(fields)

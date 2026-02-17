@@ -1,6 +1,6 @@
 # Slice 2 — Shot Editing (Producer Core)
 
-> Execution contract — v1.1 2026-01-31 (revised post-review)
+> Execution contract — v1.2 2026-02-17 (lifecycle + reference links extension)
 
 ## Goals
 
@@ -58,7 +58,7 @@ Rules:
 - On mobile, both the rendered HTML notes and the addendum field are visible. The addendum field is editable (operational action). The HTML notes are read-only.
 - Rich text editing of the `notes` field itself is deferred to a future slice when TipTap is integrated.
 
-**Firestore impact:** `notesAddendum` is a new optional string field on the shot document. This is the sole new field introduced in Slice 2. It is a simple string — no schema migration, no structural change.
+**Firestore impact:** `notesAddendum` is a new optional string field on the shot document for this notes model. It is a simple string — no schema migration, no structural change.
 
 ### 4. Reference Images
 
@@ -107,6 +107,17 @@ Legacy shot documents may contain `tags: [{id, label, color}]` arrays. Removing 
 - View tags (read-only)
 - Reference image viewable but not uploadable on mobile
 
+### 9. Shot Lifecycle Actions + Reference Links (Trust Extension)
+
+- **Duplicate shot in project** with a unique copy title and reset shot number.
+- **Copy shot to another project** (creates a new shot in target project, clears lane assignment, resets shot number).
+- **Move shot to another project** (updates project linkage, clears lane assignment).
+- **Delete shot guardrails**: soft-delete path with explicit confirmation (no hard-delete from UI).
+- **Dedicated reference links section** on Shot Detail:
+  - Store links as structured data (`referenceLinks`) with `title`, `url`, `type`.
+  - Render as icon + title rows (web/video/document), not raw URL strings.
+  - Reveal full URL on hover; open in a new tab on click.
+
 ---
 
 ## Out-of-Scope (Deferred)
@@ -116,13 +127,11 @@ Legacy shot documents may contain `tags: [{id, label, color}]` arrays. Removing 
 | Rich text notes editing (TipTap) | Existing HTML notes rendered read-only. Full TipTap editor deferred. See Notes Data Integrity. |
 | Looks/visual options | E-commerce-specific workflow. Not blocking for general production. |
 | Tag creation/editing/deletion | Read-only display of existing tags is in-scope. Tag write operations deferred. |
-| Move/copy shot between projects | Rare operation. |
 | Version history panel | Legacy uses `/versions` snapshots; vNext defers UI by default, but can ship a minimal History + Restore panel when required for producer trust. |
 | Active editors / presence | Rare concurrent editing. |
 | Bulk actions from shot list | Desktop convenience. Single-shot operations sufficient for launch. |
 | Column configuration / density | Personal preference. |
 | Advanced image crop/zoom/rotation | Basic upload sufficient for launch. |
-| Shot deletion | Soft-delete exists in Slice 1. No changes needed. |
 | Hero image thumbnails on shot list cards | Deferred if pre-sized thumbnail generation is not available. See Reference Images. |
 
 ---
@@ -152,10 +161,10 @@ Legacy shot documents may contain `tags: [{id, label, color}]` arrays. Removing 
 ## Firestore Impact
 
 - **No new collections.**
-- **One new field:** `notesAddendum?: string` on shot documents (plain text, append-only semantics in UI). This is the sole new field in Slice 2.
+- **New fields:** `notesAddendum?: string` and `referenceLinks?: Array<{ id, title, url, type }>` on shot documents.
 - **Existing fields now typed:** `shotNumber`, `date`, `heroImage`, `tags`, `sizeScope` (on ProductAssignment), and full `ProductAssignment` shape already exist on legacy shot documents in production Firestore.
 - **Type updates required in `shared/types/index.ts`:**
-  - `Shot`: add `shotNumber?: string`, `date?: Timestamp`, `notesAddendum?: string`, `tags?: ReadonlyArray<{ readonly id: string; readonly label: string; readonly color: string }>`
+  - `Shot`: add `shotNumber?: string`, `date?: Timestamp`, `notesAddendum?: string`, `tags?: ReadonlyArray<{ readonly id: string; readonly label: string; readonly color: string }>`, `referenceLinks?: ReadonlyArray<{ readonly id: string; readonly title: string; readonly url: string; readonly type: "web" | "video" | "document" }>`
   - `ProductAssignment`: add `sizeScope?: "all" | "single" | "pending"`
 - **Storage paths.** Reference images use existing `shots/{shotId}/` storage paths. No new storage rules needed.
 - **SKU reads.** Product picker upgrade requires reading `productFamilies/{fid}/skus/{skid}`. Path builder already exists in `shared/lib/paths.ts` as `productFamilySkusPath`.
@@ -192,6 +201,10 @@ Legacy shot documents may contain `tags: [{id, label, color}]` arrays. Removing 
 - [ ] Producer can reorder shots via drag-and-drop (desktop) or up/down controls
 - [ ] Shot list supports sorting by status and date (with clear indicator that custom order is overridden)
 - [ ] Existing tags display as read-only colored badges on shot detail and list cards
+- [ ] Producer can duplicate a shot in-project with reset shot number
+- [ ] Producer can copy/move a shot to another project with explicit confirmation and lane reset
+- [ ] Producer can soft-delete a shot via typed confirmation guardrail
+- [ ] Producer can manage dedicated reference links rendered as icon + title (URL on hover/open)
 - [ ] All shot fields persist correctly to Firestore (no data loss on save)
 - [ ] Mobile shot detail is read + operational (status, addendum notes) — no structural editing
 
@@ -276,3 +289,9 @@ Source: `src/pages/ShotEditorPageV3.jsx`, `src/components/shots/ShotEditModal.js
 4. **Shot List Thumbnails (Reevaluated).** Hero image on list cards is conditional on pre-sized thumbnail availability. If thumbnail generation is not available, list card images are deferred. Hero image on detail page is always required.
 
 5. **Read-Only Tags (Added).** Existing tags on legacy shot documents must be rendered as read-only colored badges. Tag write operations remain deferred.
+
+**v1.2 — 2026-02-17:** Applied lifecycle + links trust extension from focused domain execution.
+
+1. **Shot lifecycle actions moved into required scope.** Duplicate-in-project, copy-to-project, move-to-project, and guarded soft-delete are now part of the producer trust contract.
+2. **Dedicated reference links added.** URLs are no longer notes-only; shot detail now includes a structured links section with icon-first rendering and hover URL reveal.
+3. **Field contract extension.** Added `referenceLinks` to the shot document contract and version-safe editing expectations.

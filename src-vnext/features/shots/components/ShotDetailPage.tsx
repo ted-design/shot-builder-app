@@ -3,6 +3,7 @@ import { LoadingState } from "@/shared/components/LoadingState"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { useShot } from "@/features/shots/hooks/useShot"
+import { useShots } from "@/features/shots/hooks/useShots"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { TalentPicker } from "@/features/shots/components/TalentPicker"
 import { LocationPicker } from "@/features/shots/components/LocationPicker"
@@ -13,6 +14,8 @@ import { ShotLooksSection } from "@/features/shots/components/ShotLooksSection"
 import { ShotCommentsSection } from "@/features/shots/components/ShotCommentsSection"
 import { ShotVersionHistorySection } from "@/features/shots/components/ShotVersionHistorySection"
 import { TagEditor } from "@/features/shots/components/TagEditor"
+import { ShotLifecycleActionsMenu } from "@/features/shots/components/ShotLifecycleActionsMenu"
+import { ShotReferenceLinksSection } from "@/features/shots/components/ShotReferenceLinksSection"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -30,11 +33,14 @@ import { useMemo, useState } from "react"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ShotPdfExportDialog } from "@/features/shots/components/ShotPdfExportDialog"
 import { useLocations, useTalent } from "@/features/shots/hooks/usePickerData"
+import { useProjects } from "@/features/projects/hooks/useProjects"
 
 export default function ShotDetailPage() {
   const { sid } = useParams<{ sid: string }>()
   const navigate = useNavigate()
   const { data: shot, loading, error } = useShot(sid)
+  const { data: projectShots } = useShots()
+  const { data: projects } = useProjects()
   const { role, clientId, user } = useAuth()
   const { projectName } = useProjectScope()
   const isMobile = useIsMobile()
@@ -43,6 +49,7 @@ export default function ShotDetailPage() {
 
   const canEdit = canManageShots(role) && !isMobile
   const canDoOperational = canManageShots(role)
+  const canManageLifecycle = (role === "admin" || role === "producer") && !isMobile
   const canShare = role === "admin" || role === "producer"
   const [shareOpen, setShareOpen] = useState(false)
   const canExport = !isMobile
@@ -55,6 +62,14 @@ export default function ShotDetailPage() {
   const locationNameById = useMemo(() => {
     return new Map(locationRecords.map((l) => [l.id, l.name]))
   }, [locationRecords])
+
+  const existingShotTitles = useMemo(() => {
+    return new Set(
+      projectShots
+        .map((entry) => entry.title?.trim())
+        .filter((entry): entry is string => !!entry && entry.length > 0),
+    )
+  }, [projectShots])
 
   const save = async (fields: Record<string, unknown>): Promise<boolean> => {
     if (!shot || !clientId) return false
@@ -137,6 +152,13 @@ export default function ShotDetailPage() {
             <Button variant="outline" onClick={() => setShareOpen(true)}>
               Share
             </Button>
+          )}
+          {canManageLifecycle && (
+            <ShotLifecycleActionsMenu
+              shot={shot}
+              projects={projects}
+              existingTitles={existingShotTitles}
+            />
           )}
           <ShotStatusSelect
             shotId={shot.id}
@@ -242,6 +264,16 @@ export default function ShotDetailPage() {
                   if (!ok) throw new Error("Failed to save addendum")
                 }}
                 canEditAddendum={canDoOperational}
+              />
+              <ShotReferenceLinksSection
+                shotId={shot.id}
+                referenceLinks={shot.referenceLinks}
+                notesAddendum={shot.notesAddendum}
+                canEdit={canEdit}
+                onSaveReferenceLinks={async (next) => {
+                  const ok = await save({ referenceLinks: next })
+                  if (!ok) throw new Error("Failed to save reference links")
+                }}
               />
 
               <div>

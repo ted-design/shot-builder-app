@@ -15,6 +15,37 @@ describe("mapShot", () => {
     expect(shot.title).toBe("Legacy Shot Name")
   })
 
+  it("normalizes reference links and infers type", () => {
+    const shot = mapShot("s1", {
+      title: "Shot A",
+      projectId: "p1",
+      clientId: "c1",
+      createdAt: { seconds: 1, nanoseconds: 0 },
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+      createdBy: "u1",
+      deleted: false,
+      referenceLinks: [
+        { id: "lk-1", title: "Deck", url: "example.com/deck.pdf", type: "document" },
+        { id: "lk-2", url: "loom.com/share/abc" },
+      ],
+    })
+
+    expect(shot.referenceLinks).toEqual([
+      {
+        id: "lk-1",
+        title: "Deck",
+        url: "https://example.com/deck.pdf",
+        type: "document",
+      },
+      {
+        id: "lk-2",
+        title: "loom.com",
+        url: "https://loom.com/share/abc",
+        type: "video",
+      },
+    ])
+  })
+
   it("derives heroImage from legacy attachments when heroImage is absent", () => {
     const shot = mapShot("s1", {
       title: "Shot A",

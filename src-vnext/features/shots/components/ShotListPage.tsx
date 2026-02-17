@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
@@ -11,9 +11,11 @@ import { ShotReorderControls } from "@/features/shots/components/ShotReorderCont
 import { CreateShotDialog } from "@/features/shots/components/CreateShotDialog"
 import { CreatePullFromShotsDialog } from "@/features/pulls/components/CreatePullFromShotsDialog"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
+import { ShotLifecycleActionsMenu } from "@/features/shots/components/ShotLifecycleActionsMenu"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { canGeneratePulls, canManageShots } from "@/shared/lib/rbac"
+import { useProjects } from "@/features/projects/hooks/useProjects"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { Button } from "@/ui/button"
 import { Badge } from "@/ui/badge"
@@ -27,11 +29,11 @@ import {
 } from "@/ui/select"
 import { Input } from "@/ui/input"
 import { formatDateOnly } from "@/features/shots/lib/dateOnly"
-import { Camera, Plus, Info, LayoutGrid, Table2, SlidersHorizontal, Eye, ArrowUpDown, Image as ImageIcon, BarChart3, Search, X } from "lucide-react"
+import { Camera, Plus, Info, LayoutGrid, Table2, SlidersHorizontal, Eye, ArrowUpDown, Image as ImageIcon, BarChart3, Search, X, Link2, Globe, Video, FileText } from "lucide-react"
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { textPreview } from "@/shared/lib/textPreview"
-import type { Shot, ShotFirestoreStatus } from "@/shared/types"
+import type { Shot, ShotFirestoreStatus, ShotReferenceLinkType } from "@/shared/types"
 import { toast } from "sonner"
 import { TagBadge } from "@/shared/components/TagBadge"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
@@ -62,6 +64,7 @@ type ShotsListFields = {
   readonly date: boolean
   readonly location: boolean
   readonly products: boolean
+  readonly links: boolean
   readonly talent: boolean
   readonly updated: boolean
 }
@@ -87,6 +90,20 @@ const STATUS_LABELS: Record<ShotFirestoreStatus, string> = {
   in_progress: "In progress",
   on_hold: "On hold",
   complete: "Complete",
+}
+
+const REFERENCE_LINK_PREVIEW_LIMIT = 2
+
+function getReferenceLinkIcon(type: ShotReferenceLinkType) {
+  switch (type) {
+    case "video":
+      return Video
+    case "document":
+      return FileText
+    case "web":
+    default:
+      return Globe
+  }
 }
 
 function sortShots(
@@ -237,6 +254,7 @@ function formatUpdatedAt(shot: Shot): string {
 
 export default function ShotListPage() {
   const { data: shots, loading, error } = useShots()
+  const { data: projects } = useProjects()
   const { role, clientId, user } = useAuth()
   const { projectId, projectName } = useProjectScope()
   const navigate = useNavigate()
@@ -260,6 +278,7 @@ export default function ShotListPage() {
   const canRepair = (role === "admin" || role === "producer") && !isMobile
   const canShare = role === "admin" || role === "producer"
   const canExport = !isMobile
+  const canManageLifecycle = (role === "admin" || role === "producer") && !isMobile
 
   const [repairOpen, setRepairOpen] = useState(false)
   const [repairing, setRepairing] = useState(false)
@@ -325,6 +344,7 @@ export default function ShotListPage() {
       date: true,
       location: true,
       products: true,
+      links: false,
       talent: true,
       updated: false,
     }
@@ -540,6 +560,25 @@ export default function ShotListPage() {
 
     return { statusCounts, missingCounts }
   }, [displayShots])
+
+  const existingShotTitles = useMemo(() => {
+    return new Set(
+      shots
+        .map((entry) => entry.title?.trim())
+        .filter((entry): entry is string => !!entry && entry.length > 0),
+    )
+  }, [shots])
+
+  const renderLifecycleAction = (shot: Shot) => {
+    if (!canManageLifecycle) return null
+    return (
+      <ShotLifecycleActionsMenu
+        shot={shot}
+        projects={projects}
+        existingTitles={existingShotTitles}
+      />
+    )
+  }
 
   const talentNameById = useMemo(() => {
     return new Map(talentRecords.map((t) => [t.id, t.name]))
@@ -1258,6 +1297,7 @@ export default function ShotListPage() {
                             tags: true,
                             location: false,
                             products: false,
+                            links: false,
                             talent: false,
                           })
                         }
@@ -1279,6 +1319,7 @@ export default function ShotListPage() {
                             tags: true,
                             location: true,
                             products: true,
+                            links: true,
                             talent: true,
                           })
                         }
@@ -1324,6 +1365,16 @@ export default function ShotListPage() {
                           }}
                         />
                         <span>Notes</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.links}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, links: !fields.links })
+                          }}
+                        />
+                        <span>Reference links</span>
                       </label>
                       <p className="text-xs text-[var(--color-text-muted)]">
                         Visual view always shows the hero image.
@@ -1405,6 +1456,16 @@ export default function ShotListPage() {
                           }}
                         />
                         <span>Products</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.links}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, links: !fields.links })
+                          }}
+                        />
+                        <span>Reference links</span>
                       </label>
                       <label className="flex items-center gap-2 text-sm">
                         <Checkbox
@@ -1534,6 +1595,16 @@ export default function ShotListPage() {
                             }}
                           />
                           <span>Products</span>
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={fields.links}
+                            onCheckedChange={(v) => {
+                              if (v === "indeterminate") return
+                              setFields({ ...fields, links: !fields.links })
+                            }}
+                          />
+                          <span>Reference links</span>
                         </label>
                         <label className="flex items-center gap-2 text-sm">
                           <Checkbox
@@ -1729,6 +1800,7 @@ export default function ShotListPage() {
                 <ShotCard
                   shot={shot}
                   visibleFields={fields}
+                  actionControl={renderLifecycleAction(shot)}
                   talentNameById={talentNameById}
                   locationNameById={locationNameById}
                 />
@@ -1771,6 +1843,8 @@ export default function ShotListPage() {
             fields={fields}
             talentNameById={talentNameById}
             locationNameById={locationNameById}
+            showLifecycleActions={canManageLifecycle}
+            renderLifecycleAction={renderLifecycleAction}
             selection={
               selectionEnabled
                 ? { enabled: true, selectedIds, onToggle: toggleSelected, onToggleAll: (next) => setSelectedIds(next) }
@@ -1816,10 +1890,12 @@ export default function ShotListPage() {
                         selectable={selectionEnabled}
                         selected={selectionEnabled ? selectedIds.has(shot.id) : false}
                         onSelectedChange={() => toggleSelected(shot.id)}
+                        actionControl={renderLifecycleAction(shot)}
                         showShotNumber={fields.shotNumber}
                         showTags={fields.tags}
                         showReadiness={fields.readiness}
                         showNotes={fields.notes}
+                        showLinks={fields.links}
                       />
                     ))}
                   </div>
@@ -1835,10 +1911,12 @@ export default function ShotListPage() {
                   selectable={selectionEnabled}
                   selected={selectionEnabled ? selectedIds.has(shot.id) : false}
                   onSelectedChange={() => toggleSelected(shot.id)}
+                  actionControl={renderLifecycleAction(shot)}
                   showShotNumber={fields.shotNumber}
                   showTags={fields.tags}
                   showReadiness={fields.readiness}
                   showNotes={fields.notes}
+                  showLinks={fields.links}
                 />
               ))}
             </div>
@@ -1866,6 +1944,7 @@ export default function ShotListPage() {
                       selected={selectionEnabled ? selectedIds.has(shot.id) : false}
                       onSelectedChange={() => toggleSelected(shot.id)}
                       visibleFields={fields}
+                      actionControl={renderLifecycleAction(shot)}
                       talentNameById={talentNameById}
                       locationNameById={locationNameById}
                     />
@@ -1880,6 +1959,7 @@ export default function ShotListPage() {
             shots={displayShots}
             disabled={!isCustomSort || !canReorder || hasActiveFilters || hasActiveGrouping}
             visibleFields={fields}
+            actionControl={renderLifecycleAction}
             talentNameById={talentNameById}
             locationNameById={locationNameById}
             selection={
@@ -2015,6 +2095,8 @@ function ShotsTable({
   fields,
   talentNameById,
   locationNameById,
+  showLifecycleActions = false,
+  renderLifecycleAction,
   selection,
   onOpenShot,
 }: {
@@ -2022,6 +2104,8 @@ function ShotsTable({
   readonly fields: ShotsListFields
   readonly talentNameById?: ReadonlyMap<string, string> | null
   readonly locationNameById?: ReadonlyMap<string, string> | null
+  readonly showLifecycleActions?: boolean
+  readonly renderLifecycleAction?: (shot: Shot) => ReactNode
   readonly selection?: {
     readonly enabled: boolean
     readonly selectedIds: ReadonlySet<string>
@@ -2062,9 +2146,11 @@ function ShotsTable({
             {fields.notes && <th className="min-w-[260px] px-3 py-2 text-left font-medium">Notes</th>}
             {fields.location && <th className="min-w-[160px] px-3 py-2 text-left font-medium">Location</th>}
             {fields.products && <th className="min-w-[280px] px-3 py-2 text-left font-medium">Products</th>}
+            {fields.links && <th className="min-w-[220px] px-3 py-2 text-left font-medium">Reference links</th>}
             {fields.talent && <th className="min-w-[220px] px-3 py-2 text-left font-medium">Talent</th>}
             {fields.tags && <th className="min-w-[180px] px-3 py-2 text-left font-medium">Tags</th>}
             {fields.updated && <th className="w-28 px-3 py-2 text-left font-medium">Updated</th>}
+            {showLifecycleActions && <th className="w-16 px-3 py-2 text-left font-medium">Actions</th>}
             <th className="w-28 px-3 py-2 text-left font-medium">Status</th>
           </tr>
         </thead>
@@ -2072,6 +2158,8 @@ function ShotsTable({
           {shots.map((shot) => {
             const title = shot.title || "Untitled Shot"
             const productLabels = getShotPrimaryLookProductLabels(shot)
+            const referenceLinks = shot.referenceLinks ?? []
+            const referenceLinksPreview = referenceLinks.slice(0, REFERENCE_LINK_PREVIEW_LIMIT)
             const notesPreview = getShotNotesPreview(shot, 420)
 
             const talentIds = shot.talentIds ?? shot.talent
@@ -2175,6 +2263,39 @@ function ShotsTable({
                     )}
                   </td>
                 )}
+                {fields.links && (
+                  <td className="px-3 py-2 text-[var(--color-text-secondary)]">
+                    {referenceLinks.length === 0 ? (
+                      "—"
+                    ) : (
+                      <div className="flex max-w-[280px] flex-col gap-0.5">
+                        {referenceLinksPreview.map((entry) => {
+                          const Icon = getReferenceLinkIcon(entry.type)
+                          return (
+                            <a
+                              key={entry.id}
+                              href={entry.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 truncate hover:underline"
+                              onClick={(event) => event.stopPropagation()}
+                              onPointerDown={(event) => event.stopPropagation()}
+                              title={`${entry.title}\n${entry.url}`}
+                            >
+                              <Icon className="h-3 w-3 flex-shrink-0 text-[var(--color-text-subtle)]" />
+                              <span className="truncate">{entry.title}</span>
+                            </a>
+                          )
+                        })}
+                        {referenceLinks.length > referenceLinksPreview.length && (
+                          <span className="text-[10px] text-[var(--color-text-subtle)]">
+                            +{referenceLinks.length - referenceLinksPreview.length} more
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                )}
                 {fields.talent && (
                   <td className="px-3 py-2 text-[var(--color-text-secondary)]">
                     {!hasTalent ? (
@@ -2224,6 +2345,11 @@ function ShotsTable({
                 {fields.updated && (
                   <td className="px-3 py-2 text-[var(--color-text-secondary)]">
                     {formatUpdatedAt(shot)}
+                  </td>
+                )}
+                {showLifecycleActions && (
+                  <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                    {renderLifecycleAction?.(shot)}
                   </td>
                 )}
                 <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
