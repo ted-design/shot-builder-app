@@ -186,7 +186,6 @@ export function ScheduleEntryEditSheet({
       await onMoveToTrack(nextTrack)
     } catch {
       toast.error("Failed to move entry.")
-    } finally {
       setTrackDraft(entry.trackId ?? "primary")
     }
   }
