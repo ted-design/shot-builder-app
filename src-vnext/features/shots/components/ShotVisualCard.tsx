@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent } from "@/ui/card"
 import { Checkbox } from "@/ui/checkbox"
-import { Camera, MapPin, Package, Users } from "lucide-react"
+import { Camera, MapPin, Package, StickyNote, Users } from "lucide-react"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { StatusBadge } from "@/shared/components/StatusBadge"
@@ -10,6 +10,8 @@ import { getShotStatusColor, getShotStatusLabel } from "@/shared/lib/statusMappi
 import type { Shot } from "@/shared/types"
 import { TagBadge } from "@/shared/components/TagBadge"
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
+import { getShotNotesPreview } from "@/features/shots/lib/shotListSummaries"
+import { NotesPreviewText } from "@/features/shots/components/NotesPreviewText"
 
 interface ShotVisualCardProps {
   readonly shot: Shot
@@ -19,6 +21,7 @@ interface ShotVisualCardProps {
   readonly showShotNumber?: boolean
   readonly showTags?: boolean
   readonly showReadiness?: boolean
+  readonly showNotes?: boolean
 }
 
 export function ShotVisualCard({
@@ -29,6 +32,7 @@ export function ShotVisualCard({
   showShotNumber = true,
   showTags = true,
   showReadiness = true,
+  showNotes = false,
 }: ShotVisualCardProps) {
   const navigate = useNavigate()
   const { projectId } = useProjectScope()
@@ -48,6 +52,7 @@ export function ShotVisualCard({
     (t) => typeof t === "string" && t.trim().length > 0,
   )
   const hasLocation = !!shot.locationId
+  const notesPreview = showNotes ? getShotNotesPreview(shot, 220) : ""
 
   return (
     <Card
@@ -125,6 +130,17 @@ export function ShotVisualCard({
                 +{shot.tags.length - 6}
               </span>
             )}
+          </div>
+        )}
+
+        {showNotes && notesPreview && (
+          <div className="flex items-start gap-1 text-xs text-[var(--color-text-muted)]">
+            <StickyNote className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-subtle)]" />
+            <NotesPreviewText
+              text={notesPreview}
+              className="line-clamp-3 min-w-0"
+              onLinkClick={(event) => event.stopPropagation()}
+            />
           </div>
         )}
 

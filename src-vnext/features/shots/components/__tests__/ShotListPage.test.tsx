@@ -393,4 +393,101 @@ describe("ShotListPage", () => {
     expect(screen.getByText("Alpha")).toBeInTheDocument()
     expect(screen.queryByText("Should be hidden")).not.toBeInTheDocument()
   })
+
+  it("renders notes in table view when notes column is enabled", () => {
+    window.localStorage.setItem(
+      "sb:shots:list:c1:p1:fields:v1",
+      JSON.stringify({ notes: true }),
+    )
+
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        makeShot({
+          id: "a",
+          title: "Alpha",
+          notes: "<p>Legacy HTML note</p>",
+          notesAddendum: "Bring handheld steamer",
+        }),
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots?view=table&sort=name")
+
+    expect(screen.getByText("Notes")).toBeInTheDocument()
+    expect(screen.getByText("Bring handheld steamer")).toBeInTheDocument()
+    expect(screen.queryByText("Legacy HTML note")).not.toBeInTheDocument()
+  })
+
+  it("renders notes in gallery view when notes preview is enabled", () => {
+    window.localStorage.setItem(
+      "sb:shots:list:c1:p1:fields:v1",
+      JSON.stringify({ notes: true }),
+    )
+
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        makeShot({
+          id: "a",
+          title: "Alpha",
+          notesAddendum: "Fog machine at 30%",
+        }),
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots")
+
+    expect(screen.getByText("Fog machine at 30%")).toBeInTheDocument()
+  })
+
+  it("renders notes in visual view when notes preview is enabled", () => {
+    window.localStorage.setItem(
+      "sb:shots:list:c1:p1:fields:v1",
+      JSON.stringify({ notes: true }),
+    )
+
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        makeShot({
+          id: "a",
+          title: "Alpha",
+          notes: "<p>Use 50mm lens, low angle.</p>",
+        }),
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots?view=visual")
+
+    expect(screen.getByText("Use 50mm lens, low angle.")).toBeInTheDocument()
+  })
+
+  it("renders note URLs as clickable links", () => {
+    window.localStorage.setItem(
+      "sb:shots:list:c1:p1:fields:v1",
+      JSON.stringify({ notes: true }),
+    )
+
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        makeShot({
+          id: "a",
+          title: "Alpha",
+          notesAddendum: "Reference: https://example.com/lookbook",
+        }),
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots")
+
+    const link = screen.getByRole("link", { name: "https://example.com/lookbook" })
+    expect(link).toHaveAttribute("href", "https://example.com/lookbook")
+    expect(link).toHaveAttribute("target", "_blank")
+  })
 })

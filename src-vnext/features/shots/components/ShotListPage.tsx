@@ -37,13 +37,14 @@ import { TagBadge } from "@/shared/components/TagBadge"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { backfillMissingShotDates } from "@/features/shots/lib/backfillShotDates"
 import { useLocations, useTalent } from "@/features/shots/hooks/usePickerData"
-import { getShotPrimaryLookProductLabels, resolveIdsToNames } from "@/features/shots/lib/shotListSummaries"
+import { getShotNotesPreview, getShotPrimaryLookProductLabels, resolveIdsToNames } from "@/features/shots/lib/shotListSummaries"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ShotsPdfExportDialog } from "@/features/shots/components/ShotsPdfExportDialog"
 import { Skeleton } from "@/ui/skeleton"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
 import { Separator } from "@/ui/separator"
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/ui/sheet"
+import { NotesPreviewText } from "@/features/shots/components/NotesPreviewText"
 
 type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated"
 type SortDir = "asc" | "desc"
@@ -55,6 +56,7 @@ type ShotsListFields = {
   readonly heroThumb: boolean
   readonly shotNumber: boolean
   readonly description: boolean
+  readonly notes: boolean
   readonly readiness: boolean
   readonly tags: boolean
   readonly date: boolean
@@ -317,6 +319,7 @@ export default function ShotListPage() {
       heroThumb: true,
       shotNumber: true,
       description: true,
+      notes: false,
       readiness: true,
       tags: true,
       date: true,
@@ -1250,6 +1253,7 @@ export default function ShotListPage() {
                             heroThumb: true,
                             shotNumber: true,
                             description: false,
+                            notes: false,
                             readiness: true,
                             tags: true,
                             location: false,
@@ -1270,6 +1274,7 @@ export default function ShotListPage() {
                             heroThumb: true,
                             shotNumber: true,
                             description: true,
+                            notes: true,
                             readiness: true,
                             tags: true,
                             location: true,
@@ -1309,6 +1314,16 @@ export default function ShotListPage() {
                           }}
                         />
                         <span>Tags</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.notes}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, notes: !fields.notes })
+                          }}
+                        />
+                        <span>Notes</span>
                       </label>
                       <p className="text-xs text-[var(--color-text-muted)]">
                         Visual view always shows the hero image.
@@ -1350,6 +1365,16 @@ export default function ShotListPage() {
                           }}
                         />
                         <span>Description preview</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={fields.notes}
+                          onCheckedChange={(v) => {
+                            if (v === "indeterminate") return
+                            setFields({ ...fields, notes: !fields.notes })
+                          }}
+                        />
+                        <span>Notes preview</span>
                       </label>
                       <label className="flex items-center gap-2 text-sm">
                         <Checkbox
@@ -1449,6 +1474,16 @@ export default function ShotListPage() {
                             }}
                           />
                           <span>Description preview</span>
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={fields.notes}
+                            onCheckedChange={(v) => {
+                              if (v === "indeterminate") return
+                              setFields({ ...fields, notes: !fields.notes })
+                            }}
+                          />
+                          <span>Notes preview</span>
                         </label>
                         <label className="flex items-center gap-2 text-sm">
                           <Checkbox
@@ -1784,6 +1819,7 @@ export default function ShotListPage() {
                         showShotNumber={fields.shotNumber}
                         showTags={fields.tags}
                         showReadiness={fields.readiness}
+                        showNotes={fields.notes}
                       />
                     ))}
                   </div>
@@ -1802,6 +1838,7 @@ export default function ShotListPage() {
                   showShotNumber={fields.shotNumber}
                   showTags={fields.tags}
                   showReadiness={fields.readiness}
+                  showNotes={fields.notes}
                 />
               ))}
             </div>
@@ -2022,6 +2059,7 @@ function ShotsTable({
             {fields.heroThumb && <th className="w-14 px-3 py-2" />}
             <th className="min-w-[240px] px-3 py-2 text-left font-medium">Shot</th>
             {fields.date && <th className="w-32 px-3 py-2 text-left font-medium">Date</th>}
+            {fields.notes && <th className="min-w-[260px] px-3 py-2 text-left font-medium">Notes</th>}
             {fields.location && <th className="min-w-[160px] px-3 py-2 text-left font-medium">Location</th>}
             {fields.products && <th className="min-w-[280px] px-3 py-2 text-left font-medium">Products</th>}
             {fields.talent && <th className="min-w-[220px] px-3 py-2 text-left font-medium">Talent</th>}
@@ -2034,6 +2072,7 @@ function ShotsTable({
           {shots.map((shot) => {
             const title = shot.title || "Untitled Shot"
             const productLabels = getShotPrimaryLookProductLabels(shot)
+            const notesPreview = getShotNotesPreview(shot, 420)
 
             const talentIds = shot.talentIds ?? shot.talent
             const { names: talentNames, unknownCount: unknownTalentCount } = resolveIdsToNames(
@@ -2089,6 +2128,21 @@ function ShotsTable({
                 {fields.date && (
                   <td className="px-3 py-2 text-[var(--color-text-secondary)]">
                     {formatDateOnly(shot.date) || "—"}
+                  </td>
+                )}
+                {fields.notes && (
+                  <td className="px-3 py-2 text-[var(--color-text-secondary)]">
+                    {notesPreview ? (
+                      <div className="max-w-[420px] text-xs leading-4" title={notesPreview}>
+                        <NotesPreviewText
+                          text={notesPreview}
+                          className="line-clamp-3 min-w-0"
+                          onLinkClick={(event) => event.stopPropagation()}
+                        />
+                      </div>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                 )}
                 {fields.location && (
