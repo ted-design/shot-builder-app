@@ -1,6 +1,7 @@
 import { Timestamp } from "firebase/firestore"
 import type { Shot, ProductAssignment, ShotLook, ShotReferenceImage, ShotTag } from "@/shared/types"
 import { resolveShotTagCategory } from "@/shared/lib/tagCategories"
+import { normalizeReferenceLinks } from "@/features/shots/lib/referenceLinks"
 
 /**
  * Normalize a Firestore date field that may be a Timestamp or an ISO string.
@@ -385,6 +386,7 @@ export function mapShot(id: string, data: Record<string, unknown>): Shot {
     looks: normalizeLooks(data["looks"]),
     activeLookId: normalizeNullableString(data["activeLookId"]),
     tags: normalizeTags(data["tags"]),
+    referenceLinks: normalizeReferenceLinks(data["referenceLinks"]),
     deleted: data["deleted"] as boolean | undefined,
     createdAt: data["createdAt"] as Shot["createdAt"],
     updatedAt: data["updatedAt"] as Shot["updatedAt"],

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import {
   DndContext,
   closestCenter,
@@ -27,6 +27,7 @@ interface DraggableShotListProps {
   readonly shots: ReadonlyArray<Shot>
   readonly disabled?: boolean
   readonly visibleFields?: Partial<ShotCardVisibleFields>
+  readonly actionControl?: (shot: Shot) => ReactNode
   readonly talentNameById?: ReadonlyMap<string, string> | null
   readonly locationNameById?: ReadonlyMap<string, string> | null
   readonly selection?: {
@@ -40,6 +41,7 @@ export function DraggableShotList({
   shots,
   disabled,
   visibleFields,
+  actionControl,
   talentNameById,
   locationNameById,
   selection,
@@ -86,6 +88,7 @@ export function DraggableShotList({
             selected={selection?.selectedIds.has(shot.id) ?? false}
             onSelectedChange={() => selection?.onToggle(shot.id)}
             visibleFields={visibleFields}
+            actionControl={actionControl?.(shot)}
             talentNameById={talentNameById}
             locationNameById={locationNameById}
           />
@@ -110,6 +113,7 @@ export function DraggableShotList({
               key={shot.id}
               shot={shot}
               visibleFields={visibleFields}
+              actionControl={actionControl}
               talentNameById={talentNameById}
               locationNameById={locationNameById}
             />
@@ -123,11 +127,13 @@ export function DraggableShotList({
 function SortableShotCard({
   shot,
   visibleFields,
+  actionControl,
   talentNameById,
   locationNameById,
 }: {
   readonly shot: Shot
   readonly visibleFields?: Partial<ShotCardVisibleFields>
+  readonly actionControl?: (shot: Shot) => ReactNode
   readonly talentNameById?: ReadonlyMap<string, string> | null
   readonly locationNameById?: ReadonlyMap<string, string> | null
 }) {
@@ -163,6 +169,7 @@ function SortableShotCard({
           </button>
         }
         visibleFields={visibleFields}
+        actionControl={actionControl?.(shot)}
         talentNameById={talentNameById}
         locationNameById={locationNameById}
       />

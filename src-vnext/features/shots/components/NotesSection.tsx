@@ -90,12 +90,12 @@ export function NotesSection({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={4}
-              placeholder="Add notes, links, or reminders..."
+              placeholder="Add notes or reminders..."
               className="text-sm"
               data-testid="notes-input"
             />
             <p className="text-xs text-[var(--color-text-subtle)]">
-              Tip: paste full URLs (for example `https://...`) to keep clickable references.
+              Add dedicated URLs in the Reference links section below.
             </p>
             <Button
               variant="outline"

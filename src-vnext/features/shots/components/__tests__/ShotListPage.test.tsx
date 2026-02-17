@@ -9,6 +9,10 @@ vi.mock("@/features/shots/hooks/useShots", () => ({
   useShots: vi.fn(),
 }))
 
+vi.mock("@/features/projects/hooks/useProjects", () => ({
+  useProjects: () => ({ data: [], loading: false, error: null }),
+}))
+
 vi.mock("@/features/shots/hooks/usePickerData", () => ({
   useTalent: vi.fn(),
   useLocations: vi.fn(),
@@ -62,6 +66,7 @@ function makeShot(overrides: Partial<Shot>): Shot {
     shotNumber: overrides.shotNumber,
     notes: overrides.notes,
     notesAddendum: overrides.notesAddendum,
+    referenceLinks: overrides.referenceLinks,
     date: overrides.date,
     heroImage: overrides.heroImage,
     tags: overrides.tags,
@@ -109,6 +114,19 @@ describe("ShotListPage", () => {
 
     expect(screen.getByRole("table")).toBeInTheDocument()
     expect(screen.getByText("Alpha")).toBeInTheDocument()
+  })
+
+  it("shows lifecycle actions in table rows for producer desktop", () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots?view=table&sort=name")
+
+    expect(screen.getByText("Actions")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Shot actions" })).toBeInTheDocument()
   })
 
   it("renders visual view when view=visual", () => {
@@ -418,6 +436,37 @@ describe("ShotListPage", () => {
     expect(screen.getByText("Notes")).toBeInTheDocument()
     expect(screen.getByText("Bring handheld steamer")).toBeInTheDocument()
     expect(screen.queryByText("Legacy HTML note")).not.toBeInTheDocument()
+  })
+
+  it("renders reference links in table view when links column is enabled", () => {
+    window.localStorage.setItem(
+      "sb:shots:list:c1:p1:fields:v1",
+      JSON.stringify({ links: true }),
+    )
+
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        makeShot({
+          id: "a",
+          title: "Alpha",
+          referenceLinks: [
+            {
+              id: "rl-1",
+              title: "Moodboard",
+              url: "https://example.com/moodboard",
+              type: "web",
+            },
+          ],
+        }),
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots?view=table&sort=name")
+
+    expect(screen.getByText("Reference links")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Moodboard" })).toBeInTheDocument()
   })
 
   it("renders notes in gallery view when notes preview is enabled", () => {

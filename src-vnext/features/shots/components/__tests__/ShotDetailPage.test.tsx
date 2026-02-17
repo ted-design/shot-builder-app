@@ -9,6 +9,14 @@ vi.mock("@/features/shots/hooks/useShot", () => ({
   useShot: vi.fn(),
 }))
 
+vi.mock("@/features/shots/hooks/useShots", () => ({
+  useShots: () => ({ data: [], loading: false, error: null }),
+}))
+
+vi.mock("@/features/projects/hooks/useProjects", () => ({
+  useProjects: () => ({ data: [], loading: false, error: null }),
+}))
+
 vi.mock("@/app/providers/AuthProvider", () => ({
   useAuth: () => ({ role: "producer", clientId: "c1" }),
 }))

@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent } from "@/ui/card"
 import { Checkbox } from "@/ui/checkbox"
-import { Camera, MapPin, Package, StickyNote, Users } from "lucide-react"
+import { Camera, MapPin, Package, StickyNote, Users, Link2, Globe, Video, FileText } from "lucide-react"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { StatusBadge } from "@/shared/components/StatusBadge"
 import { getShotStatusColor, getShotStatusLabel } from "@/shared/lib/statusMappings"
-import type { Shot } from "@/shared/types"
+import type { Shot, ShotReferenceLinkType } from "@/shared/types"
 import { TagBadge } from "@/shared/components/TagBadge"
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { getShotNotesPreview } from "@/features/shots/lib/shotListSummaries"
@@ -18,10 +18,24 @@ interface ShotVisualCardProps {
   readonly selectable?: boolean
   readonly selected?: boolean
   readonly onSelectedChange?: (next: boolean) => void
+  readonly actionControl?: ReactNode
   readonly showShotNumber?: boolean
   readonly showTags?: boolean
   readonly showReadiness?: boolean
   readonly showNotes?: boolean
+  readonly showLinks?: boolean
+}
+
+function getReferenceLinkIcon(type: ShotReferenceLinkType) {
+  switch (type) {
+    case "video":
+      return Video
+    case "document":
+      return FileText
+    case "web":
+    default:
+      return Globe
+  }
 }
 
 export function ShotVisualCard({
@@ -29,10 +43,12 @@ export function ShotVisualCard({
   selectable,
   selected,
   onSelectedChange,
+  actionControl,
   showShotNumber = true,
   showTags = true,
   showReadiness = true,
   showNotes = false,
+  showLinks = false,
 }: ShotVisualCardProps) {
   const navigate = useNavigate()
   const { projectId } = useProjectScope()
@@ -53,6 +69,10 @@ export function ShotVisualCard({
   )
   const hasLocation = !!shot.locationId
   const notesPreview = showNotes ? getShotNotesPreview(shot, 220) : ""
+  const referenceLinks = shot.referenceLinks ?? []
+  const firstReferenceLink = referenceLinks[0]
+  const moreReferenceLinks = Math.max(0, referenceLinks.length - 1)
+  const ReferenceLinkIcon = firstReferenceLink ? getReferenceLinkIcon(firstReferenceLink.type) : Link2
 
   return (
     <Card
@@ -94,9 +114,11 @@ export function ShotVisualCard({
         </div>
 
         <div
-          className="absolute right-2 top-2"
+          className="absolute right-2 top-2 flex items-center gap-1"
           onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
         >
+          {actionControl}
           <StatusBadge
             label={getShotStatusLabel(shot.status)}
             color={getShotStatusColor(shot.status)}
@@ -141,6 +163,16 @@ export function ShotVisualCard({
               className="line-clamp-3 min-w-0"
               onLinkClick={(event) => event.stopPropagation()}
             />
+          </div>
+        )}
+
+        {showLinks && firstReferenceLink && (
+          <div className="flex items-start gap-1 text-xs text-[var(--color-text-muted)]" title={firstReferenceLink.url}>
+            <ReferenceLinkIcon className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-subtle)]" />
+            <span className="line-clamp-2 min-w-0">
+              {firstReferenceLink.title}
+              {moreReferenceLinks > 0 ? ` +${moreReferenceLinks}` : ""}
+            </span>
           </div>
         )}
 

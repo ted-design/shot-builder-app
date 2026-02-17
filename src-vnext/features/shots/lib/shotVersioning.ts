@@ -55,6 +55,7 @@ const VERSIONED_SHOT_FIELDS: ReadonlyArray<keyof Shot> = [
   "looks",
   "activeLookId",
   "tags",
+  "referenceLinks",
 ]
 
 function buildShotSnapshot(shot: Shot, patch: Record<string, unknown> = {}): Record<string, unknown> {
