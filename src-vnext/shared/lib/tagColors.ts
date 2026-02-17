@@ -22,14 +22,32 @@ const TAG_COLOR_CLASS_MAP = {
 export type TagColorKey = keyof typeof TAG_COLOR_CLASS_MAP
 
 export const TAG_COLOR_KEYS = Object.keys(TAG_COLOR_CLASS_MAP) as TagColorKey[]
+const HASHABLE_TAG_COLOR_KEYS = TAG_COLOR_KEYS.filter((key) => key !== "gray")
 
 export function isTagColorKey(value: unknown): value is TagColorKey {
   return typeof value === "string" && value in TAG_COLOR_CLASS_MAP
 }
 
+export function resolveTagColorKey(color: unknown, seed?: string): TagColorKey {
+  if (typeof color === "string") {
+    const normalized = color.trim().toLowerCase()
+    if (isTagColorKey(normalized)) return normalized
+  }
+
+  const normalizedSeed = seed?.trim().toLowerCase() ?? ""
+  if (!normalizedSeed) return "gray"
+
+  let hash = 0
+  for (let i = 0; i < normalizedSeed.length; i += 1) {
+    hash = (hash * 31 + normalizedSeed.charCodeAt(i)) >>> 0
+  }
+
+  const index = hash % HASHABLE_TAG_COLOR_KEYS.length
+  return HASHABLE_TAG_COLOR_KEYS[index] ?? "gray"
+}
+
 export function getTagColorClasses(color: unknown): string {
-  if (isTagColorKey(color)) return TAG_COLOR_CLASS_MAP[color]
-  return TAG_COLOR_CLASS_MAP.gray
+  return TAG_COLOR_CLASS_MAP[resolveTagColorKey(color)]
 }
 
 export function getTagSwatchClasses(color: unknown): string {
@@ -40,4 +58,3 @@ export function getTagSwatchClasses(color: unknown): string {
     .filter((utility) => allowPrefixes.some((prefix) => utility.startsWith(prefix)))
     .join(" ")
 }
-

@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Call Sheet Schedule IA Wireframes</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --surface: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #dbe2ea;
+        --primary: #0f172a;
+        --accent: #2563eb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 24px;
+        font-family: "Inter", "Segoe UI", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      h1 {
+        margin: 0 0 8px 0;
+        font-size: 20px;
+      }
+
+      p.meta {
+        margin: 0 0 20px 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .option {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 20px;
+      }
+
+      .option h2 {
+        margin: 0 0 4px 0;
+        font-size: 15px;
+      }
+
+      .option .sub {
+        margin: 0 0 12px 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .board {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fbfdff;
+        padding: 10px;
+      }
+
+      .row {
+        display: grid;
+        gap: 10px;
+      }
+
+      .cols-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .lane {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: white;
+        padding: 8px;
+        min-height: 120px;
+      }
+
+      .lane h3 {
+        margin: 0 0 8px 0;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+      }
+
+      .global-rail {
+        margin-bottom: 10px;
+        border: 1px solid #cdd8ea;
+        border-radius: 8px;
+        background: #eef4ff;
+        padding: 8px;
+      }
+
+      .chip {
+        display: inline-block;
+        border: 1px solid #aac2ef;
+        background: white;
+        color: #1e3a8a;
+        border-radius: 999px;
+        font-size: 11px;
+        padding: 4px 8px;
+        margin: 4px 6px 0 0;
+      }
+
+      .card {
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
+        border-radius: 7px;
+        background: white;
+        padding: 8px;
+        margin-bottom: 8px;
+      }
+
+      .card .r1 {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 12px;
+      }
+
+      .time {
+        font-weight: 700;
+        min-width: 56px;
+      }
+
+      .title {
+        font-weight: 600;
+      }
+
+      .pill {
+        margin-left: auto;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 1px 6px;
+        font-size: 10px;
+        color: var(--muted);
+      }
+
+      .card .r2 {
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .card .r3 {
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .matrix {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+
+      .matrix th,
+      .matrix td {
+        border: 1px solid var(--border);
+        padding: 6px;
+        vertical-align: top;
+      }
+
+      .matrix th {
+        text-transform: uppercase;
+        font-size: 10px;
+        color: var(--muted);
+        letter-spacing: 0.05em;
+        background: #f8fafc;
+      }
+
+      .band {
+        background: #eef4ff;
+        color: #1e3a8a;
+        font-weight: 600;
+        font-size: 11px;
+      }
+
+      .stream {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: white;
+        padding: 8px;
+      }
+
+      .stream .line {
+        border-left: 2px solid #cbd5e1;
+        margin-left: 10px;
+        padding-left: 12px;
+      }
+
+      .badge {
+        display: inline-block;
+        margin-left: 6px;
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        background: #eff6ff;
+        border-radius: 4px;
+        font-size: 10px;
+        padding: 1px 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Call Sheet Schedule IA Alternatives</h1>
+    <p class="meta">
+      Low-fidelity direction mockups for discussion. Focus: editability, readability, shared semantics.
+    </p>
+
+    <section class="option">
+      <h2>Option AB (Recommended): Time-Banded Stream + Track Columns + Shared In-Stream</h2>
+      <p class="sub">
+        Shared blockers stay in the same schedule flow at their exact time. Track entries are still grouped side-by-side within each time band.
+      </p>
+      <div class="board">
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th style="width:120px;">Time Band</th>
+              <th>Primary</th>
+              <th>Track 2</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="band" colspan="3">6:00 AM–6:15 AM | Shared Blocker: Hair & Makeup Reset (All Tracks)</td>
+            </tr>
+            <tr>
+              <td>9:00 AM–9:30 AM</td>
+              <td>
+                <div class="card">
+                  <div class="r1"><span class="time">9:00</span><span class="title">Merino Lounge Pants</span><span class="pill">Shot</span></div>
+                  <div class="r2">#A10 | Talent: 2 | Hospital Entrance</div>
+                  <div class="r3">15m | Notes: Wide + detail pass</div>
+                </div>
+                <div class="card">
+                  <div class="r1"><span class="time">9:15</span><span class="title">Load In</span><span class="pill">Setup</span></div>
+                  <div class="r2">Track: Primary</div>
+                  <div class="r3">10m | Staging at east door</div>
+                </div>
+              </td>
+              <td>
+                <div class="card">
+                  <div class="r1"><span class="time">9:00</span><span class="title">Merino Overcoat</span><span class="pill">Shot</span></div>
+                  <div class="r2">#B22 | Talent: 1 | Alley</div>
+                  <div class="r3">30m | Hero move + alt lens</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="band" colspan="3">10:00 AM–10:30 AM | Shared Blocker: Company Move</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="option">
+      <h2>Option B: Time-Band Matrix (Rows by Time, Columns by Track)</h2>
+      <p class="sub">
+        Strong temporal scan. Shared appears as full-width row bands. Higher implementation cost.
+      </p>
+      <div class="board">
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th style="width:110px;">Time</th>
+              <th>Primary</th>
+              <th>Track 2</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="band" colspan="3">6:00 AM | Shared: Hair & Makeup Reset</td></tr>
+            <tr>
+              <td>9:00 AM</td>
+              <td>Merino Lounge Pants (#A10)</td>
+              <td>Merino Overcoat (#B22)</td>
+            </tr>
+            <tr>
+              <td>9:15 AM</td>
+              <td>Load In (Setup)</td>
+              <td></td>
+            </tr>
+            <tr><td class="band" colspan="3">10:00 AM | Shared: Company Move</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="option">
+      <h2>Option C: Single Stream with Track Badges</h2>
+      <p class="sub">
+        Simplest scan and minimal horizontal scroll. Simultaneous work is less explicit.
+      </p>
+      <div class="board">
+        <div class="stream">
+          <div class="line">
+            <div class="card">
+              <div class="r1"><span class="time">6:00 AM</span><span class="title">Hair & Makeup Reset</span><span class="badge">Shared</span></div>
+              <div class="r2">Highlight block for all tracks</div>
+              <div class="r3">15m | Notes: Confirm final looks</div>
+            </div>
+            <div class="card">
+              <div class="r1"><span class="time">9:00 AM</span><span class="title">Merino Lounge Pants</span><span class="badge">Primary</span></div>
+              <div class="r2">#A10 | Talent: 2</div>
+              <div class="r3">15m</div>
+            </div>
+            <div class="card">
+              <div class="r1"><span class="time">9:00 AM</span><span class="title">Merino Overcoat</span><span class="badge">Track 2</span></div>
+              <div class="r2">#B22 | Talent: 1</div>
+              <div class="r3">30m</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>

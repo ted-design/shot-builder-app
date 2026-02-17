@@ -18,7 +18,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVertical, Plus, Camera, StickyNote } from "lucide-react"
+import { GripVertical, Plus, Camera, StickyNote, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/ui/button"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -26,6 +26,7 @@ import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { AddShotToScheduleDialog } from "@/features/schedules/components/AddShotToScheduleDialog"
 import { AddCustomEntryDialog } from "@/features/schedules/components/AddCustomEntryDialog"
 import { ScheduleEntryCard } from "@/features/schedules/components/ScheduleEntryCard"
+import { ScheduleEntryEditSheet } from "@/features/schedules/components/ScheduleEntryEditSheet"
 import {
   addScheduleEntryCustom,
   addScheduleEntryShot,
@@ -41,7 +42,8 @@ import {
 } from "@/features/schedules/lib/cascade"
 import { buildAutoDurationFillPatches } from "@/features/schedules/lib/autoDuration"
 import { findTrackOverlapConflicts, type TrackOverlapConflict } from "@/features/schedules/lib/conflicts"
-import type { Schedule, ScheduleEntry, ScheduleTrack, Shot } from "@/shared/types"
+import { formatMinutesTo12h, parseTimeToMinutes } from "@/features/schedules/lib/time"
+import type { Schedule, ScheduleEntry, ScheduleTrack, Shot, TalentRecord } from "@/shared/types"
 
 type ContainerId = string | "shared"
 type EntryPatch = { readonly entryId: string; readonly patch: Record<string, unknown> }
@@ -81,6 +83,24 @@ function isSharedBannerEntry(entry: ScheduleEntry): boolean {
   return !!entry.trackId && SHARED_TRACK_IDS.has(entry.trackId)
 }
 
+function entryTimelineMinute(entry: ScheduleEntry): number | null {
+  const raw = entry.startTime ?? entry.time ?? null
+  if (!raw) return null
+  return parseTimeToMinutes(raw)
+}
+
+function compareEntriesForTimeline(a: ScheduleEntry, b: ScheduleEntry): number {
+  const am = entryTimelineMinute(a)
+  const bm = entryTimelineMinute(b)
+  if (am != null && bm != null && am !== bm) return am - bm
+  if (am != null && bm == null) return -1
+  if (am == null && bm != null) return 1
+  const ao = a.order ?? 0
+  const bo = b.order ?? 0
+  if (ao !== bo) return ao - bo
+  return a.id.localeCompare(b.id)
+}
+
 function applyEntryPatches(
   entries: readonly ScheduleEntry[],
   patches: readonly EntryPatch[],
@@ -115,8 +135,20 @@ function findIntroducedConflict(params: {
   return null
 }
 
-function DroppableColumn({ id, children }: { readonly id: ContainerId; readonly children: React.ReactNode }) {
-  const { setNodeRef, isOver } = useDroppable({ id: containerKey(id) })
+function TrackHeaderDropZone({
+  trackId,
+  label,
+  count,
+  onAddShot,
+  onAddHighlight,
+}: {
+  readonly trackId: string
+  readonly label: string
+  readonly count: number
+  readonly onAddShot: () => void
+  readonly onAddHighlight: () => void
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: containerKey(trackId) })
   return (
     <div
       ref={setNodeRef}
@@ -124,7 +156,38 @@ function DroppableColumn({ id, children }: { readonly id: ContainerId; readonly 
         isOver ? "border-[var(--color-primary)] bg-[var(--color-primary-subtle)]/30" : ""
       }`}
     >
-      {children}
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+            {label}
+          </div>
+          <div className="text-[10px] text-[var(--color-text-subtle)]">
+            {count} {count === 1 ? "entry" : "entries"}
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={onAddShot}
+            aria-label="Add shot"
+            title="Add shot"
+          >
+            <Camera className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={onAddHighlight}
+            aria-label="Add highlight"
+            title="Add highlight"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -140,13 +203,13 @@ function SortableEntry({
   onUpdateStartTime,
   onUpdateDuration,
   onUpdateNotes,
+  onEdit,
 }: {
   readonly entry: ScheduleEntry
   readonly showTimelineNode: boolean
   readonly trackSelect?: {
     readonly value: string
     readonly options: readonly { readonly value: string; readonly label: string }[]
-    readonly onChange: (next: string) => void
   }
   readonly isFirst: boolean
   readonly isLast: boolean
@@ -155,6 +218,7 @@ function SortableEntry({
   readonly onUpdateStartTime: (startTime: string | null) => void
   readonly onUpdateDuration: (duration: number | undefined) => void
   readonly onUpdateNotes: (notes: string) => void
+  readonly onEdit: () => void
 }) {
   const {
     attributes,
@@ -185,6 +249,7 @@ function SortableEntry({
       <div className="pl-7">
         <ScheduleEntryCard
           entry={entry}
+          density="compact"
           isFirst={isFirst}
           isLast={isLast}
           reorderMode="none"
@@ -195,6 +260,7 @@ function SortableEntry({
           onUpdateStartTime={onUpdateStartTime}
           onUpdateDuration={onUpdateDuration}
           onUpdateNotes={onUpdateNotes}
+          onEdit={onEdit}
         />
       </div>
     </div>
@@ -206,11 +272,13 @@ export function ScheduleEntriesBoard({
   schedule,
   entries,
   shots,
+  talentLookup,
 }: {
   readonly scheduleId: string
   readonly schedule: Schedule | null
   readonly entries: readonly ScheduleEntry[]
   readonly shots: readonly Shot[]
+  readonly talentLookup?: readonly TalentRecord[]
 }) {
   const { clientId } = useAuth()
   const { projectId } = useProjectScope()
@@ -249,6 +317,7 @@ export function ScheduleEntriesBoard({
   }, [entriesByContainer])
 
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [editEntryId, setEditEntryId] = useState<string | null>(null)
   const [shotDialog, setShotDialog] = useState<{ open: boolean; trackId: string }>({ open: false, trackId: "primary" })
   const [customDialog, setCustomDialog] = useState<{ open: boolean; trackId: string }>({ open: false, trackId: "primary" })
   const showTimelineNode = false
@@ -392,6 +461,18 @@ export function ScheduleEntriesBoard({
     () => tracks.map((t) => ({ value: t.id, label: t.name })),
     [tracks],
   )
+  const localIndexByTrack = useMemo(() => {
+    const byTrack = new Map<string, Map<string, number>>()
+    for (const track of tracks) {
+      const indexByEntryId = new Map<string, number>()
+      const locals = entriesByContainer[track.id] ?? []
+      locals.forEach((entry, index) => {
+        indexByEntryId.set(entry.id, index)
+      })
+      byTrack.set(track.id, indexByEntryId)
+    }
+    return byTrack
+  }, [entriesByContainer, tracks])
 
   const handleMoveToTrack = useCallback(
     async (entry: ScheduleEntry, nextTrackId: string) => {
@@ -449,9 +530,9 @@ export function ScheduleEntriesBoard({
     const activeEntry = entries.find((e) => e.id === activeEntryId) ?? null
     if (!activeEntry) return
 
-    // Shared container only accepts shared highlight blocks.
+    // Highlights lane only accepts shared highlight blocks.
     if (toContainer === "shared" && !isSharedBannerEntry(activeEntry)) {
-      toast.info("Shared is for shared highlights. Use “Add Highlight” in Shared.")
+      toast.info("Highlights lane only accepts highlight blocks.")
       return
     }
     if (fromContainer === "shared" && !isSharedBannerEntry(activeEntry)) return
@@ -511,8 +592,85 @@ export function ScheduleEntriesBoard({
   }, [clientId, commitPatchesWithConflictGuard, containerByEntryId, entries, entriesByContainer, projectId, scheduleId, settings])
 
   const activeEntry = activeId ? entries.find((e) => e.id === activeId) ?? null : null
-  const hasSharedHighlights = (entriesByContainer.shared ?? []).length > 0
+  const editEntry = editEntryId ? entries.find((e) => e.id === editEntryId) ?? null : null
   const isMulti = tracks.length > 1
+  const isScheduleEmpty = entries.length === 0
+
+  useEffect(() => {
+    if (!editEntryId) return
+    if (editEntry) return
+    setEditEntryId(null)
+  }, [editEntry, editEntryId])
+
+  const timelineSegments = useMemo(() => {
+    const shared = (entriesByContainer.shared ?? []).slice().sort(compareEntriesForTimeline)
+    const localByTrack: Record<string, ScheduleEntry[]> = {}
+    const cursorByTrack = new Map<string, number>()
+
+    for (const track of tracks) {
+      const locals = (entriesByContainer[track.id] ?? []).slice().sort(compareEntriesForTimeline)
+      localByTrack[track.id] = locals
+      cursorByTrack.set(track.id, 0)
+    }
+
+    const segments: Array<
+      | { readonly kind: "locals"; readonly byTrack: Record<string, readonly ScheduleEntry[]>; readonly key: string }
+      | { readonly kind: "shared"; readonly entry: ScheduleEntry; readonly key: string }
+    > = []
+
+    for (const sharedEntry of shared) {
+      const byTrack: Record<string, readonly ScheduleEntry[]> = {}
+      let hasLocalEntries = false
+
+      for (const track of tracks) {
+        const locals = localByTrack[track.id] ?? []
+        let cursor = cursorByTrack.get(track.id) ?? 0
+        const bucket: ScheduleEntry[] = []
+        while (cursor < locals.length && compareEntriesForTimeline(locals[cursor]!, sharedEntry) < 0) {
+          bucket.push(locals[cursor]!)
+          cursor += 1
+        }
+        cursorByTrack.set(track.id, cursor)
+        byTrack[track.id] = bucket
+        if (bucket.length > 0) hasLocalEntries = true
+      }
+
+      if (hasLocalEntries) {
+        segments.push({
+          kind: "locals",
+          byTrack,
+          key: `locals-before-${sharedEntry.id}`,
+        })
+      }
+
+      segments.push({
+        kind: "shared",
+        entry: sharedEntry,
+        key: `shared-${sharedEntry.id}`,
+      })
+    }
+
+    const tailByTrack: Record<string, readonly ScheduleEntry[]> = {}
+    let hasTailEntries = false
+
+    for (const track of tracks) {
+      const locals = localByTrack[track.id] ?? []
+      const cursor = cursorByTrack.get(track.id) ?? 0
+      const tail = locals.slice(cursor)
+      tailByTrack[track.id] = tail
+      if (tail.length > 0) hasTailEntries = true
+    }
+
+    if (hasTailEntries || segments.length === 0) {
+      segments.push({
+        kind: "locals",
+        byTrack: tailByTrack,
+        key: "locals-tail",
+      })
+    }
+
+    return segments
+  }, [entriesByContainer, tracks])
 
   return (
     <div className="flex flex-col gap-2">
@@ -529,56 +687,135 @@ export function ScheduleEntriesBoard({
         onDragEnd={handleDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        {isMulti ? (
-          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-            {tracks.map((track) => {
-              const list = entriesByContainer[track.id] ?? []
+        <div className="flex items-center justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCustomDialog({ open: true, trackId: "shared" })}
+            aria-label="Add timeline highlight"
+            title="Add timeline highlight"
+          >
+            <StickyNote className="mr-1.5 h-3.5 w-3.5" />
+            Add Timeline Highlight
+          </Button>
+        </div>
+
+        <div className={isMulti ? "grid gap-3 lg:grid-cols-2" : "grid gap-3 grid-cols-1"}>
+          {tracks.map((track) => (
+            <TrackHeaderDropZone
+              key={track.id}
+              trackId={track.id}
+              label={isMulti ? track.name : "Schedule"}
+              count={(entriesByContainer[track.id] ?? []).length}
+              onAddShot={() => setShotDialog({ open: true, trackId: track.id })}
+              onAddHighlight={() => setCustomDialog({ open: true, trackId: track.id })}
+            />
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {isScheduleEmpty ? (
+            <div className="rounded border border-dashed border-[var(--color-border)] px-3 py-6 text-center text-xs text-[var(--color-text-subtle)]">
+              Add a shot or a highlight block to start.
+            </div>
+          ) : timelineSegments.map((segment) => {
+            if (segment.kind === "shared") {
+              const sharedEntry = segment.entry
               return (
-                <DroppableColumn key={track.id} id={track.id}>
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="truncate text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-                        {track.name}
+                <div
+                  key={segment.key}
+                  className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditEntryId(sharedEntry.id)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <div className="truncate text-xs font-semibold text-[var(--color-text)]">
+                        {(sharedEntry.startTime ?? sharedEntry.time) ? `${sharedEntry.startTime ?? sharedEntry.time} ` : ""}
+                        {sharedEntry.highlight?.emoji ? `${sharedEntry.highlight.emoji} ` : ""}
+                        {sharedEntry.title}
                       </div>
-                      <div className="text-[10px] text-[var(--color-text-subtle)]">
-                        {list.length} {list.length === 1 ? "entry" : "entries"}
+                      <div className="mt-0.5 text-[10px] uppercase tracking-wide text-[var(--color-text-subtle)]">
+                        Timeline highlight
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1">
+                    </button>
+                    <div className="flex items-center gap-0.5">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
-                        onClick={() => setShotDialog({ open: true, trackId: track.id })}
-                        aria-label="Add shot"
-                        title="Add shot"
+                        className="h-6 w-6 text-[var(--color-text-muted)]"
+                        onClick={() => setEditEntryId(sharedEntry.id)}
+                        aria-label="Edit highlight"
                       >
-                        <Camera className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
-                        onClick={() => setCustomDialog({ open: true, trackId: track.id })}
-                        aria-label="Add highlight"
-                        title="Add highlight"
+                        className="h-6 w-6 text-[var(--color-text-muted)]"
+                        onClick={() =>
+                          void handleRemove(sharedEntry.id).catch(() => toast.error("Failed to remove entry."))
+                        }
+                        aria-label="Remove highlight"
                       >
-                        <Plus className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
+                </div>
+              )
+            }
 
-                  <SortableContext
-                    items={list.map((e) => e.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="flex flex-col gap-2">
-                      {list.length === 0 ? (
-                        <div className="rounded border border-dashed border-[var(--color-border)] px-3 py-4 text-xs text-[var(--color-text-subtle)]">
-                          No entries.
-                        </div>
-                      ) : (
-                        list.map((entry, idx) => (
+            const timedRows = new Set<number>()
+            const timedByTrack = new Map<string, Map<number, ScheduleEntry[]>>()
+            const untimedByTrack = new Map<string, ScheduleEntry[]>()
+
+            for (const track of tracks) {
+              const chunk = segment.byTrack[track.id] ?? []
+              const minuteMap = new Map<number, ScheduleEntry[]>()
+              const untimed: ScheduleEntry[] = []
+
+              for (const entry of chunk) {
+                const minute = entryTimelineMinute(entry)
+                if (minute == null) {
+                  untimed.push(entry)
+                  continue
+                }
+                timedRows.add(minute)
+                const bucket = minuteMap.get(minute)
+                if (bucket) {
+                  bucket.push(entry)
+                } else {
+                  minuteMap.set(minute, [entry])
+                }
+              }
+
+              timedByTrack.set(track.id, minuteMap)
+              untimedByTrack.set(track.id, untimed)
+            }
+
+            const orderedTimedRows = Array.from(timedRows).sort((a, b) => a - b)
+            const hasUntimedRows = tracks.some((track) => (untimedByTrack.get(track.id)?.length ?? 0) > 0)
+
+            const renderTrackEntries = (track: ScheduleTrack, list: readonly ScheduleEntry[], keyPrefix: string) => {
+              const trackList = entriesByContainer[track.id] ?? []
+              const indexLookup = localIndexByTrack.get(track.id) ?? new Map<string, number>()
+
+              return (
+                <SortableContext
+                  key={`${keyPrefix}:${track.id}`}
+                  items={list.map((entry) => entry.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="flex flex-col gap-2">
+                    {list.length === 0 ? (
+                      <div className="min-h-[2px]" />
+                    ) : (
+                      list.map((entry) => {
+                        const localIndex = indexLookup.get(entry.id) ?? 0
+                        return (
                           <SortableEntry
                             key={entry.id}
                             entry={entry}
@@ -586,11 +823,9 @@ export function ScheduleEntriesBoard({
                             trackSelect={{
                               value: entry.trackId && trackIdSet.has(entry.trackId) ? entry.trackId : "primary",
                               options: trackOptions,
-                              onChange: (next) => void handleMoveToTrack(entry, next)
-                                .catch(() => toast.error("Failed to move entry.")),
                             }}
-                            isFirst={idx === 0}
-                            isLast={idx === list.length - 1}
+                            isFirst={localIndex <= 0}
+                            isLast={localIndex >= trackList.length - 1}
                             onRemove={() => void handleRemove(entry.id).catch(() => toast.error("Failed to remove entry."))}
                             onUpdateTitle={(title) =>
                               void handleUpdateTitle(entry.id, title)
@@ -608,226 +843,71 @@ export function ScheduleEntriesBoard({
                               void handleUpdateNotes(entry.id, notes)
                                 .catch(() => toast.error("Failed to update notes."))
                             }
+                            onEdit={() => setEditEntryId(entry.id)}
                           />
-                        ))
-                      )}
-                    </div>
-                  </SortableContext>
-                </DroppableColumn>
-              )
-            })}
-
-            <DroppableColumn id="shared">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-                    Shared
-                  </div>
-                  <div className="text-[10px] text-[var(--color-text-subtle)]">
-                    {(entriesByContainer.shared ?? []).length} highlights
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setCustomDialog({ open: true, trackId: "shared" })}
-                  aria-label="Add shared highlight"
-                  title="Add shared highlight"
-                >
-                  <StickyNote className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <SortableContext
-                items={(entriesByContainer.shared ?? []).map((e) => e.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="flex flex-col gap-2">
-                  {(entriesByContainer.shared ?? []).length === 0 ? (
-                    <div className="rounded border border-dashed border-[var(--color-border)] px-3 py-4 text-xs text-[var(--color-text-subtle)]">
-                      Add shared highlights for notes, transitions, or reminders.
-                    </div>
-                  ) : (
-                    (entriesByContainer.shared ?? []).map((entry, idx, arr) => (
-                      <SortableEntry
-                        key={entry.id}
-                        entry={entry}
-                        showTimelineNode={showTimelineNode}
-                        isFirst={idx === 0}
-                        isLast={idx === arr.length - 1}
-                        onRemove={() => void handleRemove(entry.id).catch(() => toast.error("Failed to remove entry."))}
-                        onUpdateTitle={(title) =>
-                          void handleUpdateTitle(entry.id, title)
-                            .catch(() => toast.error("Failed to update title."))
-                        }
-                        onUpdateStartTime={(startTime) =>
-                          void handleUpdateStartTime(entry, startTime)
-                            .catch(() => toast.error("Failed to update time."))
-                        }
-                        onUpdateDuration={(duration) =>
-                          void handleUpdateDuration(entry, duration)
-                            .catch(() => toast.error("Failed to update duration."))
-                        }
-                        onUpdateNotes={(notes) =>
-                          void handleUpdateNotes(entry.id, notes)
-                            .catch(() => toast.error("Failed to update notes."))
-                        }
-                      />
-                    ))
-                  )}
-                </div>
-              </SortableContext>
-            </DroppableColumn>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {tracks.map((track) => {
-              const list = entriesByContainer[track.id] ?? []
-              return (
-                <DroppableColumn key={track.id} id={track.id}>
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="truncate text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-                        Schedule
-                      </div>
-                      <div className="text-[10px] text-[var(--color-text-subtle)]">
-                        {list.length} {list.length === 1 ? "entry" : "entries"}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => setShotDialog({ open: true, trackId: track.id })}
-                        aria-label="Add shot"
-                        title="Add shot"
-                      >
-                        <Camera className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => setCustomDialog({ open: true, trackId: track.id })}
-                        aria-label="Add highlight"
-                        title="Add highlight"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <SortableContext
-                    items={list.map((e) => e.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="flex flex-col gap-2">
-                      {list.length === 0 ? (
-                        <div className="rounded border border-dashed border-[var(--color-border)] px-3 py-6 text-center text-xs text-[var(--color-text-subtle)]">
-                          Add a shot or a highlight block to start.
-                        </div>
-                      ) : (
-                        list.map((entry, idx) => (
-                          <SortableEntry
-                            key={entry.id}
-                            entry={entry}
-                            showTimelineNode={showTimelineNode}
-                            isFirst={idx === 0}
-                            isLast={idx === list.length - 1}
-                            onRemove={() => void handleRemove(entry.id).catch(() => toast.error("Failed to remove entry."))}
-                            onUpdateTitle={(title) =>
-                              void handleUpdateTitle(entry.id, title)
-                                .catch(() => toast.error("Failed to update title."))
-                            }
-                            onUpdateStartTime={(startTime) =>
-                              void handleUpdateStartTime(entry, startTime)
-                                .catch(() => toast.error("Failed to update time."))
-                            }
-                            onUpdateDuration={(duration) =>
-                              void handleUpdateDuration(entry, duration)
-                                .catch(() => toast.error("Failed to update duration."))
-                            }
-                            onUpdateNotes={(notes) =>
-                              void handleUpdateNotes(entry.id, notes)
-                                .catch(() => toast.error("Failed to update notes."))
-                            }
-                          />
-                        ))
-                      )}
-                    </div>
-                  </SortableContext>
-                </DroppableColumn>
-              )
-            })}
-
-            {hasSharedHighlights ? (
-              <DroppableColumn id="shared">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="truncate text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-                      Banners
-                    </div>
-                    <div className="text-[10px] text-[var(--color-text-subtle)]">
-                      {(entriesByContainer.shared ?? []).length} highlight{(entriesByContainer.shared ?? []).length === 1 ? "" : "s"}
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setCustomDialog({ open: true, trackId: "shared" })}
-                    aria-label="Add shared highlight"
-                    title="Add shared highlight"
-                  >
-                    <StickyNote className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <SortableContext
-                  items={(entriesByContainer.shared ?? []).map((e) => e.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="flex flex-col gap-2">
-                    {(entriesByContainer.shared ?? []).map((entry, idx, arr) => (
-                      <SortableEntry
-                        key={entry.id}
-                        entry={entry}
-                        showTimelineNode={showTimelineNode}
-                        isFirst={idx === 0}
-                        isLast={idx === arr.length - 1}
-                        onRemove={() => void handleRemove(entry.id).catch(() => toast.error("Failed to remove entry."))}
-                        onUpdateTitle={(title) =>
-                          void handleUpdateTitle(entry.id, title)
-                            .catch(() => toast.error("Failed to update title."))
-                        }
-                        onUpdateStartTime={(startTime) =>
-                          void handleUpdateStartTime(entry, startTime)
-                            .catch(() => toast.error("Failed to update time."))
-                        }
-                        onUpdateDuration={(duration) =>
-                          void handleUpdateDuration(entry, duration)
-                            .catch(() => toast.error("Failed to update duration."))
-                        }
-                        onUpdateNotes={(notes) =>
-                          void handleUpdateNotes(entry.id, notes)
-                            .catch(() => toast.error("Failed to update notes."))
-                        }
-                      />
-                    ))}
+                        )
+                      })
+                    )}
                   </div>
                 </SortableContext>
-              </DroppableColumn>
-            ) : null}
-          </div>
-        )}
+              )
+            }
+
+            return (
+              <div
+                key={segment.key}
+                className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]"
+              >
+                {orderedTimedRows.map((minute, rowIndex) => (
+                  <div
+                    key={`${segment.key}:minute:${minute}`}
+                    className={`px-2 py-2 ${rowIndex > 0 ? "border-t border-[var(--color-border)]/70" : ""}`}
+                  >
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                      {formatMinutesTo12h(minute)}
+                    </div>
+                    <div className={isMulti ? "grid gap-3 lg:grid-cols-2" : "grid gap-3 grid-cols-1"}>
+                      {tracks.map((track) => {
+                        const timedEntries = timedByTrack.get(track.id)?.get(minute) ?? []
+                        return (
+                          <div key={`${segment.key}:${track.id}:minute:${minute}`} className="min-h-[2px]">
+                            {renderTrackEntries(track, timedEntries, `${segment.key}:minute:${minute}`)}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+
+                {hasUntimedRows ? (
+                  <div className={`${orderedTimedRows.length > 0 ? "border-t border-[var(--color-border)]/70" : ""} px-2 py-2`}>
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                      Unscheduled
+                    </div>
+                    <div className={isMulti ? "grid gap-3 lg:grid-cols-2" : "grid gap-3 grid-cols-1"}>
+                      {tracks.map((track) => (
+                        <div key={`${segment.key}:${track.id}:untimed`} className="min-h-[2px]">
+                          {renderTrackEntries(
+                            track,
+                            untimedByTrack.get(track.id) ?? [],
+                            `${segment.key}:untimed`,
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
 
         <DragOverlay>
           {activeEntry ? (
             <div className="w-[340px] opacity-95">
               <ScheduleEntryCard
                 entry={activeEntry}
+                density="compact"
                 isFirst
                 isLast
                 reorderMode="none"
@@ -837,11 +917,51 @@ export function ScheduleEntriesBoard({
                 onUpdateStartTime={() => {}}
                 onUpdateDuration={() => {}}
                 onUpdateNotes={() => {}}
+                onEdit={() => {}}
               />
             </div>
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      <ScheduleEntryEditSheet
+        open={!!editEntryId}
+        entry={editEntry}
+        trackOptions={trackOptions}
+        onOpenChange={(next) => {
+          if (!next) setEditEntryId(null)
+        }}
+        onUpdateTitle={async (title) => {
+          if (!editEntryId) return
+          await handleUpdateTitle(editEntryId, title)
+        }}
+        onUpdateStartTime={async (startTime) => {
+          if (!editEntryId) return
+          const current = entries.find((entry) => entry.id === editEntryId)
+          if (!current) return
+          await handleUpdateStartTime(current, startTime)
+        }}
+        onUpdateDuration={async (duration) => {
+          if (!editEntryId) return
+          const current = entries.find((entry) => entry.id === editEntryId)
+          if (!current) return
+          await handleUpdateDuration(current, duration)
+        }}
+        onUpdateNotes={async (notes) => {
+          if (!editEntryId) return
+          await handleUpdateNotes(editEntryId, notes)
+        }}
+        onUpdateHighlight={async (highlight) => {
+          if (!editEntryId || !clientId) return
+          await updateScheduleEntryFields(clientId, projectId, scheduleId, editEntryId, { highlight })
+        }}
+        onMoveToTrack={async (trackId) => {
+          if (!editEntryId) return
+          const current = entries.find((entry) => entry.id === editEntryId)
+          if (!current) return
+          await handleMoveToTrack(current, trackId)
+        }}
+      />
 
       <AddShotToScheduleDialog
         open={shotDialog.open}
@@ -849,6 +969,7 @@ export function ScheduleEntriesBoard({
         shots={shots}
         existingEntries={entries}
         tracks={tracks}
+        talentLookup={talentLookup}
         defaultTrackId={shotDialog.trackId}
         onAdd={async (shot, trackId) => {
           if (!clientId) return

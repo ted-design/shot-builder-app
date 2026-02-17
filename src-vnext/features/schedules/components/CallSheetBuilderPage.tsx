@@ -26,6 +26,7 @@ import { CallOverridesEditor } from "@/features/schedules/components/CallOverrid
 import { CallSheetOutputControls } from "@/features/schedules/components/CallSheetOutputControls"
 import { CallSheetPrintPortal } from "@/features/schedules/components/CallSheetPrintPortal"
 import { TrustChecks } from "@/features/schedules/components/TrustChecks"
+import { DEFAULT_CALLSHEET_COLORS } from "@/features/schedules/lib/callSheetConfig"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { Button } from "@/ui/button"
 import { Sheet, SheetContent, SheetTitle } from "@/ui/sheet"
@@ -390,6 +391,7 @@ export default function CallSheetBuilderPage() {
                 schedule={schedule}
                 entries={entries}
                 shots={shots}
+                talentLookup={talentLibrary}
               />
 
               <CallSheetOutputControls
@@ -407,12 +409,13 @@ export default function CallSheetBuilderPage() {
                   showDescription: rendererConfig.scheduleBlockFields?.showDescription ?? true,
                   showTalent: rendererConfig.scheduleBlockFields?.showTalent ?? true,
                   showLocation: rendererConfig.scheduleBlockFields?.showLocation ?? true,
+                  showTags: rendererConfig.scheduleBlockFields?.showTags ?? true,
                   showNotes: rendererConfig.scheduleBlockFields?.showNotes ?? true,
                 }}
                 colors={{
-                  primary: rendererConfig.colors?.primary ?? "#111111",
-                  accent: rendererConfig.colors?.accent ?? "#2563eb",
-                  text: rendererConfig.colors?.text ?? "#111111",
+                  primary: rendererConfig.colors?.primary ?? DEFAULT_CALLSHEET_COLORS.primary,
+                  accent: rendererConfig.colors?.accent ?? DEFAULT_CALLSHEET_COLORS.accent,
+                  text: rendererConfig.colors?.text ?? DEFAULT_CALLSHEET_COLORS.text,
                 }}
                 onPatchSections={(patch) => {
                   void callSheetConfig.setSectionVisibility(patch)

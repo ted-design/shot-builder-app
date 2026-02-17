@@ -40,6 +40,12 @@ const DEFAULT_SECTION_ORDER: readonly (keyof Required<CallSheetSectionVisibility
   "notes",
 ]
 
+export const DEFAULT_CALLSHEET_COLORS: Required<CallSheetColors> = {
+  primary: "#111111",
+  accent: "#2563eb",
+  text: "#111111",
+}
+
 export function normalizeCallSheetConfig(raw: Record<string, unknown> | null): CallSheetConfig {
   const legacy = (raw ?? {}) as LegacyConfig
 
@@ -70,6 +76,7 @@ export function normalizeCallSheetConfig(raw: Record<string, unknown> | null): C
     showDescription: legacy.scheduleBlockFields?.["showDescription"] as boolean | undefined,
     showTalent: legacy.scheduleBlockFields?.["showTalent"] as boolean | undefined,
     showLocation: legacy.scheduleBlockFields?.["showLocation"] as boolean | undefined,
+    showTags: legacy.scheduleBlockFields?.["showTags"] as boolean | undefined,
     showNotes: legacy.scheduleBlockFields?.["showNotes"] as boolean | undefined,
   }
 

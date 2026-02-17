@@ -3,6 +3,7 @@ import { textPreview } from "@/shared/lib/textPreview"
 import { formatMinutesTo12h } from "@/features/schedules/lib/time"
 import { buildScheduleProjection } from "@/features/schedules/lib/projection"
 import type { ProjectedScheduleRow } from "@/features/schedules/lib/projection"
+import { TagBadge } from "@/shared/components/TagBadge"
 import type { Schedule, ScheduleEntry, Shot, TalentRecord } from "@/shared/types"
 import type { ScheduleBlockFields } from "@/features/schedules/components/CallSheetRenderer"
 
@@ -21,12 +22,19 @@ type RenderGroup =
 
 function computeTimeRange(row: ProjectedScheduleRow): string {
   if (row.startMin == null) return ""
-  const start = formatMinutesTo12h(row.startMin)
-  if (row.durationMinutes != null && row.durationMinutes > 0) {
-    const end = formatMinutesTo12h(row.startMin + row.durationMinutes)
-    return `${start}–${end}`
+  return formatMinutesTo12h(row.startMin)
+}
+
+function formatDurationLabel(durationMinutes: number | null | undefined): string {
+  if (durationMinutes == null || !Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+    return ""
   }
-  return start
+  const rounded = Math.round(durationMinutes)
+  const hours = Math.floor(rounded / 60)
+  const minutes = rounded % 60
+  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`
+  if (hours > 0) return `${hours}h`
+  return `${minutes}m`
 }
 
 function hasValidBounds(row: ProjectedScheduleRow): boolean {
@@ -135,7 +143,11 @@ export function AdvancedScheduleBlockSection({
       : []
 
     const notesPreview = fields.showNotes ? textPreview(entry.notes ?? "", 140) : ""
-    const timeRange = computeTimeRange(row)
+    const shotTags = fields.showTags && Array.isArray(shot?.tags)
+      ? shot.tags.filter((tag) => (tag.label ?? "").trim().length > 0)
+      : []
+    const startLabel = computeTimeRange(row)
+    const durationLabel = formatDurationLabel(row.durationMinutes)
     const isRhythm = entry.type === "break" || entry.type === "move"
     const isHighlight = entry.type !== "shot" && !!entry.highlight
     const highlightStyle = isHighlight
@@ -160,19 +172,29 @@ export function AdvancedScheduleBlockSection({
         style={highlightStyle}
       >
         <div className="flex items-start gap-2">
-          <div className="w-24 shrink-0 font-mono text-[10px] font-semibold tabular-nums text-[var(--color-text)]">
-            {timeRange || "—"}
-            {row.timeSource === "derived" && (
-              <span className="ml-1 font-sans text-[10px] font-medium text-[var(--color-text-subtle)]">
-                (est)
-              </span>
+          <div className="w-24 shrink-0 space-y-0.5">
+            <p className="font-mono text-xs font-semibold leading-tight tabular-nums text-[var(--color-text)]">
+              {startLabel || "—"}
+              {row.timeSource === "derived" && (
+                <span className="ml-1 font-sans text-[10px] font-medium text-[var(--color-text-subtle)]">
+                  (est)
+                </span>
+              )}
+            </p>
+            {durationLabel && (
+              <p className="font-mono text-[10px] leading-tight tabular-nums text-[var(--color-text-subtle)]">
+                {durationLabel}
+              </p>
             )}
           </div>
 
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
               {shotNumber && (
-                <span className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                <span
+                  className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide"
+                  style={{ color: "var(--doc-accent,#2563eb)" }}
+                >
                   {shotNumber}
                 </span>
               )}
@@ -180,11 +202,6 @@ export function AdvancedScheduleBlockSection({
                 {entry.highlight?.emoji ? `${entry.highlight.emoji} ` : ""}
                 {title}
               </span>
-              {projection.tracks.length > 1 && (
-                <span className="shrink-0 rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
-                  {projection.tracks.find((t) => t.id === row.trackId)?.name ?? "Track"}
-                </span>
-              )}
             </div>
 
             {description && (
@@ -193,11 +210,22 @@ export function AdvancedScheduleBlockSection({
               </p>
             )}
 
+            {shotTags.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {shotTags.map((tag) => (
+                  <TagBadge key={tag.id} tag={tag} />
+                ))}
+              </div>
+            )}
+
             {(talentNames.length > 0 || location) && (
               <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[var(--color-text-muted)]">
                 {talentNames.length > 0 && (
                   <span className="truncate">
-                    <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    <span
+                      className="font-semibold uppercase tracking-wide"
+                      style={{ color: "var(--doc-accent,#2563eb)" }}
+                    >
                       Talent
                     </span>{" "}
                     {talentNames.join(", ")}
@@ -205,7 +233,10 @@ export function AdvancedScheduleBlockSection({
                 )}
                 {location && (
                   <span className="truncate">
-                    <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    <span
+                      className="font-semibold uppercase tracking-wide"
+                      style={{ color: "var(--doc-accent,#2563eb)" }}
+                    >
                       Location
                     </span>{" "}
                     {location}
@@ -237,20 +268,8 @@ export function AdvancedScheduleBlockSection({
     <div className="flex flex-col gap-2">
       {groups.map((group, idx) => {
         if (group.type === "shared") {
-          const trackLabels = group.row.appliesToTrackIds
-            ? group.row.appliesToTrackIds
-                .map((id) => projection.tracks.find((t) => t.id === id)?.name ?? null)
-                .filter(Boolean)
-                .join(", ")
-            : ""
-
           return (
             <div key={`${group.type}-${group.row.id}-${idx}`} className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
-              {trackLabels && (
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                  Applies to: {trackLabels}
-                </div>
-              )}
               {renderRow(group.row)}
             </div>
           )
@@ -275,16 +294,7 @@ export function AdvancedScheduleBlockSection({
         }
 
         return (
-          <div key={`${group.type}-${group.bandStart}-${group.bandEnd}-${idx}`} className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
-            <div className="mb-2 flex items-baseline justify-between gap-2">
-              <span className="text-xs font-semibold text-[var(--color-text)]">
-                {formatMinutesTo12h(group.bandStart)}–{formatMinutesTo12h(group.bandEnd)}
-              </span>
-              <span className="text-[10px] font-medium text-[var(--color-text-subtle)]">
-                Simultaneous
-              </span>
-            </div>
-
+          <div key={`${group.type}-${group.bandStart}-${group.bandEnd}-${idx}`}>
             <div
               className={columns.length > 3 ? "overflow-x-auto" : undefined}
             >
@@ -295,19 +305,14 @@ export function AdvancedScheduleBlockSection({
                 }}
               >
                 {columns.map((t) => {
-                const list = (byTrack.get(t.id) ?? []).slice().sort((a, b) => (a.startMin ?? 0) - (b.startMin ?? 0))
-                return (
-                  <div key={t.id} className="flex flex-col gap-2">
-                    {columns.length > 1 && (
-                      <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-                        {t.name}
-                      </div>
-                    )}
-                    {list.map((row) => (
-                      <div key={row.id}>{renderRow(row)}</div>
-                    ))}
-                  </div>
-                )
+                  const list = (byTrack.get(t.id) ?? []).slice().sort((a, b) => (a.startMin ?? 0) - (b.startMin ?? 0))
+                  return (
+                    <div key={t.id} className="flex flex-col gap-2">
+                      {list.map((row) => (
+                        <div key={row.id}>{renderRow(row)}</div>
+                      ))}
+                    </div>
+                  )
                 })}
               </div>
             </div>

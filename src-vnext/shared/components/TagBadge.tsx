@@ -1,6 +1,6 @@
 import { X } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
-import { isTagColorKey, getTagColorClasses } from "@/shared/lib/tagColors"
+import { getTagColorClasses, resolveTagColorKey } from "@/shared/lib/tagColors"
 import type { ShotTag } from "@/shared/types"
 
 export function TagBadge({
@@ -16,20 +16,15 @@ export function TagBadge({
   const label = (tag.label ?? "").trim()
   if (!label) return null
 
-  const useClasses = isTagColorKey(tag.color)
+  const colorKey = resolveTagColorKey(tag.color, tag.id)
 
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full border px-2 text-[10px] font-medium",
-        useClasses ? getTagColorClasses(tag.color) : "bg-transparent",
+        getTagColorClasses(colorKey),
         className,
       )}
-      style={
-        useClasses
-          ? undefined
-          : { borderColor: tag.color || "#94a3b8", color: tag.color || "#94a3b8" }
-      }
     >
       <span className="truncate" title={label}>
         {label}
@@ -50,4 +45,3 @@ export function TagBadge({
     </span>
   )
 }
-

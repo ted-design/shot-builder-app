@@ -2,6 +2,7 @@ import { useMemo, type CSSProperties } from "react"
 import { textPreview } from "@/shared/lib/textPreview"
 import { formatHHMMTo12h } from "@/features/schedules/lib/time"
 import { AdvancedScheduleBlockSection } from "@/features/schedules/components/AdvancedScheduleBlockSection"
+import { TagBadge } from "@/shared/components/TagBadge"
 import type {
   Schedule,
   DayDetails,
@@ -37,6 +38,7 @@ export interface ScheduleBlockFields {
   readonly showDescription?: boolean
   readonly showTalent?: boolean
   readonly showLocation?: boolean
+  readonly showTags?: boolean
   readonly showNotes?: boolean
 }
 
@@ -78,6 +80,7 @@ const DEFAULT_SCHEDULE_FIELDS: Required<ScheduleBlockFields> = {
   showDescription: true,
   showTalent: true,
   showLocation: true,
+  showTags: true,
   showNotes: true,
 }
 
@@ -118,6 +121,18 @@ function formatTimeOrText(value: string | null | undefined): string {
   return formatted || value
 }
 
+function formatDurationLabel(durationMinutes: number | null | undefined): string {
+  if (durationMinutes == null || !Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+    return ""
+  }
+  const rounded = Math.round(durationMinutes)
+  const hours = Math.floor(rounded / 60)
+  const minutes = rounded % 60
+  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`
+  if (hours > 0) return `${hours}h`
+  return `${minutes}m`
+}
+
 // --- Entry type styles for renderer ---
 
 const RHYTHM_TYPES = new Set<ScheduleEntryType>(["break", "move"])
@@ -136,23 +151,26 @@ function RendererEntryRow({
   const isRhythm = RHYTHM_TYPES.has(entry.type)
   const isHighlight = entry.type !== "shot" && !!entry.highlight
   const timeLabel = formatHHMMTo12h(entry.startTime ?? entry.time ?? null)
+  const durationLabel = formatDurationLabel(entry.duration)
 
   if (isRhythm) {
     return (
-      <div className="callsheet-block flex items-center gap-3 border-b border-amber-100 bg-amber-50/40 px-2 py-1 last:border-b-0">
+      <div className="callsheet-block flex items-start gap-3 border-b border-amber-100 bg-amber-50/40 px-2 py-1.5 last:border-b-0">
         {timeLabel && (
-          <span className="w-16 shrink-0 font-mono text-[10px] font-semibold tabular-nums text-[var(--color-text-muted)]">
-            {timeLabel}
-          </span>
+          <div className="w-16 shrink-0 space-y-0.5">
+            <p className="font-mono text-xs font-semibold leading-tight tabular-nums text-[var(--color-text)]">
+              {timeLabel}
+            </p>
+            {durationLabel && (
+              <p className="font-mono text-[10px] leading-tight tabular-nums text-[var(--color-text-subtle)]">
+                {durationLabel}
+              </p>
+            )}
+          </div>
         )}
         <span className="flex-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
           {entry.title}
         </span>
-        {entry.duration != null && (
-          <span className="shrink-0 font-mono text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-            {entry.duration}m
-          </span>
-        )}
       </div>
     )
   }
@@ -164,6 +182,9 @@ function RendererEntryRow({
   const notesPreview = fields.showNotes
     ? textPreview(entry.notes ?? "", 160)
     : ""
+  const shotTags = fields.showTags && Array.isArray(shot?.tags)
+    ? shot.tags.filter((tag) => (tag.label ?? "").trim().length > 0)
+    : []
 
   const highlightStyle: CSSProperties | undefined = isHighlight
     ? (entry.highlight?.variant === "outline"
@@ -188,16 +209,26 @@ function RendererEntryRow({
       }`}
       style={highlightStyle}
     >
-      <div className="flex items-baseline gap-3">
+      <div className="flex items-start gap-3">
         {timeLabel && (
-          <span className="w-16 shrink-0 font-mono text-xs font-semibold tabular-nums text-[var(--color-text)]">
-            {timeLabel}
-          </span>
+          <div className="w-16 shrink-0 space-y-0.5">
+            <p className="font-mono text-xs font-semibold leading-tight tabular-nums text-[var(--color-text)]">
+              {timeLabel}
+            </p>
+            {durationLabel && (
+              <p className="font-mono text-[10px] leading-tight tabular-nums text-[var(--color-text-subtle)]">
+                {durationLabel}
+              </p>
+            )}
+          </div>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             {fields.showShotNumber && shot?.shotNumber && (
-              <span className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+              <span
+                className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide"
+                style={{ color: "var(--doc-accent,#2563eb)" }}
+              >
                 {shot.shotNumber}
               </span>
             )}
@@ -213,11 +244,22 @@ function RendererEntryRow({
             </p>
           )}
 
+          {shotTags.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {shotTags.map((tag) => (
+                <TagBadge key={tag.id} tag={tag} />
+              ))}
+            </div>
+          )}
+
           {(fields.showTalent || fields.showLocation) && (talentNames.length > 0 || locationLabel) && (
             <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[var(--color-text-muted)]">
               {fields.showTalent && talentNames.length > 0 && (
                 <span className="truncate">
-                  <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                  <span
+                    className="font-semibold uppercase tracking-wide"
+                    style={{ color: "var(--doc-accent,#2563eb)" }}
+                  >
                     Talent
                   </span>{" "}
                   {talentNames.join(", ")}
@@ -225,7 +267,10 @@ function RendererEntryRow({
               )}
               {fields.showLocation && locationLabel && (
                 <span className="truncate">
-                  <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                  <span
+                    className="font-semibold uppercase tracking-wide"
+                    style={{ color: "var(--doc-accent,#2563eb)" }}
+                  >
                     Location
                   </span>{" "}
                   {locationLabel}
@@ -240,12 +285,6 @@ function RendererEntryRow({
             </p>
           )}
         </div>
-
-        {entry.duration != null && (
-          <span className="shrink-0 font-mono text-xs tabular-nums text-[var(--color-text-muted)]">
-            {entry.duration}m
-          </span>
-        )}
       </div>
     </div>
   )
@@ -274,6 +313,7 @@ export function CallSheetRenderer({
 
   const colors = config?.colors
   const primary = colors?.primary
+  const accent = colors?.accent
   const text = colors?.text
 
   const talentMap = useMemo(() => {
@@ -327,6 +367,9 @@ export function CallSheetRenderer({
         ...(primary
           ? ({ ["--doc-section-band-bg" as string]: primary } as CSSProperties)
           : {}),
+        ...(accent
+          ? ({ ["--doc-accent" as string]: accent } as CSSProperties)
+          : {}),
         ...(text ? ({ ["--color-doc-ink" as string]: text } as CSSProperties) : {}),
       }}
     >
@@ -363,7 +406,10 @@ export function CallSheetRenderer({
           </div>
           {dayDetails.weather?.summary && (
             <p className="text-xs text-[var(--color-text-muted)]">
-              <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+              <span
+                className="font-semibold uppercase tracking-wide"
+                style={{ color: "var(--doc-accent,#2563eb)" }}
+              >
                 Weather
               </span>{" "}
               {dayDetails.weather.summary}
@@ -373,7 +419,10 @@ export function CallSheetRenderer({
             <div className="flex flex-col gap-1 text-xs text-[var(--color-text-muted)]">
               {dayDetails.locations.map((loc) => (
                 <p key={loc.id}>
-                  <span className="font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                  <span
+                    className="font-semibold uppercase tracking-wide"
+                    style={{ color: "var(--doc-accent,#2563eb)" }}
+                  >
                     {loc.title}
                   </span>{" "}
                   {loc.ref?.label ?? loc.ref?.locationId ?? ""}
@@ -450,7 +499,10 @@ export function CallSheetRenderer({
                     className="callsheet-block flex items-baseline gap-3 border-b border-[var(--color-border)] py-2 last:border-b-0"
                   >
                     {displayTime && (
-                      <span className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "text-[var(--color-text)]" : "text-[var(--color-text-muted)]"}`}>
+                      <span
+                        className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "" : "text-[var(--color-text-muted)]"}`}
+                        style={isOverridden ? { color: "var(--doc-accent,#2563eb)" } : undefined}
+                      >
                         {formatTimeOrText(displayTime)}
                       </span>
                     )}
@@ -494,7 +546,10 @@ export function CallSheetRenderer({
                     className="callsheet-block flex items-baseline gap-3 border-b border-[var(--color-border)] py-2 last:border-b-0"
                   >
                     {displayTime && (
-                      <span className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "text-[var(--color-text)]" : "text-[var(--color-text-muted)]"}`}>
+                      <span
+                        className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "" : "text-[var(--color-text-muted)]"}`}
+                        style={isOverridden ? { color: "var(--doc-accent,#2563eb)" } : undefined}
+                      >
                         {formatTimeOrText(displayTime)}
                       </span>
                     )}

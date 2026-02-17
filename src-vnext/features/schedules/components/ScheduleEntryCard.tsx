@@ -11,16 +11,10 @@ import {
   Coffee,
   Truck,
   Sparkles,
+  Pencil,
 } from "lucide-react"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/ui/select"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { toast } from "sonner"
 import {
@@ -91,16 +85,17 @@ interface ScheduleEntryCardProps {
   readonly entry: ScheduleEntry
   readonly isFirst: boolean
   readonly isLast: boolean
+  readonly density?: "regular" | "compact"
   readonly reorderMode?: "buttons" | "none"
   readonly showTimelineNode?: boolean
   readonly trackSelect?: {
     readonly value: string
     readonly options: readonly { readonly value: string; readonly label: string }[]
-    readonly onChange: (next: string) => void
   }
   readonly onMoveUp?: () => void
   readonly onMoveDown?: () => void
   readonly onRemove: () => void
+  readonly onEdit?: () => void
   readonly onUpdateTitle: (title: string) => void
   readonly onUpdateStartTime: (startTime: string | null) => void
   readonly onUpdateDuration: (duration: number | undefined) => void
@@ -114,18 +109,20 @@ function InlineTimeField({
   onSave,
   placeholder,
   icon: Icon,
+  compact = false,
 }: {
   readonly value: string | null
   readonly onSave: (v: string | null) => void
   readonly placeholder: string
   readonly icon: typeof Clock
+  readonly compact?: boolean
 }) {
   return (
     <TypedTimeInput
       value={value ?? ""}
       placeholder={placeholder}
       icon={<Icon className="h-3 w-3" />}
-      triggerClassName={`h-7 w-28 ${
+      triggerClassName={`${compact ? "h-6 w-24" : "h-7 w-28"} ${
         value
           ? "font-mono text-xs font-semibold tabular-nums text-[var(--color-text)]"
           : "text-xs text-[var(--color-text-muted)]"
@@ -152,10 +149,12 @@ function InlineNotesField({
   value,
   onSave,
   emptyLabel = "Add notes",
+  compact = false,
 }: {
   readonly value: string
   readonly onSave: (v: string) => void
   readonly emptyLabel?: string
+  readonly compact?: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
@@ -183,7 +182,7 @@ function InlineNotesField({
           }
         }}
         placeholder="Add notes..."
-        className="h-7 text-xs"
+        className={`${compact ? "h-6" : "h-7"} text-xs`}
       />
     )
   }
@@ -196,7 +195,9 @@ function InlineNotesField({
           setDraft("")
           setEditing(true)
         }}
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-muted)]"
+        className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-muted)] ${
+          compact ? "leading-none" : ""
+        }`}
       >
         <StickyNote className="h-3 w-3" />
         {emptyLabel}
@@ -211,7 +212,10 @@ function InlineNotesField({
         setDraft(value)
         setEditing(true)
       }}
-      className="rounded px-1.5 py-0.5 text-left text-xs text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)]"
+      className={`max-w-full truncate rounded px-1.5 py-0.5 text-left text-xs text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)] ${
+        compact ? "leading-none" : ""
+      }`}
+      title={value}
     >
       {value}
     </button>
@@ -221,9 +225,11 @@ function InlineNotesField({
 function InlineTitleField({
   value,
   onSave,
+  compact = false,
 }: {
   readonly value: string
   readonly onSave: (v: string) => void
+  readonly compact?: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
@@ -252,7 +258,7 @@ function InlineTitleField({
             setEditing(false)
           }
         }}
-        className="h-7 text-sm"
+        className={`${compact ? "h-6 text-[13px]" : "h-7 text-sm"}`}
       />
     )
   }
@@ -264,7 +270,9 @@ function InlineTitleField({
         setDraft(value)
         setEditing(true)
       }}
-      className="truncate rounded px-1 py-0.5 text-left text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-subtle)]"
+      className={`truncate rounded px-1 py-0.5 text-left font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-subtle)] ${
+        compact ? "text-[13px]" : "text-sm"
+      }`}
       title="Click to edit title"
     >
       {value}
@@ -277,11 +285,13 @@ function InlineNumberField({
   onSave,
   placeholder,
   icon: Icon,
+  compact = false,
 }: {
   readonly value: string
   readonly onSave: (v: string) => void
   readonly placeholder: string
   readonly icon: typeof Timer
+  readonly compact?: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
@@ -307,7 +317,7 @@ function InlineNumberField({
           }
         }}
         placeholder={placeholder}
-        className="h-7 w-20 text-xs"
+        className={`${compact ? "h-6 w-16" : "h-7 w-20"} text-xs`}
       />
     )
   }
@@ -360,34 +370,11 @@ function highlightCardStyle(
   }
 }
 
-function TrackSelect({
-  value,
-  options,
-  onChange,
-}: {
-  readonly value: string
-  readonly options: readonly { readonly value: string; readonly label: string }[]
-  readonly onChange: (next: string) => void
-}) {
-  if (options.length <= 1) return null
-  return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger
-        className="h-7 w-[124px] px-2 text-xs"
-        aria-label="Move to track"
-        title="Move to track"
-      >
-        <SelectValue placeholder="Track" />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((opt) => (
-          <SelectItem key={opt.value} value={opt.value}>
-            {opt.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
+function resolveTrackLabel(trackSelect: ScheduleEntryCardProps["trackSelect"]): string | null {
+  if (!trackSelect) return null
+  if (trackSelect.options.length <= 1) return null
+  const match = trackSelect.options.find((opt) => opt.value === trackSelect.value) ?? null
+  return match?.label ?? null
 }
 
 // --- Main component ---
@@ -396,12 +383,14 @@ export function ScheduleEntryCard({
   entry,
   isFirst,
   isLast,
+  density = "regular",
   reorderMode = "buttons",
   showTimelineNode = true,
   trackSelect,
   onMoveUp,
   onMoveDown,
   onRemove,
+  onEdit,
   onUpdateTitle,
   onUpdateStartTime,
   onUpdateDuration,
@@ -413,6 +402,9 @@ export function ScheduleEntryCard({
   const isCustomHighlight = entry.type !== "shot" && !!entry.highlight
   const TypeIcon = isCustomHighlight ? Sparkles : typeConfig.icon
   const entryLabel = isCustomHighlight ? "Highlight" : typeConfig.label
+  const trackLabel = resolveTrackLabel(trackSelect)
+  const isCompact = density === "compact"
+  const hasNotes = (entry.notes ?? "").trim().length > 0
 
   const timelineNodeClass = showTimelineNode ? nodeClasses(entry, typeConfig.isRhythm) : ""
 
@@ -421,7 +413,7 @@ export function ScheduleEntryCard({
     return (
       <>
         <div className={timelineNodeClass}>
-          <div className={`group flex items-center gap-2 rounded-md border-l-[3px] ${typeConfig.accent} ${typeConfig.bg} border ${typeConfig.border} px-2.5 py-1.5`}>
+          <div className={`group flex items-center gap-2 rounded-md border-l-[3px] ${typeConfig.accent} ${typeConfig.bg} border ${typeConfig.border} ${isCompact ? "px-2 py-1" : "px-2.5 py-1.5"}`}>
             {reorderMode === "buttons" && onMoveUp && onMoveDown && (
               <div className="flex gap-0.5">
                 <Button variant="ghost" size="icon" className="h-5 w-5" disabled={isFirst} onClick={onMoveUp} aria-label="Move up">
@@ -439,6 +431,7 @@ export function ScheduleEntryCard({
               onSave={onUpdateStartTime}
               placeholder="Time"
               icon={Clock}
+              compact={isCompact}
             />
 
             <TypeIcon className="h-3 w-3 shrink-0 text-[var(--color-text-muted)]" />
@@ -449,13 +442,6 @@ export function ScheduleEntryCard({
 
             {/* Duration inline */}
             <div className="flex flex-1 items-center justify-end gap-2">
-              {trackSelect ? (
-                <TrackSelect
-                  value={trackSelect.value}
-                  options={trackSelect.options}
-                  onChange={trackSelect.onChange}
-                />
-              ) : null}
               <InlineNumberField
                 value={entry.duration != null ? String(entry.duration) : ""}
                 onSave={(v) => {
@@ -464,15 +450,34 @@ export function ScheduleEntryCard({
                 }}
                 placeholder="Dur."
                 icon={Timer}
+                compact={isCompact}
               />
+              {trackLabel ? (
+                <span className="rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
+                  {trackLabel}
+                </span>
+              ) : null}
             </div>
 
+            {onEdit ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`${isCompact ? "h-4 w-4" : "h-5 w-5"} text-[var(--color-text-muted)]`}
+                onClick={onEdit}
+                aria-label="Edit entry"
+                title="Edit entry"
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
+            ) : null}
             <Button
               variant="ghost"
               size="icon"
-              className="h-5 w-5 text-[var(--color-text-muted)] opacity-0 transition-opacity group-hover:opacity-100"
+              className={`${isCompact ? "h-4 w-4" : "h-5 w-5"} text-[var(--color-text-muted)]`}
               onClick={() => setConfirmOpen(true)}
               aria-label="Remove entry"
+              title="Remove entry"
             >
               <Trash2 className="h-3 w-3" />
             </Button>
@@ -497,7 +502,7 @@ export function ScheduleEntryCard({
     <>
       <div className={timelineNodeClass}>
         <div
-          className={`group flex items-start gap-2.5 rounded-md border-l-[3px] border px-3 py-2 transition-colors ${
+          className={`group flex items-start rounded-md border-l-[3px] border ${isCompact ? "gap-2 px-2.5 py-1.5" : "gap-2.5 px-3 py-2"} transition-colors ${
             isCustomHighlight
               ? "border-[var(--color-border)] bg-[var(--color-surface)]"
               : `${typeConfig.accent} ${typeConfig.border} ${typeConfig.bg} hover:border-[var(--color-border-strong)]`
@@ -516,7 +521,7 @@ export function ScheduleEntryCard({
           )}
 
           {/* Entry content — time dominant */}
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className={`flex min-w-0 flex-1 flex-col ${isCompact ? "gap-1" : "gap-1.5"}`}>
             {/* Row 1: Time (dominant) + Type icon + Title */}
             <div className="flex items-center gap-2">
               <InlineTimeField
@@ -524,10 +529,12 @@ export function ScheduleEntryCard({
                 onSave={onUpdateStartTime}
                 placeholder="Set time (e.g. 6:00 AM)"
                 icon={Clock}
+                compact={isCompact}
               />
               <TypeIcon className={`h-3.5 w-3.5 shrink-0 ${isCustomHighlight ? "text-[var(--color-text)]" : "text-[var(--color-primary)]"}`} />
               <InlineTitleField
                 value={`${entry.highlight?.emoji ? `${entry.highlight.emoji} ` : ""}${entry.title}`}
+                compact={isCompact}
                 onSave={(nextValue) => {
                   const withoutEmojiPrefix = entry.highlight?.emoji
                     ? nextValue.replace(`${entry.highlight.emoji} `, "").trim()
@@ -540,46 +547,72 @@ export function ScheduleEntryCard({
                   {entryLabel}
                 </span>
               )}
-              {trackSelect ? (
-                <div className="ml-auto shrink-0">
-                  <TrackSelect
-                    value={trackSelect.value}
-                    options={trackSelect.options}
-                    onChange={trackSelect.onChange}
-                  />
-                </div>
-              ) : null}
             </div>
 
-            {/* Row 2: Duration + Notes (tertiary) */}
-            <div className="flex items-center gap-3">
+            {/* Row 2: Metadata */}
+            <div className="flex items-center gap-2">
               <InlineNumberField
                 value={entry.duration != null ? String(entry.duration) : ""}
                 onSave={(v) => {
                   const parsed = parseInt(v, 10)
                   onUpdateDuration(Number.isNaN(parsed) ? undefined : parsed)
                 }}
-                placeholder="Duration (min)"
+                placeholder={isCompact ? "Dur." : "Duration (min)"}
                 icon={Timer}
+                compact={isCompact}
               />
-              <InlineNotesField
-                value={entry.notes ?? ""}
-                onSave={onUpdateNotes}
-                emptyLabel={isCustomHighlight ? "Add description" : "Add notes"}
-              />
+              {trackLabel ? (
+                <span className="rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
+                  {trackLabel}
+                </span>
+              ) : null}
+              {!hasNotes ? (
+                <InlineNotesField
+                  value={entry.notes ?? ""}
+                  onSave={onUpdateNotes}
+                  emptyLabel={isCustomHighlight ? "Add description" : "Add notes"}
+                  compact={isCompact}
+                />
+              ) : null}
             </div>
+
+            {/* Row 3: Notes */}
+            {hasNotes ? (
+              <div className="flex items-center gap-2">
+                <InlineNotesField
+                  value={entry.notes ?? ""}
+                  onSave={onUpdateNotes}
+                  emptyLabel={isCustomHighlight ? "Add description" : "Add notes"}
+                  compact={isCompact}
+                />
+              </div>
+            ) : null}
           </div>
 
-          {/* Delete */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-[var(--color-text-muted)] opacity-0 transition-opacity group-hover:opacity-100"
-            onClick={() => setConfirmOpen(true)}
-            aria-label="Remove entry"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          <div className="flex flex-col items-center gap-1">
+            {onEdit ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`${isCompact ? "h-5 w-5" : "h-6 w-6"} text-[var(--color-text-muted)]`}
+                onClick={onEdit}
+                aria-label="Edit entry"
+                title="Edit entry"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            ) : null}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`${isCompact ? "h-5 w-5" : "h-6 w-6"} text-[var(--color-text-muted)]`}
+              onClick={() => setConfirmOpen(true)}
+              aria-label="Remove entry"
+              title="Remove entry"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
 
