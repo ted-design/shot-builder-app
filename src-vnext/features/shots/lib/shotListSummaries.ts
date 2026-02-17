@@ -1,4 +1,5 @@
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
+import { textPreview } from "@/shared/lib/textPreview"
 import type { ProductAssignment, Shot } from "@/shared/types"
 
 function asNonEmptyString(value: unknown): string | null {
@@ -90,4 +91,14 @@ export function resolveIdsToNames(
   }
 
   return { names, unknownCount }
+}
+
+/**
+ * Prioritizes producer addendum notes, then falls back to legacy notes HTML text.
+ * Intended for compact list/card previews.
+ */
+export function getShotNotesPreview(shot: Shot, maxLength = 140): string {
+  const addendumPreview = textPreview(shot.notesAddendum, maxLength)
+  if (addendumPreview) return addendumPreview
+  return textPreview(shot.notes, maxLength)
 }
