@@ -56,6 +56,15 @@ const LibraryCrewPage = lazy(
 const LibraryPalettePage = lazy(
   () => import("@/features/library/components/LibraryPalettePage"),
 )
+const DevImportQ2 = lazy(
+  () => import("@/features/products/components/DevImportQ2"),
+)
+const DevImportQ2Shots = lazy(
+  () => import("@/features/shots/components/DevImportQ2Shots"),
+)
+const DevImportQ1HubShots = lazy(
+  () => import("@/features/shots/components/DevImportQ1HubShots"),
+)
 
 function PageFallback() {
   return (
@@ -162,6 +171,15 @@ export function AppRoutes() {
           <Route path="library/locations" element={<LibraryLocationsPage />} />
           <Route path="library/crew" element={<LibraryCrewPage />} />
           <Route path="library/palette" element={<LibraryPalettePage />} />
+          {import.meta.env.DEV && (
+            <Route path="dev/import-q2" element={<DevImportQ2 />} />
+          )}
+          {import.meta.env.DEV && (
+            <Route path="dev/import-q2-shots" element={<DevImportQ2Shots />} />
+          )}
+          {import.meta.env.DEV && (
+            <Route path="dev/import-q1-hub-shots" element={<DevImportQ1HubShots />} />
+          )}
         </Route>
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>

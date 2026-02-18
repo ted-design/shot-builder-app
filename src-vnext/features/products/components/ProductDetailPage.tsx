@@ -482,6 +482,11 @@ export default function ProductDetailPage() {
                 Style {family.styleNumber}
               </span>
             )}
+            {family.previousStyleNumber && (
+              <span className="text-xs text-[var(--color-text-subtle)]">
+                Previously: {family.previousStyleNumber}
+              </span>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               {categoryLabel && (
                 <Badge

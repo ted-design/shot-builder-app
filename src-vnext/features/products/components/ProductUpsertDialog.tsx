@@ -417,7 +417,7 @@ export function ProductUpsertDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="styleNumber">Style #</Label>
                 <Input
@@ -425,6 +425,16 @@ export function ProductUpsertDialog({
                   value={draft.styleNumber}
                   onChange={(e) => setDraft((p) => ({ ...p, styleNumber: e.target.value }))}
                   placeholder="e.g. UM2026-1026"
+                  disabled={!canEdit}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="previousStyleNumber">Previous style #</Label>
+                <Input
+                  id="previousStyleNumber"
+                  value={draft.previousStyleNumber}
+                  onChange={(e) => setDraft((p) => ({ ...p, previousStyleNumber: e.target.value }))}
+                  placeholder="Legacy #"
                   disabled={!canEdit}
                 />
               </div>
