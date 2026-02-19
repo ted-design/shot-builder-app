@@ -82,6 +82,7 @@ function renderPage(initialEntry: string) {
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/projects/:id/shots" element={<ShotListPage />} />
+        <Route path="/projects/:id/shots/:sid" element={<div>Shot detail route</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -293,6 +294,20 @@ describe("ShotListPage", () => {
     expect(screen.getByText("Alpha")).toBeInTheDocument()
   })
 
+  it("opens shot detail when clicking a gallery card", () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots")
+
+    fireEvent.click(screen.getByText("Alpha"))
+
+    expect(screen.getByText("Shot detail route")).toBeInTheDocument()
+  })
+
   it("filters by query param q", () => {
     ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [
@@ -325,6 +340,36 @@ describe("ShotListPage", () => {
     expect(screen.getByText("Alpha")).toBeInTheDocument()
     expect(screen.getByText("Bravo")).toBeInTheDocument()
     expect(screen.queryByText("Charlie")).not.toBeInTheDocument()
+  })
+
+  it("filters by multiple tags via tag=csv", () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        makeShot({
+          id: "a",
+          title: "Video Shot",
+          tags: [{ id: "video", label: "Video", color: "#3b82f6", category: "media" }],
+        }),
+        makeShot({
+          id: "b",
+          title: "Photo Shot",
+          tags: [{ id: "photo", label: "Photo", color: "#22c55e", category: "media" }],
+        }),
+        makeShot({
+          id: "c",
+          title: "Priority Shot",
+          tags: [{ id: "priority", label: "High Priority", color: "#ef4444", category: "priority" }],
+        }),
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots?view=table&sort=name&tag=video,photo")
+
+    expect(screen.getByText("Video Shot")).toBeInTheDocument()
+    expect(screen.getByText("Photo Shot")).toBeInTheDocument()
+    expect(screen.queryByText("Priority Shot")).not.toBeInTheDocument()
   })
 
   it("shows a grouped layout when group=date", () => {
@@ -466,7 +511,7 @@ describe("ShotListPage", () => {
     renderPage("/projects/p1/shots?view=table&sort=name")
 
     expect(screen.getByText("Reference links")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Moodboard" })).toBeInTheDocument()
+    expect(screen.getByText("Moodboard")).toBeInTheDocument()
   })
 
   it("renders notes in gallery view when notes preview is enabled", () => {

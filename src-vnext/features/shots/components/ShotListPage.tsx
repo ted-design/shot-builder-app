@@ -227,11 +227,10 @@ function filterByLocation(
 
 function filterByTag(
   shots: ReadonlyArray<Shot>,
-  tagId: string,
+  tagIds: ReadonlySet<string>,
 ): ReadonlyArray<Shot> {
-  const id = tagId.trim()
-  if (!id) return shots
-  return shots.filter((s) => (s.tags ?? []).some((t) => t.id === id))
+  if (tagIds.size === 0) return shots
+  return shots.filter((s) => (s.tags ?? []).some((t) => tagIds.has(t.id)))
 }
 
 function parseCsv(value: string | null): string[] {
@@ -290,7 +289,6 @@ export default function ShotListPage() {
   const queryParam = searchParams.get("q") ?? ""
   const talentParam = searchParams.get("talent") ?? ""
   const locationParam = searchParams.get("location") ?? ""
-  const tagParam = searchParams.get("tag") ?? ""
   const viewParam = (searchParams.get("view") as ViewMode) || null
   const groupParam = (searchParams.get("group") as GroupKey) || null
 
@@ -312,6 +310,11 @@ export default function ShotListPage() {
       if (v === "products" || v === "talent" || v === "location" || v === "image") set.add(v)
     }
     return set
+  }, [searchParams])
+
+  const tagFilter = useMemo(() => {
+    const values = parseCsv(searchParams.get("tag"))
+    return new Set(values)
   }, [searchParams])
 
   const [queryDraft, setQueryDraft] = useState(queryParam)
@@ -460,12 +463,17 @@ export default function ShotListPage() {
     setSearchParams(next, { replace: true })
   }
 
-  const setTagFilter = (tagId: string) => {
-    const next = new URLSearchParams(searchParams)
+  const toggleTag = (tagId: string) => {
     const id = tagId.trim()
-    if (!id) next.delete("tag")
-    else next.set("tag", id)
-    setSearchParams(next, { replace: true })
+    if (!id) return
+    const next = new Set(tagFilter)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+
+    const params = new URLSearchParams(searchParams)
+    if (next.size === 0) params.delete("tag")
+    else params.set("tag", Array.from(next).join(","))
+    setSearchParams(params, { replace: true })
   }
 
   const toggleStatus = (status: ShotFirestoreStatus) => {
@@ -507,7 +515,7 @@ export default function ShotListPage() {
     const filteredByMissing = filterByMissing(filteredByStatus, missingFilter)
     const filteredByTalent = filterByTalent(filteredByMissing, talentParam)
     const filteredByLocation = filterByLocation(filteredByTalent, locationParam)
-    const filteredByTag = filterByTag(filteredByLocation, tagParam)
+    const filteredByTag = filterByTag(filteredByLocation, tagFilter)
     const filteredByQuery = filterByQuery(filteredByTag, queryParam)
     return sortShots(filteredByQuery, sortKey, sortDir)
   }, [
@@ -519,7 +527,7 @@ export default function ShotListPage() {
     missingFilter,
     talentParam,
     locationParam,
-    tagParam,
+    tagFilter,
     queryParam,
   ])
 
@@ -529,7 +537,7 @@ export default function ShotListPage() {
     missingFilter.size > 0 ||
     talentParam.trim().length > 0 ||
     locationParam.trim().length > 0 ||
-    tagParam.trim().length > 0
+    tagFilter.size > 0
 
   const hasActiveGrouping = groupKey !== "none"
 
@@ -804,16 +812,11 @@ export default function ShotListPage() {
         },
       })
     }
-    if (tagParam.trim()) {
-      const id = tagParam.trim()
+    for (const id of tagFilter) {
       badges.push({
         key: `tag:${id}`,
         label: `Tag: ${tagLabelById.get(id) ?? id}`,
-        onRemove: () => {
-          const next = new URLSearchParams(searchParams)
-          next.delete("tag")
-          setSearchParams(next, { replace: true })
-        },
+        onRemove: () => toggleTag(id),
       })
     }
     for (const s of statusFilter) {
@@ -839,8 +842,8 @@ export default function ShotListPage() {
     searchParams,
     setSearchParams,
     statusFilter,
+    tagFilter,
     tagLabelById,
-    tagParam,
     talentNameById,
     talentParam,
   ])
@@ -1222,22 +1225,24 @@ export default function ShotListPage() {
                   <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
                     Tag
                   </div>
-                  <Select
-                    value={tagParam.trim() ? tagParam.trim() : "__any__"}
-                    onValueChange={(v) => setTagFilter(v === "__any__" ? "" : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__any__">Any</SelectItem>
-                      {tagOptions.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="max-h-44 space-y-2 overflow-y-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
+                    {tagOptions.length === 0 ? (
+                      <p className="text-xs text-[var(--color-text-subtle)]">No tags available</p>
+                    ) : (
+                      tagOptions.map((tag) => (
+                        <label key={tag.id} className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={tagFilter.has(tag.id)}
+                            onCheckedChange={(v) => {
+                              if (v === "indeterminate") return
+                              toggleTag(tag.id)
+                            }}
+                          />
+                          <span>{tag.label}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 pt-2">
@@ -1982,7 +1987,7 @@ export default function ShotListPage() {
             const maybeHiddenByOtherFilters =
               talentParam.trim().length > 0 ||
               locationParam.trim().length > 0 ||
-              tagParam.trim().length > 0
+              tagFilter.size > 0
 
             if (hiddenByStatus || hiddenByQuery || maybeHiddenByOtherFilters) {
               toast("Shot created — may be hidden by current filters", {
@@ -2277,9 +2282,8 @@ function ShotsTable({
                               href={entry.url}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
                               className="inline-flex items-center gap-1 truncate hover:underline"
-                              onClick={(event) => event.stopPropagation()}
-                              onPointerDown={(event) => event.stopPropagation()}
                               title={`${entry.title}\n${entry.url}`}
                             >
                               <Icon className="h-3 w-3 flex-shrink-0 text-[var(--color-text-subtle)]" />
