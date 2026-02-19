@@ -2277,14 +2277,18 @@ function ShotsTable({
                         {referenceLinksPreview.map((entry) => {
                           const Icon = getReferenceLinkIcon(entry.type)
                           return (
-                            <div
+                            <a
                               key={entry.id}
-                              className="inline-flex items-center gap-1 truncate"
+                              href={entry.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 truncate hover:underline"
                               title={`${entry.title}\n${entry.url}`}
                             >
                               <Icon className="h-3 w-3 flex-shrink-0 text-[var(--color-text-subtle)]" />
                               <span className="truncate">{entry.title}</span>
-                            </div>
+                            </a>
                           )
                         })}
                         {referenceLinks.length > referenceLinksPreview.length && (

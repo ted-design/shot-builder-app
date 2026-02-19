@@ -286,14 +286,18 @@ export function ShotCard({
                       {referenceLinkPreview.map((entry) => {
                         const Icon = getReferenceLinkIcon(entry.type)
                         return (
-                          <div
+                          <a
                             key={entry.id}
-                            className="inline-flex max-w-full items-center gap-1"
+                            href={entry.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex max-w-full items-center gap-1 hover:underline"
                             title={`${entry.title}\n${entry.url}`}
                           >
                             <Icon className="h-3 w-3 flex-shrink-0 text-[var(--color-text-subtle)]" />
                             <span className="truncate">{entry.title}</span>
-                          </div>
+                          </a>
                         )
                       })}
                       {hiddenReferenceLinkCount > 0 && (
