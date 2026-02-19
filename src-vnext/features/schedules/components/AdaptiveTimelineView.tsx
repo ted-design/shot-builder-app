@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Plus, Camera, StickyNote } from "lucide-react"
+import { Plus, Camera, StickyNote, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/ui/button"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -393,6 +393,14 @@ export function AdaptiveTimelineView({
           <StickyNote className="mr-1.5 h-3.5 w-3.5" />
           Add Entry
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCustomDialog({ open: true, trackId: "shared" })}
+        >
+          <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+          Add Highlight
+        </Button>
       </div>
 
       {/* Timeline container */}
@@ -487,6 +495,11 @@ export function AdaptiveTimelineView({
           const current = entries.find((entry) => entry.id === editEntryId)
           if (!current) return
           await handleMoveToTrack(current, trackId)
+        }}
+        onRemove={async () => {
+          if (!editEntryId) return
+          await handleRemove(editEntryId)
+          setEditEntryId(null)
         }}
       />
 
