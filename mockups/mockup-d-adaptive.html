@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Approach D: Adaptive Timeline — Shot Builder Schedule Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ─── Reset & Tokens ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --primary-subtle: #eef2ff;
+      --primary-border: #c7d2fe;
+
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-subtle: #f1f5f9;
+
+      --sidebar-bg: #0f172a;
+      --sidebar-text: #94a3b8;
+      --sidebar-text-active: #f8fafc;
+      --sidebar-active-bg: rgba(99,102,241,0.18);
+      --sidebar-hover-bg: rgba(255,255,255,0.06);
+
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --text-subtle: #94a3b8;
+
+      --border: #e2e8f0;
+      --border-muted: #f1f5f9;
+
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+
+      --photo-color: #64748b;
+      --video-color: #3b82f6;
+
+      --icon-product: #14b8a6;
+      --icon-talent: #6366f1;
+      --icon-location: #10b981;
+      --icon-notes: #f59e0b;
+      --icon-time: #94a3b8;
+
+      --radius-card: 8px;
+      --radius-button: 6px;
+      --radius-badge: 4px;
+      --radius-pill: 999px;
+
+      --shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
+    }
+
+    html { font-size: 14px; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── Approach Banner ─────────────────────────────────────────── */
+    .approach-banner {
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+      color: white;
+      padding: 14px 28px;
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    .approach-banner h1 {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #a5b4fc;
+    }
+    .approach-banner p {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      font-style: italic;
+    }
+
+    /* ─── App Shell ────────────────────────────────────────────────── */
+    .app-shell {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      height: calc(100vh - 46px);
+    }
+
+    /* ─── Sidebar ──────────────────────────────────────────────────── */
+    .sidebar {
+      width: 220px;
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+      border-right: 1px solid rgba(255,255,255,0.05);
+    }
+    .sidebar-logo {
+      padding: 20px 16px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sidebar-logo-mark {
+      width: 28px; height: 28px;
+      background: var(--primary);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .sidebar-logo-mark svg { color: white; }
+    .sidebar-logo-text { font-size: 13px; font-weight: 700; color: white; }
+    .sidebar-logo-sub { font-size: 10px; color: var(--sidebar-text); }
+
+    .sidebar-section { padding: 10px 8px 4px; }
+    .sidebar-section-label {
+      font-size: 10px; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: rgba(148,163,184,0.5);
+      padding: 0 8px; margin-bottom: 4px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 10px; border-radius: 6px;
+      font-size: 13px; font-weight: 500;
+      color: var(--sidebar-text);
+      cursor: pointer; transition: background 0.12s, color 0.12s;
+      text-decoration: none; margin-bottom: 1px;
+    }
+    .nav-item:hover { background: var(--sidebar-hover-bg); color: white; }
+    .nav-item.active { background: var(--sidebar-active-bg); color: var(--sidebar-text-active); }
+    .nav-item.active svg { color: var(--primary); }
+    .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .nav-badge {
+      margin-left: auto;
+      background: rgba(99,102,241,0.25); color: #a5b4fc;
+      font-size: 10px; font-weight: 600;
+      padding: 1px 6px; border-radius: 999px;
+    }
+
+    .sidebar-footer { margin-top: auto; padding: 12px 8px; border-top: 1px solid rgba(255,255,255,0.06); }
+    .sidebar-user { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; }
+    .sidebar-user:hover { background: var(--sidebar-hover-bg); }
+    .avatar {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: white; flex-shrink: 0;
+    }
+    .sidebar-user-name { font-size: 12px; font-weight: 600; color: white; }
+    .sidebar-user-role { font-size: 10px; color: var(--sidebar-text); }
+
+    /* ─── Main Content ─────────────────────────────────────────────── */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    /* ─── Toolbar ──────────────────────────────────────────────────── */
+    .toolbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex; align-items: center; gap: 12px;
+      height: 52px; flex-shrink: 0;
+    }
+    .toolbar-day-nav { display: flex; align-items: center; gap: 4px; }
+    .toolbar-nav-btn {
+      width: 28px; height: 28px;
+      border-radius: var(--radius-button);
+      border: 1px solid var(--border);
+      background: transparent; color: var(--text-muted);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.12s;
+    }
+    .toolbar-nav-btn:hover { background: var(--surface-subtle); color: var(--text-primary); }
+    .toolbar-day-label { font-size: 14px; font-weight: 600; color: var(--text-primary); padding: 0 8px; }
+    .toolbar-day-sub { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+    .toolbar-spacer { flex: 1; }
+    .toolbar-actions { display: flex; align-items: center; gap: 8px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: var(--radius-button);
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      transition: all 0.12s; white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .btn svg { width: 13px; height: 13px; }
+    .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-secondary); }
+    .btn-ghost:hover { background: var(--surface-subtle); color: var(--text-primary); }
+    .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .btn-primary:hover { background: var(--primary-hover); }
+
+    /* ─── Settings Bar ─────────────────────────────────────────────── */
+    .settings-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex; align-items: center; gap: 20px;
+      height: 40px; flex-shrink: 0;
+    }
+    .settings-divider { width: 1px; height: 18px; background: var(--border); }
+    .settings-label { font-size: 11px; font-weight: 500; color: var(--text-muted); white-space: nowrap; }
+    .checkbox-group { display: flex; align-items: center; gap: 14px; }
+    .checkbox-item { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+    .checkbox-item input[type="checkbox"] { width: 13px; height: 13px; accent-color: var(--primary); cursor: pointer; }
+    .checkbox-item label { font-size: 11px; color: var(--text-secondary); cursor: pointer; white-space: nowrap; }
+    .ripple-check { display: flex; align-items: center; gap: 6px; }
+    .ripple-check input[type="checkbox"] { width: 13px; height: 13px; accent-color: var(--warning); }
+    .ripple-check label { font-size: 11px; font-weight: 500; color: var(--text-secondary); cursor: pointer; }
+    .ripple-check input:checked + label { color: #b45309; }
+
+    /* ─── Timeline ─────────────────────────────────────────────────── */
+    .timeline-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: var(--bg);
+    }
+    .timeline-inner {
+      padding: 16px 20px 32px;
+      min-width: 900px;
+    }
+
+    /* ─── Segment Container ────────────────────────────────────────── */
+    .segment {
+      display: flex;
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      margin-bottom: 0;
+    }
+    .segment + .segment { border-top: none; border-radius: 0 0 var(--radius-card) var(--radius-card); }
+    .segment:first-child { border-radius: var(--radius-card) var(--radius-card) 0 0; }
+    .segment:last-child { border-radius: 0 0 var(--radius-card) var(--radius-card); }
+    .segment:only-child { border-radius: var(--radius-card); }
+
+    /* Continuous wrapper for all segments */
+    .segments-wrapper {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .segments-wrapper .segment {
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      border-bottom: 1px solid var(--border-muted);
+    }
+    .segments-wrapper .segment:last-child { border-bottom: none; }
+
+    /* ─── Time Gutter ──────────────────────────────────────────────── */
+    .time-gutter {
+      width: 56px;
+      flex-shrink: 0;
+      background: #f8fafc;
+      border-right: 1px solid var(--border-muted);
+      position: relative;
+    }
+    .time-marker {
+      position: absolute;
+      right: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-subtle);
+      white-space: nowrap;
+      line-height: 1;
+      transform: translateY(-50%);
+    }
+    .time-marker.primary {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 10px;
+    }
+    .time-gridline {
+      position: absolute;
+      right: 0;
+      width: 6px;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ─── Track Columns ────────────────────────────────────────────── */
+    .tracks-body {
+      flex: 1;
+      display: flex;
+      min-width: 0;
+    }
+    .track-column {
+      flex: 1;
+      min-width: 0;
+      position: relative;
+      border-right: 1px solid var(--border-muted);
+    }
+    .track-column:last-child { border-right: none; }
+
+    .track-header-row {
+      display: flex;
+      background: var(--surface-subtle);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .track-header-cell {
+      flex: 1;
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 12px;
+      border-right: 1px solid var(--border-muted);
+    }
+    .track-header-cell:last-child { border-right: none; }
+    .track-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .track-label {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.07em; text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    .track-count { font-size: 10px; color: var(--text-subtle); margin-left: auto; }
+
+    /* Time gutter header */
+    .time-gutter-header {
+      width: 56px;
+      flex-shrink: 0;
+      background: var(--surface-subtle);
+      border-right: 1px solid var(--border-muted);
+      display: flex; align-items: center; justify-content: center;
+      padding: 7px 0;
+    }
+    .time-gutter-header svg { color: var(--icon-time); width: 13px; height: 13px; }
+
+    /* ─── Banner Entry ─────────────────────────────────────────────── */
+    .banner-segment {
+      display: flex;
+      align-items: center;
+    }
+    .banner-time-cell {
+      width: 56px;
+      flex-shrink: 0;
+      background: #f8fafc;
+      border-right: 1px solid var(--border-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .banner-time-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .banner-pill {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+    }
+    .banner-pill.indigo {
+      background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+      color: #4338ca;
+    }
+    .banner-pill.amber {
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+      color: #b45309;
+    }
+    .banner-pill-time {
+      font-size: 10px;
+      font-weight: 600;
+      background: rgba(0,0,0,0.06);
+      padding: 2px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .banner-pill-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .banner-pill-spacer {
+      flex: 1;
+      height: 1px;
+      background: currentColor;
+      opacity: 0.15;
+    }
+    .banner-pill-dur {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      opacity: 0.6;
+    }
+
+    /* ─── Gap Indicator ────────────────────────────────────────────── */
+    .gap-segment {
+      display: flex;
+      align-items: center;
+    }
+    .gap-time-cell {
+      width: 56px;
+      flex-shrink: 0;
+      background: #f8fafc;
+      border-right: 1px solid var(--border-muted);
+    }
+    .gap-content {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 4px 16px;
+      color: var(--text-subtle);
+    }
+    .gap-line {
+      flex: 1;
+      height: 1px;
+      background: repeating-linear-gradient(
+        to right,
+        var(--border) 0px,
+        var(--border) 4px,
+        transparent 4px,
+        transparent 8px
+      );
+    }
+    .gap-label {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    /* ─── Dense Block ──────────────────────────────────────────────── */
+    .dense-segment {
+      display: flex;
+    }
+    .dense-gutter {
+      width: 56px;
+      flex-shrink: 0;
+      background: #f8fafc;
+      border-right: 1px solid var(--border-muted);
+      position: relative;
+    }
+    .dense-tracks {
+      flex: 1;
+      display: flex;
+      min-width: 0;
+    }
+    .dense-track {
+      flex: 1;
+      position: relative;
+      padding: 6px;
+      min-width: 0;
+    }
+    .dense-track:first-child {
+      border-right: 1px solid var(--border-muted);
+    }
+
+    /* Gridlines within dense blocks */
+    .dense-gridline {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: var(--border-muted);
+      z-index: 0;
+      pointer-events: none;
+    }
+    .dense-gridline.hour {
+      background: var(--border);
+    }
+
+    /* ─── Shot Card (in dense block) ───────────────────────────────── */
+    .shot-card {
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      background: var(--surface);
+      border-radius: var(--radius-card);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-card);
+      cursor: pointer;
+      transition: box-shadow 0.15s ease, transform 0.15s ease;
+      overflow: hidden;
+      z-index: 2;
+    }
+    .shot-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      border-radius: 8px 0 0 8px;
+    }
+    .shot-card.color-indigo::before { background: #6366f1; }
+    .shot-card.color-teal::before   { background: #14b8a6; }
+    .shot-card.color-violet::before { background: #8b5cf6; }
+    .shot-card.color-sky::before    { background: #0ea5e9; }
+    .shot-card.color-rose::before   { background: #f43f5e; }
+    .shot-card.color-amber::before  { background: #f59e0b; }
+    .shot-card.color-slate::before  { background: #64748b; }
+
+    .shot-card:hover {
+      box-shadow: var(--shadow-card-hover);
+      transform: translateY(-1px);
+      z-index: 3;
+    }
+
+    /* Card layout */
+    .card-inner {
+      padding: 8px 10px 8px 12px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 3px;
+      flex-shrink: 0;
+    }
+    .card-track-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+    .card-set-badge {
+      font-size: 9px; font-weight: 600;
+      color: var(--text-subtle);
+      background: var(--surface-subtle);
+      padding: 1px 5px;
+      border-radius: var(--radius-badge);
+      border: 1px solid var(--border);
+    }
+    .card-header-spacer { flex: 1; }
+    .card-time {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .card-duration {
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-subtle);
+      background: var(--surface-subtle);
+      padding: 1px 5px;
+      border-radius: var(--radius-badge);
+    }
+
+    .card-title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      margin-bottom: 2px;
+      flex-shrink: 0;
+    }
+    .card-shot-num {
+      font-size: 10px; font-weight: 600;
+      color: var(--text-subtle);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .card-title {
+      font-size: 13px; font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Card metadata rows */
+    .card-fields {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    /* Fade-out when content overflows */
+    .card-fields::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 16px;
+      background: linear-gradient(transparent, var(--surface));
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .card-fields.clipped::after {
+      opacity: 1;
+    }
+
+    .card-meta-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+      margin-top: 2px;
+    }
+    .card-meta-row svg {
+      width: 11px; height: 11px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .card-meta-text {
+      font-size: 11px;
+      line-height: 1.3;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-meta-row.products svg { color: var(--icon-product); }
+    .card-meta-row.products .card-meta-text { color: #0f766e; }
+    .card-meta-row.talent svg { color: var(--icon-talent); }
+    .card-meta-row.talent .card-meta-text { color: #4338ca; }
+    .card-meta-row.location svg { color: var(--icon-location); }
+    .card-meta-row.location .card-meta-text { color: #065f46; }
+    .card-meta-row.notes svg { color: var(--icon-notes); }
+    .card-meta-row.notes .card-meta-text { color: #92400e; font-style: italic; }
+
+    .card-description {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      margin-top: 3px;
+    }
+    .tag-badge {
+      font-size: 9px; font-weight: 500;
+      color: var(--text-muted);
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      padding: 0px 5px;
+      border-radius: var(--radius-pill);
+    }
+
+    /* ─── Field visibility ─────────────────────────────────────────── */
+    .field-shot-num.hidden     { display: none !important; }
+    .field-shot-name.hidden    { display: none !important; }
+    .field-description.hidden  { display: none !important; }
+    .field-talent.hidden       { display: none !important; }
+    .field-location.hidden     { display: none !important; }
+    .field-tags.hidden         { display: none !important; }
+    .field-notes.hidden        { display: none !important; }
+    .field-products.hidden     { display: none !important; }
+
+    /* ─── Unscheduled Tray ─────────────────────────────────────────── */
+    .unscheduled-section { margin-top: 20px; }
+    .unscheduled-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .unscheduled-label {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-subtle);
+    }
+    .unscheduled-line { flex: 1; height: 1px; background: var(--border-muted); }
+    .unscheduled-count {
+      font-size: 10px; color: var(--text-subtle);
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      padding: 1px 7px; border-radius: var(--radius-pill);
+    }
+    .unscheduled-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 8px;
+    }
+    .shot-card-static {
+      background: var(--surface-subtle);
+      border-radius: var(--radius-card);
+      border: 1.5px dashed var(--border);
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: all 0.12s;
+      position: relative;
+      overflow: hidden;
+    }
+    .shot-card-static:hover {
+      border-color: var(--primary);
+      border-style: solid;
+      background: var(--surface);
+      box-shadow: var(--shadow-card);
+    }
+    .shot-card-static::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--text-subtle);
+    }
+
+    /* ─── Legend ────────────────────────────────────────────────────── */
+    .legend-section {
+      margin-top: 32px;
+      padding: 20px;
+      background: var(--surface);
+      border-radius: var(--radius-card);
+      border: 1px solid var(--border);
+    }
+    .legend-title {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.07em; text-transform: uppercase;
+      color: var(--text-subtle);
+      margin-bottom: 12px;
+    }
+    .legend-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .legend-item { display: flex; align-items: flex-start; gap: 10px; }
+    .legend-icon {
+      width: 28px; height: 28px;
+      background: var(--surface-subtle);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+    }
+    .legend-text h4 { font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+    .legend-text p { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
+    /* ─── Scrollbar ────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+  </style>
+</head>
+<body>
+
+<!-- Approach Banner -->
+<div class="approach-banner">
+  <h1>Approach D: Adaptive Timeline</h1>
+  <p>Information-weighted time blocks &mdash; dense periods expand, sparse periods compress, relative accuracy within each block</p>
+</div>
+
+<!-- App Shell -->
+<div class="app-shell">
+
+  <!-- Sidebar (same as A) -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+      </div>
+      <div>
+        <div class="sidebar-logo-text">Shot Builder</div>
+        <div class="sidebar-logo-sub">Riviera FW 2026</div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Workspace</div>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>Shots<span class="nav-badge">47</span></a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Pulls</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>Assets</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Planning</div>
+      <a class="nav-item active" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Call Sheet</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Products</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Talent</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Locations</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Crew</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="avatar">TG</div>
+        <div>
+          <div class="sidebar-user-name">Ted Ghanime</div>
+          <div class="sidebar-user-role">Producer</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-day-nav">
+        <button class="toolbar-nav-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <div><div class="toolbar-day-label">Day 1 &mdash; <span class="toolbar-day-sub">Thursday, February 19, 2026</span></div></div>
+        <button class="toolbar-nav-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <div class="toolbar-spacer"></div>
+      <div class="toolbar-actions">
+        <button class="btn btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Change Schedule</button>
+        <button class="btn btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Preview</button>
+        <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>Export PDF</button>
+      </div>
+    </div>
+
+    <!-- Settings Bar -->
+    <div class="settings-bar">
+      <div class="ripple-check">
+        <input type="checkbox" id="ripple" checked>
+        <label for="ripple">Ripple downstream</label>
+      </div>
+      <div class="settings-divider"></div>
+      <span class="settings-label">Preview Fields:</span>
+      <div class="checkbox-group">
+        <div class="checkbox-item"><input type="checkbox" id="toggle-shot-num" checked><label for="toggle-shot-num">Shot #</label></div>
+        <div class="checkbox-item"><input type="checkbox" id="toggle-shot-name" checked><label for="toggle-shot-name">Shot Name</label></div>
+        <div class="checkbox-item"><input type="checkbox" id="toggle-description" checked><label for="toggle-description">Description</label></div>
+        <div class="checkbox-item"><input type="checkbox" id="toggle-talent" checked><label for="toggle-talent">Talent</label></div>
+        <div class="checkbox-item"><input type="checkbox" id="toggle-location" checked><label for="toggle-location">Location</label></div>
+        <div class="checkbox-item"><input type="checkbox" id="toggle-tags" checked><label for="toggle-tags">Tags</label></div>
+        <div class="checkbox-item"><input type="checkbox" id="toggle-notes" checked><label for="toggle-notes">Notes</label></div>
+        <div class="checkbox-item"><input type="checkbox" id="toggle-products" checked><label for="toggle-products">Products</label></div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="timeline-scroll">
+      <div class="timeline-inner">
+        <div class="segments-wrapper" id="timeline"></div>
+
+        <!-- Unscheduled Tray -->
+        <div class="unscheduled-section">
+          <div class="unscheduled-header">
+            <span class="unscheduled-label">Unscheduled</span>
+            <div class="unscheduled-line"></div>
+            <span class="unscheduled-count">2 shots</span>
+          </div>
+          <div class="unscheduled-grid">
+            <div class="shot-card-static">
+              <div class="card-inner" style="padding-left: 10px;">
+                <div class="card-header">
+                  <div class="card-track-dot" style="background:#94a3b8"></div>
+                  <span class="card-set-badge" style="opacity:0.6">Unset</span>
+                  <span class="card-header-spacer"></span>
+                  <span style="font-size:10px; color:#94a3b8; font-style:italic;">No time</span>
+                </div>
+                <div class="card-title-row">
+                  <span class="card-shot-num field-shot-num" style="color:#94a3b8">SB-020</span>
+                  <span class="card-title field-shot-name">Folded Stack (Still Life)</span>
+                </div>
+                <div class="card-meta-row products field-products">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                  <span class="card-meta-text">Bermuda Shorts, Pique Shirt</span>
+                </div>
+                <div class="card-tags field-tags"><span class="tag-badge">#still-life</span></div>
+              </div>
+            </div>
+            <div class="shot-card-static">
+              <div class="card-inner" style="padding-left: 10px;">
+                <div class="card-header">
+                  <div class="card-track-dot" style="background:#94a3b8"></div>
+                  <span class="card-set-badge" style="opacity:0.6">Unset</span>
+                  <span class="card-header-spacer"></span>
+                  <span style="font-size:10px; color:#94a3b8; font-style:italic;">No time</span>
+                </div>
+                <div class="card-title-row">
+                  <span class="card-shot-num field-shot-num" style="color:#94a3b8">SB-021</span>
+                  <span class="card-title field-shot-name">Crew Try On</span>
+                </div>
+                <div class="card-meta-row talent field-talent">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                  <span class="card-meta-text" style="opacity:0.6">TBD</span>
+                </div>
+                <div class="card-meta-row notes field-notes">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3z"/><polyline points="15 3 15 9 21 9"/></svg>
+                  <span class="card-meta-text">&ldquo;Casual content for social&rdquo;</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend-section">
+          <div class="legend-title">How Approach D works</div>
+          <div class="legend-grid">
+            <div class="legend-item">
+              <div class="legend-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-8 4 4 4-6"/></svg>
+              </div>
+              <div class="legend-text">
+                <h4>Information-Weighted Blocks</h4>
+                <p>Time periods with more overlapping events across streams get more vertical space. A busy 70-minute block takes more room than a sparse 2-hour gap.</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <div class="legend-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div class="legend-text">
+                <h4>Relative Accuracy Within Blocks</h4>
+                <p>Within each dense block, card Y-position and height proportionally reflect start times and durations relative to one another.</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <div class="legend-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+              </div>
+              <div class="legend-text">
+                <h4>Compressed Dead Time</h4>
+                <p>Gaps and sparse periods (load-in, lunch) shrink to a minimal indicator instead of wasting screen real estate on empty space.</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <div class="legend-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+              </div>
+              <div class="legend-text">
+                <h4>Readable Card IA</h4>
+                <p>Cards from Approach A: semantic icon colors, full metadata rows, tag badges. Content naturally fits because the block scales to accommodate it.</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <div class="legend-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+              <div class="legend-text">
+                <h4>Cross-Track Alignment</h4>
+                <p>Photo and Video events starting at the same time appear at the same vertical position. Overlapping durations are visually clear across tracks.</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <div class="legend-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+              </div>
+              <div class="legend-text">
+                <h4>Adaptive px/min Rate</h4>
+                <p>Each block computes its own scale. Dense Block 1 uses ~8px/min. Moderate Block 2 uses ~5px/min. Banners use a fixed height.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────
+
+function toMin(h, m) { return h * 60 + m; }
+
+function fmtTime(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return h12 + ':' + String(m).padStart(2, '0') + ' ' + ampm;
+}
+
+function fmtTimeShort(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  const ampm = h < 12 ? 'a' : 'p';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return m === 0 ? h12 + ampm : h12 + ':' + String(m).padStart(2, '0') + ampm;
+}
+
+// Banners
+const banners = [
+  { start: toMin(6, 0), dur: 60, title: 'Art Department Load-In & Setup', style: 'indigo' },
+  { start: toMin(12, 0), dur: 30, title: 'Lunch Break', style: 'amber' },
+];
+
+// Photo track — note the times that create interesting overlaps with video
+const photoShots = [
+  {
+    id: 'SB-001', start: toMin(7, 0), dur: 30,
+    title: 'Merino Trench Coat', color: 'indigo',
+    set: 'Set A', desc: 'Front-facing hero shot, natural light',
+    products: 'Merino Trench Coat',
+    talent: 'Jane Doe',
+    location: 'Studio A — North Wall',
+    tags: ['#hero', '#outerwear'],
+    notes: null,
+  },
+  {
+    id: 'SB-002', start: toMin(7, 30), dur: 30,
+    title: 'Merino Trench Detail', color: 'teal',
+    set: 'Set A', desc: 'Close-up of lapel stitching',
+    products: 'Merino Trench Coat',
+    talent: null,
+    location: 'Studio A',
+    tags: ['#detail'],
+    notes: 'Close-up of lapel stitching',
+  },
+  {
+    id: 'SB-003', start: toMin(8, 15), dur: 20,
+    title: 'Merino Short Trench', color: 'violet',
+    set: 'Set A', desc: 'Duo talent editorial',
+    products: 'Merino Short Trench',
+    talent: 'Jane Doe, Mark Smith',
+    location: 'Studio A',
+    tags: ['#hero'],
+    notes: null,
+  },
+  {
+    id: 'SB-004', start: toMin(8, 40), dur: 15,
+    title: 'Merino Overcoat Styled', color: 'rose',
+    set: 'Set B', desc: 'Styled layering look',
+    products: 'Merino Overcoat',
+    talent: 'Jane Doe',
+    location: 'Studio B',
+    tags: ['#styled'],
+    notes: null,
+  },
+  {
+    id: 'SB-005', start: toMin(8, 55), dur: 15,
+    title: 'Poplin Button-Up', color: 'amber',
+    set: 'Set B', desc: 'Clean studio, relaxed pose',
+    products: 'Poplin Button-Up Shirt',
+    talent: 'Mark Smith',
+    location: 'Studio B',
+    tags: [],
+    notes: null,
+  },
+];
+
+const videoShots = [
+  {
+    id: 'SB-010', start: toMin(7, 0), dur: 20,
+    title: 'Outerwear ASMR Teaser', color: 'sky',
+    set: 'Set A', desc: 'Fabric texture ASMR for social',
+    products: 'Merino Trench Coat',
+    talent: 'Jane Doe',
+    location: null,
+    tags: ['#video', '#social'],
+    notes: null,
+  },
+  {
+    id: 'SB-011', start: toMin(7, 20), dur: 15,
+    title: 'Outerwear Montage', color: 'indigo',
+    set: 'Set A', desc: 'Cross-cut editorial sequence',
+    products: 'Merino Overcoat, Merino Trench',
+    talent: 'Jane Doe, Mark Smith',
+    location: 'Studio A',
+    tags: [],
+    notes: null,
+  },
+  {
+    id: 'SB-012', start: toMin(7, 35), dur: 35,
+    title: 'Styled 3 Ways', color: 'violet',
+    set: 'Set A', desc: '3 outfit styling tutorial',
+    products: 'Poplin Button-Up Shirt',
+    talent: 'Mark Smith',
+    location: null,
+    tags: ['#video', '#how-to'],
+    notes: null,
+  },
+  {
+    id: 'SB-013', start: toMin(8, 20), dur: 15,
+    title: 'Styled 3 Ways B-Roll', color: 'slate',
+    set: 'Set A', desc: 'Supporting footage for edit',
+    products: 'Poplin Button-Up Shirt',
+    talent: 'Mark Smith',
+    location: 'Studio A',
+    tags: [],
+    notes: null,
+  },
+  {
+    id: 'SB-014', start: toMin(8, 40), dur: 20,
+    title: 'Staff Try On', color: 'slate',
+    set: 'Set B', desc: 'Casual social content',
+    products: null,
+    talent: 'TBD',
+    location: 'Studio B',
+    tags: [],
+    notes: 'Casual content for social',
+  },
+];
+
+// ─── SEGMENT DEFINITIONS ────────────────────────────────────────────
+// Each segment: { type, startMin, endMin, pxPerMin (for dense), fixedHeight (for banners/gaps) }
+
+const segments = [
+  // Art Dept Load-In — banner, compressed
+  { type: 'banner', banner: banners[0] },
+
+  // Dense Block 1: 7:00 – 8:10 (Photo: 2 shots, Video: 3 shots — heavy overlap)
+  { type: 'dense', startMin: toMin(7, 0), endMin: toMin(8, 10), pxPerMin: 8 },
+
+  // Gap: 8:10 – 8:15 (5 min, no events)
+  { type: 'gap', startMin: toMin(8, 10), endMin: toMin(8, 15), label: '5 min gap' },
+
+  // Moderate Block 2: 8:15 – 9:10 (Photo: 3 shots, Video: 2 shots)
+  { type: 'dense', startMin: toMin(8, 15), endMin: toMin(9, 10), pxPerMin: 6 },
+
+  // Gap: 9:10 – 12:00 (long downtime / other activities)
+  { type: 'gap', startMin: toMin(9, 10), endMin: toMin(12, 0), label: '2h 50m &mdash; subsequent shooting blocks' },
+
+  // Lunch — banner, compressed
+  { type: 'banner', banner: banners[1] },
+];
+
+// ─── ICON TEMPLATES ─────────────────────────────────────────────────
+
+const icons = {
+  products: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
+  talent: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
+  talentGroup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  location: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  notes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3z"/><polyline points="15 3 15 9 21 9"/></svg>',
+};
+
+// ─── RENDER FUNCTIONS ───────────────────────────────────────────────
+
+function renderBanner(seg) {
+  const b = seg.banner;
+  const endMin = b.start + b.dur;
+  return '<div class="banner-segment segment">' +
+    '<div class="banner-time-cell">' +
+      '<span class="banner-time-text">' + fmtTimeShort(b.start) + '</span>' +
+    '</div>' +
+    '<div class="banner-pill ' + b.style + '">' +
+      '<span class="banner-pill-time">' + fmtTime(b.start) + ' &ndash; ' + fmtTime(endMin) + '</span>' +
+      '<span class="banner-pill-title">' + b.title + '</span>' +
+      '<span class="banner-pill-spacer"></span>' +
+      '<span class="banner-pill-dur">' + b.dur + 'm</span>' +
+    '</div>' +
+  '</div>';
+}
+
+function renderGap(seg) {
+  return '<div class="gap-segment segment">' +
+    '<div class="gap-time-cell"></div>' +
+    '<div class="gap-content">' +
+      '<div class="gap-line"></div>' +
+      '<span class="gap-label">' + seg.label + '</span>' +
+      '<div class="gap-line"></div>' +
+    '</div>' +
+  '</div>';
+}
+
+function buildCardHTML(shot, trackType) {
+  const dotColor = trackType === 'photo' ? '#64748b' : '#3b82f6';
+  const talentIcon = shot.talent && shot.talent.includes(',') ? icons.talentGroup : icons.talent;
+
+  let fieldsHTML = '';
+
+  if (shot.desc) {
+    fieldsHTML += '<div class="card-description field-description">' + shot.desc + '</div>';
+  }
+  if (shot.products) {
+    fieldsHTML += '<div class="card-meta-row products field-products">' +
+      icons.products +
+      '<span class="card-meta-text">' + shot.products + '</span>' +
+    '</div>';
+  }
+  if (shot.talent) {
+    fieldsHTML += '<div class="card-meta-row talent field-talent">' +
+      talentIcon +
+      '<span class="card-meta-text">' + shot.talent + '</span>' +
+    '</div>';
+  }
+  if (shot.location) {
+    fieldsHTML += '<div class="card-meta-row location field-location">' +
+      icons.location +
+      '<span class="card-meta-text">' + shot.location + '</span>' +
+    '</div>';
+  }
+  if (shot.notes) {
+    fieldsHTML += '<div class="card-meta-row notes field-notes">' +
+      icons.notes +
+      '<span class="card-meta-text">&ldquo;' + shot.notes + '&rdquo;</span>' +
+    '</div>';
+  }
+  if (shot.tags && shot.tags.length > 0) {
+    fieldsHTML += '<div class="card-tags field-tags">' +
+      shot.tags.map(function(t) { return '<span class="tag-badge">' + t + '</span>'; }).join('') +
+    '</div>';
+  }
+
+  return '<div class="card-inner">' +
+    '<div class="card-header">' +
+      '<div class="card-track-dot" style="background:' + dotColor + '"></div>' +
+      '<span class="card-set-badge">' + shot.set + '</span>' +
+      '<span class="card-header-spacer"></span>' +
+      '<span class="card-time">' + fmtTime(shot.start) + '</span>' +
+      '<span class="card-duration">' + shot.dur + 'm</span>' +
+    '</div>' +
+    '<div class="card-title-row">' +
+      '<span class="card-shot-num field-shot-num">' + shot.id + '</span>' +
+      '<span class="card-title field-shot-name">' + shot.title + '</span>' +
+    '</div>' +
+    '<div class="card-fields">' + fieldsHTML + '</div>' +
+  '</div>';
+}
+
+function renderDense(seg) {
+  const blockDur = seg.endMin - seg.startMin;
+  const blockHeight = blockDur * seg.pxPerMin;
+
+  // Filter shots that fall within this segment
+  var photoInBlock = photoShots.filter(function(s) {
+    return s.start >= seg.startMin && s.start < seg.endMin;
+  });
+  var videoInBlock = videoShots.filter(function(s) {
+    return s.start >= seg.startMin && s.start < seg.endMin;
+  });
+
+  // Build time gutter markers
+  var gutterHTML = '';
+  // Place markers at each 15-min interval within the block
+  for (var min = seg.startMin; min <= seg.endMin; min += 15) {
+    var topPx = (min - seg.startMin) * seg.pxPerMin;
+    var isHour = (min % 60 === 0);
+    var cls = isHour ? 'time-marker primary' : 'time-marker';
+
+    if (min < seg.endMin) {
+      gutterHTML += '<span class="' + cls + '" style="top:' + topPx + 'px">' + fmtTimeShort(min) + '</span>';
+      gutterHTML += '<div class="time-gridline" style="top:' + topPx + 'px"></div>';
+    }
+  }
+
+  // Build gridlines within the track area
+  var gridlinesHTML = '';
+  for (var min2 = seg.startMin; min2 <= seg.endMin; min2 += 15) {
+    var topPx2 = (min2 - seg.startMin) * seg.pxPerMin;
+    var isHour2 = (min2 % 60 === 0);
+    gridlinesHTML += '<div class="dense-gridline' + (isHour2 ? ' hour' : '') + '" style="top:' + topPx2 + 'px"></div>';
+  }
+
+  // Build shot cards for photo track
+  var photoCardsHTML = gridlinesHTML;
+  photoInBlock.forEach(function(shot) {
+    var top = (shot.start - seg.startMin) * seg.pxPerMin;
+    var height = shot.dur * seg.pxPerMin;
+    photoCardsHTML += '<div class="shot-card color-' + shot.color + '" style="top:' + top + 'px; height:' + height + 'px;">' +
+      buildCardHTML(shot, 'photo') +
+    '</div>';
+  });
+
+  // Build shot cards for video track
+  var videoCardsHTML = gridlinesHTML;
+  videoInBlock.forEach(function(shot) {
+    var top = (shot.start - seg.startMin) * seg.pxPerMin;
+    var height = shot.dur * seg.pxPerMin;
+    videoCardsHTML += '<div class="shot-card color-' + shot.color + '" style="top:' + top + 'px; height:' + height + 'px;">' +
+      buildCardHTML(shot, 'video') +
+    '</div>';
+  });
+
+  return '<div class="dense-segment segment" style="min-height:' + blockHeight + 'px">' +
+    '<div class="dense-gutter" style="height:' + blockHeight + 'px">' + gutterHTML + '</div>' +
+    '<div class="dense-tracks">' +
+      '<div class="dense-track" style="height:' + blockHeight + 'px">' + photoCardsHTML + '</div>' +
+      '<div class="dense-track" style="height:' + blockHeight + 'px">' + videoCardsHTML + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+// ─── MAIN RENDER ────────────────────────────────────────────────────
+
+function render() {
+  var timeline = document.getElementById('timeline');
+
+  // Track headers
+  var headerHTML = '<div class="track-header-row">' +
+    '<div class="time-gutter-header">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+    '</div>' +
+    '<div class="track-header-cell">' +
+      '<div class="track-dot" style="background:var(--photo-color)"></div>' +
+      '<span class="track-label">Photo</span>' +
+      '<span class="track-count">' + photoShots.length + ' shots</span>' +
+    '</div>' +
+    '<div class="track-header-cell">' +
+      '<div class="track-dot" style="background:var(--video-color)"></div>' +
+      '<span class="track-label" style="color:#3b82f6">Video</span>' +
+      '<span class="track-count">' + videoShots.length + ' shots</span>' +
+    '</div>' +
+  '</div>';
+
+  var segmentsHTML = headerHTML;
+
+  segments.forEach(function(seg) {
+    if (seg.type === 'banner') {
+      segmentsHTML += renderBanner(seg);
+    } else if (seg.type === 'gap') {
+      segmentsHTML += renderGap(seg);
+    } else if (seg.type === 'dense') {
+      segmentsHTML += renderDense(seg);
+    }
+  });
+
+  timeline.innerHTML = segmentsHTML;
+}
+
+// ─── FIELD TOGGLES ──────────────────────────────────────────────────
+
+var fieldMap = {
+  'toggle-shot-num':    'field-shot-num',
+  'toggle-shot-name':   'field-shot-name',
+  'toggle-description': 'field-description',
+  'toggle-talent':      'field-talent',
+  'toggle-location':    'field-location',
+  'toggle-tags':        'field-tags',
+  'toggle-notes':       'field-notes',
+  'toggle-products':    'field-products',
+};
+
+Object.keys(fieldMap).forEach(function(checkboxId) {
+  var targetClass = fieldMap[checkboxId];
+  var checkbox = document.getElementById(checkboxId);
+  if (!checkbox) return;
+
+  checkbox.addEventListener('change', function() {
+    var elements = document.querySelectorAll('.' + targetClass);
+    elements.forEach(function(el) {
+      if (checkbox.checked) {
+        el.classList.remove('hidden');
+      } else {
+        el.classList.add('hidden');
+      }
+    });
+  });
+});
+
+// Ripple toggle visual
+var rippleCheckbox = document.getElementById('ripple');
+rippleCheckbox.addEventListener('change', function() {
+  var label = rippleCheckbox.nextElementSibling;
+  label.style.color = rippleCheckbox.checked ? '#b45309' : '';
+});
+if (rippleCheckbox.checked) {
+  rippleCheckbox.nextElementSibling.style.color = '#b45309';
+}
+
+// ─── INIT ───────────────────────────────────────────────────────────
+
+render();
+</script>
+
+</body>
+</html>

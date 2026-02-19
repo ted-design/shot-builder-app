@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { Clock, Timer, Type, StickyNote, Rows, Sparkles } from "lucide-react"
+import { Clock, Timer, Type, StickyNote, Rows, Sparkles, Trash2 } from "lucide-react"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/ui/sheet"
 import { Label } from "@/ui/label"
 import { Input } from "@/ui/input"
@@ -32,6 +32,7 @@ interface ScheduleEntryEditSheetProps {
   readonly onUpdateNotes: (notes: string) => Promise<void>
   readonly onUpdateHighlight: (highlight: ScheduleEntryHighlight) => Promise<void>
   readonly onMoveToTrack: (trackId: string) => Promise<void>
+  readonly onRemove?: () => Promise<void>
 }
 
 function isSharedEntry(entry: ScheduleEntry | null): boolean {
@@ -50,6 +51,7 @@ export function ScheduleEntryEditSheet({
   onUpdateNotes,
   onUpdateHighlight,
   onMoveToTrack,
+  onRemove,
 }: ScheduleEntryEditSheetProps) {
   const [titleDraft, setTitleDraft] = useState("")
   const [durationDraft, setDurationDraft] = useState("")
@@ -477,6 +479,21 @@ export function ScheduleEntryEditSheet({
                 placeholder="Add notes..."
               />
             </section>
+
+            {onRemove ? (
+              <section className="border-t border-[var(--color-border)] pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onRemove()
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Remove from schedule
+                </button>
+              </section>
+            ) : null}
           </div>
         </div>
       </SheetContent>

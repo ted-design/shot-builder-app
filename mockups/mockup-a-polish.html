@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Approach A: Polish & Connect — Shot Builder Schedule Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Brand */
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --primary-subtle: #eef2ff;
+      --primary-border: #c7d2fe;
+
+      /* Surfaces */
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-subtle: #f1f5f9;
+      --surface-raised: #ffffff;
+
+      /* Sidebar */
+      --sidebar-bg: #0f172a;
+      --sidebar-text: #94a3b8;
+      --sidebar-text-active: #f8fafc;
+      --sidebar-active-bg: rgba(99,102,241,0.18);
+      --sidebar-hover-bg: rgba(255,255,255,0.06);
+
+      /* Text */
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --text-subtle: #94a3b8;
+
+      /* Borders */
+      --border: #e2e8f0;
+      --border-muted: #f1f5f9;
+
+      /* Status */
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+
+      /* Track colors */
+      --photo-color: #64748b;
+      --video-color: #3b82f6;
+
+      /* Semantic icon colors */
+      --icon-product: #14b8a6;
+      --icon-talent: #6366f1;
+      --icon-location: #10b981;
+      --icon-notes: #f59e0b;
+      --icon-tags: #94a3b8;
+      --icon-time: #94a3b8;
+
+      /* Radii */
+      --radius-card: 8px;
+      --radius-button: 6px;
+      --radius-badge: 4px;
+      --radius-pill: 999px;
+
+      /* Shadows */
+      --shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
+      --shadow-toolbar: 0 1px 0 var(--border);
+    }
+
+    html { font-size: 14px; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── Approach Label Banner ────────────────────────────────────── */
+    .approach-banner {
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+      color: white;
+      padding: 14px 28px;
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    .approach-banner h1 {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #a5b4fc;
+    }
+    .approach-banner p {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      font-style: italic;
+    }
+
+    /* ─── App Shell ─────────────────────────────────────────────────── */
+    .app-shell {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      height: calc(100vh - 46px);
+    }
+
+    /* ─── Sidebar ───────────────────────────────────────────────────── */
+    .sidebar {
+      width: 220px;
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+      border-right: 1px solid rgba(255,255,255,0.05);
+    }
+    .sidebar-logo {
+      padding: 20px 16px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sidebar-logo-mark {
+      width: 28px;
+      height: 28px;
+      background: var(--primary);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .sidebar-logo-mark svg { color: white; }
+    .sidebar-logo-text {
+      font-size: 13px;
+      font-weight: 700;
+      color: white;
+      letter-spacing: -0.01em;
+    }
+    .sidebar-logo-sub {
+      font-size: 10px;
+      color: var(--sidebar-text);
+      font-weight: 400;
+    }
+
+    .sidebar-section {
+      padding: 10px 8px 4px;
+    }
+    .sidebar-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(148,163,184,0.5);
+      padding: 0 8px;
+      margin-bottom: 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--sidebar-text);
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+      text-decoration: none;
+      margin-bottom: 1px;
+    }
+    .nav-item:hover {
+      background: var(--sidebar-hover-bg);
+      color: white;
+    }
+    .nav-item.active {
+      background: var(--sidebar-active-bg);
+      color: var(--sidebar-text-active);
+    }
+    .nav-item.active svg { color: var(--primary); }
+    .nav-item svg {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
+    }
+    .nav-badge {
+      margin-left: auto;
+      background: rgba(99,102,241,0.25);
+      color: #a5b4fc;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 999px;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 12px 8px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .sidebar-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .sidebar-user:hover { background: var(--sidebar-hover-bg); }
+    .avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+    }
+    .sidebar-user-info { flex: 1; min-width: 0; }
+    .sidebar-user-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: white;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sidebar-user-role {
+      font-size: 10px;
+      color: var(--sidebar-text);
+    }
+
+    /* ─── Main Content ──────────────────────────────────────────────── */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    /* ─── Toolbar ───────────────────────────────────────────────────── */
+    .toolbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 52px;
+      flex-shrink: 0;
+    }
+    .toolbar-day-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .toolbar-nav-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-button);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.12s;
+    }
+    .toolbar-nav-btn:hover {
+      background: var(--surface-subtle);
+      color: var(--text-primary);
+    }
+    .toolbar-day-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      padding: 0 8px;
+      white-space: nowrap;
+    }
+    .toolbar-day-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+    .toolbar-spacer { flex: 1; }
+    .toolbar-actions { display: flex; align-items: center; gap: 8px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-button);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.12s;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .btn svg { width: 13px; height: 13px; }
+    .btn-ghost {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text-secondary);
+    }
+    .btn-ghost:hover {
+      background: var(--surface-subtle);
+      color: var(--text-primary);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+
+    /* ─── Settings Bar ──────────────────────────────────────────────── */
+    .settings-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      height: 40px;
+      flex-shrink: 0;
+    }
+    .settings-divider {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+    }
+    .settings-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: nowrap;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .checkbox-item input[type="checkbox"] {
+      width: 13px;
+      height: 13px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+    .checkbox-item label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .ripple-check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ripple-check input[type="checkbox"] {
+      width: 13px;
+      height: 13px;
+      accent-color: var(--warning);
+    }
+    .ripple-check label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .ripple-check input:checked + label { color: #b45309; }
+
+    /* ─── Timeline Area ─────────────────────────────────────────────── */
+    .timeline-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: var(--bg);
+    }
+    .timeline-inner {
+      padding: 16px 20px 32px;
+      min-width: 900px;
+    }
+
+    /* ─── Banner Entry ──────────────────────────────────────────────── */
+    .banner-entry {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 10px;
+      padding: 0 0 0 60px; /* align with track content (48px gutter + 12px pad) */
+    }
+    .banner-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 16px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      flex: 1;
+      min-width: 0;
+    }
+    .banner-pill.indigo {
+      background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+      border: 1px solid #c7d2fe;
+      color: #4338ca;
+    }
+    .banner-pill.amber {
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+      border: 1px solid #fde68a;
+      color: #b45309;
+    }
+    .banner-time {
+      font-size: 11px;
+      font-weight: 500;
+      background: rgba(0,0,0,0.08);
+      padding: 2px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .banner-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      flex: 1;
+    }
+    .banner-duration {
+      font-size: 11px;
+      opacity: 0.65;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ─── Track Layout ──────────────────────────────────────────────── */
+    .tracks-wrapper {
+      display: flex;
+      gap: 0;
+      background: var(--surface);
+      border-radius: var(--radius-card);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+
+    /* Time gutter */
+    .time-gutter {
+      width: 48px;
+      flex-shrink: 0;
+      background: #f8fafc;
+      border-right: 1px solid var(--border-muted);
+      position: relative;
+    }
+    .time-gutter-header {
+      height: 36px;
+      background: var(--surface-subtle);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .time-gutter-header svg { color: var(--icon-time); width: 13px; height: 13px; }
+    .time-slots {
+      display: flex;
+      flex-direction: column;
+    }
+    .time-slot {
+      height: 40px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 4px;
+      position: relative;
+    }
+    .time-slot::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 6px;
+      height: 1px;
+      background: var(--border);
+    }
+    .time-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-subtle);
+      white-space: nowrap;
+      line-height: 1;
+      writing-mode: horizontal-tb;
+      transform: none;
+    }
+
+    /* Track columns */
+    .tracks-body {
+      flex: 1;
+      display: flex;
+      min-width: 0;
+    }
+    .track {
+      flex: 1;
+      min-width: 0;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+    .track:last-child { border-right: none; }
+
+    .track-header {
+      height: 36px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .track-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .track-dot.photo { background: var(--photo-color); }
+    .track-dot.video { background: var(--video-color); }
+    .track-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    .track-count {
+      font-size: 10px;
+      color: var(--text-subtle);
+      font-weight: 400;
+      margin-left: auto;
+    }
+
+    .track-cards {
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* ─── Shot Card ─────────────────────────────────────────────────── */
+    .shot-card {
+      background: var(--surface-raised);
+      border-radius: var(--radius-card);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-card);
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: box-shadow 0.15s ease, transform 0.15s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .shot-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      border-radius: 8px 0 0 8px;
+    }
+    .shot-card.color-indigo::before { background: #6366f1; }
+    .shot-card.color-teal::before   { background: #14b8a6; }
+    .shot-card.color-violet::before { background: #8b5cf6; }
+    .shot-card.color-sky::before    { background: #0ea5e9; }
+    .shot-card.color-rose::before   { background: #f43f5e; }
+    .shot-card.color-amber::before  { background: #f59e0b; }
+    .shot-card.color-slate::before  { background: #64748b; }
+
+    .shot-card:hover {
+      box-shadow: var(--shadow-card-hover);
+      transform: translateY(-1px);
+    }
+
+    /* Card header row */
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 5px;
+      padding-left: 8px; /* account for color bar */
+    }
+    .card-track-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .card-set-badge {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-subtle);
+      background: var(--surface-subtle);
+      padding: 1px 6px;
+      border-radius: var(--radius-badge);
+      border: 1px solid var(--border);
+    }
+    .card-marker-icon {
+      color: var(--text-subtle);
+    }
+    .card-header-spacer { flex: 1; }
+    .card-time {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--icon-time);
+      font-weight: 500;
+    }
+    .card-duration {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-subtle);
+      background: var(--surface-subtle);
+      padding: 1px 5px;
+      border-radius: var(--radius-badge);
+    }
+
+    /* Card body */
+    .card-body { padding-left: 8px; }
+
+    .card-title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+    .card-shot-num {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-subtle);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    /* Metadata rows — each controlled by a field toggle */
+    .card-meta-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 5px;
+      margin-top: 4px;
+    }
+    .card-meta-row svg {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .card-meta-text {
+      font-size: 11px;
+      line-height: 1.4;
+      color: var(--text-secondary);
+    }
+    .card-meta-row.products svg { color: var(--icon-product); }
+    .card-meta-row.products .card-meta-text { color: #0f766e; }
+    .card-meta-row.talent svg { color: var(--icon-talent); }
+    .card-meta-row.talent .card-meta-text { color: #4338ca; }
+    .card-meta-row.location svg { color: var(--icon-location); }
+    .card-meta-row.location .card-meta-text { color: #065f46; }
+    .card-meta-row.notes svg { color: var(--icon-notes); }
+    .card-meta-row.notes .card-meta-text { color: #92400e; font-style: italic; }
+
+    /* Description row */
+    .card-description {
+      font-size: 11px;
+      color: #475569;
+      line-height: 1.4;
+      margin-top: 3px;
+      padding-left: 8px;
+    }
+
+    /* Tags row */
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 5px;
+      padding-left: 8px;
+    }
+    .tag-badge {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: var(--radius-pill);
+    }
+
+    /* ─── Unscheduled Tray ──────────────────────────────────────────── */
+    .unscheduled-section {
+      margin-top: 20px;
+    }
+    .unscheduled-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .unscheduled-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+    }
+    .unscheduled-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border-muted);
+    }
+    .unscheduled-count {
+      font-size: 10px;
+      color: var(--text-subtle);
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      padding: 1px 7px;
+      border-radius: var(--radius-pill);
+    }
+    .unscheduled-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 8px;
+      padding-left: 60px; /* align with track content */
+    }
+
+    /* Unscheduled card variant */
+    .shot-card.unscheduled {
+      border-style: dashed;
+      border-color: var(--border);
+      background: var(--surface-subtle);
+      box-shadow: none;
+    }
+    .shot-card.unscheduled:hover {
+      box-shadow: var(--shadow-card);
+      background: var(--surface);
+    }
+
+    /* ─── Legend ────────────────────────────────────────────────────── */
+    .legend-section {
+      margin-top: 32px;
+      padding: 20px;
+      background: var(--surface);
+      border-radius: var(--radius-card);
+      border: 1px solid var(--border);
+    }
+    .legend-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      margin-bottom: 12px;
+    }
+    .legend-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .legend-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--surface-subtle);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+    }
+    .legend-text h4 {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+    .legend-text p {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* ─── Scrollbar ─────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+    /* ─── Field visibility classes ──────────────────────────────────── */
+    .field-shot-num.hidden     { display: none !important; }
+    .field-shot-name.hidden    { display: none !important; }
+    .field-description.hidden  { display: none !important; }
+    .field-talent.hidden       { display: none !important; }
+    .field-location.hidden     { display: none !important; }
+    .field-tags.hidden         { display: none !important; }
+    .field-notes.hidden        { display: none !important; }
+    .field-products.hidden     { display: none !important; }
+  </style>
+</head>
+<body>
+
+<!-- ─── Approach Banner ───────────────────────────────────────────── -->
+<div class="approach-banner">
+  <h1>Approach A: Polish &amp; Connect</h1>
+  <p>Sequential cards + time ruler gutter + field toggles + visual polish</p>
+</div>
+
+<!-- ─── App Shell ─────────────────────────────────────────────────── -->
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+      </div>
+      <div>
+        <div class="sidebar-logo-text">Shot Builder</div>
+        <div class="sidebar-logo-sub">Riviera FW 2026</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Workspace</div>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+        Shots
+        <span class="nav-badge">47</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        Pulls
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        Assets
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        Tags
+      </a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Planning</div>
+      <a class="nav-item active" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Call Sheet
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Products
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Talent
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Locations
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Crew
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+        Palette
+      </a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="avatar">TG</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name">Ted Ghanime</div>
+          <div class="sidebar-user-role">Producer</div>
+        </div>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-day-nav">
+        <button class="toolbar-nav-btn" title="Previous day">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div>
+          <div class="toolbar-day-label">Day 1 &mdash; <span class="toolbar-day-sub">Thursday, February 19, 2026</span></div>
+        </div>
+        <button class="toolbar-nav-btn" title="Next day">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+      <div class="toolbar-spacer"></div>
+
+      <div class="toolbar-actions">
+        <button class="btn btn-ghost">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Change Schedule
+        </button>
+        <button class="btn btn-ghost">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Preview
+        </button>
+        <button class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          Export PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- Settings Bar -->
+    <div class="settings-bar">
+      <div class="ripple-check">
+        <input type="checkbox" id="ripple" checked>
+        <label for="ripple">Ripple downstream</label>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <span class="settings-label">Preview Fields:</span>
+
+      <div class="checkbox-group">
+        <div class="checkbox-item">
+          <input type="checkbox" id="toggle-shot-num" checked>
+          <label for="toggle-shot-num">Shot #</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="toggle-shot-name" checked>
+          <label for="toggle-shot-name">Shot Name</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="toggle-description" checked>
+          <label for="toggle-description">Description</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="toggle-talent" checked>
+          <label for="toggle-talent">Talent</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="toggle-location" checked>
+          <label for="toggle-location">Location</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="toggle-tags" checked>
+          <label for="toggle-tags">Tags</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="toggle-notes" checked>
+          <label for="toggle-notes">Notes</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="toggle-products" checked>
+          <label for="toggle-products">Products</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline Scroll Container -->
+    <div class="timeline-scroll">
+      <div class="timeline-inner">
+
+        <!-- Banner: Art Department Load-In -->
+        <div class="banner-entry" style="padding-left: 0; margin-bottom: 8px;">
+          <div class="banner-pill indigo">
+            <span class="banner-time">6:00 AM &ndash; 7:00 AM</span>
+            <div style="flex:1; height:1px; background:rgba(67,56,202,0.2); margin: 0 6px;"></div>
+            <span class="banner-title">Art Department Load-In &amp; Setup</span>
+            <span class="banner-duration">60m</span>
+          </div>
+        </div>
+
+        <!-- Tracks with time gutter -->
+        <div class="tracks-wrapper">
+
+          <!-- Time Gutter -->
+          <div class="time-gutter">
+            <div class="time-gutter-header">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" color="var(--icon-time)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="time-slots">
+              <div class="time-slot"><span class="time-label">7:00</span></div>
+              <div class="time-slot"><span class="time-label">7:15</span></div>
+              <div class="time-slot"><span class="time-label">7:30</span></div>
+              <div class="time-slot"><span class="time-label">7:45</span></div>
+              <div class="time-slot"><span class="time-label">8:00</span></div>
+              <div class="time-slot"><span class="time-label">8:15</span></div>
+              <div class="time-slot"><span class="time-label">8:30</span></div>
+              <div class="time-slot"><span class="time-label">8:45</span></div>
+            </div>
+          </div>
+
+          <!-- Tracks body -->
+          <div class="tracks-body">
+
+            <!-- PHOTO Track -->
+            <div class="track">
+              <div class="track-header">
+                <div class="track-dot photo"></div>
+                <span class="track-label">Photo</span>
+                <span class="track-count">5 entries</span>
+              </div>
+              <div class="track-cards">
+
+                <!-- SB-001: Merino Trench Coat -->
+                <div class="shot-card color-indigo" style="min-height: calc(15 * 2.5px + 72px);">
+                  <div class="card-header">
+                    <div class="card-track-dot" style="background:#64748b"></div>
+                    <span class="card-set-badge">Set A</span>
+                    <svg class="card-marker-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <span class="card-header-spacer"></span>
+                    <span class="card-time">7:30 AM</span>
+                    <span class="card-duration">15m</span>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-title-row">
+                      <span class="card-shot-num field-shot-num">SB-001</span>
+                      <span class="card-title field-shot-name">Merino Trench Coat</span>
+                    </div>
+                    <div class="card-meta-row products field-products">
+                      <!-- Package icon -->
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                      <span class="card-meta-text">Merino Trench Coat</span>
+                    </div>
+                    <div class="card-meta-row talent field-talent">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                      <span class="card-meta-text">Jane Doe</span>
+                    </div>
+                    <div class="card-meta-row location field-location">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      <span class="card-meta-text">Studio A &mdash; North Wall</span>
+                    </div>
+                    <div class="card-tags field-tags">
+                      <span class="tag-badge">#hero</span>
+                      <span class="tag-badge">#outerwear</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SB-002: Merino Trench Coat Detail -->
+                <div class="shot-card color-teal" style="min-height: calc(15 * 2.5px + 72px);">
+                  <div class="card-header">
+                    <div class="card-track-dot" style="background:#64748b"></div>
+                    <span class="card-set-badge">Set A</span>
+                    <span class="card-header-spacer"></span>
+                    <span class="card-time">7:45 AM</span>
+                    <span class="card-duration">15m</span>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-title-row">
+                      <span class="card-shot-num field-shot-num">SB-002</span>
+                      <span class="card-title field-shot-name">Merino Trench Coat Detail</span>
+                    </div>
+                    <div class="card-description field-description">Front-facing hero shot, natural light setup</div>
+                    <div class="card-meta-row products field-products">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                      <span class="card-meta-text">Merino Trench Coat</span>
+                    </div>
+                    <div class="card-meta-row location field-location">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      <span class="card-meta-text">Studio A</span>
+                    </div>
+                    <div class="card-meta-row notes field-notes">
+                      <!-- StickyNote icon -->
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3z"/><polyline points="15 3 15 9 21 9"/></svg>
+                      <span class="card-meta-text">&ldquo;Close-up of lapel stitching&rdquo;</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SB-003: Merino Short Trench -->
+                <div class="shot-card color-violet" style="min-height: calc(20 * 2.5px + 72px);">
+                  <div class="card-header">
+                    <div class="card-track-dot" style="background:#64748b"></div>
+                    <span class="card-set-badge">Set A</span>
+                    <span class="card-header-spacer"></span>
+                    <span class="card-time">8:00 AM</span>
+                    <span class="card-duration">20m</span>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-title-row">
+                      <span class="card-shot-num field-shot-num">SB-003</span>
+                      <span class="card-title field-shot-name">Merino Short Trench</span>
+                    </div>
+                    <div class="card-meta-row products field-products">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                      <span class="card-meta-text">Merino Short Trench</span>
+                    </div>
+                    <div class="card-meta-row talent field-talent">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      <span class="card-meta-text">Jane Doe, Mark Smith</span>
+                    </div>
+                    <div class="card-meta-row location field-location">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      <span class="card-meta-text">Studio A</span>
+                    </div>
+                    <div class="card-tags field-tags">
+                      <span class="tag-badge">#hero</span>
+                      <span class="tag-badge">#outerwear</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SB-004: Merino Overcoat Styled -->
+                <div class="shot-card color-rose" style="min-height: calc(15 * 2.5px + 72px);">
+                  <div class="card-header">
+                    <div class="card-track-dot" style="background:#64748b"></div>
+                    <span class="card-set-badge">Set B</span>
+                    <span class="card-header-spacer"></span>
+                    <span class="card-time">8:20 AM</span>
+                    <span class="card-duration">15m</span>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-title-row">
+                      <span class="card-shot-num field-shot-num">SB-004</span>
+                      <span class="card-title field-shot-name">Merino Overcoat Styled</span>
+                    </div>
+                    <div class="card-meta-row products field-products">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                      <span class="card-meta-text">Merino Overcoat</span>
+                    </div>
+                    <div class="card-meta-row talent field-talent">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                      <span class="card-meta-text">Jane Doe</span>
+                    </div>
+                    <div class="card-meta-row location field-location">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      <span class="card-meta-text">Studio B</span>
+                    </div>
+                    <div class="card-tags field-tags">
+                      <span class="tag-badge">#styled</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SB-005: Poplin Button-Up -->
+                <div class="shot-card color-amber" style="min-height: calc(15 * 2.5px + 72px);">
+                  <div class="card-header">
+                    <div class="card-track-dot" style="background:#64748b"></div>
+                    <span class="card-set-badge">Set B</span>
+                    <span class="card-header-spacer"></span>
+                    <span class="card-time">8:35 AM</span>
+                    <span class="card-duration">15m</span>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-title-row">
+                      <span class="card-shot-num field-shot-num">SB-005</span>
+                      <span class="card-title field-shot-name">Poplin Button-Up</span>
+                    </div>
+                    <div class="card-meta-row products field-products">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                      <span class="card-meta-text">Poplin Button-Up Shirt</span>
+                    </div>
+                    <div class="card-meta-row talent field-talent">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                      <span class="card-meta-text">Mark Smith</span>
+                    </div>
+                    <div class="card-meta-row location field-location">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      <span class="card-meta-text">Studio B</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div><!-- /track-cards -->
+            </div><!-- /PHOTO track -->
+
+            <!-- VIDEO Track -->
+            <div class="track">
+              <div class="track-header">
+                <div class="track-dot video"></div>
+                <span class="track-label" style="color:#3b82f6;">Video</span>
+                <span class="track-count">3 entries</span>
+              </div>
+              <div class="track-cards">
+
+                <!-- SB-010: Outerwear ASMR Teaser -->
+                <div class="shot-card color-sky" style="min-height: calc(15 * 2.5px + 72px);">
+                  <div class="card-header">
+                    <div class="card-track-dot" style="background:#3b82f6"></div>
+                    <span class="card-set-badge">Set A</span>
+                    <span class="card-header-spacer"></span>
+                    <span class="card-time">7:30 AM</span>
+                    <span class="card-duration">15m</span>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-title-row">
+                      <span class="card-shot-num field-shot-num">SB-010</span>
+                      <span class="card-title field-shot-name">Outerwear ASMR Teaser</span>
+                    </div>
+                    <div class="card-meta-row products field-products">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                      <span class="card-meta-text">Merino Trench Coat</span>
+                    </div>
+                    <div class="card-meta-row talent field-talent">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                      <span class="card-meta-text">Jane Doe</span>
+                    </div>
+                    <div class="card-tags field-tags">
+                      <span class="tag-badge">#video</span>
+                      <span class="tag-badge">#social</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SB-011: Outerwear Montage -->
+                <div class="shot-card color-indigo" style="min-height: calc(20 * 2.5px + 72px);">
+                  <div class="card-header">
+                    <div class="card-track-dot" style="background:#3b82f6"></div>
+                    <span class="card-set-badge">Set A</span>
+                    <span class="card-header-spacer"></span>
+                    <span class="card-time">7:45 AM</span>
+                    <span class="card-duration">20m</span>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-title-row">
+                      <span class="card-shot-num field-shot-num">SB-011</span>
+                      <span class="card-title field-shot-name">Outerwear Montage</span>
+                    </div>
+                    <div class="card-meta-row products field-products">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                      <span class="card-meta-text">Merino Overcoat, Merino Trench</span>
+                    </div>
+                    <div class="card-meta-row talent field-talent">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      <span class="card-meta-text">Jane Doe, Mark Smith</span>
+                    </div>
+                    <div class="card-meta-row location field-location">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      <span class="card-meta-text">Studio A</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SB-012: Styled 3 Ways -->
+                <div class="shot-card color-violet" style="min-height: calc(15 * 2.5px + 72px);">
+                  <div class="card-header">
+                    <div class="card-track-dot" style="background:#3b82f6"></div>
+                    <span class="card-set-badge">Set B</span>
+                    <span class="card-header-spacer"></span>
+                    <span class="card-time">8:05 AM</span>
+                    <span class="card-duration">15m</span>
+                  </div>
+                  <div class="card-body">
+                    <div class="card-title-row">
+                      <span class="card-shot-num field-shot-num">SB-012</span>
+                      <span class="card-title field-shot-name">Styled 3 Ways</span>
+                    </div>
+                    <div class="card-meta-row products field-products">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                      <span class="card-meta-text">Poplin Button-Up Shirt</span>
+                    </div>
+                    <div class="card-meta-row talent field-talent">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                      <span class="card-meta-text">Mark Smith</span>
+                    </div>
+                    <div class="card-tags field-tags">
+                      <span class="tag-badge">#video</span>
+                      <span class="tag-badge">#how-to</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div><!-- /track-cards VIDEO -->
+            </div><!-- /VIDEO track -->
+
+          </div><!-- /tracks-body -->
+        </div><!-- /tracks-wrapper -->
+
+        <!-- Banner: Lunch Break -->
+        <div class="banner-entry" style="padding-left: 0; margin-top: 10px; margin-bottom: 20px;">
+          <div class="banner-pill amber">
+            <span class="banner-time">12:00 PM &ndash; 12:30 PM</span>
+            <div style="flex:1; height:1px; background:rgba(180,83,9,0.2); margin: 0 6px;"></div>
+            <span class="banner-title">Lunch Break</span>
+            <span class="banner-duration">30m</span>
+          </div>
+        </div>
+
+        <!-- Unscheduled Tray -->
+        <div class="unscheduled-section">
+          <div class="unscheduled-header">
+            <span class="unscheduled-label">Unscheduled</span>
+            <div class="unscheduled-line"></div>
+            <span class="unscheduled-count">3 shots</span>
+          </div>
+          <div class="unscheduled-grid">
+
+            <!-- SB-020: Folded Stack -->
+            <div class="shot-card color-slate unscheduled">
+              <div class="card-header">
+                <div class="card-track-dot" style="background:#94a3b8"></div>
+                <span class="card-set-badge" style="opacity:0.6">Unset</span>
+                <span class="card-header-spacer"></span>
+                <span style="font-size:10px; color:#94a3b8; font-style:italic;">No time</span>
+              </div>
+              <div class="card-body">
+                <div class="card-title-row">
+                  <span class="card-shot-num field-shot-num" style="color:#94a3b8">SB-020</span>
+                  <span class="card-title field-shot-name">Folded Stack (Still Life)</span>
+                </div>
+                <div class="card-meta-row products field-products">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                  <span class="card-meta-text">Bermuda Shorts, Pique Shirt</span>
+                </div>
+                <div class="card-tags field-tags">
+                  <span class="tag-badge">#still-life</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- SB-021: Crew Try On -->
+            <div class="shot-card color-slate unscheduled">
+              <div class="card-header">
+                <div class="card-track-dot" style="background:#94a3b8"></div>
+                <span class="card-set-badge" style="opacity:0.6">Unset</span>
+                <span class="card-header-spacer"></span>
+                <span style="font-size:10px; color:#94a3b8; font-style:italic;">No time</span>
+              </div>
+              <div class="card-body">
+                <div class="card-title-row">
+                  <span class="card-shot-num field-shot-num" style="color:#94a3b8">SB-021</span>
+                  <span class="card-title field-shot-name">Crew Try On</span>
+                </div>
+                <div class="card-meta-row talent field-talent">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                  <span class="card-meta-text" style="opacity:0.6">TBD</span>
+                </div>
+                <div class="card-meta-row notes field-notes">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3z"/><polyline points="15 3 15 9 21 9"/></svg>
+                  <span class="card-meta-text">&ldquo;Casual content for social&rdquo;</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- SB-022: Staff Try On -->
+            <div class="shot-card color-slate unscheduled">
+              <div class="card-header">
+                <div class="card-track-dot" style="background:#94a3b8"></div>
+                <span class="card-set-badge" style="opacity:0.6">Unset</span>
+                <span class="card-header-spacer"></span>
+                <span style="font-size:10px; color:#94a3b8; font-style:italic;">No time</span>
+              </div>
+              <div class="card-body">
+                <div class="card-title-row">
+                  <span class="card-shot-num field-shot-num" style="color:#94a3b8">SB-022</span>
+                  <span class="card-title field-shot-name">Staff Try On</span>
+                </div>
+                <div class="card-meta-row talent field-talent">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                  <span class="card-meta-text" style="opacity:0.6">TBD</span>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /unscheduled-grid -->
+        </div><!-- /unscheduled-section -->
+
+        <!-- Legend -->
+        <div class="legend-section" style="margin-top: 32px;">
+          <div class="legend-title">What's different in Approach A</div>
+          <div class="legend-grid">
+            <div class="legend-item">
+              <div class="legend-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div class="legend-text">
+                <h4>Time Ruler Gutter</h4>
+                <p>A 48px mono-font time column anchors every card to a wall-clock time, replacing implicit ordering with explicit temporal context.</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <div class="legend-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+              </div>
+              <div class="legend-text">
+                <h4>Connected Field Toggles</h4>
+                <p>Checkboxes in the settings bar now wire to every card simultaneously. Toggling "Talent" collapses that row across all 8 shot cards instantly.</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <div class="legend-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              </div>
+              <div class="legend-text">
+                <h4>Semantic Icon Colors</h4>
+                <p>Each metadata type has a distinct color: teal for products, indigo for talent, green for location, amber for notes. Scannable at a glance.</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <div class="legend-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </div>
+              <div class="legend-text">
+                <h4>Left Color Bar</h4>
+                <p>A 4px accent bar on the card left edge carries the shot's color tag without overwhelming the card. Provides quick visual grouping in a dense list.</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <div class="legend-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+              </div>
+              <div class="legend-text">
+                <h4>Unscheduled Tray</h4>
+                <p>Shots without a time slot surface below the timeline in a dashed-card grid. No hidden backlog — producers see the full shot list at once.</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <div class="legend-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+              </div>
+              <div class="legend-text">
+                <h4>Banner Entries</h4>
+                <p>Full-width gradient pill banners for shared events (load-in, lunch, wraps) span both tracks without consuming a card slot. Duration shown inline.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /timeline-inner -->
+    </div><!-- /timeline-scroll -->
+
+  </div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<script>
+  // ─── Field Toggle Logic ─────────────────────────────────────────────────────
+  // Maps each checkbox id to the CSS class it controls on card rows
+  const fieldMap = {
+    'toggle-shot-num':    'field-shot-num',
+    'toggle-shot-name':   'field-shot-name',
+    'toggle-description': 'field-description',
+    'toggle-talent':      'field-talent',
+    'toggle-location':    'field-location',
+    'toggle-tags':        'field-tags',
+    'toggle-notes':       'field-notes',
+    'toggle-products':    'field-products',
+  };
+
+  Object.entries(fieldMap).forEach(([checkboxId, targetClass]) => {
+    const checkbox = document.getElementById(checkboxId);
+    if (!checkbox) return;
+
+    checkbox.addEventListener('change', () => {
+      // Select all elements with this field class across ALL cards
+      const elements = document.querySelectorAll('.' + targetClass);
+      elements.forEach(el => {
+        if (checkbox.checked) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+    });
+  });
+
+  // ─── Hover state is handled purely in CSS (.shot-card:hover) ─────────────
+  // No JS needed for hover — CSS transitions handle shadow and lift
+
+  // ─── Ripple downstream visual feedback ────────────────────────────────────
+  const rippleCheckbox = document.getElementById('ripple');
+  rippleCheckbox.addEventListener('change', () => {
+    const label = rippleCheckbox.nextElementSibling;
+    if (rippleCheckbox.checked) {
+      label.style.color = '#b45309';
+    } else {
+      label.style.color = '';
+    }
+  });
+  // Initial state sync
+  if (rippleCheckbox.checked) {
+    rippleCheckbox.nextElementSibling.style.color = '#b45309';
+  }
+</script>
+
+</body>
+</html>

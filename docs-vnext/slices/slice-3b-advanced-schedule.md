@@ -43,6 +43,25 @@ It is an extension of Slice 3 (assembly) and a prerequisite for trusted Slice 4 
   - Ordering becomes chronological (startTime asc; tie: order; tie: id)
   - Shared applicability is cleared (no longer meaningful in single track)
 
+### G5 — Adaptive Timeline Visualization (Editor View)
+- The call sheet builder's schedule editor replaces the flat DnD list with an **Adaptive Timeline**.
+- Information-weighted time blocks: dense periods (many overlapping events) expand, sparse periods (load-in, lunch) compress to banners.
+- **Segment algorithm** (`lib/adaptiveSegments.ts`):
+  - Consumes `buildScheduleProjection()` output — no direct time parsing.
+  - Merges overlapping intervals with 5-min tolerance into dense blocks.
+  - Each block gets an adaptive `pxPerMin` rate: 8px/min (dense, >= 0.1 events/min), 6px/min (moderate), 4px/min (sparse).
+  - Banners render as compressed gradient pills; gaps render as dashed indicators.
+- **Cards** (`AdaptiveEntryCard.tsx`):
+  - Absolutely positioned within dense blocks (`top = (startMin - blockStart) * pxPerMin`).
+  - Left color bar by entry type, track dot, shot number badge, time + duration header.
+  - Metadata rows (products, talent, location, notes) with semantic icon colors (teal, indigo, emerald, amber).
+  - Each metadata row truncates independently with `text-overflow: ellipsis` — no card-level clipping.
+  - Min-height enforcement: `max(duration * pxPerMin, 54px + min(visibleFields, 2) * 18px)`.
+- **Cross-track alignment**: events at the same start time appear at the same Y position across Photo/Video tracks.
+- **Click-to-edit**: clicking a card opens `ScheduleEntryEditSheet` (no inline editing).
+- **Unscheduled tray**: untimed entries render in a responsive grid below the timeline with dashed-border cards.
+- **Field visibility**: controlled by `ScheduleBlockFields` from `useCallSheetConfig` (reused from call sheet output controls).
+
 ---
 
 ## Firestore Contract (No New Collections)
