@@ -20,7 +20,7 @@ import { useShots } from "@/features/shots/hooks/useShots"
 import { useCrew } from "@/features/schedules/hooks/useCrew"
 import { CallSheetRenderer } from "@/features/schedules/components/CallSheetRenderer"
 import { DayDetailsEditor } from "@/features/schedules/components/DayDetailsEditor"
-import { ScheduleEntriesBoard } from "@/features/schedules/components/ScheduleEntriesBoard"
+import { AdaptiveTimelineView } from "@/features/schedules/components/AdaptiveTimelineView"
 import { ScheduleTrackControls } from "@/features/schedules/components/ScheduleTrackControls"
 import { CallOverridesEditor } from "@/features/schedules/components/CallOverridesEditor"
 import { CallSheetOutputControls } from "@/features/schedules/components/CallSheetOutputControls"
@@ -386,7 +386,7 @@ export default function CallSheetBuilderPage() {
                 schedule={schedule}
                 entries={entries}
               />
-              <ScheduleEntriesBoard
+              <AdaptiveTimelineView
                 scheduleId={scheduleId}
                 schedule={schedule}
                 entries={entries}

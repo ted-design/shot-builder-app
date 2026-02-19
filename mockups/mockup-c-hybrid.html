@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Approach C: Hybrid Grid — Shot Builder Schedule Editor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --primary-light: #eef2ff;
+      --primary-ring: #c7d2fe;
+      --sidebar-bg: #0f172a;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --text-subtle: #94a3b8;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-subtle: #f1f5f9;
+      --border: #e2e8f0;
+      --border-muted: #f1f5f9;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --time-w: 64px;
+      --conn-w: 40px;
+      --nav-w: 220px;
+    }
+
+    html { height: 100%; }
+
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.5;
+      min-width: 1280px;
+      min-height: 100vh;
+      display: flex;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── SIDEBAR ──────────────────────────────────────────── */
+    .sidebar {
+      width: var(--nav-w);
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 50;
+      border-right: 1px solid rgba(255,255,255,0.04);
+    }
+    .sidebar-logo {
+      padding: 18px 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-icon {
+      width: 30px; height: 30px;
+      background: var(--primary);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(99,102,241,0.4);
+    }
+    .logo-text { font-size: 14px; font-weight: 700; color: white; letter-spacing: -0.02em; }
+    .logo-sub { font-size: 9px; color: rgba(255,255,255,0.3); margin-top: 1px; letter-spacing: 0.05em; text-transform: uppercase; }
+
+    .sidebar-project {
+      padding: 10px 10px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .project-badge {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 7px;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+    .project-badge:hover { background: rgba(255,255,255,0.08); }
+    .project-label { font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.28); margin-bottom: 3px; }
+    .project-name { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: space-between; }
+
+    .sidebar-nav { flex: 1; padding: 8px; overflow-y: auto; }
+    .nav-group-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: rgba(255,255,255,0.22); padding: 10px 8px 4px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 9px; border-radius: 6px; cursor: pointer;
+      color: rgba(255,255,255,0.45); font-size: 12.5px; font-weight: 450;
+      transition: background 0.1s, color 0.1s; margin-bottom: 1px;
+      user-select: none;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.75); }
+    .nav-item.active { background: rgba(99,102,241,0.16); color: #a5b4fc; }
+    .nav-item svg { flex-shrink: 0; }
+    .nav-badge {
+      margin-left: auto; background: rgba(255,255,255,0.07); border-radius: 9px;
+      padding: 1px 6px; font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.3);
+    }
+
+    .sidebar-footer {
+      padding: 10px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .user-pill {
+      display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+      border-radius: 6px; cursor: pointer;
+    }
+    .user-pill:hover { background: rgba(255,255,255,0.05); }
+    .user-avatar {
+      width: 26px; height: 26px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: white; flex-shrink: 0;
+    }
+    .user-name { font-size: 12px; color: rgba(255,255,255,0.5); }
+
+    /* ─── MAIN ─────────────────────────────────────────────── */
+    .main {
+      margin-left: var(--nav-w);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* ─── TOP TOOLBAR ──────────────────────────────────────── */
+    .top-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      position: sticky; top: 0; z-index: 40;
+      box-shadow: 0 1px 0 var(--border);
+    }
+    .nav-arrow {
+      width: 28px; height: 28px;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: transparent; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); transition: all 0.1s;
+    }
+    .nav-arrow:hover { background: var(--surface-subtle); color: var(--text-primary); }
+    .day-info { padding: 0 6px; }
+    .day-title { font-size: 15px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; }
+    .day-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+    .bar-sep { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
+    .day-pills { display: flex; gap: 3px; }
+    .day-pill {
+      width: 26px; height: 26px; border: 1px solid var(--border); border-radius: 5px;
+      background: transparent; cursor: pointer; font-size: 12px; font-weight: 500;
+      color: var(--text-muted); transition: all 0.1s; display: flex; align-items: center; justify-content: center;
+    }
+    .day-pill:hover { background: var(--surface-subtle); }
+    .day-pill.active { background: var(--primary-light); border-color: var(--primary-ring); color: var(--primary); font-weight: 600; }
+    .bar-spacer { flex: 1; }
+    .bar-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 0 11px; height: 30px; border-radius: 6px;
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      transition: all 0.12s; border: 1px solid var(--border);
+      background: transparent; color: var(--text-secondary);
+      font-family: inherit;
+    }
+    .bar-btn:hover { background: var(--surface-subtle); color: var(--text-primary); border-color: #cbd5e1; }
+    .bar-btn-primary {
+      background: var(--primary); color: white; border-color: var(--primary);
+    }
+    .bar-btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+
+    /* ─── SETTINGS BAR ─────────────────────────────────────── */
+    .settings-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+      position: sticky; top: 52px; z-index: 39;
+    }
+    .settings-group-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+      color: var(--text-subtle); flex-shrink: 0;
+    }
+    .settings-div { width: 1px; height: 16px; background: var(--border); }
+
+    /* Toggle switch */
+    .toggle-wrap { display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; }
+    .toggle-track {
+      width: 30px; height: 17px; border-radius: 9px; background: #cbd5e1;
+      position: relative; transition: background 0.15s; flex-shrink: 0; cursor: pointer;
+    }
+    .toggle-track.on { background: var(--primary); }
+    .toggle-thumb {
+      position: absolute; top: 2.5px; left: 2.5px;
+      width: 12px; height: 12px; border-radius: 50%; background: white;
+      transition: transform 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle-track.on .toggle-thumb { transform: translateX(13px); }
+    .toggle-label { font-size: 12px; color: var(--text-secondary); }
+
+    /* Field checkboxes */
+    .field-checks { display: flex; align-items: center; gap: 10px; }
+    .field-check { display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
+    .field-check input { width: 13px; height: 13px; accent-color: var(--primary); cursor: pointer; }
+    .field-check-label { font-size: 11.5px; color: var(--text-secondary); }
+
+    .bar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .expand-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 0 10px; height: 26px; border-radius: 5px;
+      border: 1px solid var(--border); background: transparent;
+      font-size: 11px; font-weight: 500; color: var(--text-secondary);
+      cursor: pointer; transition: all 0.12s; font-family: inherit;
+    }
+    .expand-btn:hover { background: var(--surface-subtle); color: var(--text-primary); border-color: #cbd5e1; }
+    .expand-btn.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary-ring); }
+
+    /* ─── APPROACH BADGE ───────────────────────────────────── */
+    .approach-badge {
+      padding: 10px 20px;
+      background: linear-gradient(to right, #f0f4ff, #f5f3ff 50%, #f0fdf4);
+      border-bottom: 1px solid #dde5f8;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .approach-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--primary); color: white;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+      padding: 3px 8px; border-radius: 4px; flex-shrink: 0;
+    }
+    .approach-name { font-size: 14px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
+    .approach-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; }
+    .approach-callout {
+      margin-left: auto;
+      background: white;
+      border: 1px solid #bfdbfe;
+      border-radius: 7px;
+      padding: 7px 12px;
+      font-size: 11px;
+      color: #1e40af;
+      line-height: 1.5;
+      max-width: 380px;
+    }
+    .approach-callout strong { font-weight: 600; }
+
+    /* ─── TRACK HEADER ─────────────────────────────────────── */
+    .track-header {
+      display: flex;
+      align-items: stretch;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 92px; z-index: 38;
+    }
+    .th-time-zone {
+      width: calc(var(--time-w) + var(--conn-w));
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      padding: 7px 10px;
+      display: flex; align-items: center;
+    }
+    .th-time-label { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-subtle); }
+    .th-tracks { flex: 1; display: flex; }
+    .th-col {
+      flex: 1; padding: 7px 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .th-col:first-child { border-right: 1px solid #f0f4f8; }
+    .th-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .th-name { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-secondary); }
+    .th-count { font-size: 10px; color: var(--text-subtle); background: var(--surface-subtle); border-radius: 9px; padding: 1px 6px; margin-left: auto; }
+
+    /* ─── HYBRID BODY ──────────────────────────────────────── */
+    .hybrid-body { display: flex; flex-direction: column; }
+
+    /* Banner rows */
+    .banner-row {
+      display: flex;
+      align-items: stretch;
+      border-bottom: 1px solid var(--border-muted);
+      min-height: 50px;
+    }
+    .br-time {
+      width: var(--time-w);
+      flex-shrink: 0;
+      background: #f8fafc;
+      border-right: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 9px;
+      position: relative;
+    }
+    .br-time-label { font-size: 11px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+    .br-conn {
+      width: var(--conn-w);
+      flex-shrink: 0;
+      background: #f8fafc;
+      border-right: 1px solid var(--border);
+      position: relative;
+      overflow: visible;
+    }
+    .br-content {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 0 14px 0 12px;
+      gap: 10px;
+    }
+    .banner-warn { background: #fffbeb; border-top: 1px solid #fde68a; border-bottom: 1px solid #fde68a; }
+    .banner-orange { background: #fff7ed; border-top: 1px solid #fed7aa; border-bottom: 1px solid #fed7aa; }
+    .banner-icon-wrap {
+      width: 30px; height: 30px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .banner-title { font-size: 13px; font-weight: 600; }
+    .banner-time { font-size: 11px; margin-top: 1px; }
+    .banner-dur {
+      margin-left: auto;
+      font-size: 11px; font-weight: 500;
+      border-radius: 5px; padding: 2px 8px;
+      flex-shrink: 0;
+    }
+
+    /* Main segment */
+    .main-segment {
+      display: flex;
+      align-items: stretch;
+      border-bottom: 1px solid var(--border-muted);
+    }
+
+    /* Time sidebar */
+    .time-sidebar {
+      width: var(--time-w);
+      flex-shrink: 0;
+      background: linear-gradient(to right, #f1f5f9, #f8fafc);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: inset -1px 0 0 var(--border), 2px 0 6px rgba(0,0,0,0.03);
+    }
+
+    /* Connector column */
+    .conn-col {
+      width: var(--conn-w);
+      flex-shrink: 0;
+      background: #f8fafc;
+      border-right: 1px solid var(--border);
+      position: relative;
+      overflow: visible;
+    }
+    #connector-svg {
+      position: absolute;
+      top: 0; left: 0;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    /* Tracks */
+    .tracks-wrap { flex: 1; display: flex; }
+    .track-col {
+      flex: 1;
+      padding: 8px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 400px;
+      position: relative;
+      z-index: 1;
+    }
+    .track-col:first-child { border-right: 1px solid #eef2f7; }
+
+    /* ─── SHOT CARD ────────────────────────────────────────── */
+    .shot-card {
+      background: var(--surface);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 0 0 0 transparent;
+      transition: box-shadow 0.15s ease, border-color 0.15s ease;
+      position: relative;
+      overflow: hidden;
+      cursor: default;
+    }
+    .shot-card:hover {
+      box-shadow: 0 4px 14px rgba(0,0,0,0.09);
+      border-color: #d1d5db;
+    }
+    .shot-card.expanded {
+      border-color: var(--primary-ring);
+      box-shadow: 0 2px 8px rgba(99,102,241,0.07), 0 0 0 0 transparent;
+    }
+
+    /* Color bar on left */
+    .card-color-bar {
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      width: 3px;
+    }
+
+    /* Card header row */
+    .card-header {
+      padding: 8px 9px 0 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .card-track-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .card-id { font-size: 10px; font-weight: 600; color: var(--text-subtle); letter-spacing: 0.02em; flex-shrink: 0; }
+    .card-leader { flex: 1; min-width: 8px; border-bottom: 1px dotted #d1d5db; margin-bottom: 2px; }
+    .card-time { font-size: 10.5px; font-weight: 600; color: var(--text-muted); flex-shrink: 0; white-space: nowrap; }
+    .card-dur {
+      font-size: 10px; font-weight: 500; color: var(--text-subtle);
+      background: var(--surface-subtle); border-radius: 4px; padding: 1px 5px;
+      flex-shrink: 0;
+    }
+    .card-chevron-btn {
+      width: 20px; height: 20px;
+      border: none; background: transparent; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-subtle); border-radius: 4px;
+      transition: background 0.1s, color 0.1s;
+      flex-shrink: 0;
+    }
+    .card-chevron-btn:hover { background: var(--surface-subtle); color: var(--text-secondary); }
+    .card-chevron-btn svg { transition: transform 0.22s ease; }
+    .shot-card.expanded .card-chevron-btn svg { transform: rotate(180deg); }
+
+    /* Card body (always visible collapsed state) */
+    .card-body {
+      padding: 4px 13px 10px 13px;
+    }
+    .card-title {
+      font-size: 13px; font-weight: 600; color: var(--text-primary);
+      letter-spacing: -0.01em; line-height: 1.3;
+    }
+    .card-summary {
+      font-size: 11px; color: var(--text-muted); margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .sum-sep { color: var(--text-subtle); margin: 0 4px; }
+
+    /* Card expanded section — CLIP-based approach */
+    .card-detail {
+      overflow: hidden;
+      max-height: 0;
+      /* do NOT use padding here — we pad inner content instead */
+    }
+    .shot-card.expanded .card-detail {
+      max-height: 320px;
+      transition: max-height 0.24s ease-out;
+    }
+    .shot-card:not(.expanded) .card-detail {
+      max-height: 0;
+      transition: max-height 0.18s ease-in;
+    }
+    .card-detail-inner {
+      padding: 8px 13px 12px 13px;
+      border-top: 1px solid var(--border-muted);
+    }
+    .detail-desc {
+      font-size: 12px; color: var(--text-secondary); line-height: 1.55; margin-bottom: 9px;
+    }
+    .detail-row {
+      display: flex; align-items: flex-start; gap: 7px;
+      font-size: 11px; margin-bottom: 5px;
+    }
+    .detail-icon { flex-shrink: 0; margin-top: 0.5px; }
+    .detail-val { color: var(--text-secondary); font-weight: 450; }
+    .c-products { color: #0d9488; }
+    .c-talent { color: #6366f1; }
+    .c-location { color: #059669; }
+    .c-notes { color: #d97706; }
+    .detail-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+    .tag-pill {
+      font-size: 10px; background: var(--surface-subtle); border: 1px solid var(--border);
+      color: var(--text-muted); border-radius: 9px; padding: 1px 7px; font-weight: 500;
+    }
+
+    /* ─── UNSCHEDULED ──────────────────────────────────────── */
+    .unscheduled-wrap { padding: 0 20px 32px; margin-top: 16px; }
+    .unscheduled-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .unscheduled-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-subtle); }
+    .unscheduled-rule { flex: 1; height: 1px; background: var(--border); }
+    .unscheduled-ct { font-size: 10px; color: var(--text-subtle); background: var(--surface-subtle); border: 1px solid var(--border); border-radius: 9px; padding: 1px 7px; }
+    .unscheduled-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+    .u-card {
+      background: var(--surface); border: 1.5px dashed #cbd5e1;
+      border-radius: 8px; padding: 10px 12px; width: 220px; cursor: grab;
+      transition: all 0.12s;
+    }
+    .u-card:hover { border-color: var(--primary); border-style: solid; background: var(--primary-light); }
+    .u-id { font-size: 10px; color: var(--text-subtle); font-weight: 500; margin-bottom: 3px; }
+    .u-title { font-size: 12.5px; font-weight: 600; color: var(--text-primary); }
+    .u-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 5px; }
+    .u-tags { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 6px; }
+
+    /* ─── LEGEND ───────────────────────────────────────────── */
+    .legend-bar {
+      background: var(--surface); border-top: 1px solid var(--border);
+      padding: 11px 20px;
+      display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    }
+    .legend-title { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-subtle); }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); }
+    .legend-swatch { width: 12px; height: 12px; border-radius: 3px; }
+    .legend-connector {
+      display: flex; align-items: center; gap: 2px;
+    }
+    .l-dot { width: 5px; height: 5px; border-radius: 50%; background: #94a3b8; }
+    .l-line { width: 26px; height: 1px; background: #94a3b8; }
+    .l-dot-blue { width: 5px; height: 5px; border-radius: 50%; background: #93c5fd; }
+    .l-line-blue { width: 26px; height: 1px; background: #93c5fd; }
+
+    /* ─── TIME SLOT ELEMENT ─────────────────────────────────── */
+    .ts-slot {
+      flex: 1 0 0;
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding-right: 9px;
+    }
+    .ts-label {
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+      line-height: 1; margin-top: 6px; white-space: nowrap;
+    }
+    .ts-tick-major {
+      position: absolute; right: 0; top: 8px;
+      width: 8px; height: 1px; background: #94a3b8;
+    }
+    /* Hour rule extends visually past the tick into the connector column */
+    .ts-slot.hour-slot::after {
+      content: '';
+      position: absolute;
+      right: -41px; top: 8px;
+      width: 40px; height: 1px;
+      background: linear-gradient(to right, #e2e8f0, transparent);
+      pointer-events: none;
+    }
+    .ts-tick-half {
+      position: absolute; right: 0; top: 6px;
+      width: 6px; height: 1px; background: #cbd5e1;
+    }
+    .ts-tick-quarter {
+      position: absolute; right: 0; top: 6px;
+      width: 4px; height: 1px; background: #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="2" y="2" width="5" height="5" rx="1" fill="white" fill-opacity="0.9"/>
+        <rect x="9" y="2" width="5" height="5" rx="1" fill="white" fill-opacity="0.55"/>
+        <rect x="2" y="9" width="5" height="5" rx="1" fill="white" fill-opacity="0.55"/>
+        <rect x="9" y="9" width="5" height="5" rx="1" fill="white" fill-opacity="0.3"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">Shot Builder</div>
+      <div class="logo-sub">vNext</div>
+    </div>
+  </div>
+
+  <div class="sidebar-project">
+    <div class="project-badge">
+      <div class="project-label">Current Project</div>
+      <div class="project-name">
+        SS26 Outerwear Campaign
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="rgba(255,255,255,0.4)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-group-label">Planning</div>
+    <div class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 5h11M5 1.5v3.5M9 1.5v3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Shot List
+      <span class="nav-badge">47</span>
+    </div>
+    <div class="nav-item active">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="2" width="11" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 5.5h11M4.5 2v3.5M9.5 2v3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Call Sheet
+    </div>
+    <div class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 4v3l2 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Timeline
+    </div>
+    <div class="nav-group-label">Assets</div>
+    <div class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="2" width="11" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4 5.5h6M4 7.5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Products
+      <span class="nav-badge">184</span>
+    </div>
+    <div class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5C5.07 1.5 3.5 3.07 3.5 5c0 2.63 3.5 7.5 3.5 7.5S10.5 7.63 10.5 5C10.5 3.07 8.93 1.5 7 1.5zm0 4.75a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+      Locations
+    </div>
+    <div class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 12.5c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Talent
+    </div>
+    <div class="nav-group-label">Production</div>
+    <div class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 13L7 2L12 13H2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 9V7M7 10.5v.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Pulls
+    </div>
+    <div class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7h9M2.5 4h9M2.5 10h5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Reports
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-pill">
+      <div class="user-avatar">TG</div>
+      <div class="user-name">Ted Ghanime</div>
+    </div>
+  </div>
+</aside>
+
+<!-- ════════════════════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <button class="nav-arrow">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11L5 7l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="day-info">
+      <div class="day-title">Day 1 — Thursday, February 19, 2026</div>
+      <div class="day-sub">SS26 Outerwear Campaign &middot; Studio Complex, Burbank</div>
+    </div>
+    <button class="nav-arrow">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="bar-sep"></div>
+    <div class="day-pills">
+      <button class="day-pill">1</button>
+      <button class="day-pill active">2</button>
+      <button class="day-pill">3</button>
+    </div>
+    <div class="bar-spacer"></div>
+    <button class="bar-btn">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v9M1.5 6h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Add Shot
+    </button>
+    <button class="bar-btn">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/></svg>
+      Add Banner
+    </button>
+    <div class="bar-sep"></div>
+    <button class="bar-btn">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 8L4.5 5.5 7 8 10 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      View PDF
+    </button>
+    <button class="bar-btn bar-btn-primary">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.5 6h9M7 2.5l3.5 3.5L7 9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Share
+    </button>
+  </div>
+
+  <!-- SETTINGS BAR -->
+  <div class="settings-bar">
+    <span class="settings-group-label">Settings</span>
+    <div class="settings-div"></div>
+
+    <div class="toggle-wrap" onclick="toggleRipple()">
+      <div class="toggle-track on" id="ripple-track">
+        <div class="toggle-thumb"></div>
+      </div>
+      <span class="toggle-label">Ripple downstream</span>
+    </div>
+
+    <div class="settings-div"></div>
+    <span class="settings-group-label">Preview Fields</span>
+
+    <div class="field-checks">
+      <label class="field-check">
+        <input type="checkbox" checked onchange="toggleField('shot-num', this.checked)">
+        <span class="field-check-label">Shot #</span>
+      </label>
+      <label class="field-check">
+        <input type="checkbox" checked onchange="toggleField('name', this.checked)">
+        <span class="field-check-label">Shot Name</span>
+      </label>
+      <label class="field-check">
+        <input type="checkbox" checked onchange="toggleField('desc', this.checked)">
+        <span class="field-check-label">Description</span>
+      </label>
+      <label class="field-check">
+        <input type="checkbox" checked onchange="toggleField('talent', this.checked)">
+        <span class="field-check-label">Talent</span>
+      </label>
+      <label class="field-check">
+        <input type="checkbox" checked onchange="toggleField('location', this.checked)">
+        <span class="field-check-label">Location</span>
+      </label>
+      <label class="field-check">
+        <input type="checkbox" checked onchange="toggleField('tags', this.checked)">
+        <span class="field-check-label">Tags</span>
+      </label>
+      <label class="field-check">
+        <input type="checkbox" checked onchange="toggleField('notes', this.checked)">
+        <span class="field-check-label">Notes</span>
+      </label>
+      <label class="field-check">
+        <input type="checkbox" checked onchange="toggleField('products', this.checked)">
+        <span class="field-check-label">Products</span>
+      </label>
+    </div>
+
+    <div class="bar-right">
+      <button class="expand-btn" id="expand-btn" onclick="toggleAllCards()">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" id="expand-icon-svg">
+          <path d="M1.5 3.5L5.5 7.5L9.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M1.5 1.5h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span id="expand-btn-text">Expand All</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SCHEDULE AREA
+  ══════════════════════════════════════════ -->
+
+  <!-- Approach badge -->
+  <div class="approach-badge">
+    <div class="approach-tag">
+      <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M4.5 0.5L8.5 8.5H0.5L4.5 0.5z" fill="white" fill-opacity="0.9"/></svg>
+      Approach C
+    </div>
+    <div>
+      <div class="approach-name">Hybrid Grid</div>
+      <div class="approach-sub">Sequential cards + synchronized time ruler + per-card expand/collapse</div>
+    </div>
+    <div class="approach-callout">
+      <strong>Signature feature:</strong> Connector lines bridge the proportional time ruler to card positions — crossing lines instantly reveal scheduling conflicts or time gaps, without changing the drag interface.
+    </div>
+  </div>
+
+  <!-- Track headers -->
+  <div class="track-header">
+    <div class="th-time-zone">
+      <span class="th-time-label">Time</span>
+    </div>
+    <div class="th-tracks">
+      <div class="th-col">
+        <div class="th-dot" style="background:#3b82f6;"></div>
+        <span class="th-name">Photo</span>
+        <span class="th-count">5 shots</span>
+      </div>
+      <div class="th-col">
+        <div class="th-dot" style="background:#8b5cf6;"></div>
+        <span class="th-name">Video</span>
+        <span class="th-count">3 shots</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hybrid-body" id="hybrid-body">
+
+    <!-- BANNER: Art Department 6:00 AM -->
+    <div class="banner-row">
+      <div class="br-time">
+        <span class="br-time-label">6 AM</span>
+      </div>
+      <div class="br-conn">
+        <svg width="40" height="50" style="position:absolute;top:0;left:0;overflow:visible;">
+          <circle cx="0" cy="12" r="3" fill="#94a3b8"/>
+          <line x1="0" y1="12" x2="40" y2="25" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <circle cx="40" cy="25" r="3" fill="#fbbf24"/>
+        </svg>
+      </div>
+      <div class="br-content banner-warn">
+        <div class="banner-icon-wrap" style="background:#fef3c7;">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="2" y="3.5" width="11" height="9.5" rx="1.5" stroke="#d97706" stroke-width="1.3"/><path d="M5 3.5V2M10 3.5V2M2 7h11" stroke="#d97706" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </div>
+        <div>
+          <div class="banner-title" style="color:#92400e;">Art Department Load-In &amp; Setup</div>
+          <div class="banner-time" style="color:#b45309;">6:00 AM — Studio Complex, all stages</div>
+        </div>
+        <div class="banner-dur" style="background:#fde68a;color:#92400e;">60 min</div>
+      </div>
+    </div>
+
+    <!-- MAIN SEGMENT: 7:00 AM – 12:00 PM -->
+    <div class="main-segment" id="main-segment">
+
+      <!-- Time sidebar -->
+      <div class="time-sidebar" id="time-sidebar">
+        <!-- slots injected by JS -->
+      </div>
+
+      <!-- Connector column -->
+      <div class="conn-col" id="conn-col">
+        <svg id="connector-svg"></svg>
+      </div>
+
+      <!-- Track columns -->
+      <div class="tracks-wrap">
+        <div class="track-col" id="photo-track"></div>
+        <div class="track-col" id="video-track"></div>
+      </div>
+    </div>
+
+    <!-- BANNER: Lunch 12:00 PM -->
+    <div class="banner-row">
+      <div class="br-time">
+        <span class="br-time-label">12 PM</span>
+      </div>
+      <div class="br-conn">
+        <svg width="40" height="50" style="position:absolute;top:0;left:0;overflow:visible;">
+          <circle cx="0" cy="12" r="3" fill="#94a3b8"/>
+          <line x1="0" y1="12" x2="40" y2="25" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <circle cx="40" cy="25" r="3" fill="#fb923c"/>
+        </svg>
+      </div>
+      <div class="br-content banner-orange">
+        <div class="banner-icon-wrap" style="background:#ffedd5;">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="#ea580c" stroke-width="1.3"/><path d="M7.5 5v2.5l2 2" stroke="#ea580c" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </div>
+        <div>
+          <div class="banner-title" style="color:#7c2d12;">Lunch Break</div>
+          <div class="banner-time" style="color:#9a3412;">12:00 PM — Catering on location</div>
+        </div>
+        <div class="banner-dur" style="background:#fed7aa;color:#9a3412;">30 min</div>
+      </div>
+    </div>
+
+  </div><!-- /hybrid-body -->
+
+  <!-- UNSCHEDULED -->
+  <div class="unscheduled-wrap">
+    <div class="unscheduled-hdr">
+      <span class="unscheduled-lbl">Unscheduled</span>
+      <div class="unscheduled-rule"></div>
+      <span class="unscheduled-ct">2 shots</span>
+    </div>
+    <div class="unscheduled-grid">
+      <div class="u-card">
+        <div class="u-id">SB-020</div>
+        <div class="u-title">Folded Stack</div>
+        <div class="u-meta">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="color:#0d9488;flex-shrink:0;"><rect x="1" y="1.5" width="9" height="8" rx="1.5" stroke="currentColor" stroke-width="1.1"/><path d="M2.5 4h6M2.5 6.5h4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+          Bermuda Shorts, Pique Shirt
+        </div>
+        <div class="u-tags">
+          <span class="tag-pill">#still-life</span>
+        </div>
+      </div>
+      <div class="u-card">
+        <div class="u-id">SB-021</div>
+        <div class="u-title">Crew Try On</div>
+        <div class="u-meta">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="color:#6366f1;flex-shrink:0;"><circle cx="5.5" cy="3.5" r="2" stroke="currentColor" stroke-width="1.1"/><path d="M1.5 9.5c0-2.21 1.79-4 4-4s4 1.79 4 4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+          TBD
+        </div>
+        <div class="u-meta" style="margin-top:2px;">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="color:#d97706;flex-shrink:0;"><rect x="1" y="1" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.1"/><path d="M2.5 4h6M2.5 6.5h3.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+          <em style="font-style:italic;">Casual content for social</em>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend-bar">
+    <span class="legend-title">Legend</span>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#3b82f6;"></div>
+      Photo track
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#8b5cf6;"></div>
+      Video track
+    </div>
+    <div class="legend-item">
+      <div class="legend-connector">
+        <div class="l-dot"></div>
+        <div class="l-line"></div>
+        <div class="l-dot-blue"></div>
+      </div>
+      Connector: time ruler → card center
+    </div>
+    <div class="legend-item">
+      <div class="legend-connector">
+        <div class="l-dot" style="background:#6366f1;"></div>
+        <div style="width:26px;height:1px;background:linear-gradient(to bottom right, #6366f1 0%, transparent 50%, #6366f1 100%);transform:rotate(-15deg);"></div>
+        <div class="l-dot" style="background:#8b5cf6;"></div>
+      </div>
+      Crossing lines = time disorder
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px;">
+      <div class="legend-item" style="color:#0d9488;">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M2.5 4.5h7M2.5 6.5h4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Products
+      </div>
+      <div class="legend-item" style="color:#6366f1;">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="4" r="2.2" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 11c0-2.49 2.01-4.5 4.5-4.5s4.5 2.01 4.5 4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Talent
+      </div>
+      <div class="legend-item" style="color:#059669;">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5C4.34 1.5 3 2.84 3 4.5c0 2.25 3 6 3 6s3-3.75 3-6C9 2.84 7.66 1.5 6 1.5zm0 4a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        Location
+      </div>
+      <div class="legend-item" style="color:#d97706;">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="1.5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M3 4.5h6M3 6.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Notes
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ════════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════════
+
+const RANGE_START = 7 * 60;   // 420 min  (7:00 AM)
+const RANGE_END   = 12 * 60;  // 720 min  (12:00 PM)
+const RANGE_TOTAL = RANGE_END - RANGE_START; // 300 min
+
+const photoShots = [
+  {
+    id: 'SB-001', title: 'Merino Trench Coat', startMin: 420, durMin: 15,
+    color: '#3b82f6', trackColor: '#3b82f6',
+    products: 'Merino Trench Coat',
+    talent: 'Jane Doe',
+    location: 'Studio A — North Wall',
+    tags: ['#hero', '#outerwear', '#fall'],
+    desc: 'Front-facing hero shot with natural light setup on the north wall.',
+    notes: null,
+  },
+  {
+    id: 'SB-002', title: 'Merino Trench Detail', startMin: 435, durMin: 15,
+    color: '#3b82f6', trackColor: '#3b82f6',
+    products: 'Merino Trench Coat',
+    talent: null,
+    location: 'Studio A — North Wall',
+    tags: ['#detail', '#macro'],
+    desc: 'Detail macro shot focusing on lapel stitching and fabric texture.',
+    notes: 'Close-up of lapel stitching',
+  },
+  {
+    id: 'SB-003', title: 'Merino Short Trench', startMin: 450, durMin: 20,
+    color: '#3b82f6', trackColor: '#3b82f6',
+    products: 'Merino Short Trench',
+    talent: 'Jane Doe, Mark Smith',
+    location: 'Studio A — North Wall',
+    tags: ['#hero', '#group'],
+    desc: 'Both talent together in natural editorial poses, mid-length trench.',
+    notes: null,
+  },
+  {
+    id: 'SB-004', title: 'Merino Overcoat', startMin: 470, durMin: 15,
+    color: '#10b981', trackColor: '#3b82f6',
+    products: 'Merino Overcoat',
+    talent: 'Jane Doe',
+    location: 'Studio B — South Bay',
+    tags: ['#styled', '#outerwear'],
+    desc: 'Styled layering look — overcoat over turtleneck sweater.',
+    notes: null,
+  },
+  {
+    id: 'SB-005', title: 'Poplin Button-Up', startMin: 485, durMin: 15,
+    color: '#10b981', trackColor: '#3b82f6',
+    products: 'Poplin Button-Up Shirt',
+    talent: 'Mark Smith',
+    location: 'Studio B — South Bay',
+    tags: ['#casual', '#menswear'],
+    desc: 'Casual wear styling — untucked, relaxed pose against white sweep.',
+    notes: null,
+  },
+];
+
+const videoShots = [
+  {
+    id: 'SB-010', title: 'Outerwear ASMR', startMin: 420, durMin: 15,
+    color: '#8b5cf6', trackColor: '#8b5cf6',
+    products: 'Merino Trench Coat',
+    talent: 'Jane Doe',
+    location: null,
+    tags: ['#video', '#social', '#asmr'],
+    desc: 'Fabric texture ASMR close-up for social content. Sound design priority.',
+    notes: null,
+  },
+  {
+    id: 'SB-011', title: 'Outerwear Montage', startMin: 435, durMin: 20,
+    color: '#8b5cf6', trackColor: '#8b5cf6',
+    products: 'Merino Overcoat, Merino Trench',
+    talent: 'Jane Doe, Mark Smith',
+    location: 'Studio A — North Wall',
+    tags: ['#video', '#montage'],
+    desc: 'Quick-cut editorial montage across outerwear styles — upbeat tempo.',
+    notes: null,
+  },
+  {
+    id: 'SB-012', title: 'Styled 3 Ways', startMin: 455, durMin: 15,
+    color: '#8b5cf6', trackColor: '#8b5cf6',
+    products: 'Poplin Button-Up Shirt',
+    talent: 'Mark Smith',
+    location: null,
+    tags: ['#video', '#how-to', '#styling'],
+    desc: '3 outfit styling tutorial — casual to business casual progression.',
+    notes: null,
+  },
+];
+
+// ════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════
+let allExpanded = false;
+
+const fields = {
+  'shot-num': true, 'name': true, 'desc': true,
+  'talent': true, 'location': true, 'tags': true,
+  'notes': true, 'products': true,
+};
+
+// ════════════════════════════════════════════════
+// FORMAT HELPERS
+// ════════════════════════════════════════════════
+
+function toTimeStr(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return m === 0 ? `${h12}:00 ${ampm}` : `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+function toDurStr(min) {
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60), m = min % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+function toHourLabel(min) {
+  const h = Math.floor(min / 60);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${h12} ${ampm}`;
+}
+
+// ════════════════════════════════════════════════
+// BUILD TIME SIDEBAR
+// ════════════════════════════════════════════════
+
+function buildTimeSidebar() {
+  const sidebar = document.getElementById('time-sidebar');
+  sidebar.innerHTML = '';
+
+  // 15-min slots from 7:00 to 12:00 (20 slots)
+  for (let m = RANGE_START; m < RANGE_END; m += 15) {
+    const slot = document.createElement('div');
+    slot.className = 'ts-slot';
+    slot.dataset.min = m;
+
+    if (m % 60 === 0) {
+      slot.classList.add('hour-slot');
+      const lbl = document.createElement('span');
+      lbl.className = 'ts-label';
+      lbl.textContent = toHourLabel(m);
+      slot.appendChild(lbl);
+      const tick = document.createElement('div');
+      tick.className = 'ts-tick-major';
+      slot.appendChild(tick);
+    } else if (m % 30 === 0) {
+      const tick = document.createElement('div');
+      tick.className = 'ts-tick-half';
+      slot.appendChild(tick);
+    } else {
+      const tick = document.createElement('div');
+      tick.className = 'ts-tick-quarter';
+      slot.appendChild(tick);
+    }
+
+    sidebar.appendChild(slot);
+  }
+}
+
+// ════════════════════════════════════════════════
+// BUILD A CARD
+// ════════════════════════════════════════════════
+
+function buildCard(shot) {
+  const card = document.createElement('div');
+  card.className = 'shot-card';
+  card.id = `card-${shot.id}`;
+  card.dataset.shotId = shot.id;
+  card.dataset.startMin = shot.startMin;
+  card.dataset.durMin = shot.durMin;
+
+  // Inline summary: products and/or talent
+  const summaryParts = [];
+  if (fields['shot-num']) summaryParts.push(`<span style="font-weight:600;color:#94a3b8;">${shot.id}</span>`);
+  if (fields['products'] && shot.products) summaryParts.push(shot.products);
+  if (fields['talent'] && shot.talent) summaryParts.push(shot.talent);
+  const summaryHTML = summaryParts.join('<span class="sum-sep">&middot;</span>');
+
+  // Detail rows
+  const detailRows = [];
+
+  if (fields['desc'] && shot.desc) {
+    detailRows.push(`<div class="detail-desc">${shot.desc}</div>`);
+  }
+  if (fields['products'] && shot.products) {
+    detailRows.push(`
+      <div class="detail-row">
+        <div class="detail-icon c-products">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M2.5 4.5h7M2.5 6.5h4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <span class="detail-val c-products" style="font-weight:500;">${shot.products}</span>
+      </div>`);
+  }
+  if (fields['talent'] && shot.talent) {
+    detailRows.push(`
+      <div class="detail-row">
+        <div class="detail-icon c-talent">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="4" r="2.2" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 11c0-2.49 2.01-4.5 4.5-4.5s4.5 2.01 4.5 4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <span class="detail-val c-talent" style="font-weight:500;">${shot.talent}</span>
+      </div>`);
+  }
+  if (fields['location'] && shot.location) {
+    detailRows.push(`
+      <div class="detail-row">
+        <div class="detail-icon c-location">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5C4.34 1.5 3 2.84 3 4.5c0 2.25 3 6 3 6s3-3.75 3-6C9 2.84 7.66 1.5 6 1.5zm0 4a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="detail-val c-location" style="font-weight:500;">${shot.location}</span>
+      </div>`);
+  }
+  if (fields['notes'] && shot.notes) {
+    detailRows.push(`
+      <div class="detail-row">
+        <div class="detail-icon c-notes">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="1.5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M3 4.5h6M3 6.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <span class="detail-val c-notes" style="font-style:italic;">&ldquo;${shot.notes}&rdquo;</span>
+      </div>`);
+  }
+  if (fields['tags'] && shot.tags && shot.tags.length > 0) {
+    const tagPills = shot.tags.map(t => `<span class="tag-pill">${t}</span>`).join('');
+    detailRows.push(`<div class="detail-tags">${tagPills}</div>`);
+  }
+
+  const titleVisible = fields['name'];
+
+  card.innerHTML = `
+    <div class="card-color-bar" style="background:${shot.color};"></div>
+
+    <div class="card-header">
+      <div class="card-track-dot" style="background:${shot.trackColor};"></div>
+      <span class="card-id">${shot.id}</span>
+      <div class="card-leader"></div>
+      <span class="card-time">${toTimeStr(shot.startMin)}</span>
+      <span class="card-dur">${toDurStr(shot.durMin)}</span>
+      <button class="card-chevron-btn" onclick="toggleCard('${shot.id}', event)" title="Expand / collapse">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="card-body">
+      ${titleVisible ? `<div class="card-title">${shot.title}</div>` : ''}
+      <div class="card-summary">${summaryHTML}</div>
+    </div>
+
+    <div class="card-detail">
+      <div class="card-detail-inner">
+        ${detailRows.join('')}
+      </div>
+    </div>
+  `;
+
+  return card;
+}
+
+// ════════════════════════════════════════════════
+// BUILD TRACKS
+// ════════════════════════════════════════════════
+
+function buildTracks() {
+  const photoTrack = document.getElementById('photo-track');
+  const videoTrack = document.getElementById('video-track');
+  photoTrack.innerHTML = '';
+  videoTrack.innerHTML = '';
+
+  photoShots.forEach(shot => photoTrack.appendChild(buildCard(shot)));
+  videoShots.forEach(shot => videoTrack.appendChild(buildCard(shot)));
+}
+
+// ════════════════════════════════════════════════
+// CONNECTOR LINES
+// ════════════════════════════════════════════════
+
+function drawConnectors() {
+  const sidebar = document.getElementById('time-sidebar');
+  const segment = document.getElementById('main-segment');
+  const svg = document.getElementById('connector-svg');
+  const connCol = document.getElementById('conn-col');
+
+  const segRect = segment.getBoundingClientRect();
+  const sidebarH = sidebar.offsetHeight;
+  const connH = connCol.offsetHeight;
+  const segH = segment.offsetHeight;
+
+  svg.setAttribute('width', '40');
+  svg.setAttribute('height', segH);
+  svg.style.height = segH + 'px';
+  svg.innerHTML = '';
+
+  const allShots = [
+    ...photoShots.map(s => ({ ...s, track: 'photo' })),
+    ...videoShots.map(s => ({ ...s, track: 'video' })),
+  ];
+
+  // Collect all connector data first so we can detect crossings
+  const connectorData = [];
+  allShots.forEach(shot => {
+    const card = document.getElementById(`card-${shot.id}`);
+    if (!card) return;
+
+    const cardRect = card.getBoundingClientRect();
+    const frac = (shot.startMin - RANGE_START) / RANGE_TOTAL;
+    const rulerY = Math.round(frac * sidebarH);
+    const cardCenterY = Math.round((cardRect.top + cardRect.height / 2) - segRect.top);
+
+    if (cardCenterY < 0 || cardCenterY > segH + 20) return;
+
+    connectorData.push({
+      shot,
+      rulerY,
+      cardCenterY,
+      isPhoto: shot.track === 'photo',
+    });
+  });
+
+  // Detect crossings: two lines cross if their relative order reverses
+  // (rulerY order vs cardCenterY order within same track)
+  const crossingIds = new Set();
+  for (let i = 0; i < connectorData.length; i++) {
+    for (let j = i + 1; j < connectorData.length; j++) {
+      const a = connectorData[i];
+      const b = connectorData[j];
+      if (a.isPhoto !== b.isPhoto) continue; // only check same track
+      // Lines cross if rulerY order differs from cardCenterY order
+      const rulerOrder = a.rulerY < b.rulerY;
+      const cardOrder  = a.cardCenterY < b.cardCenterY;
+      if (rulerOrder !== cardOrder) {
+        crossingIds.add(a.shot.id);
+        crossingIds.add(b.shot.id);
+      }
+    }
+  }
+
+  connectorData.forEach(({ shot, rulerY, cardCenterY, isPhoto }) => {
+    const isCrossing = crossingIds.has(shot.id);
+
+    const lineColor    = isCrossing  ? '#f97316' : (isPhoto ? '#93c5fd' : '#c4b5fd');
+    const endDotColor  = isCrossing  ? '#ea580c' : (isPhoto ? '#3b82f6' : '#8b5cf6');
+    const startDotFill = isCrossing  ? '#fca5a5' : '#94a3b8';
+    const strokeW      = isCrossing  ? '2'       : '1.5';
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+    // Shadow line for crossing (makes them pop)
+    if (isCrossing) {
+      const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      shadow.setAttribute('x1', '3');
+      shadow.setAttribute('y1', String(rulerY));
+      shadow.setAttribute('x2', '37');
+      shadow.setAttribute('y2', String(cardCenterY));
+      shadow.setAttribute('stroke', '#fed7aa');
+      shadow.setAttribute('stroke-width', '4');
+      shadow.setAttribute('stroke-linecap', 'round');
+      shadow.setAttribute('opacity', '0.5');
+      g.appendChild(shadow);
+    }
+
+    // Main line
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', '3');
+    line.setAttribute('y1', String(rulerY));
+    line.setAttribute('x2', '37');
+    line.setAttribute('y2', String(cardCenterY));
+    line.setAttribute('stroke', lineColor);
+    line.setAttribute('stroke-width', strokeW);
+    line.setAttribute('stroke-linecap', 'round');
+    g.appendChild(line);
+
+    // Left dot (ruler anchor)
+    const c1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c1.setAttribute('cx', '3');
+    c1.setAttribute('cy', String(rulerY));
+    c1.setAttribute('r', '3');
+    c1.setAttribute('fill', startDotFill);
+    c1.setAttribute('stroke', 'white');
+    c1.setAttribute('stroke-width', '1');
+    g.appendChild(c1);
+
+    // Right dot (card anchor)
+    const c2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c2.setAttribute('cx', '37');
+    c2.setAttribute('cy', String(cardCenterY));
+    c2.setAttribute('r', '3');
+    c2.setAttribute('fill', endDotColor);
+    c2.setAttribute('stroke', 'white');
+    c2.setAttribute('stroke-width', '1');
+    g.appendChild(c2);
+
+    svg.appendChild(g);
+  });
+}
+
+// ════════════════════════════════════════════════
+// SYNC SIDEBAR HEIGHT
+// ════════════════════════════════════════════════
+
+function syncSidebarHeight() {
+  const tracksWrap = document.querySelector('.tracks-wrap');
+  const sidebar = document.getElementById('time-sidebar');
+  if (!tracksWrap || !sidebar) return;
+
+  const tracksH = tracksWrap.offsetHeight;
+  // Distribute height equally across 20 slots (15-min each, 5 hours)
+  const totalSlots = RANGE_TOTAL / 15;
+  const slotH = Math.max(Math.ceil(tracksH / totalSlots), 16);
+
+  const slots = sidebar.querySelectorAll('.ts-slot');
+  slots.forEach(s => {
+    s.style.height = slotH + 'px';
+    s.style.flex = '0 0 ' + slotH + 'px';
+  });
+
+  // Also set the connector column height
+  const connCol = document.getElementById('conn-col');
+  if (connCol) {
+    connCol.style.minHeight = tracksH + 'px';
+  }
+
+  // Set sidebar height to match tracks
+  sidebar.style.minHeight = tracksH + 'px';
+}
+
+// ════════════════════════════════════════════════
+// INTERACTION
+// ════════════════════════════════════════════════
+
+function toggleCard(shotId, event) {
+  if (event) event.stopPropagation();
+  const card = document.getElementById(`card-${shotId}`);
+  if (!card) return;
+  card.classList.toggle('expanded');
+  // Redraw connectors after animation
+  setTimeout(redraw, 260);
+}
+
+function toggleAllCards() {
+  allExpanded = !allExpanded;
+  const cards = document.querySelectorAll('#photo-track .shot-card, #video-track .shot-card');
+  cards.forEach(c => c.classList.toggle('expanded', allExpanded));
+
+  const btn = document.getElementById('expand-btn');
+  const txt = document.getElementById('expand-btn-text');
+  if (allExpanded) {
+    btn.classList.add('active');
+    txt.textContent = 'Collapse All';
+  } else {
+    btn.classList.remove('active');
+    txt.textContent = 'Expand All';
+  }
+  setTimeout(redraw, 260);
+}
+
+function toggleRipple() {
+  document.getElementById('ripple-track').classList.toggle('on');
+}
+
+function toggleField(key, val) {
+  fields[key] = val;
+  buildTracks();
+  if (allExpanded) {
+    document.querySelectorAll('#photo-track .shot-card, #video-track .shot-card')
+      .forEach(c => c.classList.add('expanded'));
+  }
+  setTimeout(redraw, 60);
+}
+
+function drawHourGuides() {
+  // Draw subtle horizontal lines at each hour mark across the tracks area
+  const tracksWrap = document.querySelector('.tracks-wrap');
+  const sidebar = document.getElementById('time-sidebar');
+  if (!tracksWrap || !sidebar) return;
+
+  // Remove existing guides
+  tracksWrap.querySelectorAll('.hour-guide').forEach(g => g.remove());
+
+  const sidebarH = sidebar.offsetHeight;
+  const hours = [7, 8, 9, 10, 11]; // hours within range (not 12 since that's the end)
+
+  hours.forEach(h => {
+    const frac = ((h * 60) - RANGE_START) / RANGE_TOTAL;
+    const topPx = Math.round(frac * sidebarH);
+
+    // Create a guide line that spans the full tracks area
+    const guide = document.createElement('div');
+    guide.className = 'hour-guide';
+    guide.style.cssText = `
+      position: absolute;
+      top: ${topPx}px;
+      left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(to right, #e8edf3 0%, #eef2f7 40%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    `;
+    tracksWrap.style.position = 'relative';
+    tracksWrap.appendChild(guide);
+  });
+}
+
+function redraw() {
+  syncSidebarHeight();
+  drawConnectors();
+  drawHourGuides();
+}
+
+// ════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════
+
+function init() {
+  buildTimeSidebar();
+  buildTracks();
+
+  // Two-pass layout to let DOM settle
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      redraw();
+    });
+  });
+}
+
+// Resize handler
+let resizeT;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(redraw, 80);
+});
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

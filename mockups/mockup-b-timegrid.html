@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Approach B: True Time Grid — Shot Builder Schedule Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Design Tokens ─── */
+    :root {
+      --color-primary: #6366f1;
+      --color-primary-light: #e0e7ff;
+      --color-primary-dark: #4f46e5;
+      --color-sidebar: #0f172a;
+      --color-sidebar-hover: #1e293b;
+      --color-sidebar-active: #1e293b;
+
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --text-subtle: #94a3b8;
+
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-subtle: #f1f5f9;
+      --border: #e2e8f0;
+      --border-muted: #f1f5f9;
+
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+
+      --radius-card: 8px;
+      --radius-btn: 6px;
+
+      /* Time grid core */
+      --px-per-min: 2;
+      --day-start-min: 360;  /* 6:00 AM */
+      --day-end-min: 840;    /* 2:00 PM */
+      --grid-height: calc((var(--day-end-min) - var(--day-start-min)) * var(--px-per-min) * 1px);
+      --ruler-width: 56px;
+      --track-min-height: var(--grid-height);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.4;
+      min-width: 1280px;
+      overflow-x: auto;
+    }
+
+    /* ─── App Shell ─── */
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ─── Sidebar ─── */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--color-sidebar);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-logo {
+      padding: 20px 16px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .logo-mark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--color-primary);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-icon svg { width: 18px; height: 18px; }
+
+    .logo-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.2px;
+    }
+
+    .logo-sub {
+      font-size: 10px;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 8px 0;
+      overflow-y: auto;
+    }
+
+    .nav-section-label {
+      font-size: 9px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.25);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 12px 16px 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      color: rgba(255,255,255,0.5);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border-radius: 0;
+      text-decoration: none;
+    }
+
+    .nav-item:hover {
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.85);
+    }
+
+    .nav-item.active {
+      background: rgba(99,102,241,0.18);
+      color: #818cf8;
+      font-weight: 600;
+    }
+
+    .nav-item-icon {
+      width: 16px;
+      height: 16px;
+      opacity: 0.7;
+      flex-shrink: 0;
+    }
+
+    .nav-item.active .nav-item-icon { opacity: 1; }
+
+    .nav-badge {
+      margin-left: auto;
+      font-size: 10px;
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.4);
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .user-name { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.7); }
+    .user-role { font-size: 10px; color: rgba(255,255,255,0.3); }
+
+    /* ─── Main Content Area ─── */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    /* ─── Page Header ─── */
+    .page-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      flex-shrink: 0;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      height: 56px;
+    }
+
+    .header-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .breadcrumb-sep { color: var(--text-subtle); }
+    .breadcrumb-current { color: var(--text-primary); font-weight: 600; }
+
+    .header-title-group {
+      flex: 1;
+    }
+
+    .header-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+    }
+
+    .header-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: var(--radius-btn);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: none;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      background: var(--surface-subtle);
+      border-color: #cbd5e1;
+      color: var(--text-primary);
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--color-primary-dark);
+    }
+
+    .btn-icon { width: 14px; height: 14px; }
+
+    /* ─── Settings Bar ─── */
+    .settings-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
+    }
+
+    .settings-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .settings-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .settings-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    /* Checkbox toggle */
+    .field-toggle {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .field-toggle input[type="checkbox"] { display: none; }
+
+    .toggle-pill {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      transition: all 0.15s ease;
+    }
+
+    .field-toggle input:checked + .toggle-pill {
+      background: var(--color-primary-light);
+      border-color: #a5b4fc;
+      color: var(--color-primary-dark);
+    }
+
+    .toggle-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.5;
+    }
+
+    .field-toggle input:checked + .toggle-pill .toggle-dot { opacity: 1; }
+
+    /* Ripple checkbox */
+    .ripple-check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .ripple-check input[type="checkbox"] { display: none; }
+
+    .check-visual {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+
+    .ripple-check input:checked + .check-visual {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+
+    .check-tick {
+      display: none;
+      width: 8px;
+      height: 8px;
+    }
+
+    .ripple-check input:checked + .check-visual .check-tick { display: block; }
+
+    .ripple-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    /* Zoom slider */
+    .zoom-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .zoom-icon {
+      width: 14px;
+      height: 14px;
+      color: var(--text-muted);
+    }
+
+    .zoom-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 120px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      outline: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .zoom-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      cursor: pointer;
+      box-shadow: 0 1px 4px rgba(99,102,241,0.4);
+      transition: all 0.15s ease;
+    }
+
+    .zoom-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 2px 8px rgba(99,102,241,0.5);
+    }
+
+    .zoom-value {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-primary);
+      min-width: 28px;
+      text-align: right;
+    }
+
+    /* Density dropdown */
+    .density-select {
+      padding: 5px 28px 5px 10px;
+      border-radius: var(--radius-btn);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .density-select:hover { border-color: #cbd5e1; }
+    .density-select:focus { border-color: var(--color-primary); }
+
+    /* ─── Schedule Approach Banner ─── */
+    .approach-banner {
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .approach-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.9);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .approach-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.2px;
+    }
+
+    .approach-desc {
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    /* ─── Time Grid Container ─── */
+    .grid-container {
+      flex: 1;
+      overflow: auto;
+      position: relative;
+    }
+
+    .grid-scroll-inner {
+      min-width: 900px;
+      position: relative;
+    }
+
+    /* ─── Track Header Row ─── */
+    .track-headers {
+      display: flex;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: var(--surface);
+      border-bottom: 2px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .ruler-header {
+      width: var(--ruler-width);
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .track-header {
+      flex: 1;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+    }
+
+    .track-header + .track-header {
+      border-left: 1px solid var(--border);
+    }
+
+    .track-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .track-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .track-count {
+      font-size: 10px;
+      color: var(--text-subtle);
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1px 7px;
+      font-weight: 500;
+    }
+
+    /* ─── Time Grid Body ─── */
+    .grid-body {
+      display: flex;
+      position: relative;
+    }
+
+    /* ─── Time Ruler ─── */
+    .time-ruler {
+      width: var(--ruler-width);
+      flex-shrink: 0;
+      position: relative;
+      height: var(--grid-height);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      z-index: 10;
+    }
+
+    .hour-label {
+      position: absolute;
+      right: 8px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transform: translateY(-50%);
+      white-space: nowrap;
+    }
+
+    /* ─── Track Columns Container ─── */
+    .tracks-area {
+      flex: 1;
+      display: flex;
+      position: relative;
+    }
+
+    /* Horizontal gridlines layer (behind tracks) */
+    .gridlines-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .gridline {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 1px;
+    }
+
+    .gridline-hour { background: #e2e8f0; }
+    .gridline-quarter { background: transparent; border-top: 1px dashed #f1f5f9; }
+
+    /* ─── Track Column ─── */
+    .track-column {
+      flex: 1;
+      position: relative;
+      min-height: var(--grid-height);
+      border-right: 1px solid var(--border);
+    }
+
+    .track-column:last-child { border-right: none; }
+    .track-column.even { background: rgba(248,250,252,0.5); }
+    .track-column.odd { background: #ffffff; }
+
+    /* Empty time slot dots */
+    .track-column::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, #e2e8f0 1px, transparent 1px);
+      background-size: 20px 20px;
+      background-position: 10px 10px;
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    /* ─── Banner Entries ─── */
+    .banners-layer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      z-index: 15;
+      pointer-events: none;
+    }
+
+    .banner-entry {
+      position: absolute;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      pointer-events: all;
+      z-index: 15;
+      cursor: default;
+    }
+
+    .banner-art-dept {
+      background: linear-gradient(135deg, #1e1b4b, #312e81);
+      border-left: 4px solid #818cf8;
+    }
+
+    .banner-lunch {
+      background: linear-gradient(135deg, #78350f, #92400e);
+      border-left: 4px solid #fbbf24;
+    }
+
+    .banner-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      opacity: 0.8;
+    }
+
+    .banner-text { flex: 1; min-width: 0; }
+
+    .banner-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.95);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .banner-meta {
+      font-size: 10px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .banner-duration {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.6);
+      background: rgba(255,255,255,0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    /* ─── Shot Cards ─── */
+    .shot-card {
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      border-radius: 7px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+      overflow: hidden;
+      cursor: pointer;
+      transition: box-shadow 0.15s ease, transform 0.15s ease;
+      z-index: 20;
+    }
+
+    .shot-card:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 8px 24px rgba(0,0,0,0.08);
+      transform: translateY(-1px) scale(1.005);
+      z-index: 25;
+    }
+
+    .shot-card-inner {
+      display: flex;
+      height: 100%;
+    }
+
+    .shot-color-bar {
+      width: 4px;
+      flex-shrink: 0;
+      border-radius: 7px 0 0 7px;
+    }
+
+    .shot-body {
+      flex: 1;
+      padding: 6px 8px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    /* Card Header Row */
+    .card-header-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 2px;
+    }
+
+    .card-track-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .card-set-label {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-dots {
+      flex: 1;
+      border-bottom: 1px dotted #e2e8f0;
+      margin: 0 4px;
+      min-width: 8px;
+    }
+
+    .card-time {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .card-dur {
+      font-size: 9px;
+      color: var(--text-subtle);
+      white-space: nowrap;
+      margin-left: 2px;
+    }
+
+    /* Shot ID + Title */
+    .card-id {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-subtle);
+      letter-spacing: 0.3px;
+      margin-bottom: 1px;
+    }
+
+    .card-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+
+    /* Field rows */
+    .card-field {
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+      margin-top: 2px;
+    }
+
+    .card-field-icon {
+      width: 11px;
+      height: 11px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .card-field-text {
+      font-size: 11px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .card-desc { color: var(--text-secondary); }
+    .card-products { color: #0d9488; } /* teal */
+    .card-talent { color: #4f46e5; }   /* indigo */
+    .card-location { color: #059669; } /* emerald */
+    .card-notes { color: #92400e; font-style: italic; }
+
+    /* Tag pills */
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      margin-top: 3px;
+    }
+
+    .card-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 600;
+      background: var(--surface-subtle);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    /* ─── Compact Mode Overrides ─── */
+    .density-compact .card-header-row { margin-bottom: 0; }
+    .density-compact .card-id { display: none; }
+    .density-compact .card-title { font-size: 10px; font-weight: 600; }
+    .density-compact .card-field { display: none; }
+    .density-compact .card-tags { display: none; }
+    .density-compact .shot-body { padding: 3px 6px; }
+
+    /* ─── Normal Mode (default) ─── */
+    .density-normal .card-field.f-notes { display: none; }
+    .density-normal .card-tags { display: none; }
+    .density-normal .card-title { font-size: 12px; }
+
+    /* ─── Detailed Mode Overrides ─── */
+    .density-detailed .card-title { font-size: 13px; }
+    .density-detailed .card-field { margin-top: 3px; }
+    .density-detailed .card-field-text { font-size: 11px; white-space: normal; }
+
+    /* Field visibility toggles */
+    .hide-shotnum .card-id { display: none; }
+    .hide-shotname .card-title { display: none; }
+    .hide-desc .f-desc { display: none; }
+    .hide-talent .f-talent { display: none; }
+    .hide-location .f-location { display: none; }
+    .hide-tags .card-tags { display: none; }
+    .hide-notes .f-notes { display: none; }
+    .hide-products .f-products { display: none; }
+
+    /* ─── Color Tag Bars ─── */
+    .color-blue { background: #3b82f6; }
+    .color-green { background: #10b981; }
+    .color-amber { background: #f59e0b; }
+    .color-purple { background: #8b5cf6; }
+    .color-red { background: #ef4444; }
+    .color-slate { background: #64748b; }
+
+    /* Track dot colors */
+    .dot-slate { background: #64748b; }
+    .dot-blue { background: #3b82f6; }
+
+    /* ─── Now Indicator ─── */
+    .now-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--error);
+      z-index: 22;
+      pointer-events: none;
+    }
+
+    .now-line::before {
+      content: '';
+      position: absolute;
+      left: -4px;
+      top: -4px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--error);
+    }
+
+    /* ─── Legend ─── */
+    .legend-footer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 32px;
+      flex-shrink: 0;
+    }
+
+    .legend-group { display: flex; flex-direction: column; gap: 5px; }
+
+    .legend-title {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-subtle);
+    }
+
+    .legend-items { display: flex; align-items: center; gap: 12px; }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .legend-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .legend-line {
+      width: 24px;
+      height: 2px;
+      flex-shrink: 0;
+    }
+
+    .legend-line-hour { background: #e2e8f0; }
+    .legend-line-quarter { background: #f1f5f9; border-bottom: 1px dashed #cbd5e1; height: 0; border-top: 0; }
+
+    /* ─── Scrollbar Styling ─── */
+    .grid-container::-webkit-scrollbar { width: 6px; height: 6px; }
+    .grid-container::-webkit-scrollbar-track { background: var(--surface-subtle); }
+    .grid-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .grid-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* ─── Responsive small adjustments ─── */
+    @media (max-width: 1280px) {
+      .settings-bar { flex-wrap: wrap; gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <path d="M17 14v7M14 17.5h7" stroke-width="2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="logo-name">Shot Builder</div>
+          <div class="logo-sub">Production Suite</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+
+      <a class="nav-item" href="#">
+        <svg class="nav-item-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"/><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-item-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4zM3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/></svg>
+        Shots
+        <span class="nav-badge">15</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-item-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V8z"/></svg>
+        Pulls
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-item-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V9.236a1 1 0 00-1.447-.894l-4 2a1 1 0 00-.553.894V17zM15.211 6.276a1 1 0 000-1.788l-4.764-2.382a1 1 0 00-.894 0L4.789 4.488a1 1 0 000 1.788l4.764 2.382a1 1 0 00.894 0l4.764-2.382zM4.447 8.342A1 1 0 003 9.236V15a1 1 0 00.553.894l4 2A1 1 0 009 17v-5.764a1 1 0 00-.553-.894l-4-2z"/></svg>
+        Assets
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-item-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+        Tags
+      </a>
+
+      <div class="nav-section-label" style="margin-top:8px">Planning</div>
+
+      <a class="nav-item active" href="#">
+        <svg class="nav-item-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+        Call Sheet
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-item-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>
+        Products
+      </a>
+
+      <div class="nav-section-label" style="margin-top:8px">Resources</div>
+
+      <a class="nav-item" href="#">
+        <svg class="nav-item-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>
+        Talent
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-item-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+        Locations
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-item-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+        Crew
+      </a>
+      <a class="nav-item" href="#">
+        <svg class="nav-item-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm3 2h6v4H7V5zm8 8v2h1v-2h-1zm-2-2H7v4h6v-4zm2 0h1V9h-1v2zm1-4V5h-1v2h1zM5 5H4v2h1V5zM4 9h1v2H4V9zm1 4H4v2h1v-2z" clip-rule="evenodd"/></svg>
+        Palette
+      </a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar">TG</div>
+        <div>
+          <div class="user-name">Ted Ghanime</div>
+          <div class="user-role">Producer</div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════ MAIN CONTENT ═══════════════════════ -->
+  <div class="main-content">
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+      <div class="header-top">
+        <div>
+          <div class="header-breadcrumb">
+            <span>Spring Collection 2026</span>
+            <span class="breadcrumb-sep">/</span>
+            <span class="breadcrumb-current">Call Sheet</span>
+          </div>
+          <div class="header-title">Day 1 — Thursday, February 19, 2026</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-ghost">
+            <svg class="btn-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 1v10M4 7l4 4 4-4M2 13h12"/></svg>
+            Change Schedule
+          </button>
+          <button class="btn btn-ghost">
+            <svg class="btn-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2"/></svg>
+            Preview
+          </button>
+          <button class="btn btn-primary">
+            <svg class="btn-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H2a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1V3a1 1 0 00-1-1zM5 2v12M11 2v12M2 6h12M2 10h12"/></svg>
+            Export PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS BAR -->
+    <div class="settings-bar" id="settingsBar">
+
+      <!-- Ripple -->
+      <div class="settings-group">
+        <label class="ripple-check">
+          <input type="checkbox" id="rippleCheck" />
+          <div class="check-visual">
+            <svg class="check-tick" viewBox="0 0 8 8" fill="none" stroke="white" stroke-width="2"><path d="M1 4l2 2 4-4"/></svg>
+          </div>
+          <span class="ripple-label">Ripple downstream</span>
+        </label>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <!-- Preview Fields -->
+      <div class="settings-label">Fields</div>
+      <div class="settings-group" style="flex-wrap:wrap; gap:4px;">
+        <label class="field-toggle"><input type="checkbox" class="field-cb" data-field="shotnum" checked /><span class="toggle-pill"><span class="toggle-dot"></span>Shot #</span></label>
+        <label class="field-toggle"><input type="checkbox" class="field-cb" data-field="shotname" checked /><span class="toggle-pill"><span class="toggle-dot"></span>Shot Name</span></label>
+        <label class="field-toggle"><input type="checkbox" class="field-cb" data-field="desc" checked /><span class="toggle-pill"><span class="toggle-dot"></span>Description</span></label>
+        <label class="field-toggle"><input type="checkbox" class="field-cb" data-field="talent" checked /><span class="toggle-pill"><span class="toggle-dot"></span>Talent</span></label>
+        <label class="field-toggle"><input type="checkbox" class="field-cb" data-field="location" checked /><span class="toggle-pill"><span class="toggle-dot"></span>Location</span></label>
+        <label class="field-toggle"><input type="checkbox" class="field-cb" data-field="tags" /><span class="toggle-pill"><span class="toggle-dot"></span>Tags</span></label>
+        <label class="field-toggle"><input type="checkbox" class="field-cb" data-field="notes" /><span class="toggle-pill"><span class="toggle-dot"></span>Notes</span></label>
+        <label class="field-toggle"><input type="checkbox" class="field-cb" data-field="products" checked /><span class="toggle-pill"><span class="toggle-dot"></span>Products</span></label>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <!-- Zoom slider -->
+      <div class="settings-label">Zoom</div>
+      <div class="zoom-control">
+        <svg class="zoom-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="4"/><path d="M4 6h4M10 10l2 2"/></svg>
+        <input type="range" class="zoom-slider" id="zoomSlider" min="0.5" max="2" step="0.1" value="1" />
+        <span class="zoom-value" id="zoomValue">1.0x</span>
+      </div>
+
+      <div class="settings-divider"></div>
+
+      <!-- Density -->
+      <div class="settings-label">Density</div>
+      <select class="density-select" id="densitySelect">
+        <option value="normal">Normal</option>
+        <option value="compact">Compact</option>
+        <option value="detailed">Detailed</option>
+      </select>
+    </div>
+
+    <!-- APPROACH BANNER -->
+    <div class="approach-banner">
+      <div class="approach-badge">
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>
+        Approach B
+      </div>
+      <div>
+        <div class="approach-name">True Time Grid</div>
+        <div class="approach-desc">Google Calendar-style proportional time axis — entry height = duration, Y position = start time</div>
+      </div>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+        <div style="font-size:10px; color:rgba(255,255,255,0.4);">at zoom 1.0: <strong style="color:rgba(255,255,255,0.7);">2px / minute</strong></div>
+        <div style="font-size:10px; color:rgba(255,255,255,0.4);">1 hour = <strong style="color:rgba(255,255,255,0.7);">120px</strong></div>
+        <div style="font-size:10px; color:rgba(255,255,255,0.4);">15 min = <strong style="color:rgba(255,255,255,0.7);">30px</strong></div>
+      </div>
+    </div>
+
+    <!-- TIME GRID -->
+    <div class="grid-container" id="gridContainer">
+      <div class="grid-scroll-inner" id="gridScrollInner">
+
+        <!-- Track Headers (sticky) -->
+        <div class="track-headers">
+          <div class="ruler-header"></div>
+          <div class="track-header">
+            <div class="track-dot dot-slate"></div>
+            <span class="track-name">Photo</span>
+            <span class="track-count">8 shots</span>
+          </div>
+          <div class="track-header">
+            <div class="track-dot dot-blue"></div>
+            <span class="track-name">Video</span>
+            <span class="track-count">6 shots</span>
+          </div>
+        </div>
+
+        <!-- Grid Body -->
+        <div class="grid-body" id="gridBody">
+
+          <!-- Time Ruler -->
+          <div class="time-ruler" id="timeRuler">
+            <!-- Hour labels injected by JS -->
+          </div>
+
+          <!-- Tracks Area -->
+          <div class="tracks-area" id="tracksArea">
+
+            <!-- Gridlines Layer -->
+            <div class="gridlines-layer" id="gridlinesLayer">
+              <!-- Injected by JS -->
+            </div>
+
+            <!-- Banners Layer -->
+            <div class="banners-layer" id="bannersLayer">
+              <!-- Injected by JS -->
+            </div>
+
+            <!-- PHOTO Track Column -->
+            <div class="track-column odd" id="photoTrack">
+              <!-- Shot cards injected by JS -->
+            </div>
+
+            <!-- VIDEO Track Column -->
+            <div class="track-column even" id="videoTrack">
+              <!-- Shot cards injected by JS -->
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- LEGEND FOOTER -->
+    <div class="legend-footer">
+      <div class="legend-group">
+        <div class="legend-title">Gridlines</div>
+        <div class="legend-items">
+          <div class="legend-item">
+            <div style="width:24px; height:1px; background:#e2e8f0; flex-shrink:0;"></div>
+            Hour mark
+          </div>
+          <div class="legend-item">
+            <div style="width:24px; height:0; border-top:1px dashed #cbd5e1; flex-shrink:0;"></div>
+            15-min interval
+          </div>
+        </div>
+      </div>
+      <div class="legend-group">
+        <div class="legend-title">Color Tags</div>
+        <div class="legend-items">
+          <div class="legend-item"><div class="legend-swatch color-blue"></div>Outerwear</div>
+          <div class="legend-item"><div class="legend-swatch color-green"></div>Styled</div>
+          <div class="legend-item"><div class="legend-swatch color-amber"></div>Knitwear</div>
+          <div class="legend-item"><div class="legend-swatch color-purple"></div>Video</div>
+          <div class="legend-item"><div class="legend-swatch color-slate"></div>None</div>
+        </div>
+      </div>
+      <div class="legend-group">
+        <div class="legend-title">Tracks</div>
+        <div class="legend-items">
+          <div class="legend-item"><div class="legend-swatch dot-slate" style="border-radius:50%;"></div>Photo Track</div>
+          <div class="legend-item"><div class="legend-swatch dot-blue" style="border-radius:50%;"></div>Video Track</div>
+        </div>
+      </div>
+      <div class="legend-group">
+        <div class="legend-title">Proportional Scale</div>
+        <div class="legend-items">
+          <div class="legend-item" id="legendScale">At 1.0x: 2px per minute — 60 min = 120px tall</div>
+        </div>
+      </div>
+      <div class="legend-group" style="margin-left:auto;">
+        <div class="legend-title">Approach B Key Insight</div>
+        <div style="font-size:10px; color:var(--text-muted); max-width:280px; line-height:1.5;">
+          Entry Y-position maps directly to clock time. Entry height equals duration. Gaps between entries are real dead time. The zoom slider scales all dimensions proportionally — you never lose temporal accuracy.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ─── DATA ───────────────────────────────────────────────────────
+
+  const DAY_START = 360; // 6:00 AM in minutes
+  const DAY_END = 840;   // 2:00 PM in minutes
+
+  function toMin(h, m) { return h * 60 + m; }
+  function fmtTime(minutes) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    const ampm = h < 12 ? 'AM' : 'PM';
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+  }
+
+  const banners = [
+    { start: toMin(6, 0), dur: 60, title: 'Art Department Load-In & Setup', type: 'art-dept', icon: 'artdept' },
+    { start: toMin(12, 0), dur: 30, title: 'Lunch Break', type: 'lunch', icon: 'lunch' },
+  ];
+
+  const photoShots = [
+    { id: 'SB-001', start: toMin(7, 0),  dur: 15, title: 'Merino Trench Coat',        desc: 'Front-facing hero shot',            products: ['Merino Trench Coat'],                  talent: ['Jane Doe'],              location: 'Studio A', tags: ['#hero','#outerwear'], notes: '',                              color: 'blue',   track: 'photo' },
+    { id: 'SB-002', start: toMin(7, 15), dur: 15, title: 'Merino Trench Detail',       desc: 'Close-up of lapel and stitching',   products: ['Merino Trench Coat'],                  talent: [],                         location: 'Studio A', tags: [],                  notes: 'Close-up of lapel stitching',   color: 'slate',  track: 'photo' },
+    { id: 'SB-003', start: toMin(7, 30), dur: 20, title: 'Merino Short Trench',        desc: 'Hero with duo talent',              products: ['Merino Short Trench'],                 talent: ['Jane Doe','Mark Smith'],  location: 'Studio A', tags: ['#hero'],           notes: '',                              color: 'blue',   track: 'photo' },
+    { id: 'SB-004', start: toMin(7, 50), dur: 15, title: 'Merino Overcoat',            desc: 'Styled editorial look',             products: ['Merino Overcoat'],                     talent: ['Jane Doe'],              location: 'Studio B', tags: ['#styled'],         notes: '',                              color: 'green',  track: 'photo' },
+    { id: 'SB-005', start: toMin(8, 5),  dur: 15, title: 'Poplin Button-Up',           desc: 'Clean studio white background',     products: ['Poplin Button-Up Shirt'],              talent: ['Mark Smith'],            location: 'Studio B', tags: [],                  notes: '',                              color: 'slate',  track: 'photo' },
+    { id: 'SB-006', start: toMin(8, 20), dur: 15, title: 'Long Sleeve Knit Polo',      desc: 'Detail and texture emphasis',       products: ['Fine Knit Polo'],                      talent: ['Mark Smith'],            location: 'Studio B', tags: ['#detail'],         notes: '',                              color: 'slate',  track: 'photo' },
+    { id: 'SB-007', start: toMin(8, 35), dur: 20, title: 'Compact Travel Hoodie',      desc: 'Lifestyle movement shots',          products: ['Compact Travel Hoodie'],               talent: ['Jane Doe'],              location: 'Studio A', tags: [],                  notes: 'Hood up and down variations',   color: 'amber',  track: 'photo' },
+    { id: 'SB-008', start: toMin(8, 55), dur: 15, title: 'Merino Lounge Hoodie',       desc: 'Relaxed editorial vibe',            products: ['Merino Lounge Hoodie'],                talent: ['Jane Doe'],              location: 'Studio A', tags: [],                  notes: '',                              color: 'slate',  track: 'photo' },
+  ];
+
+  const videoShots = [
+    { id: 'SB-010', start: toMin(7, 0),  dur: 15, title: 'Outerwear ASMR Teaser',    desc: 'Fabric texture close-ups w/ sound', products: ['Merino Trench Coat'],                  talent: ['Jane Doe'],              location: 'Studio A', tags: ['#video','#social'],  notes: '',                              color: 'purple', track: 'video' },
+    { id: 'SB-011', start: toMin(7, 15), dur: 20, title: 'Outerwear Montage',         desc: 'Cross-cut editorial sequence',      products: ['Merino Overcoat','Merino Trench'],     talent: ['Jane Doe','Mark Smith'], location: 'Studio A', tags: [],                    notes: '',                              color: 'slate',  track: 'video' },
+    { id: 'SB-012', start: toMin(7, 35), dur: 15, title: 'Styled 3 Ways',             desc: 'How-to content for social',         products: ['Poplin Button-Up'],                    talent: ['Mark Smith'],            location: 'Studio A', tags: ['#video','#how-to'],  notes: '',                              color: 'purple', track: 'video' },
+    { id: 'SB-013', start: toMin(7, 50), dur: 15, title: 'Styled 3 Ways B-Roll',      desc: 'Supporting footage for edit',       products: ['Poplin Button-Up'],                    talent: ['Mark Smith'],            location: 'Studio A', tags: [],                    notes: '',                              color: 'slate',  track: 'video' },
+    { id: 'SB-014', start: toMin(8, 5),  dur: 20, title: 'Staff Try On',              desc: 'Casual social content',             products: [],                                       talent: ['TBD'],                   location: 'Studio B', tags: [],                    notes: 'Casual social content',         color: 'slate',  track: 'video' },
+    { id: 'SB-015', start: toMin(8, 25), dur: 15, title: 'Crew Try On',               desc: 'Behind-the-scenes content',         products: [],                                       talent: ['TBD'],                   location: 'Studio B', tags: [],                    notes: '',                              color: 'slate',  track: 'video' },
+  ];
+
+  // ─── ICONS (inline SVG strings) ─────────────────────────────────
+
+  const icons = {
+    products: `<svg class="card-field-icon card-products" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h8v6H2zM1 8h10"/><circle cx="4" cy="10" r="1"/><circle cx="8" cy="10" r="1"/></svg>`,
+    talent:   `<svg class="card-field-icon card-talent"   viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="4" r="2.5"/><path d="M1 11c0-2.5 2.2-4 5-4s5 1.5 5 4"/></svg>`,
+    location: `<svg class="card-field-icon card-location" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 1C4.3 1 3 2.3 3 4c0 2.5 3 7 3 7s3-4.5 3-7c0-1.7-1.3-3-3-3z"/><circle cx="6" cy="4" r="1.2"/></svg>`,
+    notes:    `<svg class="card-field-icon card-notes"    viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h8v8H2z"/><path d="M4 5h4M4 7h2"/></svg>`,
+    desc:     `<svg class="card-field-icon" style="color:var(--text-muted)" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h8M2 6h6M2 9h4"/></svg>`,
+    artdept:  `<svg style="width:18px;height:18px;opacity:0.7" viewBox="0 0 20 20" fill="rgba(255,255,255,0.8)"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>`,
+    lunch:    `<svg style="width:18px;height:18px;opacity:0.7" viewBox="0 0 20 20" fill="rgba(255,255,255,0.8)"><path d="M18 9.717V9a6 6 0 00-6-6H4.333A2.333 2.333 0 002 5.333v9.334A2.333 2.333 0 004.333 17H12a6 6 0 006-6v-.283zM16 9h-1.333A2.667 2.667 0 0012 11.667V13h1.333A2.667 2.667 0 0016 10.333V9z"/></svg>`,
+  };
+
+  // ─── STATE ──────────────────────────────────────────────────────
+
+  let pxPerMin = 2;
+  let density = 'normal';
+  let fieldToggles = { shotnum: true, shotname: true, desc: true, talent: true, location: true, tags: false, notes: false, products: true };
+
+  // ─── RENDER HELPERS ─────────────────────────────────────────────
+
+  function getGridHeight() {
+    return (DAY_END - DAY_START) * pxPerMin;
+  }
+
+  function getTopPx(startMin) {
+    return (startMin - DAY_START) * pxPerMin;
+  }
+
+  function getHeightPx(durationMin) {
+    const minH = density === 'compact' ? 22 : density === 'detailed' ? 60 : 32;
+    return Math.max(minH, durationMin * pxPerMin);
+  }
+
+  // ─── BUILD TIME RULER ───────────────────────────────────────────
+
+  function buildRuler() {
+    const ruler = document.getElementById('timeRuler');
+    const gh = getGridHeight();
+    ruler.style.height = gh + 'px';
+    ruler.innerHTML = '';
+
+    for (let min = DAY_START; min <= DAY_END; min += 60) {
+      const topPx = getTopPx(min);
+      const label = document.createElement('div');
+      label.className = 'hour-label';
+      label.style.top = topPx + 'px';
+      label.textContent = fmtTime(min);
+      ruler.appendChild(label);
+    }
+  }
+
+  // ─── BUILD GRIDLINES ────────────────────────────────────────────
+
+  function buildGridlines() {
+    const layer = document.getElementById('gridlinesLayer');
+    layer.innerHTML = '';
+
+    for (let min = DAY_START; min < DAY_END; min += 15) {
+      const topPx = getTopPx(min);
+      const line = document.createElement('div');
+      const isHour = (min % 60 === 0);
+      line.className = 'gridline ' + (isHour ? 'gridline-hour' : 'gridline-quarter');
+      line.style.top = topPx + 'px';
+      layer.appendChild(line);
+    }
+  }
+
+  // ─── BUILD BANNERS ──────────────────────────────────────────────
+
+  function buildBanners() {
+    const layer = document.getElementById('bannersLayer');
+    layer.innerHTML = '';
+
+    banners.forEach(b => {
+      const topPx = getTopPx(b.start);
+      const heightPx = b.dur * pxPerMin;
+
+      const el = document.createElement('div');
+      el.className = `banner-entry banner-${b.type === 'art-dept' ? 'art-dept' : 'lunch'}`;
+      el.style.top = topPx + 'px';
+      el.style.height = heightPx + 'px';
+
+      const iconHtml = b.type === 'art-dept' ? icons.artdept : icons.lunch;
+      const timeStr = `${fmtTime(b.start)} – ${fmtTime(b.start + b.dur)}`;
+
+      el.innerHTML = `
+        ${iconHtml}
+        <div class="banner-text">
+          <div class="banner-title">${b.title}</div>
+          <div class="banner-meta">${timeStr} &middot; ${b.dur} min</div>
+        </div>
+        <div class="banner-duration">${b.dur}m</div>
+      `;
+      layer.appendChild(el);
+    });
+  }
+
+  // ─── BUILD SHOT CARD ────────────────────────────────────────────
+
+  function buildShotCard(shot) {
+    const topPx = getTopPx(shot.start);
+    const heightPx = getHeightPx(shot.dur);
+
+    const card = document.createElement('div');
+    card.className = `shot-card density-${density}`;
+    card.style.top = topPx + 'px';
+    card.style.height = heightPx + 'px';
+    card.dataset.shotId = shot.id;
+
+    const trackDotColor = shot.track === 'photo' ? '#64748b' : '#3b82f6';
+    const startStr = fmtTime(shot.start);
+    const endStr = fmtTime(shot.start + shot.dur);
+    const setLabel = shot.location || 'No Set';
+
+    // Build field rows HTML
+    const descHtml = shot.desc ? `<div class="card-field f-desc">${icons.desc}<span class="card-field-text card-desc">${shot.desc}</span></div>` : '';
+    const productsHtml = shot.products.length ? `<div class="card-field f-products">${icons.products}<span class="card-field-text card-products">${shot.products.join(', ')}</span></div>` : '';
+    const talentHtml = shot.talent.length ? `<div class="card-field f-talent">${icons.talent}<span class="card-field-text card-talent">${shot.talent.join(', ')}</span></div>` : '';
+    const locationHtml = shot.location ? `<div class="card-field f-location">${icons.location}<span class="card-field-text card-location">${shot.location}</span></div>` : '';
+    const notesHtml = shot.notes ? `<div class="card-field f-notes">${icons.notes}<span class="card-field-text card-notes">"${shot.notes}"</span></div>` : '';
+    const tagsHtml = shot.tags.length ? `<div class="card-tags">${shot.tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>` : '';
+
+    card.innerHTML = `
+      <div class="shot-card-inner">
+        <div class="shot-color-bar color-${shot.color}"></div>
+        <div class="shot-body">
+          <div class="card-header-row">
+            <div class="card-track-dot" style="background:${trackDotColor}"></div>
+            <span class="card-set-label">${setLabel}</span>
+            <div class="card-dots"></div>
+            <span class="card-time">${startStr}</span>
+            <span class="card-dur">&middot; ${shot.dur}m</span>
+          </div>
+          <div class="card-id">${shot.id}</div>
+          <div class="card-title">${shot.title}</div>
+          ${descHtml}
+          ${productsHtml}
+          ${talentHtml}
+          ${locationHtml}
+          ${notesHtml}
+          ${tagsHtml}
+        </div>
+      </div>
+    `;
+
+    return card;
+  }
+
+  // ─── BUILD TRACKS ───────────────────────────────────────────────
+
+  function buildTracks() {
+    const gh = getGridHeight();
+    const photoTrack = document.getElementById('photoTrack');
+    const videoTrack = document.getElementById('videoTrack');
+    const tracksArea = document.getElementById('tracksArea');
+
+    photoTrack.style.minHeight = gh + 'px';
+    videoTrack.style.minHeight = gh + 'px';
+    tracksArea.style.minHeight = gh + 'px';
+
+    photoTrack.innerHTML = '';
+    videoTrack.innerHTML = '';
+
+    photoShots.forEach(shot => {
+      photoTrack.appendChild(buildShotCard(shot));
+    });
+
+    videoShots.forEach(shot => {
+      videoTrack.appendChild(buildShotCard(shot));
+    });
+  }
+
+  // ─── UPDATE FIELD VISIBILITY ────────────────────────────────────
+
+  function updateFieldVisibility() {
+    const gridBody = document.getElementById('gridBody');
+    const classes = gridBody.className.split(' ').filter(c => !c.startsWith('hide-'));
+
+    Object.entries(fieldToggles).forEach(([field, visible]) => {
+      if (!visible) classes.push(`hide-${field}`);
+    });
+
+    gridBody.className = classes.join(' ');
+  }
+
+  // ─── UPDATE DENSITY ─────────────────────────────────────────────
+
+  function updateDensity(newDensity) {
+    density = newDensity;
+    renderAll();
+  }
+
+  // ─── RENDER ALL ─────────────────────────────────────────────────
+
+  function renderAll() {
+    buildRuler();
+    buildGridlines();
+    buildBanners();
+    buildTracks();
+    updateFieldVisibility();
+    updateLegend();
+  }
+
+  function updateLegend() {
+    const legendScale = document.getElementById('legendScale');
+    const px = pxPerMin.toFixed(1);
+    const hourPx = (pxPerMin * 60).toFixed(0);
+    const quarterPx = (pxPerMin * 15).toFixed(0);
+    legendScale.textContent = `At ${(pxPerMin / 2).toFixed(1)}x zoom: ${px}px per minute — 60 min = ${hourPx}px, 15 min = ${quarterPx}px`;
+  }
+
+  // ─── ZOOM SLIDER ────────────────────────────────────────────────
+
+  const zoomSlider = document.getElementById('zoomSlider');
+  const zoomValue = document.getElementById('zoomValue');
+
+  zoomSlider.addEventListener('input', () => {
+    const z = parseFloat(zoomSlider.value);
+    pxPerMin = z * 2; // at zoom 1.0 = 2px/min, at zoom 0.5 = 1px/min, at zoom 2.0 = 4px/min
+    zoomValue.textContent = z.toFixed(1) + 'x';
+
+    // Update CSS custom property on root
+    document.documentElement.style.setProperty('--px-per-min', pxPerMin);
+
+    renderAll();
+  });
+
+  // ─── DENSITY SELECT ─────────────────────────────────────────────
+
+  const densitySelect = document.getElementById('densitySelect');
+  densitySelect.addEventListener('change', () => {
+    updateDensity(densitySelect.value);
+  });
+
+  // ─── FIELD TOGGLES ──────────────────────────────────────────────
+
+  document.querySelectorAll('.field-cb').forEach(cb => {
+    // Sync initial state
+    fieldToggles[cb.dataset.field] = cb.checked;
+
+    cb.addEventListener('change', () => {
+      fieldToggles[cb.dataset.field] = cb.checked;
+      updateFieldVisibility();
+    });
+  });
+
+  // ─── RIPPLE CHECKBOX ────────────────────────────────────────────
+
+  const rippleCheck = document.getElementById('rippleCheck');
+  rippleCheck.addEventListener('change', () => {
+    // Visual only for mockup
+    const label = document.querySelector('.ripple-label');
+    label.style.color = rippleCheck.checked ? 'var(--color-primary)' : '';
+  });
+
+  // ─── INIT ───────────────────────────────────────────────────────
+
+  renderAll();
+
+  // Scroll to 7:00 AM (first shot time) after render
+  setTimeout(() => {
+    const container = document.getElementById('gridContainer');
+    const targetMin = toMin(6, 45); // just before 7AM
+    const scrollTop = (targetMin - DAY_START) * pxPerMin;
+    container.scrollTop = Math.max(0, scrollTop - 20);
+  }, 50);
+
+</script>
+</body>
+</html>
