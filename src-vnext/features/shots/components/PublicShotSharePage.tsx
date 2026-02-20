@@ -1,33 +1,12 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
+import { doc, getDoc } from "firebase/firestore"
+import { db } from "@/shared/lib/firebase"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
-
-type PublicShot = {
-  readonly id: string
-  readonly title: string
-  readonly shotNumber: string | null
-  readonly status: string
-  readonly date: string | null
-  readonly locationName: string | null
-  readonly talentNames: readonly string[]
-  readonly productLines: readonly string[]
-  readonly description: string | null
-  readonly notesAddendum: string | null
-}
-
-type ResolveShotShareResult = {
-  readonly share: {
-    readonly id: string
-    readonly title: string | null
-    readonly expiresAt: string | null
-    readonly scope: "project" | "selected"
-  }
-  readonly project: { readonly id: string; readonly name: string }
-  readonly shots: readonly PublicShot[]
-}
+import type { ResolvedPublicShot } from "@/features/shots/lib/resolveShotsForShare"
 
 type ErrorInfo = {
   readonly heading: string
@@ -45,27 +24,12 @@ function formatDate(iso: string | null): string {
   }
 }
 
-function errorFromStatus(status: number, serverMessage: string | null): ErrorInfo {
-  switch (status) {
-    case 400:
-      return { heading: "Invalid link", message: "The share token is invalid. Please check the link and try again." }
-    case 403:
-      return { heading: "Sharing disabled", message: "Sharing has been disabled for these shots." }
-    case 404:
-      return { heading: "Link not found", message: "This share link does not exist. It may have been deleted." }
-    case 410:
-      return { heading: "Link expired", message: "This share link has expired. Ask the sender for a new one." }
-    default:
-      return {
-        heading: "Failed to load",
-        message: serverMessage || "Something went wrong. Please try again later.",
-      }
-  }
-}
-
 export default function PublicShotSharePage() {
   const { shareToken } = useParams<{ shareToken: string }>()
-  const [result, setResult] = useState<ResolveShotShareResult | null>(null)
+  const [shots, setShots] = useState<readonly ResolvedPublicShot[]>([])
+  const [shareTitle, setShareTitle] = useState<string | null>(null)
+  const [projectName, setProjectName] = useState<string>("Project")
+  const [scope, setScope] = useState<"project" | "selected">("project")
   const [loading, setLoading] = useState(true)
   const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null)
   const [query, setQuery] = useState("")
@@ -73,7 +37,7 @@ export default function PublicShotSharePage() {
   useEffect(() => {
     let active = true
     const load = async () => {
-      if (!shareToken) {
+      if (!shareToken || shareToken.length < 10) {
         setErrorInfo({ heading: "Invalid link", message: "No share token provided." })
         setLoading(false)
         return
@@ -83,42 +47,53 @@ export default function PublicShotSharePage() {
       setErrorInfo(null)
 
       try {
-        const response = await fetch("/api/resolveShotShareToken", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ shareToken }),
-        })
+        const shareRef = doc(db, "shotShares", shareToken)
+        const snap = await getDoc(shareRef)
 
         if (!active) return
 
-        if (!response.ok) {
-          let serverMessage: string | null = null
+        if (!snap.exists()) {
+          setErrorInfo({ heading: "Link not found", message: "This share link does not exist. It may have been deleted." })
+          setLoading(false)
+          return
+        }
+
+        const data = snap.data() as Record<string, unknown>
+
+        if (data.enabled !== true) {
+          setErrorInfo({ heading: "Sharing disabled", message: "Sharing has been disabled for these shots." })
+          setLoading(false)
+          return
+        }
+
+        // Check expiration client-side
+        if (data.expiresAt) {
           try {
-            const body = await response.json()
-            serverMessage = body.error ?? null
+            const expiresAt = (data.expiresAt as { toDate: () => Date }).toDate()
+            if (expiresAt.getTime() < Date.now()) {
+              setErrorInfo({ heading: "Link expired", message: "This share link has expired. Ask the sender for a new one." })
+              setLoading(false)
+              return
+            }
           } catch {
-            // Ignore parse errors
+            // Ignore malformed expiresAt
           }
-          setErrorInfo(errorFromStatus(response.status, serverMessage))
-          setResult(null)
-          setLoading(false)
-          return
         }
 
-        const data = (await response.json()) as ResolveShotShareResult | null
-        if (!active) return
-        if (!data || !data.project || !Array.isArray(data.shots)) {
-          setErrorInfo({ heading: "Failed to load", message: "Invalid response. Please check the link and try again." })
-          setResult(null)
-          setLoading(false)
-          return
-        }
-        setResult(data)
+        const resolved = Array.isArray(data.resolvedShots) ? (data.resolvedShots as ResolvedPublicShot[]) : []
+        const name = typeof data.projectName === "string" ? data.projectName : "Project"
+        const title = typeof data.title === "string" ? data.title : null
+        const hasShotIds = Array.isArray(data.shotIds) && data.shotIds.length > 0
+
+        setShots(resolved)
+        setProjectName(name)
+        setShareTitle(title)
+        setScope(hasShotIds ? "selected" : "project")
         setLoading(false)
-      } catch {
+      } catch (err) {
         if (!active) return
-        setErrorInfo({ heading: "Failed to load", message: "Network error. Please check your connection and try again." })
-        setResult(null)
+        console.error("[PublicShotSharePage] Failed to load share:", err)
+        setErrorInfo({ heading: "Failed to load", message: "Something went wrong. Please check the link and try again." })
         setLoading(false)
       }
     }
@@ -129,11 +104,10 @@ export default function PublicShotSharePage() {
     }
   }, [shareToken])
 
-  const shots = useMemo(() => {
-    const list = result?.shots ?? []
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return list
-    return list.filter((s) => {
+    if (!q) return shots
+    return shots.filter((s) => {
       const haystack = [
         s.title,
         s.shotNumber ?? "",
@@ -148,7 +122,7 @@ export default function PublicShotSharePage() {
         .toLowerCase()
       return haystack.includes(q)
     })
-  }, [query, result?.shots])
+  }, [query, shots])
 
   if (loading) return <LoadingState loading />
 
@@ -163,11 +137,8 @@ export default function PublicShotSharePage() {
     )
   }
 
-  if (!result) return null
-
-  const title = result.share.title || result.project.name
-  const subLabel =
-    result.share.scope === "selected" ? "Shared selection" : "Shared project shots"
+  const title = shareTitle || projectName
+  const subLabel = scope === "selected" ? "Shared selection" : "Shared project shots"
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] px-4 py-8">
@@ -186,7 +157,7 @@ export default function PublicShotSharePage() {
           </div>
           <h1 className="text-2xl font-semibold text-[var(--color-text)]">{title}</h1>
           <p className="text-sm text-[var(--color-text-muted)]">
-            {result.project.name} · {shots.length} shots
+            {projectName} · {filtered.length} shots
           </p>
         </div>
 
@@ -199,7 +170,7 @@ export default function PublicShotSharePage() {
           />
         </div>
 
-        {shots.length === 0 ? (
+        {filtered.length === 0 ? (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">No shots</CardTitle>
@@ -222,7 +193,7 @@ export default function PublicShotSharePage() {
                 </tr>
               </thead>
               <tbody>
-                {shots.map((s) => (
+                {filtered.map((s) => (
                   <tr key={s.id} className="border-b border-[var(--color-border)]">
                     <td className="px-3 py-2">
                       <div className="flex items-baseline gap-2">

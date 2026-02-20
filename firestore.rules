@@ -77,9 +77,14 @@ service cloud.firestore {
       allow list, get: if resource.data.shareEnabled == true;
     }
 
-    // Public shot sharing (token-resolved via Cloud Function; Firestore read is NOT public)
-    // Share docs live at /shotShares/{shareToken} (doc id = token).
+    // Public shot sharing — share docs live at /shotShares/{shareToken} (doc id = token).
+    // Resolved shot data is denormalized into the doc at creation time.
     match /shotShares/{shareToken} {
+      // Allow unauthenticated get when sharing is enabled.
+      // Security: Requires knowledge of the exact share token (UUID / 32+ chars).
+      allow get: if resource.data.enabled == true;
+
+      // Authenticated admin/producer reads (management UI)
       allow get, list: if isAuthed() &&
         (isAdmin() || isProducer()) &&
         resource.data.clientId == userClient();

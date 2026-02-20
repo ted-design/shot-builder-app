@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { httpsCallable } from "firebase/functions"
 import { doc, serverTimestamp, setDoc } from "firebase/firestore"
 import { db, functions } from "@/shared/lib/firebase"
+import { resolveShotsForShare } from "@/features/shots/lib/resolveShotsForShare"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
@@ -147,15 +148,19 @@ export function ShotsShareDialog({
         }
         console.warn("[ShotsShareDialog] createShotShareLink unavailable, using Firestore fallback")
         const fallbackToken = generateShareToken()
+        const scopedShotIds = scope === "selected" ? [...selectedShotIds] : null
+        const resolved = await resolveShotsForShare(clientId, projectId, scopedShotIds)
         await setDoc(doc(db, "shotShares", fallbackToken), {
           clientId,
           projectId: projectId.trim(),
-          shotIds: scope === "selected" ? selectedShotIds : null,
+          shotIds: scopedShotIds,
           enabled: true,
           title: (title.trim() || defaultTitle).trim(),
           expiresAt: null,
           createdAt: serverTimestamp(),
           createdBy: user?.uid ?? null,
+          projectName: resolved.projectName,
+          resolvedShots: resolved.resolvedShots,
         })
         shareToken = fallbackToken
       }
@@ -208,7 +213,7 @@ export function ShotsShareDialog({
               </div>
               <p className="text-xs text-[var(--color-text-muted)]">
                 {scope === "project"
-                  ? "Live view of the project’s shots (updates as shots change)."
+                  ? "Snapshot of all project shots at time of sharing."
                   : "Shares only the currently selected shots."}
               </p>
             </div>
