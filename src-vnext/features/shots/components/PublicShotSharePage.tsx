@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
-import { httpsCallable } from "firebase/functions"
-import { functions } from "@/shared/lib/firebase"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
@@ -31,14 +29,37 @@ type ResolveShotShareResult = {
   readonly shots: readonly PublicShot[]
 }
 
+type ErrorInfo = {
+  readonly heading: string
+  readonly message: string
+}
+
 function formatDate(iso: string | null): string {
-  if (!iso) return "—"
+  if (!iso) return "\u2014"
   try {
     const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return "—"
+    if (Number.isNaN(d.getTime())) return "\u2014"
     return new Intl.DateTimeFormat(undefined, { month: "short", day: "2-digit" }).format(d)
   } catch {
-    return "—"
+    return "\u2014"
+  }
+}
+
+function errorFromStatus(status: number, serverMessage: string | null): ErrorInfo {
+  switch (status) {
+    case 400:
+      return { heading: "Invalid link", message: "The share token is invalid. Please check the link and try again." }
+    case 403:
+      return { heading: "Sharing disabled", message: "Sharing has been disabled for these shots." }
+    case 404:
+      return { heading: "Link not found", message: "This share link does not exist. It may have been deleted." }
+    case 410:
+      return { heading: "Link expired", message: "This share link has expired. Ask the sender for a new one." }
+    default:
+      return {
+        heading: "Failed to load",
+        message: serverMessage || "Something went wrong. Please try again later.",
+      }
   }
 }
 
@@ -46,38 +67,57 @@ export default function PublicShotSharePage() {
   const { shareToken } = useParams<{ shareToken: string }>()
   const [result, setResult] = useState<ResolveShotShareResult | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null)
   const [query, setQuery] = useState("")
 
   useEffect(() => {
     let active = true
     const load = async () => {
       if (!shareToken) {
-        setError("No share token provided.")
+        setErrorInfo({ heading: "Invalid link", message: "No share token provided." })
         setLoading(false)
         return
       }
 
       setLoading(true)
-      setError(null)
+      setErrorInfo(null)
 
       try {
-        const callable = httpsCallable(functions, "resolveShotShareToken")
-        const res = await callable({ shareToken })
-        const data = (res.data ?? null) as ResolveShotShareResult | null
+        const response = await fetch("/api/resolveShotShareToken", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shareToken }),
+        })
+
+        if (!active) return
+
+        if (!response.ok) {
+          let serverMessage: string | null = null
+          try {
+            const body = await response.json()
+            serverMessage = body.error ?? null
+          } catch {
+            // Ignore parse errors
+          }
+          setErrorInfo(errorFromStatus(response.status, serverMessage))
+          setResult(null)
+          setLoading(false)
+          return
+        }
+
+        const data = (await response.json()) as ResolveShotShareResult | null
         if (!active) return
         if (!data || !data.project || !Array.isArray(data.shots)) {
-          setError("Invalid response. Please check the link and try again.")
+          setErrorInfo({ heading: "Failed to load", message: "Invalid response. Please check the link and try again." })
           setResult(null)
           setLoading(false)
           return
         }
         setResult(data)
         setLoading(false)
-      } catch (err) {
+      } catch {
         if (!active) return
-        console.error("[PublicShotSharePage] Failed to resolve share token:", err)
-        setError("Failed to load shots. Please check the link and try again.")
+        setErrorInfo({ heading: "Failed to load", message: "Network error. Please check your connection and try again." })
         setResult(null)
         setLoading(false)
       }
@@ -112,12 +152,12 @@ export default function PublicShotSharePage() {
 
   if (loading) return <LoadingState loading />
 
-  if (error) {
+  if (errorInfo) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg)] px-4">
         <div className="w-full max-w-md rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-          <h1 className="text-base font-semibold text-[var(--color-text)]">Access denied</h1>
-          <p className="mt-2 text-sm text-[var(--color-text-muted)]">{error}</p>
+          <h1 className="text-base font-semibold text-[var(--color-text)]">{errorInfo.heading}</h1>
+          <p className="mt-2 text-sm text-[var(--color-text-muted)]">{errorInfo.message}</p>
         </div>
       </div>
     )
@@ -154,7 +194,7 @@ export default function PublicShotSharePage() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search shots…"
+            placeholder="Search shots\u2026"
             className="w-full sm:w-[320px]"
           />
         </div>
@@ -210,11 +250,11 @@ export default function PublicShotSharePage() {
                       {formatDate(s.date)}
                     </td>
                     <td className="px-3 py-2 text-[var(--color-text-secondary)]">
-                      {s.locationName || "—"}
+                      {s.locationName || "\u2014"}
                     </td>
                     <td className="px-3 py-2 text-[var(--color-text-secondary)]">
                       {s.talentNames.length === 0 ? (
-                        "—"
+                        "\u2014"
                       ) : (
                         <div className="flex flex-col gap-0.5">
                           {s.talentNames.map((name) => (
@@ -227,7 +267,7 @@ export default function PublicShotSharePage() {
                     </td>
                     <td className="px-3 py-2 text-[var(--color-text-secondary)]">
                       {s.productLines.length === 0 ? (
-                        "—"
+                        "\u2014"
                       ) : (
                         <div className="flex flex-col gap-0.5">
                           {s.productLines.map((line, index) => (
@@ -251,4 +291,3 @@ export default function PublicShotSharePage() {
     </div>
   )
 }
-

@@ -25,6 +25,15 @@ export default defineConfig({
       "@": resolve(import.meta.dirname, "src-vnext"),
     },
   },
+  server: {
+    proxy: {
+      "/api/": {
+        target: process.env.VITE_FUNCTIONS_ORIGIN || "https://northamerica-northeast1-um-shotbuilder.cloudfunctions.net",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\//, "/"),
+      },
+    },
+  },
   build: {
     rollupOptions: {
       output: {
