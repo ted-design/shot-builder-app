@@ -68,7 +68,9 @@ function shouldFallbackToFirestore(err: unknown): boolean {
     code === "functions/not-found" ||
     code === "not-found" ||
     code === "functions/unimplemented" ||
-    code === "unimplemented"
+    code === "unimplemented" ||
+    code === "functions/internal" ||
+    code === "internal"
   )
 }
 

@@ -107,6 +107,38 @@ describe("ShotsShareDialog", () => {
     })
   })
 
+  it("falls back to Firestore when callable returns internal error (IAM)", async () => {
+    const callable = vi.fn().mockRejectedValue({
+      code: "functions/internal",
+      message: "INTERNAL",
+    })
+    ;(httpsCallable as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue(callable)
+    ;(doc as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue("doc-ref")
+    ;(setDoc as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(undefined)
+
+    render(
+      <ShotsShareDialog
+        open
+        onOpenChange={vi.fn()}
+        clientId="c1"
+        projectId="p1"
+        projectName="Project 1"
+        user={{ uid: "u1", email: "producer@test.com", displayName: null, photoURL: null }}
+        selectedShotIds={[]}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Create link" }))
+
+    await waitFor(() => {
+      expect(setDoc).toHaveBeenCalled()
+    })
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalled()
+    })
+  })
+
   it("falls back to Firestore when callable is unavailable", async () => {
     const callable = vi.fn().mockRejectedValue({
       code: "functions/not-found",

@@ -25,6 +25,13 @@
         "destination": "/404.html"
       },
       {
+        "source": "/api/resolveShotShareToken",
+        "function": {
+          "functionId": "resolveShotShareToken",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
