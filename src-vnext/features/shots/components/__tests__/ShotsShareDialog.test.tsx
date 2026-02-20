@@ -15,6 +15,14 @@ vi.mock("firebase/firestore", () => ({
   doc: vi.fn(),
   serverTimestamp: vi.fn(() => "server-timestamp"),
   setDoc: vi.fn(),
+  updateDoc: vi.fn(),
+}))
+
+vi.mock("@/features/shots/lib/resolveShotsForShare", () => ({
+  resolveShotsForShare: vi.fn().mockResolvedValue({
+    projectName: "Project 1",
+    resolvedShots: [],
+  }),
 }))
 
 vi.mock("sonner", () => ({

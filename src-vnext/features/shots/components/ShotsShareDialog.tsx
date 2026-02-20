@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { httpsCallable } from "firebase/functions"
-import { doc, serverTimestamp, setDoc } from "firebase/firestore"
+import { doc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore"
 import { db, functions } from "@/shared/lib/firebase"
+import { resolveShotsForShare } from "@/features/shots/lib/resolveShotsForShare"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
@@ -141,21 +142,40 @@ export function ShotsShareDialog({
           throw new Error("Invalid share response")
         }
         shareToken = callableToken
+
+        // Denormalize resolved shot data into the share doc so the public
+        // page can read directly from Firestore without a Cloud Function.
+        try {
+          const scopedIds = scope === "selected" ? [...selectedShotIds] : null
+          const resolved = await resolveShotsForShare(clientId, projectId, scopedIds)
+          await updateDoc(doc(db, "shotShares", shareToken), {
+            projectName: resolved.projectName,
+            resolvedShots: resolved.resolvedShots,
+          })
+        } catch (patchErr) {
+          // Non-fatal: public page will show empty if patch fails, but the
+          // share link itself is still valid. Log and continue.
+          console.warn("[ShotsShareDialog] Failed to patch resolved data:", patchErr)
+        }
       } catch (callableErr) {
         if (!shouldFallbackToFirestore(callableErr)) {
           throw callableErr
         }
         console.warn("[ShotsShareDialog] createShotShareLink unavailable, using Firestore fallback")
         const fallbackToken = generateShareToken()
+        const scopedShotIds = scope === "selected" ? [...selectedShotIds] : null
+        const resolved = await resolveShotsForShare(clientId, projectId, scopedShotIds)
         await setDoc(doc(db, "shotShares", fallbackToken), {
           clientId,
           projectId: projectId.trim(),
-          shotIds: scope === "selected" ? selectedShotIds : null,
+          shotIds: scopedShotIds,
           enabled: true,
           title: (title.trim() || defaultTitle).trim(),
           expiresAt: null,
           createdAt: serverTimestamp(),
           createdBy: user?.uid ?? null,
+          projectName: resolved.projectName,
+          resolvedShots: resolved.resolvedShots,
         })
         shareToken = fallbackToken
       }
@@ -208,7 +228,7 @@ export function ShotsShareDialog({
               </div>
               <p className="text-xs text-[var(--color-text-muted)]">
                 {scope === "project"
-                  ? "Live view of the project’s shots (updates as shots change)."
+                  ? "Snapshot of all project shots at time of sharing."
                   : "Shares only the currently selected shots."}
               </p>
             </div>
