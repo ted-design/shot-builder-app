@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { httpsCallable } from "firebase/functions"
-import { doc, serverTimestamp, setDoc } from "firebase/firestore"
+import { doc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore"
 import { db, functions } from "@/shared/lib/firebase"
 import { resolveShotsForShare } from "@/features/shots/lib/resolveShotsForShare"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog"
@@ -142,6 +142,21 @@ export function ShotsShareDialog({
           throw new Error("Invalid share response")
         }
         shareToken = callableToken
+
+        // Denormalize resolved shot data into the share doc so the public
+        // page can read directly from Firestore without a Cloud Function.
+        try {
+          const scopedIds = scope === "selected" ? [...selectedShotIds] : null
+          const resolved = await resolveShotsForShare(clientId, projectId, scopedIds)
+          await updateDoc(doc(db, "shotShares", shareToken), {
+            projectName: resolved.projectName,
+            resolvedShots: resolved.resolvedShots,
+          })
+        } catch (patchErr) {
+          // Non-fatal: public page will show empty if patch fails, but the
+          // share link itself is still valid. Log and continue.
+          console.warn("[ShotsShareDialog] Failed to patch resolved data:", patchErr)
+        }
       } catch (callableErr) {
         if (!shouldFallbackToFirestore(callableErr)) {
           throw callableErr

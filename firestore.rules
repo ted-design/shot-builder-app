@@ -80,9 +80,10 @@ service cloud.firestore {
     // Public shot sharing — share docs live at /shotShares/{shareToken} (doc id = token).
     // Resolved shot data is denormalized into the doc at creation time.
     match /shotShares/{shareToken} {
-      // Allow unauthenticated get when sharing is enabled.
+      // Allow unauthenticated get when sharing is enabled and not expired.
       // Security: Requires knowledge of the exact share token (UUID / 32+ chars).
-      allow get: if resource.data.enabled == true;
+      allow get: if resource.data.enabled == true
+        && (resource.data.expiresAt == null || resource.data.expiresAt > request.time);
 
       // Authenticated admin/producer reads (management UI)
       allow get, list: if isAuthed() &&
