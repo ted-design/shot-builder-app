@@ -28,7 +28,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api/": {
-        target: "https://northamerica-northeast1-um-shotbuilder.cloudfunctions.net",
+        target: process.env.VITE_FUNCTIONS_ORIGIN || "https://northamerica-northeast1-um-shotbuilder.cloudfunctions.net",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\//, "/"),
       },
