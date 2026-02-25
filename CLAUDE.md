@@ -6,14 +6,14 @@ This file governs all Claude Code work in the vNext worktree. Follow these rules
 
 ## Canonical Source of Truth
 
-**`docs-vnext/` is the authoritative specification for vNext.** All product, design, and engineering decisions are defined there.
+**Root-level `PRD.md` and `Plan.md` are the authoritative specifications.** Product vision, user journeys, feature priorities, and the phased implementation plan are defined there.
 
-- `docs-vnext/product/north-star.md` — Target users, JTBD, success metrics, anti-goals
-- `docs-vnext/design/experience-spec.md` — IA, navigation, flows, interaction rules, states
-- `docs-vnext/engineering/architecture.md` — Modules, data contracts, state strategy, security
-- `docs-vnext/engineering/build-strategy.md` — Vertical slices, first slice scope, Definition of Done
+- `PRD.md` — Product vision, target users, core journeys, feature priority matrix, UX principles
+- `Plan.md` — 7-phase implementation plan with sub-task checkboxes (this is the todo tracker)
+- `AI_RULES.md` — Decision framework, code standards, context management rules
+- `Architecture.md` — Tech stack, routes, data model, file structure
 
-**Any documentation outside `docs-vnext/` is legacy reference only and may be stale.** Do not treat legacy docs as authoritative. When legacy docs conflict with `docs-vnext/`, `docs-vnext/` wins.
+**`docs-vnext/` is supplementary engineering reference** — slice specs, sprint proofs, and design details. Useful for understanding past work and engineering constraints, but when `docs-vnext/` conflicts with `PRD.md` or `Plan.md`, the root docs win.
 
 ## Hard Rules
 
@@ -24,7 +24,7 @@ Build one complete workflow at a time. Each slice ships a fully usable end-to-en
 - **No horizontal layers.** Do not "set up all components first" or "build all routes first."
 - **No stubs.** Deferred features must not be stubbed, partially implemented, or visible in the UI. No placeholder routes, grayed-out nav items, "coming soon" labels, or skeleton feature modules.
 - **If it's not in the current slice, it does not exist in the codebase.**
-- The current slice is defined in `docs-vnext/engineering/build-strategy.md`.
+- The current phase and its sub-tasks are defined in `Plan.md`.
 
 ### 2. Mobile-First, Not Mobile-Parity
 
@@ -73,6 +73,25 @@ Firebase Auth, Firestore, Storage, Functions, security rules, and the data model
 - Do not create abstractions for one-time operations.
 - Do not add comments, docstrings, or type annotations to code you did not change.
 - Three similar lines of code is better than a premature abstraction.
+
+### 7. Documentation Discipline
+
+Runtime documentation must stay in sync with the codebase. Stale docs break the resume protocol and waste future sessions.
+
+- **After completing any task:** Update `docs/_runtime/HANDOFF.md` (next steps) and `docs/_runtime/CHECKPOINT.md` (what's done).
+- **After completing a Plan.md sub-task:** Check the corresponding checkbox in `Plan.md`. Do not leave completed work unchecked.
+- **Before ending a session:** Re-read all three files (`HANDOFF.md`, `CHECKPOINT.md`, `Plan.md`) and verify they are consistent with each other and with what was actually built.
+- **On resume ("pick up where we left off"):** Read `HANDOFF.md` first, then cross-check against `CHECKPOINT.md` and `Plan.md` before starting work.
+- **MEMORY.md:** Update the current phase status line when progress changes.
+
+The authoritative tracking files are:
+
+| File | What to update | When |
+|------|---------------|------|
+| `Plan.md` | Check sub-task checkboxes | When a sub-task is fully complete |
+| `docs/_runtime/HANDOFF.md` | Current state, just completed, next steps, verification | After every implementation session |
+| `docs/_runtime/CHECKPOINT.md` | Completed tasks list, what's next, critical file state | After every implementation session |
+| `MEMORY.md` | Current phase status line | When phase progress changes |
 
 ## Legacy Codebase Context
 
@@ -217,6 +236,31 @@ The visual direction is finalized. All new UI must follow this palette:
 - **Typography:** Inter. Light weight (300) for page headings, semibold for section headings. Editorial tracking: `-0.02em` on headings, `-0.01em` on sub-headings.
 - **Shadows:** Minimal. Borders do separation work (Notion/Linear style).
 - **Mockups:** `mockups/p2-sidebar-desktop.html`, `mockups/p2-drawer-mobile-tablet.html`, `mockups/p2-cmdk-palette.html` — open in browser for visual reference.
+
+## Three-Panel Layout Patterns
+
+The three-panel desktop layout (`ThreePanelLayout.tsx`) uses `react-resizable-panels` with three `Panel` children and two `PanelResizeHandle` dividers.
+
+**Responsive within panels (not viewport):** Components inside resizable panels must not use viewport-based media queries (`sm:flex`, `md:hidden`, etc.) for layout decisions. The panel can be narrow even when the viewport is wide. Use `ResizeObserver` to measure actual panel width and derive a `compact` boolean.
+
+**Compact prop pattern:** Shared components used in both full-width pages and narrow panel contexts (e.g., `ShotQuickAdd`) should accept an optional `compact` prop to reduce padding, shorten placeholder text, and hide non-essential UI (keyboard hints, batch actions).
+
+**Exit affordances:** Three-panel mode must provide multiple visible exit paths — not just keyboard shortcuts. Current exits: (1) `Escape` key, (2) "← Shots" breadcrumb button in center panel, (3) clicking the already-selected shot in the list panel toggles deselect.
+
+**Breadcrumb hygiene:** Navigation breadcrumbs must not duplicate information already visible on screen. If the shot title is shown as an H2 directly below, the breadcrumb should only show the back-navigation ("← Shots"), not repeat the title.
+
+## Shot Status Labels
+
+Canonical labels (from `statusMappings.ts`). Use these everywhere — views, filters, PDFs, badges:
+
+| Firestore value | Display label |
+|---|---|
+| `todo` | **Draft** |
+| `in_progress` | **In Progress** |
+| `on_hold` | **On Hold** |
+| `complete` | **Shot** |
+
+Do NOT use alternative labels (To do, Complete, Done). `statusMappings.ts` is the single source of truth. `shotListFilters.ts STATUS_LABELS` must match.
 
 ## Git Workflow
 

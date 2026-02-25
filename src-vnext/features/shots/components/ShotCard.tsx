@@ -18,6 +18,7 @@ interface ShotCardProps {
   readonly selectable?: boolean
   readonly selected?: boolean
   readonly onSelectedChange?: (selected: boolean) => void
+  readonly onOpenShot?: (shotId: string) => void
   readonly leadingControl?: ReactNode
   readonly actionControl?: ReactNode
   readonly visibleFields?: Partial<ShotCardVisibleFields>
@@ -98,6 +99,7 @@ export function ShotCard({
   selectable,
   selected,
   onSelectedChange,
+  onOpenShot,
   leadingControl,
   actionControl,
   visibleFields,
@@ -171,7 +173,7 @@ export function ShotCard({
   return (
     <Card
       className="cursor-pointer transition-shadow hover:shadow-sm"
-      onClick={() => navigate(`/projects/${projectId}/shots/${shot.id}`)}
+      onClick={() => onOpenShot ? onOpenShot(shot.id) : navigate(`/projects/${projectId}/shots/${shot.id}`)}
     >
       <CardContent className="flex flex-col gap-2.5 px-4 py-3.5">
         <div className="flex items-start justify-between gap-2.5">

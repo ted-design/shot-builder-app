@@ -28,6 +28,7 @@ interface DraggableShotListProps {
   readonly disabled?: boolean
   readonly visibleFields?: Partial<ShotCardVisibleFields>
   readonly actionControl?: (shot: Shot) => ReactNode
+  readonly onOpenShot?: (shotId: string) => void
   readonly talentNameById?: ReadonlyMap<string, string> | null
   readonly locationNameById?: ReadonlyMap<string, string> | null
   readonly selection?: {
@@ -42,6 +43,7 @@ export function DraggableShotList({
   disabled,
   visibleFields,
   actionControl,
+  onOpenShot,
   talentNameById,
   locationNameById,
   selection,
@@ -87,6 +89,7 @@ export function DraggableShotList({
             selectable={selectionEnabled}
             selected={selection?.selectedIds.has(shot.id) ?? false}
             onSelectedChange={() => selection?.onToggle(shot.id)}
+            onOpenShot={onOpenShot}
             visibleFields={visibleFields}
             actionControl={actionControl?.(shot)}
             talentNameById={talentNameById}
@@ -114,6 +117,7 @@ export function DraggableShotList({
               shot={shot}
               visibleFields={visibleFields}
               actionControl={actionControl}
+              onOpenShot={onOpenShot}
               talentNameById={talentNameById}
               locationNameById={locationNameById}
             />
@@ -128,12 +132,14 @@ function SortableShotCard({
   shot,
   visibleFields,
   actionControl,
+  onOpenShot,
   talentNameById,
   locationNameById,
 }: {
   readonly shot: Shot
   readonly visibleFields?: Partial<ShotCardVisibleFields>
   readonly actionControl?: (shot: Shot) => ReactNode
+  readonly onOpenShot?: (shotId: string) => void
   readonly talentNameById?: ReadonlyMap<string, string> | null
   readonly locationNameById?: ReadonlyMap<string, string> | null
 }) {
@@ -168,6 +174,7 @@ function SortableShotCard({
             <GripVertical className="h-4 w-4" />
           </button>
         }
+        onOpenShot={onOpenShot}
         visibleFields={visibleFields}
         actionControl={actionControl?.(shot)}
         talentNameById={talentNameById}

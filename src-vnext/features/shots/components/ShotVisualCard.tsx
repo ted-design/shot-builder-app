@@ -18,6 +18,7 @@ interface ShotVisualCardProps {
   readonly selectable?: boolean
   readonly selected?: boolean
   readonly onSelectedChange?: (next: boolean) => void
+  readonly onOpenShot?: (shotId: string) => void
   readonly actionControl?: ReactNode
   readonly showShotNumber?: boolean
   readonly showTags?: boolean
@@ -43,6 +44,7 @@ export function ShotVisualCard({
   selectable,
   selected,
   onSelectedChange,
+  onOpenShot,
   actionControl,
   showShotNumber = true,
   showTags = true,
@@ -77,7 +79,7 @@ export function ShotVisualCard({
   return (
     <Card
       className="cursor-pointer overflow-hidden transition-shadow hover:shadow-md"
-      onClick={() => navigate(`/projects/${projectId}/shots/${shot.id}`)}
+      onClick={() => onOpenShot ? onOpenShot(shot.id) : navigate(`/projects/${projectId}/shots/${shot.id}`)}
     >
       <div className="relative aspect-[16/9] w-full bg-[var(--color-surface-subtle)]">
         {showImage ? (

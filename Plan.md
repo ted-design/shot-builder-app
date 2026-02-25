@@ -97,15 +97,15 @@ Admin (role-gated: admin only)
 - [x] **3a:** Audit current shot editing UX + identify friction points (research, no code)
 - [x] **3b:** Write HTML mockups: shot list with inline editing + three-panel desktop layout
 - [x] **3c:** Write HTML mockups: product picker + quick-add workflow
-- [ ] **3d:** Write HTML mockups: gallery view + board/kanban view
+- [x] **3d:** Write HTML mockups: gallery view + board/kanban view
 - [x] **3e:** Get user approval on all mockups
 - [x] **3f:** Implement inline editing on shot list (title, status, tags)
-- [ ] **3g:** Implement three-panel desktop layout with resizable panels
+- [x] **3g:** Implement three-panel desktop layout with resizable panels
 - [x] **3h:** Implement product picker redesign (search, keyboard nav, thumbnails)
-- [ ] **3i:** Implement quick-add workflow (title + Enter, batch paste)
-- [ ] **3j:** Implement multi-view system (table, board, gallery) + view persistence
-- [ ] **3k:** Implement auto-save (debounced writes, optimistic UI, save indicator)
-- [ ] **3l:** Implement keyboard shortcuts (Cmd+K, Cmd+N, Tab, Enter, Escape, 1-4)
+- [x] **3i:** Implement quick-add workflow (title + Enter, batch paste)
+- [x] **3j:** Implement multi-view system (table, board, gallery) + view persistence
+- [x] **3k:** Implement auto-save (debounced writes, optimistic UI, save indicator)
+- [x] **3l:** Implement keyboard shortcuts (Cmd+K, Cmd+N, Tab, Enter, Escape, 1-4)
 - [ ] **3m:** Verify acceptance criteria + run full test suite
 - [x] **3n:** Public share system (callable -> HTTP endpoint -> denormalized Firestore reads)
 - [x] **3o:** Shot lifecycle actions (duplicate, copy/move across projects, soft-delete)
@@ -113,6 +113,9 @@ Admin (role-gated: admin only)
 - [x] **3q:** PDF export (multi-template + batch export)
 - [x] **3r:** Reference links section (clickable anchors in shot detail)
 - [x] **3s:** Notes preview component
+- [x] **3t:** Fix gallery view switching bug (URL param deletion caused stale localStorage fallback)
+- [x] **3u:** Standardize status labels to System A (Draft / In Progress / On Hold / Shot) across all views, filters, and PDF exports
+- [ ] **3v:** Board column reorder + show/hide configuration (deferred — localStorage-persisted column order and visibility)
 
 ### Acceptance Criteria
 

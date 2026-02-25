@@ -28,6 +28,7 @@ vi.mock("@/app/providers/ProjectScopeProvider", () => ({
 
 vi.mock("@/shared/hooks/useMediaQuery", () => ({
   useIsMobile: () => false,
+  useIsDesktop: () => false,
 }))
 
 vi.mock("@/features/shots/components/ShotStatusSelect", () => ({
@@ -142,7 +143,8 @@ describe("ShotListPage", () => {
     expect(screen.queryByRole("table")).not.toBeInTheDocument()
     expect(screen.getByText("Alpha")).toBeInTheDocument()
     // Visual cards render StatusBadge (Draft) instead of ShotStatusSelect mock (status:todo).
-    expect(screen.getByText("Draft")).toBeInTheDocument()
+    // Multiple "Draft" elements may exist (status filter pill + card badge).
+    expect(screen.getAllByText("Draft").length).toBeGreaterThanOrEqual(1)
     expect(screen.queryByText("status:todo")).not.toBeInTheDocument()
   })
 

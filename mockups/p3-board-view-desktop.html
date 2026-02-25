@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phase 3 — Board/Kanban View (Desktop)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: {
+            sidebar: '#09090b',
+            'sidebar-border': '#27272a',
+            'sidebar-hover': '#27272a',
+            'sidebar-active': '#3f3f46',
+            primary: { DEFAULT: '#18181b', dark: '#09090b' },
+            accent: { DEFAULT: '#E31E24', dark: '#c91920' },
+            neutral: {
+              50: '#fafafa', 100: '#f4f4f5',
+              200: '#e4e4e7', 300: '#d4d4d8',
+              400: '#a1a1aa', 500: '#71717a',
+              600: '#52525b', 700: '#3f3f46',
+              800: '#27272a', 900: '#18181b',
+              950: '#09090b',
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { margin: 0; background: #f4f4f5; }
+
+    /* Board columns */
+    .board-container {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(260px, 1fr));
+      gap: 16px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    /* Column */
+    .board-column {
+      background: #fafafa;
+      border: 1px solid #e4e4e7;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      min-height: 400px;
+    }
+    .board-column-header {
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e4e4e7;
+    }
+    .board-column-body {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* Shot card in board */
+    .board-card {
+      background: #fff;
+      border: 1px solid #e4e4e7;
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: grab;
+      transition: box-shadow 150ms ease, border-color 150ms ease;
+      position: relative;
+    }
+    .board-card:hover {
+      border-color: #d4d4d8;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+    .board-card.dragging {
+      opacity: 0.5;
+      border-color: #a1a1aa;
+      box-shadow: 0 4px 16px rgba(0,0,0,.12);
+    }
+
+    /* Drop indicator */
+    .drop-indicator {
+      height: 3px;
+      background: #18181b;
+      border-radius: 2px;
+      margin: -2px 0;
+      opacity: 0;
+      transition: opacity 120ms ease;
+    }
+    .board-column.drag-over .drop-indicator.active {
+      opacity: 1;
+    }
+
+    /* Hero thumbnail */
+    .card-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #e4e4e7;
+      flex-shrink: 0;
+    }
+    .card-thumb-placeholder {
+      width: 44px;
+      height: 44px;
+      border-radius: 6px;
+      background: #f4f4f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* Status dot colors */
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .status-todo { background: #a1a1aa; }
+    .status-in-progress { background: #3b82f6; }
+    .status-on-hold { background: #f59e0b; }
+    .status-complete { background: #22c55e; }
+
+    /* Column status accent line */
+    .col-accent { height: 3px; border-radius: 2px 2px 0 0; }
+    .col-accent-todo { background: #a1a1aa; }
+    .col-accent-in-progress { background: #3b82f6; }
+    .col-accent-on-hold { background: #f59e0b; }
+    .col-accent-complete { background: #22c55e; }
+
+    /* Tag chip */
+    .tag-chip {
+      display: inline-flex;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 500;
+      background: #f4f4f5;
+      color: #52525b;
+      border: 1px solid #e4e4e7;
+    }
+
+    /* Sidebar (simplified for context) */
+    .mock-sidebar {
+      width: 220px;
+      background: #09090b;
+      color: #d4d4d8;
+      flex-shrink: 0;
+      padding: 16px 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-item {
+      padding: 8px 16px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #a1a1aa;
+      cursor: pointer;
+    }
+    .sidebar-item:hover { color: #d4d4d8; background: #27272a; }
+    .sidebar-item.active {
+      color: #fafafa;
+      background: #3f3f46;
+      position: relative;
+    }
+    .sidebar-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 4px;
+      bottom: 4px;
+      width: 3px;
+      border-radius: 0 2px 2px 0;
+      background: #E31E24;
+    }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 0 0 12px;
+    }
+    .toolbar-input {
+      height: 36px;
+      padding: 0 12px;
+      border: 1px solid #e4e4e7;
+      border-radius: 8px;
+      font-size: 13px;
+      background: #fff;
+      color: #18181b;
+      width: 260px;
+      outline: none;
+    }
+    .toolbar-input:focus { border-color: #a1a1aa; }
+    .toolbar-input::placeholder { color: #a1a1aa; }
+    .toolbar-btn {
+      height: 36px;
+      padding: 0 12px;
+      border: 1px solid #e4e4e7;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      background: #fff;
+      color: #18181b;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .toolbar-btn:hover { background: #f4f4f5; }
+    .toolbar-btn.active {
+      background: #18181b;
+      color: #fff;
+      border-color: #18181b;
+    }
+    .toolbar-btn-icon {
+      height: 36px;
+      width: 36px;
+      border: 1px solid #e4e4e7;
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .toolbar-btn-icon:hover { background: #f4f4f5; }
+
+    /* View switcher */
+    .view-switcher {
+      display: inline-flex;
+      border: 1px solid #e4e4e7;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .view-tab {
+      height: 36px;
+      padding: 0 14px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #71717a;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #fff;
+      border: none;
+      border-right: 1px solid #e4e4e7;
+    }
+    .view-tab:last-child { border-right: none; }
+    .view-tab:hover { background: #f4f4f5; color: #18181b; }
+    .view-tab.active { background: #18181b; color: #fff; }
+
+    /* Demo controls */
+    .demo-controls {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .demo-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid #e4e4e7;
+      background: #fff;
+      color: #18181b;
+      transition: all 120ms ease;
+    }
+    .demo-btn:hover { background: #f4f4f5; }
+    .demo-btn.active { background: #18181b; color: #fff; border-color: #18181b; }
+
+    /* Meta pill */
+    .meta-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #71717a;
+    }
+    .meta-icon { width: 12px; height: 12px; opacity: 0.6; }
+  </style>
+</head>
+<body class="font-sans text-sm antialiased">
+
+  <!--
+    =====================================================================
+    PHASE 3 — BOARD/KANBAN VIEW MOCKUP (Desktop Only)
+
+    Design decisions:
+    - 4 status columns: Todo, In Progress, On Hold, Complete
+    - Drag cards between columns to change status
+    - Cards show: hero thumb, title, shot number, tags, product/talent counts
+    - Colored accent line at column top matches status color
+    - Column header shows count
+    - Desktop-only; mobile/tablet falls back to gallery view
+    - Part of the existing ViewMode system (gallery | visual | table | board)
+    =====================================================================
+  -->
+
+  <div style="display: flex; height: 100vh; overflow: hidden;">
+
+    <!-- Sidebar (context only) -->
+    <nav class="mock-sidebar">
+      <div style="padding: 0 16px 20px; display: flex; align-items: center; gap: 8px;">
+        <div style="width: 24px; height: 24px; background: #E31E24; border-radius: 4px;"></div>
+        <span style="font-weight: 600; font-size: 14px; color: #fafafa; letter-spacing: -0.02em;">Shot Builder</span>
+      </div>
+      <div class="sidebar-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="sidebar-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+        Shots
+      </div>
+      <div class="sidebar-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+        Pull Sheets
+      </div>
+      <div class="sidebar-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Call Sheet
+      </div>
+    </nav>
+
+    <!-- Main content -->
+    <main style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+
+      <!-- Page header -->
+      <div style="padding: 20px 24px 0; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <div style="font-size: 11px; color: #71717a; margin-bottom: 2px;">
+            <span style="cursor: pointer;">Projects</span>
+            <span style="margin: 0 4px;">/</span>
+            <span>SS26 Campaign</span>
+          </div>
+          <h1 style="font-size: 20px; font-weight: 300; letter-spacing: -0.02em; color: #18181b; margin: 0;">Shots</h1>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="toolbar-btn">Export</button>
+          <button class="toolbar-btn">Share</button>
+          <button class="toolbar-btn" style="background: #18181b; color: #fff; border-color: #18181b;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Shot
+          </button>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div style="padding: 16px 24px 0;">
+        <div class="toolbar">
+          <input class="toolbar-input" placeholder="Search shots..." />
+          <button class="toolbar-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
+            Filters
+          </button>
+          <button class="toolbar-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
+            Sort: Custom
+          </button>
+
+          <div style="flex: 1;"></div>
+
+          <!-- View switcher — Board active -->
+          <div class="view-switcher">
+            <button class="view-tab">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              Gallery
+            </button>
+            <button class="view-tab">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+              Table
+            </button>
+            <button class="view-tab">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/></svg>
+              Visual
+            </button>
+            <button class="view-tab active">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="4.5" height="18" rx="1"/><rect x="9.75" y="3" width="4.5" height="18" rx="1"/><rect x="17.5" y="3" width="4.5" height="18" rx="1"/></svg>
+              Board
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Board view -->
+      <div style="padding: 0 24px 24px; flex: 1; overflow-x: auto; overflow-y: hidden;">
+        <div class="board-container" style="height: 100%;">
+
+          <!-- Column: Todo -->
+          <div class="board-column" id="col-todo">
+            <div class="col-accent col-accent-todo"></div>
+            <div class="board-column-header">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="status-dot status-todo"></div>
+                <span style="font-weight: 600; font-size: 13px; color: #18181b;">Todo</span>
+              </div>
+              <span style="font-size: 12px; color: #a1a1aa; font-weight: 500;">5</span>
+            </div>
+            <div class="board-column-body">
+
+              <div class="board-card" draggable="true">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <div class="card-thumb-placeholder">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                  </div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #18181b; line-height: 1.3; margin-bottom: 2px;">Flat Lay — White Tee</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-014</div>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                      <span class="tag-chip">e-commerce</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="meta-row" style="margin-top: 8px; justify-content: space-between;">
+                  <div style="display: flex; gap: 8px;">
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      0
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+                      2
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="board-card" draggable="true">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <img class="card-thumb" src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=88&h=88&fit=crop" alt="" />
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #18181b; line-height: 1.3; margin-bottom: 2px;">Hero — Denim Jacket</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-015</div>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                      <span class="tag-chip">campaign</span>
+                      <span class="tag-chip">hero</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="meta-row" style="margin-top: 8px;">
+                  <div style="display: flex; gap: 8px;">
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      1
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+                      3
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="board-card" draggable="true">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <div class="card-thumb-placeholder">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                  </div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #18181b; line-height: 1.3; margin-bottom: 2px;">Close-Up — Ring Detail</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-016</div>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                      <span class="tag-chip">accessories</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="board-card" draggable="true">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <img class="card-thumb" src="https://images.unsplash.com/photo-1558171813-4c088753af8f?w=88&h=88&fit=crop" alt="" />
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #18181b; line-height: 1.3; margin-bottom: 2px;">Lifestyle — Poolside</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-017</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="board-card" draggable="true">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <div class="card-thumb-placeholder">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                  </div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #18181b; line-height: 1.3; margin-bottom: 2px;">Group — Summer Basics</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-018</div>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                      <span class="tag-chip">e-commerce</span>
+                      <span class="tag-chip">group</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="meta-row" style="margin-top: 8px;">
+                  <div style="display: flex; gap: 8px;">
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      2
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+                      6
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Column: In Progress -->
+          <div class="board-column" id="col-in-progress">
+            <div class="col-accent col-accent-in-progress"></div>
+            <div class="board-column-header">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="status-dot status-in-progress"></div>
+                <span style="font-weight: 600; font-size: 13px; color: #18181b;">In Progress</span>
+              </div>
+              <span style="font-size: 12px; color: #a1a1aa; font-weight: 500;">3</span>
+            </div>
+            <div class="board-column-body">
+
+              <div class="board-card" draggable="true">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <img class="card-thumb" src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=88&h=88&fit=crop" alt="" />
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #18181b; line-height: 1.3; margin-bottom: 2px;">Full Length — Red Dress</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-001</div>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                      <span class="tag-chip">campaign</span>
+                      <span class="tag-chip">hero</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="meta-row" style="margin-top: 8px;">
+                  <div style="display: flex; gap: 8px;">
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      2
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+                      4
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                      Studio B
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="board-card" draggable="true">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <img class="card-thumb" src="https://images.unsplash.com/photo-1509631179647-0177331693ae?w=88&h=88&fit=crop" alt="" />
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #18181b; line-height: 1.3; margin-bottom: 2px;">Detail — Handbag Texture</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-003</div>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                      <span class="tag-chip">accessories</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="meta-row" style="margin-top: 8px;">
+                  <div style="display: flex; gap: 8px;">
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+                      1
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="board-card" draggable="true">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <div class="card-thumb-placeholder">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                  </div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #18181b; line-height: 1.3; margin-bottom: 2px;">Outfit Change — Look 3</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-005</div>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                      <span class="tag-chip">campaign</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="meta-row" style="margin-top: 8px;">
+                  <div style="display: flex; gap: 8px;">
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      1
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+                      5
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Column: On Hold -->
+          <div class="board-column" id="col-on-hold">
+            <div class="col-accent col-accent-on-hold"></div>
+            <div class="board-column-header">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="status-dot status-on-hold"></div>
+                <span style="font-weight: 600; font-size: 13px; color: #18181b;">On Hold</span>
+              </div>
+              <span style="font-size: 12px; color: #a1a1aa; font-weight: 500;">2</span>
+            </div>
+            <div class="board-column-body">
+
+              <div class="board-card" draggable="true">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <img class="card-thumb" src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=88&h=88&fit=crop" alt="" />
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #18181b; line-height: 1.3; margin-bottom: 2px;">Styled — Denim Set</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-007</div>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                      <span class="tag-chip">campaign</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="meta-row" style="margin-top: 8px;">
+                  <div style="display: flex; gap: 8px;">
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      1
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 3px;">
+                      <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+                      3
+                    </span>
+                  </div>
+                </div>
+                <!-- Hold reason indicator -->
+                <div style="margin-top: 8px; padding: 4px 8px; background: #fef3c7; border-radius: 4px; font-size: 11px; color: #92400e;">
+                  Waiting on sample delivery
+                </div>
+              </div>
+
+              <div class="board-card" draggable="true">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <div class="card-thumb-placeholder">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                  </div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #18181b; line-height: 1.3; margin-bottom: 2px;">BTS — Behind the Scenes</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-009</div>
+                  </div>
+                </div>
+                <div style="margin-top: 8px; padding: 4px 8px; background: #fef3c7; border-radius: 4px; font-size: 11px; color: #92400e;">
+                  Pending creative direction
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Column: Complete -->
+          <div class="board-column" id="col-complete">
+            <div class="col-accent col-accent-complete"></div>
+            <div class="board-column-header">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="status-dot status-complete"></div>
+                <span style="font-weight: 600; font-size: 13px; color: #18181b;">Complete</span>
+              </div>
+              <span style="font-size: 12px; color: #a1a1aa; font-weight: 500;">4</span>
+            </div>
+            <div class="board-column-body">
+
+              <div class="board-card" draggable="true" style="opacity: 0.75;">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <img class="card-thumb" src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=88&h=88&fit=crop" alt="" />
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #52525b; line-height: 1.3; margin-bottom: 2px;">Hero — Black Coat</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-010</div>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                      <span class="tag-chip">campaign</span>
+                      <span class="tag-chip">hero</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="board-card" draggable="true" style="opacity: 0.75;">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <img class="card-thumb" src="https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=88&h=88&fit=crop" alt="" />
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #52525b; line-height: 1.3; margin-bottom: 2px;">Flat Lay — Sneakers</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-011</div>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                      <span class="tag-chip">e-commerce</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="board-card" draggable="true" style="opacity: 0.75;">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <img class="card-thumb" src="https://images.unsplash.com/photo-1445205170230-053b83016050?w=88&h=88&fit=crop" alt="" />
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #52525b; line-height: 1.3; margin-bottom: 2px;">Lifestyle — Morning Walk</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-012</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="board-card" draggable="true" style="opacity: 0.75;">
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <img class="card-thumb" src="https://images.unsplash.com/photo-1483985988355-763728e1935b?w=88&h=88&fit=crop" alt="" />
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; font-size: 13px; color: #52525b; line-height: 1.3; margin-bottom: 2px;">Group — Accessories Edit</div>
+                    <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 6px;">#SH-013</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Demo controls -->
+  <div class="demo-controls">
+    <div style="font-size: 11px; font-weight: 600; color: #71717a; text-transform: uppercase; letter-spacing: 0.06em;">
+      Mockup: P3 Board View
+    </div>
+    <button class="demo-btn" onclick="toggleDrag()">Simulate drag</button>
+  </div>
+
+  <script>
+    // Simple drag simulation for demo purposes
+    let dragActive = false
+    function toggleDrag() {
+      dragActive = !dragActive
+      const btn = document.querySelector('.demo-btn')
+      btn.classList.toggle('active', dragActive)
+
+      if (dragActive) {
+        // Highlight first card in Todo as being dragged
+        const firstCard = document.querySelector('#col-todo .board-card')
+        if (firstCard) firstCard.classList.add('dragging')
+        // Show drop indicator on In Progress column
+        const ipCol = document.querySelector('#col-in-progress')
+        if (ipCol) ipCol.classList.add('drag-over')
+      } else {
+        document.querySelectorAll('.board-card.dragging').forEach(c => c.classList.remove('dragging'))
+        document.querySelectorAll('.board-column.drag-over').forEach(c => c.classList.remove('drag-over'))
+      }
+    }
+  </script>
+
+</body>
+</html>

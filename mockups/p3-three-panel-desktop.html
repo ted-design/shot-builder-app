@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phase 3 — Three-Panel Desktop Layout</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: {
+            sidebar: '#09090b',
+            'sidebar-border': '#27272a',
+            'sidebar-hover': '#27272a',
+            'sidebar-active': '#3f3f46',
+            primary: { DEFAULT: '#18181b', dark: '#09090b' },
+            accent: { DEFAULT: '#E31E24', dark: '#c91920' },
+            neutral: {
+              50: '#fafafa', 100: '#f4f4f5',
+              200: '#e4e4e7', 300: '#d4d4d8',
+              400: '#a1a1aa', 500: '#71717a',
+              600: '#52525b', 700: '#3f3f46',
+              800: '#27272a', 900: '#18181b',
+              950: '#09090b',
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { margin: 0; background: #f4f4f5; }
+
+    /* Sidebar (context) */
+    .mock-sidebar {
+      width: 220px;
+      background: #09090b;
+      color: #d4d4d8;
+      flex-shrink: 0;
+      padding: 16px 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-item {
+      padding: 8px 16px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #a1a1aa;
+      cursor: pointer;
+    }
+    .sidebar-item:hover { color: #d4d4d8; background: #27272a; }
+    .sidebar-item.active {
+      color: #fafafa;
+      background: #3f3f46;
+      position: relative;
+    }
+    .sidebar-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 4px;
+      bottom: 4px;
+      width: 3px;
+      border-radius: 0 2px 2px 0;
+      background: #E31E24;
+    }
+
+    /* Three-panel grid — 5 tracks: panel / handle / panel / handle / panel */
+    .workspace {
+      display: grid;
+      grid-template-columns: 280px 4px 1fr 4px 300px;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Resize handle */
+    .resize-handle {
+      width: 4px;
+      cursor: col-resize;
+      background: transparent;
+      transition: background 150ms ease;
+      position: relative;
+      z-index: 10;
+    }
+    .resize-handle:hover,
+    .resize-handle.active {
+      background: #18181b;
+    }
+    .resize-handle::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -4px;
+      right: -4px;
+    }
+
+    /* Left panel: Shot list */
+    .panel-left {
+      background: #fafafa;
+      border-right: 1px solid #e4e4e7;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .panel-left-header {
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid #e4e4e7;
+      background: #fafafa;
+      flex-shrink: 0;
+    }
+    .panel-left-search {
+      width: 100%;
+      height: 32px;
+      padding: 0 10px 0 32px;
+      border: 1px solid #e4e4e7;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #18181b;
+      background: #fff url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") 10px center no-repeat;
+      outline: none;
+    }
+    .panel-left-search:focus { border-color: #a1a1aa; }
+    .panel-left-search::placeholder { color: #a1a1aa; }
+
+    /* Quick-add in left panel */
+    .panel-quick-add {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-bottom: 1px solid #e4e4e7;
+      flex-shrink: 0;
+    }
+    .panel-quick-add input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 12px;
+      color: #18181b;
+      background: transparent;
+    }
+    .panel-quick-add input::placeholder { color: #a1a1aa; }
+
+    /* Shot list items */
+    .panel-left-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .shot-item {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f4f4f5;
+      cursor: pointer;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      transition: background 80ms ease;
+    }
+    .shot-item:hover { background: #f4f4f5; }
+    .shot-item.selected {
+      background: #fff;
+      border-left: 3px solid #18181b;
+      padding-left: 11px;
+    }
+    .shot-item-thumb {
+      width: 36px;
+      height: 36px;
+      border-radius: 4px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: #e4e4e7;
+    }
+    .shot-item-thumb-placeholder {
+      width: 36px;
+      height: 36px;
+      border-radius: 4px;
+      background: #f4f4f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .shot-item-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #18181b;
+      line-height: 1.3;
+    }
+    .shot-item-meta {
+      font-size: 11px;
+      color: #a1a1aa;
+      margin-top: 2px;
+    }
+
+    /* Center panel: Canvas */
+    .panel-center {
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .panel-center-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid #e4e4e7;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    /* Hero image area */
+    .hero-area {
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      background: #fafafa;
+      border-bottom: 1px solid #e4e4e7;
+    }
+    .hero-image {
+      max-width: 100%;
+      max-height: 340px;
+      border-radius: 8px;
+      object-fit: contain;
+    }
+
+    /* Content sections */
+    .content-section {
+      padding: 16px 20px;
+      border-bottom: 1px solid #f4f4f5;
+    }
+    .content-section:last-child { border-bottom: none; }
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #71717a;
+      margin-bottom: 8px;
+    }
+    .editable-text {
+      font-size: 14px;
+      color: #18181b;
+      line-height: 1.6;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      transition: border-color 120ms ease;
+      cursor: text;
+      min-height: 60px;
+    }
+    .editable-text:hover { border-color: #e4e4e7; }
+    .editable-text:focus {
+      outline: none;
+      border-color: #18181b;
+      background: #fafafa;
+    }
+
+    /* Save indicator */
+    .save-indicator {
+      font-size: 11px;
+      color: #71717a;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 200ms ease;
+    }
+    .save-indicator.saving { color: #3b82f6; }
+    .save-indicator.saved { color: #22c55e; }
+    .save-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .save-dot.idle { background: #d4d4d8; }
+    .save-dot.saving { background: #3b82f6; animation: pulse 1s infinite; }
+    .save-dot.saved { background: #22c55e; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Looks grid */
+    .looks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 8px;
+    }
+    .look-card {
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #e4e4e7;
+      cursor: pointer;
+      transition: border-color 120ms ease;
+    }
+    .look-card:hover { border-color: #a1a1aa; }
+    .look-card img {
+      width: 100%;
+      aspect-ratio: 3/4;
+      object-fit: cover;
+    }
+    .look-card-label {
+      padding: 4px 6px;
+      font-size: 10px;
+      font-weight: 500;
+      color: #52525b;
+      background: #fafafa;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Right panel: Properties */
+    .panel-right {
+      background: #fafafa;
+      border-left: 1px solid #e4e4e7;
+      overflow-y: auto;
+    }
+    .panel-right-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid #e4e4e7;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #71717a;
+    }
+    .prop-group {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f4f4f5;
+    }
+    .prop-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: #71717a;
+      margin-bottom: 6px;
+    }
+    .prop-value {
+      font-size: 13px;
+      color: #18181b;
+    }
+    .prop-value-muted {
+      font-size: 13px;
+      color: #a1a1aa;
+      font-style: italic;
+    }
+
+    /* Status select */
+    .status-select {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border: 1px solid #e4e4e7;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      background: #fff;
+    }
+    .status-select:hover { border-color: #a1a1aa; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* Tag chips in properties */
+    .tag-chip {
+      display: inline-flex;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      background: #f4f4f5;
+      color: #52525b;
+      border: 1px solid #e4e4e7;
+    }
+
+    /* Assignment row */
+    .assignment-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+    }
+    .assignment-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #e4e4e7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: #52525b;
+      flex-shrink: 0;
+    }
+
+    /* Keyboard shortcuts legend */
+    .kbd {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1px 5px;
+      border: 1px solid #d4d4d8;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 500;
+      color: #71717a;
+      background: #fafafa;
+      min-width: 20px;
+      height: 18px;
+      line-height: 1;
+    }
+
+    /* Demo controls */
+    .demo-controls {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .demo-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid #e4e4e7;
+      background: #fff;
+      color: #18181b;
+      transition: all 120ms ease;
+    }
+    .demo-btn:hover { background: #f4f4f5; }
+    .demo-btn.active { background: #18181b; color: #fff; border-color: #18181b; }
+  </style>
+</head>
+<body class="font-sans text-sm antialiased">
+
+  <!--
+    =====================================================================
+    PHASE 3 — THREE-PANEL DESKTOP LAYOUT MOCKUP
+
+    Design decisions (Figma-inspired):
+    - Desktop-only (>=1024px). Mobile keeps full-page ShotListPage + ShotDetailPage.
+    - Three panels: List (left) | Canvas (center) | Properties (right)
+    - Left: compact shot list with search, quick-add, click-to-select
+    - Center: hero image, description, notes, looks — with auto-save
+    - Right: status, shot number, date, location, talent, tags, products
+    - Resize handles between panels (CSS grid, stored in localStorage)
+    - Selected shot managed internally (no URL nav to :sid)
+    - Full-page ShotDetailPage remains for mobile + direct links
+    - Keyboard: Esc=back to list, 1-4=status, [ / ]=prev/next shot
+    =====================================================================
+  -->
+
+  <div style="display: flex; height: 100vh; overflow: hidden;">
+
+    <!-- Sidebar (context only) -->
+    <nav class="mock-sidebar">
+      <div style="padding: 0 16px 20px; display: flex; align-items: center; gap: 8px;">
+        <div style="width: 24px; height: 24px; background: #E31E24; border-radius: 4px;"></div>
+        <span style="font-weight: 600; font-size: 14px; color: #fafafa; letter-spacing: -0.02em;">Shot Builder</span>
+      </div>
+      <div class="sidebar-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="sidebar-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+        Shots
+      </div>
+      <div class="sidebar-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+        Pull Sheets
+      </div>
+      <div class="sidebar-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Call Sheet
+      </div>
+    </nav>
+
+    <!-- Three-panel workspace -->
+    <div class="workspace" style="flex: 1;">
+
+      <!-- ====== LEFT PANEL: Shot List ====== -->
+      <div class="panel-left" id="panel-left">
+
+        <div class="panel-left-header">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-weight: 600; font-size: 14px; color: #18181b; letter-spacing: -0.01em;">Shots</span>
+            <span style="font-size: 11px; color: #a1a1aa;">14 shots</span>
+          </div>
+          <input class="panel-left-search" placeholder="Search..." />
+        </div>
+
+        <!-- Quick-add in list panel -->
+        <div class="panel-quick-add">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <input placeholder="Quick add..." />
+          <kbd class="kbd" style="font-size: 9px;">N</kbd>
+        </div>
+
+        <div class="panel-left-list">
+          <!-- Shot items -->
+          <div class="shot-item selected">
+            <img class="shot-item-thumb" src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=72&h=72&fit=crop" alt="" />
+            <div style="flex: 1; min-width: 0;">
+              <div class="shot-item-title">Full Length — Red Dress</div>
+              <div class="shot-item-meta">#SH-001 &middot; In Progress</div>
+            </div>
+          </div>
+
+          <div class="shot-item">
+            <img class="shot-item-thumb" src="https://images.unsplash.com/photo-1509631179647-0177331693ae?w=72&h=72&fit=crop" alt="" />
+            <div style="flex: 1; min-width: 0;">
+              <div class="shot-item-title">Detail — Handbag Texture</div>
+              <div class="shot-item-meta">#SH-003 &middot; In Progress</div>
+            </div>
+          </div>
+
+          <div class="shot-item">
+            <div class="shot-item-thumb-placeholder">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <div class="shot-item-title">Outfit Change — Look 3</div>
+              <div class="shot-item-meta">#SH-005 &middot; In Progress</div>
+            </div>
+          </div>
+
+          <div class="shot-item">
+            <img class="shot-item-thumb" src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=72&h=72&fit=crop" alt="" />
+            <div style="flex: 1; min-width: 0;">
+              <div class="shot-item-title">Styled — Denim Set</div>
+              <div class="shot-item-meta">#SH-007 &middot; On Hold</div>
+            </div>
+          </div>
+
+          <div class="shot-item">
+            <div class="shot-item-thumb-placeholder">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <div class="shot-item-title">BTS — Behind the Scenes</div>
+              <div class="shot-item-meta">#SH-009 &middot; On Hold</div>
+            </div>
+          </div>
+
+          <div class="shot-item">
+            <img class="shot-item-thumb" src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=72&h=72&fit=crop" alt="" />
+            <div style="flex: 1; min-width: 0;">
+              <div class="shot-item-title">Hero — Black Coat</div>
+              <div class="shot-item-meta">#SH-010 &middot; Complete</div>
+            </div>
+          </div>
+
+          <div class="shot-item">
+            <img class="shot-item-thumb" src="https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=72&h=72&fit=crop" alt="" />
+            <div style="flex: 1; min-width: 0;">
+              <div class="shot-item-title">Flat Lay — Sneakers</div>
+              <div class="shot-item-meta">#SH-011 &middot; Complete</div>
+            </div>
+          </div>
+
+          <div class="shot-item">
+            <img class="shot-item-thumb" src="https://images.unsplash.com/photo-1445205170230-053b83016050?w=72&h=72&fit=crop" alt="" />
+            <div style="flex: 1; min-width: 0;">
+              <div class="shot-item-title">Lifestyle — Morning Walk</div>
+              <div class="shot-item-meta">#SH-012 &middot; Complete</div>
+            </div>
+          </div>
+
+          <div class="shot-item">
+            <div class="shot-item-thumb-placeholder">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <div class="shot-item-title">Flat Lay — White Tee</div>
+              <div class="shot-item-meta">#SH-014 &middot; Todo</div>
+            </div>
+          </div>
+
+          <div class="shot-item">
+            <img class="shot-item-thumb" src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=72&h=72&fit=crop" alt="" />
+            <div style="flex: 1; min-width: 0;">
+              <div class="shot-item-title">Hero — Denim Jacket</div>
+              <div class="shot-item-meta">#SH-015 &middot; Todo</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Keyboard hints footer -->
+        <div style="padding: 8px 14px; border-top: 1px solid #e4e4e7; display: flex; gap: 10px; flex-shrink: 0;">
+          <span style="font-size: 10px; color: #a1a1aa; display: flex; align-items: center; gap: 3px;">
+            <kbd class="kbd" style="font-size: 9px;">&#x2191;&#x2193;</kbd> navigate
+          </span>
+          <span style="font-size: 10px; color: #a1a1aa; display: flex; align-items: center; gap: 3px;">
+            <kbd class="kbd" style="font-size: 9px;">Enter</kbd> open
+          </span>
+          <span style="font-size: 10px; color: #a1a1aa; display: flex; align-items: center; gap: 3px;">
+            <kbd class="kbd" style="font-size: 9px;">N</kbd> add
+          </span>
+        </div>
+      </div>
+
+      <!-- Resize handle left -->
+      <div class="resize-handle" id="resize-left"></div>
+
+      <!-- ====== CENTER PANEL: Canvas ====== -->
+      <div class="panel-center" id="panel-center">
+
+        <div class="panel-center-header">
+          <div>
+            <h2 style="font-size: 18px; font-weight: 300; letter-spacing: -0.02em; color: #18181b; margin: 0;">
+              Full Length — Red Dress
+            </h2>
+            <div style="font-size: 11px; color: #a1a1aa; margin-top: 2px;">#SH-001</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <!-- Save indicator -->
+            <div class="save-indicator saved" id="save-indicator">
+              <div class="save-dot saved" id="save-dot"></div>
+              <span id="save-text">Saved</span>
+            </div>
+            <!-- Keyboard hints -->
+            <div style="display: flex; gap: 4px;">
+              <kbd class="kbd" style="font-size: 9px;">Esc</kbd>
+              <kbd class="kbd" style="font-size: 9px;">[</kbd>
+              <kbd class="kbd" style="font-size: 9px;">]</kbd>
+              <kbd class="kbd" style="font-size: 9px;">1-4</kbd>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hero image -->
+        <div class="hero-area">
+          <img
+            class="hero-image"
+            src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&h=800&fit=crop"
+            alt="Full Length — Red Dress"
+          />
+        </div>
+
+        <!-- Description -->
+        <div class="content-section">
+          <div class="section-label">Description</div>
+          <div
+            class="editable-text"
+            contenteditable="true"
+            id="description-field"
+          >Full-length shot capturing the flowing silhouette of the red evening dress. Talent positioned center-frame, natural light from camera-left window. Emphasis on fabric drape and movement.</div>
+        </div>
+
+        <!-- Notes -->
+        <div class="content-section">
+          <div class="section-label">Notes</div>
+          <div
+            class="editable-text"
+            contenteditable="true"
+            style="min-height: 40px; font-size: 13px; color: #52525b;"
+          >Stylist requested steamer on set. Need two backup pairs of heels (nude + black).</div>
+        </div>
+
+        <!-- Looks -->
+        <div class="content-section">
+          <div class="section-label">Looks</div>
+          <div class="looks-grid">
+            <div class="look-card">
+              <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=200&h=267&fit=crop" alt="" />
+              <div class="look-card-label">Look 1 — Hero</div>
+            </div>
+            <div class="look-card">
+              <img src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=200&h=267&fit=crop" alt="" />
+              <div class="look-card-label">Look 2 — Alt</div>
+            </div>
+            <div class="look-card" style="border-style: dashed; display: flex; align-items: center; justify-content: center; min-height: 120px;">
+              <div style="text-align: center; color: #a1a1aa;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin: 0 auto 4px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <div style="font-size: 10px;">Add look</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reference links -->
+        <div class="content-section">
+          <div class="section-label">References</div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <a href="#" style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #3b82f6; text-decoration: none;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Mood board — Pinterest
+            </a>
+            <a href="#" style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #3b82f6; text-decoration: none;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+              Movement reference — Vimeo
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Resize handle right -->
+      <div class="resize-handle" id="resize-right"></div>
+
+      <!-- ====== RIGHT PANEL: Properties ====== -->
+      <div class="panel-right" id="panel-right">
+
+        <div class="panel-right-header">Properties</div>
+
+        <!-- Status -->
+        <div class="prop-group">
+          <div class="prop-label">Status</div>
+          <div class="status-select">
+            <div class="status-dot" style="background: #3b82f6;"></div>
+            In Progress
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <div style="margin-top: 6px; display: flex; gap: 4px;">
+            <kbd class="kbd" style="font-size: 9px;">1</kbd>
+            <kbd class="kbd" style="font-size: 9px;">2</kbd>
+            <kbd class="kbd" style="font-size: 9px;">3</kbd>
+            <kbd class="kbd" style="font-size: 9px;">4</kbd>
+          </div>
+        </div>
+
+        <!-- Shot number -->
+        <div class="prop-group">
+          <div class="prop-label">Shot Number</div>
+          <div class="prop-value">#SH-001</div>
+        </div>
+
+        <!-- Date -->
+        <div class="prop-group">
+          <div class="prop-label">Shoot Date</div>
+          <div class="prop-value">Mar 15, 2026</div>
+        </div>
+
+        <!-- Location -->
+        <div class="prop-group">
+          <div class="prop-label">Location</div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span class="prop-value">Studio B — Natural Light</span>
+          </div>
+        </div>
+
+        <!-- Talent -->
+        <div class="prop-group">
+          <div class="prop-label">Talent</div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div class="assignment-row">
+              <div class="assignment-avatar">SC</div>
+              <div>
+                <div style="font-size: 13px; color: #18181b;">Sarah Chen</div>
+                <div style="font-size: 10px; color: #a1a1aa;">Model</div>
+              </div>
+            </div>
+            <div class="assignment-row">
+              <div class="assignment-avatar">MR</div>
+              <div>
+                <div style="font-size: 13px; color: #18181b;">Maya Rodriguez</div>
+                <div style="font-size: 10px; color: #a1a1aa;">Stylist</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Products -->
+        <div class="prop-group">
+          <div class="prop-label">Products</div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div class="assignment-row">
+              <div style="width: 24px; height: 24px; border-radius: 4px; background: #e4e4e7; flex-shrink: 0;"></div>
+              <div>
+                <div style="font-size: 12px; color: #18181b;">Silk Evening Dress — Crimson</div>
+                <div style="font-size: 10px; color: #a1a1aa;">SKU-4420 &middot; Size 6</div>
+              </div>
+            </div>
+            <div class="assignment-row">
+              <div style="width: 24px; height: 24px; border-radius: 4px; background: #e4e4e7; flex-shrink: 0;"></div>
+              <div>
+                <div style="font-size: 12px; color: #18181b;">Strappy Heels — Nude</div>
+                <div style="font-size: 10px; color: #a1a1aa;">SKU-2201 &middot; Size 8</div>
+              </div>
+            </div>
+            <div class="assignment-row">
+              <div style="width: 24px; height: 24px; border-radius: 4px; background: #e4e4e7; flex-shrink: 0;"></div>
+              <div>
+                <div style="font-size: 12px; color: #18181b;">Gold Chain Necklace</div>
+                <div style="font-size: 10px; color: #a1a1aa;">SKU-0871</div>
+              </div>
+            </div>
+            <button style="display: flex; align-items: center; gap: 4px; font-size: 12px; color: #71717a; background: none; border: none; cursor: pointer; padding: 2px 0;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add product
+            </button>
+          </div>
+        </div>
+
+        <!-- Tags -->
+        <div class="prop-group">
+          <div class="prop-label">Tags</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+            <span class="tag-chip">campaign</span>
+            <span class="tag-chip">hero</span>
+            <span class="tag-chip">evening-wear</span>
+            <button style="display: inline-flex; align-items: center; gap: 2px; padding: 2px 8px; border-radius: 4px; font-size: 11px; color: #a1a1aa; background: none; border: 1px dashed #d4d4d8; cursor: pointer;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add
+            </button>
+          </div>
+        </div>
+
+        <!-- Activity -->
+        <div class="prop-group" style="border-bottom: none;">
+          <div class="prop-label">Activity</div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; gap: 8px; font-size: 11px;">
+              <div class="assignment-avatar" style="width: 20px; height: 20px; font-size: 8px;">TG</div>
+              <div>
+                <span style="color: #18181b; font-weight: 500;">Ted</span>
+                <span style="color: #a1a1aa;"> changed status to In Progress</span>
+                <div style="color: #a1a1aa; font-size: 10px; margin-top: 1px;">2 hours ago</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; font-size: 11px;">
+              <div class="assignment-avatar" style="width: 20px; height: 20px; font-size: 8px;">TG</div>
+              <div>
+                <span style="color: #18181b; font-weight: 500;">Ted</span>
+                <span style="color: #a1a1aa;"> assigned Sarah Chen</span>
+                <div style="color: #a1a1aa; font-size: 10px; margin-top: 1px;">Yesterday</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Demo controls -->
+  <div class="demo-controls">
+    <div style="font-size: 11px; font-weight: 600; color: #71717a; text-transform: uppercase; letter-spacing: 0.06em;">
+      Mockup: P3 Three-Panel
+    </div>
+    <button class="demo-btn" onclick="cycleSaveState()">Cycle save state</button>
+    <button class="demo-btn" onclick="selectNext()">Select next shot</button>
+  </div>
+
+  <script>
+    // Save indicator cycling demo
+    const states = ['idle', 'saving', 'saved']
+    let stateIdx = 2
+    function cycleSaveState() {
+      stateIdx = (stateIdx + 1) % states.length
+      const state = states[stateIdx]
+      const dot = document.getElementById('save-dot')
+      const text = document.getElementById('save-text')
+      const indicator = document.getElementById('save-indicator')
+
+      dot.className = 'save-dot ' + state
+      indicator.className = 'save-indicator ' + state
+      text.textContent = state === 'idle' ? '' : state === 'saving' ? 'Saving...' : 'Saved'
+    }
+
+    // Auto-save simulation on contenteditable
+    let saveTimeout = null
+    document.querySelectorAll('[contenteditable]').forEach(el => {
+      el.addEventListener('input', () => {
+        const dot = document.getElementById('save-dot')
+        const text = document.getElementById('save-text')
+        const indicator = document.getElementById('save-indicator')
+
+        dot.className = 'save-dot saving'
+        indicator.className = 'save-indicator saving'
+        text.textContent = 'Saving...'
+
+        clearTimeout(saveTimeout)
+        saveTimeout = setTimeout(() => {
+          dot.className = 'save-dot saved'
+          indicator.className = 'save-indicator saved'
+          text.textContent = 'Saved'
+        }, 1500)
+      })
+    })
+
+    // Shot selection demo
+    function selectNext() {
+      const items = document.querySelectorAll('.shot-item')
+      let currentIdx = -1
+      items.forEach((item, idx) => {
+        if (item.classList.contains('selected')) currentIdx = idx
+      })
+      items.forEach(item => item.classList.remove('selected'))
+      const nextIdx = (currentIdx + 1) % items.length
+      items[nextIdx].classList.add('selected')
+    }
+  </script>
+
+</body>
+</html>

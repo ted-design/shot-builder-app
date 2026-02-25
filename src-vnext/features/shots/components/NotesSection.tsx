@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { SanitizedHtml } from "@/shared/components/SanitizedHtml"
+import { useAutoSave, type SaveState } from "@/shared/hooks/useAutoSave"
 import { Label } from "@/ui/label"
 import { Textarea } from "@/ui/textarea"
-import { Button } from "@/ui/button"
 import { Separator } from "@/ui/separator"
 
 interface NotesSectionProps {
@@ -49,6 +49,23 @@ function LinkifiedText({ value }: { readonly value: string }) {
  * - Editable notes are stored in notesAddendum (plain text).
  * - Legacy HTML notes remain visible as read-only historical context.
  */
+function NotesSaveIndicator({ state }: { readonly state: SaveState }) {
+  if (state === "idle") return null
+  const label =
+    state === "saving" ? "Saving…" :
+    state === "saved" ? "Saved" :
+    "Save failed"
+  const color =
+    state === "error"
+      ? "text-[var(--color-error)]"
+      : "text-[var(--color-text-subtle)]"
+  return (
+    <span className={`text-3xs font-medium ${color}`} data-testid="notes-save-indicator">
+      {label}
+    </span>
+  )
+}
+
 export function NotesSection({
   notes,
   notesAddendum,
@@ -56,27 +73,38 @@ export function NotesSection({
   canEditAddendum,
 }: NotesSectionProps) {
   const [draft, setDraft] = useState(notesAddendum ?? "")
-  const [saving, setSaving] = useState(false)
+  const { saveState, scheduleSave, flush } = useAutoSave()
 
+  // Keep flush ref current for unmount cleanup
+  const flushRef = useRef(flush)
+  flushRef.current = flush
+
+  // Flush pending save on unmount
+  useEffect(() => {
+    return () => flushRef.current()
+  }, [])
+
+  // Sync draft when server value changes (and user hasn't made local changes)
   useEffect(() => {
     setDraft(notesAddendum ?? "")
   }, [notesAddendum])
 
   const normalizedInitial = (notesAddendum ?? "").trim()
-  const normalizedDraft = draft.trim()
-  const hasChanges = normalizedDraft !== normalizedInitial
 
-  const handleSave = async () => {
-    if (!hasChanges) return
-    setSaving(true)
-    try {
-      await onSaveAddendum(normalizedDraft)
-    } catch {
-      // Keep user's typed changes on failure — no silent data loss.
-    } finally {
-      setSaving(false)
-    }
-  }
+  const handleChange = useCallback(
+    (newValue: string) => {
+      setDraft(newValue)
+      const trimmed = newValue.trim()
+      if (trimmed !== normalizedInitial) {
+        scheduleSave(() => onSaveAddendum(trimmed))
+      }
+    },
+    [normalizedInitial, onSaveAddendum, scheduleSave],
+  )
+
+  const handleBlur = useCallback(() => {
+    flush()
+  }, [flush])
 
   return (
     <div className="flex flex-col gap-4">
@@ -85,28 +113,22 @@ export function NotesSection({
           Notes
         </Label>
         {canEditAddendum && (
-          <div className="mt-2 flex flex-col gap-2">
+          <div className="mt-2 flex flex-col gap-1.5">
             <Textarea
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => handleChange(e.target.value)}
+              onBlur={handleBlur}
               rows={4}
               placeholder="Add notes or reminders..."
               className="text-sm"
               data-testid="notes-input"
             />
-            <p className="text-xs text-[var(--color-text-subtle)]">
-              Add dedicated URLs in the Reference links section below.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSave}
-              disabled={saving || !hasChanges}
-              className="self-end"
-              data-testid="notes-submit"
-            >
-              {saving ? "Saving…" : "Save notes"}
-            </Button>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-[var(--color-text-subtle)]">
+                Add dedicated URLs in the Reference links section below.
+              </p>
+              <NotesSaveIndicator state={saveState} />
+            </div>
           </div>
         )}
 
