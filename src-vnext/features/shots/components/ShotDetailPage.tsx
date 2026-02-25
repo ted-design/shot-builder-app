@@ -327,7 +327,7 @@ export default function ShotDetailPage() {
 
 function SectionLabel({ children }: { readonly children: React.ReactNode }) {
   return (
-    <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+    <span className="text-2xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
       {children}
     </span>
   )
@@ -342,7 +342,7 @@ function MetaEditorCard({
 }) {
   return (
     <div className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
-      <p className="text-[9px] font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+      <p className="text-3xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
         {label}
       </p>
       <div className="mt-0.5">{children}</div>

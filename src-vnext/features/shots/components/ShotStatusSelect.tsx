@@ -73,7 +73,7 @@ export function ShotStatusSelect({
           <StatusBadge
             label={getShotStatusLabel(displayStatus)}
             color={getShotStatusColor(displayStatus)}
-            className={compact ? "px-1.5 py-0 text-[10px] leading-4" : undefined}
+            className={compact ? "px-1.5 py-0 text-2xs leading-4" : undefined}
           />
         </SelectValue>
       </SelectTrigger>

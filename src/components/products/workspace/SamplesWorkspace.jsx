@@ -70,7 +70,7 @@ const TYPE_FILTER_OPTIONS = [
 export function SampleStatusBadge({ status }) {
   const config = SAMPLE_STATUSES[status] || SAMPLE_STATUSES.requested;
   return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${config.color}`}>
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-medium ${config.color}`}>
       {config.label}
     </span>
   );
@@ -85,7 +85,7 @@ export function SampleSummaryChip({ icon: Icon, label, count, variant = "default
   };
 
   return (
-    <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium ${variantClasses[variant]}`}>
+    <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xxs font-medium ${variantClasses[variant]}`}>
       <Icon className="w-3 h-3" />
       <span>{label}</span>
       <span className="font-semibold tabular-nums">{count}</span>
@@ -99,7 +99,7 @@ function StatusFilterChip({ label, isActive, onClick, count }) {
       type="button"
       onClick={onClick}
       className={`
-        inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all
+        inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-medium transition-all
         focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1
         ${isActive
           ? "bg-slate-700 text-white dark:bg-slate-200 dark:text-slate-900"
@@ -126,7 +126,7 @@ function TypeFilterSegment({ value, onChange }) {
           type="button"
           onClick={() => onChange(opt.value)}
           className={`
-            px-2 py-0.5 rounded text-[10px] font-medium transition-all
+            px-2 py-0.5 rounded text-2xs font-medium transition-all
             focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1
             ${value === opt.value
               ? "bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-slate-100"
@@ -153,7 +153,7 @@ function SortDropdown({ sortBy, sortDir, onSortChange }) {
       <select
         value={sortBy}
         onChange={(e) => onSortChange(e.target.value, sortDir)}
-        className="text-[10px] font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 border-0 rounded px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-slate-400"
+        className="text-2xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 border-0 rounded px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-slate-400"
       >
         {sortOptions.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -187,7 +187,7 @@ function SampleDetailDrawer({ sample, open, onOpenChange, scope, colorwayName, p
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[400px] sm:w-[440px] overflow-y-auto">
         <SheetHeader className="pb-4 border-b border-slate-100 dark:border-slate-700">
-          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 mb-2">
+          <div className="flex items-center gap-1.5 text-2xs text-slate-400 dark:text-slate-500 mb-2">
             <span className="font-medium">{productName || "Product"}</span>
             <span>•</span>
             <span>{scope === "colorway" ? colorwayName : "All colorways"}</span>
@@ -195,7 +195,7 @@ function SampleDetailDrawer({ sample, open, onOpenChange, scope, colorwayName, p
 
           <div className="flex items-center gap-2">
             <SheetTitle className="text-base">{sample.label}</SheetTitle>
-            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${statusConfig.color}`}>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xxs font-medium ${statusConfig.color}`}>
               {statusConfig.label}
             </span>
           </div>
@@ -486,7 +486,7 @@ export default function SamplesSection({ family, skus, samples }) {
           <SortDropdown sortBy={sortBy} sortDir={sortDir} onSortChange={handleSortChange} />
         </div>
 
-        <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
+        <span className="text-2xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
           Showing {filteredSortedSamples.length} of {scopedSamples.length}
         </span>
       </div>
@@ -501,7 +501,7 @@ export default function SamplesSection({ family, skus, samples }) {
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-[11px]">
+        <table className="w-full text-xxs">
           <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
             <tr>
               {SAMPLE_TABLE_COLUMNS.map((col) => (
@@ -531,7 +531,7 @@ export default function SamplesSection({ family, skus, samples }) {
                   <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{sample.type || "-"}</td>
                   <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{Array.isArray(sample.sizeRun) ? sample.sizeRun.join(", ") : sample.sizeRun || "-"}</td>
                   <td className="px-3 py-2"><SampleStatusBadge status={sample.status || "requested"} /></td>
-                  <td className="px-3 py-2 text-slate-600 dark:text-slate-400 font-mono text-[10px] truncate max-w-[120px]">
+                  <td className="px-3 py-2 text-slate-600 dark:text-slate-400 font-mono text-2xs truncate max-w-[120px]">
                     {sample.carrier && sample.tracking ? `${sample.carrier} ${sample.tracking}` : sample.carrier || sample.tracking || "-"}
                   </td>
                   <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{sample.eta || sample.arrivedAt || "-"}</td>

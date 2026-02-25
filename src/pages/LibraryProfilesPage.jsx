@@ -195,7 +195,7 @@ function ProfileListItem({
           </span>
           {/* Type badge - subtle */}
           <span className={`
-            flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide
+            flex-shrink-0 px-1.5 py-0.5 rounded text-2xs font-medium uppercase tracking-wide
             ${isTalent
               ? "bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400"
               : "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400"

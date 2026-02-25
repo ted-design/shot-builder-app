@@ -176,13 +176,13 @@ export function AdvancedScheduleBlockSection({
             <p className="font-mono text-xs font-semibold leading-tight tabular-nums text-[var(--color-text)]">
               {startLabel || "—"}
               {row.timeSource === "derived" && (
-                <span className="ml-1 font-sans text-[10px] font-medium text-[var(--color-text-subtle)]">
+                <span className="ml-1 font-sans text-2xs font-medium text-[var(--color-text-subtle)]">
                   (est)
                 </span>
               )}
             </p>
             {durationLabel && (
-              <p className="font-mono text-[10px] leading-tight tabular-nums text-[var(--color-text-subtle)]">
+              <p className="font-mono text-2xs leading-tight tabular-nums text-[var(--color-text-subtle)]">
                 {durationLabel}
               </p>
             )}
@@ -192,7 +192,7 @@ export function AdvancedScheduleBlockSection({
             <div className="flex items-baseline gap-2">
               {shotNumber && (
                 <span
-                  className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide"
+                  className="shrink-0 font-mono text-2xs font-semibold uppercase tracking-wide"
                   style={{ color: "var(--doc-accent,#2563eb)" }}
                 >
                   {shotNumber}
@@ -219,7 +219,7 @@ export function AdvancedScheduleBlockSection({
             )}
 
             {(talentNames.length > 0 || location) && (
-              <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[var(--color-text-muted)]">
+              <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-[var(--color-text-muted)]">
                 {talentNames.length > 0 && (
                   <span className="truncate">
                     <span
@@ -246,7 +246,7 @@ export function AdvancedScheduleBlockSection({
             )}
 
             {notesPreview && (
-              <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">
+              <p className="mt-1 text-2xs text-[var(--color-text-muted)]">
                 {notesPreview}
               </p>
             )}

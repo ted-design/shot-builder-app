@@ -76,7 +76,7 @@ function SourceStatusBadge({ status }) {
   const { label, className } = config[status] || config.requested;
 
   return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium ${className}`}>
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-3xs font-medium ${className}`}>
       {label}
     </span>
   );
@@ -244,7 +244,7 @@ export default function SourceAllocationSelector({
         <Package className="w-3 h-3 flex-shrink-0 text-slate-400 dark:text-slate-500" />
         <span className="truncate">Bulk</span>
         {hasSampleSupply && (
-          <span className="flex items-center gap-0.5 text-[9px] text-blue-600 dark:text-blue-400 ml-0.5" title="Samples available">
+          <span className="flex items-center gap-0.5 text-3xs text-blue-600 dark:text-blue-400 ml-0.5" title="Samples available">
             <Info className="w-2.5 h-2.5" />
           </span>
         )}
@@ -292,11 +292,11 @@ export default function SourceAllocationSelector({
                   <span className="text-slate-600 dark:text-slate-300">Use specific supply...</span>
                 </div>
                 {!selectedSize ? (
-                  <div className="ml-5 mt-0.5 text-[10px] text-amber-600 dark:text-amber-400">
+                  <div className="ml-5 mt-0.5 text-2xs text-amber-600 dark:text-amber-400">
                     Pick a size to view compatible supply
                   </div>
                 ) : hasSampleSupply && (
-                  <div className="ml-5 mt-0.5 text-[10px] text-blue-600 dark:text-blue-400">
+                  <div className="ml-5 mt-0.5 text-2xs text-blue-600 dark:text-blue-400">
                     {viableSources.length} source{viableSources.length !== 1 ? "s" : ""} available
                   </div>
                 )}
@@ -313,13 +313,13 @@ export default function SourceAllocationSelector({
           <button
             type="button"
             onClick={() => setShowSourceList(false)}
-            className="w-full px-3 py-1.5 text-left text-[10px] hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1 text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700"
+            className="w-full px-3 py-1.5 text-left text-2xs hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1 text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700"
           >
             ← Back
           </button>
 
           <div className="px-3 py-1.5">
-            <span className="text-[9px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <span className="text-3xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
               Available sources {selectedSize && `for ${selectedSize}`}
             </span>
           </div>
@@ -338,7 +338,7 @@ export default function SourceAllocationSelector({
                 </span>
                 <SourceStatusBadge status={source.status} />
               </div>
-              <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+              <div className="text-2xs text-slate-500 dark:text-slate-400 mt-0.5">
                 {source.sizeRun?.join(", ") || "No sizes"}
                 {source.eta && ` · ETA ${source.eta}`}
                 {source.arrivedAt && ` · ${source.arrivedAt}`}
@@ -351,7 +351,7 @@ export default function SourceAllocationSelector({
             <>
               <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
               <div className="px-3 py-1">
-                <span className="text-[9px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                <span className="text-3xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
                   Missing {selectedSize}
                 </span>
               </div>
@@ -370,7 +370,7 @@ export default function SourceAllocationSelector({
                       </span>
                       <SourceStatusBadge status={source.status} />
                     </div>
-                    <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                    <div className="text-2xs text-slate-400 dark:text-slate-500 mt-0.5">
                       {source.sizeRun?.join(", ") || "No sizes"}
                     </div>
                   </button>
@@ -380,7 +380,7 @@ export default function SourceAllocationSelector({
 
           {viableSources.length === 0 && availableSources.length > 0 && (
             <div className="px-3 py-2 text-center">
-              <p className="text-[10px] text-slate-400 dark:text-slate-500">
+              <p className="text-2xs text-slate-400 dark:text-slate-500">
                 No sources match size {selectedSize}
               </p>
             </div>
@@ -403,7 +403,7 @@ export function AllocationStatusBadge({ allocation }) {
   // Default: Bulk assumed (calm, neutral state)
   if (!allocation || allocation.status === "unassigned" || !allocation.sourceSupplyId) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-medium bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">
         <Package className="w-2.5 h-2.5" />
         Bulk
       </span>
@@ -413,7 +413,7 @@ export function AllocationStatusBadge({ allocation }) {
   // Size unavailable warning
   if (allocation.status === "size-unavailable") {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
         <Info className="w-2.5 h-2.5" />
         Size N/A
       </span>
@@ -422,7 +422,7 @@ export function AllocationStatusBadge({ allocation }) {
 
   // Explicitly allocated to a specific supply source
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
       <Check className="w-2.5 h-2.5" />
       Allocated
     </span>

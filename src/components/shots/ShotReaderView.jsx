@@ -264,7 +264,7 @@ export default function ShotReaderView({ shot, counts = {}, readOnly = false }) 
               </select>
             </label>
             {statusSaving ? (
-              <span className="text-[10px] text-slate-400 dark:text-slate-500">Saving…</span>
+              <span className="text-2xs text-slate-400 dark:text-slate-500">Saving…</span>
             ) : null}
           </div>
         </div>

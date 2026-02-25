@@ -1073,7 +1073,7 @@ export default function ShotListPage() {
               <SlidersHorizontal className="h-4 w-4" />
               Filters
               {activeFilterBadges.length > 0 && (
-                <span className="ml-1 rounded-full bg-[var(--color-surface-subtle)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-subtle)]">
+                <span className="ml-1 rounded-full bg-[var(--color-surface-subtle)] px-2 py-0.5 text-2xs font-medium text-[var(--color-text-subtle)]">
                   {activeFilterBadges.length}
                 </span>
               )}
@@ -1663,7 +1663,7 @@ export default function ShotListPage() {
               <div className="h-4 w-px bg-[var(--color-border)]" />
 
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                <span className="text-2xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
                   Status
                 </span>
                 {(["todo", "in_progress", "on_hold", "complete"] as const).map((s) => {
@@ -1690,7 +1690,7 @@ export default function ShotListPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                <span className="text-2xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
                   Missing
                 </span>
                 {(["products", "talent", "location", "image"] as const).map((k) => {
@@ -2292,7 +2292,7 @@ function ShotsTable({
                           )
                         })}
                         {referenceLinks.length > referenceLinksPreview.length && (
-                          <span className="text-[10px] text-[var(--color-text-subtle)]">
+                          <span className="text-2xs text-[var(--color-text-subtle)]">
                             +{referenceLinks.length - referenceLinksPreview.length} more
                           </span>
                         )}
@@ -2336,7 +2336,7 @@ function ShotsTable({
                           </div>
                         ))}
                         {shot.tags.length > 3 && (
-                          <span className="text-[10px] text-[var(--color-text-subtle)]">
+                          <span className="text-2xs text-[var(--color-text-subtle)]">
                             +{shot.tags.length - 3}
                           </span>
                         )}

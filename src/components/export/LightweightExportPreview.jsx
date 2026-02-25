@@ -57,9 +57,9 @@ const DENSITY_SPACING = {
 };
 
 const DENSITY_TEXT = {
-  compact: { title: 'text-[10px]', body: 'text-[9px]', meta: 'text-[8px]', notes: 'text-[7px]' },
-  standard: { title: 'text-xs', body: 'text-[10px]', meta: 'text-[9px]', notes: 'text-[8px]' },
-  detailed: { title: 'text-xs', body: 'text-[11px]', meta: 'text-[10px]', notes: 'text-[9px]' },
+  compact: { title: 'text-2xs', body: 'text-3xs', meta: 'text-[8px]', notes: 'text-[7px]' },
+  standard: { title: 'text-xs', body: 'text-2xs', meta: 'text-3xs', notes: 'text-[8px]' },
+  detailed: { title: 'text-xs', body: 'text-xxs', meta: 'text-2xs', notes: 'text-3xs' },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -433,7 +433,7 @@ function ZoomControl({ mode, manualStep, onModeChange, onStepChange }) {
         type="button"
         onClick={() => onModeChange(mode === 'fit' ? 'manual' : 'fit')}
         className={cn(
-          'px-2 h-6 text-[10px] font-medium transition-colors border-x border-stone-200',
+          'px-2 h-6 text-2xs font-medium transition-colors border-x border-stone-200',
           mode === 'fit'
             ? 'text-stone-900 bg-stone-100'
             : 'text-stone-600 hover:bg-stone-50'
@@ -511,7 +511,7 @@ function PageShell({ pageLabel, orientation = 'portrait', children, className, _
         )}
 
         {/* Page label */}
-        <div className="absolute bottom-2 right-3 text-[9px] text-stone-400 font-medium select-none">
+        <div className="absolute bottom-2 right-3 text-3xs text-stone-400 font-medium select-none">
           {pageLabel}
         </div>
       </div>
@@ -533,12 +533,12 @@ function DocumentHeader({ options, shotCount }) {
         {options.title || 'Export Preview'}
       </h2>
       {options.subtitle && (
-        <p className="text-[10px] text-stone-500 mt-0.5 line-clamp-1">
+        <p className="text-2xs text-stone-500 mt-0.5 line-clamp-1">
           {options.subtitle}
         </p>
       )}
 
-      <div className="flex items-center gap-3 mt-2 text-[9px] text-stone-500">
+      <div className="flex items-center gap-3 mt-2 text-3xs text-stone-500">
         <div className="flex items-center gap-1">
           <FileText className="w-3 h-3" />
           <span>{shotCount} shot{shotCount !== 1 ? 's' : ''}</span>
@@ -843,7 +843,7 @@ export default function LightweightExportPreview({
       {/* Info bar + zoom control */}
       <div className="sticky top-0 z-10 px-4 pt-3 pb-2" style={{ backgroundColor: '#f5f5f4' }}>
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <span className="text-[10px] text-stone-500">
+          <span className="text-2xs text-stone-500">
             Preview ({Math.min(sampleShots.length, allShots.length)} of {allShots.length} shots)
             {allShots.length > sampleShots.length && (
               <span className="ml-2">
@@ -912,7 +912,7 @@ export default function LightweightExportPreview({
           {/* More pages indicator */}
           {remainingPages > 0 && (
             <div className="text-center py-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-sm border border-stone-200 text-[10px] text-stone-500">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full shadow-sm border border-stone-200 text-2xs text-stone-500">
                 +{remainingPages} more page{remainingPages !== 1 ? 's' : ''} in full export
               </div>
             </div>
@@ -920,7 +920,7 @@ export default function LightweightExportPreview({
 
           {/* PDF fidelity hint */}
           {allShots.length > MAX_SAMPLE_SHOTS && (
-            <div className="text-center text-[10px] text-stone-400 pb-2">
+            <div className="text-center text-2xs text-stone-400 pb-2">
               Open PDF preview for full document fidelity
             </div>
           )}

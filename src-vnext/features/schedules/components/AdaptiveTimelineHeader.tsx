@@ -41,10 +41,10 @@ export function AdaptiveTimelineHeader({
             className={`flex flex-1 items-center gap-2 px-3 py-1.5 ${isLast ? "" : "border-r border-[var(--color-border-muted)]"}`}
           >
             <div className={`h-2 w-2 shrink-0 rounded-full ${trackDotClass(track.id)}`} />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
+            <span className="text-xxs font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
               {track.name}
             </span>
-            <span className="ml-auto text-[10px] text-[var(--color-text-subtle)]">
+            <span className="ml-auto text-2xs text-[var(--color-text-subtle)]">
               {count} {count === 1 ? "shot" : "shots"}
             </span>
           </div>

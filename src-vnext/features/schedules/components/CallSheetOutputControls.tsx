@@ -54,7 +54,7 @@ export function CallSheetOutputControls({
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+        <p className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
           Sections
         </p>
 
@@ -123,7 +123,7 @@ export function CallSheetOutputControls({
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+        <p className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
           Schedule Fields
         </p>
 
@@ -203,14 +203,14 @@ export function CallSheetOutputControls({
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+          <p className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
             Colors
           </p>
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-[10px] font-semibold uppercase tracking-wide"
+            className="h-6 px-2 text-2xs font-semibold uppercase tracking-wide"
             disabled={isDefaultColors}
             onClick={() => onPatchColors({ ...DEFAULT_CALLSHEET_COLORS })}
           >
@@ -220,7 +220,7 @@ export function CallSheetOutputControls({
 
         <div className="grid grid-cols-3 gap-3">
           <div className="flex flex-col gap-1">
-            <Label htmlFor="cs-color-primary" className="text-[10px] text-[var(--color-text-muted)]">
+            <Label htmlFor="cs-color-primary" className="text-2xs text-[var(--color-text-muted)]">
               Primary
             </Label>
             <Input
@@ -232,7 +232,7 @@ export function CallSheetOutputControls({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <Label htmlFor="cs-color-accent" className="text-[10px] text-[var(--color-text-muted)]">
+            <Label htmlFor="cs-color-accent" className="text-2xs text-[var(--color-text-muted)]">
               Accent
             </Label>
             <Input
@@ -244,7 +244,7 @@ export function CallSheetOutputControls({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <Label htmlFor="cs-color-text" className="text-[10px] text-[var(--color-text-muted)]">
+            <Label htmlFor="cs-color-text" className="text-2xs text-[var(--color-text-muted)]">
               Text
             </Label>
             <Input

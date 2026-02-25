@@ -198,15 +198,15 @@ export default function ImageDiagnosticsPage() {
                               : "border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300"
                           }`}
                         >
-                          <div className="font-mono text-[11px]">
+                          <div className="font-mono text-xxs">
                             {check.source}
                           </div>
                           {check.ok ? (
-                            <div className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300">
+                            <div className="mt-1 text-xxs text-emerald-700 dark:text-emerald-300">
                               Resolved in {formatDuration(check.duration)} via {check.resolvedUrl}
                             </div>
                           ) : (
-                            <div className="mt-1 text-[11px] text-rose-700 dark:text-rose-300">{check.error}</div>
+                            <div className="mt-1 text-xxs text-rose-700 dark:text-rose-300">{check.error}</div>
                           )}
                         </li>
                       ))}

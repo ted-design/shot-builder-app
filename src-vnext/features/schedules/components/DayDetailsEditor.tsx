@@ -82,7 +82,7 @@ function TimeAnchor({ icon, label, value, placeholder, onSave, required }: TimeA
         {icon}
       </span>
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+        <span className="text-2xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
           {label}
           {required && !value && (
             <span className="ml-1 normal-case tracking-normal text-[var(--color-warning)]">
@@ -496,7 +496,7 @@ export function DayDetailsEditor({
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div className="flex flex-col gap-1.5">
-                      <Label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                      <Label className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                         Label
                       </Label>
                       <Select
@@ -518,7 +518,7 @@ export function DayDetailsEditor({
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <Label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                      <Label className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                         From Library
                       </Label>
                       <div className="flex items-center gap-2">
@@ -557,7 +557,7 @@ export function DayDetailsEditor({
 
                   {!isPreset && (
                     <div className="flex flex-col gap-1.5">
-                      <Label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                      <Label className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                         Custom Label
                       </Label>
                       <Input
@@ -572,7 +572,7 @@ export function DayDetailsEditor({
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div className="flex flex-col gap-1.5">
-                      <Label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                      <Label className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                         Display Text
                       </Label>
                       <Input
@@ -584,7 +584,7 @@ export function DayDetailsEditor({
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <Label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                      <Label className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                         Details
                       </Label>
                       <Textarea

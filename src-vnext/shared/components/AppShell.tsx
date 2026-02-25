@@ -139,7 +139,7 @@ function NavLinks({
         return (
           <div key={section.label} className="flex flex-col gap-1">
             {!collapsed && (
-              <span className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-sidebar-text)] opacity-50">
+              <span className="px-3 pb-1 text-2xs font-semibold uppercase tracking-widest text-[var(--color-sidebar-text)] opacity-50">
                 {section.label}
               </span>
             )}

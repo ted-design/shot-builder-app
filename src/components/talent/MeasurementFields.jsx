@@ -109,7 +109,7 @@ export default function MeasurementFields({
                   <span>{label}</span>
                   <button
                     type="button"
-                    className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="text-xxs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
                     onClick={() => handleRemove(key)}
                     disabled={disabled}
                   >
@@ -119,7 +119,7 @@ export default function MeasurementFields({
                 {kind === "height" ? (
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      <div className="text-xxs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Feet
                       </div>
                       <Input
@@ -147,7 +147,7 @@ export default function MeasurementFields({
                       />
                     </div>
                     <div className="space-y-1">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      <div className="text-xxs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Inches
                       </div>
                       <select
@@ -184,7 +184,7 @@ export default function MeasurementFields({
                       placeholder="e.g. 32"
                       disabled={disabled}
                     />
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400">Inches</div>
+                    <div className="text-xxs text-slate-500 dark:text-slate-400">Inches</div>
                   </div>
                 ) : kind === "us" ? (
                   <div className="space-y-1">
@@ -198,7 +198,7 @@ export default function MeasurementFields({
                       placeholder="e.g. 10"
                       disabled={disabled}
                     />
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400">US size</div>
+                    <div className="text-xxs text-slate-500 dark:text-slate-400">US size</div>
                   </div>
                 ) : (
                   <Input

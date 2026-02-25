@@ -338,7 +338,7 @@ function MarginControl({
                 type="button"
                 onClick={() => setIsUniform(true)}
                 className={[
-                  "px-2 py-1 text-[10px] rounded-l transition-colors",
+                  "px-2 py-1 text-2xs rounded-l transition-colors",
                   isUniform
                     ? "bg-white text-slate-800 shadow-sm dark:bg-slate-600 dark:text-white"
                     : "text-slate-500 hover:text-slate-700 dark:text-slate-400",
@@ -350,7 +350,7 @@ function MarginControl({
                 type="button"
                 onClick={() => setIsUniform(false)}
                 className={[
-                  "px-2 py-1 text-[10px] rounded-r transition-colors",
+                  "px-2 py-1 text-2xs rounded-r transition-colors",
                   !isUniform
                     ? "bg-white text-slate-800 shadow-sm dark:bg-slate-600 dark:text-white"
                     : "text-slate-500 hover:text-slate-700 dark:text-slate-400",
@@ -374,13 +374,13 @@ function MarginControl({
                 min={0}
                 max={100}
               />
-              <span className="text-[10px] text-slate-400">px</span>
+              <span className="text-2xs text-slate-400">px</span>
             </div>
           ) : (
             /* Individual mode */
             <div className="grid grid-cols-2 gap-2">
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-slate-500 w-8">Top</span>
+                <span className="text-2xs text-slate-500 w-8">Top</span>
                 <input
                   type="number"
                   value={top}
@@ -392,7 +392,7 @@ function MarginControl({
                 />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-slate-500 w-8">Btm</span>
+                <span className="text-2xs text-slate-500 w-8">Btm</span>
                 <input
                   type="number"
                   value={bottom}
@@ -404,7 +404,7 @@ function MarginControl({
                 />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-slate-500 w-8">Left</span>
+                <span className="text-2xs text-slate-500 w-8">Left</span>
                 <input
                   type="number"
                   value={left}
@@ -416,7 +416,7 @@ function MarginControl({
                 />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-slate-500 w-8">Right</span>
+                <span className="text-2xs text-slate-500 w-8">Right</span>
                 <input
                   type="number"
                   value={right}
@@ -594,7 +594,7 @@ function SortableHeaderItem({
         {/* Toggle switch */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <ToggleSwitch checked={item.enabled} onChange={() => onToggle()} disabled={disabled} />
-          <span className={["text-[10px] font-medium", item.enabled ? "text-blue-600" : "text-slate-400"].join(" ")}>
+          <span className={["text-2xs font-medium", item.enabled ? "text-blue-600" : "text-slate-400"].join(" ")}>
             {item.enabled ? "on" : "off"}
           </span>
         </div>

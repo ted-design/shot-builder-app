@@ -427,7 +427,7 @@ export default function LibraryPalettePage() {
                               }}
                               className="text-sm font-medium text-[var(--color-text)]"
                             />
-                            <div className="mt-1 font-mono text-[10px] text-[var(--color-text-muted)]">
+                            <div className="mt-1 font-mono text-2xs text-[var(--color-text-muted)]">
                               {s.id}
                             </div>
                           </div>

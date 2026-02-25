@@ -184,7 +184,7 @@ export default function SidebarNav({ isExpanded }) {
                 aria-hidden="true"
               />
               {isExpanded ? (
-                <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+                <div className="px-3 pb-2 text-2xs font-semibold uppercase tracking-wider text-neutral-500">
                   Global
                 </div>
               ) : null}

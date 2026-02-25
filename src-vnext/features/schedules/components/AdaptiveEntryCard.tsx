@@ -185,18 +185,18 @@ export function AdaptiveEntryCard({
         <div className="flex shrink-0 items-center gap-1.5">
           <div className={`h-1.5 w-1.5 shrink-0 rounded-full ${trackDotColor(trackId)}`} />
           {shotNumber ? (
-            <span className="rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1 py-px font-mono text-[9px] font-semibold text-[var(--color-text-subtle)]">
+            <span className="rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1 py-px font-mono text-3xs font-semibold text-[var(--color-text-subtle)]">
               {shotNumber}
             </span>
           ) : null}
           <span className="flex-1" />
           {timeLabel ? (
-            <span className="font-mono text-[10px] font-medium text-[var(--color-text-muted)]">
+            <span className="font-mono text-2xs font-medium text-[var(--color-text-muted)]">
               {timeLabel}
             </span>
           ) : null}
           {durationLabel ? (
-            <span className="rounded bg-[var(--color-surface-subtle)] px-1 py-px font-mono text-[9px] text-[var(--color-text-subtle)]">
+            <span className="rounded bg-[var(--color-surface-subtle)] px-1 py-px font-mono text-3xs text-[var(--color-text-subtle)]">
               {durationLabel}
             </span>
           ) : null}
@@ -214,7 +214,7 @@ export function AdaptiveEntryCard({
         {/* Metadata fields — each row truncates independently */}
         <div className="min-h-0 flex-1 overflow-hidden">
           {fields.showDescription && descriptionText ? (
-            <p className="mt-0.5 truncate text-[11px] leading-snug text-[var(--color-text-secondary)]">
+            <p className="mt-0.5 truncate text-xxs leading-snug text-[var(--color-text-secondary)]">
               {descriptionText}
             </p>
           ) : null}
@@ -222,7 +222,7 @@ export function AdaptiveEntryCard({
           {fields.showProducts && productsText ? (
             <div className="mt-0.5 flex items-start gap-1">
               <Package className="mt-px h-[11px] w-[11px] shrink-0 text-teal-500" />
-              <span className="truncate text-[11px] leading-snug text-teal-700">
+              <span className="truncate text-xxs leading-snug text-teal-700">
                 {productsText}
               </span>
             </div>
@@ -231,7 +231,7 @@ export function AdaptiveEntryCard({
           {fields.showTalent && talentText ? (
             <div className="mt-0.5 flex items-start gap-1">
               <TalentIcon className="mt-px h-[11px] w-[11px] shrink-0 text-indigo-500" />
-              <span className="truncate text-[11px] leading-snug text-indigo-700">
+              <span className="truncate text-xxs leading-snug text-indigo-700">
                 {talentText}
               </span>
             </div>
@@ -240,7 +240,7 @@ export function AdaptiveEntryCard({
           {fields.showLocation && locationText ? (
             <div className="mt-0.5 flex items-start gap-1">
               <MapPin className="mt-px h-[11px] w-[11px] shrink-0 text-emerald-500" />
-              <span className="truncate text-[11px] leading-snug text-emerald-700">
+              <span className="truncate text-xxs leading-snug text-emerald-700">
                 {locationText}
               </span>
             </div>
@@ -249,7 +249,7 @@ export function AdaptiveEntryCard({
           {fields.showNotes && notesText ? (
             <div className="mt-0.5 flex items-start gap-1">
               <FileText className="mt-px h-[11px] w-[11px] shrink-0 text-amber-500" />
-              <span className="truncate text-[11px] italic leading-snug text-amber-800">
+              <span className="truncate text-xxs italic leading-snug text-amber-800">
                 {notesText}
               </span>
             </div>
@@ -260,7 +260,7 @@ export function AdaptiveEntryCard({
               {tags.map((tag) => (
                 <span
                   key={typeof tag === "string" ? tag : tag.id}
-                  className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-px text-[9px] font-medium text-[var(--color-text-muted)]"
+                  className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-px text-3xs font-medium text-[var(--color-text-muted)]"
                 >
                   {typeof tag === "string" ? tag : tag.label}
                 </span>

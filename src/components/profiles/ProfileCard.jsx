@@ -113,7 +113,7 @@ export default function ProfileCard({
 
         {/* Type badge — top right */}
         <div className={`
-          absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide
+          absolute top-2 right-2 px-2 py-0.5 rounded-full text-2xs font-semibold uppercase tracking-wide
           ${typeColor}
         `}>
           {typeLabel}
@@ -142,7 +142,7 @@ export default function ProfileCard({
 
         {/* Secondary info */}
         {isTalent && profile.gender && (
-          <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+          <p className="mt-1 text-2xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">
             {profile.gender}
           </p>
         )}

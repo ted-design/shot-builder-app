@@ -39,7 +39,7 @@ export function ProductSkuCard({ sku, familyImageUrl }: ProductSkuCardProps) {
           {status !== "active" && (
             <Badge
               variant="outline"
-              className="text-[10px] font-normal text-[var(--color-text-subtle)]"
+              className="text-2xs font-normal text-[var(--color-text-subtle)]"
             >
               {status.split("_").join(" ")}
             </Badge>
@@ -47,7 +47,7 @@ export function ProductSkuCard({ sku, familyImageUrl }: ProductSkuCardProps) {
           {sku.archived && (
             <Badge
               variant="outline"
-              className="text-[10px] font-normal text-[var(--color-text-subtle)]"
+              className="text-2xs font-normal text-[var(--color-text-subtle)]"
             >
               Archived
             </Badge>

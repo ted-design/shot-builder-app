@@ -170,7 +170,7 @@ export function TypedTimeInput({
           {mode === "time" ? (
             <div className="grid grid-cols-3 gap-2">
               <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">Hour</span>
+                <span className="text-2xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">Hour</span>
                 <Input
                   type="number"
                   min={1}
@@ -187,7 +187,7 @@ export function TypedTimeInput({
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">Min</span>
+                <span className="text-2xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">Min</span>
                 <Input
                   type="number"
                   min={0}
@@ -204,7 +204,7 @@ export function TypedTimeInput({
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">AM/PM</span>
+                <span className="text-2xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">AM/PM</span>
                 <select
                   value={periodDraft}
                   onChange={(e) => setPeriodDraft(e.target.value === "PM" ? "PM" : "AM")}
@@ -217,7 +217,7 @@ export function TypedTimeInput({
             </div>
           ) : (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">Text override</span>
+              <span className="text-2xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">Text override</span>
               <Input
                 value={textDraft}
                 onChange={(e) => setTextDraft(e.target.value)}

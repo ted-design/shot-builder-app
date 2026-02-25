@@ -3941,7 +3941,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
           e.stopPropagation();
           toggleSection(section);
         }}
-        className="flex w-full items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+        className="flex w-full items-center gap-1.5 text-xxs font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
         aria-expanded={isExpanded}
         aria-label={`${isExpanded ? "Collapse" : "Expand"} ${label}`}
       >
@@ -3989,7 +3989,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
           )}
           {/* Location */}
           {showLocation && hasLocation && (
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-700 dark:text-slate-200">
+            <div className="flex items-center gap-1.5 text-xxs text-slate-700 dark:text-slate-200">
               <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
               <span>{locationName}</span>
             </div>
@@ -4003,7 +4003,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
     <div key="notes" className="space-y-1.5">
       <CollapsibleHeader label="Notes" icon={FileText} section="notes" hasContent={hasNotes} />
       {expandedSections.notes && (
-        <p className="max-w-none text-[11px] text-slate-600 dark:text-slate-300 line-clamp-3 leading-5">
+        <p className="max-w-none text-xxs text-slate-600 dark:text-slate-300 line-clamp-3 leading-5">
           {notesPreview}
         </p>
       )}
@@ -4011,7 +4011,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   );
 
   const tagsSection = showTags && tags.length > 0 && (
-    <div key="tags" className="text-[11px]">
+    <div key="tags" className="text-xxs">
       <TagList tags={tags} emptyMessage={null} />
     </div>
   );
@@ -4019,7 +4019,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   // Status display - interactive dropdown if editable, static pill otherwise.
   // Keep footprint small so it can sit in the top-right header slot.
   const statusPadding = isCompact ? "px-1.5 py-0.5" : "px-2 py-0.5";
-  const statusTextSize = "text-[10px]";
+  const statusTextSize = "text-2xs";
   const statusIconSize = "h-2.5 w-2.5";
   const statusElement = showStatus && orderedFields.includes("status") ? (
     canEditShots && onChangeStatus ? (
@@ -4065,7 +4065,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
   const updatedByLabel = shot?.updatedBy && userDisplayByUid?.get(shot.updatedBy);
   const updatedElement = shot?.updatedAt ? (
     <span
-      className="text-[10px] text-slate-400 dark:text-slate-500 truncate max-w-full"
+      className="text-2xs text-slate-400 dark:text-slate-500 truncate max-w-full"
       title={`${shot.updatedAt?.toDate?.()?.toLocaleString?.() || ""}${updatedByLabel ? ` by ${updatedByLabel}` : ""}`}
     >
       Updated {formatRelativeTime(shot.updatedAt)}
@@ -4187,7 +4187,7 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
 
               {/* Description/Type */}
               {showType && (descriptionText || isCorruptDescription) && (
-                <p className="min-w-0 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={isCorruptDescription ? undefined : descriptionText}>
+                <p className="min-w-0 text-xxs text-slate-600 dark:text-slate-300 line-clamp-2" title={isCorruptDescription ? undefined : descriptionText}>
                   {isCorruptDescription ? "No description" : descriptionText}
                 </p>
               )}
@@ -4340,14 +4340,14 @@ const ShotGalleryCard = memo(function ShotGalleryCard({
 
             {/* Description/Type */}
             {showType && (descriptionText || isCorruptDescription) && (
-              <p className="min-w-0 text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2" title={isCorruptDescription ? undefined : descriptionText}>
+              <p className="min-w-0 text-xxs text-slate-600 dark:text-slate-300 line-clamp-2" title={isCorruptDescription ? undefined : descriptionText}>
                 {isCorruptDescription ? "No description" : descriptionText}
               </p>
             )}
 
             {/* Date */}
             {metaEntries.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center gap-2 text-xxs text-slate-500 dark:text-slate-400">
                 {metaEntries}
               </div>
             )}
@@ -4500,7 +4500,7 @@ const ShotVisualGalleryCard = memo(function ShotVisualGalleryCard({
 
         {/* Status badge with text (top-right corner) — G.2: text label, not just dot */}
         <div className="absolute right-2 top-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-700 shadow-sm backdrop-blur-sm dark:bg-slate-800/90 dark:text-slate-200">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-2xs font-medium text-slate-700 shadow-sm backdrop-blur-sm dark:bg-slate-800/90 dark:text-slate-200">
             <span
               className={`h-1.5 w-1.5 rounded-full ${statusDotColor[statusValue] || statusDotColor.default}`}
               aria-hidden="true"
@@ -4521,7 +4521,7 @@ const ShotVisualGalleryCard = memo(function ShotVisualGalleryCard({
           </p>
         )}
         {/* G.2: Compact context line — refs + products counts */}
-        <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+        <p className="mt-1 text-2xs text-slate-400 dark:text-slate-500">
           {refsCount > 0 ? `${refsCount} ref${refsCount !== 1 ? "s" : ""}` : "No refs"}
           {" · "}
           {productsCount > 0 ? `${productsCount} product${productsCount !== 1 ? "s" : ""}` : "No products"}

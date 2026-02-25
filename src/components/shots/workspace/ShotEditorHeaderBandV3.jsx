@@ -998,7 +998,7 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
                     className="w-full text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
                     placeholder="Add a short description…"
                   />
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 block">
+                  <span className="text-2xs text-slate-400 dark:text-slate-500 mt-0.5 block">
                     Enter to save • Esc to cancel
                   </span>
                 </div>
@@ -1042,14 +1042,14 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
                 {/* Colorway chip - derived from hero product when looks exist */}
                 <Badge
                   variant="secondary"
-                  className="text-[11px] px-2 py-0 h-5"
+                  className="text-xxs px-2 py-0 h-5"
                   title={colorwayNeedsHeroHint ? "Set a hero in Looks for accurate colorway" : undefined}
                 >
                   {colorwayLabel}
                 </Badge>
 
                 {/* Gender chip - NOT on shot schema, placeholder */}
-                <Badge variant="secondary" className="text-[11px] px-2 py-0 h-5">
+                <Badge variant="secondary" className="text-xxs px-2 py-0 h-5">
                   —
                 </Badge>
 
@@ -1057,7 +1057,7 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
                 {showSuggestion && (
                   <div className="flex items-center gap-1.5 ml-2">
                     <Sparkles className="w-3 h-3 text-amber-500 dark:text-amber-400" />
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[160px]">
+                    <span className="text-xxs text-slate-500 dark:text-slate-400 truncate max-w-[160px]">
                       Suggested: {suggestedName}
                     </span>
                     {!readOnly && (
@@ -1065,7 +1065,7 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
                         type="button"
                         onClick={handleApplySuggestedName}
                         disabled={isApplying}
-                        className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 transition-colors disabled:opacity-50"
+                        className="text-2xs font-medium px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 transition-colors disabled:opacity-50"
                       >
                         {isApplying ? "..." : "Apply"}
                       </button>
@@ -1081,12 +1081,12 @@ export default function ShotEditorHeaderBandV3({ shot, projectId, readOnly = fal
               ────────────────────────────────────────────────────────── */}
           <div className="flex items-center gap-3 flex-shrink-0">
             {/* Content Type - NOT on shot schema */}
-            <Badge variant="outline" className="text-[11px] px-2 py-0 h-5 text-slate-500 dark:text-slate-400">
+            <Badge variant="outline" className="text-xxs px-2 py-0 h-5 text-slate-500 dark:text-slate-400">
               —
             </Badge>
 
             {/* Media Type - NOT on shot schema */}
-            <Badge variant="outline" className="text-[11px] px-2 py-0 h-5 text-slate-500 dark:text-slate-400">
+            <Badge variant="outline" className="text-xxs px-2 py-0 h-5 text-slate-500 dark:text-slate-400">
               —
             </Badge>
 

@@ -342,7 +342,7 @@ export default function DayStreamBlock({
                                 setIsEditing(false);
                                 onEdit?.();
                             }}
-                            className="flex items-center gap-0.5 text-[10px] text-blue-600 hover:text-blue-800 whitespace-nowrap shrink-0"
+                            className="flex items-center gap-0.5 text-2xs text-blue-600 hover:text-blue-800 whitespace-nowrap shrink-0"
                             title="Edit shot details"
                         >
                             <ExternalLink className="w-3 h-3" />
@@ -385,10 +385,10 @@ export default function DayStreamBlock({
                                 type="number"
                                 value={editDuration}
                                 onChange={(e) => setEditDuration(e.target.value)}
-                                className="w-12 text-[10px] font-mono border border-slate-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none text-right"
+                                className="w-12 text-2xs font-mono border border-slate-200 rounded px-1 py-0.5 focus:border-blue-400 outline-none text-right"
                                 min={1}
                             />
-                            <span className="text-[10px] text-slate-400">min</span>
+                            <span className="text-2xs text-slate-400">min</span>
                         </div>
                     </div>
 
@@ -405,10 +405,10 @@ export default function DayStreamBlock({
                     {/* Track Selector - Only for custom entries (not shots) */}
                     {!isShot && laneTracks.length > 0 && (
                         <div className="flex items-center gap-1 shrink-0 border-l border-slate-200 pl-2">
-                            <span className="text-[10px] text-slate-500">Track:</span>
+                            <span className="text-2xs text-slate-500">Track:</span>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <button className="flex items-center gap-1 text-[10px] border border-slate-200 rounded px-1.5 py-0.5 hover:bg-slate-50 min-w-[80px]">
+                                    <button className="flex items-center gap-1 text-2xs border border-slate-200 rounded px-1.5 py-0.5 hover:bg-slate-50 min-w-[80px]">
                                         {editTrackId === "all" ? (
                                             <span className="text-slate-700">All Tracks</span>
                                         ) : (
@@ -456,7 +456,7 @@ export default function DayStreamBlock({
                     <div className="flex items-center gap-2 shrink-0">
                         <button
                             onClick={handleSave}
-                            className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 font-medium transition-colors"
+                            className="text-2xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 font-medium transition-colors"
                         >
                             Save
                         </button>
@@ -474,7 +474,7 @@ export default function DayStreamBlock({
                                     entry.trackId === "shared" || entry.trackId === "all" ? "all" : (entry.trackId || "all")
                                 );
                             }}
-                            className="text-[10px] text-slate-500 hover:text-slate-700 px-2 py-1"
+                            className="text-2xs text-slate-500 hover:text-slate-700 px-2 py-1"
                         >
                             Cancel
                         </button>
@@ -506,7 +506,7 @@ export default function DayStreamBlock({
             {/* Header: Track, Marker & Duration */}
             <div className="flex justify-between items-center mb-1 shrink-0">
                 <div className="flex items-center gap-1">
-                    <span className={cn("text-[9px] uppercase font-bold px-1 py-0.5 rounded leading-none", badgeBg)}>
+                    <span className={cn("text-3xs uppercase font-bold px-1 py-0.5 rounded leading-none", badgeBg)}>
                         {track?.name || "Event"}
                     </span>
                     {/* Marker indicator */}
@@ -523,7 +523,7 @@ export default function DayStreamBlock({
                         ) : null;
                     })()}
                 </div>
-                <div className="text-[10px] text-slate-400 font-mono flex items-center gap-0.5">
+                <div className="text-2xs text-slate-400 font-mono flex items-center gap-0.5">
                     {entry.startTime}
                     <span className="opacity-50">•</span>
                     {displayDuration}m
@@ -537,7 +537,7 @@ export default function DayStreamBlock({
 
             {/* Details (only if height allows) */}
             {height >= 70 && (
-                <p className="text-[10px] text-slate-500 leading-tight line-clamp-2 mt-0.5 shrink-0">
+                <p className="text-2xs text-slate-500 leading-tight line-clamp-2 mt-0.5 shrink-0">
                     {entry.resolvedDetails || entry.description}
                 </p>
             )}
@@ -546,13 +546,13 @@ export default function DayStreamBlock({
             {height >= 90 && (
                 <div className="absolute bottom-2 left-2 right-2 flex gap-2 pt-1 border-t border-slate-50 opacity-80 pointer-events-none">
                     {entry.resolvedLocation && (
-                        <div className="flex items-center text-[9px] text-slate-400">
+                        <div className="flex items-center text-3xs text-slate-400">
                             <MapPin className="w-2.5 h-2.5 mr-0.5" />
                             <span className="truncate">{entry.resolvedLocation}</span>
                         </div>
                     )}
                     {entry.resolvedTalent?.length > 0 && (
-                        <div className="flex items-center text-[9px] text-slate-400">
+                        <div className="flex items-center text-3xs text-slate-400">
                             <Users className="w-2.5 h-2.5 mr-0.5" />
                             <span>{entry.resolvedTalent.length}</span>
                         </div>
@@ -573,7 +573,7 @@ export default function DayStreamBlock({
                         </button>
                     )}
                     {onUpdateEntry && (
-                        <div className="bg-white/80 backdrop-blur rounded p-0.5 text-[9px] text-slate-400 border border-slate-200">
+                        <div className="bg-white/80 backdrop-blur rounded p-0.5 text-3xs text-slate-400 border border-slate-200">
                             Double-click to edit
                         </div>
                     )}

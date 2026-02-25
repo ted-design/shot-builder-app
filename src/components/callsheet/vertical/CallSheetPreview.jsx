@@ -158,7 +158,7 @@ function renderCellContent(columnKey, entry, options = {}) {
             </div>
           )}
           {entry.flag ? (
-            <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+            <div className="mt-0.5 text-2xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
               {String(entry.flag)}
             </div>
           ) : null}
@@ -806,7 +806,7 @@ function CallSheetPreview({
       <div style={printStyle} className="py-3">
         <div className="flex items-center justify-center gap-3">
           <div className="h-px flex-1 border-t border-dashed border-slate-400 dark:border-slate-600" />
-          <div className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
+          <div className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xxs font-semibold uppercase tracking-wider text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
             Page Break
           </div>
           <div className="h-px flex-1 border-t border-dashed border-slate-400 dark:border-slate-600" />
@@ -1302,7 +1302,7 @@ function CallSheetPreview({
                                     {deltaTag ? (
                                       <span
                                         className={[
-                                          "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                                          "inline-flex items-center rounded-full px-2 py-0.5 text-xxs font-semibold",
                                           deltaTag.tone === "blue"
                                             ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
                                             : deltaTag.tone === "amber"

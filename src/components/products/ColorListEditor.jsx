@@ -122,10 +122,10 @@ export default function ColorListEditor({
                     )}
                   </div>
                   {paletteMatch ? (
-                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xxs text-slate-500">
                       <span>Palette swatch</span>
                       {paletteMatch.hexColor && (
-                        <span className="rounded border border-slate-200 bg-slate-50 px-1 py-0.5 font-mono text-[10px] text-slate-700">
+                        <span className="rounded border border-slate-200 bg-slate-50 px-1 py-0.5 font-mono text-2xs text-slate-700">
                           {paletteMatch.hexColor}
                         </span>
                       )}
@@ -141,13 +141,13 @@ export default function ColorListEditor({
                       )}
                     </div>
                   ) : color.colorName?.trim() && onSaveToPalette ? (
-                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xxs text-slate-500">
                       <span>Not linked</span>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-5 px-1.5 text-[10px]"
+                        className="h-5 px-1.5 text-2xs"
                         disabled={!color.hexColor || !isValidHexColor(color.hexColor)}
                         onClick={() => onSaveToPalette(color.localId)}
                       >
@@ -158,7 +158,7 @@ export default function ColorListEditor({
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   {isHero && (
-                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800">
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wide text-amber-800">
                       Hero
                     </span>
                   )}
@@ -207,24 +207,24 @@ export default function ColorListEditor({
                         className="h-full w-full"
                         imageClassName="h-full w-full object-contain"
                         placeholder={
-                          <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">
+                          <div className="flex h-full w-full items-center justify-center text-2xs text-slate-400">
                             Loading…
                           </div>
                         }
                         fallback={
-                          <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">
+                          <div className="flex h-full w-full items-center justify-center text-2xs text-slate-400">
                             No preview
                           </div>
                         }
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">
+                      <div className="flex h-full w-full items-center justify-center text-2xs text-slate-400">
                         No image
                       </div>
                     )}
                   </div>
                   <div className="flex gap-1">
-                    <label className="flex-1 cursor-pointer rounded bg-slate-100 px-1.5 py-1 text-center text-[10px] font-medium text-slate-600 hover:bg-slate-200">
+                    <label className="flex-1 cursor-pointer rounded bg-slate-100 px-1.5 py-1 text-center text-2xs font-medium text-slate-600 hover:bg-slate-200">
                       Choose
                       <input
                         type="file"
@@ -241,7 +241,7 @@ export default function ColorListEditor({
                     {(color.imagePreview || color.imagePath) && (
                       <button
                         type="button"
-                        className="rounded bg-slate-100 px-1.5 py-1 text-[10px] font-medium text-slate-600 hover:bg-red-100 hover:text-red-600"
+                        className="rounded bg-slate-100 px-1.5 py-1 text-2xs font-medium text-slate-600 hover:bg-red-100 hover:text-red-600"
                         onClick={() => onClearImage?.(color.localId)}
                       >
                         ×
@@ -255,7 +255,7 @@ export default function ColorListEditor({
                   {/* SKU and Status row */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-0.5">
-                      <label className="text-[10px] font-medium text-slate-500">SKU</label>
+                      <label className="text-2xs font-medium text-slate-500">SKU</label>
                       <Input
                         value={color.skuCode}
                         onChange={(event) => onFieldChange(color.localId, { skuCode: event.target.value })}
@@ -264,7 +264,7 @@ export default function ColorListEditor({
                       />
                     </div>
                     <div className="space-y-0.5">
-                      <label className="text-[10px] font-medium text-slate-500">Status</label>
+                      <label className="text-2xs font-medium text-slate-500">Status</label>
                       <select
                         value={color.status}
                         onChange={(event) => onFieldChange(color.localId, { status: event.target.value })}
@@ -282,7 +282,7 @@ export default function ColorListEditor({
                   {/* Swatch colour - only show when NOT linked to palette */}
                   {!paletteMatch && (
                     <div className="space-y-0.5">
-                      <label className="text-[10px] font-medium text-slate-500">Swatch colour</label>
+                      <label className="text-2xs font-medium text-slate-500">Swatch colour</label>
                       <div className="flex items-center gap-1.5">
                         <input
                           type="color"
@@ -294,7 +294,7 @@ export default function ColorListEditor({
                           title="Pick a colour"
                         />
                         <div className="flex items-center gap-0.5">
-                          <span className="text-[10px] text-slate-400">#</span>
+                          <span className="text-2xs text-slate-400">#</span>
                           <Input
                             value={(color.hexColor || "").replace(/^#/, "")}
                             onChange={(event) => {
@@ -306,7 +306,7 @@ export default function ColorListEditor({
                               }
                             }}
                             placeholder="CCCCCC"
-                            className="h-7 w-14 font-mono text-[10px]"
+                            className="h-7 w-14 font-mono text-2xs"
                             maxLength={6}
                           />
                         </div>
@@ -315,7 +315,7 @@ export default function ColorListEditor({
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-7 px-2 text-[10px]"
+                            className="h-7 px-2 text-2xs"
                             onClick={() => handleAutoExtract(color.localId, color.imageFile)}
                             disabled={extracting[color.localId]}
                           >
@@ -325,7 +325,7 @@ export default function ColorListEditor({
                         {color.hexColor && (
                           <button
                             type="button"
-                            className="text-[10px] text-slate-400 hover:text-slate-600"
+                            className="text-2xs text-slate-400 hover:text-slate-600"
                             onClick={() => onFieldChange(color.localId, { hexColor: null })}
                           >
                             Clear

@@ -197,7 +197,7 @@ function LocationRail({
       {/* Count footer */}
       {!loading && locations.length > 0 && (
         <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+          <p className="text-xxs text-slate-500 dark:text-slate-400">
             {locations.length} {locations.length === 1 ? "location" : "locations"}
           </p>
         </div>
@@ -262,7 +262,7 @@ function MetricSlot({ icon: Icon, label, value, variant = "default" }) {
     <div className="flex items-center gap-2 px-3 py-2">
       <Icon className={`w-4 h-4 flex-shrink-0 ${variantStyles[variant]} opacity-60`} />
       <div className="min-w-0">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <p className="text-2xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
           {label}
         </p>
         <p className={`text-sm font-semibold truncate ${variantStyles[variant]}`}>
@@ -308,7 +308,7 @@ function FactRow({ label, value, isEditable, onSave, placeholder, type = "text",
   if (isEditable && onSave) {
     return (
       <div className="py-2">
-        <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+        <p className="text-2xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
           {label}
         </p>
         <InlineEditField
@@ -327,7 +327,7 @@ function FactRow({ label, value, isEditable, onSave, placeholder, type = "text",
   // Read-only version
   return (
     <div className="py-2">
-      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+      <p className="text-2xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
         {label}
       </p>
       {isEmpty ? (
@@ -418,11 +418,11 @@ function LocationDetailCanvas({ location, canManage, onUpdate, clientId }) {
           <div className="p-6 pb-4">
             {/* Type badge */}
             <div className="flex items-center justify-center gap-2 mb-4">
-              <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
+              <span className="px-2 py-0.5 rounded text-2xs font-medium uppercase tracking-wide bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
                 Location
               </span>
               {!canManage && (
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                <span className="text-2xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">
                   View only
                 </span>
               )}

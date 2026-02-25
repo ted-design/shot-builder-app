@@ -171,7 +171,7 @@ export function AddShotToScheduleDialog({
                     {shot.title}
                   </span>
                   {shot.shotNumber && (
-                    <span className="rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    <span className="rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
                       Shot {shot.shotNumber}
                     </span>
                   )}
@@ -185,13 +185,13 @@ export function AddShotToScheduleDialog({
 
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   {talentNames.length > 0 && (
-                    <span className="rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
+                    <span className="rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-2xs font-medium text-[var(--color-text-muted)]">
                       Talent: {talentNames.slice(0, 2).join(", ")}
                       {talentNames.length > 2 ? ` +${talentNames.length - 2}` : ""}
                     </span>
                   )}
                   {shot.locationName && (
-                    <span className="rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
+                    <span className="rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-2xs font-medium text-[var(--color-text-muted)]">
                       {shot.locationName}
                     </span>
                   )}

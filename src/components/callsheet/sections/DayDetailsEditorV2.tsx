@@ -807,7 +807,7 @@ export default function DayDetailsEditorV2({
                 <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Main notes</div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   <label className="grid gap-1 text-sm">
-                    <span className="text-[11px] font-medium text-slate-500">Placement</span>
+                    <span className="text-xxs font-medium text-slate-500">Placement</span>
                     <select
                       className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-900"
                       value={draft.notesPlacement}
@@ -821,7 +821,7 @@ export default function DayDetailsEditorV2({
                     </select>
                   </label>
                   <label className="grid gap-1 text-sm">
-                    <span className="text-[11px] font-medium text-slate-500">Icon</span>
+                    <span className="text-xxs font-medium text-slate-500">Icon</span>
                     <select
                       className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-900"
                       value={draft.notesIcon}
@@ -835,7 +835,7 @@ export default function DayDetailsEditorV2({
                     </select>
                   </label>
                   <label className="grid gap-1 text-sm">
-                    <span className="text-[11px] font-medium text-slate-500">Color</span>
+                    <span className="text-xxs font-medium text-slate-500">Color</span>
                     <Input
                       type="color"
                       value={draft.notesColor || "#FFFFFF"}
@@ -910,7 +910,7 @@ export default function DayDetailsEditorV2({
               </div>
               <div className="flex items-center gap-2">
                 <label className="grid gap-1 text-sm">
-                  <span className="text-[11px] font-medium text-slate-500">Minutes</span>
+                  <span className="text-xxs font-medium text-slate-500">Minutes</span>
                   <Input
                     type="number"
                     value={shiftMinutes}

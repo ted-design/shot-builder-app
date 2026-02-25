@@ -22,10 +22,10 @@ export default function ShotProductTile({ product, onEdit, onRemove }) {
           className="h-full w-full"
           imageClassName="h-full w-full object-cover"
           fallback={
-            <div className="flex h-full items-center justify-center text-[10px] text-slate-500">No image</div>
+            <div className="flex h-full items-center justify-center text-2xs text-slate-500">No image</div>
           }
           placeholder={
-            <div className="flex h-full items-center justify-center text-[10px] text-slate-500">
+            <div className="flex h-full items-center justify-center text-2xs text-slate-500">
               Loading…
             </div>
           }
@@ -33,19 +33,19 @@ export default function ShotProductTile({ product, onEdit, onRemove }) {
       </div>
       <div className="flex flex-1 flex-col gap-0.5 px-1.5 pb-1.5">
         <div className="min-w-0">
-          <div className="truncate text-[10px] font-semibold text-slate-800 leading-tight" title={product.familyName}>
+          <div className="truncate text-2xs font-semibold text-slate-800 leading-tight" title={product.familyName}>
             {product.familyName}
           </div>
           {product.styleNumber && (
-            <div className="truncate text-[9px] text-slate-500 leading-tight" title={`#${product.styleNumber}`}>
+            <div className="truncate text-3xs text-slate-500 leading-tight" title={`#${product.styleNumber}`}>
               #{product.styleNumber}
             </div>
           )}
         </div>
-        <div className="text-[9px] text-slate-600 truncate" title={`Colour: ${product.colourName || "Any"}`}>
+        <div className="text-3xs text-slate-600 truncate" title={`Colour: ${product.colourName || "Any"}`}>
           {product.colourName || "Any"}
         </div>
-        <div className="text-[9px] text-slate-600 truncate" title={`Size: ${sizeLabel}`}>
+        <div className="text-3xs text-slate-600 truncate" title={`Size: ${sizeLabel}`}>
           {sizeLabel}
         </div>
         {product.status === "pending-size" && (
@@ -58,7 +58,7 @@ export default function ShotProductTile({ product, onEdit, onRemove }) {
             type="button"
             variant={primaryActionVariant}
             size="sm"
-            className="h-5 px-1 py-0 text-[9px]"
+            className="h-5 px-1 py-0 text-3xs"
             onClick={onEdit}
           >
             {product.status === "pending-size" ? "Size" : "Edit"}
@@ -67,7 +67,7 @@ export default function ShotProductTile({ product, onEdit, onRemove }) {
             type="button"
             variant="ghost"
             size="sm"
-            className="h-5 px-1 py-0 text-[9px]"
+            className="h-5 px-1 py-0 text-3xs"
             onClick={onRemove}
           >
             Remove

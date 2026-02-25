@@ -141,7 +141,7 @@ function SwatchTile({ swatch, isSelected, onClick, usageCount, tileRef }) {
 
       {/* Name */}
       <p className={`
-        mt-1.5 text-[11px] font-medium text-center truncate w-full max-w-[72px]
+        mt-1.5 text-xxs font-medium text-center truncate w-full max-w-[72px]
         ${isSelected ? "text-slate-900 dark:text-slate-100" : "text-slate-500 dark:text-slate-400"}
       `}>
         {name}
@@ -149,7 +149,7 @@ function SwatchTile({ swatch, isSelected, onClick, usageCount, tileRef }) {
 
       {/* Usage count badge */}
       {usageCount > 0 && (
-        <span className="mt-0.5 text-[9px] text-slate-400 dark:text-slate-500">
+        <span className="mt-0.5 text-3xs text-slate-400 dark:text-slate-500">
           {usageCount} product{usageCount !== 1 ? "s" : ""}
         </span>
       )}
@@ -386,11 +386,11 @@ function SwatchCockpit({
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{name}</h3>
-          <span className="text-[9px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded">
+          <span className="text-3xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded">
             Swatch Workspace
           </span>
           {!canEdit && (
-            <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+            <span className="text-3xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">
               View only
             </span>
           )}
@@ -457,7 +457,7 @@ function SwatchCockpit({
 
           {/* Minimal meta */}
           <div className="mt-3 space-y-2">
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate" title={swatch.colorKey}>
+            <p className="text-2xs text-slate-400 dark:text-slate-500 truncate" title={swatch.colorKey}>
               Key: {swatch.colorKey}
             </p>
             <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
@@ -583,7 +583,7 @@ function SwatchCockpit({
               <div className="px-4 pb-4 space-y-4">
                 {/* Hex Color */}
                 <div>
-                  <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  <p className="text-2xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Hex Value
                   </p>
                   <InlineHexColorEditor
@@ -595,7 +595,7 @@ function SwatchCockpit({
 
                 {/* Texture Image */}
                 <div>
-                  <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  <p className="text-2xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Texture Image
                   </p>
 
@@ -666,7 +666,7 @@ function SwatchCockpit({
 
                 {/* Aliases */}
                 <div>
-                  <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  <p className="text-2xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     Alternative Names
                   </p>
                   {canEdit && onUpdateAliases ? (

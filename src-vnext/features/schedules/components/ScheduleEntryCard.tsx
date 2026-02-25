@@ -436,7 +436,7 @@ export function ScheduleEntryCard({
 
             <TypeIcon className="h-3 w-3 shrink-0 text-[var(--color-text-muted)]" />
 
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <span className="text-xxs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
               {entry.title}
             </span>
 
@@ -453,7 +453,7 @@ export function ScheduleEntryCard({
                 compact={isCompact}
               />
               {trackLabel ? (
-                <span className="rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
+                <span className="rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-0.5 text-2xs font-medium text-[var(--color-text-muted)]">
                   {trackLabel}
                 </span>
               ) : null}
@@ -543,7 +543,7 @@ export function ScheduleEntryCard({
                 }}
               />
               {entry.type !== "shot" && (
-                <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
+                <span className="text-2xs font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
                   {entryLabel}
                 </span>
               )}
@@ -562,7 +562,7 @@ export function ScheduleEntryCard({
                 compact={isCompact}
               />
               {trackLabel ? (
-                <span className="rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
+                <span className="rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-0.5 text-2xs font-medium text-[var(--color-text-muted)]">
                   {trackLabel}
                 </span>
               ) : null}

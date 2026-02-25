@@ -111,7 +111,7 @@ function OverviewSection({ family, skus, samples, onNavigate }) {
       {/* Quick stats bar - compact product identity recap */}
       <div className="flex flex-wrap items-center gap-6 py-3 px-4 rounded-lg bg-slate-50/80 dark:bg-slate-800/50">
         <div>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Status</p>
+          <p className="text-2xs text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Status</p>
           {family.status === "discontinued" ? (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
               Discontinued
@@ -124,14 +124,14 @@ function OverviewSection({ family, skus, samples, onNavigate }) {
         </div>
         <div className="h-8 w-px bg-slate-200 dark:bg-slate-700" />
         <div>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Sizes</p>
+          <p className="text-2xs text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Sizes</p>
           <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{sizeLabel}</p>
         </div>
         {notesDisplayText && (
           <>
             <div className="h-8 w-px bg-slate-200 dark:bg-slate-700" />
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Notes</p>
+              <p className="text-2xs text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Notes</p>
               <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{notesDisplayText}</p>
             </div>
           </>
@@ -352,7 +352,7 @@ function AssetsSection({ family, skus }) {
 
       {/* Context footer */}
       <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
-        <p className="text-[11px] text-slate-400 dark:text-slate-500">
+        <p className="text-xxs text-slate-400 dark:text-slate-500">
           Product images are shown above. Document uploads (tech packs, spec sheets) will be available in a future update.
         </p>
       </div>
@@ -576,7 +576,7 @@ function ActivitySection({ family, clientId }) {
 
       {/* Context footer */}
       <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700">
-        <p className="text-[11px] text-slate-400 dark:text-slate-500">
+        <p className="text-xxs text-slate-400 dark:text-slate-500">
           Activity shows when this product was created and last modified.
           Detailed change history will be available in a future update.
         </p>
@@ -869,11 +869,11 @@ export default function ProductDetailPageV3() {
                     {family.styleName}
                   </h1>
                   {family.status === "discontinued" ? (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-2xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                       Discontinued
                     </span>
                   ) : (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-2xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                       Active
                     </span>
                   )}

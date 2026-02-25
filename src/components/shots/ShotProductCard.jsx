@@ -152,7 +152,7 @@ export default function ShotProductCard({
 
         {/* Color Dropdown */}
         <div className="space-y-1">
-          <label className="text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <label className="text-2xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Color
           </label>
           {isLoading ? (
@@ -179,7 +179,7 @@ export default function ShotProductCard({
 
         {/* Size Dropdown */}
         <div className="space-y-1">
-          <label className="text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <label className="text-2xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Size
           </label>
           {isLoading ? (
@@ -211,7 +211,7 @@ export default function ShotProductCard({
 
         {/* Pending Status Badge */}
         {product.status === "pending-size" && (
-          <div className="inline-flex w-fit items-center rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+          <div className="inline-flex w-fit items-center rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
             Size pending
           </div>
         )}
@@ -221,7 +221,7 @@ export default function ShotProductCard({
           <div className="flex items-center gap-1.5">
             <AllocationStatusBadge allocation={product.allocation} />
             {product.allocation.sourceLabel && product.allocation.status === "allocated" && (
-              <span className="text-[9px] text-slate-500 dark:text-slate-400 truncate" title={product.allocation.sourceLabel}>
+              <span className="text-3xs text-slate-500 dark:text-slate-400 truncate" title={product.allocation.sourceLabel}>
                 {product.allocation.sourceLabel}
               </span>
             )}

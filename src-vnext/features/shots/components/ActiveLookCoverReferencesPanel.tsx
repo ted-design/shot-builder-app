@@ -225,7 +225,7 @@ export function ActiveLookCoverReferencesPanel({
             Cover images / references
           </p>
           {displayImageId && (
-            <Badge variant="secondary" className="text-[10px]">
+            <Badge variant="secondary" className="text-2xs">
               Reference cover set
             </Badge>
           )}
@@ -242,7 +242,7 @@ export function ActiveLookCoverReferencesPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 rounded-md px-2 text-[11px] font-medium"
+              className="h-7 rounded-md px-2 text-xxs font-medium"
               onClick={() => fileRef.current?.click()}
               disabled={uploading || saving || refs.length >= 10}
             >
@@ -253,7 +253,7 @@ export function ActiveLookCoverReferencesPanel({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 rounded-md px-2 text-[11px] font-medium text-[var(--color-text-subtle)]"
+                className="h-7 rounded-md px-2 text-xxs font-medium text-[var(--color-text-subtle)]"
                 onClick={() => setCoverRef(null)}
                 disabled={uploading || saving}
               >
@@ -263,7 +263,7 @@ export function ActiveLookCoverReferencesPanel({
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 rounded-md px-2 text-[11px] font-medium text-[var(--color-text-subtle)]"
+              className="h-7 rounded-md px-2 text-xxs font-medium text-[var(--color-text-subtle)]"
               onClick={() => void hideHeader()}
               disabled={uploading || saving}
               title="Hides the header image without deleting references or products"
@@ -379,7 +379,7 @@ function ReferenceTile({
       )}
 
       {isCover && (
-        <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+        <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-2xs text-white">
           Cover
         </span>
       )}

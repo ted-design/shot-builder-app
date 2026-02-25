@@ -21,7 +21,7 @@ export function TagBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 text-[10px] font-medium",
+        "inline-flex items-center gap-1 rounded-full border px-2 text-2xs font-medium",
         getTagColorClasses(colorKey),
         className,
       )}

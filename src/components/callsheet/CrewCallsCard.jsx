@@ -74,7 +74,7 @@ function DeltaBadge({ deltaMinutes }) {
   return (
     <span
       className={[
-        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap",
+        "inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-semibold whitespace-nowrap",
         deltaTag.tone === "blue"
           ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
           : deltaTag.tone === "amber"
@@ -201,7 +201,7 @@ function CrewMemberRow({
               {displayTime || "—"}
             </span>
             {isPrevDay && (
-              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+              <span className="text-2xs text-amber-600 dark:text-amber-400 font-medium">
                 Prev day
               </span>
             )}

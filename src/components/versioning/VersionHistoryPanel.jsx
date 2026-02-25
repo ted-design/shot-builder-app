@@ -399,7 +399,7 @@ export default function VersionHistoryPanel({
                   <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     Versions
                   </span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xxs font-medium bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                     {filteredVersions.length}
                   </span>
                 </div>
@@ -408,7 +408,7 @@ export default function VersionHistoryPanel({
                   <button
                     type="button"
                     onClick={() => setFilterMode("meaningful")}
-                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                    className={`px-2 py-0.5 rounded text-xxs font-medium transition-colors ${
                       filterMode === "meaningful"
                         ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
                         : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
@@ -419,7 +419,7 @@ export default function VersionHistoryPanel({
                   <button
                     type="button"
                     onClick={() => setFilterMode("all")}
-                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                    className={`px-2 py-0.5 rounded text-xxs font-medium transition-colors ${
                       filterMode === "all"
                         ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
                         : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
@@ -545,13 +545,13 @@ function RestoreConfirmBody({ hasNewerChanges, summaries, restoreNotesComparison
                 Notes will change:
               </p>
               <div>
-                <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">Current</span>
+                <span className="text-2xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">Current</span>
                 <p className="text-sm text-slate-500 dark:text-slate-400 italic leading-relaxed line-through decoration-slate-300 dark:decoration-slate-600">
                   {restoreNotesComparison.current}
                 </p>
               </div>
               <div>
-                <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Restored to</span>
+                <span className="text-2xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Restored to</span>
                 <p className="text-sm text-slate-700 dark:text-slate-200 italic leading-relaxed">
                   {restoreNotesComparison.target}
                 </p>
@@ -606,7 +606,7 @@ function RollbackGroup({ group, isFirstGroup, versions, onRestore, isRestoreDisa
               Restored {count} times
             </span>
             {isFirstGroup && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xxs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                 Current
               </span>
             )}
@@ -729,12 +729,12 @@ function VersionItem({ version, olderVersion, isCurrent, onRestore, isRestoreDis
               {version.createdByName}
             </span>
             <span
-              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${config.color}`}
+              className={`inline-flex items-center px-1.5 py-0.5 rounded text-xxs font-medium ${config.color}`}
             >
               {config.label}
             </span>
             {isCurrent && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xxs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                 Current
               </span>
             )}
@@ -766,7 +766,7 @@ function VersionItem({ version, olderVersion, isCurrent, onRestore, isRestoreDis
           {/* VH.4 — Snapshot-first notes preview (primary content cue) */}
           {snapshotPreview && (
             <div className="mt-1.5 rounded bg-slate-100 dark:bg-slate-800/60 px-2 py-1.5">
-              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+              <span className="text-2xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">
                 Notes snapshot
               </span>
               <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
@@ -782,26 +782,26 @@ function VersionItem({ version, olderVersion, isCurrent, onRestore, isRestoreDis
               onClick={() => setShowEditDiff(!showEditDiff)}
               className="mt-1 text-left group"
             >
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
+              <span className="text-2xs text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
                 {showEditDiff ? "Hide" : "Show"} edit diff
               </span>
             </button>
           )}
           {showEditDiff && notesBeforeAfter && !isRollback && (
             <div className="mt-1 rounded bg-slate-50 dark:bg-slate-800/40 px-2 py-1.5 space-y-1">
-              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+              <span className="text-2xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">
                 Changed in this edit:
               </span>
               {notesBeforeAfter.before !== null && (
                 <div>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">Before</span>
+                  <span className="text-2xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">Before</span>
                   <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed line-through decoration-slate-300 dark:decoration-slate-600">
                     {notesBeforeAfter.before}
                   </p>
                 </div>
               )}
               <div>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">After</span>
+                <span className="text-2xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">After</span>
                 <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
                   {notesBeforeAfter.after}
                 </p>

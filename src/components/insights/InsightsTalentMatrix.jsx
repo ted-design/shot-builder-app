@@ -96,7 +96,7 @@ function InsightsTalentMatrix({
                             />
                           ) : (
                             <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-100 dark:border-slate-600 dark:bg-slate-700">
-                              <span className="text-[10px] font-medium text-slate-600 dark:text-slate-300">
+                              <span className="text-2xs font-medium text-slate-600 dark:text-slate-300">
                                 {row.name?.charAt(0)?.toUpperCase() || "?"}
                               </span>
                             </div>

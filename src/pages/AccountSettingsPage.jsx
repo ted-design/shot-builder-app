@@ -229,7 +229,7 @@ export default function AccountSettingsPage() {
           </div>
           <div className="mt-4 space-y-2 text-xs text-slate-500 dark:text-slate-400">
             <p>Updates here will sync across your profile and shared documents.</p>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500">
+            <p className="text-xxs text-slate-400 dark:text-slate-500">
               Note: changing your email may require re-authentication depending on your provider.
             </p>
           </div>

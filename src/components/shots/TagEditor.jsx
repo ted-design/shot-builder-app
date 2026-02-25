@@ -328,11 +328,11 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
                           {filteredTagGroups.map((group) => (
                             <div key={group.groupId} className="space-y-1.5">
                               <div className="flex items-center justify-between">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
+                                <p className="text-xxs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
                                   {group.groupLabel}
                                 </p>
                                 {!hasSearchTerm && group.groupDescription && (
-                                  <span className="ml-2 text-[10px] text-slate-400 dark:text-slate-500">
+                                  <span className="ml-2 text-2xs text-slate-400 dark:text-slate-500">
                                     {group.groupDescription}
                                   </span>
                                 )}
@@ -360,7 +360,7 @@ export function TagEditor({ tags = [], onChange, clientId, projectId, className 
                                       <TagBadge tag={tag} />
                                       <div className="ml-auto flex items-center gap-2">
                                         {tag.isDefault && (
-                                          <span className="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                                          <span className="text-2xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
                                             Default
                                           </span>
                                         )}

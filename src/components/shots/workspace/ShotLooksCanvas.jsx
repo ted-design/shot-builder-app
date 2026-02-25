@@ -324,7 +324,7 @@ function LookTabSelector({ looks, activeLookId, onSelectLook, onAddLook, readOnl
               {label}
               {productCount > 0 && (
                 <span className={`
-                  text-[10px] tabular-nums px-1 py-0.5 rounded-full
+                  text-2xs tabular-nums px-1 py-0.5 rounded-full
                   ${isActive
                     ? "bg-slate-100 dark:bg-slate-600 text-slate-600 dark:text-slate-300"
                     : "bg-slate-200/60 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
@@ -384,7 +384,7 @@ function HeroProductTile({ product, onRemove, readOnly }) {
         <div className="flex-1 min-w-0 pt-0.5">
           <div className="flex items-center gap-1.5 mb-1">
             <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 flex-shrink-0" />
-            <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+            <span className="text-2xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">
               Hero
             </span>
           </div>
@@ -447,7 +447,7 @@ function SupportingProductRow({ product, onSetHero, onRemove, readOnly }) {
           {product.productName}
         </div>
         {product.colourName && (
-          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+          <div className="text-2xs text-slate-500 dark:text-slate-400 truncate">
             {product.colourName}
           </div>
         )}
@@ -586,11 +586,11 @@ function LookReferencesSection({
       {/* Section label */}
       <div className="flex items-center gap-1.5">
         <ImageIcon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-        <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+        <span className="text-2xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">
           References
         </span>
         {hasReferences && (
-          <span className="text-[10px] tabular-nums text-slate-400 dark:text-slate-500">
+          <span className="text-2xs tabular-nums text-slate-400 dark:text-slate-500">
             ({references.length})
           </span>
         )}
@@ -827,7 +827,7 @@ function LookOptionPanel({
             {/* Supporting products section */}
             {supportingProducts.length > 0 && (
               <div className="space-y-1">
-                <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide px-1 mb-2">
+                <div className="text-2xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide px-1 mb-2">
                   Supporting
                 </div>
                 <div className="space-y-0.5">
@@ -1448,7 +1448,7 @@ export default function ShotLooksCanvas({
             Looks
           </h2>
           {readOnly && (
-            <span className="inline-flex items-center gap-1 ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+            <span className="inline-flex items-center gap-1 ml-2 px-2 py-0.5 rounded-full text-2xs font-medium bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">
               <Eye className="w-3 h-3" />
               View only
             </span>

@@ -332,7 +332,7 @@ const ShotTableView = memo(function ShotTableView({
                 </div>
                 {/* Secondary line: description or contextual metadata */}
                 <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium leading-none ${statusClass}`}>
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xxs font-medium leading-none ${statusClass}`}>
                     {statusLabel}
                   </span>
                   {descriptionText && (
@@ -344,7 +344,7 @@ const ShotTableView = memo(function ShotTableView({
                 </div>
                 {/* Tertiary metadata chips */}
                 {(talentCount > 0 || productCount > 0) && (
-                  <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
+                  <div className="mt-1 flex items-center gap-2 text-xxs text-slate-400 dark:text-slate-500">
                     {talentCount > 0 && (
                       <span>{talentCount} talent</span>
                     )}
@@ -584,7 +584,7 @@ const ShotTableView = memo(function ShotTableView({
                               imageStyle={cropTransformStyle}
                               position={imagePosition}
                               fallback={
-                                <div className="flex h-full w-full items-center justify-center text-[9px] text-slate-400">
+                                <div className="flex h-full w-full items-center justify-center text-3xs text-slate-400">
                                   No image
                                 </div>
                               }
@@ -612,7 +612,7 @@ const ShotTableView = memo(function ShotTableView({
                             )}
                           </>
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-[9px] text-slate-400">
+                          <div className="flex h-full w-full items-center justify-center text-3xs text-slate-400">
                             No image
                           </div>
                         )}

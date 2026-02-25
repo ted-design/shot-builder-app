@@ -101,7 +101,7 @@ export default function ShotNotesCanvas({ shot, readOnly = false }) {
             Shot Notes
           </h2>
           {readOnly ? (
-            <span className="inline-flex items-center gap-1 ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+            <span className="inline-flex items-center gap-1 ml-2 px-2 py-0.5 rounded-full text-2xs font-medium bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">
               <Eye className="w-3 h-3" />
               View only
             </span>

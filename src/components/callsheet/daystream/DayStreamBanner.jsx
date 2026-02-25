@@ -508,7 +508,7 @@ export default function DayStreamBanner({ entry, tracks = [], onEdit, onUpdateEn
                         </button>
                     )}
                     {onUpdateEntry && (
-                        <div className="bg-white/90 backdrop-blur rounded px-1.5 py-0.5 text-[9px] text-slate-400 border border-slate-200 shadow-sm">
+                        <div className="bg-white/90 backdrop-blur rounded px-1.5 py-0.5 text-3xs text-slate-400 border border-slate-200 shadow-sm">
                             Double-click to edit
                         </div>
                     )}

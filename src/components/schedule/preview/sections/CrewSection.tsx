@@ -228,7 +228,7 @@ export function CrewSection({ crew, displayOptions }: CrewSectionProps) {
                   <div className="font-medium">{member.name}</div>
                   {/* Secondary: Contact info (when enabled and available) */}
                   {hasVisibleContact && (
-                    <div className="text-[10px] leading-tight text-gray-500">
+                    <div className="text-2xs leading-tight text-gray-500">
                       {visiblePhone && (
                         <a
                           href={`tel:${phone}`}
@@ -255,7 +255,7 @@ export function CrewSection({ crew, displayOptions }: CrewSectionProps) {
                   <div className="flex flex-col items-end">
                     <span>{formatTime12h(member.callTime) || "—"}</span>
                     {member.isPrevDay && (
-                      <span className="text-[9px] text-amber-600 font-medium leading-none">
+                      <span className="text-3xs text-amber-600 font-medium leading-none">
                         Prev day
                       </span>
                     )}

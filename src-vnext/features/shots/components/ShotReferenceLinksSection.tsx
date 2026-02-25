@@ -341,7 +341,7 @@ export function ShotReferenceLinksSection({
                                 <div className="truncate text-sm font-medium text-[var(--color-text)]">
                                   {entry.title}
                                 </div>
-                                <div className="truncate text-[11px] text-[var(--color-text-subtle)]">
+                                <div className="truncate text-xxs text-[var(--color-text-subtle)]">
                                   {getHost(entry.url)}
                                 </div>
                               </div>

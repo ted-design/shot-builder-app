@@ -162,13 +162,13 @@ function RendererEntryRow({
               {timeLabel}
             </p>
             {durationLabel && (
-              <p className="font-mono text-[10px] leading-tight tabular-nums text-[var(--color-text-subtle)]">
+              <p className="font-mono text-2xs leading-tight tabular-nums text-[var(--color-text-subtle)]">
                 {durationLabel}
               </p>
             )}
           </div>
         )}
-        <span className="flex-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+        <span className="flex-1 text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
           {entry.title}
         </span>
       </div>
@@ -216,7 +216,7 @@ function RendererEntryRow({
               {timeLabel}
             </p>
             {durationLabel && (
-              <p className="font-mono text-[10px] leading-tight tabular-nums text-[var(--color-text-subtle)]">
+              <p className="font-mono text-2xs leading-tight tabular-nums text-[var(--color-text-subtle)]">
                 {durationLabel}
               </p>
             )}
@@ -226,7 +226,7 @@ function RendererEntryRow({
           <div className="flex items-baseline gap-2">
             {fields.showShotNumber && shot?.shotNumber && (
               <span
-                className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide"
+                className="shrink-0 font-mono text-2xs font-semibold uppercase tracking-wide"
                 style={{ color: "var(--doc-accent,#2563eb)" }}
               >
                 {shot.shotNumber}
@@ -253,7 +253,7 @@ function RendererEntryRow({
           )}
 
           {(fields.showTalent || fields.showLocation) && (talentNames.length > 0 || locationLabel) && (
-            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[var(--color-text-muted)]">
+            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-[var(--color-text-muted)]">
               {fields.showTalent && talentNames.length > 0 && (
                 <span className="truncate">
                   <span
@@ -280,7 +280,7 @@ function RendererEntryRow({
           )}
 
           {notesPreview && (
-            <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">
+            <p className="mt-1 text-2xs text-[var(--color-text-muted)]">
               {notesPreview}
             </p>
           )}

@@ -109,7 +109,7 @@ function DockItem({ section, isExpanded, count, children }) {
                 {section.label}
               </span>
               {count !== undefined && count > 0 && (
-                <span className="text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-300">
+                <span className="text-2xs font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-300">
                   {count}
                 </span>
               )}
@@ -191,7 +191,7 @@ export default function ShotContextDock({
           section={sectionById.status}
           isExpanded={isExpanded}
         >
-          <StatusBadge variant={statusConfig.variant} className="text-[10px]">
+          <StatusBadge variant={statusConfig.variant} className="text-2xs">
             {statusConfig.label}
           </StatusBadge>
         </DockItem>
@@ -225,7 +225,7 @@ export default function ShotContextDock({
                 {talentCount} assigned
               </span>
               {shot?.talent?.length > 0 && (
-                <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                <div className="text-2xs text-slate-400 dark:text-slate-500 truncate">
                   {shot.talent.map((t) => t.name).join(", ")}
                 </div>
               )}
@@ -265,7 +265,7 @@ export default function ShotContextDock({
                 {counts.tags} tags
               </span>
               {tagSummary ? (
-                <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                <div className="text-2xs text-slate-400 dark:text-slate-500 truncate">
                   {tagSummary}
                 </div>
               ) : null}

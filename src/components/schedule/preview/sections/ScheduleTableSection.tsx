@@ -313,7 +313,7 @@ export function ScheduleTableSection({ schedule, columnConfig, tracks }: Schedul
                 )}
               </div>
               {item.duration && (
-                <div className="text-[10px] text-gray-400 italic">{item.duration}</div>
+                <div className="text-2xs text-gray-400 italic">{item.duration}</div>
               )}
             </div>
           </div>

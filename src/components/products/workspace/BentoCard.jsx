@@ -31,7 +31,7 @@ function SubMetricPill({ label, value, variant = "default" }) {
   const variantClass = SUB_METRIC_VARIANTS[variant] || SUB_METRIC_VARIANTS.default;
 
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${variantClass}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-medium ${variantClass}`}>
       <span className="font-semibold">{value}</span>
       <span className="opacity-75">{label}</span>
     </span>
@@ -138,7 +138,7 @@ export default function BentoCard({
 
       {/* Coming soon badge */}
       {isComingSoon && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-200 text-slate-500 dark:bg-slate-600 dark:text-slate-400">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium bg-slate-200 text-slate-500 dark:bg-slate-600 dark:text-slate-400">
           Coming soon
         </span>
       )}

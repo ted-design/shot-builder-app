@@ -248,7 +248,7 @@ function CallSheetTimelinePreview({ schedule, entries = [], tracks = [], zoomLev
                       style={{ top: (minutes - range.startMinutes) * pxPerMinute }}
                     >
                       <div
-                        className={`inline-block rounded px-1 py-0.5 text-[11px] tabular-nums ${
+                        className={`inline-block rounded px-1 py-0.5 text-xxs tabular-nums ${
                           minutes % 60 === 0
                             ? "bg-white/90 font-semibold text-slate-700 dark:bg-slate-900/90 dark:text-slate-200"
                             : "bg-white/80 font-medium text-slate-500 dark:bg-slate-900/80 dark:text-slate-400"
@@ -316,10 +316,10 @@ function CallSheetTimelinePreview({ schedule, entries = [], tracks = [], zoomLev
                           >
                             {showContent ? (
                               <div className="flex h-full flex-col justify-center">
-                                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                                <div className="text-2xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                                   {minutesToTime12h(startMinutes)}–{minutesToTime12h(endMinutes)}
                                 </div>
-                                <div className="truncate text-[11px] font-semibold uppercase text-slate-700 dark:text-slate-300">
+                                <div className="truncate text-xxs font-semibold uppercase text-slate-700 dark:text-slate-300">
                                   {getCategoryLabel(category)}
                                 </div>
                                 <div className="truncate text-xs font-medium text-slate-900 dark:text-slate-100">
@@ -361,14 +361,14 @@ function CallSheetTimelinePreview({ schedule, entries = [], tracks = [], zoomLev
                               }}
                               title="Click for details"
                             >
-                              <div className="flex items-start justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                              <div className="flex items-start justify-between gap-2 text-2xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                                 <span className="truncate">
                                   {minutesToTime12h(startMinutes)}–{minutesToTime12h(endMinutes)}
                                 </span>
                                 {density === "md" ? <span>{formatDuration(duration)}</span> : null}
                               </div>
                               {density !== "xs" ? (
-                                <div className="mt-0.5 truncate text-[10px] font-semibold uppercase text-slate-600 dark:text-slate-400">
+                                <div className="mt-0.5 truncate text-2xs font-semibold uppercase text-slate-600 dark:text-slate-400">
                                   {getCategoryLabel(category)}
                                 </div>
                               ) : null}
@@ -397,7 +397,7 @@ function CallSheetTimelinePreview({ schedule, entries = [], tracks = [], zoomLev
                             }}
                             title="Click for details"
                           >
-                            <div className="flex items-start justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                            <div className="flex items-start justify-between gap-2 text-2xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                               <span className="truncate">
                                 {minutesToTime12h(startMinutes)}–{minutesToTime12h(endMinutes)}
                               </span>
@@ -407,7 +407,7 @@ function CallSheetTimelinePreview({ schedule, entries = [], tracks = [], zoomLev
                               {entry.resolvedTitle || "—"}
                             </div>
                             {density === "md" && entry.resolvedDetails ? (
-                              <div className="mt-0.5 truncate text-[11px] text-slate-600 dark:text-slate-400">
+                              <div className="mt-0.5 truncate text-xxs text-slate-600 dark:text-slate-400">
                                 {entry.resolvedDetails}
                               </div>
                             ) : null}
