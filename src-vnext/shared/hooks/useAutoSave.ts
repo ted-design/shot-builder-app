@@ -20,6 +20,8 @@ export type AutoSaveReturn = {
   readonly scheduleSave: (saveFn: () => Promise<void>) => void
   /** Force-flush any pending save immediately (e.g. on blur or unmount). */
   readonly flush: () => void
+  /** Cancel any pending (not yet executing) save. */
+  readonly cancel: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -100,5 +102,16 @@ export function useAutoSave(options: AutoSaveOptions = {}): AutoSaveReturn {
     }
   }, [executeSave])
 
-  return { saveState, scheduleSave, flush }
+  const cancel = useCallback(() => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    pendingFnRef.current = null
+    if (mountedRef.current && saveState !== "saving") {
+      setSaveState("idle")
+    }
+  }, [saveState])
+
+  return { saveState, scheduleSave, flush, cancel }
 }

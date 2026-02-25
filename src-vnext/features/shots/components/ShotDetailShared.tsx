@@ -78,7 +78,7 @@ export function DescriptionEditor({
 }) {
   const [draft, setDraft] = useState(value)
   const [editing, setEditing] = useState(false)
-  const { saveState, scheduleSave, flush } = useAutoSave()
+  const { saveState, scheduleSave, flush, cancel } = useAutoSave()
 
   // Keep a ref to flush so cleanup always uses the latest version
   const flushRef = useRef(flush)
@@ -95,9 +95,11 @@ export function DescriptionEditor({
       const trimmed = newValue.trim()
       if (trimmed !== value) {
         scheduleSave(() => onSave(trimmed))
+      } else {
+        cancel()
       }
     },
-    [value, onSave, scheduleSave],
+    [value, onSave, scheduleSave, cancel],
   )
 
   const handleBlur = useCallback(() => {

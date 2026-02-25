@@ -73,7 +73,7 @@ export function NotesSection({
   canEditAddendum,
 }: NotesSectionProps) {
   const [draft, setDraft] = useState(notesAddendum ?? "")
-  const { saveState, scheduleSave, flush } = useAutoSave()
+  const { saveState, scheduleSave, flush, cancel } = useAutoSave()
 
   // Keep flush ref current for unmount cleanup
   const flushRef = useRef(flush)
@@ -97,9 +97,11 @@ export function NotesSection({
       const trimmed = newValue.trim()
       if (trimmed !== normalizedInitial) {
         scheduleSave(() => onSaveAddendum(trimmed))
+      } else {
+        cancel()
       }
     },
-    [normalizedInitial, onSaveAddendum, scheduleSave],
+    [normalizedInitial, onSaveAddendum, scheduleSave, cancel],
   )
 
   const handleBlur = useCallback(() => {

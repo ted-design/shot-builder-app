@@ -148,6 +148,22 @@ export function useShotListState(params: {
     }
   })
 
+  // Rehydrate fields when project/client changes
+  useEffect(() => {
+    if (!storageKeyBase) return
+    try {
+      const raw = window.localStorage.getItem(`${storageKeyBase}:fields:v1`)
+      if (raw) {
+        setFields({ ...DEFAULT_FIELDS, ...JSON.parse(raw) as Partial<ShotsListFields> })
+      } else {
+        setFields(DEFAULT_FIELDS)
+      }
+    } catch {
+      setFields(DEFAULT_FIELDS)
+    }
+  }, [storageKeyBase])
+
+  // Persist fields to localStorage on change
   useEffect(() => {
     if (!storageKeyBase) return
     try { window.localStorage.setItem(`${storageKeyBase}:fields:v1`, JSON.stringify(fields)) } catch { /* ignore */ }

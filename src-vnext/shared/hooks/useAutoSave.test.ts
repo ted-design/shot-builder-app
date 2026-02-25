@@ -142,6 +142,28 @@ describe("useAutoSave", () => {
     expect(result.current.saveState).toBe("idle")
   })
 
+  it("cancel() clears pending save and returns to idle", async () => {
+    const saveFn = vi.fn().mockResolvedValue(undefined)
+    const { result } = renderHook(() => useAutoSave({ delay: 100 }))
+
+    act(() => {
+      result.current.scheduleSave(saveFn)
+    })
+
+    // Cancel before debounce fires
+    act(() => {
+      result.current.cancel()
+    })
+
+    // Advance past debounce — should not fire
+    await act(async () => {
+      vi.advanceTimersByTime(200)
+    })
+
+    expect(saveFn).not.toHaveBeenCalled()
+    expect(result.current.saveState).toBe("idle")
+  })
+
   it("uses default delay of 1500ms", async () => {
     const saveFn = vi.fn().mockResolvedValue(undefined)
     const { result } = renderHook(() => useAutoSave())
