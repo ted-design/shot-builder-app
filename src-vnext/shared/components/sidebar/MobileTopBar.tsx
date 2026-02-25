@@ -21,6 +21,7 @@ export function MobileTopBar({ onMenuOpen, projectName }: MobileTopBarProps) {
           size="icon"
           className="-ml-2"
           onClick={onMenuOpen}
+          aria-label="Open navigation"
         >
           <Menu className="h-5 w-5" />
         </Button>

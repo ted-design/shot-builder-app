@@ -40,7 +40,7 @@ export function SidebarUserSection({ collapsed }: SidebarUserSectionProps) {
               size="icon"
               className="h-7 w-7 shrink-0 text-neutral-400 hover:bg-[var(--color-sidebar-hover)] hover:text-white"
               onClick={signOut}
-              title="Sign out"
+              aria-label="Sign out"
             >
               <LogOut className="h-4 w-4" />
             </Button>

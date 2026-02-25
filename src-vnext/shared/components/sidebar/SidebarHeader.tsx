@@ -1,4 +1,4 @@
-import { Camera, ChevronDown, ChevronLeft, Folder } from "lucide-react"
+import { Camera, ChevronLeft, Folder } from "lucide-react"
 import { Button } from "@/ui/button"
 import { cn } from "@/shared/lib/utils"
 
@@ -74,9 +74,8 @@ export function ProjectHeader({ projectName, collapsed, onToggleCollapse }: Proj
         </button>
       ) : (
         <>
-          <button
-            type="button"
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-2 transition-colors hover:bg-[var(--color-sidebar-hover)]/40"
+          <div
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-2"
           >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-700">
               <Folder className="h-4 w-4 text-neutral-300" />
@@ -85,12 +84,11 @@ export function ProjectHeader({ projectName, collapsed, onToggleCollapse }: Proj
               <div className="mb-0.5 text-2xs font-semibold uppercase leading-none tracking-wider text-neutral-500">
                 Project
               </div>
-              <div className="flex items-center gap-1.5 truncate text-sm font-semibold text-white">
+              <div className="truncate text-sm font-semibold text-white">
                 {projectName}
-                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
               </div>
             </div>
-          </button>
+          </div>
           {onToggleCollapse && (
             <Button
               variant="ghost"

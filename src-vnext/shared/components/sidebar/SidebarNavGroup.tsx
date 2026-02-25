@@ -34,7 +34,7 @@ export function SidebarNavGroup({
       <Tooltip>
         <TooltipTrigger asChild>
           <Link
-            to="/library"
+            to={group.children[0]?.to ?? "#"}
             onClick={onNavigate}
             className={cn(
               "relative flex items-center justify-center rounded-md px-2 py-2 text-sm font-medium transition-colors",

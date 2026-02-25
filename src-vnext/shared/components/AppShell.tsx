@@ -68,7 +68,7 @@ export function AppShell() {
 
       <main
         className={cn(
-          "mx-auto max-w-7xl transition-[margin-left] duration-200",
+          "transition-[margin-left] duration-200",
           isDesktop
             ? collapsed
               ? "ml-[var(--sidebar-width)] px-6 py-6"
