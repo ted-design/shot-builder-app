@@ -12,6 +12,7 @@ import {
   Palette,
   Settings,
   ShieldCheck,
+  Tag,
   Users,
   type LucideIcon,
 } from "lucide-react"
@@ -32,6 +33,7 @@ const ICON_MAP: Record<NavItemIcon, LucideIcon> = {
   "arrow-left": ArrowLeft,
   settings: Settings,
   "shield-check": ShieldCheck,
+  tag: Tag,
 }
 
 export function NavIcon({

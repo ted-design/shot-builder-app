@@ -18,6 +18,7 @@ export type NavItemIcon =
   | "arrow-left"
   | "settings"
   | "shield-check"
+  | "tag"
 
 export type SurfaceBadge = "Limited" | "Reader" | "Editor"
 
@@ -86,6 +87,10 @@ export function buildNavConfig(projectId?: string): NavConfig {
       {
         type: "item",
         item: { label: "Call Sheet", to: `${prefix}/callsheet`, iconName: "calendar-days", desktopOnly: true },
+      },
+      {
+        type: "item",
+        item: { label: "Tags", to: `${prefix}/tags`, iconName: "tag", desktopOnly: true },
       },
       { type: "divider" },
       { type: "item", item: { label: "Products", to: "/products", iconName: "package", surfaceBadge: "Reader" } },

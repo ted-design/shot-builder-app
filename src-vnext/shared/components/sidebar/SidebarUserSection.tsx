@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/ui/avatar"
 import { Button } from "@/ui/button"
 import { cn } from "@/shared/lib/utils"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { toast } from "sonner"
 
 interface SidebarUserSectionProps {
   readonly collapsed: boolean
@@ -39,7 +40,7 @@ export function SidebarUserSection({ collapsed }: SidebarUserSectionProps) {
               variant="ghost"
               size="icon"
               className="h-7 w-7 shrink-0 text-neutral-400 hover:bg-[var(--color-sidebar-hover)] hover:text-white"
-              onClick={signOut}
+              onClick={() => { signOut().catch(() => toast.error("Failed to sign out. Try again.")) }}
               aria-label="Sign out"
             >
               <LogOut className="h-4 w-4" />
