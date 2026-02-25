@@ -138,9 +138,9 @@ export function AppImage({
           <FallbackImage>
             <span>Image unavailable</span>
             {error ? (
-              <span className="text-[10px] normal-case text-slate-500">{error.message}</span>
+              <span className="text-2xs normal-case text-slate-500">{error.message}</span>
             ) : adapter ? (
-              <span className="text-[10px] normal-case text-slate-500">Adapter: {adapter}</span>
+              <span className="text-2xs normal-case text-slate-500">Adapter: {adapter}</span>
             ) : null}
           </FallbackImage>
         )

@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phase 2.5d — Component Showcase (Direction A)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ============================================
+     * RESET + BASE (matches tokens.css)
+     * ============================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background: #fafafa; /* --color-bg */
+      color: #18181b;       /* --color-text */
+      font-size: 14px;      /* --text-base */
+      line-height: 1.5;     /* --leading-normal */
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ============================================
+     * TOKEN REFERENCE (CSS custom properties)
+     * ============================================ */
+    :root {
+      /* Surfaces */
+      --bg: #fafafa;
+      --surface: #ffffff;
+      --surface-subtle: #f4f4f5;
+      --surface-muted: #e4e4e7;
+
+      /* Text */
+      --text: #18181b;
+      --text-secondary: #52525b;
+      --text-muted: #71717a;
+      --text-subtle: #a1a1aa;
+
+      /* Borders */
+      --border: #e4e4e7;
+      --border-strong: #d4d4d8;
+
+      /* Primary */
+      --primary: #18181b;
+      --primary-hover: #27272a;
+      --primary-light: #f4f4f5;
+
+      /* Accent */
+      --accent: #E31E24;
+      --accent-hover: #c91920;
+      --accent-light: #fee2e2;
+
+      /* Status */
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --info: #3b82f6;
+
+      /* Radius */
+      --r-sm: 4px;
+      --r-md: 6px;
+      --r-lg: 8px;
+      --r-xl: 12px;
+      --r-full: 9999px;
+
+      /* Shadows */
+      --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.03);
+      --shadow-md: 0 2px 4px -1px rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
+    }
+
+    /* ============================================
+     * LAYOUT
+     * ============================================ */
+    .showcase {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 48px 32px 80px;
+    }
+
+    .showcase-header {
+      margin-bottom: 56px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 32px;
+    }
+
+    .showcase-header h1 {
+      font-size: 28px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .showcase-header p {
+      font-size: 14px;
+      color: var(--text-muted);
+      max-width: 600px;
+      line-height: 1.6;
+    }
+
+    .token-strip {
+      display: flex;
+      gap: 6px;
+      margin-top: 20px;
+    }
+
+    .token-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--r-md);
+      border: 1px solid transparent;
+    }
+
+    .token-swatch--light {
+      border-color: var(--border);
+    }
+
+    /* Section layout */
+    .section {
+      margin-bottom: 64px;
+    }
+
+    .section-title {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      margin-bottom: 24px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+    }
+
+    .subsection {
+      margin-bottom: 32px;
+    }
+
+    .subsection-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    /* ============================================
+     * 1. TYPOGRAPHY
+     * ============================================ */
+    .type-sample { margin-bottom: 16px; }
+    .type-meta {
+      font-size: 11px;
+      color: var(--text-subtle);
+      margin-top: 2px;
+    }
+
+    .heading-page {
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    @media (min-width: 768px) {
+      .heading-page { font-size: 28px; }
+    }
+
+    .heading-section {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+    }
+
+    .heading-subsection {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+    }
+
+    .body-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .body-text-muted {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .caption {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .label-meta {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-subtle);
+    }
+
+    /* ============================================
+     * 2. BUTTONS
+     * ============================================ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-family: inherit;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: all 150ms ease;
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    /* Sizes */
+    .btn-sm { height: 32px; padding: 0 12px; font-size: 13px; border-radius: var(--r-md); }
+    .btn-md { height: 36px; padding: 0 16px; font-size: 13px; border-radius: var(--r-md); }
+    .btn-lg { height: 40px; padding: 0 20px; font-size: 14px; border-radius: var(--r-md); }
+
+    /* Variants */
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+
+    .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover:not(:disabled) { background: var(--surface-subtle); }
+
+    .btn-ghost { background: transparent; color: var(--text-muted); }
+    .btn-ghost:hover:not(:disabled) { background: var(--surface-subtle); color: var(--text); }
+
+    .btn-destructive { background: #fef2f2; color: #dc2626; }
+    .btn-destructive:hover:not(:disabled) { background: #fee2e2; }
+
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-accent:hover:not(:disabled) { background: var(--accent-hover); }
+
+    /* Icon-only */
+    .btn-icon { width: 36px; padding: 0; }
+    .btn-icon.btn-sm { width: 32px; }
+
+    /* ============================================
+     * 3. BADGES
+     * ============================================ */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 10px;
+      font-size: 11px;
+      font-weight: 500;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: 6px;
+      flex-shrink: 0;
+    }
+
+    .badge-draft { background: #f4f4f5; color: #52525b; }
+    .badge-progress { background: #fef3c7; color: #92400e; }
+    .badge-ready { background: #d1fae5; color: #065f46; }
+    .badge-complete { background: #18181b; color: #fff; }
+    .badge-error { background: #fee2e2; color: #991b1b; }
+    .badge-info { background: #dbeafe; color: #1e40af; }
+
+    /* ============================================
+     * 4. FORM INPUTS
+     * ============================================ */
+    .form-group { margin-bottom: 16px; }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .form-label--disabled {
+      color: var(--text-subtle);
+    }
+
+    .form-input {
+      width: 100%;
+      height: 36px;
+      padding: 0 12px;
+      font-size: 13px;
+      font-family: inherit;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+      transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    .form-input::placeholder {
+      color: var(--text-subtle);
+    }
+
+    .form-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(24,24,27,0.08);
+    }
+
+    .form-input:disabled {
+      background: var(--surface-subtle);
+      color: var(--text-subtle);
+      cursor: not-allowed;
+    }
+
+    .form-input--error {
+      border-color: var(--error);
+    }
+
+    .form-input--error:focus {
+      box-shadow: 0 0 0 2px rgba(239,68,68,0.08);
+    }
+
+    .form-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .form-error {
+      font-size: 12px;
+      color: var(--error);
+      margin-top: 4px;
+    }
+
+    .form-textarea {
+      min-height: 80px;
+      padding: 8px 12px;
+      resize: vertical;
+    }
+
+    /* Checkbox / Toggle */
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .checkbox {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1.5px solid var(--border-strong);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .checkbox--checked {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .checkbox--checked svg {
+      color: #fff;
+    }
+
+    .toggle-track {
+      width: 36px;
+      height: 20px;
+      border-radius: 10px;
+      background: var(--surface-muted);
+      position: relative;
+      transition: background 150ms ease;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .toggle-track--on {
+      background: var(--primary);
+    }
+
+    .toggle-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: transform 150ms ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .toggle-track--on .toggle-thumb {
+      transform: translateX(16px);
+    }
+
+    /* ============================================
+     * 5. CARDS
+     * ============================================ */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+
+    .card-body { padding: 16px; }
+
+    .card-thumb {
+      height: 180px;
+      background: linear-gradient(135deg, #d4d4d8 0%, #a1a1aa 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-thumb svg { opacity: 0.5; }
+
+    /* Stat card */
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 20px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .stat-change {
+      font-size: 12px;
+      font-weight: 500;
+      margin-top: 8px;
+    }
+
+    .stat-change--up { color: #059669; }
+    .stat-change--down { color: #dc2626; }
+
+    /* ============================================
+     * 6. TABLE
+     * ============================================ */
+    .table-wrapper {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table th {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-subtle);
+      text-align: left;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .table td {
+      font-size: 13px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--surface-subtle);
+      vertical-align: middle;
+    }
+
+    .table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .table tbody tr:hover {
+      background: var(--bg);
+    }
+
+    .table-name {
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .table-meta {
+      color: var(--text-muted);
+    }
+
+    /* ============================================
+     * 7. AVATAR
+     * ============================================ */
+    .avatar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-weight: 600;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .avatar-sm { width: 24px; height: 24px; font-size: 9px; }
+    .avatar-md { width: 32px; height: 32px; font-size: 11px; }
+    .avatar-lg { width: 40px; height: 40px; font-size: 14px; }
+
+    /* ============================================
+     * 8. PROGRESS
+     * ============================================ */
+    .progress-track {
+      height: 4px;
+      background: var(--surface-subtle);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 300ms ease;
+    }
+
+    /* ============================================
+     * 9. EMPTY STATE
+     * ============================================ */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+    }
+
+    .empty-state-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 16px;
+      color: var(--text-subtle);
+      opacity: 0.5;
+    }
+
+    .empty-state-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .empty-state-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    /* ============================================
+     * 10. DROPDOWN / MENU
+     * ============================================ */
+    .dropdown {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: 0 4px 8px -2px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);
+      padding: 4px;
+      min-width: 180px;
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      border-radius: var(--r-sm);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 100ms ease;
+    }
+
+    .dropdown-item:hover {
+      background: var(--surface-subtle);
+    }
+
+    .dropdown-item--active {
+      background: var(--surface-subtle);
+      font-weight: 500;
+    }
+
+    .dropdown-item--destructive {
+      color: #dc2626;
+    }
+
+    .dropdown-item--destructive:hover {
+      background: #fef2f2;
+    }
+
+    .dropdown-item svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      color: var(--text-muted);
+    }
+
+    .dropdown-item--destructive svg { color: #dc2626; }
+
+    .dropdown-separator {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    .dropdown-shortcut {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text-subtle);
+    }
+
+    /* ============================================
+     * 11. TOAST / ALERT
+     * ============================================ */
+    .toast {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--r-lg);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      box-shadow: 0 4px 8px -2px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);
+      max-width: 380px;
+    }
+
+    .toast-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .toast-content { flex: 1; min-width: 0; }
+    .toast-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .toast-text { font-size: 12px; color: var(--text-muted); }
+
+    .toast--success .toast-icon { color: var(--success); }
+    .toast--error .toast-icon { color: var(--error); }
+    .toast--warning .toast-icon { color: var(--warning); }
+    .toast--info .toast-icon { color: var(--info); }
+
+    /* ============================================
+     * 12. BREADCRUMB
+     * ============================================ */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+    }
+
+    .breadcrumb-item { color: var(--text-muted); }
+    .breadcrumb-item--active { color: var(--text); font-weight: 500; }
+    .breadcrumb-sep { color: var(--text-subtle); font-size: 11px; }
+
+    /* ============================================
+     * 13. SKELETON / LOADING
+     * ============================================ */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface-subtle) 25%, var(--surface-muted) 50%, var(--surface-subtle) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 2s ease-in-out infinite;
+      border-radius: var(--r-sm);
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ============================================
+     * 14. COLOR PALETTE GRID
+     * ============================================ */
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 8px;
+    }
+
+    .palette-chip {
+      border-radius: var(--r-md);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .palette-chip-color {
+      height: 48px;
+    }
+
+    .palette-chip-info {
+      padding: 6px 8px;
+      background: var(--surface);
+    }
+
+    .palette-chip-name {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .palette-chip-hex {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: ui-monospace, SFMono-Regular, monospace;
+    }
+
+    /* ============================================
+     * 15. TOOLBAR / TOP BAR
+     * ============================================ */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toolbar-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .toolbar-subtitle {
+      font-size: 12px;
+      color: var(--text-subtle);
+    }
+
+    .toolbar-spacer { flex: 1; }
+
+    /* ============================================
+     * 16. TABS
+     * ============================================ */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab {
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all 150ms ease;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      font-family: inherit;
+    }
+
+    .tab:hover { color: var(--text); }
+    .tab--active { color: var(--text); border-bottom-color: var(--primary); }
+
+    /* ============================================
+     * SHOWCASE-SPECIFIC
+     * ============================================ */
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .col { display: flex; flex-direction: column; gap: 12px; }
+    .gap-16 { gap: 16px; }
+    .gap-24 { gap: 24px; }
+    .max-w-sm { max-width: 320px; }
+    .max-w-md { max-width: 480px; }
+    .mt-8 { margin-top: 8px; }
+    .mt-16 { margin-top: 16px; }
+    .mt-32 { margin-top: 32px; }
+
+    /* ============================================
+     * CUSTOM SELECT (matches dropdown styling)
+     * ============================================ */
+    .custom-select {
+      position: relative;
+    }
+
+    .custom-select-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      height: 36px;
+      padding: 0 12px;
+      font-size: 13px;
+      font-family: inherit;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    .custom-select-trigger:hover {
+      border-color: var(--border-strong);
+    }
+
+    .custom-select--open .custom-select-trigger {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(24,24,27,0.08);
+    }
+
+    .custom-select-chevron {
+      flex-shrink: 0;
+      transition: transform 150ms ease;
+    }
+
+    .custom-select--open .custom-select-chevron {
+      transform: rotate(180deg);
+    }
+
+    .custom-select-popover {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: 0 4px 8px -2px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);
+      padding: 4px;
+      z-index: 50;
+    }
+
+    .custom-select--open .custom-select-popover {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    Phase 2.5d — Component Showcase
+    Direction A: Near-Black Editorial (zinc neutrals, #18181b primary, Immediate Red accent)
+
+    Demonstrates every reusable component with finalized design tokens.
+    Reference for implementation in Phase 2 and beyond.
+  -->
+
+  <div class="showcase">
+
+    <!-- ==================== HEADER ==================== -->
+    <div class="showcase-header">
+      <h1>Component Showcase</h1>
+      <p>
+        Direction A — Near-Black Editorial. Every component below uses the finalized
+        tokens from tokens.css + tailwind.config.js. This is the implementation reference
+        for Phase 2 and beyond.
+      </p>
+      <div class="token-strip">
+        <div class="token-swatch" style="background:#09090b;" title="zinc-950 sidebar"></div>
+        <div class="token-swatch" style="background:#18181b;" title="zinc-900 primary"></div>
+        <div class="token-swatch" style="background:#27272a;" title="zinc-800"></div>
+        <div class="token-swatch" style="background:#3f3f46;" title="zinc-700"></div>
+        <div class="token-swatch" style="background:#52525b;" title="zinc-600"></div>
+        <div class="token-swatch" style="background:#71717a;" title="zinc-500 muted"></div>
+        <div class="token-swatch" style="background:#a1a1aa;" title="zinc-400 subtle"></div>
+        <div class="token-swatch" style="background:#d4d4d8;" title="zinc-300"></div>
+        <div class="token-swatch" style="background:#e4e4e7;" title="zinc-200 border"></div>
+        <div class="token-swatch token-swatch--light" style="background:#f4f4f5;" title="zinc-100 subtle bg"></div>
+        <div class="token-swatch token-swatch--light" style="background:#fafafa;" title="zinc-50 bg"></div>
+        <div class="token-swatch token-swatch--light" style="background:#ffffff;" title="white surface"></div>
+        <div style="width:1px;height:28px;background:var(--border);margin:0 4px;"></div>
+        <div class="token-swatch" style="background:#E31E24;" title="Immediate Red accent"></div>
+        <div class="token-swatch" style="background:#c91920;" title="accent hover"></div>
+      </div>
+    </div>
+
+    <!-- ==================== 1. TYPOGRAPHY ==================== -->
+    <div class="section">
+      <div class="section-title">Typography</div>
+      <div class="section-grid">
+        <div>
+          <div class="type-sample">
+            <div class="heading-page">Page Heading Light</div>
+            <div class="type-meta">heading-page &middot; 24/28px &middot; 300 &middot; -0.02em</div>
+          </div>
+          <div class="type-sample">
+            <div class="heading-section">Section Heading</div>
+            <div class="type-meta">heading-section &middot; 16px &middot; 600 &middot; -0.01em</div>
+          </div>
+          <div class="type-sample">
+            <div class="heading-subsection">Subsection Heading</div>
+            <div class="type-meta">heading-subsection &middot; 14px &middot; 600 &middot; -0.01em</div>
+          </div>
+          <div class="type-sample">
+            <div class="body-text">Body text for paragraphs and descriptions. Comfortable to read at length.</div>
+            <div class="type-meta">body-text &middot; 14px &middot; 400 &middot; zinc-700</div>
+          </div>
+          <div class="type-sample">
+            <div class="body-text-muted">Muted body text for secondary information and supporting copy.</div>
+            <div class="type-meta">body-text-muted &middot; 14px &middot; 400 &middot; zinc-600</div>
+          </div>
+        </div>
+        <div>
+          <div class="type-sample">
+            <div class="caption">Caption text for supplementary labels and metadata (12px)</div>
+            <div class="type-meta">caption &middot; 12px &middot; 400 &middot; zinc-600</div>
+          </div>
+          <div class="type-sample">
+            <div class="label-meta">Meta Label</div>
+            <div class="type-meta">label-meta &middot; 12px &middot; 600 &middot; uppercase &middot; 0.05em &middot; zinc-400</div>
+          </div>
+          <div class="type-sample">
+            <div style="font-size:11px; color:var(--text-muted);">11px micro text (xxs) for compact table cells</div>
+            <div class="type-meta">text-xxs &middot; 11px</div>
+          </div>
+          <div class="type-sample">
+            <div style="font-size:10px; color:var(--text-subtle);">10px micro text (2xs) for timestamp/metadata</div>
+            <div class="type-meta">text-2xs &middot; 10px</div>
+          </div>
+          <div class="type-sample mt-16">
+            <div class="subsection-label">Type Scale Preview</div>
+            <div style="font-size:32px; font-weight:300; letter-spacing:-0.02em; line-height:1.2; color:var(--text);">32px 4xl</div>
+            <div style="font-size:28px; font-weight:300; letter-spacing:-0.02em; line-height:1.2; color:var(--text);">28px 3xl</div>
+            <div style="font-size:24px; font-weight:300; letter-spacing:-0.02em; line-height:1.25; color:var(--text);">24px 2xl</div>
+            <div style="font-size:18px; font-weight:400; color:var(--text);">18px xl</div>
+            <div style="font-size:16px; font-weight:400; color:var(--text);">16px lg</div>
+            <div style="font-size:14px; font-weight:400; color:var(--text);">14px base</div>
+            <div style="font-size:13px; font-weight:400; color:var(--text-secondary);">13px sm</div>
+            <div style="font-size:12px; font-weight:400; color:var(--text-muted);">12px xs</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 2. BUTTONS ==================== -->
+    <div class="section">
+      <div class="section-title">Buttons</div>
+      <div class="section-grid">
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Variants</div>
+            <div class="row">
+              <button class="btn btn-md btn-primary">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                Create Shot
+              </button>
+              <button class="btn btn-md btn-secondary">Secondary</button>
+              <button class="btn btn-md btn-ghost">Ghost</button>
+              <button class="btn btn-md btn-destructive">Delete</button>
+            </div>
+          </div>
+          <div class="subsection">
+            <div class="subsection-label">Accent (brand moments only)</div>
+            <div class="row">
+              <button class="btn btn-md btn-accent">Get Started</button>
+              <button class="btn btn-sm btn-accent">Upgrade</button>
+            </div>
+          </div>
+          <div class="subsection">
+            <div class="subsection-label">Disabled</div>
+            <div class="row">
+              <button class="btn btn-md btn-primary" disabled>Primary</button>
+              <button class="btn btn-md btn-secondary" disabled>Secondary</button>
+              <button class="btn btn-md btn-ghost" disabled>Ghost</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Sizes</div>
+            <div class="row" style="align-items: flex-end;">
+              <button class="btn btn-sm btn-primary">Small 32px</button>
+              <button class="btn btn-md btn-primary">Medium 36px</button>
+              <button class="btn btn-lg btn-primary">Large 40px</button>
+            </div>
+          </div>
+          <div class="subsection">
+            <div class="subsection-label">Icon Buttons</div>
+            <div class="row">
+              <button class="btn btn-md btn-icon btn-secondary" title="Settings">
+                <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+              <button class="btn btn-md btn-icon btn-ghost" title="More">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zm0 6a.75.75 0 110-1.5.75.75 0 010 1.5zm0 6a.75.75 0 110-1.5.75.75 0 010 1.5z"/></svg>
+              </button>
+              <button class="btn btn-sm btn-icon btn-ghost" title="Close">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+              <button class="btn btn-md btn-icon btn-primary" title="Add">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="subsection">
+            <div class="subsection-label">Button with badge</div>
+            <div class="row">
+              <button class="btn btn-md btn-secondary">
+                Shots
+                <span style="background:var(--primary);color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:var(--r-full);margin-left:2px;">24</span>
+              </button>
+              <button class="btn btn-md btn-ghost">
+                Notifications
+                <span style="background:var(--accent);color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:var(--r-full);margin-left:2px;">3</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 3. BADGES ==================== -->
+    <div class="section">
+      <div class="section-title">Badges &amp; Status</div>
+      <div class="section-grid">
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Status Badges</div>
+            <div class="row gap-16">
+              <span class="badge badge-draft">Draft</span>
+              <span class="badge badge-progress">In Progress</span>
+              <span class="badge badge-ready">Ready</span>
+              <span class="badge badge-complete">Complete</span>
+              <span class="badge badge-error">Needs Reshoot</span>
+              <span class="badge badge-info">Shared</span>
+            </div>
+          </div>
+          <div class="subsection">
+            <div class="subsection-label">With dot indicator</div>
+            <div class="row gap-16">
+              <span class="badge badge-draft"><span class="badge-dot" style="background:#a1a1aa;"></span>Draft</span>
+              <span class="badge badge-progress"><span class="badge-dot" style="background:#d97706;"></span>In Progress</span>
+              <span class="badge badge-ready"><span class="badge-dot" style="background:#059669;"></span>Ready</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Role badges</div>
+            <div class="row gap-16">
+              <span class="badge" style="background:#18181b;color:#fff;">Admin</span>
+              <span class="badge" style="background:#f4f4f5;color:#52525b;">Producer</span>
+              <span class="badge" style="background:#f4f4f5;color:#52525b;">Crew</span>
+              <span class="badge" style="background:#f4f4f5;color:#52525b;">Warehouse</span>
+              <span class="badge" style="background:#f4f4f5;color:#a1a1aa;">Viewer</span>
+            </div>
+          </div>
+          <div class="subsection">
+            <div class="subsection-label">Count badges</div>
+            <div class="row gap-16">
+              <span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;font-size:10px;font-weight:600;border-radius:var(--r-full);background:var(--primary);color:#fff;">4</span>
+              <span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;font-size:10px;font-weight:600;border-radius:var(--r-full);background:var(--accent);color:#fff;">3</span>
+              <span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;font-size:10px;font-weight:600;border-radius:var(--r-full);background:var(--surface-subtle);color:var(--text-muted);">12</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 4. FORM INPUTS ==================== -->
+    <div class="section">
+      <div class="section-title">Form Inputs</div>
+      <div class="section-grid">
+        <div>
+          <div class="form-group max-w-sm">
+            <label class="form-label">Shot Name</label>
+            <input type="text" class="form-input" value="Look 1 — Studio A" />
+          </div>
+          <div class="form-group max-w-sm">
+            <label class="form-label">Description</label>
+            <input type="text" class="form-input" placeholder="Add description..." />
+            <div class="form-hint">Brief description of the shot setup</div>
+          </div>
+          <div class="form-group max-w-sm">
+            <label class="form-label">Location</label>
+            <div class="custom-select" onclick="this.classList.toggle('custom-select--open')">
+              <div class="custom-select-trigger">
+                <span class="custom-select-value">Studio A</span>
+                <svg class="custom-select-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="#71717a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div class="custom-select-popover">
+                <div class="dropdown-item dropdown-item--active">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  Studio A
+                </div>
+                <div class="dropdown-item">
+                  <span style="width:16px;"></span>
+                  Studio B
+                </div>
+                <div class="dropdown-item">
+                  <span style="width:16px;"></span>
+                  Exterior — Rooftop
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group max-w-sm">
+            <label class="form-label">Notes</label>
+            <textarea class="form-input form-textarea" placeholder="Add notes for the crew..."></textarea>
+          </div>
+        </div>
+        <div>
+          <div class="form-group max-w-sm">
+            <label class="form-label">Email (error state)</label>
+            <input type="email" class="form-input form-input--error" value="invalid-email" />
+            <div class="form-error">Please enter a valid email address</div>
+          </div>
+          <div class="form-group max-w-sm">
+            <label class="form-label form-label--disabled">Disabled Field</label>
+            <input type="text" class="form-input" value="Cannot edit" disabled />
+          </div>
+          <div class="form-group" style="margin-top:24px;">
+            <div class="subsection-label">Checkboxes</div>
+            <div class="col" style="gap:10px;">
+              <div class="checkbox-row">
+                <div class="checkbox checkbox--checked">
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-5"/></svg>
+                </div>
+                <span style="font-size:13px;">Include in call sheet</span>
+              </div>
+              <div class="checkbox-row">
+                <div class="checkbox"></div>
+                <span style="font-size:13px;">Requires props</span>
+              </div>
+              <div class="checkbox-row">
+                <div class="checkbox checkbox--checked">
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-5"/></svg>
+                </div>
+                <span style="font-size:13px;">Talent confirmed</span>
+              </div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:24px;">
+            <div class="subsection-label">Toggles</div>
+            <div class="col" style="gap:10px;">
+              <div class="checkbox-row">
+                <div class="toggle-track toggle-track--on"><div class="toggle-thumb"></div></div>
+                <span style="font-size:13px;">Auto-assign products</span>
+              </div>
+              <div class="checkbox-row">
+                <div class="toggle-track"><div class="toggle-thumb"></div></div>
+                <span style="font-size:13px;">Show completed shots</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 5. CARDS ==================== -->
+    <div class="section">
+      <div class="section-title">Cards</div>
+      <div class="section-grid">
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Shot Card</div>
+            <div class="card" style="max-width:320px;">
+              <div class="card-thumb">
+                <svg width="40" height="40" fill="none" stroke="#fff" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                  <circle cx="12" cy="13" r="3"/>
+                </svg>
+              </div>
+              <div class="card-body">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                  <span style="font-size:14px;font-weight:600;">Look 1 — Studio A</span>
+                  <span class="badge badge-progress" style="height:20px;font-size:10px;">In Progress</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);display:flex;gap:16px;">
+                  <span>4 products</span>
+                  <span>2 talent</span>
+                  <span>Mar 15</span>
+                </div>
+                <div class="progress-track" style="margin-top:12px;">
+                  <div class="progress-fill" style="width:65%;background:var(--primary);"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Stat Cards</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div class="stat-card">
+                <div class="stat-value">24</div>
+                <div class="stat-label">Total Shots</div>
+                <div class="stat-change stat-change--up">+3 this week</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">87%</div>
+                <div class="stat-label">Ready Rate</div>
+                <div class="stat-change stat-change--up">+12% vs last project</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">6</div>
+                <div class="stat-label">Pending Pulls</div>
+                <div class="stat-change stat-change--down">2 overdue</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">148</div>
+                <div class="stat-label">Products</div>
+                <div class="stat-change" style="color:var(--text-muted);">12 unassigned</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 6. TABLE ==================== -->
+    <div class="section">
+      <div class="section-title">Table</div>
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Shot</th>
+              <th>Status</th>
+              <th>Products</th>
+              <th>Talent</th>
+              <th>Location</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="table-name">Look 1 — Studio A</div>
+                <div style="font-size:11px;color:var(--text-subtle);">SS26 Campaign</div>
+              </td>
+              <td><span class="badge badge-ready" style="height:20px;font-size:10px;">Ready</span></td>
+              <td class="table-meta">4</td>
+              <td>
+                <div style="display:flex;gap:-4px;">
+                  <div class="avatar avatar-sm" style="background:#3f3f46;">TG</div>
+                  <div class="avatar avatar-sm" style="background:#71717a;margin-left:-6px;border:2px solid var(--surface);">AM</div>
+                </div>
+              </td>
+              <td class="table-meta">Studio A</td>
+              <td class="table-meta">Mar 15</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="table-name">Look 2 — Exterior</div>
+                <div style="font-size:11px;color:var(--text-subtle);">SS26 Campaign</div>
+              </td>
+              <td><span class="badge badge-progress" style="height:20px;font-size:10px;">In Progress</span></td>
+              <td class="table-meta">6</td>
+              <td>
+                <div class="avatar avatar-sm" style="background:#52525b;">JD</div>
+              </td>
+              <td class="table-meta">Rooftop</td>
+              <td class="table-meta">Mar 16</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="table-name">Look 3 — Detail Shots</div>
+                <div style="font-size:11px;color:var(--text-subtle);">SS26 Campaign</div>
+              </td>
+              <td><span class="badge badge-draft" style="height:20px;font-size:10px;">Draft</span></td>
+              <td class="table-meta">8</td>
+              <td class="table-meta" style="color:var(--text-subtle);">--</td>
+              <td class="table-meta">TBD</td>
+              <td class="table-meta">Mar 17</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="table-name">Look 4 — Campaign Hero</div>
+                <div style="font-size:11px;color:var(--text-subtle);">SS26 Campaign</div>
+              </td>
+              <td><span class="badge badge-complete" style="height:20px;font-size:10px;">Complete</span></td>
+              <td class="table-meta">2</td>
+              <td>
+                <div style="display:flex;">
+                  <div class="avatar avatar-sm" style="background:#3f3f46;">TG</div>
+                  <div class="avatar avatar-sm" style="background:#71717a;margin-left:-6px;border:2px solid var(--surface);">AM</div>
+                  <div class="avatar avatar-sm" style="background:#a1a1aa;margin-left:-6px;border:2px solid var(--surface);">+2</div>
+                </div>
+              </td>
+              <td class="table-meta">Studio B</td>
+              <td class="table-meta">Mar 14</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ==================== 7. TOOLBAR + TABS + BREADCRUMB ==================== -->
+    <div class="section">
+      <div class="section-title">Toolbar, Tabs &amp; Breadcrumb</div>
+      <div class="section-grid">
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Toolbar</div>
+            <div class="card">
+              <div class="toolbar">
+                <span class="toolbar-title">Shots</span>
+                <span class="toolbar-subtitle">SS26 Campaign</span>
+                <div class="toolbar-spacer"></div>
+                <button class="btn btn-sm btn-ghost">
+                  <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                  Filter
+                </button>
+                <button class="btn btn-sm btn-primary">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                  New Shot
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="subsection">
+            <div class="subsection-label">Tabs</div>
+            <div class="card" style="padding:0 16px;">
+              <div class="tabs">
+                <button class="tab tab--active">All Shots</button>
+                <button class="tab">Ready</button>
+                <button class="tab">In Progress</button>
+                <button class="tab">Draft</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Breadcrumb</div>
+            <div class="card" style="padding:14px 16px;">
+              <div class="breadcrumb">
+                <span class="breadcrumb-item">Projects</span>
+                <span class="breadcrumb-sep">/</span>
+                <span class="breadcrumb-item">SS26 Campaign</span>
+                <span class="breadcrumb-sep">/</span>
+                <span class="breadcrumb-item breadcrumb-item--active">Shots</span>
+              </div>
+            </div>
+          </div>
+          <div class="subsection">
+            <div class="subsection-label">Avatars</div>
+            <div class="row gap-16" style="align-items:flex-end;">
+              <div style="text-align:center;">
+                <div class="avatar avatar-sm" style="background:#3f3f46;">TG</div>
+                <div class="type-meta" style="margin-top:4px;">24px</div>
+              </div>
+              <div style="text-align:center;">
+                <div class="avatar avatar-md" style="background:#3f3f46;">TG</div>
+                <div class="type-meta" style="margin-top:4px;">32px</div>
+              </div>
+              <div style="text-align:center;">
+                <div class="avatar avatar-lg" style="background:#3f3f46;">TG</div>
+                <div class="type-meta" style="margin-top:4px;">40px</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="display:flex;">
+                  <div class="avatar avatar-md" style="background:#3f3f46;">TG</div>
+                  <div class="avatar avatar-md" style="background:#71717a;margin-left:-8px;border:2px solid var(--surface);">AM</div>
+                  <div class="avatar avatar-md" style="background:#a1a1aa;margin-left:-8px;border:2px solid var(--surface);">JD</div>
+                  <div class="avatar avatar-md" style="background:var(--surface-subtle);color:var(--text-muted);margin-left:-8px;border:2px solid var(--surface);">+5</div>
+                </div>
+                <div class="type-meta" style="margin-top:4px;">Stack</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 8. DROPDOWN + TOASTS ==================== -->
+    <div class="section">
+      <div class="section-title">Dropdowns &amp; Toasts</div>
+      <div class="section-grid">
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Dropdown Menu</div>
+            <div class="dropdown" style="display:inline-block;">
+              <div class="dropdown-item dropdown-item--active">
+                <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                Edit Shot
+                <span class="dropdown-shortcut">E</span>
+              </div>
+              <div class="dropdown-item">
+                <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Duplicate
+                <span class="dropdown-shortcut">D</span>
+              </div>
+              <div class="dropdown-item">
+                <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Export PDF
+              </div>
+              <div class="dropdown-separator"></div>
+              <div class="dropdown-item dropdown-item--destructive">
+                <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Delete Shot
+                <span class="dropdown-shortcut" style="color:#dc2626;">Del</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Toasts</div>
+            <div class="col gap-16">
+              <div class="toast toast--success">
+                <svg class="toast-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div class="toast-content">
+                  <div class="toast-title">Shot created</div>
+                  <div class="toast-text">Look 5 has been added to SS26 Campaign</div>
+                </div>
+              </div>
+              <div class="toast toast--error">
+                <svg class="toast-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div class="toast-content">
+                  <div class="toast-title">Upload failed</div>
+                  <div class="toast-text">Image exceeds 10 MB limit</div>
+                </div>
+              </div>
+              <div class="toast toast--warning">
+                <svg class="toast-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                <div class="toast-content">
+                  <div class="toast-title">Pull request incomplete</div>
+                  <div class="toast-text">3 products still need warehouse confirmation</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 9. PROGRESS + LOADING ==================== -->
+    <div class="section">
+      <div class="section-title">Progress &amp; Loading States</div>
+      <div class="section-grid">
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Progress Bars</div>
+            <div class="col gap-16" style="max-width:320px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                  <span style="font-size:12px;font-weight:500;">Shot Progress</span>
+                  <span style="font-size:12px;color:var(--text-muted);">65%</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width:65%;background:var(--primary);"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                  <span style="font-size:12px;font-weight:500;">Products Assigned</span>
+                  <span style="font-size:12px;color:var(--text-muted);">100%</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width:100%;background:var(--success);"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                  <span style="font-size:12px;font-weight:500;">Pull Requests</span>
+                  <span style="font-size:12px;color:var(--text-muted);">30%</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width:30%;background:var(--warning);"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Skeleton Loading</div>
+            <div class="card" style="max-width:320px;">
+              <div class="card-body">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                  <div class="skeleton" style="width:40px;height:40px;border-radius:50%;"></div>
+                  <div style="flex:1;">
+                    <div class="skeleton" style="width:60%;height:12px;margin-bottom:8px;"></div>
+                    <div class="skeleton" style="width:40%;height:10px;"></div>
+                  </div>
+                </div>
+                <div class="skeleton" style="width:100%;height:10px;margin-bottom:8px;"></div>
+                <div class="skeleton" style="width:80%;height:10px;margin-bottom:8px;"></div>
+                <div class="skeleton" style="width:90%;height:10px;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="subsection">
+            <div class="subsection-label">Empty State</div>
+            <div class="card" style="max-width:320px;">
+              <div class="empty-state">
+                <svg class="empty-state-icon" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                  <circle cx="12" cy="13" r="3"/>
+                </svg>
+                <div class="empty-state-title">No shots yet</div>
+                <div class="empty-state-text">Create your first shot to get started with this project.</div>
+                <button class="btn btn-sm btn-primary">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                  New Shot
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 10. COLOR PALETTE ==================== -->
+    <div class="section">
+      <div class="section-title">Color Palette Reference</div>
+
+      <div class="subsection">
+        <div class="subsection-label">Zinc Neutral Scale</div>
+        <div class="palette-grid">
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#fafafa;"></div><div class="palette-chip-info"><div class="palette-chip-name">50</div><div class="palette-chip-hex">#fafafa</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#f4f4f5;"></div><div class="palette-chip-info"><div class="palette-chip-name">100</div><div class="palette-chip-hex">#f4f4f5</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#e4e4e7;"></div><div class="palette-chip-info"><div class="palette-chip-name">200</div><div class="palette-chip-hex">#e4e4e7</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#d4d4d8;"></div><div class="palette-chip-info"><div class="palette-chip-name">300</div><div class="palette-chip-hex">#d4d4d8</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#a1a1aa;"></div><div class="palette-chip-info"><div class="palette-chip-name">400</div><div class="palette-chip-hex">#a1a1aa</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#71717a;"></div><div class="palette-chip-info"><div class="palette-chip-name">500</div><div class="palette-chip-hex">#71717a</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#52525b;"></div><div class="palette-chip-info"><div class="palette-chip-name">600</div><div class="palette-chip-hex">#52525b</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#3f3f46;"></div><div class="palette-chip-info"><div class="palette-chip-name">700</div><div class="palette-chip-hex">#3f3f46</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#27272a;"></div><div class="palette-chip-info"><div class="palette-chip-name">800</div><div class="palette-chip-hex">#27272a</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#18181b;"></div><div class="palette-chip-info"><div class="palette-chip-name">900</div><div class="palette-chip-hex">#18181b</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#09090b;"></div><div class="palette-chip-info"><div class="palette-chip-name">950</div><div class="palette-chip-hex">#09090b</div></div></div>
+        </div>
+      </div>
+
+      <div class="subsection" style="margin-top:24px;">
+        <div class="subsection-label">Semantic Colors</div>
+        <div class="palette-grid" style="grid-template-columns:repeat(auto-fill, minmax(120px, 1fr));">
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#18181b;"></div><div class="palette-chip-info"><div class="palette-chip-name">Primary</div><div class="palette-chip-hex">#18181b</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#E31E24;"></div><div class="palette-chip-info"><div class="palette-chip-name">Accent</div><div class="palette-chip-hex">#E31E24</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#10b981;"></div><div class="palette-chip-info"><div class="palette-chip-name">Success</div><div class="palette-chip-hex">#10b981</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#f59e0b;"></div><div class="palette-chip-info"><div class="palette-chip-name">Warning</div><div class="palette-chip-hex">#f59e0b</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#ef4444;"></div><div class="palette-chip-info"><div class="palette-chip-name">Error</div><div class="palette-chip-hex">#ef4444</div></div></div>
+          <div class="palette-chip"><div class="palette-chip-color" style="background:#3b82f6;"></div><div class="palette-chip-info"><div class="palette-chip-name">Info</div><div class="palette-chip-hex">#3b82f6</div></div></div>
+        </div>
+      </div>
+
+      <div class="subsection" style="margin-top:24px;">
+        <div class="subsection-label">Accent Usage — Immediate Red appears only in:</div>
+        <div class="row gap-24" style="margin-top:8px;">
+          <div style="text-align:center;">
+            <div style="width:28px;height:28px;border-radius:6px;background:#E31E24;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;">
+              <svg width="14" height="14" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);">Logo mark</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="width:3px;height:28px;border-radius:2px;background:#E31E24;margin:0 auto 4px;"></div>
+            <div style="font-size:11px;color:var(--text-muted);">Active bar</div>
+          </div>
+          <div style="text-align:center;">
+            <button class="btn btn-sm btn-destructive" style="margin-bottom:4px;">Delete</button>
+            <div style="font-size:11px;color:var(--text-muted);">Destructive</div>
+          </div>
+          <div style="text-align:center;">
+            <span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;font-size:10px;font-weight:600;border-radius:var(--r-full);background:var(--accent);color:#fff;margin-bottom:4px;">3</span>
+            <div style="font-size:11px;color:var(--text-muted);">Notification</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 11. SHADOWS + RADIUS ==================== -->
+    <div class="section">
+      <div class="section-title">Shadows &amp; Radius</div>
+      <div class="section-grid">
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Shadow Scale (borders do most work)</div>
+            <div class="col gap-24">
+              <div style="display:flex;align-items:center;gap:16px;">
+                <div style="width:80px;height:48px;background:var(--surface);border-radius:var(--r-lg);border:1px solid var(--border);"></div>
+                <div>
+                  <div style="font-size:12px;font-weight:500;">Border only</div>
+                  <div style="font-size:11px;color:var(--text-muted);">Default for cards</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px;">
+                <div style="width:80px;height:48px;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);"></div>
+                <div>
+                  <div style="font-size:12px;font-weight:500;">shadow-sm</div>
+                  <div style="font-size:11px;color:var(--text-muted);">Subtle lift</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px;">
+                <div style="width:80px;height:48px;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-md);"></div>
+                <div>
+                  <div style="font-size:12px;font-weight:500;">shadow-md</div>
+                  <div style="font-size:11px;color:var(--text-muted);">Dropdowns</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px;">
+                <div style="width:80px;height:48px;background:var(--surface);border-radius:var(--r-lg);box-shadow:0 4px 8px -2px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);"></div>
+                <div>
+                  <div style="font-size:12px;font-weight:500;">shadow-lg</div>
+                  <div style="font-size:11px;color:var(--text-muted);">Modals, popovers</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="subsection">
+            <div class="subsection-label">Border Radius Scale</div>
+            <div class="col gap-24">
+              <div style="display:flex;align-items:center;gap:16px;">
+                <div style="width:48px;height:48px;background:var(--surface-muted);border-radius:0;"></div>
+                <div>
+                  <div style="font-size:12px;font-weight:500;">none (0)</div>
+                  <div style="font-size:11px;color:var(--text-muted);">Doc pages</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px;">
+                <div style="width:48px;height:48px;background:var(--surface-muted);border-radius:4px;"></div>
+                <div>
+                  <div style="font-size:12px;font-weight:500;">sm (4px)</div>
+                  <div style="font-size:11px;color:var(--text-muted);">Checkboxes, small elements</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px;">
+                <div style="width:48px;height:48px;background:var(--surface-muted);border-radius:6px;"></div>
+                <div>
+                  <div style="font-size:12px;font-weight:500;">md (6px)</div>
+                  <div style="font-size:11px;color:var(--text-muted);">Buttons, inputs</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px;">
+                <div style="width:48px;height:48px;background:var(--surface-muted);border-radius:8px;"></div>
+                <div>
+                  <div style="font-size:12px;font-weight:500;">lg (8px)</div>
+                  <div style="font-size:11px;color:var(--text-muted);">Cards, panels</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px;">
+                <div style="width:48px;height:48px;background:var(--surface-muted);border-radius:12px;"></div>
+                <div>
+                  <div style="font-size:12px;font-weight:500;">xl (12px)</div>
+                  <div style="font-size:11px;color:var(--text-muted);">Dialogs, modals</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px;">
+                <div style="width:48px;height:48px;background:var(--surface-muted);border-radius:9999px;"></div>
+                <div>
+                  <div style="font-size:12px;font-weight:500;">full (pill)</div>
+                  <div style="font-size:11px;color:var(--text-muted);">Badges, avatars</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== DESIGN NOTES ==================== -->
+    <div style="background:var(--surface-subtle);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;max-width:800px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Design System Summary</div>
+      <ul style="font-size:13px;color:var(--text-secondary);line-height:1.8;padding-left:18px;list-style:disc;">
+        <li><strong>Primary is near-black (#18181b)</strong> — every button, progress bar, and emphasis element</li>
+        <li><strong>Immediate Red (#E31E24) reserved for:</strong> logo mark, sidebar active indicator, destructive actions, notification counts</li>
+        <li><strong>Borders do separation</strong> — shadows are minimal (Notion/Linear style)</li>
+        <li><strong>Typography is editorial</strong> — light weight (300) headings, tight tracking (-0.02em), Inter font</li>
+        <li><strong>Neutral palette is zinc</strong> — cooler than slate, cleaner against white</li>
+        <li><strong>radius-md (6px)</strong> for buttons/inputs, <strong>radius-lg (8px)</strong> for cards</li>
+        <li><strong>No competing accent colors</strong> on buttons — near-black creates calm, editorial density</li>
+      </ul>
+    </div>
+
+  </div>
+
+</body>
+</html>

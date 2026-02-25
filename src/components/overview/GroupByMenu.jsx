@@ -53,7 +53,7 @@ export default function GroupByMenu({
               {Icon && <Icon className="h-4 w-4" />}
               <span className="flex-1">{option.label}</span>
               {isActive && (
-                <span className="text-[10px] uppercase">Active</span>
+                <span className="text-2xs uppercase">Active</span>
               )}
             </DropdownMenuItem>
           );

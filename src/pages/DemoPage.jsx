@@ -121,7 +121,7 @@ function DemoShell() {
               </div>
               <div>
                 <div className="text-xs font-semibold">{avatar?.name}</div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">Producer role</div>
+                <div className="text-xxs text-slate-500 dark:text-slate-400">Producer role</div>
               </div>
             </div>
           </div>
@@ -372,7 +372,7 @@ function DemoShotsPage() {
                         {shot.coverUrl ? (
                           <img src={shot.coverUrl} alt={shot.name} loading="lazy" className="h-full w-full object-cover" />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">No image</div>
+                          <div className="flex h-full w-full items-center justify-center text-2xs text-slate-500">No image</div>
                         )}
                       </div>
                       <div>
@@ -668,7 +668,7 @@ function DemoPullsPage() {
                   <BadgeCheck className="h-4 w-4 text-emerald-500" />
                   <div>
                     <div className="font-semibold text-slate-800 dark:text-slate-100">Share link stub</div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    <div className="text-xxs text-slate-500 dark:text-slate-400">
                       /pulls/shared/{pull.shareToken || "demo-token"}
                     </div>
                   </div>
@@ -710,7 +710,7 @@ function DemoActivityPage() {
             <div className="space-y-1">
               <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">{activity.summary}</div>
               <div className="text-xs text-slate-500 dark:text-slate-400">{activity.detail}</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+              <div className="text-xxs text-slate-500 dark:text-slate-400">
                 {activity.actor} · {new Date(activity.createdAt).toLocaleString()}
               </div>
             </div>

@@ -300,7 +300,7 @@ export function ScheduleEntryEditor({
                     <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                       {track.name}
                     </h3>
-                    <span className="text-[10px] font-medium text-[var(--color-text-subtle)]">
+                    <span className="text-2xs font-medium text-[var(--color-text-subtle)]">
                       {settings.cascadeChanges ? "Cascade ON" : "Cascade OFF"}
                     </span>
                   </div>

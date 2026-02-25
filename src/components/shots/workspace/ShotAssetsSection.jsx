@@ -182,7 +182,7 @@ function TalentAssetEditor({
               Talent
             </span>
             {talentCount > 0 && (
-              <span className="text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-300">
+              <span className="text-2xs font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-300">
                 {talentCount}
               </span>
             )}
@@ -442,7 +442,7 @@ function TagsAssetViewer({ shot }) {
             Tags
           </span>
           {tagCount > 0 && (
-            <span className="text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-300">
+            <span className="text-2xs font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-300">
               {tagCount}
             </span>
           )}
@@ -566,7 +566,7 @@ export default function ShotAssetsSection({
           Assets
         </span>
         {totalCount > 0 && (
-          <span className="text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-300">
+          <span className="text-2xs font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-300">
             {totalCount}
           </span>
         )}

@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phase 2.5e — Cmd+K Command Palette Mockup (Direction A)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: {
+            primary: { DEFAULT: '#18181b', dark: '#09090b' },
+            accent: { DEFAULT: '#E31E24', dark: '#c91920' },
+            neutral: {
+              50: '#fafafa', 100: '#f4f4f5',
+              200: '#e4e4e7', 300: '#d4d4d8',
+              400: '#a1a1aa', 500: '#71717a',
+              600: '#52525b', 700: '#3f3f46',
+              800: '#27272a', 900: '#18181b',
+              950: '#09090b',
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    /* Backdrop */
+    .palette-backdrop {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,.4); backdrop-filter: blur(2px);
+      display: flex; align-items: flex-start; justify-content: center;
+      padding-top: 15vh;
+    }
+    .palette-backdrop.mobile-layout {
+      padding-top: 0; align-items: stretch;
+    }
+
+    /* Palette container */
+    .palette {
+      width: 560px; max-height: 440px;
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 16px 48px rgba(0,0,0,.2), 0 0 0 1px rgba(0,0,0,.05);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .palette.mobile-layout {
+      width: 100%; max-height: 100%; border-radius: 0;
+      height: 100%;
+    }
+
+    /* Search input */
+    .palette-input-wrap {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; border-bottom: 1px solid #e4e4e7;
+    }
+    .palette-input {
+      flex: 1; border: none; outline: none; font-size: 15px;
+      color: #18181b; background: transparent;
+      font-family: inherit;
+    }
+    .palette-input::placeholder { color: #a1a1aa; }
+
+    /* List */
+    .palette-list {
+      flex: 1; overflow-y: auto; padding: 8px;
+    }
+
+    /* Group */
+    .palette-group-label {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #71717a;
+      padding: 8px 8px 4px;
+    }
+
+    /* Item */
+    .palette-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 10px; border-radius: 8px; cursor: pointer;
+      transition: background 80ms ease;
+    }
+    .palette-item:hover, .palette-item.selected {
+      background: #f4f4f5;
+    }
+    .palette-item.selected {
+      background: #f4f4f5;
+    }
+    .palette-item-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .palette-item-content { flex: 1; min-width: 0; }
+    .palette-item-label {
+      font-size: 14px; font-weight: 500; color: #18181b;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .palette-item-secondary {
+      font-size: 12px; color: #71717a; margin-top: 1px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .palette-item-kbd {
+      font-size: 11px; font-weight: 500; color: #a1a1aa;
+      background: #f4f4f5; border: 1px solid #e4e4e7;
+      padding: 1px 6px; border-radius: 4px; font-family: inherit;
+      flex-shrink: 0;
+    }
+    .palette-item-badge {
+      font-size: 10px; font-weight: 600; padding: 2px 6px;
+      border-radius: 6px; flex-shrink: 0;
+    }
+
+    /* Footer */
+    .palette-footer {
+      display: flex; align-items: center; gap: 16px;
+      padding: 8px 16px; border-top: 1px solid #e4e4e7;
+      font-size: 11px; color: #a1a1aa;
+    }
+    .palette-footer kbd {
+      font-size: 10px; background: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      padding: 1px 5px; border-radius: 3px; font-family: inherit;
+      margin: 0 2px;
+    }
+
+    /* Empty state */
+    .palette-empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 32px 16px;
+      color: #a1a1aa; text-align: center;
+    }
+    .palette-empty p { margin-top: 8px; font-size: 13px; }
+
+    /* Separator */
+    .palette-separator {
+      height: 1px; background: #f4f4f5; margin: 4px 8px;
+    }
+
+    /* Demo controls */
+    .demo-controls {
+      position: fixed; top: 16px; right: 16px; z-index: 200;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .demo-btn {
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; border: 1px solid #e4e4e7; background: #fff; color: #18181b;
+      transition: all 120ms ease;
+    }
+    .demo-btn:hover { background: #f4f4f5; }
+    .demo-btn.active { background: #18181b; color: #fff; border-color: #18181b; }
+  </style>
+</head>
+<body class="bg-neutral-100 font-sans text-sm" style="margin:0">
+
+  <!--
+    ╔══════════════════════════════════════════════════════════════════╗
+    ║  PHASE 2d — Cmd+K Command Palette Mockup                       ║
+    ║                                                                 ║
+    ║  Shows the global command palette triggered by Cmd+K.          ║
+    ║  Five states demonstrated:                                      ║
+    ║  1. Initial (empty) — recent searches + quick actions           ║
+    ║  2. Search results — categorized by entity type                 ║
+    ║  3. No results — empty state with suggestion                   ║
+    ║  4. Navigation commands — typed "go " prefix                    ║
+    ║  5. Mobile — full-screen takeover                              ║
+    ║                                                                 ║
+    ║  EXISTING IMPLEMENTATION (legacy):                             ║
+    ║  - src/components/ui/SearchCommand.jsx (cmdk library)          ║
+    ║  - Searches: shots, products, talent, locations, projects      ║
+    ║  - Actions: create shot/product/talent/location                 ║
+    ║  - Navigation: 8 "Go to" commands with Alt+key shortcuts       ║
+    ║  - Recent searches persisted in localStorage                   ║
+    ║                                                                 ║
+    ║  VNEXT REFINEMENTS:                                            ║
+    ║  1. Navigation items match simplified IA (no Tags/Departments) ║
+    ║  2. Added "Crew" to searchable entities                        ║
+    ║  3. Search results show richer metadata (status, counts)       ║
+    ║  4. Project context shown in palette when inside a project     ║
+    ║  5. Mobile: full-screen takeover instead of floating dialog    ║
+    ║  6. Footer shows keyboard navigation hints                     ║
+    ║  7. "Create" actions scoped — shot/pull require active project ║
+    ╚══════════════════════════════════════════════════════════════════╝
+  -->
+
+  <!-- Demo Controls -->
+  <div class="demo-controls">
+    <button class="demo-btn active" onclick="showState('initial')">Initial State</button>
+    <button class="demo-btn" onclick="showState('results')">Search Results</button>
+    <button class="demo-btn" onclick="showState('empty')">No Results</button>
+    <button class="demo-btn" onclick="showState('nav')">Navigation</button>
+    <button class="demo-btn" onclick="showState('mobile')">Mobile</button>
+    <div style="margin-top:8px; padding:8px 12px; background:#f4f4f5; border-radius:8px; font-size:11px; color:#71717a; line-height:1.5; max-width:220px;">
+      <strong style="color:#18181b">Trigger:</strong> <kbd style="background:#e4e4e7; padding:1px 5px; border-radius:3px; font-family:monospace">Cmd+K</kbd> or tap search icon on mobile
+    </div>
+  </div>
+
+  <!-- ===================== PALETTE STATES ===================== -->
+
+  <!-- STATE 1: Initial (empty input) — recent searches + actions -->
+  <div id="state-initial" class="palette-backdrop">
+    <div class="palette">
+      <!-- Search input -->
+      <div class="palette-input-wrap">
+        <svg class="w-5 h-5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input class="palette-input" placeholder="Search shots, products, people, locations..." readonly />
+        <kbd class="palette-item-kbd">ESC</kbd>
+      </div>
+
+      <!-- List -->
+      <div class="palette-list">
+        <!-- Recent searches -->
+        <div class="palette-group-label">Recent</div>
+        <div class="palette-item selected">
+          <svg class="w-4 h-4 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div class="palette-item-content">
+            <div class="palette-item-label">red blazer</div>
+          </div>
+        </div>
+        <div class="palette-item">
+          <svg class="w-4 h-4 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Studio A</div>
+          </div>
+        </div>
+        <div class="palette-item">
+          <svg class="w-4 h-4 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div class="palette-item-content">
+            <div class="palette-item-label">sarah model</div>
+          </div>
+        </div>
+
+        <div class="palette-separator"></div>
+
+        <!-- Quick actions -->
+        <div class="palette-group-label">Actions</div>
+        <div class="palette-item">
+          <div class="palette-item-icon bg-blue-50">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Create Shot</div>
+            <div class="palette-item-secondary">Add to SS26 Campaign</div>
+          </div>
+        </div>
+        <div class="palette-item">
+          <div class="palette-item-icon bg-amber-50">
+            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Create Product</div>
+            <div class="palette-item-secondary">Add to product library</div>
+          </div>
+        </div>
+        <div class="palette-item">
+          <div class="palette-item-icon bg-emerald-50">
+            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Create Project</div>
+            <div class="palette-item-secondary">New production project</div>
+          </div>
+        </div>
+
+        <div class="palette-separator"></div>
+
+        <!-- Navigation -->
+        <div class="palette-group-label">Go to</div>
+        <div class="palette-item">
+          <div class="palette-item-icon bg-neutral-100">
+            <svg class="w-4 h-4 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Dashboard</div>
+          </div>
+          <kbd class="palette-item-kbd">Alt D</kbd>
+        </div>
+        <div class="palette-item">
+          <div class="palette-item-icon bg-neutral-100">
+            <svg class="w-4 h-4 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3" stroke-width="2"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Shots</div>
+            <div class="palette-item-secondary">SS26 Campaign</div>
+          </div>
+          <kbd class="palette-item-kbd">Alt S</kbd>
+        </div>
+        <div class="palette-item">
+          <div class="palette-item-icon bg-neutral-100">
+            <svg class="w-4 h-4 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Products</div>
+          </div>
+          <kbd class="palette-item-kbd">Alt P</kbd>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="palette-footer">
+        <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate</span>
+        <span><kbd>&crarr;</kbd> select</span>
+        <span><kbd>esc</kbd> close</span>
+        <span class="ml-auto text-neutral-300">Type <kbd>go</kbd> for navigation</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATE 2: Search results -->
+  <div id="state-results" class="palette-backdrop" style="display:none">
+    <div class="palette">
+      <div class="palette-input-wrap">
+        <svg class="w-5 h-5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input class="palette-input" value="red blazer" readonly />
+        <button class="p-1 rounded hover:bg-neutral-100 transition-colors">
+          <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="palette-list">
+        <!-- Shots results -->
+        <div class="palette-group-label">Shots (3)</div>
+        <div class="palette-item selected">
+          <div class="palette-item-icon bg-blue-50">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3" stroke-width="2"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Hero — <mark class="bg-amber-100 text-amber-900 rounded px-0.5">Red Blazer</mark> Full Body</div>
+            <div class="palette-item-secondary">SS26 Campaign &middot; 3 products</div>
+          </div>
+          <span class="palette-item-badge bg-amber-100 text-amber-700">Draft</span>
+        </div>
+        <div class="palette-item">
+          <div class="palette-item-icon bg-blue-50">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3" stroke-width="2"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Detail — <mark class="bg-amber-100 text-amber-900 rounded px-0.5">Red Blazer</mark> Cuff</div>
+            <div class="palette-item-secondary">SS26 Campaign &middot; 1 product</div>
+          </div>
+          <span class="palette-item-badge bg-emerald-100 text-emerald-700">Ready</span>
+        </div>
+        <div class="palette-item">
+          <div class="palette-item-icon bg-blue-50">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3" stroke-width="2"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Flat Lay — <mark class="bg-amber-100 text-amber-900 rounded px-0.5">Red Blazer</mark> + Accessories</div>
+            <div class="palette-item-secondary">FW26 Lookbook &middot; 4 products</div>
+          </div>
+          <span class="palette-item-badge bg-neutral-100 text-neutral-600">Draft</span>
+        </div>
+
+        <div class="palette-separator"></div>
+
+        <!-- Products results -->
+        <div class="palette-group-label">Products (2)</div>
+        <div class="palette-item">
+          <div class="palette-item-icon bg-amber-50">
+            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label"><mark class="bg-amber-100 text-amber-900 rounded px-0.5">Red Blazer</mark> — Wool Blend</div>
+            <div class="palette-item-secondary">Style #WB-4421 &middot; 3 SKUs</div>
+          </div>
+        </div>
+        <div class="palette-item">
+          <div class="palette-item-icon bg-amber-50">
+            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label"><mark class="bg-amber-100 text-amber-900 rounded px-0.5">Red</mark> Cropped <mark class="bg-amber-100 text-amber-900 rounded px-0.5">Blazer</mark></div>
+            <div class="palette-item-secondary">Style #CB-1190 &middot; 2 SKUs</div>
+          </div>
+        </div>
+
+        <div class="palette-separator"></div>
+
+        <!-- Talent results -->
+        <div class="palette-group-label">Talent (1)</div>
+        <div class="palette-item">
+          <div class="palette-item-icon bg-rose-50">
+            <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Sarah <mark class="bg-amber-100 text-amber-900 rounded px-0.5">Red</mark>ford</div>
+            <div class="palette-item-secondary">Elite Model &middot; US 4</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="palette-footer">
+        <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate</span>
+        <span><kbd>&crarr;</kbd> open</span>
+        <span><kbd>esc</kbd> close</span>
+        <span class="ml-auto text-neutral-400">6 results</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATE 3: No results -->
+  <div id="state-empty" class="palette-backdrop" style="display:none">
+    <div class="palette">
+      <div class="palette-input-wrap">
+        <svg class="w-5 h-5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input class="palette-input" value="xyznonexistent" readonly />
+        <button class="p-1 rounded hover:bg-neutral-100 transition-colors">
+          <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="palette-list">
+        <div class="palette-empty">
+          <svg class="w-10 h-10 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <p class="text-neutral-500 font-medium">No results for "xyznonexistent"</p>
+          <p class="text-neutral-400 text-xs mt-1">Try a different search or create a new item</p>
+          <div class="flex gap-2 mt-4">
+            <button class="text-xs font-medium text-neutral-900 hover:text-neutral-950 px-3 py-1.5 rounded-md bg-neutral-100 hover:bg-neutral-200 transition-colors">
+              Create Shot
+            </button>
+            <button class="text-xs font-medium text-neutral-900 hover:text-neutral-950 px-3 py-1.5 rounded-md bg-neutral-100 hover:bg-neutral-200 transition-colors">
+              Create Product
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="palette-footer">
+        <span><kbd>esc</kbd> close</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATE 4: Navigation commands (typed "go ") -->
+  <div id="state-nav" class="palette-backdrop" style="display:none">
+    <div class="palette">
+      <div class="palette-input-wrap">
+        <svg class="w-5 h-5 text-neutral-900 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+        </svg>
+        <input class="palette-input" value="go " readonly />
+        <kbd class="palette-item-kbd">ESC</kbd>
+      </div>
+
+      <div class="palette-list">
+        <div class="palette-group-label">Navigate to</div>
+
+        <div class="palette-item selected">
+          <div class="palette-item-icon bg-neutral-100">
+            <svg class="w-4 h-4 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Dashboard</div>
+            <div class="palette-item-secondary">All projects overview</div>
+          </div>
+          <kbd class="palette-item-kbd">Alt D</kbd>
+        </div>
+
+        <div class="palette-item">
+          <div class="palette-item-icon bg-blue-50">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3" stroke-width="2"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Shots</div>
+            <div class="palette-item-secondary">SS26 Campaign</div>
+          </div>
+          <kbd class="palette-item-kbd">Alt S</kbd>
+        </div>
+
+        <div class="palette-item">
+          <div class="palette-item-icon bg-sky-50">
+            <svg class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Pulls</div>
+            <div class="palette-item-secondary">SS26 Campaign</div>
+          </div>
+          <kbd class="palette-item-kbd">Alt U</kbd>
+        </div>
+
+        <div class="palette-item">
+          <div class="palette-item-icon bg-amber-50">
+            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Products</div>
+            <div class="palette-item-secondary">Org-level library</div>
+          </div>
+          <kbd class="palette-item-kbd">Alt P</kbd>
+        </div>
+
+        <div class="palette-item">
+          <div class="palette-item-icon bg-rose-50">
+            <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Library</div>
+            <div class="palette-item-secondary">Talent, Crew, Locations, Palette</div>
+          </div>
+          <kbd class="palette-item-kbd">Alt L</kbd>
+        </div>
+
+        <div class="palette-item">
+          <div class="palette-item-icon bg-neutral-100">
+            <svg class="w-4 h-4 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Settings</div>
+          </div>
+        </div>
+
+        <div class="palette-item">
+          <div class="palette-item-icon bg-neutral-100">
+            <svg class="w-4 h-4 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          </div>
+          <div class="palette-item-content">
+            <div class="palette-item-label">Admin</div>
+            <div class="palette-item-secondary">Admin only</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="palette-footer">
+        <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate</span>
+        <span><kbd>&crarr;</kbd> go</span>
+        <span><kbd>esc</kbd> close</span>
+        <span class="ml-auto text-neutral-400">7 destinations</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATE 5: Mobile (full-screen takeover) -->
+  <div id="state-mobile" style="display:none; padding: 40px; display:none;">
+    <div class="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3 text-center">Phone — 375px</div>
+    <div style="width:375px; height:812px; border-radius:24px; overflow:hidden; box-shadow: 0 4px 24px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,.06); margin:0 auto; position:relative; background:#fff;">
+      <!-- Full-screen palette on mobile -->
+      <div class="flex flex-col h-full bg-white">
+        <!-- Mobile search header -->
+        <div class="flex items-center gap-3 px-4 h-14 border-b border-neutral-200 shrink-0">
+          <button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-neutral-100 -ml-1">
+            <svg class="w-5 h-5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          </button>
+          <input class="flex-1 border-none outline-none text-base text-neutral-900 bg-transparent placeholder-neutral-400" placeholder="Search..." value="blazer" readonly />
+          <button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-neutral-100">
+            <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Results list -->
+        <div class="flex-1 overflow-y-auto">
+          <div class="px-4 pt-3 pb-1">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Shots (2)</div>
+          </div>
+          <div class="px-2">
+            <div class="flex items-center gap-3 px-3 py-3 rounded-lg bg-neutral-100">
+              <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3" stroke-width="2"/></svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="text-sm font-medium text-neutral-900 truncate">Hero — Red Blazer Full Body</div>
+                <div class="text-xs text-neutral-500">SS26 Campaign &middot; 3 products</div>
+              </div>
+              <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">Draft</span>
+            </div>
+          </div>
+          <div class="px-2 mt-1">
+            <div class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-neutral-50">
+              <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3" stroke-width="2"/></svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="text-sm font-medium text-neutral-900 truncate">Detail — Red Blazer Cuff</div>
+                <div class="text-xs text-neutral-500">SS26 Campaign &middot; 1 product</div>
+              </div>
+              <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">Ready</span>
+            </div>
+          </div>
+
+          <div class="px-4 pt-4 pb-1">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Products (1)</div>
+          </div>
+          <div class="px-2">
+            <div class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-neutral-50">
+              <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="text-sm font-medium text-neutral-900 truncate">Red Blazer — Wool Blend</div>
+                <div class="text-xs text-neutral-500">Style #WB-4421 &middot; 3 SKUs</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="px-4 pt-4 pb-1">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Talent (1)</div>
+          </div>
+          <div class="px-2 pb-4">
+            <div class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-neutral-50">
+              <div class="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="text-sm font-medium text-neutral-900 truncate">Sarah Bedford</div>
+                <div class="text-xs text-neutral-500">Elite Model &middot; US 4</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile footer -->
+        <div class="px-4 py-3 border-t border-neutral-200 text-xs text-neutral-400 text-center shrink-0">
+          4 results &middot; Tap to open
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Annotation box -->
+  <div id="annotations" class="max-w-2xl mx-auto mt-8 mb-12 bg-neutral-100 border border-neutral-200 rounded-lg p-5 text-xs text-neutral-700 leading-relaxed" style="position:fixed; bottom:16px; left:50%; transform:translateX(-50%); z-index:50; max-width:600px;">
+    <p class="font-semibold mb-2 text-sm">Design Notes (Phase 2d — Cmd+K Palette)</p>
+    <ul class="space-y-1.5 list-disc list-inside">
+      <li><strong>Builds on existing:</strong> Legacy SearchCommand.jsx already uses cmdk with search, actions, nav, recent searches, keyboard shortcuts. vNext refines the IA and adds richer metadata.</li>
+      <li><strong>Search matches highlighted:</strong> <mark class="bg-amber-100 text-amber-900 rounded px-0.5">match</mark> highlighting in results for scanability.</li>
+      <li><strong>Result metadata:</strong> Status badges on shots, style numbers on products, agency on talent. Helps distinguish similar-named items.</li>
+      <li><strong>"go " prefix:</strong> Typing "go " switches to navigation mode showing all destinations with Alt+key shortcuts. Matches simplified IA — no Tags or Departments nav items.</li>
+      <li><strong>Mobile:</strong> Full-screen takeover (not floating dialog). Back arrow instead of ESC. Larger touch targets (48px rows). Triggered by search icon in top bar.</li>
+      <li><strong>Empty state:</strong> Shows "Create Shot" / "Create Product" CTAs so users always have a next action.</li>
+      <li><strong>Project context:</strong> Actions like "Create Shot" show the active project name. Nav items show project context where applicable.</li>
+    </ul>
+  </div>
+
+  <script>
+    function showState(state) {
+      ['initial', 'results', 'empty', 'nav', 'mobile'].forEach(s => {
+        const el = document.getElementById(`state-${s}`);
+        if (el) el.style.display = s === state ? '' : 'none';
+      });
+      // Show/hide annotation box positioning
+      const ann = document.getElementById('annotations');
+      if (state === 'mobile') {
+        ann.style.position = 'relative';
+        ann.style.bottom = '';
+        ann.style.left = '';
+        ann.style.transform = '';
+        ann.style.margin = '24px auto';
+      } else {
+        ann.style.position = 'fixed';
+        ann.style.bottom = '16px';
+        ann.style.left = '50%';
+        ann.style.transform = 'translateX(-50%)';
+        ann.style.margin = '';
+      }
+      document.querySelectorAll('.demo-btn').forEach(btn => {
+        const btnState = btn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+        btn.classList.toggle('active', btnState === state);
+      });
+    }
+    showState('initial');
+  </script>
+
+</body>
+</html>

@@ -97,7 +97,7 @@ export default function AssetSelectModal({
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm text-slate-900 dark:text-slate-100">{item.name || "Untitled"}</div>
-                  {disabled && <div className="text-[10px] uppercase text-slate-500">In Project</div>}
+                  {disabled && <div className="text-2xs uppercase text-slate-500">In Project</div>}
                 </div>
                 {!disabled && (
                   <input type="checkbox" checked={isSelected} readOnly className="pointer-events-none" />

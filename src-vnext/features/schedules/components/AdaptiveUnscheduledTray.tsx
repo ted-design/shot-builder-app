@@ -33,11 +33,11 @@ export function AdaptiveUnscheduledTray({
     <div className="mt-5">
       {/* Header */}
       <div className="mb-2.5 flex items-center gap-2.5">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-subtle)]">
+        <span className="text-2xs font-bold uppercase tracking-widest text-[var(--color-text-subtle)]">
           Unscheduled
         </span>
         <span className="h-px flex-1 bg-[var(--color-border-muted)]" />
-        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-2 py-px text-[10px] text-[var(--color-text-subtle)]">
+        <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-2 py-px text-2xs text-[var(--color-text-subtle)]">
           {rows.length}
         </span>
       </div>
@@ -65,7 +65,7 @@ export function AdaptiveUnscheduledTray({
               <div className="flex items-center gap-2">
                 <TypeIcon className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
                 {shotNumber ? (
-                  <span className="font-mono text-[10px] font-semibold text-[var(--color-text-subtle)]">
+                  <span className="font-mono text-2xs font-semibold text-[var(--color-text-subtle)]">
                     {shotNumber}
                   </span>
                 ) : null}
@@ -76,7 +76,7 @@ export function AdaptiveUnscheduledTray({
               </div>
 
               {shot?.description ? (
-                <p className="mt-0.5 truncate pl-5.5 text-[11px] text-[var(--color-text-muted)]">
+                <p className="mt-0.5 truncate pl-5.5 text-xxs text-[var(--color-text-muted)]">
                   {shot.description}
                 </p>
               ) : null}

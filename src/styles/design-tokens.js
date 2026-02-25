@@ -1,12 +1,10 @@
 /**
  * Shot Builder Design Tokens Plugin
  *
- * This Tailwind CSS plugin provides semantic utility classes for typography,
- * spacing, and layout to ensure consistency across the application.
+ * Direction A Editorial Typography — light-weight headings,
+ * negative tracking, semantic label class.
  *
- * Usage: Import and add to plugins array in tailwind.config.js
- *
- * @see src/styles/design-system.md for full documentation
+ * @see tokens.css for raw design tokens
  */
 
 const plugin = require('tailwindcss/plugin');
@@ -17,10 +15,12 @@ module.exports = plugin(function({ addComponents, theme }) {
    * Semantic classes for consistent text styling
    */
   addComponents({
-    // Page-level heading
+    // Page-level heading — light weight, editorial tracking
     '.heading-page': {
       fontSize: theme('fontSize.2xl'),
-      fontWeight: theme('fontWeight.bold'),
+      fontWeight: '300',
+      letterSpacing: '-0.02em',
+      lineHeight: '1.2',
       color: theme('colors.neutral.900'),
       '@media (min-width: 768px)': {
         fontSize: theme('fontSize.3xl'),
@@ -30,10 +30,12 @@ module.exports = plugin(function({ addComponents, theme }) {
       },
     },
 
-    // Section heading
+    // Section heading — semibold, subtle negative tracking
     '.heading-section': {
-      fontSize: theme('fontSize.xl'),
+      fontSize: theme('fontSize.lg'),
       fontWeight: theme('fontWeight.semibold'),
+      letterSpacing: '-0.01em',
+      lineHeight: '1.3',
       color: theme('colors.neutral.900'),
       '.dark &': {
         color: theme('colors.neutral.100'),
@@ -42,8 +44,10 @@ module.exports = plugin(function({ addComponents, theme }) {
 
     // Subsection heading
     '.heading-subsection': {
-      fontSize: theme('fontSize.lg'),
+      fontSize: theme('fontSize.base'),
       fontWeight: theme('fontWeight.semibold'),
+      letterSpacing: '-0.01em',
+      lineHeight: '1.3',
       color: theme('colors.neutral.900'),
       '.dark &': {
         color: theme('colors.neutral.100'),
@@ -85,6 +89,15 @@ module.exports = plugin(function({ addComponents, theme }) {
       '.dark &': {
         color: theme('colors.neutral.100'),
       },
+    },
+
+    // Meta label — uppercase, tracked (replaces repeated text-xs font-semibold uppercase tracking-widest pattern)
+    '.label-meta': {
+      fontSize: theme('fontSize.xs'),
+      fontWeight: theme('fontWeight.semibold'),
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em',
+      color: 'var(--color-text-subtle)',
     },
   });
 
@@ -129,18 +142,16 @@ module.exports = plugin(function({ addComponents, theme }) {
 
   /**
    * Border Radius Tokens
-   * Note: These are aliases for existing Tailwind utilities
-   * but provided here for semantic clarity
    */
   addComponents({
     '.rounded-card': {
-      borderRadius: theme('borderRadius.lg'), // 8px
+      borderRadius: theme('borderRadius.lg'),
     },
     '.rounded-btn': {
-      borderRadius: theme('borderRadius.md'), // 6px
+      borderRadius: theme('borderRadius.md'),
     },
     '.rounded-input': {
-      borderRadius: theme('borderRadius.md'), // 6px
+      borderRadius: theme('borderRadius.md'),
     },
   });
 });

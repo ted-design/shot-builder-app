@@ -69,7 +69,7 @@ export default function MarkerPicker({ value = null, onChange, className = "" })
               <CurrentIcon className="w-2.5 h-2.5 text-white" />
             </div>
           ) : (
-            <span className="text-[9px] text-slate-400">+ Icon</span>
+            <span className="text-3xs text-slate-400">+ Icon</span>
           )}
           <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
         </button>
@@ -88,7 +88,7 @@ export default function MarkerPicker({ value = null, onChange, className = "" })
               <button
                 type="button"
                 onClick={handleClear}
-                className="text-[10px] text-slate-400 hover:text-slate-600 flex items-center gap-0.5"
+                className="text-2xs text-slate-400 hover:text-slate-600 flex items-center gap-0.5"
               >
                 <X className="w-3 h-3" />
                 Clear
@@ -98,7 +98,7 @@ export default function MarkerPicker({ value = null, onChange, className = "" })
 
           {/* Icon grid */}
           <div>
-            <div className="text-[10px] text-slate-400 mb-1.5">Icon</div>
+            <div className="text-2xs text-slate-400 mb-1.5">Icon</div>
             <div className="grid grid-cols-4 gap-1.5">
               {MARKER_ICONS.map((iconDef) => {
                 const IconComp = MARKER_ICON_MAP[iconDef.id];
@@ -125,7 +125,7 @@ export default function MarkerPicker({ value = null, onChange, className = "" })
 
           {/* Color grid */}
           <div>
-            <div className="text-[10px] text-slate-400 mb-1.5">Color</div>
+            <div className="text-2xs text-slate-400 mb-1.5">Color</div>
             <div className="grid grid-cols-4 gap-1.5">
               {MARKER_COLORS.map((colorDef) => {
                 const isSelected = (value?.color || selectedColor) === colorDef.value;

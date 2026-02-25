@@ -33,7 +33,7 @@ export default function DayStreamSwimlane({
             )}
         >
             {/* Sticky Header */}
-            <div className="sticky top-0 z-20 bg-white/90 backdrop-blur text-[10px] text-slate-400 uppercase font-bold py-1 px-2 border-b border-slate-100 text-center">
+            <div className="sticky top-0 z-20 bg-white/90 backdrop-blur text-2xs text-slate-400 uppercase font-bold py-1 px-2 border-b border-slate-100 text-center">
                 {track.name}
             </div>
 

@@ -392,7 +392,7 @@ export default function TagManagementPage() {
                             {t.usageCount}
                           </span>
                         </div>
-                        <div className="mt-1 text-[10px] uppercase tracking-wide text-[var(--color-text-subtle)]">
+                        <div className="mt-1 text-2xs uppercase tracking-wide text-[var(--color-text-subtle)]">
                           {getShotTagCategoryLabel(resolveShotTagCategory(t))}
                         </div>
                       </div>

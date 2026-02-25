@@ -180,17 +180,17 @@ export function ShotCard({
               {shot.title || "Untitled Shot"}
             </CardTitle>
             {fields.shotNumber && shot.shotNumber && (
-              <span className="block text-[11px] text-[var(--color-text-subtle)]">
+              <span className="block text-xxs text-[var(--color-text-subtle)]">
                 #{shot.shotNumber}
               </span>
             )}
             {fields.description && shot.description && textPreview(shot.description) && (
-              <p className="line-clamp-2 text-[11px] leading-4 text-[var(--color-text-muted)]">
+              <p className="line-clamp-2 text-xxs leading-4 text-[var(--color-text-muted)]">
                 {textPreview(shot.description)}
               </p>
             )}
             {fields.notes && notesPreview && (
-              <div className="flex items-start gap-1 text-[11px] leading-4 text-[var(--color-text-muted)]">
+              <div className="flex items-start gap-1 text-xxs leading-4 text-[var(--color-text-muted)]">
                 <StickyNote className="mt-0.5 h-3 w-3 flex-shrink-0 text-[var(--color-text-subtle)]" />
                 <NotesPreviewText
                   text={notesPreview}
@@ -272,7 +272,7 @@ export function ShotCard({
                         </div>
                       ))}
                       {hiddenProductCount > 0 && (
-                        <div className="text-[10px] text-[var(--color-text-subtle)]">
+                        <div className="text-2xs text-[var(--color-text-subtle)]">
                           +{hiddenProductCount} more
                         </div>
                       )}
@@ -301,7 +301,7 @@ export function ShotCard({
                         )
                       })}
                       {hiddenReferenceLinkCount > 0 && (
-                        <div className="text-[10px] text-[var(--color-text-subtle)]">
+                        <div className="text-2xs text-[var(--color-text-subtle)]">
                           +{hiddenReferenceLinkCount} more
                         </div>
                       )}
@@ -310,7 +310,7 @@ export function ShotCard({
                 )}
 
                 {showReadiness && (
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[var(--radius-sm)] bg-[var(--color-surface-subtle)] px-2.5 py-2 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[var(--radius-sm)] bg-[var(--color-surface-subtle)] px-2.5 py-2 text-xxs">
                     <ReadinessIndicator icon={Package} ready={hasProducts} label="Products" />
                     <ReadinessIndicator icon={Users} ready={hasTalent} label="Talent" />
                     <ReadinessIndicator icon={MapPin} ready={hasLocation} label="Location" />
@@ -339,7 +339,7 @@ export function ShotCard({
             <div className="grid gap-2.5 sm:grid-cols-2">
               {tagGroups.map((group) => (
                 <div key={group.key} className="min-w-0 rounded-[var(--radius-sm)] px-1 py-1.5">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                  <p className="text-3xs font-semibold uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                     {group.label}
                   </p>
                   <div className="mt-1 flex flex-wrap gap-1">
@@ -394,11 +394,11 @@ function MetaField({
 }) {
   return (
     <div className="min-w-0 rounded-[var(--radius-sm)] bg-[var(--color-surface-subtle)] px-2.5 py-2" title={title}>
-      <p className="mb-1 flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+      <p className="mb-1 flex items-center gap-1 text-3xs font-semibold uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
         <Icon className="h-3 w-3 flex-shrink-0" />
         <span>{label}</span>
       </p>
-      <div className="min-w-0 text-[11px] leading-4 text-[var(--color-text)]">{children}</div>
+      <div className="min-w-0 text-xxs leading-4 text-[var(--color-text)]">{children}</div>
     </div>
   )
 }

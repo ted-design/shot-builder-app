@@ -286,11 +286,11 @@ export function ShotLooksSection({
             >
               <span className="font-medium">{label}</span>
               {isActiveForCover && (
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                <Badge variant="secondary" className="text-2xs px-1.5 py-0">
                   Active
                 </Badge>
               )}
-              <span className="text-[10px] opacity-80">
+              <span className="text-2xs opacity-80">
                 {productsCount}P · {refsCount}R
               </span>
             </button>
@@ -306,7 +306,7 @@ export function ShotLooksSection({
               <p className="text-xs font-medium text-[var(--color-text)]">
                 Cover follows Active look
               </p>
-              <p className="mt-0.5 text-[11px] text-[var(--color-text-subtle)]">
+              <p className="mt-0.5 text-xxs text-[var(--color-text-subtle)]">
                 Active: {getLookLabel((looks.find((l) => l.id === activeLookIdForCover)?.order ?? 0))}
               </p>
             </div>
@@ -387,7 +387,7 @@ export function ShotLooksSection({
                 </SelectContent>
               </Select>
             )}
-            <p className="text-[11px] text-[var(--color-text-subtle)]">
+            <p className="text-xxs text-[var(--color-text-subtle)]">
               Cover prefers a selected reference image; otherwise it uses the chosen cover product (or auto).
             </p>
           </div>
@@ -535,7 +535,7 @@ function ReferencesSection({
         <div className="flex items-center gap-2">
           <p className="text-xs font-medium text-[var(--color-text-subtle)]">References</p>
           {displayImageId && (
-            <Badge variant="secondary" className="text-[10px]">
+            <Badge variant="secondary" className="text-2xs">
               {isActiveForCover ? "Cover (active)" : "Cover set"}
             </Badge>
           )}
@@ -656,7 +656,7 @@ function ReferenceTile({
       )}
 
       {isCover && (
-        <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+        <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-2xs text-white">
           Cover
         </span>
       )}

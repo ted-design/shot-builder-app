@@ -177,7 +177,7 @@ export function TagEditor({
                       ? "Add existing tag"
                       : "Create new tag"}
                   </div>
-                  <div className="truncate text-[10px] text-[var(--color-text-muted)]">
+                  <div className="truncate text-2xs text-[var(--color-text-muted)]">
                     {normalizedCreateLabel}
                   </div>
                 </div>
@@ -245,7 +245,7 @@ export function TagEditor({
                     <Checkbox checked={draft.some((d) => d.id === t.id)} />
                     <div className="min-w-0">
                       <TagBadge tag={t} />
-                      <div className="mt-1 text-[10px] uppercase tracking-wide text-[var(--color-text-subtle)]">
+                      <div className="mt-1 text-2xs uppercase tracking-wide text-[var(--color-text-subtle)]">
                         {getShotTagCategoryLabel(resolveShotTagCategory(t))}
                       </div>
                     </div>

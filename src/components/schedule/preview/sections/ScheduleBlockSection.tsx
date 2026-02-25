@@ -556,7 +556,7 @@ export function ScheduleBlockSection({ schedule, tracks, blockFields }: Schedule
               <div key={item.id}>
                 {/* Pre-label for items starting after band start */}
                 {startsLabel && (
-                  <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-0.5 ml-3">
+                  <div className="text-2xs text-gray-400 flex items-center gap-1 mb-0.5 ml-3">
                     <span className="inline-block h-1 w-1 rounded-full bg-gray-300/70" />
                     <span>{startsLabel}</span>
                   </div>
@@ -682,7 +682,7 @@ function BannerBlock({ item, MarkerIcon, applicability, category, fields }: Bloc
         </span>
         {isDerived && (
           <span
-            className="text-[9px] text-gray-400 italic print:text-gray-500"
+            className="text-3xs text-gray-400 italic print:text-gray-500"
             title="Time derived from schedule order"
           >
             (est)
@@ -712,7 +712,7 @@ function BannerBlock({ item, MarkerIcon, applicability, category, fields }: Bloc
               style={{ backgroundColor: colorTag.value }}
             />
           )}
-          <span className="inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600 print:bg-slate-100">
+          <span className="inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-2xs font-medium text-slate-600 print:bg-slate-100">
             {applicability.label}
           </span>
         </span>
@@ -797,7 +797,7 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap,
           <span className="text-sm font-semibold text-gray-900">{timeRange}</span>
           {isDerived && (
             <span
-              className="text-[9px] text-gray-400 italic print:text-gray-500"
+              className="text-3xs text-gray-400 italic print:text-gray-500"
               title="Time derived from schedule order"
             >
               (est)
@@ -813,7 +813,7 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap,
                   style={{ backgroundColor: colorTag.value }}
                 />
               )}
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-2xs font-medium text-slate-600">
                 {trackName}
               </span>
             </span>
@@ -828,7 +828,7 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap,
                   style={{ backgroundColor: colorTag.value }}
                 />
               )}
-              <span className="inline-flex items-center rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 print:bg-blue-50">
+              <span className="inline-flex items-center rounded-full bg-blue-50 px-1.5 py-0.5 text-2xs font-medium text-blue-700 print:bg-blue-50">
                 {applicability.label}
               </span>
             </span>
@@ -861,7 +861,7 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap,
           {item.tags!.map((tag) => (
             <span
               key={tag.id}
-              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium"
               style={{
                 backgroundColor: `${tag.color}20`,
                 color: tag.color,
@@ -894,7 +894,7 @@ function RegularBlock({ item, MarkerIcon, applicability, category, trackNameMap,
 
       {/* Location (conditional based on fields) */}
       {showLocation && item.location && (
-        <div className="mt-1 text-[11px] text-gray-500">
+        <div className="mt-1 text-xxs text-gray-500">
           <span className="font-medium">{item.location.name}</span>
           {item.location.address && (
             <span className="ml-1 text-gray-400">- {item.location.address}</span>
@@ -920,7 +920,7 @@ function CategoryBadge({ category }: { category: string }) {
   const label = category.charAt(0).toUpperCase() + category.slice(1);
 
   return (
-    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${style}`}>
+    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-2xs font-semibold uppercase ${style}`}>
       {label}
     </span>
   );

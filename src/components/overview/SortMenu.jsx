@@ -48,7 +48,7 @@ export default function SortMenu({
             >
               <span>{option.label}</span>
               {isActive && (
-                <span className="text-[10px] uppercase">Active</span>
+                <span className="text-2xs uppercase">Active</span>
               )}
             </DropdownMenuItem>
           );

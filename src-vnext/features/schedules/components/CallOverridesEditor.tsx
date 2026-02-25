@@ -69,7 +69,7 @@ function TalentOverrideRow({
           {name}
         </span>
         {role && (
-          <span className="truncate text-[10px] text-[var(--color-text-muted)]">
+          <span className="truncate text-2xs text-[var(--color-text-muted)]">
             {role}
           </span>
         )}
@@ -127,7 +127,7 @@ function CrewOverrideRow({
           {name}
         </span>
         {deptPosition && (
-          <span className="truncate text-[10px] text-[var(--color-text-muted)]">
+          <span className="truncate text-2xs text-[var(--color-text-muted)]">
             {deptPosition}
           </span>
         )}
@@ -316,7 +316,7 @@ export function CallOverridesEditor({
             Talent Overrides
           </h3>
           {defaultShootingCall && (
-            <span className="ml-auto text-[10px] text-[var(--color-text-subtle)]">
+            <span className="ml-auto text-2xs text-[var(--color-text-subtle)]">
               Default: {displayDefaultTime(defaultShootingCall)}
             </span>
           )}
@@ -372,7 +372,7 @@ export function CallOverridesEditor({
             Crew Overrides
           </h3>
           {defaultCrewCall && (
-            <span className="ml-auto text-[10px] text-[var(--color-text-subtle)]">
+            <span className="ml-auto text-2xs text-[var(--color-text-subtle)]">
               Default: {displayDefaultTime(defaultCrewCall)}
             </span>
           )}

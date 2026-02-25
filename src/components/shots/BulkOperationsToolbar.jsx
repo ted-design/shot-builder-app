@@ -573,7 +573,7 @@ export default function BulkOperationsToolbar({
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Set description for {selectedCount} shot{selectedCount === 1 ? "" : "s"}
                     </p>
-                    <p className="mb-2 text-[11px] text-slate-500">
+                    <p className="mb-2 text-xxs text-slate-500">
                       Note: this updates the underlying <span className="font-mono">type</span> field.
                     </p>
 

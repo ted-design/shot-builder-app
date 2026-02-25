@@ -55,7 +55,7 @@ function UnscheduledItem({ entry, onEdit }) {
           {entry.resolvedTitle || entry.customData?.title || "Untitled"}
         </div>
         {entry.duration && (
-          <div className="text-[10px] text-slate-400 font-mono">
+          <div className="text-2xs text-slate-400 font-mono">
             {entry.duration}m
           </div>
         )}
@@ -63,7 +63,7 @@ function UnscheduledItem({ entry, onEdit }) {
 
       {/* Track badge if entry has appliesToTrackIds */}
       {entry.appliesToTrackIds?.length > 0 && (
-        <span className="text-[9px] px-1 py-0.5 bg-slate-100 text-slate-500 rounded">
+        <span className="text-3xs px-1 py-0.5 bg-slate-100 text-slate-500 rounded">
           {entry.appliesToTrackIds.length === 1
             ? "1 track"
             : `${entry.appliesToTrackIds.length} tracks`}
@@ -113,13 +113,13 @@ export default function UnscheduledTray({
         <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
           Unscheduled
         </span>
-        <span className="text-[10px] text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded-full">
+        <span className="text-2xs text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded-full">
           {entries.length}
         </span>
       </div>
 
       {/* Hint */}
-      <p className="text-[10px] text-slate-400 mb-2">
+      <p className="text-2xs text-slate-400 mb-2">
         Drag items below into the timeline to schedule them.
       </p>
 

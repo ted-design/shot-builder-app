@@ -25,13 +25,13 @@ function NeedsAttentionItem({ entry, diagnosticInfo, onEdit }) {
           {entry.resolvedTitle || entry.customData?.title || "Untitled"}
         </div>
         {/* Diagnostic subtitle */}
-        <div className="text-[10px] text-amber-600 font-mono truncate">
+        <div className="text-2xs text-amber-600 font-mono truncate">
           Missing from projection • timeField={diagnosticInfo.timeField} • hasExplicitTime={String(diagnosticInfo.hasExplicitTime)}
         </div>
       </div>
 
       {/* Entry type badge */}
-      <span className="text-[9px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded">
+      <span className="text-3xs px-1 py-0.5 bg-amber-100 text-amber-700 rounded">
         {diagnosticInfo.isBanner ? "banner" : (entry.type || "entry")}
       </span>
     </div>
@@ -70,16 +70,16 @@ export default function NeedsAttentionTray({
         <span className="text-xs font-medium text-amber-700 uppercase tracking-wider">
           Needs Attention
         </span>
-        <span className="text-[10px] text-amber-600 bg-amber-200 px-1.5 py-0.5 rounded-full">
+        <span className="text-2xs text-amber-600 bg-amber-200 px-1.5 py-0.5 rounded-full">
           {entries.length}
         </span>
-        <span className="ml-auto text-[9px] text-amber-500 bg-amber-100 px-1.5 py-0.5 rounded">
+        <span className="ml-auto text-3xs text-amber-500 bg-amber-100 px-1.5 py-0.5 rounded">
           DEV
         </span>
       </div>
 
       {/* Hint */}
-      <p className="text-[10px] text-amber-600 mb-2">
+      <p className="text-2xs text-amber-600 mb-2">
         These items couldn't be projected into the schedule. Click to edit.
       </p>
 

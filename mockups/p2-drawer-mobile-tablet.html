@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phase 2.5e — Mobile Drawer + Tablet Layout Mockup (Direction A)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: {
+            sidebar: '#09090b',
+            'sidebar-border': '#27272a',
+            'sidebar-hover': '#27272a',
+            'sidebar-active': '#3f3f46',
+            primary: { DEFAULT: '#18181b', dark: '#09090b' },
+            accent: { DEFAULT: '#E31E24', dark: '#c91920' },
+            neutral: {
+              50: '#fafafa', 100: '#f4f4f5',
+              200: '#e4e4e7', 300: '#d4d4d8',
+              400: '#a1a1aa', 500: '#71717a',
+              600: '#52525b', 700: '#3f3f46',
+              800: '#27272a', 900: '#18181b',
+              950: '#09090b',
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    /* Phone and tablet frames */
+    .device-frame {
+      border-radius: 24px; overflow: hidden; position: relative;
+      box-shadow: 0 4px 24px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,.06);
+      background: #fff;
+    }
+    .phone-frame { width: 375px; height: 812px; }
+    .tablet-frame { width: 768px; height: 560px; }
+
+    /* Drawer animation */
+    .drawer-backdrop {
+      position: absolute; inset: 0; z-index: 40;
+      background: rgba(0,0,0,.5); opacity: 0;
+      transition: opacity 200ms ease;
+      pointer-events: none;
+    }
+    .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+
+    .drawer-panel {
+      position: absolute; top: 0; bottom: 0; left: 0; z-index: 50;
+      transform: translateX(-100%);
+      transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .drawer-panel.open { transform: translateX(0); }
+
+    /* Touch hint for swipe */
+    .swipe-hint {
+      position: absolute; top: 50%; right: -2px; transform: translateY(-50%);
+      width: 4px; height: 40px; border-radius: 4px;
+      background: rgba(255,255,255,.3);
+    }
+
+    /* Active nav indicator */
+    .nav-active-bar {
+      position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px;
+      border-radius: 0 2px 2px 0; background: #E31E24;
+    }
+
+    /* Demo controls */
+    .demo-controls {
+      position: fixed; top: 16px; right: 16px; z-index: 200;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .demo-btn {
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; border: 1px solid #e4e4e7; background: #fff; color: #18181b;
+      transition: all 120ms ease;
+    }
+    .demo-btn:hover { background: #f4f4f5; }
+    .demo-btn.active { background: #18181b; color: #fff; border-color: #18181b; }
+
+    /* Top bar project name tap area */
+    .project-tap { -webkit-tap-highlight-color: transparent; }
+    .project-tap:active { opacity: .7; }
+
+    /* Nav item touch target — 44px min */
+    .mobile-nav-item { min-height: 44px; }
+  </style>
+</head>
+<body class="bg-neutral-100 font-sans text-sm" style="margin:0; padding:40px">
+
+  <!--
+    ╔══════════════════════════════════════════════════════════════════╗
+    ║  PHASE 2c — Mobile Drawer + Tablet Layout Mockup               ║
+    ║                                                                 ║
+    ║  Shows the slide-out drawer navigation for phone (375px) and   ║
+    ║  tablet (768px) viewports.                                     ║
+    ║                                                                 ║
+    ║  MOBILE DRAWER RULES (from experience-spec.md):                ║
+    ║  - Only mobile-capable destinations shown                      ║
+    ║  - Hidden on mobile: Call Sheet, Admin, Tags, full Settings    ║
+    ║  - Project context shown in top bar (tap to switch)            ║
+    ║  - Active item highlighted with indigo bar                     ║
+    ║  - Section dividers match desktop grouping                     ║
+    ║  - Touch targets: minimum 44px                                  ║
+    ║  - Drawer width: 288px (w-72) on phone, 320px on tablet       ║
+    ║  - Swipe-to-close on tablet (swipe hint bar)                   ║
+    ║                                                                 ║
+    ║  SURFACE CLASSIFICATIONS ON MOBILE:                            ║
+    ║  - Shots: Limited (view + status updates)                      ║
+    ║  - Pulls: Limited (view + fulfillment)                         ║
+    ║  - Products: Reader (view-only)                                ║
+    ║  - Library: Reader (view-only)                                 ║
+    ║  - Account: Limited (profile, sign out)                        ║
+    ║  - Call Sheet: Desktop Only → redirect with toast              ║
+    ║  - Admin/Settings: Desktop Only → redirect with toast          ║
+    ╚══════════════════════════════════════════════════════════════════╝
+  -->
+
+  <!-- Demo Controls -->
+  <div class="demo-controls">
+    <button class="demo-btn active" onclick="showDevice('phone-org')">Phone — Org</button>
+    <button class="demo-btn" onclick="showDevice('phone-project')">Phone — Project</button>
+    <button class="demo-btn" onclick="showDevice('tablet-project')">Tablet — Project</button>
+    <div style="margin-top:8px; padding:8px 12px; background:#f4f4f5; border-radius:8px; font-size:11px; color:#71717a; line-height:1.5; max-width:220px;">
+      <strong style="color:#18181b">Interaction:</strong> Tap the hamburger menu <code style="background:#e4e4e7; padding:1px 5px; border-radius:3px">&#9776;</code> to open/close the drawer
+    </div>
+  </div>
+
+  <!-- ===================== PHONE MOCKUP ===================== -->
+  <div class="flex gap-12 flex-wrap items-start justify-center">
+
+    <div>
+      <div class="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3 text-center">Phone — 375px</div>
+      <div id="phone" class="device-frame phone-frame flex flex-col">
+
+        <!-- Top bar -->
+        <header class="flex items-center justify-between px-4 h-14 border-b border-neutral-200 bg-white shrink-0 z-30 relative">
+          <!-- Hamburger -->
+          <button onclick="toggleDrawer('phone')" class="w-10 h-10 flex items-center justify-center -ml-2 rounded-lg hover:bg-neutral-100 active:bg-neutral-200 transition-colors">
+            <svg class="w-5 h-5 text-neutral-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </button>
+          <!-- Project name (tappable to switch) -->
+          <button id="phone-topbar-title" class="project-tap flex items-center gap-1.5 text-sm font-semibold text-neutral-900">
+            <span id="phone-topbar-text">All Projects</span>
+            <svg id="phone-topbar-chevron" class="w-4 h-4 text-neutral-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <!-- Avatar -->
+          <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold" style="background:#3f3f46">
+            TG
+          </div>
+        </header>
+
+        <!-- Page content (scrollable) -->
+        <div class="flex-1 overflow-y-auto bg-neutral-50 relative">
+
+          <!-- Drawer backdrop -->
+          <div id="phone-backdrop" class="drawer-backdrop" onclick="toggleDrawer('phone')"></div>
+
+          <!-- Drawer panel -->
+          <div id="phone-drawer" class="drawer-panel w-72 bg-sidebar flex flex-col">
+
+            <!-- Drawer header -->
+            <div class="min-h-[56px] flex items-center px-4 border-b border-sidebar-border">
+              <div class="flex items-center gap-3">
+                <div class="shrink-0 w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
+                  <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                    <circle cx="12" cy="13" r="3" stroke-width="2"/>
+                  </svg>
+                </div>
+                <span class="text-sm font-semibold text-white">Shot Builder</span>
+              </div>
+            </div>
+
+            <!-- Drawer nav -->
+            <nav id="phone-drawer-nav" class="flex-1 py-3 px-2 overflow-y-auto">
+              <!-- Content set by JS based on context -->
+            </nav>
+
+            <!-- User section -->
+            <div class="mt-auto border-t border-sidebar-border p-3">
+              <div class="flex items-center gap-3 rounded-md px-2 py-2">
+                <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold" style="background:#3f3f46">TG</div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-white truncate">Ted Ghanime</p>
+                  <p class="text-xs text-neutral-400 truncate">ted@immediate.group</p>
+                </div>
+                <button class="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-sidebar-hover transition-colors" title="Sign out">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Page content placeholder -->
+          <div id="phone-page" class="p-4">
+            <!-- Set by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== TABLET MOCKUP ===================== -->
+    <div>
+      <div class="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3 text-center">Tablet — 768px</div>
+      <div id="tablet" class="device-frame tablet-frame flex flex-col">
+
+        <!-- Top bar -->
+        <header class="flex items-center justify-between px-5 h-14 border-b border-neutral-200 bg-white shrink-0 z-30 relative">
+          <div class="flex items-center gap-3">
+            <!-- Hamburger -->
+            <button onclick="toggleDrawer('tablet')" class="w-10 h-10 flex items-center justify-center -ml-2 rounded-lg hover:bg-neutral-100 active:bg-neutral-200 transition-colors">
+              <svg class="w-5 h-5 text-neutral-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+              </svg>
+            </button>
+            <!-- Breadcrumb -->
+            <div class="text-sm text-neutral-500">
+              <span class="text-neutral-400 hover:text-neutral-600 cursor-pointer">SS26 Campaign</span>
+              <span class="mx-1.5 text-neutral-300">/</span>
+              <span class="text-neutral-900 font-medium">Shots</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <!-- Search trigger -->
+            <button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-neutral-100 transition-colors">
+              <svg class="w-4.5 h-4.5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+            </button>
+            <!-- Avatar -->
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold" style="background:#3f3f46">TG</div>
+          </div>
+        </header>
+
+        <!-- Page content -->
+        <div class="flex-1 overflow-y-auto bg-neutral-50 relative">
+
+          <!-- Drawer backdrop -->
+          <div id="tablet-backdrop" class="drawer-backdrop" onclick="toggleDrawer('tablet')"></div>
+
+          <!-- Drawer panel (wider on tablet: 320px) -->
+          <div id="tablet-drawer" class="drawer-panel bg-sidebar flex flex-col" style="width: 320px">
+            <!-- Swipe hint bar -->
+            <div class="swipe-hint"></div>
+
+            <!-- Drawer header: project context -->
+            <div class="min-h-[56px] flex items-center px-4 border-b border-sidebar-border">
+              <button class="flex items-center gap-3 w-full min-w-0 rounded-md px-2 py-2 hover:bg-sidebar-hover/40 transition-colors">
+                <div class="shrink-0 w-8 h-8 rounded-lg bg-neutral-700 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                  </svg>
+                </div>
+                <div class="min-w-0 flex-1 text-left">
+                  <div class="text-[10px] uppercase tracking-wider text-neutral-500 leading-none mb-0.5">Project</div>
+                  <div class="text-sm font-semibold text-white truncate flex items-center gap-1.5">
+                    SS26 Campaign
+                    <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <!-- Drawer nav -->
+            <nav class="flex-1 py-3 px-2 overflow-y-auto">
+              <!-- Back to projects -->
+              <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-400 hover:text-white hover:bg-sidebar-hover transition-colors relative">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                <span class="text-sm">All Projects</span>
+              </a>
+
+              <!-- Section label -->
+              <div class="pt-3 pb-1.5">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 px-3">Project</span>
+              </div>
+
+              <!-- Shots (active) -->
+              <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-white bg-sidebar-active relative">
+                <span class="nav-active-bar"></span>
+                <svg class="w-5 h-5 text-neutral-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                  <circle cx="12" cy="13" r="3" stroke-width="2"/>
+                </svg>
+                <span class="text-sm font-medium">Shots</span>
+                <!-- Surface badge -->
+                <span class="ml-auto text-[10px] font-medium text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded">Limited</span>
+              </a>
+
+              <!-- Pulls -->
+              <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-300 hover:text-white hover:bg-sidebar-hover transition-colors relative">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                </svg>
+                <span class="text-sm">Pulls</span>
+                <span class="ml-auto text-[10px] font-medium text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded">Limited</span>
+              </a>
+
+              <!-- Assets -->
+              <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-300 hover:text-white hover:bg-sidebar-hover transition-colors relative">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <span class="text-sm">Assets</span>
+                <span class="ml-auto text-[10px] font-medium text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded">Reader</span>
+              </a>
+
+              <!-- Divider -->
+              <div class="pt-3 pb-1"><div class="mx-2 border-t border-sidebar-border/60" aria-hidden="true"></div></div>
+
+              <!-- Products -->
+              <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-300 hover:text-white hover:bg-sidebar-hover transition-colors relative">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                </svg>
+                <span class="text-sm">Products</span>
+                <span class="ml-auto text-[10px] font-medium text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded">Reader</span>
+              </a>
+
+              <!-- Library -->
+              <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-300 hover:text-white hover:bg-sidebar-hover transition-colors relative">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/>
+                </svg>
+                <span class="text-sm">Library</span>
+                <span class="ml-auto text-[10px] font-medium text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded">Reader</span>
+              </a>
+
+              <!-- Divider -->
+              <div class="pt-3 pb-1"><div class="mx-2 border-t border-sidebar-border/60" aria-hidden="true"></div></div>
+
+              <!-- Account -->
+              <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-300 hover:text-white hover:bg-sidebar-hover transition-colors relative">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                <span class="text-sm">Account</span>
+              </a>
+
+              <!-- NOTE: Call Sheet, Admin, Settings are NOT shown -->
+              <!-- Desktop-only items redirect to dashboard with toast on mobile -->
+            </nav>
+
+            <!-- User section -->
+            <div class="mt-auto border-t border-sidebar-border p-3">
+              <div class="flex items-center gap-3 rounded-md px-2 py-2">
+                <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold" style="background:#3f3f46">TG</div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-white truncate">Ted Ghanime</p>
+                  <p class="text-xs text-neutral-400 truncate">ted@immediate.group</p>
+                </div>
+                <button class="p-1.5 rounded text-neutral-400 hover:text-white hover:bg-sidebar-hover transition-colors" title="Sign out">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tablet page content -->
+          <div class="p-5">
+            <div class="bg-white rounded-lg border border-neutral-200 p-5">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-base font-semibold text-neutral-900">Shots</h2>
+                <div class="flex items-center gap-2">
+                  <!-- Filter icon -->
+                  <button class="w-9 h-9 flex items-center justify-center rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors">
+                    <svg class="w-4 h-4 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                    </svg>
+                  </button>
+                  <!-- Add shot -->
+                  <button class="h-9 px-3 flex items-center gap-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Add Shot
+                  </button>
+                </div>
+              </div>
+              <!-- Shot list placeholder -->
+              <div class="space-y-2">
+                <div class="flex items-center gap-3 p-3 rounded-lg border border-neutral-100 hover:border-neutral-200 transition-colors">
+                  <div class="w-12 h-12 rounded bg-neutral-100 shrink-0"></div>
+                  <div class="min-w-0 flex-1">
+                    <div class="text-sm font-medium text-neutral-900 truncate">Hero — Full Body Look 1</div>
+                    <div class="text-xs text-neutral-500">3 products &middot; Studio A</div>
+                  </div>
+                  <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">Draft</span>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-lg border border-neutral-100 hover:border-neutral-200 transition-colors">
+                  <div class="w-12 h-12 rounded bg-neutral-100 shrink-0"></div>
+                  <div class="min-w-0 flex-1">
+                    <div class="text-sm font-medium text-neutral-900 truncate">Detail — Bag Close-up</div>
+                    <div class="text-xs text-neutral-500">1 product &middot; Studio A</div>
+                  </div>
+                  <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">Ready</span>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-lg border border-neutral-100 hover:border-neutral-200 transition-colors">
+                  <div class="w-12 h-12 rounded bg-neutral-100 shrink-0"></div>
+                  <div class="min-w-0 flex-1">
+                    <div class="text-sm font-medium text-neutral-900 truncate">Lifestyle — Street Scene</div>
+                    <div class="text-xs text-neutral-500">2 products &middot; Location TBD</div>
+                  </div>
+                  <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 shrink-0">Draft</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Annotation box -->
+  <div class="max-w-3xl mx-auto mt-10 bg-neutral-100 border border-neutral-200 rounded-lg p-5 text-xs text-neutral-700 leading-relaxed">
+    <p class="font-semibold mb-2 text-sm">Design Notes (Phase 2c — Mobile & Tablet)</p>
+    <ul class="space-y-2 list-disc list-inside">
+      <li><strong>Item count (mobile drawer, project context):</strong> 7 items (Back, Shots, Pulls, Assets, Products, Library, Account). Down from 12+ in current mobile sidebar. Desktop-only items (Call Sheet, Admin, Settings) are hidden.</li>
+      <li><strong>Item count (mobile drawer, org context):</strong> 4 items (Dashboard, Products, Library, Account). Clean and minimal.</li>
+      <li><strong>Touch targets:</strong> All nav items are 44px minimum height (mobile-nav-item class).</li>
+      <li><strong>Surface badges:</strong> Optional "Limited" / "Reader" badges shown in tablet drawer to hint at mobile capability level. These are informational, not functional — they help new users understand what they can do on their device.</li>
+      <li><strong>Desktop-only redirect:</strong> If a user navigates to a Call Sheet / Admin / Settings URL on mobile (e.g. from a shared link), they get redirected to the project dashboard with a Sonner toast: "Call sheets are available on desktop."</li>
+      <li><strong>Project switcher on phone:</strong> Top bar shows project name with a chevron. Tapping opens a project switch sheet (bottom sheet pattern). On org-level pages, top bar just shows "All Projects" with no chevron.</li>
+      <li><strong>Tablet drawer (768px):</strong> Wider at 320px (vs 288px on phone). Includes a swipe-hint bar on the right edge. Swipe left to close. Top bar gains a breadcrumb and search icon since there's more horizontal space.</li>
+      <li><strong>Library on mobile:</strong> Tapping "Library" in mobile drawer goes directly to a tabbed Library page (Talent / Crew / Locations / Palette tabs) rather than expanding a sub-menu. Simpler for one-handed use.</li>
+      <li><strong>Backdrop:</strong> Dark 50% overlay closes drawer on tap. Same pattern as current MobileSidebar.</li>
+      <li><strong>No horizontal scroll:</strong> All content fits within viewport width at both 375px and 768px.</li>
+    </ul>
+  </div>
+
+  <script>
+    // Drawer state
+    const drawerState = { phone: false, tablet: false };
+
+    function toggleDrawer(device) {
+      drawerState[device] = !drawerState[device];
+      const backdrop = document.getElementById(`${device}-backdrop`);
+      const panel = document.getElementById(`${device}-drawer`);
+      backdrop.classList.toggle('open', drawerState[device]);
+      panel.classList.toggle('open', drawerState[device]);
+    }
+
+    // Org-level nav items for phone drawer
+    const orgNavHTML = `
+      <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-white bg-sidebar-active relative">
+        <span class="nav-active-bar"></span>
+        <svg class="w-5 h-5 text-neutral-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+        <span class="text-sm font-medium">Dashboard</span>
+      </a>
+      <div class="pt-3 pb-1"><div class="mx-2 border-t border-sidebar-border/60" aria-hidden="true"></div></div>
+      <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-300 hover:text-white hover:bg-sidebar-hover transition-colors">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        <span class="text-sm">Products</span>
+      </a>
+      <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-300 hover:text-white hover:bg-sidebar-hover transition-colors">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
+        <span class="text-sm">Library</span>
+      </a>
+      <div class="pt-3 pb-1"><div class="mx-2 border-t border-sidebar-border/60" aria-hidden="true"></div></div>
+      <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-300 hover:text-white hover:bg-sidebar-hover transition-colors">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        <span class="text-sm">Account</span>
+      </a>
+    `;
+
+    // Project-scoped nav items for phone drawer
+    const projectNavHTML = `
+      <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-400 hover:text-white hover:bg-sidebar-hover transition-colors">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        <span class="text-sm">All Projects</span>
+      </a>
+      <div class="pt-3 pb-1.5"><span class="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 px-3">Project</span></div>
+      <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-white bg-sidebar-active relative">
+        <span class="nav-active-bar"></span>
+        <svg class="w-5 h-5 text-neutral-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3" stroke-width="2"/></svg>
+        <span class="text-sm font-medium">Shots</span>
+      </a>
+      <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-300 hover:text-white hover:bg-sidebar-hover transition-colors">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+        <span class="text-sm">Pulls</span>
+      </a>
+      <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-300 hover:text-white hover:bg-sidebar-hover transition-colors">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        <span class="text-sm">Assets</span>
+      </a>
+      <div class="pt-3 pb-1"><div class="mx-2 border-t border-sidebar-border/60" aria-hidden="true"></div></div>
+      <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-300 hover:text-white hover:bg-sidebar-hover transition-colors">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        <span class="text-sm">Products</span>
+      </a>
+      <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-300 hover:text-white hover:bg-sidebar-hover transition-colors">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
+        <span class="text-sm">Library</span>
+      </a>
+      <div class="pt-3 pb-1"><div class="mx-2 border-t border-sidebar-border/60" aria-hidden="true"></div></div>
+      <a href="#" class="mobile-nav-item group flex items-center gap-3 rounded-md px-3 py-2.5 text-neutral-300 hover:text-white hover:bg-sidebar-hover transition-colors">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        <span class="text-sm">Account</span>
+      </a>
+    `;
+
+    // Org page content for phone
+    const orgPageHTML = `
+      <div class="bg-white rounded-lg border border-neutral-200 p-4">
+        <h2 class="text-base font-semibold text-neutral-900 mb-3">All Projects</h2>
+        <div class="space-y-3">
+          <div class="border border-neutral-200 rounded-lg p-3">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-sm font-medium text-neutral-900">SS26 Campaign</h3>
+              <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">In Progress</span>
+            </div>
+            <div class="text-xs text-neutral-500">42 shots &middot; Mar 15-18</div>
+            <div class="mt-2 w-full bg-neutral-100 rounded-full h-1.5">
+              <div class="bg-primary h-1.5 rounded-full" style="width: 72%"></div>
+            </div>
+          </div>
+          <div class="border border-neutral-200 rounded-lg p-3">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-sm font-medium text-neutral-900">FW26 Lookbook</h3>
+              <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-neutral-100 text-neutral-600">Draft</span>
+            </div>
+            <div class="text-xs text-neutral-500">0 shots &middot; TBD</div>
+            <div class="mt-2 w-full bg-neutral-100 rounded-full h-1.5">
+              <div class="bg-neutral-300 h-1.5 rounded-full" style="width: 5%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Project page content for phone
+    const projectPageHTML = `
+      <div class="bg-white rounded-lg border border-neutral-200 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-semibold text-neutral-900">Shots</h2>
+          <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-neutral-200">
+            <svg class="w-4 h-4 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+          </button>
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center gap-3 p-3 rounded-lg border border-neutral-100">
+            <div class="w-10 h-10 rounded bg-neutral-100 shrink-0"></div>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium text-neutral-900 truncate">Hero — Full Body</div>
+              <div class="text-xs text-neutral-500">3 products</div>
+            </div>
+            <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Draft</span>
+          </div>
+          <div class="flex items-center gap-3 p-3 rounded-lg border border-neutral-100">
+            <div class="w-10 h-10 rounded bg-neutral-100 shrink-0"></div>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium text-neutral-900 truncate">Detail — Bag Close-up</div>
+              <div class="text-xs text-neutral-500">1 product</div>
+            </div>
+            <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Ready</span>
+          </div>
+          <div class="flex items-center gap-3 p-3 rounded-lg border border-neutral-100">
+            <div class="w-10 h-10 rounded bg-neutral-100 shrink-0"></div>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium text-neutral-900 truncate">Lifestyle — Street</div>
+              <div class="text-xs text-neutral-500">2 products</div>
+            </div>
+            <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-neutral-100 text-neutral-600">Draft</span>
+          </div>
+        </div>
+      </div>
+      <!-- Floating action button -->
+      <button class="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-accent text-white shadow-lg flex items-center justify-center hover:bg-accent-dark transition-colors" style="position:absolute; bottom:24px; right:24px;">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      </button>
+    `;
+
+    function showDevice(view) {
+      // Close all drawers
+      ['phone', 'tablet'].forEach(d => {
+        drawerState[d] = false;
+        const backdrop = document.getElementById(`${d}-backdrop`);
+        const panel = document.getElementById(`${d}-drawer`);
+        if (backdrop) backdrop.classList.remove('open');
+        if (panel) panel.classList.remove('open');
+      });
+
+      const phone = document.getElementById('phone');
+      const tablet = document.getElementById('tablet');
+      const phoneNav = document.getElementById('phone-drawer-nav');
+      const phonePage = document.getElementById('phone-page');
+      const phoneTopbarText = document.getElementById('phone-topbar-text');
+      const phoneTopbarChevron = document.getElementById('phone-topbar-chevron');
+
+      if (view === 'phone-org') {
+        phone.parentElement.style.display = '';
+        tablet.parentElement.style.display = 'none';
+        phoneNav.innerHTML = orgNavHTML;
+        phonePage.innerHTML = orgPageHTML;
+        phoneTopbarText.textContent = 'All Projects';
+        phoneTopbarChevron.classList.add('hidden');
+      } else if (view === 'phone-project') {
+        phone.parentElement.style.display = '';
+        tablet.parentElement.style.display = 'none';
+        phoneNav.innerHTML = projectNavHTML;
+        phonePage.innerHTML = projectPageHTML;
+        phoneTopbarText.textContent = 'SS26 Campaign';
+        phoneTopbarChevron.classList.remove('hidden');
+      } else if (view === 'tablet-project') {
+        phone.parentElement.style.display = 'none';
+        tablet.parentElement.style.display = '';
+      }
+
+      // Update buttons
+      document.querySelectorAll('.demo-btn').forEach(btn => {
+        const btnView = btn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+        btn.classList.toggle('active', btnView === view);
+      });
+    }
+
+    // Initialize
+    showDevice('phone-org');
+  </script>
+
+</body>
+</html>

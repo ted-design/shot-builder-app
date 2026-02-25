@@ -23,7 +23,7 @@ export function AdaptiveGapSegment({ segment }: AdaptiveGapSegmentProps) {
               "repeating-linear-gradient(to right, var(--color-border) 0px, var(--color-border) 4px, transparent 4px, transparent 8px)",
           }}
         />
-        <span className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+        <span className="whitespace-nowrap text-3xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
           {segment.label}
         </span>
         <div

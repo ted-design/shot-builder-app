@@ -1726,7 +1726,7 @@ export default function ProductsPage() {
         summaryItems.push({
           key: "lastUpdated",
           node: (
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="text-xxs text-slate-500 dark:text-slate-400">
               Updated {formatUpdatedAt(family.updatedAt)}
             </span>
           ),
@@ -1770,7 +1770,7 @@ export default function ProductsPage() {
                     imageClassName="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-[11px] text-slate-500">
+                  <div className="flex h-full w-full items-center justify-center text-xxs text-slate-500">
                     No image
                   </div>
                 )}
@@ -1846,11 +1846,11 @@ export default function ProductsPage() {
             <>
               {showStatus && (
                 <div className="col-span-2 flex flex-wrap items-center gap-2">
-                  <StatusBadge status={family.status} className="px-2 py-0.5 text-[11px]">
+                  <StatusBadge status={family.status} className="px-2 py-0.5 text-xxs">
                     {statusLabel(family.status)}
                   </StatusBadge>
                   {family.archived && (
-                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xxs text-slate-700 dark:bg-slate-700 dark:text-slate-300">
                       Archived
                     </span>
                   )}
@@ -1866,7 +1866,7 @@ export default function ProductsPage() {
                 </div>
               )}
               {(showColors || showSizes) && (!!colourList.length || !!sizeList.length) && (
-                <div className="col-span-2 grid grid-cols-2 gap-2 text-[11px] text-slate-600 sm:grid-cols-2 dark:text-slate-400">
+                <div className="col-span-2 grid grid-cols-2 gap-2 text-xxs text-slate-600 sm:grid-cols-2 dark:text-slate-400">
                   {showColors && !!colourList.length && (
                     <span title={`Colours: ${coloursLabel}`}>
                       Colours: {colourList.slice(0, 3).join(", ")}
@@ -2136,7 +2136,7 @@ export default function ProductsPage() {
                   {/* Status Dot Indicator + Actions Menu */}
                   <div className="flex flex-shrink-0 items-center gap-2">
                     {showStatus && family.archived && (
-                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-2xs text-slate-700 dark:bg-slate-700 dark:text-slate-300">
                         Archived
                       </span>
                     )}

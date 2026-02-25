@@ -190,7 +190,7 @@ function MetricSlot({ icon: Icon, label, value, variant = "default" }) {
     <div className="flex items-center gap-2 px-3 py-2">
       <Icon className={`w-4 h-4 flex-shrink-0 ${variantStyles[variant]} opacity-60`} />
       <div className="min-w-0">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <p className="text-2xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
           {label}
         </p>
         <p className={`text-sm font-semibold truncate ${variantStyles[variant]}`}>
@@ -282,7 +282,7 @@ function FactRow({ label, value, href, isEditable, onSave, placeholder, type = "
   if (isEditable && onSave) {
     return (
       <div className="py-2">
-        <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+        <p className="text-2xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
           {label}
         </p>
         <InlineEditField
@@ -299,7 +299,7 @@ function FactRow({ label, value, href, isEditable, onSave, placeholder, type = "
   // Read-only version
   return (
     <div className="py-2">
-      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+      <p className="text-2xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
         {label}
       </p>
       {isEmpty ? (
@@ -420,7 +420,7 @@ function MeasurementsTab({ profile, canEdit }) {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4">
         {measurementEntries.map(({ key, label, value }) => (
           <div key={key} className="flex items-baseline justify-between">
-            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <span className="text-2xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               {label}
             </span>
             <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 tabular-nums">
@@ -601,7 +601,7 @@ export default function ProfileCanvas({
         <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
           <div className="flex items-center gap-2">
             <span className={`
-              px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide
+              px-2 py-0.5 rounded-full text-2xs font-semibold uppercase tracking-wide
               ${isTalent
                 ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
                 : "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
@@ -610,7 +610,7 @@ export default function ProfileCanvas({
               {isTalent ? "Talent" : "Crew"}
             </span>
             {!canEdit && (
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+              <span className="text-2xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">
                 View only
               </span>
             )}
@@ -644,7 +644,7 @@ export default function ProfileCanvas({
               {/* Type badge + View only indicator */}
               <div className="flex items-center justify-center gap-2 mb-4">
                 <span className={`
-                  px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide
+                  px-2 py-0.5 rounded text-2xs font-medium uppercase tracking-wide
                   ${isTalent
                     ? "bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400"
                     : "bg-sky-50 text-sky-600 dark:bg-sky-900/20 dark:text-sky-400"
@@ -653,7 +653,7 @@ export default function ProfileCanvas({
                   {isTalent ? "Talent" : "Crew"}
                 </span>
                 {!canEdit && isWorkspaceMode && (
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                  <span className="text-2xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">
                     View only
                   </span>
                 )}

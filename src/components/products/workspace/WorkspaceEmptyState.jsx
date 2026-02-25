@@ -61,7 +61,7 @@ export default function WorkspaceEmptyState({
 
         {/* Coming soon indicator */}
         {comingSoon && (
-          <p className="mt-3 text-[10px] text-slate-300 dark:text-slate-600 italic">
+          <p className="mt-3 text-2xs text-slate-300 dark:text-slate-600 italic">
             Coming soon
           </p>
         )}
@@ -92,7 +92,7 @@ export function WorkspaceTableEmpty({
             {title}
           </p>
           {subtitle && (
-            <p className="text-[10px] text-slate-400 dark:text-slate-500">
+            <p className="text-2xs text-slate-400 dark:text-slate-500">
               {subtitle}
             </p>
           )}

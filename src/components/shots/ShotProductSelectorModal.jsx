@@ -200,7 +200,7 @@ function ProductSelectorRow({
           className="w-full h-full"
           imageClassName="w-full h-full object-cover"
           fallback={
-            <div className="flex items-center justify-center h-full text-[9px] text-slate-400 dark:text-slate-500">
+            <div className="flex items-center justify-center h-full text-3xs text-slate-400 dark:text-slate-500">
               No img
             </div>
           }
@@ -212,7 +212,7 @@ function ProductSelectorRow({
         />
         {/* Cart count badge */}
         {cartCount > 0 && (
-          <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 text-white text-2xs font-bold rounded-full flex items-center justify-center">
             {cartCount}
           </div>
         )}
@@ -330,7 +330,7 @@ function ProductSelectorRow({
             >
               <span>All sizes</span>
               {!selectedSize && (
-                <span className="text-slate-400 dark:text-slate-500 text-[10px]">default</span>
+                <span className="text-slate-400 dark:text-slate-500 text-2xs">default</span>
               )}
             </button>
             {sizes.length > 0 && (

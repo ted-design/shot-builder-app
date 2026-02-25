@@ -356,15 +356,15 @@ function InfoGridSection({ locations, notes, meta }: InfoGridSectionProps) {
       <div className={bordered ? `px-1.5 py-1 border-r ${borderClass}` : "px-1.5 py-1"}>
         <div className={`flex items-center gap-1 mb-0.5 ${labelJustify}`}>
           <MapPin className={`w-3 h-3 ${iconClassName}`} />
-          <span className="text-[9px] font-semibold uppercase tracking-wider text-gray-500">
+          <span className="text-3xs font-semibold uppercase tracking-wider text-gray-500">
             {location.type}
           </span>
         </div>
-        <p className={`text-[11px] font-medium text-[var(--color-doc-ink,#111)] leading-tight ${textAlign}`}>
+        <p className={`text-xxs font-medium text-[var(--color-doc-ink,#111)] leading-tight ${textAlign}`}>
           {location.name}
         </p>
         {location.address ? (
-          <p className={`text-[10px] text-gray-600 leading-tight ${textAlign}`}>{location.address}</p>
+          <p className={`text-2xs text-gray-600 leading-tight ${textAlign}`}>{location.address}</p>
         ) : null}
       </div>
     );
@@ -410,7 +410,7 @@ function InfoGridSection({ locations, notes, meta }: InfoGridSectionProps) {
                   <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">
                     {field.label}
                   </p>
-                  <p className="text-[10px] text-[var(--color-doc-ink,#111)]">{field.value}</p>
+                  <p className="text-2xs text-[var(--color-doc-ink,#111)]">{field.value}</p>
                 </div>
               );
             })}
@@ -423,7 +423,7 @@ function InfoGridSection({ locations, notes, meta }: InfoGridSectionProps) {
         <div className={`mt-1 border ${borderClass} px-1.5 py-1`} style={{ borderRadius: 0 }}>
           <p className="text-[8px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Main Notes</p>
           <div
-            className="text-[10px] text-[var(--color-doc-ink,#111)] leading-tight"
+            className="text-2xs text-[var(--color-doc-ink,#111)] leading-tight"
             dangerouslySetInnerHTML={{ __html: notesHtml }}
           />
         </div>
@@ -476,7 +476,7 @@ function CallSheetFooter() {
         />
         <span>Powered by Immediate</span>
       </div>
-      <p className="text-center text-[10px] text-gray-400 mt-1">
+      <p className="text-center text-2xs text-gray-400 mt-1">
         Send better call sheets
       </p>
     </footer>

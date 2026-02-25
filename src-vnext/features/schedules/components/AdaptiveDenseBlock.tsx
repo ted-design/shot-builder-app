@@ -75,7 +75,7 @@ export function AdaptiveDenseBlock({
         {markers.map((marker) => (
           <div key={marker.minuteOfDay}>
             <span
-              className={`absolute right-1.5 font-mono text-[10px] leading-none ${
+              className={`absolute right-1.5 font-mono text-2xs leading-none ${
                 marker.isHour
                   ? "font-semibold text-[var(--color-text-muted)]"
                   : "font-medium text-[var(--color-text-subtle)]"

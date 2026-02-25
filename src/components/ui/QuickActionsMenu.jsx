@@ -243,7 +243,7 @@ export default function QuickActionsMenu() {
             <div className="space-y-3">
               {visibleGroups.map((group) => (
                 <div key={group.id}>
-                  <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  <div className="px-2 pb-1 text-xxs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     {group.label}
                   </div>
                   <div className="grid grid-cols-2 gap-1">

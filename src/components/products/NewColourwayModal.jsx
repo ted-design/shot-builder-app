@@ -266,7 +266,7 @@ export default function NewColourwayModal({
                     <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                       <span>Linked to palette</span>
                       {paletteMatch.hexColor && (
-                        <span className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                        <span className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-xxs text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                           {paletteMatch.hexColor}
                         </span>
                       )}
@@ -281,7 +281,7 @@ export default function NewColourwayModal({
                       <Button type="button" variant="outline" size="sm" disabled={!canSave} onClick={handleSaveSwatchToPalette}>
                         Save swatch
                       </Button>
-                      {!canSave && <span className="text-[11px] text-slate-500">Add a valid hex first</span>}
+                      {!canSave && <span className="text-xxs text-slate-500">Add a valid hex first</span>}
                     </div>
                   );
                 }

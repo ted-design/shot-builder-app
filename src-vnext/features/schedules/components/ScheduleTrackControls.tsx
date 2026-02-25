@@ -176,7 +176,7 @@ export function ScheduleTrackControls({
                   }}
                   className="text-sm font-medium text-[var(--color-text)]"
                 />
-                <div className="mt-0.5 text-[10px] text-[var(--color-text-subtle)]">
+                <div className="mt-0.5 text-2xs text-[var(--color-text-subtle)]">
                   {count} {count === 1 ? "entry" : "entries"}
                 </div>
               </div>
@@ -202,7 +202,7 @@ export function ScheduleTrackControls({
 
       <div className="grid grid-cols-2 gap-2">
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+          <span className="text-2xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
             Day Start
           </span>
           <TypedTimeInput
@@ -221,7 +221,7 @@ export function ScheduleTrackControls({
         </div>
 
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+          <span className="text-2xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
             Default Dur.
           </span>
           <Input

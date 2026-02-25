@@ -149,7 +149,7 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
             isActive ? "border-white/50" : "border-rose-300 dark:border-rose-600"
           ].join(" ")} />
           <span className={[
-            "text-[10px] font-bold uppercase tracking-wider px-1.5",
+            "text-2xs font-bold uppercase tracking-wider px-1.5",
             isActive ? "text-white" : "text-rose-500 dark:text-rose-400"
           ].join(" ")}>
             Page Break
@@ -263,7 +263,7 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
           {readSectionTitle(section, sectionLabel(section.type))}
         </div>
         {!visible && !isActive ? (
-          <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-0.5">
+          <div className="text-2xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-0.5">
             Hidden
           </div>
         ) : null}
@@ -276,12 +276,12 @@ function SortableSectionItem({ section, isActive, onClick, onToggle, onDelete, o
           </div>
         ) : null}
         {section.type === "reminders" && visible && remindersCount > 0 ? (
-          <div className={["text-[10px] leading-tight mt-0.5", isActive ? "opacity-60" : "text-slate-400 dark:text-slate-500"].join(" ")}>
+          <div className={["text-2xs leading-tight mt-0.5", isActive ? "opacity-60" : "text-slate-400 dark:text-slate-500"].join(" ")}>
             {remindersCount} item{remindersCount === 1 ? "" : "s"}
           </div>
         ) : null}
         {section.type === "extras" && visible && extrasCount > 0 ? (
-          <div className={["text-[10px] leading-tight mt-0.5", isActive ? "opacity-60" : "text-slate-400 dark:text-slate-500"].join(" ")}>
+          <div className={["text-2xs leading-tight mt-0.5", isActive ? "opacity-60" : "text-slate-400 dark:text-slate-500"].join(" ")}>
             {extrasCount} item{extrasCount === 1 ? "" : "s"}
           </div>
         ) : null}

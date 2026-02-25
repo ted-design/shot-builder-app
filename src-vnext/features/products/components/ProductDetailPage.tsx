@@ -679,19 +679,19 @@ export default function ProductDetailPage() {
                   </div>
                   <div className="mt-2 grid gap-2 sm:grid-cols-3">
                     <div>
-                      <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">Gender</div>
+                      <div className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">Gender</div>
                       <div className="mt-0.5 text-sm text-[var(--color-text)]">
                         {family.gender ? humanizeClassificationKey(family.gender) : "—"}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">Type</div>
+                      <div className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">Type</div>
                       <div className="mt-0.5 text-sm text-[var(--color-text)]">
                         {family.productType ? humanizeClassificationKey(family.productType) : "—"}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">Subcategory</div>
+                      <div className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">Subcategory</div>
                       <div className="mt-0.5 text-sm text-[var(--color-text)]">
                         {family.productSubcategory ? humanizeClassificationKey(family.productSubcategory) : "—"}
                       </div>
@@ -699,7 +699,7 @@ export default function ProductDetailPage() {
                   </div>
                   {notesSnippet && (
                     <div className="mt-3 rounded-md bg-[var(--color-surface-subtle)] p-3">
-                      <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">Notes</div>
+                      <div className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">Notes</div>
                       <div className="mt-1 line-clamp-2 text-xs text-[var(--color-text-muted)]">{notesSnippet}</div>
                     </div>
                   )}
@@ -803,7 +803,7 @@ export default function ProductDetailPage() {
 
                       <div className="grid gap-3 md:grid-cols-3">
               <div className="flex flex-col gap-1">
-                          <Label className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <Label className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">
                             Scope
                           </Label>
                           <Select
@@ -825,7 +825,7 @@ export default function ProductDetailPage() {
                         </div>
 
                         <div className="flex flex-col gap-1">
-                          <Label className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <Label className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">
                             Type
                           </Label>
                           <Select value={sampleTypeFilter} onValueChange={(value) => setSampleTypeFilter(value as SampleTypeFilter)}>
@@ -842,7 +842,7 @@ export default function ProductDetailPage() {
                         </div>
 
                         <div className="flex flex-col gap-1">
-                          <Label className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <Label className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">
                             Showing
                           </Label>
                           <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-2 text-sm text-[var(--color-text)]">

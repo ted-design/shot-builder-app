@@ -105,7 +105,7 @@ function CallTimesBox({ dayDetails }: { dayDetails: CallSheetDayDetails | null |
   return (
     <div className="mt-2">
       {/* 3-column grid: dot (fixed) | label (right-aligned) | time (left-aligned) */}
-      <div className="grid grid-cols-[auto_auto_auto] gap-x-2 gap-y-0.5 justify-end text-[11px]">
+      <div className="grid grid-cols-[auto_auto_auto] gap-x-2 gap-y-0.5 justify-end text-xxs">
         {rows.map((row) => (
           <React.Fragment key={row.label}>
             <span className="w-1.5 h-1.5 rounded-full border border-gray-400 self-center" />
@@ -292,7 +292,7 @@ export function CallSheetHeader({
             {renderHeaderColumn(headerItems.center, variableContext, "center")}
             {/* Crew Call Badge - always rendered in center */}
             <div className="flex flex-col items-center mt-2">
-              <span className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
+              <span className="text-2xs uppercase tracking-wider text-gray-400 mb-1">
                 Crew Call
               </span>
               <div className={`${getShapeClasses(centerShape)} flex flex-col items-center justify-center`}>
@@ -332,7 +332,7 @@ export function CallSheetHeader({
 
         {/* Center Column - Crew Call Badge (perfectly centered) */}
         <div className="flex flex-col items-center justify-self-center">
-          <span className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
+          <span className="text-2xs uppercase tracking-wider text-gray-400 mb-1">
             Crew Call
           </span>
           <div className={`${getShapeClasses(centerShape)} flex flex-col items-center justify-center`}>
@@ -386,7 +386,7 @@ export function CallSheetHeaderCompact({
 
         {/* Center - Smaller Crew Call Badge (perfectly centered) */}
         <div className="flex flex-col items-center justify-self-center">
-          <span className="text-[9px] uppercase tracking-wider text-gray-400 mb-0.5">
+          <span className="text-3xs uppercase tracking-wider text-gray-400 mb-0.5">
             Crew Call
           </span>
           <div className={`${getCompactShapeClasses(centerShape)} flex flex-col items-center justify-center`}>

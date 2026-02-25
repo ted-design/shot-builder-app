@@ -64,7 +64,7 @@ export function ProductFamilyCard({ family, returnTo, properties = DEFAULT_PROPE
           {properties.category && categoryLabel && (
             <Badge
               variant="outline"
-              className="text-[10px] font-normal text-[var(--color-text-muted)]"
+              className="text-2xs font-normal text-[var(--color-text-muted)]"
             >
               {categoryLabel}
             </Badge>
@@ -74,7 +74,7 @@ export function ProductFamilyCard({ family, returnTo, properties = DEFAULT_PROPE
               {family.archived && (
                 <Badge
                   variant="outline"
-                  className="text-[10px] font-normal text-[var(--color-text-subtle)]"
+                  className="text-2xs font-normal text-[var(--color-text-subtle)]"
                 >
                   Archived
                 </Badge>
@@ -82,7 +82,7 @@ export function ProductFamilyCard({ family, returnTo, properties = DEFAULT_PROPE
               {family.deleted && (
                 <Badge
                   variant="outline"
-                  className="text-[10px] font-normal text-[var(--color-text-subtle)]"
+                  className="text-2xs font-normal text-[var(--color-text-subtle)]"
                 >
                   Deleted
                 </Badge>
@@ -90,7 +90,7 @@ export function ProductFamilyCard({ family, returnTo, properties = DEFAULT_PROPE
               {status === "discontinued" && (
                 <Badge
                   variant="outline"
-                  className="text-[10px] font-normal text-[var(--color-text-subtle)]"
+                  className="text-2xs font-normal text-[var(--color-text-subtle)]"
                 >
                   Discontinued
                 </Badge>

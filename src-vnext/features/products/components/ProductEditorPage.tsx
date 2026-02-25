@@ -273,7 +273,7 @@ function ColorwayRow({
 
           <div className="grid gap-2 md:col-span-8 md:grid-cols-3">
             <div className="flex flex-col gap-1">
-              <Label className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">SKU</Label>
+              <Label className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">SKU</Label>
               <Input
                 value={sku.skuCode}
                 disabled={disabled || isDeleted}
@@ -282,7 +282,7 @@ function ColorwayRow({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label className="text-[10px] uppercase tracking-widest text-[var(--color-text-subtle)]">Status</Label>
+              <Label className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">Status</Label>
               <Select
                 value={sku.status}
                 onValueChange={(value) => onChange({ ...sku, status: value })}

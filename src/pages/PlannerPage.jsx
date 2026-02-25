@@ -857,25 +857,25 @@ function ShotCard({
               fit="cover"
               position={shotImagePath === thumbnailSrc ? shotImagePosition : undefined}
               placeholder={
-                <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                <div className="flex h-full w-full items-center justify-center bg-slate-100 text-2xs uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                   Loading
                 </div>
               }
               fallback={
-                <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                <div className="flex h-full w-full items-center justify-center bg-slate-100 text-2xs uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                   No image
                 </div>
               }
             />
             {showMultiImageBadge && (
-              <div className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white">
+              <div className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-2xs font-medium text-white">
                 {multiImageCount} images
               </div>
             )}
           </div>
         )}
         {shotNumberLabel && (
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-primary/80 dark:text-primary/70">
+          <p className="text-xxs font-semibold uppercase tracking-wide text-primary/80 dark:text-primary/70">
             {shotNumberLabel}
           </p>
         )}
@@ -893,12 +893,12 @@ function ShotCard({
                   fit="cover"
                   position={shotImagePath === thumbnailSrc ? shotImagePosition : undefined}
                   placeholder={
-                    <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[9px] uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                    <div className="flex h-full w-full items-center justify-center bg-slate-100 text-3xs uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                       Loading
                     </div>
                   }
                   fallback={
-                    <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[9px] uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                    <div className="flex h-full w-full items-center justify-center bg-slate-100 text-3xs uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                       No image
                     </div>
                   }

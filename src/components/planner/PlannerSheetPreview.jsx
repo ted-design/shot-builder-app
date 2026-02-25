@@ -183,7 +183,7 @@ function PreviewShotCardList({ shot, visibleSections, sectionStates }) {
               />
             ) : (
               <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-center">
-                <span className="text-[10px] text-slate-400">No image</span>
+                <span className="text-2xs text-slate-400">No image</span>
               </div>
             )}
           </div>
@@ -333,7 +333,7 @@ function PreviewHeaderRow({ visibleSections, sectionStates, customLabels = {} })
         {/* Image column header */}
         {showImage && (
           <div className="flex-shrink-0 w-16">
-            <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+            <span className="text-2xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
               {customLabels[SECTION_TYPES.IMAGE] || 'Image'}
             </span>
           </div>
@@ -350,7 +350,7 @@ function PreviewHeaderRow({ visibleSections, sectionStates, customLabels = {} })
               const label = customLabels[section.id] || section.label;
               return (
                 <div key={section.id} className="px-2 py-1 min-w-0 overflow-hidden">
-                  <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide truncate block">
+                  <span className="text-2xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide truncate block">
                     {label}
                   </span>
                 </div>

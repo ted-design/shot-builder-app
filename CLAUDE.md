@@ -40,7 +40,9 @@ Every layout starts from the smallest viewport. Desktop adds density and editing
 
 - Use shadcn/ui (Radix) as the primitive layer. Do not create custom primitives.
 - `tokens.css` is the single source of design truth. All color, spacing, and typography values come from tokens.
+- `src/styles/design-tokens.js` provides semantic Tailwind classes (`.heading-page`, `.heading-section`, `.label-meta`, etc.). Prefer these over ad-hoc class combinations.
 - Tailwind classes reference token values. No hardcoded hex colors or arbitrary spacing in components.
+- Use `text-3xs` (9px), `text-2xs` (10px), `text-xxs` (11px) for micro font sizes — never `text-[9px]`, `text-[10px]`, `text-[11px]`.
 - Every surface uses the same building blocks. No one-off component variants for a single page.
 - Fewer surfaces, fewer modes. Each new page/modal must justify its existence.
 
@@ -91,7 +93,7 @@ Shot Builder vNext is a ground-up redesign of the Shot Builder production planni
 |-------|--------|
 | Framework | React 18+ (SPA) |
 | Build | Vite |
-| Styling | Tailwind CSS + tokens.css |
+| Styling | Tailwind CSS + tokens.css + design-tokens.js |
 | Primitives | shadcn/ui (Radix) |
 | State | React Context + Firestore real-time |
 | Backend | Firebase (Auth, Firestore, Storage, Functions) |
@@ -205,9 +207,20 @@ Tools like `code-simplifier`, `refactor-cleaner`, and similar optimization agent
 - **Behavior and interfaces must be preserved.** Cleanup agents simplify internals. They must not change component APIs, hook signatures, route behavior, or any user-facing output.
 - **Reversible.** Every cleanup pass must be a single, revertable commit. If the diff changes behavior, reject it.
 
+## Design System (Direction A: Near-Black Editorial)
+
+The visual direction is finalized. All new UI must follow this palette:
+
+- **Neutrals:** Zinc scale (not Slate). `zinc-50` through `zinc-900`.
+- **Primary:** Near-black (`#18181b` / `zinc-900`). Used for primary buttons, strong text.
+- **Accent:** Immediate Red (`#E31E24`). Reserved for: logo mark, sidebar active indicator, destructive states only. Do not use red on general buttons.
+- **Typography:** Inter. Light weight (300) for page headings, semibold for section headings. Editorial tracking: `-0.02em` on headings, `-0.01em` on sub-headings.
+- **Shadows:** Minimal. Borders do separation work (Notion/Linear style).
+- **Mockups:** `mockups/p2-sidebar-desktop.html`, `mockups/p2-drawer-mobile-tablet.html`, `mockups/p2-cmdk-palette.html` — open in browser for visual reference.
+
 ## Git Workflow
 
-- Branch: `vnext/spec-reset` (current)
+- Branch: `vnext/phase-discipline-guardrails` (current)
 - Commit format: Conventional Commits
 - One topic per commit
 - Main branch: `main`

@@ -86,7 +86,7 @@ function LogisticsPlaceholder() {
       <p className="text-xs text-slate-500 dark:text-slate-400">
         Location, schedule, and crew notes
       </p>
-      <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+      <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-2xs font-medium text-slate-500 dark:text-slate-400">
         Planned
       </span>
     </div>

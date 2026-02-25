@@ -2993,7 +2993,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                     </span>
                     {/* High-fidelity toggle */}
                     <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">High fidelity (PDF)</span>
+                      <span className="text-xxs text-slate-500 dark:text-slate-400">High fidelity (PDF)</span>
                       <button
                         type="button"
                         role="switch"
@@ -3015,7 +3015,7 @@ const PlannerExportModal = ({ open, onClose, lanes, defaultVisibleFields, isLoad
                     </label>
                     {/* Auto-disabled notice */}
                     {highFidelityWasAutoDisabled && !highFidelityPreview && (
-                      <span className="inline-flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400">
+                      <span className="inline-flex items-center gap-1.5 text-2xs text-amber-600 dark:text-amber-400">
                         Paused (settings changed)
                         <button
                           type="button"

@@ -65,7 +65,7 @@ export function ScopeContextPill({ colorway, onClear }) {
   if (!colorway) return null;
 
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-700 text-white dark:bg-slate-200 dark:text-slate-900">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-medium bg-slate-700 text-white dark:bg-slate-200 dark:text-slate-900">
       {colorway.colorName}
       {onClear && (
         <button

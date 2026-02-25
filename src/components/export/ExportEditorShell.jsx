@@ -104,7 +104,7 @@ function DocumentTypeCard({ type, isSelected, onClick }) {
         >
           {type.name}
         </span>
-        <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight line-clamp-1">
+        <span className="text-2xs text-slate-500 dark:text-slate-400 leading-tight line-clamp-1">
           {type.description}
         </span>
       </div>
@@ -137,7 +137,7 @@ function ContentFocusToggle({ label, checked, onChange, description }) {
           {label}
         </span>
         {description && (
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
+          <span className="text-2xs text-slate-500 dark:text-slate-400 block truncate">
             {description}
           </span>
         )}

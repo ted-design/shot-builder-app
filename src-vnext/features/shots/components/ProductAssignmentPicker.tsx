@@ -799,7 +799,7 @@ function FamilyStep({
                   </div>
                   <Badge
                     variant="outline"
-                    className={`shrink-0 border text-[10px] ${genderTagClass(canonicalGenderKey(family.gender))}`}
+                    className={`shrink-0 border text-2xs ${genderTagClass(canonicalGenderKey(family.gender))}`}
                   >
                     {genderBadge}
                   </Badge>

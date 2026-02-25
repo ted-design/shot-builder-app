@@ -119,7 +119,7 @@ export function ColorwayTile({ sku, isSelected, onSelect, samples = [], tileRef 
       </div>
 
       <p className={`
-        mt-1.5 text-[11px] font-medium text-center truncate w-full max-w-[72px]
+        mt-1.5 text-xxs font-medium text-center truncate w-full max-w-[72px]
         ${isSelected ? "text-slate-900 dark:text-slate-100" : "text-slate-500 dark:text-slate-400"}
       `}>
         {sku.colorName}
@@ -129,19 +129,19 @@ export function ColorwayTile({ sku, isSelected, onSelect, samples = [], tileRef 
       {hasMetrics && (
         <div className="mt-1 flex items-center justify-center gap-1.5">
           {metrics.arrived > 0 && (
-            <span className="flex items-center gap-0.5 text-[9px] text-emerald-600/70 dark:text-emerald-400/70" title={`${metrics.arrived} arrived`}>
+            <span className="flex items-center gap-0.5 text-3xs text-emerald-600/70 dark:text-emerald-400/70" title={`${metrics.arrived} arrived`}>
               <Check className="w-2.5 h-2.5" />
               <span>{metrics.arrived}</span>
             </span>
           )}
           {metrics.inTransit > 0 && (
-            <span className="flex items-center gap-0.5 text-[9px] text-blue-500/70 dark:text-blue-400/70" title={`${metrics.inTransit} in transit`}>
+            <span className="flex items-center gap-0.5 text-3xs text-blue-500/70 dark:text-blue-400/70" title={`${metrics.inTransit} in transit`}>
               <Truck className="w-2.5 h-2.5" />
               <span>{metrics.inTransit}</span>
             </span>
           )}
           {metrics.issues > 0 && (
-            <span className="flex items-center gap-0.5 text-[9px] text-amber-600 dark:text-amber-400" title={`${metrics.issues} issues`}>
+            <span className="flex items-center gap-0.5 text-3xs text-amber-600 dark:text-amber-400" title={`${metrics.issues} issues`}>
               <AlertCircle className="w-2.5 h-2.5" />
               <span>{metrics.issues}</span>
             </span>
@@ -190,7 +190,7 @@ function SamplesEmptyState() {
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 leading-relaxed">
             Samples for this colorway will appear here once added.
           </p>
-          <p className="text-[10px] text-slate-400/70 dark:text-slate-500/70 mt-3 uppercase tracking-wider">
+          <p className="text-2xs text-slate-400/70 dark:text-slate-500/70 mt-3 uppercase tracking-wider">
             Next: Request or log a sample
           </p>
         </div>
@@ -231,14 +231,14 @@ function CockpitSamplesTab({ sku, samples = [] }) {
             </p>
             {/* DEV-only: Subtle scoping indicator for verification */}
             {import.meta.env.DEV && sample.scopeSkuId && (
-              <p className="text-[9px] text-slate-400/60 dark:text-slate-500/60 font-mono mt-0.5 truncate">
+              <p className="text-3xs text-slate-400/60 dark:text-slate-500/60 font-mono mt-0.5 truncate">
                 scope: {sample.scopeSkuId}
               </p>
             )}
           </div>
           <span
             className={`
-              px-1.5 py-0.5 rounded text-[10px] font-medium
+              px-1.5 py-0.5 rounded text-2xs font-medium
               ${sample.status === "arrived" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : ""}
               ${sample.status === "in_transit" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : ""}
               ${sample.status === "requested" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : ""}
@@ -273,7 +273,7 @@ function GlanceChip({ icon: Icon, label, value, variant = "default" }) {
     <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${variantStyles[variant]}`}>
       <Icon className="w-4 h-4 flex-shrink-0 opacity-70" />
       <div className="min-w-0">
-        <p className="text-[10px] font-medium uppercase tracking-wider opacity-60">{label}</p>
+        <p className="text-2xs font-medium uppercase tracking-wider opacity-60">{label}</p>
         <p className="text-sm font-semibold truncate">{value}</p>
       </div>
     </div>
@@ -400,7 +400,7 @@ function SizeChipPicker({ availableSizes = [], selectedSizes = [], onChange }) {
           );
         })}
       </div>
-      <p className="text-[10px] text-slate-400 dark:text-slate-500">
+      <p className="text-2xs text-slate-400 dark:text-slate-500">
         Select sizes available for this sample
       </p>
     </div>
@@ -441,7 +441,7 @@ function BentoBlock({ title, children, className = "" }) {
   return (
     <div className={`rounded-lg border border-slate-150 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 ${className}`}>
       <div className="px-3 py-2 border-b border-slate-150 dark:border-slate-700">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <p className="text-2xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
           {title}
         </p>
       </div>
@@ -524,7 +524,7 @@ function AddSampleModal({ open, onClose, onAdd, skuId, colorName, availableSizes
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
               Add Sample
             </h3>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 tracking-wide">
+            <p className="text-2xs text-slate-400 dark:text-slate-500 mt-0.5 tracking-wide">
               Local only · Not persisted
             </p>
           </div>
@@ -689,7 +689,7 @@ export function ColorwayCockpit({ sku, onClose, samples = [], onAddSample, avail
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{sku.colorName}</h3>
-          <span className="text-[9px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded">
+          <span className="text-3xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded">
             Colorway Workspace
           </span>
         </div>
@@ -732,12 +732,12 @@ export function ColorwayCockpit({ sku, onClose, samples = [], onAddSample, avail
               </div>
             )}
             {sku.skuCode && (
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate" title={sku.skuCode}>
+              <p className="text-2xs text-slate-400 dark:text-slate-500 truncate" title={sku.skuCode}>
                 SKU: {sku.skuCode}
               </p>
             )}
             {sku.status === "discontinued" && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                 Discontinued
               </span>
             )}

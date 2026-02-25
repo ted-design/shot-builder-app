@@ -66,7 +66,7 @@ export default function SidebarProjectHeader({ isExpanded }) {
                 </span>
                 {isExpanded ? (
                   <div className="min-w-0 flex-1">
-                    <div className="text-[11px] uppercase tracking-wider text-neutral-500">Current Project</div>
+                    <div className="text-xxs uppercase tracking-wider text-neutral-500">Current Project</div>
                     <div
                       className="sidebar-project-title pr-2 text-sm font-semibold leading-snug text-white animate-fade-in flex items-center gap-2"
                       title={isLoading ? "Loading..." : projectName}

@@ -63,14 +63,14 @@ export default function AttachmentThumbnail({
 
       {/* Primary Badge */}
       {attachment.isPrimary && (
-        <div className="absolute right-1 top-1 z-10 flex items-center gap-1 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+        <div className="absolute right-1 top-1 z-10 flex items-center gap-1 rounded bg-amber-500 px-1.5 py-0.5 text-2xs font-semibold text-white shadow-sm">
           <Star className="h-3 w-3 fill-current" />
           Primary
         </div>
       )}
 
       {/* Order Badge */}
-      <div className="absolute bottom-1 left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-slate-800/70 text-[10px] font-bold text-white">
+      <div className="absolute bottom-1 left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-slate-800/70 text-2xs font-bold text-white">
         {index}
       </div>
 

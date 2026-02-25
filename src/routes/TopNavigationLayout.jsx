@@ -143,7 +143,7 @@ function ThemeSelector({ onSelect }) {
           <Moon className="h-4 w-4" />
           <span>Theme</span>
         </div>
-        <span className="capitalize text-[11px] text-slate-500 dark:text-slate-400">
+        <span className="capitalize text-xxs text-slate-500 dark:text-slate-400">
           {resolvedTheme} mode
         </span>
       </div>
@@ -260,7 +260,7 @@ function UserMenu({ userLabel, navRoleLabel, userEmail, userPhotoUrl, onSignOut 
                   <Moon className="h-4 w-4" />
                   <span>Theme</span>
                 </div>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="text-xxs text-slate-500 dark:text-slate-400">
                   {themeOptionLabel} · {resolvedTheme}
                 </span>
               </div>
@@ -403,7 +403,7 @@ export default function TopNavigationLayout({ fallbackUser = null, fallbackRole 
               title="Search (Cmd+K)"
             >
               <Search className="h-4 w-4" />
-              <span className="text-[11px] text-slate-500 dark:text-slate-400">Cmd+K</span>
+              <span className="text-xxs text-slate-500 dark:text-slate-400">Cmd+K</span>
             </button>
             <UserMenu
               userLabel={userLabel}

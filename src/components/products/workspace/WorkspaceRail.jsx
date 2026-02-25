@@ -58,7 +58,7 @@ function NavRailItem({ section, isActive, onClick, count, isExpanded }) {
           {count !== undefined && count > 0 && (
             <span
               className={`
-                text-[10px] font-semibold tabular-nums min-w-[20px] text-center
+                text-2xs font-semibold tabular-nums min-w-[20px] text-center
                 px-1.5 py-0.5 rounded-full
                 ${isActive
                   ? "bg-white/20 text-white dark:bg-slate-900/20 dark:text-slate-900"
