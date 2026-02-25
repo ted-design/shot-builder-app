@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phase 2.5a — Palette Exploration</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; margin: 0; background: #f5f5f4; }
+
+    /* Tab bar */
+    .tab-bar { position: sticky; top: 0; z-index: 100; background: #fff; border-bottom: 1px solid #e5e5e5; }
+    .tab-bar-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; gap: 0; }
+    .tab-btn {
+      padding: 14px 24px; font-size: 13px; font-weight: 500; letter-spacing: 0.01em;
+      cursor: pointer; border: none; background: none; color: #71717a;
+      border-bottom: 2px solid transparent; transition: all 150ms ease;
+    }
+    .tab-btn:hover { color: #18181b; }
+    .tab-btn.active { color: #18181b; border-bottom-color: #18181b; }
+    .tab-btn .tab-swatch {
+      display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+      margin-right: 8px; vertical-align: middle; border: 1px solid rgba(0,0,0,0.1);
+    }
+
+    /* Panels */
+    .direction-panel { display: none; }
+    .direction-panel.active { display: block; }
+
+    /* Component sections */
+    .comp-section { margin-bottom: 40px; }
+    .comp-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+      color: #a1a1aa; margin-bottom: 12px;
+    }
+
+    /* Sidebar preview */
+    .sidebar-preview {
+      width: 240px; border-radius: 12px; overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.04);
+    }
+    .sidebar-nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+      font-size: 13px; font-weight: 400; border-radius: 6px; margin: 1px 6px;
+      transition: all 120ms ease; cursor: default;
+    }
+    .sidebar-nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    /* Mini page layout */
+    .mini-page {
+      border-radius: 12px; overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+    }
+
+    /* Note callouts */
+    .note-box {
+      font-size: 12px; line-height: 1.6; padding: 16px 20px;
+      border-radius: 8px; margin-top: 32px;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    Phase 2.5a — Palette Exploration Mockup
+
+    Three color directions applied to real Shot Builder UI components.
+    User picks a direction, then we proceed to token overhaul (2.5b).
+
+    Direction A: Near-Black (Editorial) — zinc neutrals, near-black primary, red accent
+    Direction B: Refined Dark Blue — slate neutrals, deep navy primary
+    Direction C: Warm Charcoal + Red — stone neutrals, red primary, warm sidebar
+  -->
+
+  <!-- ==================== TAB BAR ==================== -->
+  <div class="tab-bar">
+    <div class="tab-bar-inner" style="padding: 0 32px;">
+      <div style="font-size: 13px; font-weight: 600; color: #18181b; padding: 14px 24px 14px 0; border-right: 1px solid #e5e5e5; margin-right: 8px; white-space: nowrap;">
+        Phase 2.5a
+      </div>
+      <button class="tab-btn active" onclick="showDirection('a')">
+        <span class="tab-swatch" style="background: #18181b;"></span>
+        A — Near-Black Editorial
+      </button>
+      <button class="tab-btn" onclick="showDirection('b')">
+        <span class="tab-swatch" style="background: #1e3a5f;"></span>
+        B — Refined Dark Blue
+      </button>
+      <button class="tab-btn" onclick="showDirection('c')">
+        <span class="tab-swatch" style="background: #E31E24;"></span>
+        C — Warm Charcoal + Red
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== DIRECTION A — NEAR-BLACK EDITORIAL ==================== -->
+  <div id="dir-a" class="direction-panel active">
+    <div style="max-width: 1400px; margin: 0 auto; padding: 40px 32px;">
+
+      <!-- Direction header -->
+      <div style="margin-bottom: 48px;">
+        <h1 style="font-size: 24px; font-weight: 700; color: #18181b; margin: 0 0 6px;">Direction A — Near-Black Editorial</h1>
+        <p style="font-size: 14px; color: #71717a; margin: 0; max-width: 640px; line-height: 1.6;">
+          Neutral zinc palette with near-black (#18181b) as primary. Immediate Red reserved for brand moments only (logo, destructive actions, key CTA on marketing pages). Inspired by Notion, Apple, Linear.
+        </p>
+        <div style="display: flex; gap: 6px; margin-top: 16px;">
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #18181b;" title="#18181b primary"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #E31E24;" title="#E31E24 accent"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #fafafa; border: 1px solid #e4e4e7;" title="#fafafa bg"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #f4f4f5; border: 1px solid #e4e4e7;" title="#f4f4f5 muted"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #e4e4e7;" title="#e4e4e7 border"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #71717a;" title="#71717a muted text"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #27272a;" title="#27272a sidebar hover"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #09090b;" title="#09090b sidebar"></div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 48px;">
+        <!-- LEFT COLUMN -->
+        <div>
+
+          <!-- Buttons -->
+          <div class="comp-section">
+            <div class="comp-label">Buttons</div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: none; background: #18181b; color: #fff; cursor: pointer;">
+                Create Shot
+              </button>
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: 1px solid #e4e4e7; background: #fff; color: #18181b; cursor: pointer;">
+                Secondary
+              </button>
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: 1px solid transparent; background: transparent; color: #71717a; cursor: pointer;">
+                Ghost
+              </button>
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: none; background: #fef2f2; color: #dc2626; cursor: pointer;">
+                Delete
+              </button>
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: none; background: #18181b; color: #fff; cursor: pointer; opacity: 0.5;" disabled>
+                Disabled
+              </button>
+            </div>
+          </div>
+
+          <!-- Badges -->
+          <div class="comp-section">
+            <div class="comp-label">Status Badges</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #f4f4f5; color: #52525b;">Draft</span>
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #fef3c7; color: #92400e;">In Progress</span>
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #d1fae5; color: #065f46;">Ready</span>
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #18181b; color: #fff;">Shot</span>
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #fee2e2; color: #991b1b;">Needs Reshoot</span>
+            </div>
+          </div>
+
+          <!-- Form Inputs -->
+          <div class="comp-section">
+            <div class="comp-label">Form Inputs</div>
+            <div style="display: flex; flex-direction: column; gap: 12px; max-width: 320px;">
+              <div>
+                <label style="display: block; font-size: 13px; font-weight: 500; color: #18181b; margin-bottom: 4px;">Shot Name</label>
+                <input type="text" value="Look 1 — Studio A" style="width: 100%; height: 36px; padding: 0 12px; font-size: 13px; border-radius: 6px; border: 1px solid #e4e4e7; background: #fff; color: #18181b; outline: none; font-family: inherit;" />
+              </div>
+              <div>
+                <label style="display: block; font-size: 13px; font-weight: 500; color: #18181b; margin-bottom: 4px;">Description</label>
+                <input type="text" placeholder="Add description..." style="width: 100%; height: 36px; padding: 0 12px; font-size: 13px; border-radius: 6px; border: 1px solid #e4e4e7; background: #fff; color: #18181b; outline: none; font-family: inherit;" />
+              </div>
+              <div>
+                <label style="display: block; font-size: 13px; font-weight: 500; color: #a1a1aa; margin-bottom: 4px;">Disabled Field</label>
+                <input type="text" value="Cannot edit" disabled style="width: 100%; height: 36px; padding: 0 12px; font-size: 13px; border-radius: 6px; border: 1px solid #e4e4e7; background: #f4f4f5; color: #a1a1aa; outline: none; font-family: inherit;" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Shot Card -->
+          <div class="comp-section">
+            <div class="comp-label">Shot Card</div>
+            <div style="max-width: 360px; background: #fff; border: 1px solid #e4e4e7; border-radius: 8px; overflow: hidden;">
+              <!-- Thumbnail -->
+              <div style="height: 180px; background: linear-gradient(135deg, #d4d4d8 0%, #a1a1aa 100%); display: flex; align-items: center; justify-content: center;">
+                <svg width="40" height="40" fill="none" stroke="#fff" stroke-width="1.5" viewBox="0 0 24 24" style="opacity: 0.6;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                  <circle cx="12" cy="13" r="3"/>
+                </svg>
+              </div>
+              <div style="padding: 14px 16px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                  <span style="font-size: 14px; font-weight: 600; color: #18181b;">Look 1 — Studio A</span>
+                  <span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; font-size: 10px; font-weight: 500; border-radius: 10px; background: #fef3c7; color: #92400e;">In Progress</span>
+                </div>
+                <div style="font-size: 12px; color: #71717a; display: flex; gap: 16px;">
+                  <span>4 products</span>
+                  <span>2 talent</span>
+                  <span>Mar 15</span>
+                </div>
+                <div style="margin-top: 10px; height: 3px; background: #f4f4f5; border-radius: 2px;">
+                  <div style="height: 3px; background: #18181b; border-radius: 2px; width: 65%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div>
+
+          <!-- Sidebar excerpt -->
+          <div class="comp-section">
+            <div class="comp-label">Sidebar</div>
+            <div class="sidebar-preview" style="background: #09090b;">
+              <!-- Brand header -->
+              <div style="padding: 14px 16px; border-bottom: 1px solid #27272a; display: flex; align-items: center; gap: 10px;">
+                <div style="width: 28px; height: 28px; border-radius: 6px; background: #E31E24; display: flex; align-items: center; justify-content: center;">
+                  <svg width="14" height="14" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                    <circle cx="12" cy="13" r="3"/>
+                  </svg>
+                </div>
+                <span style="font-size: 13px; font-weight: 600; color: #fff;">Shot Builder</span>
+              </div>
+              <!-- Nav items -->
+              <div style="padding: 8px 0;">
+                <div class="sidebar-nav-item" style="color: #fff; background: #27272a; position: relative;">
+                  <div style="position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 0 2px 2px 0; background: #E31E24;"></div>
+                  <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                  <span style="font-weight: 500;">Dashboard</span>
+                </div>
+                <div class="sidebar-nav-item" style="color: #a1a1aa;">
+                  <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                  <span>Products</span>
+                </div>
+                <div class="sidebar-nav-item" style="color: #a1a1aa;">
+                  <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
+                  <span>Library</span>
+                </div>
+                <div style="margin: 8px 14px; border-top: 1px solid #27272a;"></div>
+                <div class="sidebar-nav-item" style="color: #a1a1aa;">
+                  <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>Settings</span>
+                </div>
+              </div>
+              <!-- User -->
+              <div style="padding: 10px 14px; border-top: 1px solid #27272a; display: flex; align-items: center; gap: 10px;">
+                <div style="width: 28px; height: 28px; border-radius: 50%; background: #3f3f46; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #fff;">TG</div>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-size: 12px; font-weight: 500; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Ted Ghanime</div>
+                  <div style="font-size: 11px; color: #71717a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Producer</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table Row -->
+          <div class="comp-section">
+            <div class="comp-label">Table Row</div>
+            <div style="max-width: 480px; background: #fff; border: 1px solid #e4e4e7; border-radius: 8px; overflow: hidden;">
+              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 80px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: #a1a1aa; padding: 10px 16px; border-bottom: 1px solid #e4e4e7;">
+                <span>Shot</span><span>Status</span><span>Products</span><span>Date</span>
+              </div>
+              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 80px; font-size: 13px; padding: 10px 16px; border-bottom: 1px solid #f4f4f5; color: #18181b; align-items: center;">
+                <span style="font-weight: 500;">Look 1 — Studio A</span>
+                <span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; font-size: 10px; font-weight: 500; border-radius: 10px; background: #d1fae5; color: #065f46;">Ready</span></span>
+                <span style="color: #71717a;">4</span>
+                <span style="color: #71717a;">Mar 15</span>
+              </div>
+              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 80px; font-size: 13px; padding: 10px 16px; color: #18181b; align-items: center; background: #fafafa;">
+                <span style="font-weight: 500;">Look 2 — Exterior</span>
+                <span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; font-size: 10px; font-weight: 500; border-radius: 10px; background: #fef3c7; color: #92400e;">In Progress</span></span>
+                <span style="color: #71717a;">6</span>
+                <span style="color: #71717a;">Mar 16</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mini Page Layout -->
+          <div class="comp-section">
+            <div class="comp-label">Mini Page Layout</div>
+            <div class="mini-page" style="max-width: 480px; background: #fafafa;">
+              <!-- Top bar -->
+              <div style="height: 44px; background: #fff; border-bottom: 1px solid #e4e4e7; display: flex; align-items: center; padding: 0 16px; gap: 12px;">
+                <span style="font-size: 13px; font-weight: 600; color: #18181b;">Shots</span>
+                <span style="font-size: 12px; color: #a1a1aa;">SS26 Campaign</span>
+                <div style="margin-left: auto;">
+                  <button style="height: 30px; padding: 0 12px; font-size: 12px; font-weight: 500; border-radius: 6px; border: none; background: #18181b; color: #fff; cursor: pointer;">+ New Shot</button>
+                </div>
+              </div>
+              <!-- Content area -->
+              <div style="padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <!-- Mini shot card 1 -->
+                <div style="background: #fff; border: 1px solid #e4e4e7; border-radius: 6px; padding: 12px;">
+                  <div style="height: 80px; background: linear-gradient(135deg, #d4d4d8, #a1a1aa); border-radius: 4px; margin-bottom: 10px;"></div>
+                  <div style="font-size: 12px; font-weight: 600; color: #18181b; margin-bottom: 4px;">Look 1</div>
+                  <div style="font-size: 11px; color: #71717a;">4 products</div>
+                </div>
+                <!-- Mini shot card 2 -->
+                <div style="background: #fff; border: 1px solid #e4e4e7; border-radius: 6px; padding: 12px;">
+                  <div style="height: 80px; background: linear-gradient(135deg, #e4e4e7, #d4d4d8); border-radius: 4px; margin-bottom: 10px;"></div>
+                  <div style="font-size: 12px; font-weight: 600; color: #18181b; margin-bottom: 4px;">Look 2</div>
+                  <div style="font-size: 11px; color: #71717a;">6 products</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Design notes -->
+      <div class="note-box" style="background: #f4f4f5; border: 1px solid #e4e4e7; color: #3f3f46; max-width: 800px;">
+        <strong style="color: #18181b; display: block; margin-bottom: 6px;">Direction A Notes</strong>
+        <ul style="margin: 0; padding-left: 18px; list-style: disc;">
+          <li><strong>Neutral base: zinc</strong> (cooler, slightly bluer than stone). Cleaner against white surfaces.</li>
+          <li><strong>Primary button is near-black</strong> — high contrast, editorial feel. No competing accent color on every button.</li>
+          <li><strong>Immediate Red (#E31E24) appears only on:</strong> logo mark, active sidebar indicator, destructive states. This creates brand moments without visual noise.</li>
+          <li><strong>Sidebar</strong> is true black (#09090b) — crisper contrast than current slate-900 (#0f172a). Active bar is red.</li>
+          <li><strong>Shadows are minimal</strong> — borders do most of the separation work. Feels like Notion/Linear.</li>
+          <li><strong>Progress bars use near-black</strong> — aligns with primary. No rainbow of accent colors.</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== DIRECTION B — REFINED DARK BLUE ==================== -->
+  <div id="dir-b" class="direction-panel">
+    <div style="max-width: 1400px; margin: 0 auto; padding: 40px 32px;">
+
+      <!-- Direction header -->
+      <div style="margin-bottom: 48px;">
+        <h1 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0 0 6px;">Direction B — Refined Dark Blue</h1>
+        <p style="font-size: 14px; color: #64748b; margin: 0; max-width: 640px; line-height: 1.6;">
+          Deep navy (#1e3a5f) as primary, slate neutrals refined. Closest to the current system but elevated. Professional SaaS feel like Linear or Vercel dashboard.
+        </p>
+        <div style="display: flex; gap: 6px; margin-top: 16px;">
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #1e3a5f;" title="#1e3a5f primary"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #2563eb;" title="#2563eb accent"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #f8fafc; border: 1px solid #e2e8f0;" title="#f8fafc bg"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #f1f5f9; border: 1px solid #e2e8f0;" title="#f1f5f9 muted"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #e2e8f0;" title="#e2e8f0 border"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #64748b;" title="#64748b muted text"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #1e293b;" title="#1e293b sidebar hover"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #0f1729;" title="#0f1729 sidebar"></div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 48px;">
+        <!-- LEFT COLUMN -->
+        <div>
+
+          <!-- Buttons -->
+          <div class="comp-section">
+            <div class="comp-label">Buttons</div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: none; background: #1e3a5f; color: #fff; cursor: pointer;">
+                Create Shot
+              </button>
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; cursor: pointer;">
+                Secondary
+              </button>
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: 1px solid transparent; background: transparent; color: #64748b; cursor: pointer;">
+                Ghost
+              </button>
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: none; background: #fef2f2; color: #dc2626; cursor: pointer;">
+                Delete
+              </button>
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: none; background: #1e3a5f; color: #fff; cursor: pointer; opacity: 0.5;" disabled>
+                Disabled
+              </button>
+            </div>
+          </div>
+
+          <!-- Badges -->
+          <div class="comp-section">
+            <div class="comp-label">Status Badges</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #f1f5f9; color: #475569;">Draft</span>
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #fef3c7; color: #92400e;">In Progress</span>
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #d1fae5; color: #065f46;">Ready</span>
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #1e3a5f; color: #fff;">Shot</span>
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #fee2e2; color: #991b1b;">Needs Reshoot</span>
+            </div>
+          </div>
+
+          <!-- Form Inputs -->
+          <div class="comp-section">
+            <div class="comp-label">Form Inputs</div>
+            <div style="display: flex; flex-direction: column; gap: 12px; max-width: 320px;">
+              <div>
+                <label style="display: block; font-size: 13px; font-weight: 500; color: #0f172a; margin-bottom: 4px;">Shot Name</label>
+                <input type="text" value="Look 1 — Studio A" style="width: 100%; height: 36px; padding: 0 12px; font-size: 13px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; outline: none; font-family: inherit;" />
+              </div>
+              <div>
+                <label style="display: block; font-size: 13px; font-weight: 500; color: #0f172a; margin-bottom: 4px;">Description</label>
+                <input type="text" placeholder="Add description..." style="width: 100%; height: 36px; padding: 0 12px; font-size: 13px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; outline: none; font-family: inherit;" />
+              </div>
+              <div>
+                <label style="display: block; font-size: 13px; font-weight: 500; color: #94a3b8; margin-bottom: 4px;">Disabled Field</label>
+                <input type="text" value="Cannot edit" disabled style="width: 100%; height: 36px; padding: 0 12px; font-size: 13px; border-radius: 6px; border: 1px solid #e2e8f0; background: #f1f5f9; color: #94a3b8; outline: none; font-family: inherit;" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Shot Card -->
+          <div class="comp-section">
+            <div class="comp-label">Shot Card</div>
+            <div style="max-width: 360px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <div style="height: 180px; background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%); display: flex; align-items: center; justify-content: center;">
+                <svg width="40" height="40" fill="none" stroke="#fff" stroke-width="1.5" viewBox="0 0 24 24" style="opacity: 0.6;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                  <circle cx="12" cy="13" r="3"/>
+                </svg>
+              </div>
+              <div style="padding: 14px 16px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                  <span style="font-size: 14px; font-weight: 600; color: #0f172a;">Look 1 — Studio A</span>
+                  <span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; font-size: 10px; font-weight: 500; border-radius: 10px; background: #fef3c7; color: #92400e;">In Progress</span>
+                </div>
+                <div style="font-size: 12px; color: #64748b; display: flex; gap: 16px;">
+                  <span>4 products</span>
+                  <span>2 talent</span>
+                  <span>Mar 15</span>
+                </div>
+                <div style="margin-top: 10px; height: 3px; background: #f1f5f9; border-radius: 2px;">
+                  <div style="height: 3px; background: #1e3a5f; border-radius: 2px; width: 65%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div>
+
+          <!-- Sidebar excerpt -->
+          <div class="comp-section">
+            <div class="comp-label">Sidebar</div>
+            <div class="sidebar-preview" style="background: #0f1729;">
+              <div style="padding: 14px 16px; border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 10px;">
+                <div style="width: 28px; height: 28px; border-radius: 6px; background: #1e3a5f; display: flex; align-items: center; justify-content: center;">
+                  <svg width="14" height="14" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                    <circle cx="12" cy="13" r="3"/>
+                  </svg>
+                </div>
+                <span style="font-size: 13px; font-weight: 600; color: #fff;">Shot Builder</span>
+              </div>
+              <div style="padding: 8px 0;">
+                <div class="sidebar-nav-item" style="color: #fff; background: #1e293b; position: relative;">
+                  <div style="position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 0 2px 2px 0; background: #2563eb;"></div>
+                  <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                  <span style="font-weight: 500;">Dashboard</span>
+                </div>
+                <div class="sidebar-nav-item" style="color: #94a3b8;">
+                  <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                  <span>Products</span>
+                </div>
+                <div class="sidebar-nav-item" style="color: #94a3b8;">
+                  <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
+                  <span>Library</span>
+                </div>
+                <div style="margin: 8px 14px; border-top: 1px solid #1e293b;"></div>
+                <div class="sidebar-nav-item" style="color: #94a3b8;">
+                  <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>Settings</span>
+                </div>
+              </div>
+              <div style="padding: 10px 14px; border-top: 1px solid #1e293b; display: flex; align-items: center; gap: 10px;">
+                <div style="width: 28px; height: 28px; border-radius: 50%; background: #334155; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #fff;">TG</div>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-size: 12px; font-weight: 500; color: #fff;">Ted Ghanime</div>
+                  <div style="font-size: 11px; color: #64748b;">Producer</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table Row -->
+          <div class="comp-section">
+            <div class="comp-label">Table Row</div>
+            <div style="max-width: 480px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 80px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; padding: 10px 16px; border-bottom: 1px solid #e2e8f0;">
+                <span>Shot</span><span>Status</span><span>Products</span><span>Date</span>
+              </div>
+              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 80px; font-size: 13px; padding: 10px 16px; border-bottom: 1px solid #f1f5f9; color: #0f172a; align-items: center;">
+                <span style="font-weight: 500;">Look 1 — Studio A</span>
+                <span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; font-size: 10px; font-weight: 500; border-radius: 10px; background: #d1fae5; color: #065f46;">Ready</span></span>
+                <span style="color: #64748b;">4</span>
+                <span style="color: #64748b;">Mar 15</span>
+              </div>
+              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 80px; font-size: 13px; padding: 10px 16px; color: #0f172a; align-items: center; background: #f8fafc;">
+                <span style="font-weight: 500;">Look 2 — Exterior</span>
+                <span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; font-size: 10px; font-weight: 500; border-radius: 10px; background: #fef3c7; color: #92400e;">In Progress</span></span>
+                <span style="color: #64748b;">6</span>
+                <span style="color: #64748b;">Mar 16</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mini Page Layout -->
+          <div class="comp-section">
+            <div class="comp-label">Mini Page Layout</div>
+            <div class="mini-page" style="max-width: 480px; background: #f8fafc;">
+              <div style="height: 44px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; padding: 0 16px; gap: 12px;">
+                <span style="font-size: 13px; font-weight: 600; color: #0f172a;">Shots</span>
+                <span style="font-size: 12px; color: #94a3b8;">SS26 Campaign</span>
+                <div style="margin-left: auto;">
+                  <button style="height: 30px; padding: 0 12px; font-size: 12px; font-weight: 500; border-radius: 6px; border: none; background: #1e3a5f; color: #fff; cursor: pointer;">+ New Shot</button>
+                </div>
+              </div>
+              <div style="padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px;">
+                  <div style="height: 80px; background: linear-gradient(135deg, #cbd5e1, #94a3b8); border-radius: 4px; margin-bottom: 10px;"></div>
+                  <div style="font-size: 12px; font-weight: 600; color: #0f172a; margin-bottom: 4px;">Look 1</div>
+                  <div style="font-size: 11px; color: #64748b;">4 products</div>
+                </div>
+                <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px;">
+                  <div style="height: 80px; background: linear-gradient(135deg, #e2e8f0, #cbd5e1); border-radius: 4px; margin-bottom: 10px;"></div>
+                  <div style="font-size: 12px; font-weight: 600; color: #0f172a; margin-bottom: 4px;">Look 2</div>
+                  <div style="font-size: 11px; color: #64748b;">6 products</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Design notes -->
+      <div class="note-box" style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; max-width: 800px;">
+        <strong style="color: #0f172a; display: block; margin-bottom: 6px;">Direction B Notes</strong>
+        <ul style="margin: 0; padding-left: 18px; list-style: disc;">
+          <li><strong>Neutral base: slate</strong> (same as current). Minimal disruption to existing code.</li>
+          <li><strong>Primary is deep navy (#1e3a5f)</strong> — replaces indigo-500. More mature and less "SaaS-y" than indigo. Closer to Linear's palette.</li>
+          <li><strong>Sidebar is very dark navy (#0f1729)</strong> — warmer than pure black, more cohesive with the navy primary.</li>
+          <li><strong>Active indicator is blue (#2563eb)</strong> — brighter blue for sidebar active state. Provides clear wayfinding.</li>
+          <li><strong>Least visual disruption</strong> of the three directions. Slate neutrals stay, only primary and sidebar tones shift.</li>
+          <li><strong>Risk:</strong> May still feel too "tech SaaS" for a fashion production tool. The blue family doesn't connect to the Immediate brand identity.</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== DIRECTION C — WARM CHARCOAL + RED ==================== -->
+  <div id="dir-c" class="direction-panel">
+    <div style="max-width: 1400px; margin: 0 auto; padding: 40px 32px;">
+
+      <!-- Direction header -->
+      <div style="margin-bottom: 48px;">
+        <h1 style="font-size: 24px; font-weight: 700; color: #1c1917; margin: 0 0 6px;">Direction C — Warm Charcoal + Red Accent</h1>
+        <p style="font-size: 14px; color: #78716c; margin: 0; max-width: 640px; line-height: 1.6;">
+          Immediate Red (#E31E24) as primary action color. Warm stone neutrals. Charcoal sidebar. The boldest direction — fashion-forward and strongly branded.
+        </p>
+        <div style="display: flex; gap: 6px; margin-top: 16px;">
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #E31E24;" title="#E31E24 primary"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #1c1917;" title="#1c1917 sidebar"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #fafaf9; border: 1px solid #e7e5e4;" title="#fafaf9 bg"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #f5f5f4; border: 1px solid #e7e5e4;" title="#f5f5f4 muted"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #e7e5e4;" title="#e7e5e4 border"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #78716c;" title="#78716c muted text"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #292524;" title="#292524 sidebar hover"></div>
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #1c1917;" title="#1c1917 sidebar"></div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 48px;">
+        <!-- LEFT COLUMN -->
+        <div>
+
+          <!-- Buttons -->
+          <div class="comp-section">
+            <div class="comp-label">Buttons</div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: none; background: #E31E24; color: #fff; cursor: pointer;">
+                Create Shot
+              </button>
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: 1px solid #e7e5e4; background: #fff; color: #1c1917; cursor: pointer;">
+                Secondary
+              </button>
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: 1px solid transparent; background: transparent; color: #78716c; cursor: pointer;">
+                Ghost
+              </button>
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: none; background: #1c1917; color: #fff; cursor: pointer;">
+                Dark Action
+              </button>
+              <button style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500; border-radius: 6px; border: none; background: #E31E24; color: #fff; cursor: pointer; opacity: 0.5;" disabled>
+                Disabled
+              </button>
+            </div>
+          </div>
+
+          <!-- Badges -->
+          <div class="comp-section">
+            <div class="comp-label">Status Badges</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #f5f5f4; color: #57534e;">Draft</span>
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #fef3c7; color: #92400e;">In Progress</span>
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #d1fae5; color: #065f46;">Ready</span>
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #1c1917; color: #fff;">Shot</span>
+              <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; font-size: 11px; font-weight: 500; border-radius: 10px; background: #fee2e2; color: #991b1b;">Needs Reshoot</span>
+            </div>
+          </div>
+
+          <!-- Form Inputs -->
+          <div class="comp-section">
+            <div class="comp-label">Form Inputs</div>
+            <div style="display: flex; flex-direction: column; gap: 12px; max-width: 320px;">
+              <div>
+                <label style="display: block; font-size: 13px; font-weight: 500; color: #1c1917; margin-bottom: 4px;">Shot Name</label>
+                <input type="text" value="Look 1 — Studio A" style="width: 100%; height: 36px; padding: 0 12px; font-size: 13px; border-radius: 6px; border: 1px solid #e7e5e4; background: #fff; color: #1c1917; outline: none; font-family: inherit;" />
+              </div>
+              <div>
+                <label style="display: block; font-size: 13px; font-weight: 500; color: #1c1917; margin-bottom: 4px;">Description</label>
+                <input type="text" placeholder="Add description..." style="width: 100%; height: 36px; padding: 0 12px; font-size: 13px; border-radius: 6px; border: 1px solid #e7e5e4; background: #fff; color: #1c1917; outline: none; font-family: inherit;" />
+              </div>
+              <div>
+                <label style="display: block; font-size: 13px; font-weight: 500; color: #a8a29e; margin-bottom: 4px;">Disabled Field</label>
+                <input type="text" value="Cannot edit" disabled style="width: 100%; height: 36px; padding: 0 12px; font-size: 13px; border-radius: 6px; border: 1px solid #e7e5e4; background: #f5f5f4; color: #a8a29e; outline: none; font-family: inherit;" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Shot Card -->
+          <div class="comp-section">
+            <div class="comp-label">Shot Card</div>
+            <div style="max-width: 360px; background: #fff; border: 1px solid #e7e5e4; border-radius: 8px; overflow: hidden;">
+              <div style="height: 180px; background: linear-gradient(135deg, #d6d3d1 0%, #a8a29e 100%); display: flex; align-items: center; justify-content: center;">
+                <svg width="40" height="40" fill="none" stroke="#fff" stroke-width="1.5" viewBox="0 0 24 24" style="opacity: 0.6;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                  <circle cx="12" cy="13" r="3"/>
+                </svg>
+              </div>
+              <div style="padding: 14px 16px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                  <span style="font-size: 14px; font-weight: 600; color: #1c1917;">Look 1 — Studio A</span>
+                  <span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; font-size: 10px; font-weight: 500; border-radius: 10px; background: #fef3c7; color: #92400e;">In Progress</span>
+                </div>
+                <div style="font-size: 12px; color: #78716c; display: flex; gap: 16px;">
+                  <span>4 products</span>
+                  <span>2 talent</span>
+                  <span>Mar 15</span>
+                </div>
+                <div style="margin-top: 10px; height: 3px; background: #f5f5f4; border-radius: 2px;">
+                  <div style="height: 3px; background: #E31E24; border-radius: 2px; width: 65%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div>
+
+          <!-- Sidebar excerpt -->
+          <div class="comp-section">
+            <div class="comp-label">Sidebar</div>
+            <div class="sidebar-preview" style="background: #1c1917;">
+              <div style="padding: 14px 16px; border-bottom: 1px solid #292524; display: flex; align-items: center; gap: 10px;">
+                <div style="width: 28px; height: 28px; border-radius: 6px; background: #E31E24; display: flex; align-items: center; justify-content: center;">
+                  <svg width="14" height="14" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                    <circle cx="12" cy="13" r="3"/>
+                  </svg>
+                </div>
+                <span style="font-size: 13px; font-weight: 600; color: #fff;">Shot Builder</span>
+              </div>
+              <div style="padding: 8px 0;">
+                <div class="sidebar-nav-item" style="color: #fff; background: #292524; position: relative;">
+                  <div style="position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 0 2px 2px 0; background: #E31E24;"></div>
+                  <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                  <span style="font-weight: 500;">Dashboard</span>
+                </div>
+                <div class="sidebar-nav-item" style="color: #a8a29e;">
+                  <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                  <span>Products</span>
+                </div>
+                <div class="sidebar-nav-item" style="color: #a8a29e;">
+                  <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
+                  <span>Library</span>
+                </div>
+                <div style="margin: 8px 14px; border-top: 1px solid #292524;"></div>
+                <div class="sidebar-nav-item" style="color: #a8a29e;">
+                  <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>Settings</span>
+                </div>
+              </div>
+              <div style="padding: 10px 14px; border-top: 1px solid #292524; display: flex; align-items: center; gap: 10px;">
+                <div style="width: 28px; height: 28px; border-radius: 50%; background: #44403c; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #fff;">TG</div>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-size: 12px; font-weight: 500; color: #fff;">Ted Ghanime</div>
+                  <div style="font-size: 11px; color: #78716c;">Producer</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table Row -->
+          <div class="comp-section">
+            <div class="comp-label">Table Row</div>
+            <div style="max-width: 480px; background: #fff; border: 1px solid #e7e5e4; border-radius: 8px; overflow: hidden;">
+              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 80px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: #a8a29e; padding: 10px 16px; border-bottom: 1px solid #e7e5e4;">
+                <span>Shot</span><span>Status</span><span>Products</span><span>Date</span>
+              </div>
+              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 80px; font-size: 13px; padding: 10px 16px; border-bottom: 1px solid #f5f5f4; color: #1c1917; align-items: center;">
+                <span style="font-weight: 500;">Look 1 — Studio A</span>
+                <span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; font-size: 10px; font-weight: 500; border-radius: 10px; background: #d1fae5; color: #065f46;">Ready</span></span>
+                <span style="color: #78716c;">4</span>
+                <span style="color: #78716c;">Mar 15</span>
+              </div>
+              <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 80px; font-size: 13px; padding: 10px 16px; color: #1c1917; align-items: center; background: #fafaf9;">
+                <span style="font-weight: 500;">Look 2 — Exterior</span>
+                <span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; font-size: 10px; font-weight: 500; border-radius: 10px; background: #fef3c7; color: #92400e;">In Progress</span></span>
+                <span style="color: #78716c;">6</span>
+                <span style="color: #78716c;">Mar 16</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mini Page Layout -->
+          <div class="comp-section">
+            <div class="comp-label">Mini Page Layout</div>
+            <div class="mini-page" style="max-width: 480px; background: #fafaf9;">
+              <div style="height: 44px; background: #fff; border-bottom: 1px solid #e7e5e4; display: flex; align-items: center; padding: 0 16px; gap: 12px;">
+                <span style="font-size: 13px; font-weight: 600; color: #1c1917;">Shots</span>
+                <span style="font-size: 12px; color: #a8a29e;">SS26 Campaign</span>
+                <div style="margin-left: auto;">
+                  <button style="height: 30px; padding: 0 12px; font-size: 12px; font-weight: 500; border-radius: 6px; border: none; background: #E31E24; color: #fff; cursor: pointer;">+ New Shot</button>
+                </div>
+              </div>
+              <div style="padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div style="background: #fff; border: 1px solid #e7e5e4; border-radius: 6px; padding: 12px;">
+                  <div style="height: 80px; background: linear-gradient(135deg, #d6d3d1, #a8a29e); border-radius: 4px; margin-bottom: 10px;"></div>
+                  <div style="font-size: 12px; font-weight: 600; color: #1c1917; margin-bottom: 4px;">Look 1</div>
+                  <div style="font-size: 11px; color: #78716c;">4 products</div>
+                </div>
+                <div style="background: #fff; border: 1px solid #e7e5e4; border-radius: 6px; padding: 12px;">
+                  <div style="height: 80px; background: linear-gradient(135deg, #e7e5e4, #d6d3d1); border-radius: 4px; margin-bottom: 10px;"></div>
+                  <div style="font-size: 12px; font-weight: 600; color: #1c1917; margin-bottom: 4px;">Look 2</div>
+                  <div style="font-size: 11px; color: #78716c;">6 products</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Design notes -->
+      <div class="note-box" style="background: #f5f5f4; border: 1px solid #e7e5e4; color: #57534e; max-width: 800px;">
+        <strong style="color: #1c1917; display: block; margin-bottom: 6px;">Direction C Notes</strong>
+        <ul style="margin: 0; padding-left: 18px; list-style: disc;">
+          <li><strong>Neutral base: stone</strong> (warm undertone). Warmer than slate/zinc, feels less "tech" and more "fashion".</li>
+          <li><strong>Primary is Immediate Red (#E31E24)</strong> — the brand color becomes the primary action color. Every CTA button is red. Bold and confident.</li>
+          <li><strong>Sidebar is warm charcoal (#1c1917 / stone-900)</strong> — noticeably warmer than slate-900. Pairs well with stone neutrals.</li>
+          <li><strong>"Dark Action" button variant</strong> using near-black for secondary prominent actions (non-destructive). Prevents red fatigue.</li>
+          <li><strong>Progress bars are red</strong> — strong brand presence throughout the UI. Every interaction reminds you whose tool this is.</li>
+          <li><strong>Risk:</strong> Red as primary action may feel aggressive. Users may confuse primary buttons with destructive/error states. Red fatigue is real on content-heavy pages.</li>
+          <li><strong>Mitigation:</strong> If chosen, we'd use red sparingly for key CTAs and lean on the dark variant for most actions. Status badge "Shot" uses near-black instead of red to avoid confusion.</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== COMPARISON STRIP (always visible at bottom) ==================== -->
+  <div style="background: #fff; border-top: 1px solid #e5e5e5; padding: 32px;">
+    <div style="max-width: 1400px; margin: 0 auto;">
+      <div class="comp-label" style="margin-bottom: 16px;">Side-by-Side: Primary Button + Sidebar Active Bar + Progress</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px;">
+
+        <!-- A -->
+        <div style="border: 1px solid #e4e4e7; border-radius: 8px; padding: 20px; text-align: center;">
+          <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #a1a1aa; margin-bottom: 12px;">A — Near-Black</div>
+          <button style="height: 36px; padding: 0 20px; font-size: 13px; font-weight: 500; border-radius: 6px; border: none; background: #18181b; color: #fff; cursor: pointer; margin-bottom: 12px;">Create Shot</button>
+          <div style="display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 12px;">
+            <div style="width: 3px; height: 24px; border-radius: 2px; background: #E31E24;"></div>
+            <span style="font-size: 12px; color: #71717a;">Active bar: Immediate Red</span>
+          </div>
+          <div style="height: 4px; background: #f4f4f5; border-radius: 2px; margin: 0 20px;">
+            <div style="height: 4px; background: #18181b; border-radius: 2px; width: 65%;"></div>
+          </div>
+        </div>
+
+        <!-- B -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; text-align: center;">
+          <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; margin-bottom: 12px;">B — Dark Blue</div>
+          <button style="height: 36px; padding: 0 20px; font-size: 13px; font-weight: 500; border-radius: 6px; border: none; background: #1e3a5f; color: #fff; cursor: pointer; margin-bottom: 12px;">Create Shot</button>
+          <div style="display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 12px;">
+            <div style="width: 3px; height: 24px; border-radius: 2px; background: #2563eb;"></div>
+            <span style="font-size: 12px; color: #64748b;">Active bar: Blue</span>
+          </div>
+          <div style="height: 4px; background: #f1f5f9; border-radius: 2px; margin: 0 20px;">
+            <div style="height: 4px; background: #1e3a5f; border-radius: 2px; width: 65%;"></div>
+          </div>
+        </div>
+
+        <!-- C -->
+        <div style="border: 1px solid #e7e5e4; border-radius: 8px; padding: 20px; text-align: center;">
+          <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #a8a29e; margin-bottom: 12px;">C — Charcoal + Red</div>
+          <button style="height: 36px; padding: 0 20px; font-size: 13px; font-weight: 500; border-radius: 6px; border: none; background: #E31E24; color: #fff; cursor: pointer; margin-bottom: 12px;">Create Shot</button>
+          <div style="display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 12px;">
+            <div style="width: 3px; height: 24px; border-radius: 2px; background: #E31E24;"></div>
+            <span style="font-size: 12px; color: #78716c;">Active bar: Immediate Red</span>
+          </div>
+          <div style="height: 4px; background: #f5f5f4; border-radius: 2px; margin: 0 20px;">
+            <div style="height: 4px; background: #E31E24; border-radius: 2px; width: 65%;"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showDirection(dir) {
+      // Hide all panels
+      document.querySelectorAll('.direction-panel').forEach(p => p.classList.remove('active'));
+      // Show selected
+      document.getElementById('dir-' + dir).classList.add('active');
+      // Update tabs
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+    }
+  </script>
+
+</body>
+</html>

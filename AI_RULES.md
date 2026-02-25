@@ -31,7 +31,9 @@ Reality wins. If the code does something different from what a doc says, update 
 
 - **New files:** TypeScript (.ts/.tsx)
 - **Existing JS/JSX files:** Edit in place. Do not convert to TypeScript without explicit request.
-- **File structure:** `src/pages/`, `src/components/`, `src/hooks/`, `src/lib/`, `src/context/`
+- **File structure (legacy):** `src/pages/`, `src/components/`, `src/hooks/`, `src/lib/`, `src/context/`
+- **File structure (vNext):** `src-vnext/app/`, `src-vnext/features/`, `src-vnext/shared/`, `src-vnext/ui/`
+- **New code goes in `src-vnext/`.** Do not modify legacy `src/` unless porting utilities.
 - **File size:** 200-400 lines typical, 800 max. Extract before exceeding.
 - **Functions:** <50 lines. No nesting deeper than 4 levels.
 
