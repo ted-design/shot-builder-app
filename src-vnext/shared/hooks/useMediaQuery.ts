@@ -25,6 +25,12 @@ export function useIsMobile(): boolean {
   return !useMediaQuery("(min-width: 768px)")
 }
 
+export function useIsTablet(): boolean {
+  const aboveMobile = useMediaQuery("(min-width: 768px)")
+  const aboveTablet = useMediaQuery("(min-width: 1024px)")
+  return aboveMobile && !aboveTablet
+}
+
 export function useIsDesktop(): boolean {
   return useMediaQuery("(min-width: 1024px)")
 }

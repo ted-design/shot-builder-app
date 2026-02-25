@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react"
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom"
 import { RequireAuth } from "@/app/routes/guards/RequireAuth"
+import { RequireDesktop } from "@/app/routes/guards/RequireDesktop"
 import { ProjectScopeProvider } from "@/app/providers/ProjectScopeProvider"
 import { AppShell } from "@/shared/components/AppShell"
 
@@ -142,7 +143,9 @@ export function AppRoutes() {
             path="projects/:id/tags"
             element={
               <ProjectScopeProvider>
-                <TagManagementPage />
+                <RequireDesktop label="Tag management">
+                  <TagManagementPage />
+                </RequireDesktop>
               </ProjectScopeProvider>
             }
           />
@@ -158,7 +161,9 @@ export function AppRoutes() {
             path="projects/:id/callsheet"
             element={
               <ProjectScopeProvider>
-                <CallSheetBuilderPage />
+                <RequireDesktop label="Call sheets">
+                  <CallSheetBuilderPage />
+                </RequireDesktop>
               </ProjectScopeProvider>
             }
           />
