@@ -456,10 +456,10 @@ const styles = StyleSheet.create({
 
 function formatStatusLabel(status: string | null | undefined): string {
   if (!status) return "Unknown"
-  if (status === "in_progress") return "In progress"
-  if (status === "on_hold") return "On hold"
-  if (status === "todo") return "To do"
-  if (status === "complete") return "Complete"
+  if (status === "in_progress") return "In Progress"
+  if (status === "on_hold") return "On Hold"
+  if (status === "todo") return "Draft"
+  if (status === "complete") return "Shot"
   return status
 }
 
@@ -616,10 +616,10 @@ function resolveTableAddendumBudget(
 
 function shortStatusLabel(status: string | null | undefined): string {
   if (!status) return "Unknown"
-  if (status === "in_progress") return "In prog."
-  if (status === "on_hold") return "On hold"
-  if (status === "todo") return "To do"
-  if (status === "complete") return "Done"
+  if (status === "in_progress") return "In Prog."
+  if (status === "on_hold") return "On Hold"
+  if (status === "todo") return "Draft"
+  if (status === "complete") return "Shot"
   return status
 }
 

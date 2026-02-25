@@ -1,6 +1,6 @@
 /// <reference types="@testing-library/jest-dom" />
-import { describe, it, expect, vi } from "vitest"
-import { render, screen, waitFor } from "@testing-library/react"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { NotesSection } from "./NotesSection"
 
@@ -60,8 +60,8 @@ describe("NotesSection", () => {
     expect(textarea.value).toContain("Line two")
   })
 
-  it("saves edited notes with trimmed value", async () => {
-    const user = userEvent.setup()
+  it("auto-saves edited notes with trimmed value after debounce", async () => {
+    vi.useFakeTimers()
     const onSave = vi.fn().mockResolvedValue(undefined)
     render(
       <NotesSection
@@ -73,36 +73,43 @@ describe("NotesSection", () => {
     )
 
     const textarea = screen.getByTestId("notes-input")
-    await user.clear(textarea)
-    await user.type(textarea, "  Updated text  ")
-    await user.click(screen.getByTestId("notes-submit"))
+    fireEvent.change(textarea, { target: { value: "  Updated text  " } })
 
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith("Updated text")
+    // Not called yet (debounce pending)
+    expect(onSave).not.toHaveBeenCalled()
+
+    // Advance past 1500ms debounce
+    await act(async () => {
+      vi.advanceTimersByTime(1500)
     })
+
+    expect(onSave).toHaveBeenCalledWith("Updated text")
+    vi.useRealTimers()
   })
 
-  it("disables save button until notes change", async () => {
-    const user = userEvent.setup()
+  it("does not auto-save when notes have not changed", () => {
+    vi.useFakeTimers()
+    const onSave = vi.fn().mockResolvedValue(undefined)
     render(
       <NotesSection
         notes={null}
         notesAddendum="Same"
-        onSaveAddendum={() => Promise.resolve()}
+        onSaveAddendum={onSave}
         canEditAddendum={true}
       />,
     )
 
-    const button = screen.getByTestId("notes-submit")
-    expect(button).toBeDisabled()
-
     const textarea = screen.getByTestId("notes-input")
-    await user.type(textarea, " plus")
-    expect(button).not.toBeDisabled()
+    // Type the same trimmed value
+    fireEvent.change(textarea, { target: { value: "Same" } })
+
+    vi.advanceTimersByTime(2000)
+    expect(onSave).not.toHaveBeenCalled()
+    vi.useRealTimers()
   })
 
-  it("retains draft text when notes save fails", async () => {
-    const user = userEvent.setup()
+  it("retains draft text when notes auto-save fails", async () => {
+    vi.useFakeTimers()
     const onSave = vi.fn().mockRejectedValue(new Error("Firestore write failed"))
     render(
       <NotesSection
@@ -114,14 +121,16 @@ describe("NotesSection", () => {
     )
 
     const textarea = screen.getByTestId("notes-input") as HTMLTextAreaElement
-    await user.clear(textarea)
-    await user.type(textarea, "Important note")
-    await user.click(screen.getByTestId("notes-submit"))
+    fireEvent.change(textarea, { target: { value: "Important note" } })
 
-    await waitFor(() => {
-      expect(textarea.value).toBe("Important note")
+    await act(async () => {
+      vi.advanceTimersByTime(1500)
     })
+
     expect(onSave).toHaveBeenCalledWith("Important note")
+    // Draft preserved despite failure
+    expect(textarea.value).toBe("Important note")
+    vi.useRealTimers()
   })
 
   it("shows read-only notes when editing is not allowed", () => {

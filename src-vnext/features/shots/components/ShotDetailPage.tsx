@@ -23,13 +23,20 @@ import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { canManageShots } from "@/shared/lib/rbac"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { textPreview } from "@/shared/lib/textPreview"
+import {
+  SectionLabel,
+  MetaEditorCard,
+  ReadOnlyMetaValue,
+  SaveIndicator,
+  DescriptionEditor,
+  DateEditor,
+} from "@/features/shots/components/ShotDetailShared"
 import { Button } from "@/ui/button"
-import { Input } from "@/ui/input"
-import { Textarea } from "@/ui/textarea"
 import { Separator } from "@/ui/separator"
 import { ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
 import { useMemo, useState } from "react"
+import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ShotPdfExportDialog } from "@/features/shots/components/ShotPdfExportDialog"
 import { useLocations, useTalent } from "@/features/shots/hooks/usePickerData"
@@ -70,6 +77,12 @@ export default function ShotDetailPage() {
         .filter((entry): entry is string => !!entry && entry.length > 0),
     )
   }, [projectShots])
+
+  // -- Keyboard shortcuts: Escape = back, Cmd+S = prevent browser save (auto-save handles it) --
+  useKeyboardShortcuts([
+    { key: "Escape", handler: () => navigate(-1) },
+    { key: "s", meta: true, handler: () => { /* auto-save flushes on blur; this just prevents browser save dialog */ } },
+  ])
 
   const save = async (fields: Record<string, unknown>): Promise<boolean> => {
     if (!shot || !clientId) return false
@@ -178,7 +191,10 @@ export default function ShotDetailPage() {
                 {canEdit ? (
                   <DescriptionEditor
                     value={safeDescription}
-                    onSave={(description) => save({ description: description || null })}
+                    onSave={async (description) => {
+                      const ok = await save({ description: description || null })
+                      if (!ok) throw new Error("Save failed")
+                    }}
                   />
                 ) : (
                   <p className="text-sm text-[var(--color-text-secondary)]">
@@ -325,114 +341,3 @@ export default function ShotDetailPage() {
   )
 }
 
-function SectionLabel({ children }: { readonly children: React.ReactNode }) {
-  return (
-    <span className="text-2xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
-      {children}
-    </span>
-  )
-}
-
-function MetaEditorCard({
-  label,
-  children,
-}: {
-  readonly label: string
-  readonly children: React.ReactNode
-}) {
-  return (
-    <div className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
-      <p className="text-3xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
-        {label}
-      </p>
-      <div className="mt-0.5">{children}</div>
-    </div>
-  )
-}
-
-function ReadOnlyMetaValue({ value }: { readonly value: string }) {
-  return <p className="text-xs font-semibold text-[var(--color-text)]">{value}</p>
-}
-
-function DescriptionEditor({
-  value,
-  onSave,
-}: {
-  readonly value: string
-  readonly onSave: (value: string) => void
-}) {
-  const [draft, setDraft] = useState(value)
-  const [editing, setEditing] = useState(false)
-
-  const handleBlur = () => {
-    setEditing(false)
-    if (draft.trim() !== value) {
-      onSave(draft.trim())
-    }
-  }
-
-  if (!editing) {
-    return (
-      <p
-        className="cursor-pointer rounded px-1.5 py-0.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-subtle)]"
-        onClick={() => setEditing(true)}
-      >
-        {value || "Click to add..."}
-      </p>
-    )
-  }
-
-  return (
-    <Textarea
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={handleBlur}
-      autoFocus
-      rows={2}
-      className="text-sm"
-    />
-  )
-}
-
-function DateEditor({
-  value,
-  onSave,
-}: {
-  readonly value: string
-  readonly onSave: (value: string) => void
-}) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value)
-
-  const handleBlur = () => {
-    setEditing(false)
-    if (draft !== value) {
-      onSave(draft)
-    }
-  }
-
-  if (!editing) {
-    return (
-      <p
-        className="cursor-pointer rounded px-1.5 py-0.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-subtle)]"
-        onClick={() => {
-          setDraft(value)
-          setEditing(true)
-        }}
-      >
-        {value || "Click to set date..."}
-      </p>
-    )
-  }
-
-  return (
-    <Input
-      type="date"
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={handleBlur}
-      autoFocus
-      className="h-8 px-2 text-xs"
-    />
-  )
-}

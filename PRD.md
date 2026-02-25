@@ -106,6 +106,19 @@ This is where producers spend 80% of their time. Must be fast and fluid.
 - **No page refreshes.** No multi-step wizards for common actions.
 - **Auto-save** with debounce. No save button.
 
+### Shot Status Model
+
+Every shot progresses through four statuses. These labels are canonical across all views, filters, badges, and exports.
+
+| Firestore value | Display label | Meaning |
+|---|---|---|
+| `todo` | **Draft** | Created but not yet actively being worked on |
+| `in_progress` | **In Progress** | Actively being planned, assigned, or prepared |
+| `on_hold` | **On Hold** | Paused pending a decision, resource, or external input |
+| `complete` | **Shot** | Photographed and complete — ready for delivery |
+
+"Draft" and "Shot" are intentional domain-specific terms. "Draft" means the shot plan is not finalized. "Shot" means the photograph has been taken. Do not substitute generic alternatives (To do, Complete, Done).
+
 ### Journey 3: Warehouse Fulfillment (Mobile)
 
 - **Guided pick flow:** One item at a time, full-screen steps.
@@ -143,7 +156,7 @@ This is where producers spend 80% of their time. Must be fast and fluid.
 | Priority | Features |
 |----------|----------|
 | **Must-Have** | Projects + dashboard with readiness, shots (inline edit + detail panel), product assignment to shots, pull sheet generation + fulfillment + sharing, call sheets, Cmd+K command palette, keyboard shortcuts, mobile/tablet operations |
-| **Should-Have** | Product library CRUD, talent/crew/locations library, comments + activity feed, tags, notifications, admin/settings |
+| **Should-Have** | Product library CRUD, talent/crew/locations library, comments + activity feed, tags, notifications, admin/settings, board column reorder + show/hide |
 | **Nice-to-Have** | PDF export, CSV import/export, color palette/swatches, department management, demo mode |
 | **Cut / Simplify** | Planner/drag-and-drop board (users don't use it), advanced theming, deep versioning UI, offline writes, V2/V3 parallel surfaces |
 | **Future Wishlist** | Client-facing portal (TOP), reporting/analytics, AI-assisted planning, post-shoot asset management |
@@ -158,7 +171,15 @@ Cmd+K finds any entity, triggers any action. Users should never need to navigate
 
 ### 2. Keyboard-first interaction
 
-Tab, Enter, Escape, Cmd+K, and status shortcuts for power users. Mouse is supported but not required for common workflows. (Inspired by Linear)
+Mouse is supported but not required for common workflows. (Inspired by Linear)
+
+| Shortcut | Context | Action |
+|---|---|---|
+| `Cmd+K` | Global | Command palette (search + actions) — Phase 7 |
+| `N` | Shot list | Focus quick-add input |
+| `1` / `2` / `3` / `4` | Shot list | Switch view: gallery / visual / table / board |
+| `Escape` | Shot detail | Return to shot list |
+| `Cmd+S` | Shot detail | Prevent browser save dialog (auto-save handles persistence) |
 
 ### 3. Inline editing by default
 
