@@ -180,6 +180,7 @@ Mouse is supported but not required for common workflows. (Inspired by Linear)
 | `1` / `2` / `3` / `4` | Shot list | Switch view: gallery / visual / table / board |
 | `Escape` | Shot detail | Return to shot list |
 | `Cmd+S` | Shot detail | Prevent browser save dialog (auto-save handles persistence) |
+| `?` | Shot list | Open keyboard shortcuts help dialog |
 
 ### 3. Inline editing by default
 

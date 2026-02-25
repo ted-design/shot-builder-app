@@ -21,6 +21,8 @@ type TalentRecord = { readonly id: string; readonly name: string }
 type LocationRecord = { readonly id: string; readonly name: string }
 type TagOption = { readonly id: string; readonly label: string }
 
+type ProductOption = { readonly id: string; readonly styleName: string }
+
 type ShotListFilterSheetProps = {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
@@ -39,6 +41,10 @@ type ShotListFilterSheetProps = {
   readonly locationParam: string
   readonly onLocationChange: (locationId: string) => void
   readonly locationRecords: ReadonlyArray<LocationRecord>
+  // Product
+  readonly productParam: string
+  readonly onProductChange: (productFamilyId: string) => void
+  readonly productFamilies: ReadonlyArray<ProductOption>
   // Tags
   readonly tagFilter: ReadonlySet<string>
   readonly onToggleTag: (tagId: string) => void
@@ -69,6 +75,9 @@ export function ShotListFilterSheet({
   locationParam,
   onLocationChange,
   locationRecords,
+  productParam,
+  onProductChange,
+  productFamilies,
   tagFilter,
   onToggleTag,
   tagOptions,
@@ -168,6 +177,28 @@ export function ShotListFilterSheet({
                   {locationRecords.map((l) => (
                     <SelectItem key={l.id} value={l.id}>
                       {l.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+                Product
+              </div>
+              <Select
+                value={productParam.trim() ? productParam.trim() : "__any__"}
+                onValueChange={(v) => onProductChange(v === "__any__" ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Any" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__any__">Any</SelectItem>
+                  {productFamilies.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.styleName}
                     </SelectItem>
                   ))}
                 </SelectContent>

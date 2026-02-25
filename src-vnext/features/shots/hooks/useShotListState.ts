@@ -37,6 +37,7 @@ export type ShotListState = {
   readonly queryParam: string
   readonly talentParam: string
   readonly locationParam: string
+  readonly productParam: string
   readonly statusFilter: ReadonlySet<ShotFirestoreStatus>
   readonly missingFilter: ReadonlySet<MissingKey>
   readonly tagFilter: ReadonlySet<string>
@@ -53,6 +54,7 @@ export type ShotListState = {
   readonly toggleTag: (tagId: string) => void
   readonly setTalentFilter: (talentId: string) => void
   readonly setLocationFilter: (locationId: string) => void
+  readonly setProductFilter: (productFamilyId: string) => void
   readonly clearFilters: () => void
   readonly clearQuery: () => void
   // Display fields
@@ -81,8 +83,9 @@ export function useShotListState(params: {
   readonly projectId: string
   readonly talentNameById: ReadonlyMap<string, string>
   readonly locationNameById: ReadonlyMap<string, string>
+  readonly productNameById: ReadonlyMap<string, string>
 }): ShotListState {
-  const { shots, mobileOptimistic, clientId, projectId, talentNameById, locationNameById } = params
+  const { shots, mobileOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById } = params
 
   const isMobile = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -95,6 +98,7 @@ export function useShotListState(params: {
   const queryParam = searchParams.get("q") ?? ""
   const talentParam = searchParams.get("talent") ?? ""
   const locationParam = searchParams.get("location") ?? ""
+  const productParam = searchParams.get("product") ?? ""
   const viewParam = (searchParams.get("view") as ViewMode) || null
   const groupParam = (searchParams.get("group") as GroupKey) || null
 
@@ -250,6 +254,14 @@ export function useShotListState(params: {
     setSearchParams(next, { replace: true })
   }
 
+  const setProductFilter = (productFamilyId: string) => {
+    const next = new URLSearchParams(searchParams)
+    const id = productFamilyId.trim()
+    if (!id) next.delete("product")
+    else next.set("product", id)
+    setSearchParams(next, { replace: true })
+  }
+
   const toggleTag = (tagId: string) => {
     const id = tagId.trim()
     if (!id) return
@@ -284,7 +296,7 @@ export function useShotListState(params: {
 
   const clearFilters = () => {
     const next = new URLSearchParams(searchParams)
-    for (const k of ["q", "status", "missing", "talent", "location", "tag"]) next.delete(k)
+    for (const k of ["q", "status", "missing", "talent", "location", "tag", "product"]) next.delete(k)
     setSearchParams(next, { replace: true })
   }
 
@@ -293,13 +305,15 @@ export function useShotListState(params: {
     const base = mobileOptimistic ?? shots
     return applyFiltersAndSort(base, {
       statusFilter, missingFilter, talentId: talentParam,
-      locationId: locationParam, tagFilter, query: queryParam, sortKey, sortDir,
+      locationId: locationParam, tagFilter, productFamilyId: productParam,
+      query: queryParam, sortKey, sortDir,
     })
-  }, [shots, mobileOptimistic, sortKey, sortDir, statusFilter, missingFilter, talentParam, locationParam, tagFilter, queryParam])
+  }, [shots, mobileOptimistic, sortKey, sortDir, statusFilter, missingFilter, talentParam, locationParam, tagFilter, productParam, queryParam])
 
   const hasActiveFilters =
     queryParam.trim().length > 0 || statusFilter.size > 0 || missingFilter.size > 0 ||
-    talentParam.trim().length > 0 || locationParam.trim().length > 0 || tagFilter.size > 0
+    talentParam.trim().length > 0 || locationParam.trim().length > 0 ||
+    productParam.trim().length > 0 || tagFilter.size > 0
 
   const hasActiveGrouping = groupKey !== "none"
 
@@ -352,6 +366,14 @@ export function useShotListState(params: {
         onRemove: () => { const n = new URLSearchParams(searchParams); n.delete("location"); setSearchParams(n, { replace: true }) },
       })
     }
+    if (productParam.trim()) {
+      const id = productParam.trim()
+      badges.push({
+        key: `product:${id}`,
+        label: `Product: ${productNameById.get(id) ?? id}`,
+        onRemove: () => { const n = new URLSearchParams(searchParams); n.delete("product"); setSearchParams(n, { replace: true }) },
+      })
+    }
     for (const id of tagFilter) {
       badges.push({ key: `tag:${id}`, label: `Tag: ${tagLabelById.get(id) ?? id}`, onRemove: () => toggleTag(id) })
     }
@@ -362,16 +384,16 @@ export function useShotListState(params: {
       badges.push({ key: `missing:${m}`, label: `Missing: ${m}`, onRemove: () => toggleMissing(m) })
     }
     return badges
-  }, [locationNameById, locationParam, missingFilter, queryParam, searchParams, setSearchParams, statusFilter, tagFilter, tagLabelById, talentNameById, talentParam])
+  }, [locationNameById, locationParam, missingFilter, productNameById, productParam, queryParam, searchParams, setSearchParams, statusFilter, tagFilter, tagLabelById, talentNameById, talentParam])
 
   return {
     sortKey, sortDir, viewMode, groupKey, isCustomSort,
-    queryParam, talentParam, locationParam,
+    queryParam, talentParam, locationParam, productParam,
     statusFilter, missingFilter, tagFilter,
     queryDraft, setQueryDraft,
     setSortKey, setSortDir, setViewMode, setGroupKey,
     toggleStatus, toggleMissing, toggleTag,
-    setTalentFilter, setLocationFilter,
+    setTalentFilter, setLocationFilter, setProductFilter,
     clearFilters, clearQuery,
     fields, setFields,
     displayShots, insights, hasActiveFilters, hasActiveGrouping,

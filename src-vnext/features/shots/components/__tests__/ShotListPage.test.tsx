@@ -16,6 +16,7 @@ vi.mock("@/features/projects/hooks/useProjects", () => ({
 vi.mock("@/features/shots/hooks/usePickerData", () => ({
   useTalent: vi.fn(),
   useLocations: vi.fn(),
+  useProductFamilies: vi.fn(),
 }))
 
 vi.mock("@/app/providers/AuthProvider", () => ({
@@ -46,7 +47,7 @@ vi.mock("@/features/pulls/components/CreatePullFromShotsDialog", () => ({
 }))
 
 import { useShots } from "@/features/shots/hooks/useShots"
-import { useLocations, useTalent } from "@/features/shots/hooks/usePickerData"
+import { useLocations, useTalent, useProductFamilies } from "@/features/shots/hooks/usePickerData"
 import ShotListPage from "@/features/shots/components/ShotListPage"
 
 function makeShot(overrides: Partial<Shot>): Shot {
@@ -99,6 +100,11 @@ describe("ShotListPage", () => {
       error: null,
     })
     ;(useLocations as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [],
+      loading: false,
+      error: null,
+    })
+    ;(useProductFamilies as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [],
       loading: false,
       error: null,

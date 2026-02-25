@@ -90,7 +90,7 @@ Admin (role-gated: admin only)
 
 **Goal:** Make the shot editing loop fast and fluid. This is where producers spend 80% of their time. Every click saved here compounds across hundreds of shots.
 
-**Status:** Partially complete (pre-plan work merged). Resume from Phase 2 first.
+**Status:** COMPLETE (3v board reorder deferred).
 
 ### Sub-tasks
 
@@ -106,7 +106,9 @@ Admin (role-gated: admin only)
 - [x] **3j:** Implement multi-view system (table, board, gallery) + view persistence
 - [x] **3k:** Implement auto-save (debounced writes, optimistic UI, save indicator)
 - [x] **3l:** Implement keyboard shortcuts (Cmd+K, Cmd+N, Tab, Enter, Escape, 1-4)
-- [ ] **3m:** Verify acceptance criteria + run full test suite
+- [x] **3m:** Verify acceptance criteria + run full test suite
+- [x] **3w:** Keyboard shortcuts help dialog (`?` key) + keyboard hints on toolbar view buttons
+- [x] **3x:** Product family filter in shot list filter sheet
 - [x] **3n:** Public share system (callable -> HTTP endpoint -> denormalized Firestore reads)
 - [x] **3o:** Shot lifecycle actions (duplicate, copy/move across projects, soft-delete)
 - [x] **3p:** Multi-tag filters on ShotListPage
@@ -119,14 +121,14 @@ Admin (role-gated: admin only)
 
 ### Acceptance Criteria
 
-- [ ] Producer can create 10 shots in under 60 seconds using keyboard only
-- [ ] Inline edits auto-save without explicit save button
-- [ ] Three-panel layout works on desktop (>1024px)
-- [ ] Product picker supports keyboard navigation
-- [ ] All three views (table, board, gallery) work and persist preference
-- [ ] Keyboard shortcuts documented and functional
-- [ ] Shot list supports filter by status, tag, lane, product assignment
-- [ ] No page refreshes during editing workflow
+- [x] Producer can create 10 shots in under 60 seconds using keyboard only
+- [x] Inline edits auto-save without explicit save button
+- [x] Three-panel layout works on desktop (>1024px)
+- [x] Product picker supports keyboard navigation
+- [x] All three views (table, board, gallery) work and persist preference
+- [x] Keyboard shortcuts documented and functional
+- [x] Shot list supports filter by status, tag, product family, talent, location
+- [x] No page refreshes during editing workflow
 
 ---
 

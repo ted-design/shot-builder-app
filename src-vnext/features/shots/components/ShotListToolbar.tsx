@@ -155,46 +155,27 @@ export function ShotListToolbar({
 
       {!isMobile && (
         <div className="ml-auto flex items-center gap-1">
-          <Button
-            variant={viewMode === "gallery" ? "default" : "outline"}
-            size="icon"
-            className="h-9 w-9"
-            onClick={() => onViewModeChange("gallery")}
-            aria-label="Gallery view"
-            title="Gallery view"
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "visual" ? "default" : "outline"}
-            size="icon"
-            className="h-9 w-9"
-            onClick={() => onViewModeChange("visual")}
-            aria-label="Visual view"
-            title="Visual view"
-          >
-            <ImageIcon className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "table" ? "default" : "outline"}
-            size="icon"
-            className="h-9 w-9"
-            onClick={() => onViewModeChange("table")}
-            aria-label="Table view"
-            title="Table view"
-          >
-            <Table2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "board" ? "default" : "outline"}
-            size="icon"
-            className="h-9 w-9"
-            onClick={() => onViewModeChange("board")}
-            aria-label="Board view"
-            title="Board view"
-          >
-            <Kanban className="h-4 w-4" />
-          </Button>
+          {([
+            { mode: "gallery" as const, icon: LayoutGrid, label: "Gallery view", hint: "1" },
+            { mode: "visual" as const, icon: ImageIcon, label: "Visual view", hint: "2" },
+            { mode: "table" as const, icon: Table2, label: "Table view", hint: "3" },
+            { mode: "board" as const, icon: Kanban, label: "Board view", hint: "4" },
+          ] as const).map(({ mode, icon: Icon, label, hint }) => (
+            <Button
+              key={mode}
+              variant={viewMode === mode ? "default" : "outline"}
+              size="icon"
+              className="relative h-9 w-9"
+              onClick={() => onViewModeChange(mode)}
+              aria-label={label}
+              title={`${label} (${hint})`}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded text-3xs font-medium text-[var(--color-text-subtle)]">
+                {hint}
+              </span>
+            </Button>
+          ))}
         </div>
       )}
     </div>
