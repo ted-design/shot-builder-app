@@ -9,24 +9,25 @@ export default {
   ],
   theme: {
     extend: {
-      // Extend the default colour palette with custom primary and secondary colours.
+      // Direction A: Near-Black Editorial — zinc neutrals, near-black primary, red accent
       colors: {
-        // Brand colors (Immediate + Unbound co-branding)
+        // Brand colors
         'immediate-red': '#E31E24',
-        'immediate-red-dark': '#B51A1F',
+        'immediate-red-dark': '#c91920',
 
         // Sidebar theme tokens (dark sidebar even in light mode)
-        sidebar: 'rgb(15 23 42)', // slate-900
-        'sidebar-border': 'rgb(30 41 59)', // slate-800
-        'sidebar-hover': 'rgb(30 41 59)', // slate-800
-        'sidebar-active': 'rgb(51 65 85)', // slate-700
+        sidebar: '#09090b',           // zinc-950
+        'sidebar-border': '#27272a',  // zinc-800
+        'sidebar-hover': '#27272a',   // zinc-800
+        'sidebar-active': '#3f3f46',  // zinc-700
 
-        // UI colors (primary actions)
+        // Primary action (near-black)
         primary: {
-          DEFAULT: "#6366f1", // indigo-500
-          dark: "#4f46e5",    // indigo-600
+          DEFAULT: "#18181b", // zinc-900
+          dark: "#27272a",    // zinc-800 (hover)
           foreground: "#ffffff",
         },
+        // Secondary action
         secondary: {
           DEFAULT: "#10b981", // emerald-500
           dark: "#059669",    // emerald-600
@@ -43,29 +44,29 @@ export default {
           DEFAULT: "#3b82f6", // blue-500
         },
 
-        // Neutral scale (standardized on slate)
+        // Neutral scale (zinc)
         neutral: {
-          50: 'rgb(248 250 252)',   // slate-50
-          100: 'rgb(241 245 249)',  // slate-100
-          200: 'rgb(226 232 240)',  // slate-200
-          300: 'rgb(203 213 225)',  // slate-300
-          400: 'rgb(148 163 184)',  // slate-400
-          500: 'rgb(100 116 139)',  // slate-500
-          600: 'rgb(71 85 105)',    // slate-600
-          700: 'rgb(51 65 85)',     // slate-700
-          800: 'rgb(30 41 59)',     // slate-800
-          900: 'rgb(15 23 42)',     // slate-900
-          950: 'rgb(2 6 23)',       // slate-950
+          50:  '#fafafa',   // zinc-50
+          100: '#f4f4f5',   // zinc-100
+          200: '#e4e4e7',   // zinc-200
+          300: '#d4d4d8',   // zinc-300
+          400: '#a1a1aa',   // zinc-400
+          500: '#71717a',   // zinc-500
+          600: '#52525b',   // zinc-600
+          700: '#3f3f46',   // zinc-700
+          800: '#27272a',   // zinc-800
+          900: '#18181b',   // zinc-900
+          950: '#09090b',   // zinc-950
         },
 
         // Semantic surface colors
         surface: {
           DEFAULT: '#ffffff',
-          dark: 'rgb(30 41 59)', // neutral-800
+          dark: '#27272a', // neutral-800 (zinc)
         },
         muted: {
-          DEFAULT: 'rgb(241 245 249)', // neutral-100
-          dark: 'rgb(51 65 85)',       // neutral-700
+          DEFAULT: '#f4f4f5',   // neutral-100 (zinc)
+          dark: '#3f3f46',      // neutral-700 (zinc)
           foreground: 'var(--color-text-muted)',
         },
 
@@ -91,6 +92,23 @@ export default {
           DEFAULT: 'var(--color-error)',
           foreground: '#ffffff',
         },
+      },
+      // Editorial typography — tighter heading leading, micro sizes
+      fontSize: {
+        // Micro sizes (replace arbitrary text-[9px], text-[10px], text-[11px])
+        '3xs': ['0.5625rem', { lineHeight: '0.75rem' }],   // 9px
+        '2xs': ['0.625rem', { lineHeight: '0.875rem' }],   // 10px
+        'xxs': ['0.6875rem', { lineHeight: '1rem' }],      // 11px
+
+        // Heading overrides — tighter leading than Tailwind defaults
+        '2xl': ['1.5rem', { lineHeight: '1.875rem' }],     // 24px / 30px (1.25)
+        '3xl': ['1.75rem', { lineHeight: '2.125rem' }],    // 28px / 34px (1.21)
+        '4xl': ['2rem', { lineHeight: '2.375rem' }],       // 32px / 38px (1.19)
+      },
+      // Editorial letter-spacing — subtler than Tailwind defaults
+      letterSpacing: {
+        tighter: '-0.02em',   // Headings (editorial negative tracking)
+        tight: '-0.01em',     // Sub-headings
       },
       // Design system border-radius values for consistency
       borderRadius: {
