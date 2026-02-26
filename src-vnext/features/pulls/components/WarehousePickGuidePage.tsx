@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { collectionGroup, getDocs, limit, query, where } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { LoadingState } from "@/shared/components/LoadingState"
@@ -121,6 +122,7 @@ export default function WarehousePickGuidePage() {
   // -- Landing screen --
   if (!started) {
     return (
+      <ErrorBoundary>
       <div className="flex min-h-screen flex-col bg-[var(--color-bg)]">
         <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
           <Button
@@ -151,6 +153,7 @@ export default function WarehousePickGuidePage() {
           </Button>
         </div>
       </div>
+      </ErrorBoundary>
     )
   }
 
@@ -161,6 +164,7 @@ export default function WarehousePickGuidePage() {
     const substituted = outcomes.filter((o) => o.outcome === "substitute").length
 
     return (
+      <ErrorBoundary>
       <div className="flex min-h-screen flex-col bg-[var(--color-bg)]">
         <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
           <h1 className="text-base font-semibold text-[var(--color-text)]">Pick Complete</h1>
@@ -192,6 +196,7 @@ export default function WarehousePickGuidePage() {
           </Button>
         </div>
       </div>
+      </ErrorBoundary>
     )
   }
 
@@ -199,6 +204,7 @@ export default function WarehousePickGuidePage() {
   const currentItem = items[currentIndex]!
 
   return (
+    <ErrorBoundary>
     <div className="flex min-h-screen flex-col bg-[var(--color-bg)]">
       <WarehousePickProgress current={outcomes.length} total={items.length} />
 
@@ -225,5 +231,6 @@ export default function WarehousePickGuidePage() {
         <WarehousePickOutcomeBar onOutcome={recordOutcome} />
       )}
     </div>
+    </ErrorBoundary>
   )
 }

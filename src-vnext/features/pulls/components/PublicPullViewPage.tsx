@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { collectionGroup, getDocs, limit, query, where } from "firebase/firestore"
 import { httpsCallable } from "firebase/functions"
 import { toast } from "sonner"
@@ -207,6 +208,7 @@ export default function PublicPullViewPage() {
   const respondLabel = expired ? "Expired" : canRespond ? "Respond enabled" : "Read-only"
 
   return (
+    <ErrorBoundary>
     <div className="min-h-screen bg-[var(--color-bg)] px-4 py-8">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
         <div className="flex flex-col gap-2">
@@ -283,6 +285,7 @@ export default function PublicPullViewPage() {
         )}
       </div>
     </div>
+    </ErrorBoundary>
   )
 }
 

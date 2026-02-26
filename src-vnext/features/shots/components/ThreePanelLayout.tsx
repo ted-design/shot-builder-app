@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef } from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { useShot } from "@/features/shots/hooks/useShot"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
@@ -204,6 +205,7 @@ export function ThreePanelLayout({
   }
 
   return (
+    <ErrorBoundary>
     <div className="-mx-6 -my-6 flex h-[calc(100vh-var(--header-height))]">
       <PanelGroup
         direction="horizontal"
@@ -260,5 +262,6 @@ export function ThreePanelLayout({
         </Panel>
       </PanelGroup>
     </div>
+    </ErrorBoundary>
   )
 }

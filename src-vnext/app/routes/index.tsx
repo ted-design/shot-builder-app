@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react"
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom"
+import { NotFoundPage } from "@/shared/components/NotFoundPage"
 import { RequireAuth } from "@/app/routes/guards/RequireAuth"
 import { RequireDesktop } from "@/app/routes/guards/RequireDesktop"
 import { ProjectScopeProvider } from "@/app/providers/ProjectScopeProvider"
@@ -190,7 +191,7 @@ export function AppRoutes() {
             <Route path="dev/import-q1-hub-shots" element={<DevImportQ1HubShots />} />
           )}
         </Route>
-        <Route path="*" element={<Navigate to="/projects" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
   )

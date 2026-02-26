@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { canManageProducts } from "@/shared/lib/rbac"
 import { PageHeader } from "@/shared/components/PageHeader"
@@ -180,6 +181,7 @@ export default function ProductListPage() {
   }
 
   return (
+    <ErrorBoundary>
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Products"
@@ -632,5 +634,6 @@ export default function ProductListPage() {
         </>
       )}
     </div>
+    </ErrorBoundary>
   )
 }

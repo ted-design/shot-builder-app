@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { LoadingState } from "@/shared/components/LoadingState"
@@ -142,6 +143,7 @@ export default function PublicShotSharePage() {
   const subLabel = scope === "selected" ? "Shared selection" : "Shared project shots"
 
   return (
+    <ErrorBoundary>
     <div className="min-h-screen bg-[var(--color-bg)] px-4 py-8">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         <div className="flex flex-col gap-2">
@@ -261,5 +263,6 @@ export default function PublicShotSharePage() {
         )}
       </div>
     </div>
+    </ErrorBoundary>
   )
 }

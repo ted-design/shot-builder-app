@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import type { ProductFamily, ProductSku } from "@/shared/types"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
@@ -773,6 +774,7 @@ export default function ProductEditorPage() {
   const familyImagePath = (draft.thumbnailImagePath || draft.headerImagePath) ?? null
 
   return (
+    <ErrorBoundary>
     <div className="flex flex-col gap-6">
       <PageHeader
         title={title}
@@ -1219,5 +1221,6 @@ export default function ProductEditorPage() {
 
       </div>
     </div>
+    </ErrorBoundary>
   )
 }

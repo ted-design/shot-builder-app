@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { DetailPageSkeleton } from "@/shared/components/Skeleton"
@@ -408,6 +409,7 @@ export default function ProductDetailPage() {
   }
 
   return (
+    <ErrorBoundary>
     <div className="flex flex-col gap-6">
       <PageHeader
         title={family.styleName}
@@ -1624,5 +1626,6 @@ export default function ProductDetailPage() {
         }}
       />
     </div>
+    </ErrorBoundary>
   )
 }
