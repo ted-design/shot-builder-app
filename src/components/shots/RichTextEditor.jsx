@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import PropTypes from "prop-types";
 import ReactTiptapEditor from "reactjs-tiptap-editor";
 import { sanitizeHtml } from "../../lib/sanitizeHtml";
 import { BaseKit } from "reactjs-tiptap-editor";
@@ -159,37 +158,3 @@ export default function RichTextEditor({
   );
 }
 
-RichTextEditor.propTypes = {
-  /** Current HTML content value */
-  value: PropTypes.string,
-
-  /** Callback when content changes */
-  onChange: PropTypes.func,
-
-  /** Disable editing */
-  disabled: PropTypes.bool,
-
-  /** DOM id for the editor */
-  id: PropTypes.string,
-
-  /** Placeholder text */
-  placeholder: PropTypes.string,
-
-  /** Maximum character limit */
-  characterLimit: PropTypes.number,
-
-  /** Minimum editor height */
-  minHeight: PropTypes.string,
-
-  /** Maximum editor height */
-  maxHeight: PropTypes.string,
-
-  /** Hide the main toolbar */
-  hideToolbar: PropTypes.bool,
-
-  /** Hide the bubble menu (inline toolbar) */
-  hideBubble: PropTypes.bool,
-
-  /** Additional CSS classes */
-  className: PropTypes.string,
-};
