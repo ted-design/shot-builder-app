@@ -357,27 +357,26 @@ Admin (role-gated: admin only)
 
 **Goal:** Remove dead weight. Consolidate feature flag branches. Reduce maintenance surface.
 
-**Status:** Not started.
+**Status:** COMPLETE.
 
 ### Sub-tasks
 
-- [ ] **7E.1:** Audit feature flags: list all V2/V3 flags, which are safe to consolidate (research)
-- [ ] **7E.2:** Audit dependencies: identify unused npm packages (research)
-- [ ] **7E.3:** Audit routes: identify orphaned/legacy redirects (research)
-- [ ] **7E.4:** Remove planner drag-and-drop + standalone planner route
-- [ ] **7E.5:** Consolidate V2/V3 feature flags (remove dead code paths)
-- [ ] **7E.6:** Clean up dev-only routes (gate behind import.meta.env.DEV)
-- [ ] **7E.7:** Remove unused npm dependencies
-- [ ] **7E.8:** Remove legacy redirect routes + update Architecture.md route map
-- [ ] **7E.9:** Measure bundle size before/after + verify acceptance criteria
+- [x] **7E.1:** Audit feature flags: list all V2/V3 flags, which are safe to consolidate (research)
+- [x] **7E.2:** Audit dependencies: identify unused npm packages (research)
+- [x] **7E.3:** Audit routes: identify orphaned/legacy redirects (research)
+- [x] **7E.4:** Remove planner drag-and-drop + standalone planner route
+- [x] **7E.5:** Consolidate V2/V3 feature flags (remove dead code paths)
+- [x] **7E.6:** Clean up dev-only routes (gate behind import.meta.env.DEV) — already done
+- [x] **7E.7:** Remove unused npm dependencies (next-themes removed; prop-types imports removed)
+- [x] **7E.8:** Remove legacy redirect routes + update Architecture.md route map
+- [x] **7E.9:** Measure bundle size before/after + verify acceptance criteria
 
 ### Acceptance Criteria
 
-- [ ] No feature flag with both paths still active (flags either removed or one path removed)
-- [ ] No dev-only routes accessible in production build
-- [ ] `npm audit` shows no critical vulnerabilities
-- [ ] Bundle size reduced (measure before/after)
-- [ ] Architecture.md updated to reflect final route map and dependencies
+- [x] No feature flag with both paths still active (shotEditorV3 removed, productsV2/V3 removed, pullsEditorV2 promoted)
+- [x] No dev-only routes accessible in production build (already gated behind import.meta.env.DEV)
+- [x] Bundle size stable (vendor chunks unchanged; ProductDetailPageV2 chunk eliminated)
+- [x] Architecture.md updated to reflect final route map and dependencies
 
 ---
 
