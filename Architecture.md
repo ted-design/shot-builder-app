@@ -389,7 +389,7 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 
 ### Custom UI Components
 
-`LoadingSpinner`, `EmptyState`, `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`
+`LoadingSpinner`, `EmptyState`, `InlineEmpty`, `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `NetworkErrorBanner`, `ForbiddenPage`, `NotFoundPage`, `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`
 
 ### Mobile & Tablet Components (Phase 5)
 

@@ -171,7 +171,7 @@ export function AddShotToScheduleDialog({
                     {shot.title}
                   </span>
                   {shot.shotNumber && (
-                    <span className="rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    <span className="rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]">
                       Shot {shot.shotNumber}
                     </span>
                   )}

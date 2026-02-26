@@ -656,7 +656,7 @@ function ReferenceTile({
       )}
 
       {isCover && (
-        <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-2xs text-white">
+        <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-2xs text-[var(--color-text-inverted)]">
           Cover
         </span>
       )}

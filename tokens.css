@@ -102,6 +102,7 @@
   --color-primary-hover: #27272a;     /* zinc-800 */
   --color-primary-active: #09090b;    /* zinc-950 */
   --color-primary-light: #f4f4f5;     /* zinc-100 */
+  --color-primary-subtle: #f4f4f5;    /* zinc-100 — selected/active bg tint */
   --color-primary-text: #ffffff;
 
   /* --- Accent (Immediate Red — brand moments only) --- */
@@ -117,6 +118,8 @@
   /* --- Status Colors --- */
   --color-success: #10b981;           /* emerald-500 */
   --color-warning: #f59e0b;           /* amber-500 */
+  --color-warning-muted: #fde68a;     /* amber-200 — warning border/accent */
+  --color-warning-subtle: #fffbeb;    /* amber-50 — warning background tint */
   --color-error: #ef4444;             /* red-500 */
   --color-info: #3b82f6;              /* blue-500 */
 
@@ -181,6 +184,7 @@
 
   /* Top Bar / Header */
   --topbar-height: 52px;             /* Reduced from 65px */
+  --header-height: 52px;             /* Alias for ThreePanelLayout calc */
   --action-bar-height: 44px;
 
   /* Preview Area */

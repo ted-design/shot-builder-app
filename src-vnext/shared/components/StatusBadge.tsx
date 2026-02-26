@@ -19,7 +19,7 @@ export function StatusBadge({ label, color, className }: StatusBadgeProps) {
     <Badge
       variant="outline"
       className={cn(
-        "text-xs font-medium",
+        "text-xxs font-medium",
         COLOR_CLASSES[color] ?? COLOR_CLASSES["gray"],
         className,
       )}

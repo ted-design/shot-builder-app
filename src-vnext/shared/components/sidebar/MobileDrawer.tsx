@@ -58,7 +58,7 @@ export function MobileDrawer({
           <SidebarUserSection collapsed={false} />
 
           {isTablet && (
-            <div className="absolute right-[-2px] top-1/2 h-10 w-1 -translate-y-1/2 rounded bg-white/30" />
+            <div className="absolute right-[-2px] top-1/2 h-10 w-1 -translate-y-1/2 rounded bg-[var(--color-sidebar-border)]" />
           )}
         </SheetPrimitive.Content>
       </SheetPrimitive.Portal>

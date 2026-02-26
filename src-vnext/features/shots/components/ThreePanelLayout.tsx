@@ -203,7 +203,7 @@ export function ThreePanelLayout({
   }
 
   return (
-    <div className="-mx-6 -my-6 flex h-[calc(100vh-var(--header-height,0px))]">
+    <div className="-mx-6 -my-6 flex h-[calc(100vh-var(--header-height))]">
       <PanelGroup
         direction="horizontal"
         onLayout={handleLayout}

@@ -18,7 +18,7 @@ export function WarehousePickOutcomeBar({
       data-testid="pick-outcome-bar"
     >
       <Button
-        className="min-h-[64px] flex-1 touch-target gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+        className="min-h-[64px] flex-1 touch-target gap-2 bg-emerald-600 text-[var(--color-text-inverted)] hover:bg-emerald-700"
         onClick={() => onOutcome("picked")}
         disabled={disabled}
         data-testid="pick-picked"
@@ -27,7 +27,7 @@ export function WarehousePickOutcomeBar({
         Picked
       </Button>
       <Button
-        className="min-h-[64px] flex-1 touch-target gap-2 bg-red-600 text-white hover:bg-red-700"
+        className="min-h-[64px] flex-1 touch-target gap-2 bg-red-600 text-[var(--color-text-inverted)] hover:bg-red-700"
         onClick={() => onOutcome("not_available")}
         disabled={disabled}
         data-testid="pick-not-available"
@@ -36,7 +36,7 @@ export function WarehousePickOutcomeBar({
         Not Available
       </Button>
       <Button
-        className="min-h-[64px] flex-1 touch-target gap-2 bg-amber-500 text-white hover:bg-amber-600"
+        className="min-h-[64px] flex-1 touch-target gap-2 bg-amber-500 text-[var(--color-text-inverted)] hover:bg-amber-600"
         onClick={() => onOutcome("substitute")}
         disabled={disabled}
         data-testid="pick-substitute"

@@ -312,7 +312,7 @@ export function CallOverridesEditor({
       <div className="flex flex-col gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <div className="flex items-center gap-2">
           <Clapperboard className="h-4 w-4 text-[var(--color-text-muted)]" />
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+          <h3 className="label-meta text-[var(--color-text-muted)]">
             Talent Overrides
           </h3>
           {defaultShootingCall && (
@@ -368,7 +368,7 @@ export function CallOverridesEditor({
       <div className="flex flex-col gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-[var(--color-text-muted)]" />
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+          <h3 className="label-meta text-[var(--color-text-muted)]">
             Crew Overrides
           </h3>
           {defaultCrewCall && (

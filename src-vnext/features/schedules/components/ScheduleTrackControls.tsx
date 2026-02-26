@@ -95,7 +95,7 @@ export function ScheduleTrackControls({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Layers className="h-4 w-4 text-[var(--color-text-subtle)]" />
-          <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+          <span className="label-meta text-[var(--color-text-muted)]">
             Tracks
           </span>
         </div>
@@ -160,7 +160,7 @@ export function ScheduleTrackControls({
           return (
             <div
               key={t.id}
-              className="flex items-center justify-between gap-2 rounded border border-[var(--color-border)] bg-white px-2.5 py-2"
+              className="flex items-center justify-between gap-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2"
             >
               <div className="min-w-0 flex-1">
                 <InlineEdit
@@ -202,7 +202,7 @@ export function ScheduleTrackControls({
 
       <div className="grid grid-cols-2 gap-2">
         <div className="flex flex-col gap-1">
-          <span className="text-2xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+          <span className="text-2xs font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
             Day Start
           </span>
           <TypedTimeInput
@@ -221,7 +221,7 @@ export function ScheduleTrackControls({
         </div>
 
         <div className="flex flex-col gap-1">
-          <span className="text-2xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+          <span className="text-2xs font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
             Default Dur.
           </span>
           <Input

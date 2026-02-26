@@ -203,7 +203,7 @@ function SortableImageTile({
           {...attributes}
           {...listeners}
           disabled={disabled}
-          className="rounded bg-black/40 p-1 text-white hover:bg-black/55 disabled:opacity-40"
+          className="rounded bg-black/40 p-1 text-[var(--color-text-inverted)] hover:bg-black/55 disabled:opacity-40"
           aria-label="Reorder"
         >
           <GripVertical className="h-4 w-4" />
@@ -215,7 +215,7 @@ function SortableImageTile({
           type="button"
           disabled={disabled}
           onClick={onDelete}
-          className="rounded bg-black/40 p-1 text-white hover:bg-black/55 disabled:opacity-40"
+          className="rounded bg-black/40 p-1 text-[var(--color-text-inverted)] hover:bg-black/55 disabled:opacity-40"
           aria-label="Remove image"
         >
           <Trash2 className="h-4 w-4" />
@@ -812,7 +812,7 @@ export default function LibraryTalentPage() {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <div className="label-meta">
                             Name
                           </div>
                           <div className="mt-1 text-xl font-semibold text-[var(--color-text)]">
@@ -844,7 +844,7 @@ export default function LibraryTalentPage() {
                     <div className="mt-5 grid gap-6 lg:grid-cols-2">
                       <div className="flex flex-col gap-4">
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                          <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <div className="label-meta">
                             Headshot
                           </div>
                           <div className="mt-3 flex items-center gap-2">
@@ -885,7 +885,7 @@ export default function LibraryTalentPage() {
                         </div>
 
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                          <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <div className="label-meta">
                             Contact
                           </div>
                           <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -956,7 +956,7 @@ export default function LibraryTalentPage() {
                         </div>
 
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                          <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <div className="label-meta">
                             Projects
                           </div>
                           <div className="mt-3 flex flex-col gap-2">
@@ -1046,7 +1046,7 @@ export default function LibraryTalentPage() {
 
                       <div className="flex flex-col gap-4">
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                          <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <div className="label-meta">
                             Measurements
                           </div>
                           <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -1078,7 +1078,7 @@ export default function LibraryTalentPage() {
                         </div>
 
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                          <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <div className="label-meta">
                             Notes
                           </div>
                           <InlineTextarea
@@ -1094,7 +1094,7 @@ export default function LibraryTalentPage() {
 
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                           <div className="flex items-center justify-between gap-3">
-                            <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                            <div className="label-meta">
                               Portfolio
                             </div>
                             {canEdit ? (
@@ -1167,7 +1167,7 @@ export default function LibraryTalentPage() {
 
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                           <div className="flex items-center justify-between gap-3">
-                            <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                            <div className="label-meta">
                               Castings
                             </div>
                             {canEdit ? (
@@ -1407,7 +1407,7 @@ export default function LibraryTalentPage() {
                                           </div>
 
                                           <div className="flex items-center justify-between gap-3">
-                                            <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                                            <div className="label-meta">
                                               Images
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -1532,7 +1532,7 @@ export default function LibraryTalentPage() {
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Name
               </div>
               <Input
@@ -1543,7 +1543,7 @@ export default function LibraryTalentPage() {
               />
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Agency
               </div>
               <Input
@@ -1554,7 +1554,7 @@ export default function LibraryTalentPage() {
               />
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Gender
               </div>
               <Select
@@ -1575,7 +1575,7 @@ export default function LibraryTalentPage() {
               </Select>
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Email
               </div>
               <Input
@@ -1586,7 +1586,7 @@ export default function LibraryTalentPage() {
               />
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Phone
               </div>
               <Input
@@ -1597,7 +1597,7 @@ export default function LibraryTalentPage() {
               />
             </div>
             <div className="sm:col-span-2">
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Reference URL
               </div>
               <Input
@@ -1608,7 +1608,7 @@ export default function LibraryTalentPage() {
               />
             </div>
             <div className="sm:col-span-2">
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Notes
               </div>
               <Textarea
@@ -1699,7 +1699,7 @@ export default function LibraryTalentPage() {
           </DialogHeader>
           <div className="grid gap-4">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Date
               </div>
               <Input
@@ -1711,7 +1711,7 @@ export default function LibraryTalentPage() {
               />
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Title (optional)
               </div>
               <Input

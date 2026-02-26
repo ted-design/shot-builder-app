@@ -180,7 +180,7 @@ export default function PullDetailPage() {
           />
         ) : (
           <div className="flex flex-col gap-3">
-            <Label className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+            <Label className="label-meta">
               Items ({pull.items.length})
             </Label>
             {pull.items.map((item, index) => (

@@ -421,7 +421,7 @@ export default function TagManagementPage() {
                 <>
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                      <div className="label-meta">
                         Name
                       </div>
                       <div className="mt-1 text-lg font-semibold text-[var(--color-text)]">
@@ -449,7 +449,7 @@ export default function TagManagementPage() {
                   </div>
 
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                    <div className="label-meta">
                       Color
                     </div>
                     <div className="mt-2">
@@ -462,7 +462,7 @@ export default function TagManagementPage() {
                   </div>
 
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                    <div className="label-meta">
                       Category
                     </div>
                     <div className="mt-2 max-w-[220px]">
@@ -493,7 +493,7 @@ export default function TagManagementPage() {
                   </div>
 
                   <div className="pt-2">
-                    <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                    <div className="label-meta">
                       Danger zone
                     </div>
                     <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">

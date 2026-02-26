@@ -152,13 +152,13 @@ function TrackHeaderDropZone({
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-md border border-[var(--color-border)] bg-white p-2 transition-colors ${
+      className={`rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2 transition-colors ${
         isOver ? "border-[var(--color-primary)] bg-[var(--color-primary-subtle)]/30" : ""
       }`}
     >
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+          <div className="label-meta truncate text-[var(--color-text-muted)]">
             {label}
           </div>
           <div className="text-2xs text-[var(--color-text-subtle)]">
@@ -737,7 +737,7 @@ export function ScheduleEntriesBoard({
                         {sharedEntry.highlight?.emoji ? `${sharedEntry.highlight.emoji} ` : ""}
                         {sharedEntry.title}
                       </div>
-                      <div className="mt-0.5 text-2xs uppercase tracking-wide text-[var(--color-text-subtle)]">
+                      <div className="mt-0.5 text-2xs uppercase tracking-wider text-[var(--color-text-subtle)]">
                         Timeline highlight
                       </div>
                     </button>
@@ -863,7 +863,7 @@ export function ScheduleEntriesBoard({
                     key={`${segment.key}:minute:${minute}`}
                     className={`px-2 py-2 ${rowIndex > 0 ? "border-t border-[var(--color-border)]/70" : ""}`}
                   >
-                    <div className="mb-1 text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    <div className="mb-1 text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]">
                       {formatMinutesTo12h(minute)}
                     </div>
                     <div className={isMulti ? "grid gap-3 lg:grid-cols-2" : "grid gap-3 grid-cols-1"}>
@@ -881,7 +881,7 @@ export function ScheduleEntriesBoard({
 
                 {hasUntimedRows ? (
                   <div className={`${orderedTimedRows.length > 0 ? "border-t border-[var(--color-border)]/70" : ""} px-2 py-2`}>
-                    <div className="mb-1 text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                    <div className="mb-1 text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]">
                       Unscheduled
                     </div>
                     <div className={isMulti ? "grid gap-3 lg:grid-cols-2" : "grid gap-3 grid-cols-1"}>

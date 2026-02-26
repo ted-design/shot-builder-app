@@ -54,7 +54,7 @@ export function CallSheetOutputControls({
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+        <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
           Sections
         </p>
 
@@ -123,7 +123,7 @@ export function CallSheetOutputControls({
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+        <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
           Schedule Fields
         </p>
 
@@ -203,14 +203,14 @@ export function CallSheetOutputControls({
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+          <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
             Colors
           </p>
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-2xs font-semibold uppercase tracking-wide"
+            className="h-6 px-2 text-2xs font-semibold uppercase tracking-wider"
             disabled={isDefaultColors}
             onClick={() => onPatchColors({ ...DEFAULT_CALLSHEET_COLORS })}
           >

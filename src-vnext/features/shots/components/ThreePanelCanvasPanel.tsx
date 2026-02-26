@@ -59,10 +59,10 @@ export function ThreePanelCanvasPanel({
             <InlineEdit
               value={shot.title}
               onSave={(title) => save({ title })}
-              className="text-lg font-semibold"
+              className="heading-section"
             />
           ) : (
-            <h2 className="text-lg font-semibold text-[var(--color-text)]">
+            <h2 className="heading-section">
               {shot.title || "Untitled Shot"}
             </h2>
           )}

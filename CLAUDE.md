@@ -312,6 +312,12 @@ When refactoring a component's interaction model (e.g., always-editable textarea
 - When the same logic is needed in 2+ components, extract to a `lib/` module immediately — don't copy-paste.
 - `shotNumbering.ts` is shared by `ShotQuickAdd` (inline quick-add) and `CreateShotDialog` (modal create). Both need `computeMaxShotNumber` + `formatShotNumber`.
 
+### Bash CWD Persistence
+
+- **Never use `cd` in Bash tool commands.** The working directory change persists across all subsequent tool calls in the session. If the new directory lacks `.claude/hooks/`, ALL hooks fail with "can't open file" errors, blocking Edit, Write, and Bash tools entirely.
+- Use absolute paths instead: `python3 -m http.server 8765 --directory /absolute/path/to/dir` rather than `cd dir && python3 -m http.server 8765`.
+- If CWD gets stuck, the only fix is starting a new session or using a subagent (which may also inherit the broken CWD).
+
 ## Mobile & Tablet Patterns (Phase 5)
 
 ### ResponsiveDialog
@@ -392,6 +398,45 @@ All detail pages use `PageHeader` with breadcrumbs for back navigation. No inlin
 - `text-white` on dark backgrounds → use `text-[var(--color-text-inverted)]`
 - `bg-white` on surfaces → use `bg-[var(--color-surface)]`
 - Sidebar text → use `text-[var(--color-sidebar-text)]` not `text-neutral-*`
+
+## State Patterns (Phase 6c)
+
+These patterns were established by the Phase 6c mockups (`mockups/p6-states.html`). Implementation must follow them.
+
+### Empty States
+
+| Variant | Use for | Specs |
+|---|---|---|
+| Full-page (`EmptyState`) | List pages with zero items | min-h-200px, centered, icon + title + description + CTA button |
+| Filtered empty | List pages with active filters but no matches | Same as full-page but "No matching X" + "Clear filters" CTA |
+| Inline empty (`InlineEmpty`) | Detail page sub-sections (Colorways, Comments, References) | **NEW component** -- min-h-120px, 32px icons, dashed border, muted text |
+
+Six domain variants: Shots (Camera), Products (Package), Pulls (ClipboardList), Locations (MapPin), Talent (Users), Schedules (Calendar).
+
+### Loading Skeletons
+
+- **Content-shaped skeletons** replace all generic spinners. Four patterns: list page (toolbar + card grid), table (header + rows), detail page (breadcrumb + 2-col), single card.
+- **Staggered pulse animation:** 6 delay tiers at 150ms increments (0ms-750ms) for wave effect. Avoids "flashing block" appearance.
+- **Stuck loading overlay:** After 8s (`useStuckLoading` hook), show dimmed skeleton grid at 30% opacity + centered overlay card with spinner + "Taking longer than expected..." + Retry button.
+
+### Error States
+
+| Component | Status | Purpose |
+|---|---|---|
+| `ErrorBoundary` | Exists | Chunk load detection + generic fallback |
+| `OfflineBanner` | **New** | Amber top-of-page banner with WifiOff icon, auto-dismiss on reconnect |
+| `NetworkErrorBanner` | **New** | Red top-of-page banner with manual Retry button |
+| `ForbiddenPage` (403) | **New** | Centered layout: large "403" + ShieldAlert icon + "Go to Dashboard" |
+| `NotFoundPage` (404) | **New** | Centered layout: large "404" + FileQuestion icon + "Go to Dashboard" |
+
+Toast variants (Sonner): success (green), error (red), warning (amber), info (blue).
+
+### Dark Mode (Phase 7 Implementation)
+
+- Token mapping: `data-theme="dark"` attribute on `<html>` overrides CSS custom properties.
+- Zinc scale inversion: light surfaces (50->900), dark text (900->50), mid-tones (500 stays).
+- localStorage key: `sb:theme` with values `light | dark | system`.
+- Respect `prefers-color-scheme` when set to `system`.
 
 ## Shot Status Labels
 

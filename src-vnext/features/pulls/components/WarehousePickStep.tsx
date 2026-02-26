@@ -42,7 +42,7 @@ export function WarehousePickStep({ item }: WarehousePickStepProps) {
 
       {/* Size breakdown */}
       <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]">
+        <p className="mb-2 label-meta">
           Sizes — {totalQty} total
         </p>
         <div className="grid grid-cols-3 gap-2">

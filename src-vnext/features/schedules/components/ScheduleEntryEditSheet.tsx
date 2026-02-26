@@ -241,7 +241,7 @@ export function ScheduleEntryEditSheet({
 
           <div className="flex flex-1 flex-col gap-5 px-5 py-4">
             <section className="flex flex-col gap-2">
-              <Label className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+              <Label className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                 <span className="inline-flex items-center gap-1">
                   <Type className="h-3 w-3" />
                   Title
@@ -265,7 +265,7 @@ export function ScheduleEntryEditSheet({
 
             <section className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-2">
-                <Label className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <Label className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                   <span className="inline-flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     Time
@@ -282,7 +282,7 @@ export function ScheduleEntryEditSheet({
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <Label className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                   <span className="inline-flex items-center gap-1">
                     <Timer className="h-3 w-3" />
                     Duration (min)
@@ -308,7 +308,7 @@ export function ScheduleEntryEditSheet({
 
             {canMoveTracks ? (
               <section className="flex flex-col gap-2">
-                <Label className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <Label className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                   <span className="inline-flex items-center gap-1">
                     <Rows className="h-3 w-3" />
                     Track
@@ -331,7 +331,7 @@ export function ScheduleEntryEditSheet({
 
             {canEditHighlight ? (
               <section className="flex flex-col gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-3">
-                <Label className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <Label className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                   <span className="inline-flex items-center gap-1">
                     <Sparkles className="h-3 w-3" />
                     Highlight Style
@@ -463,7 +463,7 @@ export function ScheduleEntryEditSheet({
             ) : null}
 
             <section className="flex flex-col gap-2">
-              <Label className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+              <Label className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                 <span className="inline-flex items-center gap-1">
                   <StickyNote className="h-3 w-3" />
                   Notes

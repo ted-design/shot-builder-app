@@ -36,7 +36,7 @@ export function PageHeader({ title, actions, breadcrumbs }: PageHeaderProps) {
         </nav>
       )}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-xl font-semibold text-[var(--color-text)] md:text-2xl">
+        <h1 className="heading-page">
           {title}
         </h1>
         {actions && <div className="flex items-center gap-2">{actions}</div>}

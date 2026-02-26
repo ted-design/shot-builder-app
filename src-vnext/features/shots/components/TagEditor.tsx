@@ -158,7 +158,7 @@ export function TagEditor({
       <PopoverContent className="w-[360px] p-0" align="start">
         <div className="p-3">
           <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+            <div className="label-meta">
               Tags
             </div>
             <div className="text-xs text-[var(--color-text-muted)]">

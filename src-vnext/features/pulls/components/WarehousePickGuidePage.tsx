@@ -213,7 +213,7 @@ export default function WarehousePickGuidePage() {
             autoFocus
           />
           <Button
-            className="min-h-[56px] touch-target bg-amber-500 text-white hover:bg-amber-600"
+            className="min-h-[56px] touch-target bg-amber-500 text-[var(--color-text-inverted)] hover:bg-amber-600"
             onClick={confirmSubstitute}
             data-testid="confirm-substitute"
           >

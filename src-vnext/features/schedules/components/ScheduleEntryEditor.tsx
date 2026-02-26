@@ -297,7 +297,7 @@ export function ScheduleEntryEditor({
               <div key={track.id} className="flex flex-col gap-2">
                 {tracks.length > 1 && (
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                    <h3 className="label-meta text-[var(--color-text-muted)]">
                       {track.name}
                     </h3>
                     <span className="text-2xs font-medium text-[var(--color-text-subtle)]">
@@ -344,7 +344,7 @@ export function ScheduleEntryEditor({
           {bannerEntries.length > 0 && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                <h3 className="label-meta text-[var(--color-text-muted)]">
                   Shared
                 </h3>
               </div>

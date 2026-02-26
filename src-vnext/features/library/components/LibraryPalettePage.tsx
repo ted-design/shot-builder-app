@@ -297,7 +297,7 @@ export default function LibraryPalettePage() {
             </CardHeader>
             <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="flex-1">
-                <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                <div className="label-meta">
                   Name
                 </div>
                 <Input
@@ -308,7 +308,7 @@ export default function LibraryPalettePage() {
                 />
               </div>
               <div className="w-full sm:w-48">
-                <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                <div className="label-meta">
                   Hex
                 </div>
                 <Input
@@ -398,7 +398,7 @@ export default function LibraryPalettePage() {
                   </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-[36px_1fr_160px_84px] gap-3 border-b border-[var(--color-border)] pb-2 text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                    <div className="grid grid-cols-[36px_1fr_160px_84px] gap-3 border-b border-[var(--color-border)] pb-2 label-meta">
                       <div> </div>
                       <div>Name</div>
                       <div>Hex</div>

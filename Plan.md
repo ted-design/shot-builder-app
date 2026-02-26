@@ -228,16 +228,16 @@ Admin (role-gated: admin only)
 
 **Goal:** Professional and precise visual identity. Make the app look like it was built by a funded startup, not a side project. First impressions matter for stakeholder onboarding.
 
-**Status:** In progress — 6a audit done, 6b mockup done, awaiting 6c + approval.
+**Status:** In progress — 6a-6d done (mockups approved). Next: 6e implementation.
 
 ### Sub-tasks
 
 - [x] **6a:** Audit current visual inconsistencies (colors, typography, spacing) (research)
 - [x] **6b:** Write mockups: color palette, typography scale, component showcase
-- [ ] **6c:** Write mockups: empty states, loading skeletons, error states, dark mode
-- [ ] **6d:** Get user approval on visual identity
-- [ ] **6e:** Implement brand identity (tokens.css updates, color palette, typography)
-- [ ] **6f:** Implement component polish (audit shadcn usage, standardize styles)
+- [x] **6c:** Write mockups: empty states, loading skeletons, error states, dark mode
+- [x] **6d:** Get user approval on visual identity
+- [x] **6e:** Implement brand identity (tokens.css updates, color palette, typography)
+- [x] **6f:** Implement component polish (audit shadcn usage, standardize styles)
 - [ ] **6g:** Implement empty states for all list views
 - [ ] **6h:** Implement loading skeletons (replace spinners, stagger animation)
 - [ ] **6i:** Implement error states (toast, Sentry, offline banner, form errors)
