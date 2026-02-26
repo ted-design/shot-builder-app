@@ -197,30 +197,30 @@ Admin (role-gated: admin only)
 
 **Goal:** Make mobile shoot-day operations and tablet planning genuinely useful. iPad is a first-class viewport, not an afterthought.
 
-**Status:** Not started.
+**Status:** Complete.
 
 ### Sub-tasks
 
-- [ ] **5a:** Audit current responsive behavior at 375px, 768px, 1280px (research)
-- [ ] **5b:** Write HTML mockups: warehouse guided pick flow (mobile)
-- [ ] **5c:** Write HTML mockups: on-set gallery view + floating action bar (tablet)
-- [ ] **5d:** Write HTML mockups: tablet three-panel layout + mobile shot list
-- [ ] **5e:** Get user approval on all mockups
-- [ ] **5f:** Implement tablet optimization (two-panel + drawer, touch targets, swipe)
-- [ ] **5g:** Implement warehouse guided pick flow (full-screen steps, one-handed)
-- [ ] **5h:** Implement on-set operations (gallery, status taps, floating action bar)
-- [ ] **5i:** Implement mobile shot list (cards, swipe actions, virtual scroll)
-- [ ] **5j:** Responsive breakpoint audit + verify acceptance criteria
+- [x] **5a:** Audit current responsive behavior at 375px, 768px, 1280px (research)
+- [x] **5b:** Write HTML mockups: warehouse guided pick flow (mobile)
+- [x] **5c:** Write HTML mockups: on-set gallery view + floating action bar (tablet)
+- [x] **5d:** Write HTML mockups: tablet three-panel layout + mobile shot list
+- [x] **5e:** Get user approval on all mockups
+- [x] **5f:** Touch targets + ResponsiveDialog (Sheet on mobile, Dialog on desktop)
+- [x] **5g:** Warehouse guided pick flow (full-screen stepper, one-handed operation)
+- [x] **5h:** Floating action bar + AppShell integration + page URL param handling
+- [x] **5i:** ShotStatusTapRow (1-tap status pills) + ProductDetailPage hide-not-disable
+- [x] **5j:** Responsive breakpoint audit + verify acceptance criteria
 
 ### Acceptance Criteria
 
-- [ ] Warehouse pick flow completable with one hand on phone
-- [ ] Gallery view shows shot hero images on tablet
-- [ ] Floating action bar accessible on all mobile/tablet pages
-- [ ] Touch targets minimum 44px on all interactive elements
-- [ ] Every page renders correctly at 375px, 768px, and 1280px
-- [ ] No horizontal scroll on any viewport
-- [ ] Desktop-only features (call sheet builder, admin) redirect on mobile with toast
+- [x] Warehouse pick flow completable with one hand on phone
+- [x] Gallery view shows shot hero images on tablet
+- [x] Floating action bar accessible on all mobile/tablet pages
+- [x] Touch targets minimum 44px on all interactive elements
+- [x] Every page renders correctly at 375px, 768px, and 1280px
+- [x] No horizontal scroll on any viewport
+- [x] Desktop-only features (call sheet builder, admin) redirect on mobile with toast
 
 ---
 

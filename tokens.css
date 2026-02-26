@@ -511,3 +511,12 @@
 .btn-sethero:hover {
   background-color: var(--color-sethero-blue-hover);
 }
+
+/* ── Touch targets ── */
+/* On touch devices, ensure a minimum 44px hit area per Apple/Google HIG */
+@media (pointer: coarse) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

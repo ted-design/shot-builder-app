@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
@@ -65,8 +65,22 @@ export default function ShotListPage() {
     }
   }, [isDesktop, navigate, projectId])
 
-  // -- Dialog state --
+  // -- FAB integration: ?create=1 opens the dialog --
+  const [searchParams, setSearchParamsFab] = useSearchParams()
   const [createOpen, setCreateOpen] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setCreateOpen(true)
+      setSearchParamsFab((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete("create")
+        return next
+      }, { replace: true })
+    }
+  }, [searchParams, setSearchParamsFab])
+
+  // -- Dialog state --
   const [mobileOptimistic, setMobileOptimistic] = useState<ReadonlyArray<Shot> | null>(null)
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())

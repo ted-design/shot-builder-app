@@ -312,6 +312,35 @@ When refactoring a component's interaction model (e.g., always-editable textarea
 - When the same logic is needed in 2+ components, extract to a `lib/` module immediately — don't copy-paste.
 - `shotNumbering.ts` is shared by `ShotQuickAdd` (inline quick-add) and `CreateShotDialog` (modal create). Both need `computeMaxShotNumber` + `formatShotNumber`.
 
+## Mobile & Tablet Patterns (Phase 5)
+
+### ResponsiveDialog
+
+`shared/components/ResponsiveDialog.tsx` — unified component that renders Sheet (side="bottom") on mobile and Dialog on desktop. All creation/edit dialogs (CreateShotDialog, CreatePullDialog, CreateProjectDialog, EditProjectDialog) use this. Props: `open`, `onOpenChange`, `title`, `description`, `children`, `footer`, `contentClassName`.
+
+### Touch Targets
+
+`tokens.css` provides `.touch-target` utility: `@media (pointer: coarse) { .touch-target { min-height: 44px; min-width: 44px; } }`. Apply to all interactive elements that need mobile-safe hit areas.
+
+### FloatingActionBar
+
+`shared/components/FloatingActionBar.tsx` — route-aware FAB rendered by AppShell when `!isDesktop`. Uses URL params with `replace: true` to communicate with pages:
+- Shot list (`/projects/:id/shots`): "New Shot" sets `?create=1`
+- Shot detail (`/projects/:id/shots/:sid`): "Mark Shot" sets `?status_picker=1`, "Add Note" sets `?focus=notes`
+- Target pages consume params via `useSearchParams` in a `useEffect`, then delete the param after handling.
+
+### ShotStatusTapRow
+
+`features/shots/components/ShotStatusTapRow.tsx` — 4 horizontal pill buttons for mobile 1-tap status changes. Replaces `ShotStatusSelect` dropdown on mobile. Uses canonical labels from `statusMappings.ts`. Optimistic update with rollback on error. All buttons have `min-h-[44px]` touch targets.
+
+### Hide-Not-Disable Pattern
+
+On mobile, when `canEdit = !isMobile && canManageX(role)` already prevents write form rendering, do NOT add redundant `disabled={... || isMobile}` props. This creates confusing grayed-out controls. Instead, conditionally render write forms only when `canEdit` is true, showing read-only values otherwise.
+
+### Warehouse Guided Pick Flow
+
+`/pulls/shared/:shareToken/guide` — full-screen stepper for one-handed warehouse operation. Components: `WarehousePickGuidePage` (shell + state), `WarehousePickStep` (item card), `WarehousePickProgress` (bar), `WarehousePickOutcomeBar` (3 action buttons). Local state only — no Firestore writes for substitute notes.
+
 ## Shot Status Labels
 
 Canonical labels (from `statusMappings.ts`). Use these everywhere — views, filters, PDFs, badges:

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { useParams } from "react-router-dom"
+import { Link, useParams } from "react-router-dom"
 import { collectionGroup, getDocs, limit, query, where } from "firebase/firestore"
 import { httpsCallable } from "firebase/functions"
 import { toast } from "sonner"
@@ -246,6 +246,15 @@ export default function PublicPullViewPage() {
             </CardContent>
           </Card>
         ) : null}
+
+        {draftItems.length > 0 && (
+          <Link
+            to={`/pulls/shared/${shareToken}/guide`}
+            className="inline-flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-subtle)]"
+          >
+            Start Guided Pick
+          </Link>
+        )}
 
         <Separator />
 

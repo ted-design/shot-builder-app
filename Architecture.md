@@ -102,6 +102,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 |-------|------|-------|
 | `/login` | LoginPage | Google sign-in. Statically imported (Safari OAuth). |
 | `/pulls/shared/:shareToken` | PullPublicViewPage | Public pull sheet (read-only) |
+| `/pulls/shared/:shareToken/guide` | WarehousePickGuidePage | Guided pick flow (full-screen stepper) |
 | `/demo/*` | DemoPage | Demo mode (blocks writes) |
 
 ### Authenticated Routes
@@ -369,7 +370,19 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 
 ### Custom UI Components
 
-`LoadingSpinner`, `EmptyState`, `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `SearchCommand`, `NotificationBell`, `FilterPresetManager`
+`LoadingSpinner`, `EmptyState`, `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`
+
+### Mobile & Tablet Components (Phase 5)
+
+| Component | Location | Purpose |
+|---|---|---|
+| `ResponsiveDialog` | `shared/components/` | Renders Sheet (side="bottom") on mobile, Dialog on desktop. Used by all 4 create/edit dialogs. |
+| `FloatingActionBar` | `shared/components/` | Route-aware FAB on mobile/tablet. Hides on scroll down. Uses URL params (`replace: true`) to communicate with pages. |
+| `ShotStatusTapRow` | `features/shots/components/` | 4 horizontal pill buttons for 1-tap status change on mobile (replaces ShotStatusSelect dropdown). |
+| `WarehousePickGuidePage` | `features/pulls/components/` | Full-screen guided pick stepper for one-handed warehouse operation. |
+| `WarehousePickStep` | `features/pulls/components/` | Single item card in guided pick flow (image, name, colorway, sizes, location). |
+| `WarehousePickProgress` | `features/pulls/components/` | Progress bar + "Item X of Y" for guided pick flow. |
+| `WarehousePickOutcomeBar` | `features/pulls/components/` | Three 64px action buttons: Picked (green), Not Available (red), Substitute (amber). |
 
 ### Three-Panel Shot Editor Components
 
@@ -416,6 +429,14 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 Hooks defined in `src-vnext/shared/hooks/useMediaQuery.ts`. `isDesktop` controls both sidebar visibility and main content margin. Desktop-only routes (Tags, Call Sheet) use `RequireDesktop` guard that redirects to dashboard with toast.
 
 Tablet is a first-class viewport, not an afterthought. iPad on-set usage is a primary use case.
+
+### Mobile Patterns (Phase 5)
+
+- **Touch targets:** `@media (pointer: coarse) { .touch-target { min-height: 44px; min-width: 44px; } }` in `tokens.css`. Apply to all interactive elements on touch devices.
+- **ResponsiveDialog:** Unified API — renders Sheet (bottom) on mobile, Dialog on desktop. All creation/edit dialogs use this.
+- **FAB communication:** FloatingActionBar sets URL params (`?create=1`, `?status_picker=1`, `?focus=notes`) with `replace: true`. Target pages read + consume params via `useSearchParams`.
+- **Hide-not-disable on mobile:** When `canEdit = !isMobile && canManageX(role)` already gates write form visibility, do not add redundant `disabled={... || isMobile}`. Hide write forms entirely instead of showing disabled controls.
+- **ShotStatusTapRow:** On mobile, status changes use 4 horizontal pill buttons instead of dropdown Select. Optimistic update with rollback on error.
 
 ---
 

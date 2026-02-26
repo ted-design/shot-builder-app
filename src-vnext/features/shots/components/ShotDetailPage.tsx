@@ -1,10 +1,11 @@
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { useShot } from "@/features/shots/hooks/useShot"
 import { useShots } from "@/features/shots/hooks/useShots"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
+import { ShotStatusTapRow } from "@/features/shots/components/ShotStatusTapRow"
 import { TalentPicker } from "@/features/shots/components/TalentPicker"
 import { LocationPicker } from "@/features/shots/components/LocationPicker"
 import { NotesSection } from "@/features/shots/components/NotesSection"
@@ -35,7 +36,7 @@ import { Button } from "@/ui/button"
 import { Separator } from "@/ui/separator"
 import { ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ShotPdfExportDialog } from "@/features/shots/components/ShotPdfExportDialog"
@@ -61,6 +62,33 @@ export default function ShotDetailPage() {
   const [shareOpen, setShareOpen] = useState(false)
   const canExport = !isMobile
   const [exportOpen, setExportOpen] = useState(false)
+
+  // -- FAB integration: ?status_picker=1 and ?focus=notes --
+  const [searchParams, setSearchParamsFab] = useSearchParams()
+  const notesRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const sp = searchParams.get("status_picker")
+    const focus = searchParams.get("focus")
+    let consumed = false
+
+    if (sp === "1") {
+      // Status picker will be handled by ShotStatusTapRow (5i) — for now just consume param
+      consumed = true
+    }
+    if (focus === "notes" && notesRef.current) {
+      notesRef.current.scrollIntoView({ behavior: "smooth", block: "center" })
+      consumed = true
+    }
+    if (consumed) {
+      setSearchParamsFab((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete("status_picker")
+        next.delete("focus")
+        return next
+      }, { replace: true })
+    }
+  }, [searchParams, setSearchParamsFab])
 
   const talentNameById = useMemo(() => {
     return new Map(talentRecords.map((t) => [t.id, t.name]))
@@ -173,13 +201,20 @@ export default function ShotDetailPage() {
               existingTitles={existingShotTitles}
             />
           )}
-          <ShotStatusSelect
-            shotId={shot.id}
-            currentStatus={shot.status}
-            shot={shot}
-            disabled={!canDoOperational}
-          />
+          {!isMobile && (
+            <ShotStatusSelect
+              shotId={shot.id}
+              currentStatus={shot.status}
+              shot={shot}
+              disabled={!canDoOperational}
+            />
+          )}
         </div>
+
+        {/* Mobile: full-width status tap row below header */}
+        {isMobile && canDoOperational && (
+          <ShotStatusTapRow shot={shot} />
+        )}
 
         <Separator />
 
@@ -271,7 +306,7 @@ export default function ShotDetailPage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-4">
+            <div ref={notesRef} className="flex flex-col gap-4">
               <NotesSection
                 notes={shot.notes}
                 notesAddendum={shot.notesAddendum}

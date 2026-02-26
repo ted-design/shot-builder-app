@@ -9,13 +9,7 @@ import {
   optionalNotesSchema,
   validateField,
 } from "@/shared/lib/validation"
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/dialog"
+import { ResponsiveDialog } from "@/shared/components/ResponsiveDialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
@@ -126,129 +120,129 @@ export function EditProjectDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Edit Project</DialogTitle>
-        </DialogHeader>
-
-        <div className="flex flex-col gap-4 py-4">
-          {/* Name — always visible */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-project-name">Project Name</Label>
-            <Input
-              id="edit-project-name"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value)
-                if (fieldErrors.name) {
-                  setFieldErrors((prev) => ({ ...prev, name: null }))
-                }
-              }}
-              disabled={saving}
-              autoFocus
-            />
-            {fieldErrors.name && (
-              <p className="text-xs text-[var(--color-error)]">{fieldErrors.name}</p>
-            )}
-          </div>
-
-          {/* Status — always visible */}
-          <div className="flex flex-col gap-2">
-            <Label>Status</Label>
-            <Select
-              value={status}
-              onValueChange={(v) => setStatus(v as ProjectStatus)}
-              disabled={saving}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-[var(--color-text-muted)]">
-              Archived projects are hidden by default on the dashboard.
-            </p>
-          </div>
-
-          {/* More options toggle */}
-          <button
-            type="button"
-            onClick={() => setExpanded((prev) => !prev)}
-            className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
-            data-testid="more-options-toggle"
-          >
-            <ChevronDown
-              className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-            />
-            More options
-          </button>
-
-          {/* Collapsible optional fields */}
-          {expanded && (
-            <div className="flex flex-col gap-4" data-testid="optional-fields">
-              <div className="flex flex-col gap-2">
-                <Label>Shoot Dates</Label>
-                <ShootDatesField value={shootDates} onChange={setShootDates} disabled={saving} />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="edit-project-brief-url">Brief URL</Label>
-                <Input
-                  id="edit-project-brief-url"
-                  value={briefUrl}
-                  onChange={(e) => {
-                    setBriefUrl(e.target.value)
-                    if (fieldErrors.briefUrl) {
-                      setFieldErrors((prev) => ({ ...prev, briefUrl: null }))
-                    }
-                  }}
-                  placeholder="https://..."
-                  disabled={saving}
-                />
-                {fieldErrors.briefUrl && (
-                  <p className="text-xs text-[var(--color-error)]">{fieldErrors.briefUrl}</p>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="edit-project-notes">Notes</Label>
-                <Textarea
-                  id="edit-project-notes"
-                  value={notes}
-                  onChange={(e) => {
-                    setNotes(e.target.value)
-                    if (fieldErrors.notes) {
-                      setFieldErrors((prev) => ({ ...prev, notes: null }))
-                    }
-                  }}
-                  placeholder="Optional context for the team..."
-                  rows={5}
-                  disabled={saving}
-                />
-                {fieldErrors.notes && (
-                  <p className="text-xs text-[var(--color-error)]">{fieldErrors.notes}</p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <DialogFooter>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Edit Project"
+      contentClassName="sm:max-w-xl"
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={!canSave}>
             {saving ? "Saving..." : "Save"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4 py-4">
+        {/* Name — always visible */}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="edit-project-name">Project Name</Label>
+          <Input
+            id="edit-project-name"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value)
+              if (fieldErrors.name) {
+                setFieldErrors((prev) => ({ ...prev, name: null }))
+              }
+            }}
+            disabled={saving}
+            autoFocus
+          />
+          {fieldErrors.name && (
+            <p className="text-xs text-[var(--color-error)]">{fieldErrors.name}</p>
+          )}
+        </div>
+
+        {/* Status — always visible */}
+        <div className="flex flex-col gap-2">
+          <Label>Status</Label>
+          <Select
+            value={status}
+            onValueChange={(v) => setStatus(v as ProjectStatus)}
+            disabled={saving}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            Archived projects are hidden by default on the dashboard.
+          </p>
+        </div>
+
+        {/* More options toggle */}
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+          data-testid="more-options-toggle"
+        >
+          <ChevronDown
+            className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+          />
+          More options
+        </button>
+
+        {/* Collapsible optional fields */}
+        {expanded && (
+          <div className="flex flex-col gap-4" data-testid="optional-fields">
+            <div className="flex flex-col gap-2">
+              <Label>Shoot Dates</Label>
+              <ShootDatesField value={shootDates} onChange={setShootDates} disabled={saving} />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="edit-project-brief-url">Brief URL</Label>
+              <Input
+                id="edit-project-brief-url"
+                value={briefUrl}
+                onChange={(e) => {
+                  setBriefUrl(e.target.value)
+                  if (fieldErrors.briefUrl) {
+                    setFieldErrors((prev) => ({ ...prev, briefUrl: null }))
+                  }
+                }}
+                placeholder="https://..."
+                disabled={saving}
+              />
+              {fieldErrors.briefUrl && (
+                <p className="text-xs text-[var(--color-error)]">{fieldErrors.briefUrl}</p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="edit-project-notes">Notes</Label>
+              <Textarea
+                id="edit-project-notes"
+                value={notes}
+                onChange={(e) => {
+                  setNotes(e.target.value)
+                  if (fieldErrors.notes) {
+                    setFieldErrors((prev) => ({ ...prev, notes: null }))
+                  }
+                }}
+                placeholder="Optional context for the team..."
+                rows={5}
+                disabled={saving}
+              />
+              {fieldErrors.notes && (
+                <p className="text-xs text-[var(--color-error)]">{fieldErrors.notes}</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </ResponsiveDialog>
   )
 }

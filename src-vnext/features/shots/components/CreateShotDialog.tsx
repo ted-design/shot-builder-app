@@ -7,14 +7,7 @@ import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { createShotVersionSnapshot } from "@/features/shots/lib/shotVersioning"
 import { nextShotNumber } from "@/features/shots/lib/shotNumbering"
 import { shotTitleSchema, validateField } from "@/shared/lib/validation"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/dialog"
+import { ResponsiveDialog } from "@/shared/components/ResponsiveDialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
@@ -130,54 +123,53 @@ export function CreateShotDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create Shot</DialogTitle>
-          <DialogDescription className="sr-only">
-            Create a new shot in this project.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-4 py-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="shot-title">Title</Label>
-            <Input
-              id="shot-title"
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value)
-                if (titleError) setTitleError(null)
-              }}
-              placeholder="e.g. Hero Banner - White Tee"
-              autoFocus
-              data-testid="shot-title-input"
-            />
-            {titleError && (
-              <p className="text-xs text-[var(--color-error)]" data-testid="title-error">
-                {titleError}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="shot-description">Description (optional)</Label>
-            <Textarea
-              id="shot-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of the shot..."
-              rows={3}
-            />
-          </div>
-        </div>
-        <DialogFooter>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Create Shot"
+      description="Create a new shot in this project."
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleCreate} disabled={!title.trim() || saving}>
             {saving ? "Creating..." : "Create"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4 py-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="shot-title">Title</Label>
+          <Input
+            id="shot-title"
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value)
+              if (titleError) setTitleError(null)
+            }}
+            placeholder="e.g. Hero Banner - White Tee"
+            autoFocus
+            data-testid="shot-title-input"
+          />
+          {titleError && (
+            <p className="text-xs text-[var(--color-error)]" data-testid="title-error">
+              {titleError}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="shot-description">Description (optional)</Label>
+          <Textarea
+            id="shot-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Brief description of the shot..."
+            rows={3}
+          />
+        </div>
+      </div>
+    </ResponsiveDialog>
   )
 }

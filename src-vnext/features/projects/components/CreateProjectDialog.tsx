@@ -9,13 +9,7 @@ import {
   optionalNotesSchema,
   validateField,
 } from "@/shared/lib/validation"
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/dialog"
+import { ResponsiveDialog } from "@/shared/components/ResponsiveDialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
@@ -97,114 +91,115 @@ export function CreateProjectDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create Project</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-4 py-4">
-          {/* Name — always visible */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="project-name">Project Name</Label>
-            <Input
-              id="project-name"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value)
-                if (fieldErrors.name) {
-                  setFieldErrors((prev) => ({ ...prev, name: null }))
-                }
-              }}
-              placeholder="e.g. Spring Campaign 2026"
-              autoFocus
-              data-testid="project-name-input"
-            />
-            {fieldErrors.name && (
-              <p className="text-xs text-[var(--color-error)]" data-testid="name-error">
-                {fieldErrors.name}
-              </p>
-            )}
-          </div>
-
-          {/* More options toggle */}
-          <button
-            type="button"
-            onClick={() => setExpanded((prev) => !prev)}
-            className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
-            data-testid="more-options-toggle"
-          >
-            <ChevronDown
-              className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-            />
-            More options
-          </button>
-
-          {/* Collapsible optional fields */}
-          {expanded && (
-            <div className="flex flex-col gap-4" data-testid="optional-fields">
-              <div className="flex flex-col gap-2">
-                <Label>Shoot Dates</Label>
-                <ShootDatesField
-                  value={shootDates}
-                  onChange={setShootDates}
-                  disabled={saving}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="project-brief-url">Brief URL</Label>
-                <Input
-                  id="project-brief-url"
-                  value={briefUrl}
-                  onChange={(e) => {
-                    setBriefUrl(e.target.value)
-                    if (fieldErrors.briefUrl) {
-                      setFieldErrors((prev) => ({ ...prev, briefUrl: null }))
-                    }
-                  }}
-                  placeholder="https://..."
-                  disabled={saving}
-                  data-testid="brief-url-input"
-                />
-                {fieldErrors.briefUrl && (
-                  <p className="text-xs text-[var(--color-error)]" data-testid="brief-url-error">
-                    {fieldErrors.briefUrl}
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="project-notes">Notes</Label>
-                <Textarea
-                  id="project-notes"
-                  value={notes}
-                  onChange={(e) => {
-                    setNotes(e.target.value)
-                    if (fieldErrors.notes) {
-                      setFieldErrors((prev) => ({ ...prev, notes: null }))
-                    }
-                  }}
-                  placeholder="Optional context for the team..."
-                  rows={4}
-                  disabled={saving}
-                  data-testid="notes-input"
-                />
-                {fieldErrors.notes && (
-                  <p className="text-xs text-[var(--color-error)]" data-testid="notes-error">
-                    {fieldErrors.notes}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-        <DialogFooter>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Create Project"
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleCreate} disabled={!name.trim() || saving}>
             {saving ? "Creating..." : "Create"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4 py-4">
+        {/* Name — always visible */}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="project-name">Project Name</Label>
+          <Input
+            id="project-name"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value)
+              if (fieldErrors.name) {
+                setFieldErrors((prev) => ({ ...prev, name: null }))
+              }
+            }}
+            placeholder="e.g. Spring Campaign 2026"
+            autoFocus
+            data-testid="project-name-input"
+          />
+          {fieldErrors.name && (
+            <p className="text-xs text-[var(--color-error)]" data-testid="name-error">
+              {fieldErrors.name}
+            </p>
+          )}
+        </div>
+
+        {/* More options toggle */}
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+          data-testid="more-options-toggle"
+        >
+          <ChevronDown
+            className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+          />
+          More options
+        </button>
+
+        {/* Collapsible optional fields */}
+        {expanded && (
+          <div className="flex flex-col gap-4" data-testid="optional-fields">
+            <div className="flex flex-col gap-2">
+              <Label>Shoot Dates</Label>
+              <ShootDatesField
+                value={shootDates}
+                onChange={setShootDates}
+                disabled={saving}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="project-brief-url">Brief URL</Label>
+              <Input
+                id="project-brief-url"
+                value={briefUrl}
+                onChange={(e) => {
+                  setBriefUrl(e.target.value)
+                  if (fieldErrors.briefUrl) {
+                    setFieldErrors((prev) => ({ ...prev, briefUrl: null }))
+                  }
+                }}
+                placeholder="https://..."
+                disabled={saving}
+                data-testid="brief-url-input"
+              />
+              {fieldErrors.briefUrl && (
+                <p className="text-xs text-[var(--color-error)]" data-testid="brief-url-error">
+                  {fieldErrors.briefUrl}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="project-notes">Notes</Label>
+              <Textarea
+                id="project-notes"
+                value={notes}
+                onChange={(e) => {
+                  setNotes(e.target.value)
+                  if (fieldErrors.notes) {
+                    setFieldErrors((prev) => ({ ...prev, notes: null }))
+                  }
+                }}
+                placeholder="Optional context for the team..."
+                rows={4}
+                disabled={saving}
+                data-testid="notes-input"
+              />
+              {fieldErrors.notes && (
+                <p className="text-xs text-[var(--color-error)]" data-testid="notes-error">
+                  {fieldErrors.notes}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </ResponsiveDialog>
   )
 }
