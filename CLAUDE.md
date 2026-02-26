@@ -487,12 +487,15 @@ Real-time collaborative editing awareness, ported from legacy JS to TypeScript v
 
 **Types:** `shared/types/presence.ts` — `FieldLock`, `EntityPresence`, `ActiveEditor`, `formatFieldNames()`, `formatActiveEditorsSummary()`.
 
-### Dark Mode (Phase 7 Implementation)
+### Dark Mode (Phase 6k — Implemented)
 
-- Token mapping: `data-theme="dark"` attribute on `<html>` overrides CSS custom properties.
-- Zinc scale inversion: light surfaces (50->900), dark text (900->50), mid-tones (500 stays).
-- localStorage key: `sb:theme` with values `light | dark | system`.
-- Respect `prefers-color-scheme` when set to `system`.
+- **Activation:** `.dark` CSS class on `<html>` (Tailwind class-based strategy, NOT `data-theme` attribute).
+- **Token mapping:** `tokens.css` `.dark { ... }` block overrides all CSS custom properties. Zinc scale inverted: light surfaces (50→900), dark text (900→50), mid-tones (500 stays).
+- **ThemeProvider:** `src-vnext/app/providers/ThemeProvider.tsx` — exposes `theme` (user choice: `light | dark | system`), `effective` (resolved: `light | dark`), `setTheme`, `toggleTheme`.
+- **localStorage key:** `sb:theme` with values `light | dark | system`. Legacy `theme` key auto-migrated.
+- **FOUC prevention:** `index.html` inline script applies `.dark` before React mounts, using `sb:theme` key with system preference fallback.
+- **System mode:** When set to `system`, ThemeProvider listens to `prefers-color-scheme` changes and updates dynamically.
+- **Legacy `src/` files:** Not converted. Schedule/callsheet preview components have extensive hardcoded `gray-*`/`slate-*` — these are out of scope until ported to vNext.
 
 ## Shot Status Labels
 
