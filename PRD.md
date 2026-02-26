@@ -12,6 +12,16 @@ Shot Builder is the production planning tool for fashion and commercial photogra
 
 **Business model:** Agency tool built by Immediate Group for brand/retailer clients. Currently serving one client, with aspirations to duplicate for other clients with per-org customization. Multi-tenant by design (clientId scoping).
 
+### Tiered Vision
+
+| Tier | Scope | Phases |
+|------|-------|--------|
+| **Now** | Fix broken workflows, complete library entities (crew/locations/talent), polish UX consistency, clean up tech debt | 7A-7E |
+| **Next** | Shot request inbox (any team member → producer triage), casting engine (measurement-based talent search + auto-match) | 8-9 |
+| **Future** | Per-product asset requirements, sample logistics (PLM), auto-suggest shoot dates from sample availability | 10+ |
+
+The "Now" tier transforms Shot Builder from a producer's planning tool into a complete production workspace. The "Next" tier expands it into a team-facing platform. The "Future" tier adds supply-chain intelligence.
+
 ---
 
 ## What Shot Builder Eliminates
@@ -154,6 +164,27 @@ Every shot progresses through four statuses. These labels are canonical across a
 - Product team uses Shot Builder as source of truth for product status.
 - Track: when products arrive, launch dates, sample availability, when to shoot.
 - Multiple input methods: CSV bulk import, manual entry, API integration (future).
+
+### Journey 7: Shot Request Inbox (Future — Phase 8)
+
+- Any team member submits a shot request: minimal (title + note) through structured brief (products, references, deadline).
+- Requests land in a producer-facing inbox with priority and deadline sorting.
+- Producer triages: absorb into existing project, create new project, or reject with reason.
+- Requesters see status updates on their submissions.
+
+### Journey 8: Casting Engine (Future — Phase 9)
+
+- Searchable talent database: filter by measurements (height range, bust, waist, gender), availability, past work.
+- Auto-match: given a casting brief's requirements, suggest top matching talent with similarity scores.
+- Shot history: every talent profile shows past shots they appeared in (reverse lookup from shot.talent[]).
+- Casting session workflow: shortlist → book → confirm → assign to shots.
+
+### Journey 9: Asset Requirements & PLM (Future — Phase 10)
+
+- Per-product/colorway asset flags: needs e-comm, campaign, video, AI-generated.
+- Product launch date tracking with shoot deadline calculation.
+- Sample logistics: arrival date, return due, current status, condition.
+- Auto-suggest shoot dates based on sample availability + quantity thresholds.
 
 ---
 
