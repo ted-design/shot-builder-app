@@ -238,7 +238,7 @@ Admin (role-gated: admin only)
 - [x] **6d:** Get user approval on visual identity
 - [x] **6e:** Implement brand identity (tokens.css updates, color palette, typography)
 - [x] **6f:** Implement component polish (audit shadcn usage, standardize styles)
-- [ ] **6g:** Implement empty states for all list views
+- [x] **6g:** Implement empty states for all list views
 - [ ] **6h:** Implement loading skeletons (replace spinners, stagger animation)
 - [ ] **6i:** Implement error states (toast, Sentry, offline banner, form errors)
 - [ ] **6j:** Implement presence indicators (avatar dots, edit conflict warning)

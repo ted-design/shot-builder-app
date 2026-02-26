@@ -8,6 +8,7 @@ import { canManageProducts } from "@/shared/lib/rbac"
 import { parseReturnToParam } from "@/shared/lib/returnTo"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { ProductImage } from "@/features/products/components/ProductImage"
 import {
@@ -585,7 +586,7 @@ export default function ProductEditorPage() {
     )
   }
 
-  if (mode === "edit" && familyLoading) return <LoadingState loading />
+  if (mode === "edit" && familyLoading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
 
   if (mode === "edit" && familyError) {
     return (

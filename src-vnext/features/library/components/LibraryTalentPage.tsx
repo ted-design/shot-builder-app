@@ -21,6 +21,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { useTalentLibrary } from "@/features/library/hooks/useTalentLibrary"
 import { Input } from "@/ui/input"
@@ -704,7 +705,7 @@ export default function LibraryTalentPage() {
     }
   }
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
     return (

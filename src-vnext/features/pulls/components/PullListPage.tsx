@@ -2,6 +2,7 @@ import { useState } from "react"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { usePulls } from "@/features/pulls/hooks/usePulls"
 import { PullCard } from "@/features/pulls/components/PullCard"
@@ -21,7 +22,7 @@ export default function PullListPage() {
   const showCreate = canManagePulls(role)
 
   if (loading) {
-    return <LoadingState loading />
+    return <LoadingState loading skeleton={<ListPageSkeleton />} />
   }
 
   if (error) {

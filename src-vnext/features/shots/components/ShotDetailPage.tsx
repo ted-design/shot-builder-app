@@ -1,5 +1,6 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { useShot } from "@/features/shots/hooks/useShot"
@@ -130,7 +131,7 @@ export default function ShotDetailPage() {
     }
   }
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
   if (error) {
     return (
       <div className="p-8 text-center">

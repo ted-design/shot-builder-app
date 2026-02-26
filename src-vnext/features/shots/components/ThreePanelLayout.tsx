@@ -7,6 +7,7 @@ import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { canManageShots } from "@/shared/lib/rbac"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { ThreePanelListPanel } from "@/features/shots/components/ThreePanelListPanel"
 import { ThreePanelCanvasPanel } from "@/features/shots/components/ThreePanelCanvasPanel"
 import { ThreePanelPropertiesPanel } from "@/features/shots/components/ThreePanelPropertiesPanel"
@@ -173,7 +174,7 @@ export function ThreePanelLayout({
     if (loading) {
       return (
         <div className="flex h-full items-center justify-center">
-          <LoadingState loading />
+          <LoadingState loading skeleton={<DetailPageSkeleton />} />
         </div>
       )
     }

@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react"
 import { Package, Users, MapPin, Plus, HardHat } from "lucide-react"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -182,7 +183,7 @@ export default function ProjectAssetsPage() {
     }))
   }, [crew])
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
     return (

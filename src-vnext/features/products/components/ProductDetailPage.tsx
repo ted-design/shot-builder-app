@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import { useAuth } from "@/app/providers/AuthProvider"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { ProductImage } from "@/features/products/components/ProductImage"
 import { ProductSkuCard } from "@/features/products/components/ProductSkuCard"
@@ -328,7 +329,7 @@ export default function ProductDetailPage() {
     return out
   }, [sampleStatusFilter, sampleTypeFilter, scopedSamples])
 
-  if (famLoading) return <LoadingState loading />
+  if (famLoading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
 
   if (famError) {
     return (

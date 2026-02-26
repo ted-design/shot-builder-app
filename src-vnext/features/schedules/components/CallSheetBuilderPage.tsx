@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { CalendarDays, ZoomIn, ZoomOut } from "lucide-react"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
@@ -157,7 +158,7 @@ export default function CallSheetBuilderPage() {
 
   // Loading
   if (scheduleLoading || dayDetailsLoading) {
-    return <LoadingState loading />
+    return <LoadingState loading skeleton={<DetailPageSkeleton />} />
   }
 
   // Error or schedule not found

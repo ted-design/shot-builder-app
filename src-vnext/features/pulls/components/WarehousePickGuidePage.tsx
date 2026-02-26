@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { collectionGroup, getDocs, limit, query, where } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { WarehousePickProgress } from "./WarehousePickProgress"
@@ -100,7 +101,7 @@ export default function WarehousePickGuidePage() {
     setCurrentIndex((prev) => prev + 1)
   }, [currentIndex, items, substituteNote])
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
 
   if (error) {
     return (

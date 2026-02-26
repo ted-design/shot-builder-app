@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
 import { Input } from "@/ui/input"
@@ -314,7 +315,7 @@ export default function TagManagementPage() {
 
   if (isMobile) return null
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
     return (

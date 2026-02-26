@@ -4,6 +4,7 @@ import { Palette, Search, Trash2 } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { Input } from "@/ui/input"
@@ -275,7 +276,7 @@ export default function LibraryPalettePage() {
     }
   }
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
     return (

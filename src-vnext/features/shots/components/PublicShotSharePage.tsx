@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom"
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
@@ -124,7 +125,7 @@ export default function PublicShotSharePage() {
     })
   }, [query, shots])
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
 
   if (errorInfo) {
     return (

@@ -5,6 +5,7 @@ import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { canManageProducts } from "@/shared/lib/rbac"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { useProductFamilies } from "@/features/products/hooks/useProducts"
 import { ProductFamilyCard } from "@/features/products/components/ProductFamilyCard"
@@ -158,7 +159,7 @@ export default function ProductListPage() {
     })
   }, [families, qParam, statusParam, genderKey, typeKey, subKey, subParam, includeArchived, includeDeleted, sortParam])
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
     return (

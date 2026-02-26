@@ -5,6 +5,7 @@ import { httpsCallable } from "firebase/functions"
 import { toast } from "sonner"
 import { db, functions } from "@/shared/lib/firebase"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { Button } from "@/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
 import { Input } from "@/ui/input"
@@ -186,7 +187,7 @@ export default function PublicPullViewPage() {
     }
   }
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
 
   if (error) {
     return (

@@ -3,6 +3,7 @@ import { HardHat, Search } from "lucide-react"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { Input } from "@/ui/input"
 import { Card, CardContent } from "@/ui/card"
@@ -25,7 +26,7 @@ export default function LibraryCrewPage() {
     })
   }, [crew, query])
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
     return (

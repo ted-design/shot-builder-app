@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { StatusBadge } from "@/shared/components/StatusBadge"
@@ -94,7 +95,7 @@ export default function PullDetailPage() {
     toast.success(nextEnabled ? "Pull sheet shared" : "Sharing disabled")
   }
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
   if (error) {
     return (
       <div className="p-8 text-center">

@@ -3,6 +3,7 @@ import { MapPin, Search } from "lucide-react"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { useLocations } from "@/features/shots/hooks/usePickerData"
 import { Input } from "@/ui/input"
@@ -22,7 +23,7 @@ export default function LibraryLocationsPage() {
     })
   }, [locations, query])
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
     return (
