@@ -289,9 +289,9 @@ Admin (role-gated: admin only)
 - [x] **7B.3:** Crew pages: table list + detail page (replace 95-line read-only stub)
 - [x] **7B.4:** Locations: types, hooks, and write functions (LocationRecord expansion, locationWrites.ts, useLocationLibrary.ts)
 - [x] **7B.5:** Locations pages: table list + detail page (replace 87-line read-only stub)
-- [ ] **7B.6:** Talent: measurements expansion (gender-specific fields, port legacy measurementOptions.js)
-- [ ] **7B.7:** Talent: delete functionality (deleteTalent + Storage cleanup + ConfirmDialog)
-- [ ] **7B.8:** Update picker data mappers (usePickerData.ts — enrich location + talent pickers)
+- [x] **7B.6:** Talent: measurements expansion (gender-specific fields, port legacy measurementOptions.js)
+- [x] **7B.7:** Talent: delete functionality (deleteTalent + Storage cleanup + ConfirmDialog)
+- [x] **7B.8:** Update picker data mappers (usePickerData.ts — enrich location + talent pickers)
 
 ### Acceptance Criteria
 
