@@ -103,7 +103,7 @@ export const FLAGS = {
   pullsEditorV2:
     PULLS_EDITOR_OVERRIDE != null
       ? readBool(PULLS_EDITOR_OVERRIDE)
-      : readBool(ENV.VITE_FLAG_PULLS_EDITOR_V2 ?? false),
+      : readBool(ENV.VITE_FLAG_PULLS_EDITOR_V2 ?? true),
   demoMode: DEMO_OVERRIDE != null ? readBool(DEMO_OVERRIDE) : DEMO_ENV_DEFAULT,
   callSheetBuilder:
     CALLSHEET_BUILDER_OVERRIDE != null
