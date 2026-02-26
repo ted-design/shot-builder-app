@@ -287,6 +287,31 @@ When refactoring a component's interaction model (e.g., always-editable textarea
 - Use Tailwind `group` class on parent + `opacity-0 group-hover:opacity-100 transition-opacity` on children for hover-reveal UI. No JavaScript state or event handlers needed.
 - Frosted glass effect: `bg-[var(--color-surface)]/90 backdrop-blur-sm`.
 
+### Form Validation & Button Disabled Guards
+
+- When a submit button has `disabled={!value.trim()}`, **tests cannot trigger validation errors by clicking it with empty/whitespace input** — the click is swallowed. Two approaches:
+  1. Test that the button IS disabled (preferred for empty-state guard)
+  2. Test Zod validation via fields that CAN have invalid non-empty values (e.g., bad URL format)
+- For component tests on dialogs with disabled submit: test disabled state directly, test validation errors on fields that accept non-empty invalid input (URLs, etc.), and test the happy path via mock assertions.
+
+### Zod Validation Pattern (Phase 4)
+
+- `validateField(schema, value)` returns `string | null` — avoids try/catch boilerplate in form handlers.
+- Per-field errors stored in `Record<string, string | null>` state. Clear on keystroke for immediate feedback.
+- If a validation error is in a collapsed (progressive disclosure) section, auto-expand that section before showing the error.
+- Schemas live in `shared/lib/validation.ts` — reusable across create and edit dialogs.
+
+### Progressive Disclosure in Dialogs
+
+- Only worth doing when 3+ optional fields exist (project dialogs). For 1-2 field dialogs (shot, pull), collapsing is absurd overhead.
+- EditDialog auto-expands if ANY collapsed field already has data — never hide the user's existing values.
+- Use local `useState` for expand/collapse toggle — dialogs are ephemeral, no need for localStorage.
+
+### Shot Numbering Extraction Pattern
+
+- When the same logic is needed in 2+ components, extract to a `lib/` module immediately — don't copy-paste.
+- `shotNumbering.ts` is shared by `ShotQuickAdd` (inline quick-add) and `CreateShotDialog` (modal create). Both need `computeMaxShotNumber` + `formatShotNumber`.
+
 ## Shot Status Labels
 
 Canonical labels (from `statusMappings.ts`). Use these everywhere — views, filters, PDFs, badges:

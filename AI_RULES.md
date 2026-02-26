@@ -59,9 +59,12 @@ function updateShot(shot, status) { return { ...shot, status }; }
 
 ### Input Validation
 
-- All user input validated at the form boundary (Zod schemas)
+- All user input validated at the form boundary using Zod schemas from `shared/lib/validation.ts`
+- Schemas: `projectNameSchema`, `shotTitleSchema`, `optionalUrlSchema`, `optionalNotesSchema`
+- Use `validateField(schema, value)` helper for per-field error extraction (returns `string | null`)
 - All Firestore write data validated before write
 - Never trust URL params or query strings without validation
+- No form libraries (react-hook-form, formik) — useState + Zod is sufficient for simple dialogs
 
 ### Console Output
 

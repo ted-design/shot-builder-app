@@ -85,7 +85,7 @@ src-vnext/
 │   ├── components/   # AppShell, sidebar/, OfflineBanner, ErrorBoundary
 │   │   └── sidebar/  # 11 nav components (DesktopSidebar, MobileDrawer, etc.)
 │   ├── hooks/        # useMediaQuery (isMobile/isTablet/isDesktop), useDebounce
-│   ├── lib/          # Firebase init, paths, rbac, utils
+│   ├── lib/          # Firebase init, paths, rbac, utils, validation (Zod schemas)
 │   └── types/        # Shared TypeScript types
 └── ui/               # shadcn/ui generated components (never modify inline)
 ```
