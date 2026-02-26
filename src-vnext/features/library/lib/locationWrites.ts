@@ -72,6 +72,7 @@ export async function updateLocation(args: {
   await updateDoc(doc(db, path[0]!, ...path.slice(1)), {
     ...args.patch,
     updatedAt: serverTimestamp(),
+    updatedBy: args.userId ?? null,
   })
 }
 
@@ -103,7 +104,7 @@ export async function uploadLocationPhoto(args: {
 }): Promise<{ path: string; url: string }> {
   validateImageFileForUpload(args.file)
   const blob = await compressImageToWebp(args.file)
-  const storagePath = `images/locations/${args.locationId}/photo.webp`
+  const storagePath = `clients/${args.clientId}/locations/${args.locationId}/photo.webp`
   const ref = storageRef(storage, storagePath)
   await uploadBytes(ref, blob, { contentType: "image/webp" })
   const url = await getDownloadURL(ref)

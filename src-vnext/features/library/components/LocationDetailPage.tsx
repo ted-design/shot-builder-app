@@ -1,6 +1,7 @@
 import { useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { DetailPageSkeleton } from "@/shared/components/Skeleton"
@@ -31,7 +32,8 @@ export default function LocationDetailPage() {
     mapLocationRecord,
   )
 
-  const canEdit = canManageLocations(role)
+  const isMobile = useIsMobile()
+  const canEdit = !isMobile && canManageLocations(role)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)

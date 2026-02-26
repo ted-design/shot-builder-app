@@ -1786,7 +1786,6 @@ export default function LibraryTalentPage() {
           if (!clientId || !selected) return
           const allPaths: (string | null | undefined)[] = [
             selected.headshotPath,
-            selected.imageUrl,
             ...(selected.galleryImages ?? []).map((i) => i.path),
             ...(selected.castingSessions ?? []).flatMap((s) =>
               (s.images ?? []).map((i) => i.path),

@@ -23,7 +23,6 @@ export default function LibraryLocationsPage() {
   const [query, setQuery] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
   const canCreate = canManageLocations(role)
-  const canEdit = !isMobile && canCreate
 
   useKeyboardShortcuts([
     { key: "c", handler: () => { if (canCreate) setCreateOpen(true) } },

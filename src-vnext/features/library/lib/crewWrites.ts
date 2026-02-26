@@ -63,6 +63,7 @@ export async function updateCrewMember(args: {
   await updateDoc(doc(db, path[0]!, ...path.slice(1)), {
     ...args.patch,
     updatedAt: serverTimestamp(),
+    updatedBy: args.userId ?? null,
   })
 }
 

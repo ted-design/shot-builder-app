@@ -10,6 +10,7 @@ import {
   User,
 } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { useFirestoreDoc } from "@/shared/hooks/useFirestoreDoc"
 import { crewDocPath } from "@/shared/lib/paths"
 import { canManageCrew } from "@/shared/lib/rbac"
@@ -133,7 +134,8 @@ export default function CrewDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const canEdit = canManageCrew(role as Role)
+  const isMobile = useIsMobile()
+  const canEdit = !isMobile && canManageCrew(role as Role)
 
   const handleFieldSave = async (field: string, value: string) => {
     if (!clientId || !crewId) return
