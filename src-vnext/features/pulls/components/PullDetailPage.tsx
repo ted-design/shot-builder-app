@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
-import { EmptyState } from "@/shared/components/EmptyState"
+import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { StatusBadge } from "@/shared/components/StatusBadge"
 import { FulfillmentToggle } from "@/features/pulls/components/FulfillmentToggle"
@@ -173,8 +173,8 @@ export default function PullDetailPage() {
         <Separator />
 
         {pull.items.length === 0 ? (
-          <EmptyState
-            icon={<Package className="h-12 w-12" />}
+          <InlineEmpty
+            icon={<Package className="h-8 w-8" />}
             title="No items in this pull sheet"
             description="Items will appear here when products are assigned to shots."
           />

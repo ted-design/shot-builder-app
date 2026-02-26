@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react"
 import { orderBy } from "firebase/firestore"
-import { Palette, Trash2 } from "lucide-react"
+import { Palette, Search, Trash2 } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { LoadingState } from "@/shared/components/LoadingState"
@@ -367,9 +367,13 @@ export default function LibraryPalettePage() {
               </CardHeader>
               <CardContent className="flex flex-col gap-2">
                 {filtered.length === 0 ? (
-                  <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                    <p className="text-sm text-[var(--color-text-muted)]">No results.</p>
-                  </div>
+                  <EmptyState
+                    icon={<Search className="h-12 w-12" />}
+                    title="No matching swatches"
+                    description="Try adjusting your search."
+                    actionLabel="Clear search"
+                    onAction={() => setQuery("")}
+                  />
                 ) : isMobile ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {filtered.map((s) => (

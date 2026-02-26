@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import { useAuth } from "@/app/providers/AuthProvider"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
-import { EmptyState } from "@/shared/components/EmptyState"
+import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { ProductImage } from "@/features/products/components/ProductImage"
 import { ProductSkuCard } from "@/features/products/components/ProductSkuCard"
 import { setProductFamilyDeleted } from "@/features/products/lib/productWrites"
@@ -721,7 +721,7 @@ export default function ProductDetailPage() {
                 {skuLoading ? (
                   <LoadingState loading />
                 ) : activeSkus.length === 0 ? (
-                  <EmptyState
+                  <InlineEmpty
                     icon={<Palette className="h-8 w-8" />}
                     title="No colorways"
                     description="This product family has no SKU colorways defined."
@@ -847,7 +847,7 @@ export default function ProductDetailPage() {
                     </div>
 
                     {filteredSamples.length === 0 ? (
-                      <EmptyState
+                      <InlineEmpty
                         icon={<Box className="h-8 w-8" />}
                         title="No samples"
                         description="No samples match the current filters."
@@ -1000,7 +1000,7 @@ export default function ProductDetailPage() {
                 </div>
 
                 {assetsCount === 0 ? (
-                  <EmptyState
+                  <InlineEmpty
                     icon={<FileText className="h-8 w-8" />}
                     title="No assets"
                     description="No images or documents are currently attached to this product."
@@ -1019,9 +1019,11 @@ export default function ProductDetailPage() {
                       {documentsLoading ? (
                         <LoadingState loading />
                       ) : visibleDocuments.length === 0 ? (
-                        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm text-[var(--color-text-muted)]">
-                          No documents uploaded yet.
-                        </div>
+                        <InlineEmpty
+                          icon={<FileText className="h-8 w-8" />}
+                          title="No documents"
+                          description="No documents uploaded yet."
+                        />
                       ) : (
                         <div className="flex flex-col gap-2">
                           {visibleDocuments.map((doc) => (
@@ -1180,7 +1182,10 @@ export default function ProductDetailPage() {
                   {commentsLoading ? (
                     <LoadingState loading />
                   ) : comments.length === 0 ? (
-                    <div className="text-sm text-[var(--color-text-muted)]">No comments yet.</div>
+                    <InlineEmpty
+                      icon={<MessageSquare className="h-8 w-8" />}
+                      title="No comments yet"
+                    />
                   ) : (
                     <div className="flex flex-col gap-3">
                       {comments.map((comment) => {

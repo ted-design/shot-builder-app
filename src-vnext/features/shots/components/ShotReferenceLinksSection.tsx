@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react"
-import { Globe, Video, FileText, Link2, Plus, Sparkles, Trash2, PencilLine } from "lucide-react"
+import { Globe, Link, Video, FileText, Link2, Plus, Sparkles, Trash2, PencilLine } from "lucide-react"
+import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import type { ShotReferenceLink, ShotReferenceLinkType } from "@/shared/types"
 import {
   inferReferenceLinkType,
@@ -236,9 +237,10 @@ export function ShotReferenceLinksSection({
       </Label>
 
       {links.length === 0 ? (
-        <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text-muted)]">
-          No reference links yet.
-        </div>
+        <InlineEmpty
+          icon={<Link className="h-8 w-8" />}
+          title="No reference links yet"
+        />
       ) : (
         <TooltipProvider delayDuration={120}>
           <ul className="space-y-1.5">

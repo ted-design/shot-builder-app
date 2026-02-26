@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { MapPin } from "lucide-react"
+import { MapPin, Search } from "lucide-react"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { LoadingState } from "@/shared/components/LoadingState"
@@ -53,9 +53,13 @@ export default function LibraryLocationsPage() {
           </div>
 
           {filtered.length === 0 ? (
-            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <p className="text-sm text-[var(--color-text-muted)]">No results.</p>
-            </div>
+            <EmptyState
+              icon={<Search className="h-12 w-12" />}
+              title="No matching locations"
+              description="Try adjusting your search."
+              actionLabel="Clear search"
+              onAction={() => setQuery("")}
+            />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map((loc) => (

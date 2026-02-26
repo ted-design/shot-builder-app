@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 import type { Timestamp } from "firebase/firestore"
 import { MessageSquare } from "lucide-react"
 import { toast } from "sonner"
+import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { canManageShots } from "@/shared/lib/rbac"
@@ -140,9 +141,10 @@ export function ShotCommentsSection({
           )}
 
           {!loading && comments.length === 0 && (
-            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-sm text-[var(--color-text-muted)]">
-              No comments yet.
-            </div>
+            <InlineEmpty
+              icon={<MessageSquare className="h-8 w-8" />}
+              title="No comments yet"
+            />
           )}
 
           {comments.map((comment) => {

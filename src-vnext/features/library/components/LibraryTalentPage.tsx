@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Users, Plus, X, Upload, Trash2, GripVertical } from "lucide-react"
+import { Users, Plus, X, Upload, Trash2, GripVertical, Search } from "lucide-react"
 import type { ChangeEvent } from "react"
 import {
   DndContext,
@@ -752,9 +752,13 @@ export default function LibraryTalentPage() {
           </div>
 
           {filtered.length === 0 ? (
-            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <p className="text-sm text-[var(--color-text-muted)]">No results.</p>
-            </div>
+            <EmptyState
+              icon={<Search className="h-12 w-12" />}
+              title="No matching talent"
+              description="Try adjusting your search."
+              actionLabel="Clear search"
+              onAction={() => setQuery("")}
+            />
           ) : (
             <>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
