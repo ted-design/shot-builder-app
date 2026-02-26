@@ -318,6 +318,43 @@ When refactoring a component's interaction model (e.g., always-editable textarea
 - Use absolute paths instead: `python3 -m http.server 8765 --directory /absolute/path/to/dir` rather than `cd dir && python3 -m http.server 8765`.
 - If CWD gets stuck, the only fix is starting a new session or using a subagent (which may also inherit the broken CWD).
 
+### Component Replacement Text Matching in Tests (Phase 6g)
+
+- When replacing inline text/markup with a shared component (e.g., `InlineEmpty`), **test assertions for exact text strings will break** if the text changes even slightly (e.g., "No comments yet." with period becomes "No comments yet" without period).
+- Before replacing inline text with a component: grep for the exact string in test files. Update test assertions as part of the same delta.
+
+### design-tokens.js Must Use CSS Variables (Phase 6e)
+
+- `design-tokens.js` (Tailwind plugin) must reference CSS custom properties (`var(--color-text)`, `var(--text-2xl)`) — NOT Tailwind `theme()` calls like `theme('colors.neutral.900')`.
+- Tailwind `theme()` resolves at build time to static hex values, which breaks dark mode token switching. CSS vars resolve at runtime, enabling `data-theme="dark"` overrides.
+
+### Parallel Agent Sweeps for Cross-Directory Changes (Phase 6f)
+
+- For large standardization changes across many feature directories, launch parallel subagents — one per directory scope (products/, shots/, pulls/, sidebar/, etc.).
+- Each agent gets: the list of files to modify, the exact pattern to find, and the replacement pattern.
+- Verify with a single grep afterwards to catch any the agents missed.
+- Exclude print portals (React-PDF can't use CSS vars) and `ui/` components (shadcn generated, never modify inline).
+
+### LoadingState Skeleton Prop Pattern (Phase 6h)
+
+- `LoadingState` accepts an optional `skeleton` ReactNode prop. When provided, shows content-shaped skeleton instead of spinner.
+- Page-level `LoadingState` calls get skeleton props (`<ListPageSkeleton />`, `<DetailPageSkeleton />`).
+- Sub-section `LoadingState` calls (inside detail pages, modals) stay as plain spinners — skeletons at that granularity create visual noise.
+- `useStuckLoading` threshold is 8s (not 5s). After 8s: dim skeleton to 30% opacity + centered retry overlay.
+
+### Shared Sub-Component Duplicate Rendering (Phase 6j)
+
+- When a shared sub-component (e.g., `StackedAvatars`) already renders overflow UI ("+N" badge), the parent component must NOT render the same overflow UI again. This causes `getByText("+1")` to throw "multiple elements found" in tests.
+- **Pattern:** Let the shared sub-component own all its rendering concerns. The parent only composes it — never duplicates visual elements the child already handles.
+- When porting legacy JS components to TypeScript, always audit for rendering duplication between the original component and extracted shared helpers.
+
+### Presence System Porting Pattern (Phase 6j)
+
+- Legacy presence infrastructure (`useEntityPresence.js`, `useFieldLock.js`, `ActiveEditorsBar.jsx`) was a complete, battle-tested system. The vNext port was a straightforward TypeScript conversion, not a redesign.
+- **Port-first, extend-later:** When legacy code solves the same problem well, port the proven architecture rather than reinventing. Scope the initial port narrowly (shot entities only), then extend.
+- **Client-side TTL is sufficient** for presence cleanup when docs are tiny and short-lived. A Cloud Function adds complexity without proportional benefit — stale presence docs are filtered out by the client and are harmless.
+- **useAuth() in nested components** is simpler than prop-drilling `clientId` through intermediate components. Since all shot components are within the auth boundary, calling `useAuth()` directly avoids adding props to components that don't otherwise need them.
+
 ## Mobile & Tablet Patterns (Phase 5)
 
 ### ResponsiveDialog
@@ -409,7 +446,7 @@ These patterns were established by the Phase 6c mockups (`mockups/p6-states.html
 |---|---|---|
 | Full-page (`EmptyState`) | List pages with zero items | min-h-200px, centered, icon + title + description + CTA button |
 | Filtered empty | List pages with active filters but no matches | Same as full-page but "No matching X" + "Clear filters" CTA |
-| Inline empty (`InlineEmpty`) | Detail page sub-sections (Colorways, Comments, References) | **NEW component** -- min-h-120px, 32px icons, dashed border, muted text |
+| Inline empty (`InlineEmpty`) | Detail page sub-sections (Colorways, Comments, References) | min-h-120px, 32px icons, dashed border, muted text |
 
 Six domain variants: Shots (Camera), Products (Package), Pulls (ClipboardList), Locations (MapPin), Talent (Users), Schedules (Calendar).
 
@@ -423,13 +460,32 @@ Six domain variants: Shots (Camera), Products (Package), Pulls (ClipboardList), 
 
 | Component | Status | Purpose |
 |---|---|---|
-| `ErrorBoundary` | Exists | Chunk load detection + generic fallback |
-| `OfflineBanner` | **New** | Amber top-of-page banner with WifiOff icon, auto-dismiss on reconnect |
-| `NetworkErrorBanner` | **New** | Red top-of-page banner with manual Retry button |
-| `ForbiddenPage` (403) | **New** | Centered layout: large "403" + ShieldAlert icon + "Go to Dashboard" |
-| `NotFoundPage` (404) | **New** | Centered layout: large "404" + FileQuestion icon + "Go to Dashboard" |
+| `ErrorBoundary` | Exists | Chunk load detection + generic fallback. Wrapped on all pages. |
+| `OfflineBanner` | Exists | Amber top-of-page banner with WifiOff icon, auto-dismiss on reconnect |
+| `NetworkErrorBanner` | Exists | Red top-of-page banner with manual Retry button |
+| `ForbiddenPage` (403) | Exists | Centered layout: large "403" + ShieldAlert icon + "Go to Dashboard" |
+| `NotFoundPage` (404) | Exists | Centered layout: large "404" + FileQuestion icon + "Go to Dashboard". Catch-all route wired. |
 
 Toast variants (Sonner): success (green), error (red), warning (amber), info (blue).
+
+### Presence Indicators (Phase 6j)
+
+Real-time collaborative editing awareness, ported from legacy JS to TypeScript vNext.
+
+| Component / Hook | Purpose |
+|---|---|
+| `useEntityPresence` | Subscribe to `presence/state` doc, filter expired locks (60s TTL), group active editors by user |
+| `useFieldLock` | Acquire/release field-level locks with 30s heartbeat, auto-release on unmount |
+| `ActiveEditorsBar` | Expandable blue info bar: stacked avatars + "X is editing Y" with per-editor expand detail |
+| `CompactActiveEditors` | Inline avatar dots + animated ping indicator (used in three-panel breadcrumb bar) |
+
+**Firestore path:** `/clients/{clientId}/shots/{shotId}/presence/state` — single doc with `locks` map keyed by field path. Security rules already deployed.
+
+**Constants:** 30s heartbeat (`LOCK_HEARTBEAT_INTERVAL_MS`), 60s expiration (`LOCK_EXPIRATION_MS`). Client-side TTL filtering — no Cloud Function for cleanup.
+
+**Current scope:** Shot entities only. `useFieldLock` is infrastructure-ready but NOT wired to individual input fields yet (future delta).
+
+**Types:** `shared/types/presence.ts` — `FieldLock`, `EntityPresence`, `ActiveEditor`, `formatFieldNames()`, `formatActiveEditorsSummary()`.
 
 ### Dark Mode (Phase 7 Implementation)
 

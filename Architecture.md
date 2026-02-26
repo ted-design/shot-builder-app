@@ -82,7 +82,7 @@ src-vnext/
 │       ├── hooks/
 │       └── lib/
 ├── shared/           # Shared utilities, no domain logic
-│   ├── components/   # AppShell, sidebar/, OfflineBanner, ErrorBoundary
+│   ├── components/   # AppShell, sidebar/, ErrorBoundary, Skeleton, LoadingState, state pages
 │   │   └── sidebar/  # 11 nav components (DesktopSidebar, MobileDrawer, etc.)
 │   ├── hooks/        # useMediaQuery (isMobile/isTablet/isDesktop), useDebounce
 │   ├── lib/          # Firebase init, paths, rbac, utils, validation (Zod schemas)
@@ -383,13 +383,15 @@ Text color hierarchy: `--color-text` (primary) > `--color-text-secondary` (suppo
 
 Card standards: `rounded-lg` (8px), `p-4` content, `pb-2` header, `gap-4` grid. Badge font: `text-xxs` (11px) everywhere.
 
+**Implementation note (Phase 6e):** `design-tokens.js` uses CSS custom properties (`var(--color-text)`, `var(--text-2xl)`) — not Tailwind `theme()` calls. This ensures dark mode token switching works at runtime.
+
 ### shadcn/ui
 
 Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext). Components: Avatar, Badge, Button, Card, Dialog, Dropdown, Label, Popover, Select, Separator, Sheet, Switch, Tabs, Toast, Tooltip. Customization via Tailwind config + tokens.css only -- never modify generated files inline.
 
 ### Custom UI Components
 
-`LoadingSpinner`, `EmptyState`, `InlineEmpty`, `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `NetworkErrorBanner`, `ForbiddenPage`, `NotFoundPage`, `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`
+`LoadingSpinner`, `LoadingState` (skeleton prop + stuck overlay), `EmptyState`, `InlineEmpty` (dashed border sub-section empties), `Skeleton` (SkeletonLine, SkeletonBlock, ListPageSkeleton, TableSkeleton, DetailPageSkeleton, CardSkeleton), `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `NetworkErrorBanner`, `ForbiddenPage` (403), `NotFoundPage` (404), `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`, `ActiveEditorsBar` (presence: expandable editor list), `CompactActiveEditors` (presence: avatar dots + ping)
 
 ### Mobile & Tablet Components (Phase 5)
 

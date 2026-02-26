@@ -220,6 +220,24 @@ Agents like `code-simplifier`, `refactor-cleaner` are available but follow stric
 - Never duplicate work between main context and subagent
 - Summarize subagent results into main context (don't paste raw output)
 
+### Parallel Agent Sweeps (Phase 6 Pattern)
+
+For large cross-directory standardization changes (e.g., adopting semantic classes across 30+ files):
+1. Launch one subagent per feature directory scope (products/, shots/, pulls/, sidebar/, etc.)
+2. Each agent gets: file list, exact find pattern, exact replacement, exclusion rules
+3. Exclusions: print portals (React-PDF can't use CSS vars), `ui/` components (shadcn generated)
+4. After all agents complete, run a single grep from main context to verify zero remaining violations
+5. This pattern was used in Phase 6f (component polish sweep, 44 files in one pass)
+
+### Legacy-to-vNext Porting (Phase 6j Pattern)
+
+When legacy `src/` code solves the same problem the current phase requires:
+1. **Port, don't reinvent.** The legacy system is battle-tested. TypeScript conversion + design token adoption is the scope.
+2. **Scope narrowly.** Port for the primary entity (shots) first. Extend to other entities as a separate delta.
+3. **Audit for rendering duplication.** When extracting shared sub-components from ported code, ensure the parent doesn't re-render UI the child already handles (e.g., overflow "+N" badges in both StackedAvatars and the parent).
+4. **Client-side TTL over Cloud Functions** when the data is tiny and short-lived (presence docs). Stale docs are harmless — the client filters them out.
+5. **useAuth() over prop drilling** for `clientId` in deeply nested components within the auth boundary.
+
 ### Context Budget Rules
 
 - Each Plan.md phase is broken into lettered sub-tasks that fit in one session
