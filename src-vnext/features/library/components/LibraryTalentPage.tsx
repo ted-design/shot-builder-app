@@ -51,6 +51,7 @@ import {
   updateTalent,
 } from "@/features/library/lib/talentWrites"
 import { getMeasurementOptionsForGender } from "@/features/library/lib/measurementOptions"
+import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import {
   Dialog,
   DialogContent,
@@ -349,12 +350,18 @@ const CASTING_DECISION_OPTIONS: ReadonlyArray<{ value: string; label: string }> 
 export default function LibraryTalentPage() {
   const { clientId, role, user } = useAuth()
   const isMobile = useIsMobile()
-  const canEdit = canManageTalent(role) && !isMobile
+  const canCreate = canManageTalent(role)
+  const canEdit = canCreate && !isMobile
   const { data: talent, loading, error } = useTalentLibrary()
   const { data: projects } = useProjects()
   const [query, setQuery] = useState("")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+
+  useKeyboardShortcuts([
+    { key: "c", handler: () => { if (canCreate) setCreateOpen(true) } },
+  ])
+
   const [busy, setBusy] = useState(false)
   const [headshotRemoveOpen, setHeadshotRemoveOpen] = useState(false)
   const [galleryRemoveOpen, setGalleryRemoveOpen] = useState(false)
@@ -728,11 +735,17 @@ export default function LibraryTalentPage() {
         title="Talent"
         breadcrumbs={[{ label: "Library" }]}
         actions={
-          canEdit ? (
-            <Button onClick={() => setCreateOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              New talent
-            </Button>
+          canCreate ? (
+            isMobile ? (
+              <Button size="icon" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button onClick={() => setCreateOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                New talent
+              </Button>
+            )
           ) : null
         }
       />
@@ -742,12 +755,12 @@ export default function LibraryTalentPage() {
           icon={<Users className="h-12 w-12" />}
           title="No talent yet"
           description={
-            canEdit
+            canCreate
               ? "Add talent profiles to build a casting-ready library."
               : "Talent profiles will appear here."
           }
-          actionLabel={canEdit ? "Create talent" : undefined}
-          onAction={canEdit ? () => setCreateOpen(true) : undefined}
+          actionLabel={canCreate ? "Create talent" : undefined}
+          onAction={canCreate ? () => setCreateOpen(true) : undefined}
         />
       ) : (
         <div className="flex flex-col gap-4">
@@ -777,10 +790,10 @@ export default function LibraryTalentPage() {
                       key={t.id}
                       type="button"
                       onClick={() => setSelectedId((prev) => (prev === t.id ? null : t.id))}
-                      className={`rounded-md border p-3 text-left transition-colors ${
+                      className={`rounded-md border p-3 text-left transition-[colors,box-shadow] ${
                         selected
                           ? "border-[var(--color-border)] bg-[var(--color-surface-subtle)]"
-                          : "border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)]"
+                          : "border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] hover:shadow-md"
                       }`}
                     >
                       <div className="flex items-center gap-3">

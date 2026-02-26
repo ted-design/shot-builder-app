@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phase 7C.2 — UX Fixes Mockup (Direction A)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          fontSize: {
+            '2xs': ['10px', { lineHeight: '14px' }],
+            'xxs': ['11px', { lineHeight: '16px' }],
+          },
+          colors: {
+            primary: { DEFAULT: '#18181b', dark: '#09090b' },
+            accent: { DEFAULT: '#E31E24', dark: '#c91920' },
+            neutral: {
+              50: '#fafafa', 100: '#f4f4f5',
+              200: '#e4e4e7', 300: '#d4d4d8',
+              400: '#a1a1aa', 500: '#71717a',
+              600: '#52525b', 700: '#3f3f46',
+              800: '#27272a', 900: '#18181b',
+              950: '#09090b',
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    * { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+
+    /* Device frames */
+    .mobile-frame {
+      width: 375px;
+      min-height: 400px;
+      border-radius: 20px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 4px 24px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,.06);
+      background: #fafafa;
+    }
+    .desktop-frame {
+      width: 800px;
+      min-height: 340px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,.06);
+      background: #fafafa;
+    }
+
+    /* Label meta */
+    .label-meta {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #a1a1aa;
+    }
+
+    /* Heading */
+    .heading-page {
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      color: #18181b;
+    }
+
+    /* Annotation arrow */
+    .annotation {
+      font-size: 13px;
+      color: #E31E24;
+      font-weight: 500;
+    }
+    .annotation-muted {
+      font-size: 12px;
+      color: #71717a;
+      font-style: italic;
+    }
+
+    /* Section dividers */
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: #18181b;
+      margin-bottom: 4px;
+    }
+    .section-subtitle {
+      font-size: 13px;
+      color: #71717a;
+      margin-bottom: 24px;
+    }
+    .section-box {
+      border: 1px dashed #d4d4d8;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 40px;
+      background: white;
+    }
+    .before-after {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .ba-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 2px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+    .ba-before { background: #fef2f2; color: #dc2626; }
+    .ba-after { background: #f0fdf4; color: #16a34a; }
+
+    /* Hover demo */
+    .hover-demo-card {
+      transition: box-shadow 0.15s ease, background-color 0.15s ease;
+      cursor: pointer;
+    }
+    .hover-demo-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,.08);
+      background-color: #fafafa;
+    }
+    .hover-demo-row {
+      transition: background-color 0.15s ease;
+      cursor: pointer;
+    }
+    .hover-demo-row:hover {
+      background-color: #f4f4f5;
+    }
+  </style>
+</head>
+<body class="bg-neutral-100 p-8">
+
+  <div class="mx-auto max-w-[1200px]">
+
+    <!-- ================================================================ -->
+    <!-- TITLE -->
+    <!-- ================================================================ -->
+    <h1 class="mb-2 text-2xl font-bold tracking-tight text-neutral-900">Phase 7C.2 — UX Fixes Mockup</h1>
+    <p class="mb-8 text-sm text-neutral-500">4 fix areas: Mobile create buttons, Hover states, Breadcrumbs, Empty state CTAs</p>
+
+    <!-- ================================================================ -->
+    <!-- FIX 1: MOBILE CREATE BUTTONS (C1 + C2) -->
+    <!-- ================================================================ -->
+    <div class="section-box">
+      <div class="section-title">Fix 1: Mobile Create Buttons</div>
+      <div class="section-subtitle">C1 (Library) + C2 (Projects) — Mobile users currently cannot create entities</div>
+
+      <!-- Approach explanation -->
+      <div class="mb-6 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+        <strong>Approach:</strong> Keep the create button visible on mobile as a compact icon-only <code class="rounded bg-neutral-200 px-1">+</code> button in the PageHeader actions slot. No FAB needed — the button just gets smaller. This is simpler than adding new FAB route entries and keeps the action discoverable in its natural position.
+      </div>
+
+      <div class="before-after">
+        <!-- BEFORE -->
+        <div>
+          <span class="ba-label ba-before">Before — Mobile 375px</span>
+          <div class="mobile-frame">
+            <div class="p-4">
+              <!-- Breadcrumb -->
+              <nav class="mb-1 text-xs text-neutral-400">Library</nav>
+              <!-- Header: title only, no button -->
+              <div class="flex items-center justify-between">
+                <h1 class="heading-page">Crew</h1>
+                <!-- Nothing here on mobile -->
+              </div>
+
+              <div class="mt-4 text-xs text-neutral-400">
+                (button hidden by <code>canEdit = !isMobile && ...</code>)
+              </div>
+
+              <!-- Table preview -->
+              <div class="mt-4 overflow-hidden rounded-lg border border-neutral-200">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-neutral-200 bg-neutral-50">
+                      <th class="label-meta px-3 py-2 text-left">Name</th>
+                      <th class="label-meta px-3 py-2 text-left">Dept</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="border-b border-neutral-100"><td class="px-3 py-3 font-medium text-neutral-900">Sarah Chen</td><td class="px-3 py-3 text-neutral-500">Styling</td></tr>
+                    <tr class="border-b border-neutral-100"><td class="px-3 py-3 font-medium text-neutral-900">Mike Torres</td><td class="px-3 py-3 text-neutral-500">Lighting</td></tr>
+                    <tr><td class="px-3 py-3 font-medium text-neutral-900">Alex Kim</td><td class="px-3 py-3 text-neutral-500">Photo</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Annotation -->
+            <div class="absolute bottom-4 left-4 right-4">
+              <div class="annotation text-center">No way to create a new crew member</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AFTER -->
+        <div>
+          <span class="ba-label ba-after">After — Mobile 375px</span>
+          <div class="mobile-frame">
+            <div class="p-4">
+              <!-- Breadcrumb -->
+              <nav class="mb-1 text-xs text-neutral-400">Library</nav>
+              <!-- Header: title + compact icon button -->
+              <div class="flex items-center justify-between">
+                <h1 class="heading-page">Crew</h1>
+                <button class="flex h-9 w-9 items-center justify-center rounded-md bg-neutral-900 text-white shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                </button>
+              </div>
+
+              <!-- Table preview -->
+              <div class="mt-4 overflow-hidden rounded-lg border border-neutral-200">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-neutral-200 bg-neutral-50">
+                      <th class="label-meta px-3 py-2 text-left">Name</th>
+                      <th class="label-meta px-3 py-2 text-left">Dept</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="border-b border-neutral-100"><td class="px-3 py-3 font-medium text-neutral-900">Sarah Chen</td><td class="px-3 py-3 text-neutral-500">Styling</td></tr>
+                    <tr class="border-b border-neutral-100"><td class="px-3 py-3 font-medium text-neutral-900">Mike Torres</td><td class="px-3 py-3 text-neutral-500">Lighting</td></tr>
+                    <tr><td class="px-3 py-3 font-medium text-neutral-900">Alex Kim</td><td class="px-3 py-3 text-neutral-500">Photo</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Annotation -->
+            <div class="absolute bottom-4 left-4 right-4 space-y-1">
+              <div class="annotation text-center">Compact + button always visible</div>
+              <div class="annotation-muted text-center">Same position, just icon-only on mobile</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Projects variant -->
+      <div class="mt-8 before-after">
+        <div>
+          <span class="ba-label ba-before">Before — Projects (Mobile)</span>
+          <div class="mobile-frame" style="min-height: 340px;">
+            <div class="p-4">
+              <nav class="mb-1 text-xs text-neutral-400">Projects</nav>
+              <div class="flex items-center justify-between">
+                <h1 class="heading-page">Projects</h1>
+                <!-- No button -->
+              </div>
+
+              <div class="mt-4 space-y-3">
+                <div class="rounded-lg border border-neutral-200 bg-white p-3">
+                  <div class="flex items-center gap-2">
+                    <div class="text-sm font-medium">Q1-26 Hub Shoot</div>
+                    <span class="rounded-full bg-green-50 px-2 py-0.5 text-xxs font-medium text-green-700">Active</span>
+                  </div>
+                  <div class="mt-1 text-xs text-neutral-500">Feb 15 – Feb 18</div>
+                </div>
+                <div class="rounded-lg border border-neutral-200 bg-white p-3">
+                  <div class="flex items-center gap-2">
+                    <div class="text-sm font-medium">SS26 Campaign</div>
+                    <span class="rounded-full bg-green-50 px-2 py-0.5 text-xxs font-medium text-green-700">Active</span>
+                  </div>
+                  <div class="mt-1 text-xs text-neutral-500">Mar 1 – Mar 4</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <span class="ba-label ba-after">After — Projects (Mobile)</span>
+          <div class="mobile-frame" style="min-height: 340px;">
+            <div class="p-4">
+              <nav class="mb-1 text-xs text-neutral-400">Projects</nav>
+              <div class="flex items-center justify-between">
+                <h1 class="heading-page">Projects</h1>
+                <button class="flex h-9 w-9 items-center justify-center rounded-md bg-neutral-900 text-white shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                </button>
+              </div>
+
+              <div class="mt-4 space-y-3">
+                <div class="rounded-lg border border-neutral-200 bg-white p-3">
+                  <div class="flex items-center gap-2">
+                    <div class="text-sm font-medium">Q1-26 Hub Shoot</div>
+                    <span class="rounded-full bg-green-50 px-2 py-0.5 text-xxs font-medium text-green-700">Active</span>
+                  </div>
+                  <div class="mt-1 text-xs text-neutral-500">Feb 15 – Feb 18</div>
+                </div>
+                <div class="rounded-lg border border-neutral-200 bg-white p-3">
+                  <div class="flex items-center gap-2">
+                    <div class="text-sm font-medium">SS26 Campaign</div>
+                    <span class="rounded-full bg-green-50 px-2 py-0.5 text-xxs font-medium text-green-700">Active</span>
+                  </div>
+                  <div class="mt-1 text-xs text-neutral-500">Mar 1 – Mar 4</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Implementation notes -->
+      <div class="mt-6 rounded-lg border border-neutral-200 bg-white p-4 text-sm">
+        <div class="font-semibold text-neutral-900 mb-2">Implementation plan</div>
+        <ul class="space-y-1 text-neutral-600">
+          <li><strong>Change:</strong> Remove <code class="rounded bg-neutral-100 px-1">!isMobile</code> from <code class="rounded bg-neutral-100 px-1">canEdit</code> / <code class="rounded bg-neutral-100 px-1">showCreate</code> gating in Library pages and ProjectDashboard.</li>
+          <li><strong>Mobile rendering:</strong> When <code class="rounded bg-neutral-100 px-1">isMobile</code>, render <code class="rounded bg-neutral-100 px-1">&lt;Button size="icon"&gt;&lt;Plus /&gt;&lt;/Button&gt;</code> instead of the full-text button.</li>
+          <li><strong>Scope:</strong> LibraryCrewPage, LibraryLocationsPage, LibraryTalentPage, ProjectDashboard (4 files).</li>
+          <li><strong>Mobile editing remains read-only for inline edits</strong> — this only affects the create action. Detail page edits stay desktop-only per the hide-not-disable pattern.</li>
+        </ul>
+      </div>
+    </div>
+
+
+    <!-- ================================================================ -->
+    <!-- FIX 2: HOVER STATES (H2 + L3) -->
+    <!-- ================================================================ -->
+    <div class="section-box">
+      <div class="section-title">Fix 2: Hover States + Transitions</div>
+      <div class="section-subtitle">H2 + L3 — Clickable elements need visual feedback. Hover any card/row below.</div>
+
+      <div class="before-after">
+        <!-- BEFORE: Flat cards -->
+        <div>
+          <span class="ba-label ba-before">Before — No hover feedback</span>
+          <div class="desktop-frame" style="width: 520px; min-height: 280px;">
+            <div class="p-5">
+              <div class="label-meta mb-3">Talent cards (current)</div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="rounded-lg border border-neutral-200 bg-white p-3">
+                  <div class="flex items-center gap-3">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-md bg-neutral-100 text-xs font-semibold text-neutral-400">JD</div>
+                    <div>
+                      <div class="text-sm font-medium text-neutral-900">Jane Doe</div>
+                      <div class="text-xs text-neutral-500">IMG Models</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="rounded-lg border border-neutral-200 bg-white p-3">
+                  <div class="flex items-center gap-3">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-md bg-neutral-100 text-xs font-semibold text-neutral-400">AS</div>
+                    <div>
+                      <div class="text-sm font-medium text-neutral-900">Alex Smith</div>
+                      <div class="text-xs text-neutral-500">Elite</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="label-meta mb-3 mt-6">Project cards (current)</div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="rounded-lg border border-neutral-200 bg-white p-3">
+                  <div class="text-sm font-medium text-neutral-900">Q1-26 Hub Shoot</div>
+                  <div class="mt-1 flex items-center gap-2">
+                    <span class="rounded-full bg-green-50 px-2 py-0.5 text-xxs font-medium text-green-700">Active</span>
+                    <span class="text-xs text-neutral-500">Feb 15 – 18</span>
+                  </div>
+                </div>
+                <div class="rounded-lg border border-neutral-200 bg-white p-3">
+                  <div class="text-sm font-medium text-neutral-900">SS26 Campaign</div>
+                  <div class="mt-1 flex items-center gap-2">
+                    <span class="rounded-full bg-green-50 px-2 py-0.5 text-xxs font-medium text-green-700">Active</span>
+                    <span class="text-xs text-neutral-500">Mar 1 – 4</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 annotation-muted">No cursor change, no visual feedback — feels static</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AFTER: Interactive cards -->
+        <div>
+          <span class="ba-label ba-after">After — Hover to see feedback</span>
+          <div class="desktop-frame" style="width: 520px; min-height: 280px;">
+            <div class="p-5">
+              <div class="label-meta mb-3">Talent cards (hover me)</div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="hover-demo-card rounded-lg border border-neutral-200 bg-white p-3">
+                  <div class="flex items-center gap-3">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-md bg-neutral-100 text-xs font-semibold text-neutral-400">JD</div>
+                    <div>
+                      <div class="text-sm font-medium text-neutral-900">Jane Doe</div>
+                      <div class="text-xs text-neutral-500">IMG Models</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="hover-demo-card rounded-lg border border-neutral-200 bg-white p-3">
+                  <div class="flex items-center gap-3">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-md bg-neutral-100 text-xs font-semibold text-neutral-400">AS</div>
+                    <div>
+                      <div class="text-sm font-medium text-neutral-900">Alex Smith</div>
+                      <div class="text-xs text-neutral-500">Elite</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="label-meta mb-3 mt-6">Project cards (hover me)</div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="hover-demo-card rounded-lg border border-neutral-200 bg-white p-3">
+                  <div class="text-sm font-medium text-neutral-900">Q1-26 Hub Shoot</div>
+                  <div class="mt-1 flex items-center gap-2">
+                    <span class="rounded-full bg-green-50 px-2 py-0.5 text-xxs font-medium text-green-700">Active</span>
+                    <span class="text-xs text-neutral-500">Feb 15 – 18</span>
+                  </div>
+                </div>
+                <div class="hover-demo-card rounded-lg border border-neutral-200 bg-white p-3">
+                  <div class="text-sm font-medium text-neutral-900">SS26 Campaign</div>
+                  <div class="mt-1 flex items-center gap-2">
+                    <span class="rounded-full bg-green-50 px-2 py-0.5 text-xxs font-medium text-green-700">Active</span>
+                    <span class="text-xs text-neutral-500">Mar 1 – 4</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 annotation text-sm">cursor: pointer + subtle shadow lift + bg tint</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table hover demo -->
+      <div class="mt-8">
+        <div class="label-meta mb-3">Table rows — hover for feedback</div>
+        <div class="desktop-frame" style="width: 700px; min-height: 200px;">
+          <div class="p-5">
+            <div class="overflow-hidden rounded-lg border border-neutral-200">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-neutral-200 bg-neutral-50">
+                    <th class="label-meta px-4 py-2 text-left">Name</th>
+                    <th class="label-meta px-4 py-2 text-left">Department</th>
+                    <th class="label-meta px-4 py-2 text-left">Position</th>
+                    <th class="label-meta px-4 py-2 text-left">Email</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="hover-demo-row border-b border-neutral-100">
+                    <td class="px-4 py-3 font-medium text-neutral-900">Sarah Chen</td>
+                    <td class="px-4 py-3 text-neutral-500">Styling</td>
+                    <td class="px-4 py-3 text-neutral-500">Lead Stylist</td>
+                    <td class="px-4 py-3 text-neutral-500">sarah@example.com</td>
+                  </tr>
+                  <tr class="hover-demo-row border-b border-neutral-100">
+                    <td class="px-4 py-3 font-medium text-neutral-900">Mike Torres</td>
+                    <td class="px-4 py-3 text-neutral-500">Lighting</td>
+                    <td class="px-4 py-3 text-neutral-500">Gaffer</td>
+                    <td class="px-4 py-3 text-neutral-500">mike@example.com</td>
+                  </tr>
+                  <tr class="hover-demo-row">
+                    <td class="px-4 py-3 font-medium text-neutral-900">Alex Kim</td>
+                    <td class="px-4 py-3 text-neutral-500">Photo</td>
+                    <td class="px-4 py-3 text-neutral-500">Photographer</td>
+                    <td class="px-4 py-3 text-neutral-500">alex@example.com</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="mt-3 annotation-muted">Crew/Locations tables already have hover:bg-surface-subtle. This confirms the pattern is correct. Talent card buttons need the same treatment added.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Implementation notes -->
+      <div class="mt-6 rounded-lg border border-neutral-200 bg-white p-4 text-sm">
+        <div class="font-semibold text-neutral-900 mb-2">Implementation plan</div>
+        <ul class="space-y-1 text-neutral-600">
+          <li><strong>Talent cards:</strong> Add <code class="rounded bg-neutral-100 px-1">transition-shadow hover:shadow-md</code> to the <code class="rounded bg-neutral-100 px-1">&lt;button&gt;</code> wrapper in LibraryTalentPage. Already has <code class="rounded bg-neutral-100 px-1">hover:bg-surface-subtle</code> and <code class="rounded bg-neutral-100 px-1">cursor-pointer</code> (implicit from button element).</li>
+          <li><strong>Project cards:</strong> Already have <code class="rounded bg-neutral-100 px-1">hover:shadow-md cursor-pointer transition-shadow</code> in ProjectCard.tsx. Verified correct.</li>
+          <li><strong>Table rows:</strong> Crew and Locations already have <code class="rounded bg-neutral-100 px-1">hover:bg-surface-subtle cursor-pointer transition-colors</code>. Verified correct.</li>
+          <li><strong>Scope:</strong> LibraryTalentPage only (1 file, 1 line change).</li>
+        </ul>
+      </div>
+    </div>
+
+
+    <!-- ================================================================ -->
+    <!-- FIX 3: BREADCRUMB STANDARDIZATION (H1 + M1) -->
+    <!-- ================================================================ -->
+    <div class="section-box">
+      <div class="section-title">Fix 3: Breadcrumb Standardization</div>
+      <div class="section-subtitle">H1 + M1 — Consistent breadcrumb patterns across all top-level and nested pages</div>
+
+      <!-- Current state table -->
+      <div class="mb-6">
+        <div class="label-meta mb-2">Current breadcrumb audit</div>
+        <div class="overflow-hidden rounded-lg border border-neutral-200">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-neutral-200 bg-neutral-50">
+                <th class="px-4 py-2 text-left font-semibold text-neutral-900">Page</th>
+                <th class="px-4 py-2 text-left font-semibold text-neutral-900">Breadcrumb</th>
+                <th class="px-4 py-2 text-left font-semibold text-neutral-900">Issue</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-neutral-100">
+                <td class="px-4 py-2 font-medium text-neutral-900">Projects</td>
+                <td class="px-4 py-2 text-neutral-600">"Projects"</td>
+                <td class="px-4 py-2 text-amber-600">Redundant — breadcrumb repeats the h1</td>
+              </tr>
+              <tr class="border-b border-neutral-100">
+                <td class="px-4 py-2 font-medium text-neutral-900">Shots</td>
+                <td class="px-4 py-2 text-neutral-600">"Projects > Project Name"</td>
+                <td class="px-4 py-2 text-green-600">Correct</td>
+              </tr>
+              <tr class="border-b border-neutral-100">
+                <td class="px-4 py-2 font-medium text-neutral-900">Products</td>
+                <td class="px-4 py-2 text-neutral-600">(none)</td>
+                <td class="px-4 py-2 text-red-600">Missing entirely</td>
+              </tr>
+              <tr class="border-b border-neutral-100">
+                <td class="px-4 py-2 font-medium text-neutral-900">Library/Talent</td>
+                <td class="px-4 py-2 text-neutral-600">"Library"</td>
+                <td class="px-4 py-2 text-green-600">Correct</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-2 font-medium text-neutral-900">Library/Crew</td>
+                <td class="px-4 py-2 text-neutral-600">"Library"</td>
+                <td class="px-4 py-2 text-green-600">Correct</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Proposed rules -->
+      <div class="mb-6 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+        <div class="font-semibold text-neutral-900 mb-2">Proposed breadcrumb rules</div>
+        <ol class="list-decimal space-y-1 pl-5">
+          <li><strong>Top-level pages (Projects, Products):</strong> No breadcrumb. They ARE the top level — the breadcrumb is redundant with the h1.</li>
+          <li><strong>Nested pages within a section (Library/Crew, Library/Talent):</strong> Show parent section as breadcrumb. Already correct.</li>
+          <li><strong>Project-scoped pages (Shots, Pulls, Assets):</strong> Show "Projects > Project Name". Already correct.</li>
+          <li><strong>Detail pages (CrewDetail, LocationDetail):</strong> Show full path as breadcrumb with links.</li>
+        </ol>
+      </div>
+
+      <div class="before-after">
+        <!-- BEFORE: Projects -->
+        <div>
+          <span class="ba-label ba-before">Before — Projects page</span>
+          <div style="width: 400px; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.08); background: #fafafa;">
+            <div class="p-5">
+              <nav class="mb-1 text-xs text-neutral-400">Projects</nav>
+              <h1 class="heading-page">Projects</h1>
+              <div class="mt-1 annotation-muted">Breadcrumb says "Projects", h1 says "Projects" — redundant</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AFTER: Projects -->
+        <div>
+          <span class="ba-label ba-after">After — Projects page</span>
+          <div style="width: 400px; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.08); background: #fafafa;">
+            <div class="p-5">
+              <!-- No breadcrumb -->
+              <h1 class="heading-page">Projects</h1>
+              <div class="mt-1 annotation-muted">No breadcrumb — it's the top-level page</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 before-after">
+        <!-- BEFORE: Products -->
+        <div>
+          <span class="ba-label ba-before">Before — Products page</span>
+          <div style="width: 400px; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.08); background: #fafafa;">
+            <div class="p-5">
+              <!-- No breadcrumb at all -->
+              <h1 class="heading-page">Products</h1>
+              <div class="mt-1 annotation-muted">No breadcrumb — inconsistent with other pages</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AFTER: Products -->
+        <div>
+          <span class="ba-label ba-after">After — Products page</span>
+          <div style="width: 400px; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.08); background: #fafafa;">
+            <div class="p-5">
+              <!-- No breadcrumb either — top level -->
+              <h1 class="heading-page">Products</h1>
+              <div class="mt-1 annotation-muted">No breadcrumb — also top-level, now consistent with Projects</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Implementation notes -->
+      <div class="mt-6 rounded-lg border border-neutral-200 bg-white p-4 text-sm">
+        <div class="font-semibold text-neutral-900 mb-2">Implementation plan</div>
+        <ul class="space-y-1 text-neutral-600">
+          <li><strong>ProjectDashboard:</strong> Remove <code class="rounded bg-neutral-100 px-1">breadcrumbs={[{ label: "Projects" }]}</code> from PageHeader.</li>
+          <li><strong>Products page:</strong> No change needed — it already has no breadcrumb, and that's now intentionally correct.</li>
+          <li><strong>Library pages:</strong> No change needed — "Library" breadcrumb is correct for nested pages.</li>
+          <li><strong>Scope:</strong> ProjectDashboard only (1 file, remove 1 prop).</li>
+        </ul>
+      </div>
+    </div>
+
+
+    <!-- ================================================================ -->
+    <!-- FIX 4: EMPTY STATE CTA BUTTONS (H3) -->
+    <!-- ================================================================ -->
+    <div class="section-box">
+      <div class="section-title">Fix 4: Empty State CTA Buttons</div>
+      <div class="section-subtitle">H3 — Crew and Locations empty states missing action button. Talent already has one.</div>
+
+      <div class="before-after">
+        <!-- BEFORE: Crew empty -->
+        <div>
+          <span class="ba-label ba-before">Before — Crew (empty, desktop)</span>
+          <div style="width: 420px; min-height: 260px; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.08); background: #fafafa;">
+            <div class="p-5">
+              <nav class="mb-1 text-xs text-neutral-400">Library</nav>
+              <div class="flex items-center justify-between">
+                <h1 class="heading-page">Crew</h1>
+                <button class="flex h-9 items-center gap-2 rounded-md bg-neutral-900 px-3 text-sm text-white">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                  New Crew Member
+                </button>
+              </div>
+
+              <div class="mt-8 flex flex-col items-center justify-center text-center">
+                <div class="text-neutral-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                </div>
+                <h3 class="mt-3 text-base font-medium text-neutral-900">No crew members yet</h3>
+                <p class="mt-1 text-sm text-neutral-500">Add crew members to assign them to projects and schedules.</p>
+                <!-- No CTA button -->
+              </div>
+
+              <div class="mt-6 annotation-muted text-center">User must find the header button — no CTA in empty state</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AFTER: Crew empty with CTA -->
+        <div>
+          <span class="ba-label ba-after">After — Crew (empty, desktop)</span>
+          <div style="width: 420px; min-height: 260px; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.08); background: #fafafa;">
+            <div class="p-5">
+              <nav class="mb-1 text-xs text-neutral-400">Library</nav>
+              <div class="flex items-center justify-between">
+                <h1 class="heading-page">Crew</h1>
+                <button class="flex h-9 items-center gap-2 rounded-md bg-neutral-900 px-3 text-sm text-white">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                  New Crew Member
+                </button>
+              </div>
+
+              <div class="mt-8 flex flex-col items-center justify-center text-center">
+                <div class="text-neutral-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                </div>
+                <h3 class="mt-3 text-base font-medium text-neutral-900">No crew members yet</h3>
+                <p class="mt-1 text-sm text-neutral-500">Add crew members to assign them to projects and schedules.</p>
+                <!-- CTA button -->
+                <button class="mt-4 flex h-9 items-center gap-2 rounded-md bg-neutral-900 px-4 text-sm font-medium text-white shadow-sm">
+                  Add Crew Member
+                </button>
+              </div>
+
+              <div class="mt-4 annotation text-center">Clear CTA right in the empty state</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Locations variant -->
+      <div class="mt-8 before-after">
+        <div>
+          <span class="ba-label ba-before">Before — Locations (empty)</span>
+          <div style="width: 420px; min-height: 220px; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.08); background: #fafafa;">
+            <div class="p-5">
+              <nav class="mb-1 text-xs text-neutral-400">Library</nav>
+              <h1 class="heading-page">Locations</h1>
+              <div class="mt-8 flex flex-col items-center justify-center text-center">
+                <div class="text-neutral-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                </div>
+                <h3 class="mt-3 text-base font-medium text-neutral-900">No locations yet</h3>
+                <p class="mt-1 text-sm text-neutral-500">Add locations to assign them to shots and schedules.</p>
+                <!-- No CTA -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <span class="ba-label ba-after">After — Locations (empty)</span>
+          <div style="width: 420px; min-height: 220px; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.08); background: #fafafa;">
+            <div class="p-5">
+              <nav class="mb-1 text-xs text-neutral-400">Library</nav>
+              <h1 class="heading-page">Locations</h1>
+              <div class="mt-8 flex flex-col items-center justify-center text-center">
+                <div class="text-neutral-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                </div>
+                <h3 class="mt-3 text-base font-medium text-neutral-900">No locations yet</h3>
+                <p class="mt-1 text-sm text-neutral-500">Add locations to assign them to shots and schedules.</p>
+                <!-- CTA button -->
+                <button class="mt-4 flex h-9 items-center gap-2 rounded-md bg-neutral-900 px-4 text-sm font-medium text-white shadow-sm">
+                  Add Location
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile empty state with CTA -->
+      <div class="mt-8">
+        <div class="label-meta mb-3">Mobile empty state — CTA button works on mobile too</div>
+        <div class="mobile-frame" style="min-height: 360px;">
+          <div class="p-4">
+            <nav class="mb-1 text-xs text-neutral-400">Library</nav>
+            <div class="flex items-center justify-between">
+              <h1 class="heading-page">Crew</h1>
+              <button class="flex h-9 w-9 items-center justify-center rounded-md bg-neutral-900 text-white shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+              </button>
+            </div>
+
+            <div class="mt-12 flex flex-col items-center justify-center text-center">
+              <div class="text-neutral-300">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              </div>
+              <h3 class="mt-3 text-base font-medium text-neutral-900">No crew members yet</h3>
+              <p class="mt-1 max-w-xs text-sm text-neutral-500">Add crew members to assign them to projects and schedules.</p>
+              <button class="mt-4 flex h-10 items-center gap-2 rounded-md bg-neutral-900 px-5 text-sm font-medium text-white shadow-sm" style="min-height: 44px;">
+                Add Crew Member
+              </button>
+            </div>
+
+            <div class="mt-6 text-center">
+              <div class="annotation">Two paths to create: header + and empty state CTA</div>
+              <div class="annotation-muted mt-1">Both use 44px touch target on mobile</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Implementation notes -->
+      <div class="mt-6 rounded-lg border border-neutral-200 bg-white p-4 text-sm">
+        <div class="font-semibold text-neutral-900 mb-2">Implementation plan</div>
+        <ul class="space-y-1 text-neutral-600">
+          <li><strong>LibraryCrewPage:</strong> Add <code class="rounded bg-neutral-100 px-1">actionLabel="Add Crew Member"</code> and <code class="rounded bg-neutral-100 px-1">onAction={() => setCreateOpen(true)}</code> to the EmptyState.</li>
+          <li><strong>LibraryLocationsPage:</strong> Same pattern — add <code class="rounded bg-neutral-100 px-1">actionLabel="Add Location"</code> to EmptyState.</li>
+          <li><strong>LibraryTalentPage:</strong> Already has CTA — no change needed.</li>
+          <li><strong>Guard:</strong> Only show the CTA when <code class="rounded bg-neutral-100 px-1">canManageX(role)</code> is true (same as header button gating, but without the <code class="rounded bg-neutral-100 px-1">!isMobile</code> check since the CTA opens a dialog, not inline edit).</li>
+          <li><strong>Scope:</strong> LibraryCrewPage, LibraryLocationsPage (2 files).</li>
+        </ul>
+      </div>
+    </div>
+
+
+    <!-- ================================================================ -->
+    <!-- SUMMARY -->
+    <!-- ================================================================ -->
+    <div class="section-box" style="border-color: #18181b; background: #fafafa;">
+      <div class="section-title">Summary — Changes by File</div>
+      <div class="overflow-hidden rounded-lg border border-neutral-200 text-sm">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-neutral-200 bg-neutral-50">
+              <th class="px-4 py-2 text-left font-semibold text-neutral-900">File</th>
+              <th class="px-4 py-2 text-left font-semibold text-neutral-900">Changes</th>
+              <th class="px-4 py-2 text-left font-semibold text-neutral-900">Fix</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-neutral-100">
+              <td class="px-4 py-2 font-mono text-xs text-neutral-700">LibraryCrewPage.tsx</td>
+              <td class="px-4 py-2 text-neutral-600">Mobile create button + empty state CTA</td>
+              <td class="px-4 py-2 text-neutral-500">C1, H3</td>
+            </tr>
+            <tr class="border-b border-neutral-100">
+              <td class="px-4 py-2 font-mono text-xs text-neutral-700">LibraryLocationsPage.tsx</td>
+              <td class="px-4 py-2 text-neutral-600">Mobile create button + empty state CTA</td>
+              <td class="px-4 py-2 text-neutral-500">C1, H3</td>
+            </tr>
+            <tr class="border-b border-neutral-100">
+              <td class="px-4 py-2 font-mono text-xs text-neutral-700">LibraryTalentPage.tsx</td>
+              <td class="px-4 py-2 text-neutral-600">Mobile create button + hover shadow on cards</td>
+              <td class="px-4 py-2 text-neutral-500">C1, H2</td>
+            </tr>
+            <tr class="border-b border-neutral-100">
+              <td class="px-4 py-2 font-mono text-xs text-neutral-700">ProjectDashboard.tsx</td>
+              <td class="px-4 py-2 text-neutral-600">Mobile create button + remove redundant breadcrumb</td>
+              <td class="px-4 py-2 text-neutral-500">C2, H1</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+        <strong>Total scope:</strong> 4 files, ~20 lines changed. No new components, no new files, no Firestore changes. All changes are cosmetic/interaction — no behavior change.
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

@@ -323,7 +323,7 @@ export default function ProjectAssetsPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Images</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-6">
+          <CardContent className="flex flex-wrap gap-4">
             <div>
               <div className="text-2xl font-semibold text-[var(--color-text)]">
                 {heroCount}
@@ -369,7 +369,7 @@ function AssetUsageCard({
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2">
+      <CardContent className="flex flex-col gap-3">
         {rows.length === 0 ? (
           <p className="text-sm text-[var(--color-text-muted)]">{emptyLabel}</p>
         ) : (

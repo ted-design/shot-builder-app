@@ -307,16 +307,16 @@ Admin (role-gated: admin only)
 
 **Goal:** Consistent density, interactions, navigation, and visual language across ALL pages. "Make it feel like one app."
 
-**Status:** Not started.
+**Status:** Complete. All sub-tasks done. Deferred: M2 (shot card readiness styling — by design), M3 (toolbar overflow — needs analysis), H4 (library layout — needs user decision).
 
 ### Sub-tasks
 
-- [ ] **7C.1:** Cross-page UX audit at 3 breakpoints (375px, 768px, 1280px)
-- [ ] **7C.2:** Mockups for density & interaction improvements (user approval required)
-- [ ] **7C.3:** Information density improvements (card padding, metadata, gaps)
-- [ ] **7C.4:** Hover states, transitions, and focus indicators
-- [ ] **7C.5:** Navigation clarity (breadcrumbs, active states, "you are here")
-- [ ] **7C.6:** Keyboard shortcuts expansion (library operations, help dialog update)
+- [x] **7C.1:** Cross-page UX audit at 3 breakpoints (375px, 768px, 1280px)
+- [x] **7C.2:** Mockups for density & interaction improvements (user approval required)
+- [x] **7C.3:** Information density improvements (card padding, metadata, gaps)
+- [x] **7C.4:** Hover states, transitions, and focus indicators
+- [x] **7C.5:** Navigation clarity (breadcrumbs, active states, "you are here")
+- [x] **7C.6:** Keyboard shortcuts expansion (library operations, help dialog update)
 
 ### Acceptance Criteria
 

@@ -386,6 +386,66 @@ When refactoring a component's interaction model (e.g., always-editable textarea
 - **Client-side TTL is sufficient** for presence cleanup when docs are tiny and short-lived. A Cloud Function adds complexity without proportional benefit — stale presence docs are filtered out by the client and are harmless.
 - **useAuth() in nested components** is simpler than prop-drilling `clientId` through intermediate components. Since all shot components are within the auth boundary, calling `useAuth()` directly avoids adding props to components that don't otherwise need them.
 
+### canCreate vs canEdit Split Pattern (Phase 7C)
+
+Library and project list pages need two separate permission levels:
+- **`canCreate`** = role-based only (`canManageX(role)`). Controls: create button visibility, empty state CTA, keyboard shortcut handler. No `!isMobile` check — create dialogs work on mobile via `ResponsiveDialog`.
+- **`canEdit`** = role + desktop only (`!isMobile && canCreate`). Controls: inline editing, table row edit affordances, detail page write fields.
+
+**Why the split matters:** Before Phase 7C, `canEdit = !isMobile && canManageX(role)` gated BOTH create buttons AND inline editing, which blocked mobile users from creating entities entirely — even though create dialogs (via ResponsiveDialog) work perfectly on mobile.
+
+```tsx
+const canCreate = canManageCrew(role)       // Role-only: create button + empty state CTA
+const canEdit = !isMobile && canCreate      // Desktop-only: inline editing
+```
+
+**Mobile create button pattern:** Render icon-only `<Button size="icon">` on mobile, full text button on desktop:
+```tsx
+canCreate ? (
+  isMobile ? (
+    <Button size="icon" onClick={() => setCreateOpen(true)}>
+      <Plus className="h-4 w-4" />
+    </Button>
+  ) : (
+    <Button onClick={() => setCreateOpen(true)}>
+      <Plus className="h-4 w-4" />
+      New Crew Member
+    </Button>
+  )
+) : null
+```
+
+### Breadcrumb Hierarchy Rules (Phase 7C)
+
+- **Top-level pages** (Projects, Products): NO breadcrumb. The page title serves as the heading.
+- **Nested pages within a section** (Library/Crew, Library/Talent): Show parent section breadcrumb (e.g., `Library > Crew`).
+- **Project-scoped pages** (Dashboard, Shots, Assets): Show `Projects > Project Name`.
+- **Detail pages** (Crew Detail, Location Detail): Show full path (e.g., `Library > Crew > John Smith`).
+- **Never repeat** the page title in the breadcrumb when it's already visible as an `<h1>` directly below.
+
+### Keyboard Shortcut Expansion Pattern (Phase 7C)
+
+When a page has a create action, add `C` as a keyboard shortcut:
+1. Import `useKeyboardShortcuts` from `@/shared/hooks/useKeyboardShortcuts`
+2. Guard the handler with the permission check (use `canCreate`, not `canEdit`)
+3. Update `KeyboardShortcutsDialog.tsx` SHORTCUT_GROUPS when adding new shortcut groups
+
+```tsx
+useKeyboardShortcuts([
+  { key: "c", handler: () => { if (canCreate) setCreateOpen(true) } },
+])
+```
+
+Currently active on: LibraryCrewPage, LibraryLocationsPage, LibraryTalentPage, ProjectDashboard.
+
+### Mobile Table Density (Phase 7C)
+
+Table cells visible on mobile use responsive padding to increase density on small screens:
+```tsx
+<td className="px-4 py-2.5 md:py-3 ...">
+```
+Desktop-only columns (hidden on mobile) keep standard `py-3` padding.
+
 ### Dark Mode Audit Patterns (Phase 6k)
 
 - **`.dark` class, NOT `data-theme` attribute.** Tailwind's `darkMode: 'class'` strategy uses `.dark` on `<html>`. All docs, code, and tokens must reference this consistently. If you see `data-theme="dark"` in any doc, it's stale — the correct mechanism is `.dark` CSS class.

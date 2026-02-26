@@ -246,6 +246,20 @@ When a dialog initializes form state from a live Firestore entity, the `useEffec
 2. Only initialize form state when `open && !wasOpen.current && entity`
 3. Keep the entity in the dependency array for correctness
 
+### canCreate vs canEdit Permission Split (Phase 7C Pattern)
+
+Pages with both create actions (available on mobile) and inline edit actions (desktop-only) must split their permission checks:
+- `canCreate = canManageX(role)` — gates create button, empty state CTA, `C` keyboard shortcut. No `!isMobile` check.
+- `canEdit = !isMobile && canCreate` — gates inline editing, table row actions, write fields.
+
+Never gate create dialogs behind `!isMobile` — they work on mobile via `ResponsiveDialog`. Empty state CTAs use `canCreate` (not `canEdit`) so mobile users can reach create dialogs.
+
+### Breadcrumb & Shortcut Conventions (Phase 7C Pattern)
+
+**Breadcrumbs:** Top-level pages (Projects, Products) get NO breadcrumb. Nested pages show parent section. Detail pages show full path. Never duplicate the page title in the breadcrumb when it's already the `<h1>`.
+
+**Keyboard shortcuts:** Any page with a create action gets `C` shortcut via `useKeyboardShortcuts`. Guard with `canCreate` (not `canEdit`). Update `KeyboardShortcutsDialog.tsx` SHORTCUT_GROUPS when adding new groups.
+
 ### Dual Mapper Consistency (Phase 7B Pattern)
 
 When expanding entity types (e.g., adding `street`, `city`, `phone` to `LocationRecord`), update ALL independent mappers that produce that type:

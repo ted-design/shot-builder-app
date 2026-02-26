@@ -11,6 +11,7 @@ import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
+import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { useLocationLibrary } from "@/features/library/hooks/useLocationLibrary"
 import { CreateLocationDialog } from "@/features/library/components/CreateLocationDialog"
 
@@ -21,7 +22,12 @@ export default function LibraryLocationsPage() {
   const { data: locations, loading, error } = useLocationLibrary()
   const [query, setQuery] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
-  const canEdit = !isMobile && canManageLocations(role)
+  const canCreate = canManageLocations(role)
+  const canEdit = !isMobile && canCreate
+
+  useKeyboardShortcuts([
+    { key: "c", handler: () => { if (canCreate) setCreateOpen(true) } },
+  ])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -57,11 +63,17 @@ export default function LibraryLocationsPage() {
           title="Locations"
           breadcrumbs={[{ label: "Library" }]}
           actions={
-            canEdit ? (
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="h-4 w-4" />
-                New Location
-              </Button>
+            canCreate ? (
+              isMobile ? (
+                <Button size="icon" onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  New Location
+                </Button>
+              )
             ) : null
           }
         />
@@ -71,6 +83,8 @@ export default function LibraryLocationsPage() {
             icon={<MapPin className="h-10 w-10" />}
             title="No locations yet"
             description="Add locations to assign them to shots and schedules."
+            actionLabel={canCreate ? "Add Location" : undefined}
+            onAction={canCreate ? () => setCreateOpen(true) : undefined}
           />
         ) : (
           <div className="flex flex-col gap-4">
@@ -122,10 +136,10 @@ export default function LibraryLocationsPage() {
                           navigate(`/library/locations/${loc.id}`)
                         }
                       >
-                        <td className="px-4 py-3 font-medium text-[var(--color-text)]">
+                        <td className="px-4 py-2.5 font-medium text-[var(--color-text)] md:py-3">
                           {loc.name}
                         </td>
-                        <td className="px-4 py-3 text-[var(--color-text-muted)]">
+                        <td className="px-4 py-2.5 text-[var(--color-text-muted)] md:py-3">
                           {loc.address ?? "—"}
                         </td>
                         {!isMobile && (

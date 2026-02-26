@@ -11,6 +11,7 @@ import { Button } from "@/ui/button"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { canManageCrew } from "@/shared/lib/rbac"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { useCrewLibrary } from "@/features/library/hooks/useCrewLibrary"
 import { CreateCrewDialog } from "./CreateCrewDialog"
 
@@ -26,10 +27,15 @@ export default function LibraryCrewPage() {
   const { role } = useAuth()
   const isMobile = useIsMobile()
   const navigate = useNavigate()
-  const canEdit = !isMobile && canManageCrew(role)
+  const canCreate = canManageCrew(role)
+  const canEdit = !isMobile && canCreate
 
   const [query, setQuery] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
+
+  useKeyboardShortcuts([
+    { key: "c", handler: () => { if (canCreate) setCreateOpen(true) } },
+  ])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -65,11 +71,17 @@ export default function LibraryCrewPage() {
           title="Crew"
           breadcrumbs={[{ label: "Library" }]}
           actions={
-            canEdit ? (
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="h-4 w-4" />
-                New Crew Member
-              </Button>
+            canCreate ? (
+              isMobile ? (
+                <Button size="icon" onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  New Crew Member
+                </Button>
+              )
             ) : null
           }
         />
@@ -79,6 +91,8 @@ export default function LibraryCrewPage() {
             icon={<HardHat className="h-12 w-12" />}
             title="No crew members yet"
             description="Add crew members to assign them to projects and schedules."
+            actionLabel={canCreate ? "Add Crew Member" : undefined}
+            onAction={canCreate ? () => setCreateOpen(true) : undefined}
           />
         ) : (
           <div className="flex flex-col gap-4">
@@ -131,10 +145,10 @@ export default function LibraryCrewPage() {
                           className="cursor-pointer border-b border-[var(--color-border)] transition-colors last:border-b-0 hover:bg-[var(--color-surface-subtle)]"
                           onClick={() => navigate(`/library/crew/${c.id}`)}
                         >
-                          <td className="px-4 py-3 text-sm font-medium text-[var(--color-text)]">
+                          <td className="px-4 py-2.5 text-sm font-medium text-[var(--color-text)] md:py-3">
                             {c.name}
                           </td>
-                          <td className="px-4 py-3 text-sm text-[var(--color-text-muted)]">
+                          <td className="px-4 py-2.5 text-sm text-[var(--color-text-muted)] md:py-3">
                             {c.department ?? "\u2014"}
                           </td>
                           {!isMobile && (
