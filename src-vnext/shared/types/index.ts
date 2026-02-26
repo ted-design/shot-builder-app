@@ -405,10 +405,22 @@ export interface TalentRecord {
 export interface LocationRecord {
   readonly id: string
   readonly name: string
+  /** Composed display address (derived from sub-fields or explicit). */
   readonly address?: string
+  readonly street?: string | null
+  readonly unit?: string | null
+  readonly city?: string | null
+  readonly province?: string | null
+  readonly postal?: string | null
+  readonly phone?: string | null
+  readonly photoPath?: string | null
+  readonly photoUrl?: string | null
   readonly notes?: string
   /** Project membership (legacy project-scoped assets). */
   readonly projectIds?: readonly string[]
+  readonly createdAt?: unknown
+  readonly updatedAt?: unknown
+  readonly createdBy?: string | null
 }
 
 export interface AuthUser {
@@ -423,18 +435,26 @@ export interface AuthClaims {
   readonly clientId: string
 }
 
-// --- Crew (org library, read-only in Slice 3) ---
+// --- Crew (org library) ---
 
 export interface CrewRecord {
   readonly id: string
   readonly name: string
+  readonly firstName?: string | null
+  readonly lastName?: string | null
   readonly department?: string
   readonly position?: string
-  readonly email?: string
-  readonly phone?: string
+  readonly departmentId?: string | null
+  readonly positionId?: string | null
+  readonly email?: string | null
+  readonly phone?: string | null
+  readonly company?: string | null
   readonly notes?: string
   /** Project membership (legacy project-scoped assets). */
   readonly projectIds?: readonly string[]
+  readonly createdAt?: unknown
+  readonly updatedAt?: unknown
+  readonly createdBy?: string | null
 }
 
 // --- Schedules (Slice 3: Call Sheet Assembly) ---

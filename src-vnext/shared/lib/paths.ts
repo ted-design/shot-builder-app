@@ -122,6 +122,11 @@ export const locationsPath = (clientId: string): string[] => [
   "locations",
 ]
 
+export const locationDocPath = (locationId: string, clientId: string): string[] => [
+  ...locationsPath(clientId),
+  locationId,
+]
+
 // --- Crew ---
 
 export const crewPath = (clientId: string): string[] => [
@@ -129,6 +134,24 @@ export const crewPath = (clientId: string): string[] => [
   clientId,
   "crew",
 ]
+
+export const crewDocPath = (crewId: string, clientId: string): string[] => [
+  ...crewPath(clientId),
+  crewId,
+]
+
+// --- Departments & Positions ---
+
+export const departmentsPath = (clientId: string): string[] => [
+  "clients",
+  clientId,
+  "departments",
+]
+
+export const departmentPositionsPath = (
+  departmentId: string,
+  clientId: string,
+): string[] => [...departmentsPath(clientId), departmentId, "positions"]
 
 // --- Color Swatches (org-level palette) ---
 

@@ -3,6 +3,7 @@ import {
   arrayRemove,
   arrayUnion,
   collection,
+  deleteDoc,
   doc,
   serverTimestamp,
   updateDoc,
@@ -234,4 +235,20 @@ export async function removeTalentFromProject(args: {
     updatedAt: serverTimestamp(),
     updatedBy: args.userId ?? null,
   })
+}
+
+export async function deleteTalent(args: {
+  readonly clientId: string
+  readonly talentId: string
+  readonly imagePaths?: readonly (string | null | undefined)[]
+}) {
+  const talentId = args.talentId.trim()
+  if (!talentId) throw new Error("Missing talent id")
+
+  if (args.imagePaths && args.imagePaths.length > 0) {
+    await deleteTalentImagePaths(args.imagePaths)
+  }
+
+  const path = talentPath(args.clientId)
+  await deleteDoc(doc(db, path[0]!, ...path.slice(1), talentId))
 }

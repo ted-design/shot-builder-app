@@ -58,6 +58,12 @@ const LibraryLocationsPage = lazy(
 const LibraryCrewPage = lazy(
   () => import("@/features/library/components/LibraryCrewPage"),
 )
+const CrewDetailPage = lazy(
+  () => import("@/features/library/components/CrewDetailPage"),
+)
+const LocationDetailPage = lazy(
+  () => import("@/features/library/components/LocationDetailPage"),
+)
 const LibraryPalettePage = lazy(
   () => import("@/features/library/components/LibraryPalettePage"),
 )
@@ -179,7 +185,9 @@ export function AppRoutes() {
           <Route path="library" element={<Navigate to="/library/talent" replace />} />
           <Route path="library/talent" element={<LibraryTalentPage />} />
           <Route path="library/locations" element={<LibraryLocationsPage />} />
+          <Route path="library/locations/:locationId" element={<LocationDetailPage />} />
           <Route path="library/crew" element={<LibraryCrewPage />} />
+          <Route path="library/crew/:crewId" element={<CrewDetailPage />} />
           <Route path="library/palette" element={<LibraryPalettePage />} />
           {import.meta.env.DEV && (
             <Route path="dev/import-q2" element={<DevImportQ2 />} />

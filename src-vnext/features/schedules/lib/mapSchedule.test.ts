@@ -173,8 +173,19 @@ describe("mapSchedule time sanitization", () => {
       id: "l1",
       name: "Hospital",
       address: "100 Main St",
+      street: null,
+      unit: null,
+      city: null,
+      province: null,
+      postal: null,
+      phone: null,
+      photoPath: null,
+      photoUrl: null,
       notes: "ER entrance",
       projectIds: ["p1", "p2"],
+      createdAt: undefined,
+      updatedAt: undefined,
+      createdBy: null,
     })
   })
 
