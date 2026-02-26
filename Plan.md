@@ -228,7 +228,7 @@ Admin (role-gated: admin only)
 
 **Goal:** Professional and precise visual identity. Make the app look like it was built by a funded startup, not a side project. First impressions matter for stakeholder onboarding.
 
-**Status:** In progress — 6a-6d done (mockups approved). Next: 6e implementation.
+**Status:** In progress — 6e-6j committed. Next: 6k (dark mode audit).
 
 ### Sub-tasks
 
@@ -240,17 +240,17 @@ Admin (role-gated: admin only)
 - [x] **6f:** Implement component polish (audit shadcn usage, standardize styles)
 - [x] **6g:** Implement empty states for all list views
 - [x] **6h:** Implement loading skeletons (replace spinners, stagger animation)
-- [ ] **6i:** Implement error states (toast, Sentry, offline banner, form errors)
-- [ ] **6j:** Implement presence indicators (avatar dots, edit conflict warning)
+- [x] **6i:** Implement error states (toast, Sentry, offline banner, form errors)
+- [x] **6j:** Implement presence indicators (avatar dots, edit conflict warning)
 - [ ] **6k:** Dark mode audit + verify acceptance criteria
 
 ### Acceptance Criteria
 
-- [ ] Color palette defined in tokens.css and consistently applied
-- [ ] Typography hierarchy clear: headings, body, labels, captions
-- [ ] Every list view has an empty state with CTA
-- [ ] Loading skeletons on all async pages (no raw spinners)
-- [ ] Error states tested: network error, permission error, not found
+- [x] Color palette defined in tokens.css and consistently applied
+- [x] Typography hierarchy clear: headings, body, labels, captions
+- [x] Every list view has an empty state with CTA
+- [x] Loading skeletons on all async pages (no raw spinners)
+- [x] Error states tested: network error, permission error, not found
 - [ ] Dark mode works correctly (all token-driven, no hardcoded colors)
 - [ ] A non-technical stakeholder would describe the app as "professional"
 

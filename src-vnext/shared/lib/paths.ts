@@ -46,6 +46,12 @@ export const shotVersionsPath = (shotId: string, clientId: string): string[] => 
   "versions",
 ]
 
+export const shotPresenceDocPath = (shotId: string, clientId: string): string[] => [
+  ...shotPath(shotId, clientId),
+  "presence",
+  "state",
+]
+
 // --- Pulls (project-scoped) ---
 
 export const pullsPath = (
