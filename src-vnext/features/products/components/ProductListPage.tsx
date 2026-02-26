@@ -25,6 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/ui/dropdown-menu"
+import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { LayoutGrid, Package, Plus, Search, SlidersHorizontal, Table, X } from "lucide-react"
 import {
   deriveProductScaffoldOptions,
@@ -65,10 +66,21 @@ export default function ProductListPage() {
   const { data: families, loading, error } = useProductFamilies()
   const { role } = useAuth()
   const isMobile = useIsMobile()
-  const canEdit = !isMobile && canManageProducts(role)
+  const canCreate = canManageProducts(role)
+  const canEdit = !isMobile && canCreate
   const [searchParams, setSearchParams] = useSearchParams()
   const location = useLocation()
   const navigate = useNavigate()
+
+  const navigateToCreate = () => {
+    const returnTo = `${location.pathname}${location.search}`
+    const encoded = encodeURIComponent(returnTo)
+    navigate(`/products/new?returnTo=${encoded}&productsReturnTo=${encoded}`)
+  }
+
+  useKeyboardShortcuts([
+    { key: "c", handler: () => { if (canCreate) navigateToCreate() } },
+  ])
 
   const qParam = searchParams.get("q") ?? ""
   const statusParam = (searchParams.get("status") ?? "all") as ProductListStatusFilter
@@ -186,57 +198,57 @@ export default function ProductListPage() {
       <PageHeader
         title="Products"
         actions={
-          canEdit ? (
-            <div className="flex items-center gap-2">
-              {!isMobile && (
-                <div className="flex items-center rounded-md border border-input bg-background p-1">
-                  <Button
-                    type="button"
-                    variant={viewMode === "gallery" ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-8 px-2"
-                    onClick={() => {
-                      writeProductListViewMode("gallery")
-                      setSearchParams((prev) => {
-                        const out = new URLSearchParams(prev)
-                        out.set("view", "gallery")
-                        return out
-                      }, { replace: true })
-                    }}
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={viewMode === "table" ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-8 px-2"
-                    onClick={() => {
-                      writeProductListViewMode("table")
-                      setSearchParams((prev) => {
-                        const out = new URLSearchParams(prev)
-                        out.set("view", "table")
-                        return out
-                      }, { replace: true })
-                    }}
-                  >
-                    <Table className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+          <div className="flex items-center gap-2">
+            {!isMobile && (
+              <div className="flex items-center rounded-md border border-input bg-background p-1">
+                <Button
+                  type="button"
+                  variant={viewMode === "gallery" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => {
+                    writeProductListViewMode("gallery")
+                    setSearchParams((prev) => {
+                      const out = new URLSearchParams(prev)
+                      out.set("view", "gallery")
+                      return out
+                    }, { replace: true })
+                  }}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant={viewMode === "table" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => {
+                    writeProductListViewMode("table")
+                    setSearchParams((prev) => {
+                      const out = new URLSearchParams(prev)
+                      out.set("view", "table")
+                      return out
+                    }, { replace: true })
+                  }}
+                >
+                  <Table className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
 
-              <Button
-                onClick={() => {
-                  const returnTo = `${location.pathname}${location.search}`
-                  const encoded = encodeURIComponent(returnTo)
-                  navigate(`/products/new?returnTo=${encoded}&productsReturnTo=${encoded}`)
-                }}
-              >
-                <Plus className="h-4 w-4" />
-                New product
-              </Button>
-            </div>
-          ) : null
+            {canCreate && (
+              isMobile ? (
+                <Button size="icon" onClick={navigateToCreate}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button onClick={navigateToCreate}>
+                  <Plus className="h-4 w-4" />
+                  New product
+                </Button>
+              )
+            )}
+          </div>
         }
       />
       <p className="-mt-3 text-sm text-[var(--color-text-muted)]">

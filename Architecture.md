@@ -123,7 +123,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/projects/:id/departments` | ProjectDepartmentsPage | |
 | `/projects/:id/settings` | ProjectSettingsPage | |
 | `/products` | ProductsPage | Org-level product library |
-| `/products/:productId` | ProductDetailPageV3 | Default (flags control V2/V3) |
+| `/products/:productId` | ProductDetailPage | Thin shell + 5 section components (Overview, Colorways, Samples, Assets, Activity) |
 | `/import-products` | ImportProducts | CSV import |
 | `/library` | LibraryPage | Redirect -> `/library/talent` |
 | `/library/talent` | LibraryTalentPage | Full CRUD: card grid, inline detail, measurements, portfolio, castings |

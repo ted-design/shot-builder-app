@@ -436,7 +436,7 @@ useKeyboardShortcuts([
 ])
 ```
 
-Currently active on: LibraryCrewPage, LibraryLocationsPage, LibraryTalentPage, ProjectDashboard.
+Currently active on: LibraryCrewPage, LibraryLocationsPage, LibraryTalentPage, ProjectDashboard, ProductListPage.
 
 ### Mobile Table Density (Phase 7C)
 
@@ -548,7 +548,7 @@ These patterns were established by the Phase 6c mockups (`mockups/p6-states.html
 |---|---|---|
 | Full-page (`EmptyState`) | List pages with zero items | min-h-200px, centered, icon + title + description + CTA button |
 | Filtered empty | List pages with active filters but no matches | Same as full-page but "No matching X" + "Clear filters" CTA |
-| Inline empty (`InlineEmpty`) | Detail page sub-sections (Colorways, Comments, References) | min-h-120px, 32px icons, dashed border, muted text |
+| Inline empty (`InlineEmpty`) | Detail page sub-sections (Colorways, Comments, References) | min-h-120px, 32px icons, dashed border, muted text, optional `action` prop for CTA button |
 
 Six domain variants: Shots (Camera), Products (Package), Pulls (ClipboardList), Locations (MapPin), Talent (Users), Schedules (Calendar).
 
@@ -656,6 +656,43 @@ Canonical labels (from `statusMappings.ts`). Use these everywhere — views, fil
 | `complete` | **Shot** |
 
 Do NOT use alternative labels (To do, Complete, Done). `statusMappings.ts` is the single source of truth. `shotListFilters.ts STATUS_LABELS` must match.
+
+## Product Detail Workspace Patterns (Phase 7D)
+
+### Section Extraction Pattern
+
+When a detail page exceeds 800 lines due to multiple workspace sections (tabs), extract each section into its own component file:
+
+- Parent page is a **thin shell** (~200 lines): routing, data hooks, workspace nav, section switching, family-level dialogs.
+- **Sections receive data as props** from the parent (avoids double Firestore subscriptions). Sections own their own UI state (filters, drafts, modals).
+- Shared helpers (formatDateTime, parseDateInput, formatBytes) go in a `lib/{feature}DetailHelpers.ts` file.
+
+Files created in Phase 7D:
+- `ProductOverviewSection.tsx` — overview cards + classification panel
+- `ProductColorwaysSection.tsx` — SKU grid with empty state CTA
+- `ProductSamplesSection.tsx` — filters, list, sheet, due date badges
+- `ProductAssetsSection.tsx` — documents + images
+- `ProductActivitySection.tsx` — comments + timeline
+- `productDetailHelpers.ts` — shared date/byte formatters + sample due date logic
+
+### Sample Due Date Warnings
+
+`isSampleOverdue(sample)` and `isSampleDueSoon(sample, withinDays)` in `productDetailHelpers.ts`:
+- **Overdue** (red badge): ETA is past + status is `requested` or `in_transit`
+- **Due soon** (amber badge, default 2 days): ETA is within N days + status is `requested` or `in_transit`
+- Both use `dark:` Tailwind variants for dark mode compatibility (red-700/red-300, amber-700/amber-300)
+
+### InlineEmpty Action Prop
+
+`InlineEmpty` now accepts an optional `action: ReactNode` prop for CTA buttons in empty states. Use for workspace sections where the user can create content (samples, documents, colorways). Gate with `canEdit && !isFamilyDeleted`.
+
+### Workspace Nav Count Badges
+
+`ProductWorkspaceNav` already supports `count` on nav items. Pass counts from the parent's derived data (activeSkus.length, visibleSamples.length, etc.). The nav renders a pill badge next to each section label.
+
+### Audit-Before-Build Pattern
+
+Phase 7D started with a formal audit (7D.1) that revealed 2 of 5 planned sub-tasks were already built (taxonomy, workspace nav). **Always audit existing code before planning implementation** — it prevents duplicate work and correctly scopes the remaining effort.
 
 ## Git Workflow
 

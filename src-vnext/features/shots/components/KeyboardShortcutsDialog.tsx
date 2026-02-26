@@ -54,7 +54,7 @@ const SHORTCUT_GROUPS: ReadonlyArray<ShortcutGroup> = [
     ],
   },
   {
-    title: "Library & Projects",
+    title: "Library, Products & Projects",
     shortcuts: [
       { keys: ["C"], description: "Create new item" },
     ],
