@@ -108,14 +108,6 @@ function LegacyShotsRedirect() {
   return <Navigate to="/projects" replace />;
 }
 
-function LegacyPlannerRedirect() {
-  const { currentProjectId } = useProjectScope();
-  if (currentProjectId) {
-    return <Navigate to={`/projects/${currentProjectId}/shots?view=planner`} replace />;
-  }
-  return <Navigate to="/projects" replace />;
-}
-
 function LegacyScheduleRedirect() {
   const { projectId } = useParams();
   const location = useLocation();
@@ -237,7 +229,6 @@ function AppRoutes() {
                   />
                   {/* Legacy unscoped routes */}
                   <Route path="/shots" element={<LegacyShotsRedirect />} />
-                  <Route path="/planner" element={<LegacyPlannerRedirect />} />
 
                   {/* Project-scoped routes */}
                   <Route path="/projects/:projectId" element={<ProjectParamScope />}>
@@ -326,7 +317,6 @@ function AppRoutes() {
                         }
                       />
                     </Route>
-                    <Route path="planner" element={<Navigate to="../shots?view=planner" replace />} />
                     <Route
                       path="assets"
                       element={
