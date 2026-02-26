@@ -844,6 +844,7 @@ export default function ShotListPage() {
         <CreateShotDialog
           open={createOpen}
           onOpenChange={setCreateOpen}
+          shots={shots}
           onCreated={(shotId, title) => {
             const q = queryParam.trim().toLowerCase()
             const hiddenByQuery = q.length > 0 && !title.toLowerCase().includes(q)

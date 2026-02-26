@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { addDoc, collection, serverTimestamp } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { pullsPath } from "@/shared/lib/paths"
@@ -20,15 +20,26 @@ interface CreatePullDialogProps {
   readonly onOpenChange: (open: boolean) => void
 }
 
+function defaultPullName(): string {
+  return `Pull - ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+}
+
 export function CreatePullDialog({
   open,
   onOpenChange,
 }: CreatePullDialogProps) {
   const { clientId } = useAuth()
   const { projectId } = useProjectScope()
-  const [name, setName] = useState("")
+  const [name, setName] = useState(defaultPullName)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (open) {
+      setName(defaultPullName())
+      setError(null)
+    }
+  }, [open])
 
   const handleCreate = async () => {
     if (!clientId || !projectId) return
@@ -49,7 +60,7 @@ export function CreatePullDialog({
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
-      setName("")
+      setName(defaultPullName())
       onOpenChange(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create pull sheet")

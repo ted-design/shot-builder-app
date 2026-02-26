@@ -6,6 +6,7 @@ import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { createShotVersionSnapshot } from "@/features/shots/lib/shotVersioning"
+import { computeMaxShotNumber, formatShotNumber } from "@/features/shots/lib/shotNumbering"
 import { ShotBatchCreate } from "@/features/shots/components/ShotBatchCreate"
 import { ClipboardList, Plus } from "lucide-react"
 import { toast } from "sonner"
@@ -22,32 +23,6 @@ interface ShotQuickAddProps {
   readonly onCreated?: (shotId: string, title: string) => void
   /** When true, reduces padding and hides keyboard hints for narrow containers. */
   readonly compact?: boolean
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Derives the next sequential shot number from a base max.
- * `offset` is 0 for single create, or the batch index for batch create.
- */
-function computeMaxShotNumber(shots: ReadonlyArray<Shot>): number {
-  let max = 0
-  for (const shot of shots) {
-    const num = shot.shotNumber
-    if (!num) continue
-    const match = num.match(/(\d+)$/)
-    if (match) {
-      const n = parseInt(match[1]!, 10)
-      if (n > max) max = n
-    }
-  }
-  return max
-}
-
-function formatShotNumber(n: number): string {
-  return `SH-${String(n).padStart(3, "0")}`
 }
 
 // ---------------------------------------------------------------------------

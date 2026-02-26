@@ -167,29 +167,29 @@ Admin (role-gated: admin only)
 
 **Goal:** Reduce friction on every form. Fewer required fields, smarter defaults, progressive disclosure.
 
-**Status:** Partially complete (pre-plan product work merged). Not the active phase.
+**Status:** Complete.
 
 ### Sub-tasks
 
 - [x] **4a-products:** Progressive filters + unified view options for product library
 - [x] **4b-products:** Classification toolbar + colorway flow
 - [x] **4c-products:** Previous style number field
-- [ ] **4d:** Audit remaining forms: project creation, shot creation, pull generation (research)
-- [ ] **4e:** Write HTML mockups: project creation, shot creation, pull generation
-- [ ] **4f:** Get user approval on mockups
-- [ ] **4g:** Reduce required fields + implement smart defaults
-- [ ] **4h:** Implement progressive disclosure (collapsible sections, remembered state)
-- [ ] **4i:** Implement inline validation (Zod schemas, field-level feedback, auto-save)
-- [ ] **4j:** Verify acceptance criteria + run full test suite
+- [x] **4d:** Audit remaining forms: project creation, shot creation, pull generation (research)
+- [x] **4e:** Write HTML mockups: project creation, shot creation, pull generation
+- [x] **4f:** Get user approval on mockups
+- [x] **4g:** Reduce required fields + implement smart defaults
+- [x] **4h:** Implement progressive disclosure (collapsible sections, remembered state)
+- [x] **4i:** Implement inline validation (Zod schemas, field-level feedback, auto-save)
+- [x] **4j:** Verify acceptance criteria + run full test suite
 
 ### Acceptance Criteria
 
-- [ ] Project creation: 1 required field (name), completes in <5 seconds
-- [ ] Shot creation: 1 required field (title), completes in <3 seconds
-- [ ] All forms use progressive disclosure (common fields visible, details collapsed)
-- [ ] Smart defaults reduce manual input by >50%
-- [ ] Inline validation provides feedback before submission
-- [ ] No form requires more than 3 required fields
+- [x] Project creation: 1 required field (name), completes in <5 seconds
+- [x] Shot creation: 1 required field (title), completes in <3 seconds
+- [x] All forms use progressive disclosure (common fields visible, details collapsed)
+- [x] Smart defaults reduce manual input by >50%
+- [x] Inline validation provides feedback before submission
+- [x] No form requires more than 3 required fields
 
 ---
 

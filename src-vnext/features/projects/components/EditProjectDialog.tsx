@@ -4,6 +4,12 @@ import type { Project, ProjectStatus } from "@/shared/types"
 import { updateProjectField } from "@/features/projects/lib/updateProject"
 import { deleteField } from "firebase/firestore"
 import {
+  projectNameSchema,
+  optionalUrlSchema,
+  optionalNotesSchema,
+  validateField,
+} from "@/shared/lib/validation"
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -22,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/select"
+import { ChevronDown } from "lucide-react"
 import { toast } from "sonner"
 
 interface EditProjectDialogProps {
@@ -48,9 +55,10 @@ export function EditProjectDialog({
   const [briefUrl, setBriefUrl] = useState("")
   const [notes, setNotes] = useState("")
   const [status, setStatus] = useState<ProjectStatus>("active")
+  const [expanded, setExpanded] = useState(false)
 
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({})
 
   useEffect(() => {
     if (!open) return
@@ -60,35 +68,44 @@ export function EditProjectDialog({
     setBriefUrl(project.briefUrl ?? "")
     setNotes(project.notes ?? "")
     setStatus(project.status ?? "active")
-    setError(null)
+    setFieldErrors({})
+
+    // Auto-expand if any optional field has existing data
+    const hasOptionalData =
+      (project.shootDates && project.shootDates.length > 0) ||
+      !!project.briefUrl ||
+      !!project.notes
+    setExpanded(!!hasOptionalData)
   }, [open, project])
 
   const canSave = useMemo(() => {
     return !!project && !!clientId && name.trim().length > 0 && !saving
   }, [clientId, name, project, saving])
 
-  const handleSave = async () => {
-    if (!project || !clientId) return
+  const validate = (): boolean => {
+    const errors: Record<string, string | null> = {
+      name: validateField(projectNameSchema, name),
+      briefUrl: validateField(optionalUrlSchema, briefUrl),
+      notes: validateField(optionalNotesSchema, notes),
+    }
+    setFieldErrors(errors)
 
-    const trimmedName = name.trim()
-    if (!trimmedName) return
-
-    const brief = briefUrl.trim()
-    if (brief.length > 0) {
-      try {
-        const parsed = new URL(brief)
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-          setError("Brief URL must start with http:// or https://")
-          return
-        }
-      } catch {
-        setError("Brief URL must be a valid URL (include https://)")
-        return
-      }
+    const hasUrlOrNotesError = errors.briefUrl || errors.notes
+    if (hasUrlOrNotesError && !expanded) {
+      setExpanded(true)
     }
 
+    return !errors.name && !errors.briefUrl && !errors.notes
+  }
+
+  const handleSave = async () => {
+    if (!project || !clientId) return
+    if (!validate()) return
+
+    const trimmedName = name.trim()
+    const brief = briefUrl.trim()
+
     setSaving(true)
-    setError(null)
 
     try {
       await updateProjectField(project.id, clientId, {
@@ -102,7 +119,6 @@ export function EditProjectDialog({
       onOpenChange(false)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update project"
-      setError(message)
       toast.error("Failed to update project", { description: message })
     } finally {
       setSaving(false)
@@ -117,17 +133,27 @@ export function EditProjectDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-4 py-4">
+          {/* Name — always visible */}
           <div className="flex flex-col gap-2">
             <Label htmlFor="edit-project-name">Project Name</Label>
             <Input
               id="edit-project-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value)
+                if (fieldErrors.name) {
+                  setFieldErrors((prev) => ({ ...prev, name: null }))
+                }
+              }}
               disabled={saving}
               autoFocus
             />
+            {fieldErrors.name && (
+              <p className="text-xs text-[var(--color-error)]">{fieldErrors.name}</p>
+            )}
           </div>
 
+          {/* Status — always visible */}
           <div className="flex flex-col gap-2">
             <Label>Status</Label>
             <Select
@@ -151,36 +177,66 @@ export function EditProjectDialog({
             </p>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label>Shoot Dates</Label>
-            <ShootDatesField value={shootDates} onChange={setShootDates} disabled={saving} />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-project-brief-url">Brief URL</Label>
-            <Input
-              id="edit-project-brief-url"
-              value={briefUrl}
-              onChange={(e) => setBriefUrl(e.target.value)}
-              placeholder="https://…"
-              disabled={saving}
+          {/* More options toggle */}
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !prev)}
+            className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+            data-testid="more-options-toggle"
+          >
+            <ChevronDown
+              className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
             />
-          </div>
+            More options
+          </button>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-project-notes">Notes</Label>
-            <Textarea
-              id="edit-project-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Optional context for the team…"
-              rows={5}
-              disabled={saving}
-            />
-          </div>
+          {/* Collapsible optional fields */}
+          {expanded && (
+            <div className="flex flex-col gap-4" data-testid="optional-fields">
+              <div className="flex flex-col gap-2">
+                <Label>Shoot Dates</Label>
+                <ShootDatesField value={shootDates} onChange={setShootDates} disabled={saving} />
+              </div>
 
-          {error && (
-            <p className="text-sm text-[var(--color-error)]">{error}</p>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="edit-project-brief-url">Brief URL</Label>
+                <Input
+                  id="edit-project-brief-url"
+                  value={briefUrl}
+                  onChange={(e) => {
+                    setBriefUrl(e.target.value)
+                    if (fieldErrors.briefUrl) {
+                      setFieldErrors((prev) => ({ ...prev, briefUrl: null }))
+                    }
+                  }}
+                  placeholder="https://..."
+                  disabled={saving}
+                />
+                {fieldErrors.briefUrl && (
+                  <p className="text-xs text-[var(--color-error)]">{fieldErrors.briefUrl}</p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="edit-project-notes">Notes</Label>
+                <Textarea
+                  id="edit-project-notes"
+                  value={notes}
+                  onChange={(e) => {
+                    setNotes(e.target.value)
+                    if (fieldErrors.notes) {
+                      setFieldErrors((prev) => ({ ...prev, notes: null }))
+                    }
+                  }}
+                  placeholder="Optional context for the team..."
+                  rows={5}
+                  disabled={saving}
+                />
+                {fieldErrors.notes && (
+                  <p className="text-xs text-[var(--color-error)]">{fieldErrors.notes}</p>
+                )}
+              </div>
+            </div>
           )}
         </div>
 
