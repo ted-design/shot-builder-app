@@ -103,6 +103,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/login` | LoginPage | Google sign-in. Statically imported (Safari OAuth). |
 | `/pulls/shared/:shareToken` | PullPublicViewPage | Public pull sheet (read-only) |
 | `/pulls/shared/:shareToken/guide` | WarehousePickGuidePage | Guided pick flow (full-screen stepper) |
+| `/shots/shared/:shareToken` | PublicShotSharePage | Public shot share (vNext) |
 | `/demo/*` | DemoPage | Demo mode (blocks writes) |
 
 ### Authenticated Routes
@@ -123,7 +124,9 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/projects/:id/departments` | ProjectDepartmentsPage | |
 | `/projects/:id/settings` | ProjectSettingsPage | |
 | `/products` | ProductsPage | Org-level product library |
+| `/products/new` | ProductEditorPage | Create new product (vNext) |
 | `/products/:productId` | ProductDetailPage | Thin shell + 5 section components (Overview, Colorways, Samples, Assets, Activity) |
+| `/products/:fid/edit` | ProductEditorPage | Edit product (vNext) |
 | `/import-products` | ImportProducts | CSV import |
 | `/library` | LibraryPage | Redirect -> `/library/talent` |
 | `/library/talent` | LibraryTalentPage | Full CRUD: card grid, inline detail, measurements, portfolio, castings |
@@ -144,8 +147,6 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | Old Route | Redirects To |
 |-----------|-------------|
 | `/shots` | `/projects/:currentProjectId/shots` |
-| `/planner` | `/projects/:currentProjectId/shots?view=planner` |
-| `/projects/:id/planner` | `../shots?view=planner` |
 | `/projects/:id/schedule` | `../callsheet` |
 | `/talent` | `/library/talent` |
 | `/locations` | `/library/locations` |
