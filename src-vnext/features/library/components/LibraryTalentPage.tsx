@@ -35,6 +35,7 @@ import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { toast } from "sonner"
 import type { TalentRecord } from "@/shared/types"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
+import { canManageTalent } from "@/shared/lib/rbac"
 import { useProjects } from "@/features/projects/hooks/useProjects"
 import { TalentCastingPrintPortal } from "@/features/library/components/TalentCastingPrintPortal"
 import {
@@ -343,7 +344,7 @@ const CASTING_DECISION_OPTIONS: ReadonlyArray<{ value: string; label: string }> 
 export default function LibraryTalentPage() {
   const { clientId, role, user } = useAuth()
   const isMobile = useIsMobile()
-  const canEdit = (role === "admin" || role === "producer") && !isMobile
+  const canEdit = canManageTalent(role) && !isMobile
   const { data: talent, loading, error } = useTalentLibrary()
   const { data: projects } = useProjects()
   const [query, setQuery] = useState("")

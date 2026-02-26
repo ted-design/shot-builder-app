@@ -5,6 +5,7 @@ import { useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { OfflineBanner } from "@/shared/components/OfflineBanner"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { FloatingActionBar } from "@/shared/components/FloatingActionBar"
+import { useProject } from "@/features/projects/hooks/useProject"
 import { buildNavConfig, getMobileNavConfig } from "./sidebar/nav-config"
 import { useSidebarState } from "./sidebar/useSidebarState"
 import { DesktopSidebar } from "./sidebar/DesktopSidebar"
@@ -18,8 +19,8 @@ export function AppShell() {
   const { collapsed, toggle } = useSidebarState()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  // TODO: Replace with useProject(projectId) hook for real project name
-  const projectName = projectId ? "Project" : undefined
+  const { data: project } = useProject(projectId ?? null)
+  const projectName = project?.name
 
   const isCallSheetPreview =
     pathname.includes("/callsheet") &&

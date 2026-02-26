@@ -80,6 +80,18 @@ export function canFulfillPulls(role: Role): boolean {
   return role === ROLE.ADMIN || role === ROLE.WAREHOUSE
 }
 
+export function canManageTalent(role: Role): boolean {
+  return role === ROLE.ADMIN || role === ROLE.PRODUCER
+}
+
+export function canManageCrew(role: Role): boolean {
+  return role === ROLE.ADMIN || role === ROLE.PRODUCER
+}
+
+export function canManageLocations(role: Role): boolean {
+  return role === ROLE.ADMIN || role === ROLE.PRODUCER
+}
+
 export function isViewer(role: Role): boolean {
   return role === ROLE.VIEWER
 }
