@@ -331,13 +331,13 @@ Admin (role-gated: admin only)
 
 **Goal:** Evolve products from basic CRUD to a managed workflow with taxonomy, better colorways, and sample tracking.
 
-**Status:** In progress.
+**Status:** Complete.
 
 ### Sub-tasks
 
 - [x] **7D.1:** Products audit & mockups (user approval required)
 - [x] **7D.2:** Managed taxonomy (productClassifications collection → Select pickers, type-to-create) — already built in prior phases
-- [ ] **7D.3:** Colorway workflow improvements (bulk create, visual display)
+- [x] **7D.3:** Colorway workflow improvements (bulk create, visual display)
 - [x] **7D.4:** Sample tracking improvements (status pipeline, due date warnings, overdue badges)
 - [x] **7D.5:** Product workspace navigation (simplify tab system) — already built; count badges added
 - [x] **7D.6:** ProductDetailPage decomposition (1,631→240 lines, 6 section components extracted)
@@ -347,7 +347,7 @@ Admin (role-gated: admin only)
 ### Acceptance Criteria
 
 - [x] Classification uses managed taxonomy (Select pickers, not free text)
-- [ ] Colorway bulk create works
+- [x] Colorway bulk create works
 - [x] Sample tracking has status pipeline + overdue/due-soon badges
 - [x] Product navigation is intuitive (audit findings addressed)
 

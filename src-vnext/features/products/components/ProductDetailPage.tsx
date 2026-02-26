@@ -233,6 +233,8 @@ export default function ProductDetailPage() {
               visibleSkus={visibleSkus}
               canEdit={canEdit}
               isFamilyDeleted={isFamilyDeleted}
+              clientId={clientId}
+              userId={user?.uid ?? null}
               onAddColorway={() => navigate(`/products/${family.id}/edit?returnTo=${encodeURIComponent(detailUrl)}&productsReturnTo=${encodeURIComponent(productsReturnTo)}`)}
             />
           )}
