@@ -228,12 +228,12 @@ Admin (role-gated: admin only)
 
 **Goal:** Professional and precise visual identity. Make the app look like it was built by a funded startup, not a side project. First impressions matter for stakeholder onboarding.
 
-**Status:** Not started.
+**Status:** In progress — 6a audit done, 6b mockup done, awaiting 6c + approval.
 
 ### Sub-tasks
 
-- [ ] **6a:** Audit current visual inconsistencies (colors, typography, spacing) (research)
-- [ ] **6b:** Write mockups: color palette, typography scale, component showcase
+- [x] **6a:** Audit current visual inconsistencies (colors, typography, spacing) (research)
+- [x] **6b:** Write mockups: color palette, typography scale, component showcase
 - [ ] **6c:** Write mockups: empty states, loading skeletons, error states, dark mode
 - [ ] **6d:** Get user approval on visual identity
 - [ ] **6e:** Implement brand identity (tokens.css updates, color palette, typography)

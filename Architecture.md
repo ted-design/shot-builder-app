@@ -364,6 +364,25 @@ Visual direction finalized. Zinc neutral scale (not Slate), near-black primary, 
 
 Single source of design truth. CSS custom properties for colors, spacing, typography, shadows, radius. Referenced by Tailwind config. Micro font sizes: `text-3xs` (9px), `text-2xs` (10px), `text-xxs` (11px).
 
+### design-tokens.js (Semantic Classes)
+
+`src/styles/design-tokens.js` — Tailwind plugin providing semantic typography and spacing classes. **Phase 6 mandates their use over raw Tailwind classes.**
+
+| Class | Spec | Usage |
+|---|---|---|
+| `.heading-page` | 24px / 300 / -0.02em / md:28px | Page-level `<h1>` (editorial light weight) |
+| `.heading-section` | 16px / 600 / -0.01em | Section `<h2>` |
+| `.heading-subsection` | 14px / 600 / -0.01em | Subsection `<h3>` |
+| `.label-meta` | 12px / 600 / upper / 0.05em / text-subtle | Uppercase meta labels |
+| `.body-text` | 13px / 400 | Standard body |
+| `.body-text-muted` | 13px / 400 / secondary | De-emphasized body |
+| `.caption` | 12px / 400 / secondary | Small secondary text |
+| `.label` | 13px / 500 | Form labels |
+
+Text color hierarchy: `--color-text` (primary) > `--color-text-secondary` (supporting) > `--color-text-muted` (metadata) > `--color-text-subtle` (placeholders/disabled).
+
+Card standards: `rounded-lg` (8px), `p-4` content, `pb-2` header, `gap-4` grid. Badge font: `text-xxs` (11px) everywhere.
+
 ### shadcn/ui
 
 Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext). Components: Avatar, Badge, Button, Card, Dialog, Dropdown, Label, Popover, Select, Separator, Sheet, Switch, Tabs, Toast, Tooltip. Customization via Tailwind config + tokens.css only -- never modify generated files inline.

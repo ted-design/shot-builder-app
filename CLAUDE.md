@@ -341,6 +341,58 @@ On mobile, when `canEdit = !isMobile && canManageX(role)` already prevents write
 
 `/pulls/shared/:shareToken/guide` — full-screen stepper for one-handed warehouse operation. Components: `WarehousePickGuidePage` (shell + state), `WarehousePickStep` (item card), `WarehousePickProgress` (bar), `WarehousePickOutcomeBar` (3 action buttons). Local state only — no Firestore writes for substitute notes.
 
+## Visual Standardization Rules (Phase 6)
+
+These rules were established by the Phase 6a visual audit and 6b mockups. All new and modified components must follow them.
+
+### Typography Hierarchy
+
+Use semantic classes from `design-tokens.js`, not raw Tailwind:
+
+| Element | Class | Spec |
+|---|---|---|
+| Page title (h1) | `.heading-page` | 24px / font-light (300) / -0.02em / md:28px |
+| Section heading (h2) | `.heading-section` | 16px / font-semibold (600) / -0.01em |
+| Subsection heading (h3) | `.heading-subsection` | 14px / font-semibold (600) / -0.01em |
+| Meta label (uppercase) | `.label-meta` | 12px / font-semibold (600) / uppercase / 0.05em / text-subtle |
+
+- **One `<h1>` per page.** Never two.
+- **No arbitrary pixel sizes.** Use `text-sm` (13px) not `text-[13px]`, `text-2xs` (10px) not `text-[10px]`.
+
+### Text Color Hierarchy
+
+Four levels, clearly separated:
+
+| Token | Zinc | Use for |
+|---|---|---|
+| `--color-text` | 900 | Primary: titles, form values, active items |
+| `--color-text-secondary` | 600 | Supporting: descriptions, body, card subtitles |
+| `--color-text-muted` | 500 | Metadata: timestamps, counts, hints |
+| `--color-text-subtle` | 400 | Placeholders, disabled, label-meta |
+
+### Card Standards
+
+| Property | Standard |
+|---|---|
+| Border radius | `rounded-lg` (8px) — not `rounded-md` |
+| CardContent padding | `p-4` |
+| CardHeader bottom padding | `pb-2` |
+| Card grid gap | `gap-4` |
+
+### Badge Font Size
+
+All badges use `text-xxs` (11px) consistently — both on cards and detail pages.
+
+### Detail Page Navigation
+
+All detail pages use `PageHeader` with breadcrumbs for back navigation. No inline ghost buttons or icon-only back buttons.
+
+### Token Usage
+
+- `text-white` on dark backgrounds → use `text-[var(--color-text-inverted)]`
+- `bg-white` on surfaces → use `bg-[var(--color-surface)]`
+- Sidebar text → use `text-[var(--color-sidebar-text)]` not `text-neutral-*`
+
 ## Shot Status Labels
 
 Canonical labels (from `statusMappings.ts`). Use these everywhere — views, filters, PDFs, badges:
