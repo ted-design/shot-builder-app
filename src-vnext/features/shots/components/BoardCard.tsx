@@ -40,7 +40,7 @@ export function BoardCard({ shot, isDragging, onOpenShot }: BoardCardProps) {
 
   return (
     <div
-      className={`cursor-pointer rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 transition-shadow hover:border-zinc-300 hover:shadow-sm ${
+      className={`cursor-pointer rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 transition-shadow hover:border-[var(--color-border-hover)] hover:shadow-sm ${
         isDragging ? "opacity-50 shadow-md" : ""
       }`}
       onClick={() => onOpenShot(shot.id)}

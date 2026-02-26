@@ -41,8 +41,8 @@ export function BoardColumn({ status, shots, renderCard }: BoardColumnProps) {
   return (
     <div
       ref={setNodeRef}
-      className={`flex min-h-[400px] flex-col rounded-[10px] border border-[var(--color-border)] bg-zinc-50 transition-colors ${
-        isOver ? "border-zinc-400 bg-zinc-100" : ""
+      className={`flex min-h-[400px] flex-col rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-subtle)] transition-colors ${
+        isOver ? "border-[var(--color-border-strong)] bg-[var(--color-surface-muted)]" : ""
       }`}
       data-testid={`board-column-${status}`}
     >
