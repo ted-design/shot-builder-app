@@ -272,7 +272,7 @@ All Firestore paths built via `src-vnext/shared/lib/paths.ts`. Every function re
 3. **React Context** -- Four providers:
    - `AuthProvider`: user, claims, clientId, role
    - `ProjectScopeProvider`: active projectId, project metadata
-   - `ThemeProvider`: dark/light mode (next-themes)
+   - `ThemeProvider`: light/dark/system mode (custom, `sb:theme` localStorage key)
    - `SearchCommandProvider`: command palette state
 4. **React useState** -- Local UI state (sidebar open, form drafts, modal visibility)
 
@@ -363,6 +363,8 @@ Visual direction finalized. Zinc neutral scale (not Slate), near-black primary, 
 ### tokens.css
 
 Single source of design truth. CSS custom properties for colors, spacing, typography, shadows, radius. Referenced by Tailwind config. Micro font sizes: `text-3xs` (9px), `text-2xs` (10px), `text-xxs` (11px).
+
+**Dark mode:** `.dark` class selector block overrides all color tokens (surfaces, text, borders, primary, status badges, table, shadows). Activation via Tailwind `darkMode: 'class'` strategy. ThemeProvider applies `.dark` on `<html>`. FOUC prevention script in `index.html` applies it pre-React. localStorage key: `sb:theme` (`light | dark | system`).
 
 ### design-tokens.js (Semantic Classes)
 

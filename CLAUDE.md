@@ -326,7 +326,7 @@ When refactoring a component's interaction model (e.g., always-editable textarea
 ### design-tokens.js Must Use CSS Variables (Phase 6e)
 
 - `design-tokens.js` (Tailwind plugin) must reference CSS custom properties (`var(--color-text)`, `var(--text-2xl)`) — NOT Tailwind `theme()` calls like `theme('colors.neutral.900')`.
-- Tailwind `theme()` resolves at build time to static hex values, which breaks dark mode token switching. CSS vars resolve at runtime, enabling `data-theme="dark"` overrides.
+- Tailwind `theme()` resolves at build time to static hex values, which breaks dark mode token switching. CSS vars resolve at runtime, enabling `.dark` class overrides.
 
 ### Parallel Agent Sweeps for Cross-Directory Changes (Phase 6f)
 
@@ -354,6 +354,17 @@ When refactoring a component's interaction model (e.g., always-editable textarea
 - **Port-first, extend-later:** When legacy code solves the same problem well, port the proven architecture rather than reinventing. Scope the initial port narrowly (shot entities only), then extend.
 - **Client-side TTL is sufficient** for presence cleanup when docs are tiny and short-lived. A Cloud Function adds complexity without proportional benefit — stale presence docs are filtered out by the client and are harmless.
 - **useAuth() in nested components** is simpler than prop-drilling `clientId` through intermediate components. Since all shot components are within the auth boundary, calling `useAuth()` directly avoids adding props to components that don't otherwise need them.
+
+### Dark Mode Audit Patterns (Phase 6k)
+
+- **`.dark` class, NOT `data-theme` attribute.** Tailwind's `darkMode: 'class'` strategy uses `.dark` on `<html>`. All docs, code, and tokens must reference this consistently. If you see `data-theme="dark"` in any doc, it's stale — the correct mechanism is `.dark` CSS class.
+- **localStorage key convention:** All Shot Builder localStorage keys use the `sb:` prefix (`sb:theme`, `sb:three-panel:list-prefs`). Never use bare key names like `"theme"` — always `"sb:theme"`.
+- **FOUC prevention is critical.** The inline `<script>` in `index.html` must apply `.dark` before React mounts. It reads `sb:theme` and falls back to `prefers-color-scheme`. This script must stay in sync with ThemeProvider's logic.
+- **Legacy key migration:** When renaming a localStorage key, always add migration logic in both the FOUC script and the React provider. Read old key → write new key → delete old key.
+- **Image overlays (`bg-black/*`) are dark-mode safe.** Semi-transparent black overlays on images (action bars, badges, checkboxes) are intentionally dark regardless of theme — they contrast with image content. Do NOT convert these to CSS variables.
+- **Surface/border colors must use CSS variables.** Any `bg-zinc-*`, `bg-slate-*`, `border-zinc-*`, `border-slate-*` used as surface backgrounds or layout borders in vNext components MUST use `var(--color-surface-*)` or `var(--color-border-*)` tokens instead. These break silently in dark mode.
+- **Domain-specific accent colors use `dark:` prefix.** For semantic colors outside the token system (e.g., `text-teal-700` for products, `text-indigo-700` for talent, `bg-amber-50` for schedule breaks), add Tailwind `dark:` variants inline (e.g., `text-teal-700 dark:text-teal-300`). Don't create tokens for every domain color.
+- **Document the activation mechanism, not just the tokens.** Dark mode has 3 interconnected pieces: (1) CSS tokens in `tokens.css`, (2) ThemeProvider React context, (3) FOUC script in `index.html`. All three must agree on the class name and localStorage key. A mismatch between any two causes bugs.
 
 ## Mobile & Tablet Patterns (Phase 5)
 

@@ -108,6 +108,16 @@ Before referencing any CSS custom property (`var(--color-*)`) in a component:
 2. Missing tokens silently resolve to nothing — the build won't catch them
 3. If a new token is needed, add it to `tokens.css` first (Delta 1 pattern)
 
+### Dark Mode Compatibility
+
+All new vNext components must work in dark mode:
+1. **Surface colors:** Use `var(--color-surface)`, `var(--color-surface-subtle)`, `var(--color-bg)` — never `bg-white`, `bg-zinc-50`, `bg-slate-50`
+2. **Border colors:** Use `var(--color-border)`, `var(--color-border-strong)` — never `border-zinc-*`, `border-slate-*`
+3. **Domain accent text** (teal for products, indigo for talent, etc.): Add `dark:` Tailwind variants for -700/-800 shades (e.g., `text-teal-700 dark:text-teal-300`)
+4. **Image overlays** (`bg-black/*`): Leave as-is — intentionally dark over image content
+5. **Print portals:** Static white — leave as-is
+6. **Activation:** `.dark` CSS class on `<html>`, NOT `data-theme` attribute. localStorage key: `sb:theme`
+
 ---
 
 ## Off-Limits Without Approval

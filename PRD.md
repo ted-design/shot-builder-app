@@ -242,7 +242,7 @@ Shot cards with hero images. Product thumbnails in pickers. Gallery view for cre
 - **Not maximum flexibility.** Fewer knobs, fewer modes. Opinionated defaults over configuration.
 - **Not mobile-first development.** Desktop is the primary creation surface. Mobile/tablet are operational.
 - **No custom offline sync engine.** Firestore's default IndexedDB persistence is the ceiling.
-- **No user-customizable themes.** Design tokens are fixed and consistent.
+- **No user-customizable themes.** Design tokens are fixed. Dark mode (light/dark/system) is the only theme option — no custom color palettes or branding per-user.
 - **No feature parity on day 1.** Ship iteratively.
 
 ---
