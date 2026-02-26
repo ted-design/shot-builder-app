@@ -98,7 +98,7 @@ describe("ShotVersionHistorySection", () => {
     render(<ShotVersionHistorySection shot={makeShot({})} />)
     await user.click(screen.getByRole("button", { name: /history/i }))
 
-    expect(screen.getByText("No history yet.")).toBeInTheDocument()
+    expect(screen.getByText("No history yet")).toBeInTheDocument()
   })
 
   it("restores a selected version after confirmation", async () => {

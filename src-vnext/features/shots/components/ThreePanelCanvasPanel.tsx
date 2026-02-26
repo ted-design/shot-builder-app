@@ -4,12 +4,14 @@ import { HeroImageSection } from "@/features/shots/components/HeroImageSection"
 import { ActiveLookCoverReferencesPanel } from "@/features/shots/components/ActiveLookCoverReferencesPanel"
 import { NotesSection } from "@/features/shots/components/NotesSection"
 import { ShotReferenceLinksSection } from "@/features/shots/components/ShotReferenceLinksSection"
+import { CompactActiveEditors } from "@/features/shots/components/ActiveEditorsBar"
 import {
   SectionLabel,
   DescriptionEditor,
   SaveIndicator,
 } from "@/features/shots/components/ShotDetailShared"
 import { textPreview } from "@/shared/lib/textPreview"
+import { useAuth } from "@/app/providers/AuthProvider"
 import type { SaveState } from "@/shared/hooks/useAutoSave"
 import type { Shot } from "@/shared/types"
 
@@ -36,12 +38,13 @@ export function ThreePanelCanvasPanel({
   canDoOperational,
   onClose,
 }: ThreePanelCanvasPanelProps) {
+  const { clientId } = useAuth()
   const safeDescription = textPreview(shot.description, Number.POSITIVE_INFINITY)
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      {/* Back to list */}
-      <div className="flex-shrink-0 border-b border-[var(--color-border)] px-4 py-1.5">
+      {/* Back to list + presence indicator */}
+      <div className="flex-shrink-0 border-b border-[var(--color-border)] px-4 py-1.5 flex items-center justify-between">
         <button
           type="button"
           onClick={onClose}
@@ -50,6 +53,11 @@ export function ThreePanelCanvasPanel({
           <ChevronLeft className="h-3.5 w-3.5" />
           <span>Shots</span>
         </button>
+        <CompactActiveEditors
+          clientId={clientId}
+          entityType="shots"
+          entityId={shot.id}
+        />
       </div>
 
       <div className="flex flex-col gap-4 p-4">
@@ -59,10 +67,10 @@ export function ThreePanelCanvasPanel({
             <InlineEdit
               value={shot.title}
               onSave={(title) => save({ title })}
-              className="text-lg font-semibold"
+              className="heading-section"
             />
           ) : (
-            <h2 className="text-lg font-semibold text-[var(--color-text)]">
+            <h2 className="heading-section">
               {shot.title || "Untitled Shot"}
             </h2>
           )}

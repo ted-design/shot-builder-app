@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import type { Project, ProjectStatus } from "@/shared/types"
 import { updateProjectField } from "@/features/projects/lib/updateProject"
@@ -54,22 +54,27 @@ export function EditProjectDialog({
   const [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({})
 
+  // Track previous open state to initialize form only on open transition.
+  // `project` is excluded from deps because it's a live onSnapshot reference
+  // that creates new objects on each Firestore update, which would reset
+  // local form state mid-edit.
+  const wasOpen = useRef(false)
   useEffect(() => {
-    if (!open) return
-    if (!project) return
-    setName(project.name ?? "")
-    setShootDates(project.shootDates ? [...project.shootDates] : [])
-    setBriefUrl(project.briefUrl ?? "")
-    setNotes(project.notes ?? "")
-    setStatus(project.status ?? "active")
-    setFieldErrors({})
+    if (open && !wasOpen.current && project) {
+      setName(project.name ?? "")
+      setShootDates(project.shootDates ? [...project.shootDates] : [])
+      setBriefUrl(project.briefUrl ?? "")
+      setNotes(project.notes ?? "")
+      setStatus(project.status ?? "active")
+      setFieldErrors({})
 
-    // Auto-expand if any optional field has existing data
-    const hasOptionalData =
-      (project.shootDates && project.shootDates.length > 0) ||
-      !!project.briefUrl ||
-      !!project.notes
-    setExpanded(!!hasOptionalData)
+      const hasOptionalData =
+        (project.shootDates && project.shootDates.length > 0) ||
+        !!project.briefUrl ||
+        !!project.notes
+      setExpanded(!!hasOptionalData)
+    }
+    wasOpen.current = open
   }, [open, project])
 
   const canSave = useMemo(() => {

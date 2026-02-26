@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/ui/dropdown-menu"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
+import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { FolderKanban, Plus, Search, SlidersHorizontal } from "lucide-react"
 
 type ProjectFilter = "active" | "completed" | "archived" | "all"
@@ -65,8 +66,12 @@ export default function ProjectDashboard() {
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
 
   const canManage = canManageProjects(role)
-  const showCreate = canManage && !isMobile
+  const showCreate = canManage
   const showActions = canManage && !isMobile
+
+  useKeyboardShortcuts([
+    { key: "c", handler: () => { if (showCreate) setCreateOpen(true) } },
+  ])
 
   const filter = normalizeFilter(searchParams.get("filter"))
   const sort = normalizeSort(searchParams.get("sort"))
@@ -193,7 +198,7 @@ export default function ProjectDashboard() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <PageHeader title="Projects" breadcrumbs={[{ label: "Projects" }]} />
+        <PageHeader title="Projects" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, idx) => (
             <Skeleton key={idx} className="h-[108px] rounded-lg" />
@@ -248,13 +253,18 @@ export default function ProjectDashboard() {
     <ErrorBoundary>
       <PageHeader
         title="Projects"
-        breadcrumbs={[{ label: "Projects" }]}
         actions={
           showCreate ? (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Project
-            </Button>
+            isMobile ? (
+              <Button size="icon" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Project
+              </Button>
+            )
           ) : undefined
         }
       />

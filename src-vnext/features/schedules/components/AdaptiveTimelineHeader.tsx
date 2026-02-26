@@ -7,7 +7,7 @@ import type { ProjectedScheduleRow } from "@/features/schedules/lib/projection"
 function trackDotClass(trackId: string): string {
   const lower = trackId.toLowerCase()
   if (lower.includes("video")) return "bg-blue-500"
-  if (lower.includes("photo")) return "bg-slate-500"
+  if (lower.includes("photo")) return "bg-[var(--color-text-muted)]"
   return "bg-[var(--color-primary)]"
 }
 

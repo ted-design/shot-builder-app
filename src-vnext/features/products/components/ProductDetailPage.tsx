@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react"
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
-import { EmptyState } from "@/shared/components/EmptyState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
+import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { ProductImage } from "@/features/products/components/ProductImage"
 import { ProductSkuCard } from "@/features/products/components/ProductSkuCard"
 import { setProductFamilyDeleted } from "@/features/products/lib/productWrites"
@@ -328,7 +330,7 @@ export default function ProductDetailPage() {
     return out
   }, [sampleStatusFilter, sampleTypeFilter, scopedSamples])
 
-  if (famLoading) return <LoadingState loading />
+  if (famLoading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
 
   if (famError) {
     return (
@@ -407,6 +409,7 @@ export default function ProductDetailPage() {
   }
 
   return (
+    <ErrorBoundary>
     <div className="flex flex-col gap-6">
       <PageHeader
         title={family.styleName}
@@ -474,7 +477,7 @@ export default function ProductDetailPage() {
             className="h-48 w-48 shrink-0 sm:h-56 sm:w-56"
           />
           <div className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold text-[var(--color-text)]">
+            <h2 className="heading-section">
               {family.styleName}
             </h2>
             {family.styleNumber && (
@@ -535,7 +538,7 @@ export default function ProductDetailPage() {
           <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
             <ProductWorkspaceNav items={navItems} activeKey={activeSection} onChange={setSection} />
             <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Quick stats
               </div>
               <div className="mt-2 grid gap-1 text-xs text-[var(--color-text-muted)]">
@@ -674,24 +677,24 @@ export default function ProductDetailPage() {
                 </div>
 
                 <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                  <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                  <div className="label-meta">
                     Classification
                   </div>
                   <div className="mt-2 grid gap-2 sm:grid-cols-3">
                     <div>
-                      <div className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">Gender</div>
+                      <div className="text-2xs uppercase tracking-wider text-[var(--color-text-subtle)]">Gender</div>
                       <div className="mt-0.5 text-sm text-[var(--color-text)]">
                         {family.gender ? humanizeClassificationKey(family.gender) : "—"}
                       </div>
                     </div>
                     <div>
-                      <div className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">Type</div>
+                      <div className="text-2xs uppercase tracking-wider text-[var(--color-text-subtle)]">Type</div>
                       <div className="mt-0.5 text-sm text-[var(--color-text)]">
                         {family.productType ? humanizeClassificationKey(family.productType) : "—"}
                       </div>
                     </div>
                     <div>
-                      <div className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">Subcategory</div>
+                      <div className="text-2xs uppercase tracking-wider text-[var(--color-text-subtle)]">Subcategory</div>
                       <div className="mt-0.5 text-sm text-[var(--color-text)]">
                         {family.productSubcategory ? humanizeClassificationKey(family.productSubcategory) : "—"}
                       </div>
@@ -699,7 +702,7 @@ export default function ProductDetailPage() {
                   </div>
                   {notesSnippet && (
                     <div className="mt-3 rounded-md bg-[var(--color-surface-subtle)] p-3">
-                      <div className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">Notes</div>
+                      <div className="text-2xs uppercase tracking-wider text-[var(--color-text-subtle)]">Notes</div>
                       <div className="mt-1 line-clamp-2 text-xs text-[var(--color-text-muted)]">{notesSnippet}</div>
                     </div>
                   )}
@@ -721,7 +724,7 @@ export default function ProductDetailPage() {
                 {skuLoading ? (
                   <LoadingState loading />
                 ) : activeSkus.length === 0 ? (
-                  <EmptyState
+                  <InlineEmpty
                     icon={<Palette className="h-8 w-8" />}
                     title="No colorways"
                     description="This product family has no SKU colorways defined."
@@ -797,7 +800,7 @@ export default function ProductDetailPage() {
 
                       <div className="grid gap-3 md:grid-cols-3">
               <div className="flex flex-col gap-1">
-                          <Label className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <Label className="text-2xs uppercase tracking-wider text-[var(--color-text-subtle)]">
                             Scope
                           </Label>
                           <Select
@@ -819,7 +822,7 @@ export default function ProductDetailPage() {
                         </div>
 
                         <div className="flex flex-col gap-1">
-                          <Label className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <Label className="text-2xs uppercase tracking-wider text-[var(--color-text-subtle)]">
                             Type
                           </Label>
                           <Select value={sampleTypeFilter} onValueChange={(value) => setSampleTypeFilter(value as SampleTypeFilter)}>
@@ -836,7 +839,7 @@ export default function ProductDetailPage() {
                         </div>
 
                         <div className="flex flex-col gap-1">
-                          <Label className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <Label className="text-2xs uppercase tracking-wider text-[var(--color-text-subtle)]">
                             Showing
                           </Label>
                           <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-2 text-sm text-[var(--color-text)]">
@@ -847,7 +850,7 @@ export default function ProductDetailPage() {
                     </div>
 
                     {filteredSamples.length === 0 ? (
-                      <EmptyState
+                      <InlineEmpty
                         icon={<Box className="h-8 w-8" />}
                         title="No samples"
                         description="No samples match the current filters."
@@ -1000,7 +1003,7 @@ export default function ProductDetailPage() {
                 </div>
 
                 {assetsCount === 0 ? (
-                  <EmptyState
+                  <InlineEmpty
                     icon={<FileText className="h-8 w-8" />}
                     title="No assets"
                     description="No images or documents are currently attached to this product."
@@ -1008,7 +1011,7 @@ export default function ProductDetailPage() {
                 ) : (
                   <div className="flex flex-col gap-6">
                     <div className="flex flex-col gap-3">
-                      <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                      <div className="label-meta">
                         Documents
                       </div>
                       {documentsError && (
@@ -1019,9 +1022,11 @@ export default function ProductDetailPage() {
                       {documentsLoading ? (
                         <LoadingState loading />
                       ) : visibleDocuments.length === 0 ? (
-                        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm text-[var(--color-text-muted)]">
-                          No documents uploaded yet.
-                        </div>
+                        <InlineEmpty
+                          icon={<FileText className="h-8 w-8" />}
+                          title="No documents"
+                          description="No documents uploaded yet."
+                        />
                       ) : (
                         <div className="flex flex-col gap-2">
                           {visibleDocuments.map((doc) => (
@@ -1042,7 +1047,7 @@ export default function ProductDetailPage() {
 
                     {familyImages.length > 0 && (
                       <div className="flex flex-col gap-3">
-                        <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                        <div className="label-meta">
                           Family images
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1069,7 +1074,7 @@ export default function ProductDetailPage() {
 
                     {skuImages.length > 0 && (
                       <div className="flex flex-col gap-3">
-                        <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                        <div className="label-meta">
                           Colorway images
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1180,7 +1185,10 @@ export default function ProductDetailPage() {
                   {commentsLoading ? (
                     <LoadingState loading />
                   ) : comments.length === 0 ? (
-                    <div className="text-sm text-[var(--color-text-muted)]">No comments yet.</div>
+                    <InlineEmpty
+                      icon={<MessageSquare className="h-8 w-8" />}
+                      title="No comments yet"
+                    />
                   ) : (
                     <div className="flex flex-col gap-3">
                       {comments.map((comment) => {
@@ -1618,5 +1626,6 @@ export default function ProductDetailPage() {
         }}
       />
     </div>
+    </ErrorBoundary>
   )
 }

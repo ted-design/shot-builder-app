@@ -21,10 +21,10 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 const ACTIVE_COLORS: Record<string, string> = {
-  gray: "bg-[var(--color-status-gray-text)] text-white border-[var(--color-status-gray-text)]",
-  blue: "bg-[var(--color-status-blue-text)] text-white border-[var(--color-status-blue-text)]",
-  green: "bg-[var(--color-status-green-text)] text-white border-[var(--color-status-green-text)]",
-  amber: "bg-[var(--color-status-amber-text)] text-white border-[var(--color-status-amber-text)]",
+  gray: "bg-[var(--color-status-gray-text)] text-[var(--color-text-inverted)] border-[var(--color-status-gray-text)]",
+  blue: "bg-[var(--color-status-blue-text)] text-[var(--color-text-inverted)] border-[var(--color-status-blue-text)]",
+  green: "bg-[var(--color-status-green-text)] text-[var(--color-text-inverted)] border-[var(--color-status-green-text)]",
+  amber: "bg-[var(--color-status-amber-text)] text-[var(--color-text-inverted)] border-[var(--color-status-amber-text)]",
 }
 
 /**

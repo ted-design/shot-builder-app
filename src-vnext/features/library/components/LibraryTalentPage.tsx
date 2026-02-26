@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Users, Plus, X, Upload, Trash2, GripVertical } from "lucide-react"
+import { Users, Plus, X, Upload, Trash2, GripVertical, Search } from "lucide-react"
 import type { ChangeEvent } from "react"
 import {
   DndContext,
@@ -21,6 +21,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { useTalentLibrary } from "@/features/library/hooks/useTalentLibrary"
 import { Input } from "@/ui/input"
@@ -34,11 +35,13 @@ import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { toast } from "sonner"
 import type { TalentRecord } from "@/shared/types"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
+import { canManageTalent } from "@/shared/lib/rbac"
 import { useProjects } from "@/features/projects/hooks/useProjects"
 import { TalentCastingPrintPortal } from "@/features/library/components/TalentCastingPrintPortal"
 import {
   addTalentToProject,
   createTalent,
+  deleteTalent,
   deleteTalentImagePaths,
   removeTalentFromProject,
   removeTalentHeadshot,
@@ -47,6 +50,8 @@ import {
   uploadTalentPortfolioImages,
   updateTalent,
 } from "@/features/library/lib/talentWrites"
+import { getMeasurementOptionsForGender } from "@/features/library/lib/measurementOptions"
+import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import {
   Dialog,
   DialogContent,
@@ -203,7 +208,7 @@ function SortableImageTile({
           {...attributes}
           {...listeners}
           disabled={disabled}
-          className="rounded bg-black/40 p-1 text-white hover:bg-black/55 disabled:opacity-40"
+          className="rounded bg-black/40 p-1 text-[var(--color-text-inverted)] hover:bg-black/55 disabled:opacity-40"
           aria-label="Reorder"
         >
           <GripVertical className="h-4 w-4" />
@@ -215,7 +220,7 @@ function SortableImageTile({
           type="button"
           disabled={disabled}
           onClick={onDelete}
-          className="rounded bg-black/40 p-1 text-white hover:bg-black/55 disabled:opacity-40"
+          className="rounded bg-black/40 p-1 text-[var(--color-text-inverted)] hover:bg-black/55 disabled:opacity-40"
           aria-label="Remove image"
         >
           <Trash2 className="h-4 w-4" />
@@ -319,15 +324,18 @@ function InlineTextarea({
   )
 }
 
-const MEASUREMENT_FIELDS: ReadonlyArray<{ key: string; label: string; placeholder: string }> = [
-  { key: "height", label: "Height", placeholder: `e.g. 5'9"` },
-  { key: "bust", label: "Bust", placeholder: `e.g. 34"` },
-  { key: "waist", label: "Waist", placeholder: `e.g. 25"` },
-  { key: "hips", label: "Hips", placeholder: `e.g. 35"` },
-  { key: "inseam", label: "Inseam", placeholder: `e.g. 32"` },
-  { key: "dress", label: "Dress", placeholder: `e.g. 2` },
-  { key: "shoes", label: "Shoes", placeholder: `e.g. 8` },
-]
+const MEASUREMENT_PLACEHOLDERS: Readonly<Record<string, string>> = {
+  height: `e.g. 5'9"`,
+  bust: `e.g. 34"`,
+  waist: `e.g. 25"`,
+  hips: `e.g. 35"`,
+  inseam: `e.g. 32"`,
+  dress: "e.g. 2",
+  shoes: "e.g. 8",
+  collar: `e.g. 15.5"`,
+  sleeve: `e.g. 34"`,
+  suit: "e.g. 40R",
+}
 
 const SELECT_NONE = "__none__"
 
@@ -342,12 +350,18 @@ const CASTING_DECISION_OPTIONS: ReadonlyArray<{ value: string; label: string }> 
 export default function LibraryTalentPage() {
   const { clientId, role, user } = useAuth()
   const isMobile = useIsMobile()
-  const canEdit = (role === "admin" || role === "producer") && !isMobile
+  const canCreate = canManageTalent(role)
+  const canEdit = canCreate && !isMobile
   const { data: talent, loading, error } = useTalentLibrary()
   const { data: projects } = useProjects()
   const [query, setQuery] = useState("")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+
+  useKeyboardShortcuts([
+    { key: "c", handler: () => { if (canCreate) setCreateOpen(true) } },
+  ])
+
   const [busy, setBusy] = useState(false)
   const [headshotRemoveOpen, setHeadshotRemoveOpen] = useState(false)
   const [galleryRemoveOpen, setGalleryRemoveOpen] = useState(false)
@@ -355,6 +369,7 @@ export default function LibraryTalentPage() {
   const [sessionRemoveOpen, setSessionRemoveOpen] = useState(false)
   const [sessionRemoveTarget, setSessionRemoveTarget] = useState<CastingSession | null>(null)
   const [sessionExpanded, setSessionExpanded] = useState<Record<string, boolean>>({})
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [createSessionOpen, setCreateSessionOpen] = useState(false)
   const [printSessionId, setPrintSessionId] = useState<string | null>(null)
   const [createSessionDate, setCreateSessionDate] = useState(() =>
@@ -704,7 +719,7 @@ export default function LibraryTalentPage() {
     }
   }
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
     return (
@@ -720,11 +735,17 @@ export default function LibraryTalentPage() {
         title="Talent"
         breadcrumbs={[{ label: "Library" }]}
         actions={
-          canEdit ? (
-            <Button onClick={() => setCreateOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              New talent
-            </Button>
+          canCreate ? (
+            isMobile ? (
+              <Button size="icon" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button onClick={() => setCreateOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                New talent
+              </Button>
+            )
           ) : null
         }
       />
@@ -734,12 +755,12 @@ export default function LibraryTalentPage() {
           icon={<Users className="h-12 w-12" />}
           title="No talent yet"
           description={
-            canEdit
+            canCreate
               ? "Add talent profiles to build a casting-ready library."
               : "Talent profiles will appear here."
           }
-          actionLabel={canEdit ? "Create talent" : undefined}
-          onAction={canEdit ? () => setCreateOpen(true) : undefined}
+          actionLabel={canCreate ? "Create talent" : undefined}
+          onAction={canCreate ? () => setCreateOpen(true) : undefined}
         />
       ) : (
         <div className="flex flex-col gap-4">
@@ -752,9 +773,13 @@ export default function LibraryTalentPage() {
           </div>
 
           {filtered.length === 0 ? (
-            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <p className="text-sm text-[var(--color-text-muted)]">No results.</p>
-            </div>
+            <EmptyState
+              icon={<Search className="h-12 w-12" />}
+              title="No matching talent"
+              description="Try adjusting your search."
+              actionLabel="Clear search"
+              onAction={() => setQuery("")}
+            />
           ) : (
             <>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -765,10 +790,10 @@ export default function LibraryTalentPage() {
                       key={t.id}
                       type="button"
                       onClick={() => setSelectedId((prev) => (prev === t.id ? null : t.id))}
-                      className={`rounded-md border p-3 text-left transition-colors ${
+                      className={`rounded-md border p-3 text-left transition-[colors,box-shadow] ${
                         selected
                           ? "border-[var(--color-border)] bg-[var(--color-surface-subtle)]"
-                          : "border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)]"
+                          : "border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] hover:shadow-md"
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -812,7 +837,7 @@ export default function LibraryTalentPage() {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <div className="label-meta">
                             Name
                           </div>
                           <div className="mt-1 text-xl font-semibold text-[var(--color-text)]">
@@ -831,20 +856,34 @@ export default function LibraryTalentPage() {
                           </div>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setSelectedId(null)}
-                        aria-label="Close details"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {canEdit ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteOpen(true)}
+                            disabled={busy}
+                            aria-label="Delete talent"
+                            className="text-[var(--color-error)] hover:text-[var(--color-error)]"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedId(null)}
+                          aria-label="Close details"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="mt-5 grid gap-6 lg:grid-cols-2">
                       <div className="flex flex-col gap-4">
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                          <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <div className="label-meta">
                             Headshot
                           </div>
                           <div className="mt-3 flex items-center gap-2">
@@ -885,7 +924,7 @@ export default function LibraryTalentPage() {
                         </div>
 
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                          <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <div className="label-meta">
                             Contact
                           </div>
                           <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -956,7 +995,7 @@ export default function LibraryTalentPage() {
                         </div>
 
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                          <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <div className="label-meta">
                             Projects
                           </div>
                           <div className="mt-3 flex flex-col gap-2">
@@ -1046,11 +1085,11 @@ export default function LibraryTalentPage() {
 
                       <div className="flex flex-col gap-4">
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                          <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <div className="label-meta">
                             Measurements
                           </div>
                           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                            {MEASUREMENT_FIELDS.map((field) => {
+                            {getMeasurementOptionsForGender(selected.gender).map((field) => {
                               const measurements = selected.measurements ?? {}
                               const value = (measurements as Record<string, unknown>)[field.key]
                               const display = typeof value === "string" || typeof value === "number" ? String(value) : ""
@@ -1059,7 +1098,7 @@ export default function LibraryTalentPage() {
                                   <div className="text-xs text-[var(--color-text-muted)]">{field.label}</div>
                                   <InlineInput
                                     value={display}
-                                    placeholder={field.placeholder}
+                                    placeholder={MEASUREMENT_PLACEHOLDERS[field.key] ?? "—"}
                                     disabled={!canEdit || busy}
                                     onCommit={(next) => {
                                       const nextMeasurements = { ...(selected.measurements ?? {}) }
@@ -1073,12 +1112,13 @@ export default function LibraryTalentPage() {
                             })}
                           </div>
                           <div className="mt-3 text-xs text-[var(--color-text-muted)]">
-                            Tip: keep values flexible (e.g. 5&apos;9&quot;, 34&quot;).
+                            {selected.gender ? `Showing fields for ${selected.gender}.` : "Set gender to show relevant fields."}
+                            {" "}Tip: keep values flexible (e.g. 5&apos;9&quot;, 34&quot;).
                           </div>
                         </div>
 
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                          <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          <div className="label-meta">
                             Notes
                           </div>
                           <InlineTextarea
@@ -1094,7 +1134,7 @@ export default function LibraryTalentPage() {
 
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                           <div className="flex items-center justify-between gap-3">
-                            <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                            <div className="label-meta">
                               Portfolio
                             </div>
                             {canEdit ? (
@@ -1167,7 +1207,7 @@ export default function LibraryTalentPage() {
 
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                           <div className="flex items-center justify-between gap-3">
-                            <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                            <div className="label-meta">
                               Castings
                             </div>
                             {canEdit ? (
@@ -1407,7 +1447,7 @@ export default function LibraryTalentPage() {
                                           </div>
 
                                           <div className="flex items-center justify-between gap-3">
-                                            <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                                            <div className="label-meta">
                                               Images
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -1532,7 +1572,7 @@ export default function LibraryTalentPage() {
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Name
               </div>
               <Input
@@ -1543,7 +1583,7 @@ export default function LibraryTalentPage() {
               />
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Agency
               </div>
               <Input
@@ -1554,7 +1594,7 @@ export default function LibraryTalentPage() {
               />
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Gender
               </div>
               <Select
@@ -1575,7 +1615,7 @@ export default function LibraryTalentPage() {
               </Select>
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Email
               </div>
               <Input
@@ -1586,7 +1626,7 @@ export default function LibraryTalentPage() {
               />
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Phone
               </div>
               <Input
@@ -1597,7 +1637,7 @@ export default function LibraryTalentPage() {
               />
             </div>
             <div className="sm:col-span-2">
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Reference URL
               </div>
               <Input
@@ -1608,7 +1648,7 @@ export default function LibraryTalentPage() {
               />
             </div>
             <div className="sm:col-span-2">
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Notes
               </div>
               <Textarea
@@ -1699,7 +1739,7 @@ export default function LibraryTalentPage() {
           </DialogHeader>
           <div className="grid gap-4">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Date
               </div>
               <Input
@@ -1711,7 +1751,7 @@ export default function LibraryTalentPage() {
               />
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+              <div className="label-meta">
                 Title (optional)
               </div>
               <Input
@@ -1733,6 +1773,39 @@ export default function LibraryTalentPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete talent?"
+        description="This permanently deletes this talent profile and all associated images. This cannot be undone."
+        confirmLabel={busy ? "Deleting..." : "Delete"}
+        destructive
+        confirmDisabled={busy}
+        onConfirm={() => {
+          if (!clientId || !selected) return
+          const allPaths: (string | null | undefined)[] = [
+            selected.headshotPath,
+            ...(selected.galleryImages ?? []).map((i) => i.path),
+            ...(selected.castingSessions ?? []).flatMap((s) =>
+              (s.images ?? []).map((i) => i.path),
+            ),
+          ]
+          setBusy(true)
+          deleteTalent({ clientId, talentId: selected.id, imagePaths: allPaths })
+            .then(() => {
+              toast.success("Talent deleted")
+              setSelectedId(null)
+              setDeleteOpen(false)
+            })
+            .catch((err) =>
+              toast.error("Failed to delete", {
+                description: err instanceof Error ? err.message : "Unknown error",
+              }),
+            )
+            .finally(() => setBusy(false))
+        }}
+      />
 
       {selected && printSession ? (
         <TalentCastingPrintPortal

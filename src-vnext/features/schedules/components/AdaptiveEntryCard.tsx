@@ -29,7 +29,7 @@ const ENTRY_TYPE_STYLE: Record<
   shot: { icon: Camera, barColor: "bg-[var(--color-primary)]" },
   setup: { icon: Wrench, barColor: "bg-[var(--color-text-muted)]" },
   break: { icon: Coffee, barColor: "bg-amber-400" },
-  move: { icon: Truck, barColor: "bg-slate-400" },
+  move: { icon: Truck, barColor: "bg-[var(--color-text-subtle)]" },
   banner: { icon: StickyNote, barColor: "bg-[var(--color-text-subtle)]" },
 }
 
@@ -38,7 +38,7 @@ const ENTRY_TYPE_STYLE: Record<
 function trackDotColor(trackId: string): string {
   const lower = trackId.toLowerCase()
   if (lower.includes("video")) return "bg-blue-500"
-  if (lower.includes("photo")) return "bg-slate-500"
+  if (lower.includes("photo")) return "bg-[var(--color-text-muted)]"
   return "bg-[var(--color-primary)]"
 }
 
@@ -222,7 +222,7 @@ export function AdaptiveEntryCard({
           {fields.showProducts && productsText ? (
             <div className="mt-0.5 flex items-start gap-1">
               <Package className="mt-px h-[11px] w-[11px] shrink-0 text-teal-500" />
-              <span className="truncate text-xxs leading-snug text-teal-700">
+              <span className="truncate text-xxs leading-snug text-teal-700 dark:text-teal-300">
                 {productsText}
               </span>
             </div>
@@ -231,7 +231,7 @@ export function AdaptiveEntryCard({
           {fields.showTalent && talentText ? (
             <div className="mt-0.5 flex items-start gap-1">
               <TalentIcon className="mt-px h-[11px] w-[11px] shrink-0 text-indigo-500" />
-              <span className="truncate text-xxs leading-snug text-indigo-700">
+              <span className="truncate text-xxs leading-snug text-indigo-700 dark:text-indigo-300">
                 {talentText}
               </span>
             </div>
@@ -240,7 +240,7 @@ export function AdaptiveEntryCard({
           {fields.showLocation && locationText ? (
             <div className="mt-0.5 flex items-start gap-1">
               <MapPin className="mt-px h-[11px] w-[11px] shrink-0 text-emerald-500" />
-              <span className="truncate text-xxs leading-snug text-emerald-700">
+              <span className="truncate text-xxs leading-snug text-emerald-700 dark:text-emerald-300">
                 {locationText}
               </span>
             </div>
@@ -249,7 +249,7 @@ export function AdaptiveEntryCard({
           {fields.showNotes && notesText ? (
             <div className="mt-0.5 flex items-start gap-1">
               <FileText className="mt-px h-[11px] w-[11px] shrink-0 text-amber-500" />
-              <span className="truncate text-xxs italic leading-snug text-amber-800">
+              <span className="truncate text-xxs italic leading-snug text-amber-800 dark:text-amber-300">
                 {notesText}
               </span>
             </div>

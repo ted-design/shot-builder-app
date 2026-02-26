@@ -39,8 +39,8 @@ export function SidebarNavGroup({
             className={cn(
               "relative flex items-center justify-center rounded-md px-2 py-2 text-sm font-medium transition-colors",
               anyChildActive
-                ? "bg-[var(--color-sidebar-active)] text-white"
-                : "text-neutral-300 hover:bg-[var(--color-sidebar-hover)] hover:text-white",
+                ? "bg-[var(--color-sidebar-active)] text-[var(--color-sidebar-text-active)]"
+                : "text-[var(--color-sidebar-text-active)] hover:bg-[var(--color-sidebar-hover)] hover:text-[var(--color-sidebar-text-active)]",
             )}
           >
             {anyChildActive && (
@@ -60,13 +60,13 @@ export function SidebarNavGroup({
     <div>
       <button
         onClick={() => setOpen((prev) => !prev)}
-        className="relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-neutral-300 transition-colors hover:bg-[var(--color-sidebar-hover)] hover:text-white"
+        className="relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-[var(--color-sidebar-text-active)] transition-colors hover:bg-[var(--color-sidebar-hover)] hover:text-[var(--color-sidebar-text-active)]"
       >
         <NavIcon name={group.iconName} />
         <span className="flex-1 text-left">{group.label}</span>
         <ChevronRight
           className={cn(
-            "h-4 w-4 shrink-0 text-neutral-500 transition-transform duration-150",
+            "h-4 w-4 shrink-0 text-[var(--color-sidebar-text)] transition-transform duration-150",
             open && "rotate-90",
           )}
         />
@@ -83,8 +83,8 @@ export function SidebarNavGroup({
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
                   active
-                    ? "text-white"
-                    : "text-neutral-400 hover:bg-[var(--color-sidebar-hover)] hover:text-white",
+                    ? "text-[var(--color-sidebar-text-active)]"
+                    : "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-[var(--color-sidebar-text-active)]",
                 )}
               >
                 <NavIcon name={child.iconName} className="h-4 w-4 shrink-0" />

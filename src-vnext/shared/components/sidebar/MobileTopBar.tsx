@@ -26,8 +26,8 @@ export function MobileTopBar({ onMenuOpen, projectName }: MobileTopBarProps) {
           <Menu className="h-5 w-5" />
         </Button>
         {isTablet && projectName ? (
-          <div className="text-sm text-neutral-500">
-            <span className="text-neutral-400">{projectName}</span>
+          <div className="text-sm text-[var(--color-sidebar-text)]">
+            <span className="text-[var(--color-sidebar-text)]">{projectName}</span>
           </div>
         ) : (
           <span className="text-sm font-semibold text-[var(--color-text)]">
@@ -37,7 +37,7 @@ export function MobileTopBar({ onMenuOpen, projectName }: MobileTopBarProps) {
       </div>
       <Avatar className="h-8 w-8">
         <AvatarImage src={user?.photoURL ?? undefined} />
-        <AvatarFallback className="bg-neutral-700 text-xs font-semibold text-white">
+        <AvatarFallback className="bg-[var(--color-sidebar-active)] text-xs font-semibold text-[var(--color-sidebar-text-active)]">
           {user?.displayName?.charAt(0) ?? "?"}
         </AvatarFallback>
       </Avatar>

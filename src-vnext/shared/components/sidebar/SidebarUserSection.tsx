@@ -22,24 +22,24 @@ export function SidebarUserSection({ collapsed }: SidebarUserSectionProps) {
       >
         <Avatar className="h-8 w-8 shrink-0">
           <AvatarImage src={user?.photoURL ?? undefined} />
-          <AvatarFallback className="bg-neutral-700 text-xs font-semibold text-white">
+          <AvatarFallback className="bg-[var(--color-sidebar-active)] text-xs font-semibold text-[var(--color-sidebar-text-active)]">
             {user?.displayName?.charAt(0) ?? "?"}
           </AvatarFallback>
         </Avatar>
         {!collapsed && (
           <>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-white">
+              <p className="truncate text-sm font-medium text-[var(--color-sidebar-text-active)]">
                 {user?.displayName ?? user?.email ?? "User"}
               </p>
-              <p className="truncate text-xs text-neutral-400">
+              <p className="truncate text-xs text-[var(--color-sidebar-text)]">
                 {user?.email ?? ""}
               </p>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 shrink-0 text-neutral-400 hover:bg-[var(--color-sidebar-hover)] hover:text-white"
+              className="h-7 w-7 shrink-0 text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-[var(--color-sidebar-text-active)]"
               onClick={() => { signOut().catch(() => toast.error("Failed to sign out. Try again.")) }}
               aria-label="Sign out"
             >

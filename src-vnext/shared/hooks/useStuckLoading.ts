@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-const STUCK_THRESHOLD_MS = 5000
+const STUCK_THRESHOLD_MS = 8000
 
 export function useStuckLoading(loading: boolean): boolean {
   const [stuck, setStuck] = useState(false)

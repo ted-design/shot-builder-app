@@ -108,6 +108,16 @@ Before referencing any CSS custom property (`var(--color-*)`) in a component:
 2. Missing tokens silently resolve to nothing — the build won't catch them
 3. If a new token is needed, add it to `tokens.css` first (Delta 1 pattern)
 
+### Dark Mode Compatibility
+
+All new vNext components must work in dark mode:
+1. **Surface colors:** Use `var(--color-surface)`, `var(--color-surface-subtle)`, `var(--color-bg)` — never `bg-white`, `bg-zinc-50`, `bg-slate-50`
+2. **Border colors:** Use `var(--color-border)`, `var(--color-border-strong)` — never `border-zinc-*`, `border-slate-*`
+3. **Domain accent text** (teal for products, indigo for talent, etc.): Add `dark:` Tailwind variants for -700/-800 shades (e.g., `text-teal-700 dark:text-teal-300`)
+4. **Image overlays** (`bg-black/*`): Leave as-is — intentionally dark over image content
+5. **Print portals:** Static white — leave as-is
+6. **Activation:** `.dark` CSS class on `<html>`, NOT `data-theme` attribute. localStorage key: `sb:theme`
+
 ---
 
 ## Off-Limits Without Approval
@@ -219,6 +229,54 @@ Agents like `code-simplifier`, `refactor-cleaner` are available but follow stric
 - Parallelize independent subagents (e.g., research 3 components simultaneously)
 - Never duplicate work between main context and subagent
 - Summarize subagent results into main context (don't paste raw output)
+
+### Parallel Agent Sweeps (Phase 6 Pattern)
+
+For large cross-directory standardization changes (e.g., adopting semantic classes across 30+ files):
+1. Launch one subagent per feature directory scope (products/, shots/, pulls/, sidebar/, etc.)
+2. Each agent gets: file list, exact find pattern, exact replacement, exclusion rules
+3. Exclusions: print portals (React-PDF can't use CSS vars), `ui/` components (shadcn generated)
+4. After all agents complete, run a single grep from main context to verify zero remaining violations
+5. This pattern was used in Phase 6f (component polish sweep, 44 files in one pass)
+
+### Firestore onSnapshot + Dialog Form State (Phase 7A Pattern)
+
+When a dialog initializes form state from a live Firestore entity, the `useEffect` dependency on the entity object causes form resets on every snapshot (new object reference). **Never use `eslint-disable` to remove the entity from deps.** Instead:
+1. Use a `useRef(false)` to track `wasOpen`
+2. Only initialize form state when `open && !wasOpen.current && entity`
+3. Keep the entity in the dependency array for correctness
+
+### canCreate vs canEdit Permission Split (Phase 7C Pattern)
+
+Pages with both create actions (available on mobile) and inline edit actions (desktop-only) must split their permission checks:
+- `canCreate = canManageX(role)` — gates create button, empty state CTA, `C` keyboard shortcut. No `!isMobile` check.
+- `canEdit = !isMobile && canCreate` — gates inline editing, table row actions, write fields.
+
+Never gate create dialogs behind `!isMobile` — they work on mobile via `ResponsiveDialog`. Empty state CTAs use `canCreate` (not `canEdit`) so mobile users can reach create dialogs.
+
+### Breadcrumb & Shortcut Conventions (Phase 7C Pattern)
+
+**Breadcrumbs:** Top-level pages (Projects, Products) get NO breadcrumb. Nested pages show parent section. Detail pages show full path. Never duplicate the page title in the breadcrumb when it's already the `<h1>`.
+
+**Keyboard shortcuts:** Any page with a create action gets `C` shortcut via `useKeyboardShortcuts`. Guard with `canCreate` (not `canEdit`). Update `KeyboardShortcutsDialog.tsx` SHORTCUT_GROUPS when adding new groups.
+
+### Dual Mapper Consistency (Phase 7B Pattern)
+
+When expanding entity types (e.g., adding `street`, `city`, `phone` to `LocationRecord`), update ALL independent mappers that produce that type:
+- Library hooks (`useCrewLibrary`, `useLocationLibrary`) — primary full-field mappers
+- Picker data hooks (`usePickerData.ts`) — independent mappers used by shot assignment pickers
+- Schedule mappers (`mapSchedule.ts`) — used by schedule/call sheet features
+
+Missing a mapper causes fields to silently be `undefined` despite Firestore having the data.
+
+### Legacy-to-vNext Porting (Phase 6j Pattern)
+
+When legacy `src/` code solves the same problem the current phase requires:
+1. **Port, don't reinvent.** The legacy system is battle-tested. TypeScript conversion + design token adoption is the scope.
+2. **Scope narrowly.** Port for the primary entity (shots) first. Extend to other entities as a separate delta.
+3. **Audit for rendering duplication.** When extracting shared sub-components from ported code, ensure the parent doesn't re-render UI the child already handles (e.g., overflow "+N" badges in both StackedAvatars and the parent).
+4. **Client-side TTL over Cloud Functions** when the data is tiny and short-lived (presence docs). Stale docs are harmless — the client filters them out.
+5. **useAuth() over prop drilling** for `clientId` in deeply nested components within the auth boundary.
 
 ### Context Budget Rules
 

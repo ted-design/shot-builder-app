@@ -9,7 +9,7 @@ import { Input } from "@/ui/input"
 
 export function SectionLabel({ children }: { readonly children: React.ReactNode }) {
   return (
-    <span className="text-2xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+    <span className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]">
       {children}
     </span>
   )

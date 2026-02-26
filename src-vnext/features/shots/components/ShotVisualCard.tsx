@@ -102,7 +102,7 @@ export function ShotVisualCard({
           onClick={(e) => e.stopPropagation()}
         >
           {selectable && (
-            <div className="rounded bg-black/35 p-1 text-white backdrop-blur-sm">
+            <div className="rounded bg-black/35 p-1 text-[var(--color-text-inverted)] backdrop-blur-sm">
               <Checkbox
                 checked={!!selected}
                 onCheckedChange={(v) => {

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 import type { Timestamp } from "firebase/firestore"
 import { ChevronDown, History } from "lucide-react"
 import { toast } from "sonner"
+import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
@@ -102,9 +103,10 @@ export function ShotVersionHistorySection({ shot }: { readonly shot: Shot }) {
           )}
 
           {!loading && versions.length === 0 && (
-            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-sm text-[var(--color-text-muted)]">
-              No history yet.
-            </div>
+            <InlineEmpty
+              icon={<History className="h-8 w-8" />}
+              title="No history yet"
+            />
           )}
 
           <div className="flex flex-col gap-2">

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { canManageProducts } from "@/shared/lib/rbac"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { useProductFamilies } from "@/features/products/hooks/useProducts"
 import { ProductFamilyCard } from "@/features/products/components/ProductFamilyCard"
@@ -158,7 +160,7 @@ export default function ProductListPage() {
     })
   }, [families, qParam, statusParam, genderKey, typeKey, subKey, subParam, includeArchived, includeDeleted, sortParam])
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
     return (
@@ -179,6 +181,7 @@ export default function ProductListPage() {
   }
 
   return (
+    <ErrorBoundary>
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Products"
@@ -631,5 +634,6 @@ export default function ProductListPage() {
         </>
       )}
     </div>
+    </ErrorBoundary>
   )
 }

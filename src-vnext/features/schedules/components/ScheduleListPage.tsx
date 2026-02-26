@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { useSchedules } from "@/features/schedules/hooks/useSchedules"
@@ -44,7 +45,7 @@ export default function ScheduleListPage() {
     }
   }
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
     return (

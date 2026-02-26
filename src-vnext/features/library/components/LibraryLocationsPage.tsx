@@ -1,16 +1,32 @@
 import { useMemo, useState } from "react"
-import { MapPin } from "lucide-react"
+import { useNavigate } from "react-router-dom"
+import { MapPin, Plus, Search } from "lucide-react"
+import { useAuth } from "@/app/providers/AuthProvider"
+import { canManageLocations } from "@/shared/lib/rbac"
+import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
-import { useLocations } from "@/features/shots/hooks/usePickerData"
 import { Input } from "@/ui/input"
-import { Card, CardContent } from "@/ui/card"
+import { Button } from "@/ui/button"
+import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
+import { useLocationLibrary } from "@/features/library/hooks/useLocationLibrary"
+import { CreateLocationDialog } from "@/features/library/components/CreateLocationDialog"
 
 export default function LibraryLocationsPage() {
-  const { data: locations, loading, error } = useLocations()
+  const { role } = useAuth()
+  const isMobile = useIsMobile()
+  const navigate = useNavigate()
+  const { data: locations, loading, error } = useLocationLibrary()
   const [query, setQuery] = useState("")
+  const [createOpen, setCreateOpen] = useState(false)
+  const canCreate = canManageLocations(role)
+
+  useKeyboardShortcuts([
+    { key: "c", handler: () => { if (canCreate) setCreateOpen(true) } },
+  ])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -18,11 +34,18 @@ export default function LibraryLocationsPage() {
     return locations.filter((loc) => {
       const name = loc.name.toLowerCase()
       const address = (loc.address ?? "").toLowerCase()
-      return name.includes(q) || address.includes(q)
+      const phone = (loc.phone ?? "").toLowerCase()
+      const notes = (loc.notes ?? "").toLowerCase()
+      return (
+        name.includes(q) ||
+        address.includes(q) ||
+        phone.includes(q) ||
+        notes.includes(q)
+      )
     })
   }, [locations, query])
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
     return (
@@ -34,49 +57,106 @@ export default function LibraryLocationsPage() {
 
   return (
     <ErrorBoundary>
-      <PageHeader title="Locations" breadcrumbs={[{ label: "Library" }]} />
-
-      {locations.length === 0 ? (
-        <EmptyState
-          icon={<MapPin className="h-12 w-12" />}
-          title="No locations yet"
-          description="Locations will appear here."
+      <div className="flex flex-col gap-5">
+        <PageHeader
+          title="Locations"
+          breadcrumbs={[{ label: "Library" }]}
+          actions={
+            canCreate ? (
+              isMobile ? (
+                <Button size="icon" onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  New Location
+                </Button>
+              )
+            ) : null
+          }
         />
-      ) : (
-        <div className="flex flex-col gap-4">
-          <div className="max-w-md">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search locations…"
-            />
-          </div>
 
-          {filtered.length === 0 ? (
-            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <p className="text-sm text-[var(--color-text-muted)]">No results.</p>
+        {locations.length === 0 ? (
+          <EmptyState
+            icon={<MapPin className="h-10 w-10" />}
+            title="No locations yet"
+            description="Add locations to assign them to shots and schedules."
+            actionLabel={canCreate ? "Add Location" : undefined}
+            onAction={canCreate ? () => setCreateOpen(true) : undefined}
+          />
+        ) : (
+          <div className="flex flex-col gap-4">
+            {/* Toolbar: search */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="relative max-w-sm flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-subtle)]" />
+                <Input
+                  placeholder="Search locations..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="pl-9 text-sm"
+                />
+              </div>
             </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((loc) => (
-                <Card key={loc.id}>
-                  <CardContent className="py-4">
-                    <div className="text-sm font-medium text-[var(--color-text)]">
-                      {loc.name}
-                    </div>
-                    {loc.address ? (
-                      <div className="mt-1 text-xs text-[var(--color-text-muted)]">
-                        {loc.address}
-                      </div>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+
+            {filtered.length === 0 ? (
+              <EmptyState
+                icon={<Search className="h-8 w-8" />}
+                title="No matching locations"
+                description="Try adjusting your search."
+                actionLabel="Clear search"
+                onAction={() => setQuery("")}
+              />
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-[var(--color-border)]">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
+                      <th className="label-meta px-4 py-2 text-left font-semibold">
+                        Name
+                      </th>
+                      <th className="label-meta px-4 py-2 text-left font-semibold">
+                        Address
+                      </th>
+                      {!isMobile && (
+                        <th className="label-meta px-4 py-2 text-left font-semibold">
+                          Phone
+                        </th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((loc) => (
+                      <tr
+                        key={loc.id}
+                        className="cursor-pointer border-b border-[var(--color-border)] last:border-b-0 hover:bg-[var(--color-surface-subtle)]"
+                        onClick={() =>
+                          navigate(`/library/locations/${loc.id}`)
+                        }
+                      >
+                        <td className="px-4 py-2.5 font-medium text-[var(--color-text)] md:py-3">
+                          {loc.name}
+                        </td>
+                        <td className="px-4 py-2.5 text-[var(--color-text-muted)] md:py-3">
+                          {loc.address ?? "—"}
+                        </td>
+                        {!isMobile && (
+                          <td className="px-4 py-3 text-[var(--color-text-muted)]">
+                            {loc.phone ?? "—"}
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <CreateLocationDialog open={createOpen} onOpenChange={setCreateOpen} />
     </ErrorBoundary>
   )
 }
-

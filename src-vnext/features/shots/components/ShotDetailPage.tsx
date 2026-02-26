@@ -1,5 +1,6 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { useShot } from "@/features/shots/hooks/useShot"
@@ -40,6 +41,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ShotPdfExportDialog } from "@/features/shots/components/ShotPdfExportDialog"
+import { ActiveEditorsBar } from "@/features/shots/components/ActiveEditorsBar"
 import { useLocations, useTalent } from "@/features/shots/hooks/usePickerData"
 import { useProjects } from "@/features/projects/hooks/useProjects"
 
@@ -130,7 +132,7 @@ export default function ShotDetailPage() {
     }
   }
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
   if (error) {
     return (
       <div className="p-8 text-center">
@@ -151,6 +153,11 @@ export default function ShotDetailPage() {
 
   return (
     <ErrorBoundary>
+      <ActiveEditorsBar
+        clientId={clientId}
+        entityType="shots"
+        entityId={shot.id}
+      />
       <div className="flex flex-col gap-5">
         {/* ── Header: back, title, shot number, status ── */}
         <div className="flex items-center gap-3">

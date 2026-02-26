@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { collectionGroup, getDocs, limit, query, where } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { WarehousePickProgress } from "./WarehousePickProgress"
@@ -100,7 +102,7 @@ export default function WarehousePickGuidePage() {
     setCurrentIndex((prev) => prev + 1)
   }, [currentIndex, items, substituteNote])
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
 
   if (error) {
     return (
@@ -120,6 +122,7 @@ export default function WarehousePickGuidePage() {
   // -- Landing screen --
   if (!started) {
     return (
+      <ErrorBoundary>
       <div className="flex min-h-screen flex-col bg-[var(--color-bg)]">
         <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
           <Button
@@ -150,6 +153,7 @@ export default function WarehousePickGuidePage() {
           </Button>
         </div>
       </div>
+      </ErrorBoundary>
     )
   }
 
@@ -160,6 +164,7 @@ export default function WarehousePickGuidePage() {
     const substituted = outcomes.filter((o) => o.outcome === "substitute").length
 
     return (
+      <ErrorBoundary>
       <div className="flex min-h-screen flex-col bg-[var(--color-bg)]">
         <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
           <h1 className="text-base font-semibold text-[var(--color-text)]">Pick Complete</h1>
@@ -191,6 +196,7 @@ export default function WarehousePickGuidePage() {
           </Button>
         </div>
       </div>
+      </ErrorBoundary>
     )
   }
 
@@ -198,6 +204,7 @@ export default function WarehousePickGuidePage() {
   const currentItem = items[currentIndex]!
 
   return (
+    <ErrorBoundary>
     <div className="flex min-h-screen flex-col bg-[var(--color-bg)]">
       <WarehousePickProgress current={outcomes.length} total={items.length} />
 
@@ -213,7 +220,7 @@ export default function WarehousePickGuidePage() {
             autoFocus
           />
           <Button
-            className="min-h-[56px] touch-target bg-amber-500 text-white hover:bg-amber-600"
+            className="min-h-[56px] touch-target bg-amber-500 text-[var(--color-text-inverted)] hover:bg-amber-600"
             onClick={confirmSubstitute}
             data-testid="confirm-substitute"
           >
@@ -224,5 +231,6 @@ export default function WarehousePickGuidePage() {
         <WarehousePickOutcomeBar onOutcome={recordOutcome} />
       )}
     </div>
+    </ErrorBoundary>
   )
 }

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef } from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { useShot } from "@/features/shots/hooks/useShot"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
@@ -7,6 +8,7 @@ import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { canManageShots } from "@/shared/lib/rbac"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { ThreePanelListPanel } from "@/features/shots/components/ThreePanelListPanel"
 import { ThreePanelCanvasPanel } from "@/features/shots/components/ThreePanelCanvasPanel"
 import { ThreePanelPropertiesPanel } from "@/features/shots/components/ThreePanelPropertiesPanel"
@@ -173,7 +175,7 @@ export function ThreePanelLayout({
     if (loading) {
       return (
         <div className="flex h-full items-center justify-center">
-          <LoadingState loading />
+          <LoadingState loading skeleton={<DetailPageSkeleton />} />
         </div>
       )
     }
@@ -203,7 +205,8 @@ export function ThreePanelLayout({
   }
 
   return (
-    <div className="-mx-6 -my-6 flex h-[calc(100vh-var(--header-height,0px))]">
+    <ErrorBoundary>
+    <div className="-mx-6 -my-6 flex h-[calc(100vh-var(--header-height))]">
       <PanelGroup
         direction="horizontal"
         onLayout={handleLayout}
@@ -259,5 +262,6 @@ export function ThreePanelLayout({
         </Panel>
       </PanelGroup>
     </div>
+    </ErrorBoundary>
   )
 }

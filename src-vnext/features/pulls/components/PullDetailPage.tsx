@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
-import { EmptyState } from "@/shared/components/EmptyState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
+import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { StatusBadge } from "@/shared/components/StatusBadge"
 import { FulfillmentToggle } from "@/features/pulls/components/FulfillmentToggle"
@@ -94,7 +95,7 @@ export default function PullDetailPage() {
     toast.success(nextEnabled ? "Pull sheet shared" : "Sharing disabled")
   }
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
   if (error) {
     return (
       <div className="p-8 text-center">
@@ -173,14 +174,14 @@ export default function PullDetailPage() {
         <Separator />
 
         {pull.items.length === 0 ? (
-          <EmptyState
-            icon={<Package className="h-12 w-12" />}
+          <InlineEmpty
+            icon={<Package className="h-8 w-8" />}
             title="No items in this pull sheet"
             description="Items will appear here when products are assigned to shots."
           />
         ) : (
           <div className="flex flex-col gap-3">
-            <Label className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
+            <Label className="label-meta">
               Items ({pull.items.length})
             </Label>
             {pull.items.map((item, index) => (

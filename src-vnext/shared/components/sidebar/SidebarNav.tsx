@@ -78,7 +78,7 @@ function NavEntryRenderer({
       if (collapsed) return null
       return (
         <div className="pb-1.5 pt-3">
-          <span className="px-3 text-2xs font-semibold uppercase tracking-wider text-neutral-500">
+          <span className="px-3 label-meta text-2xs text-[var(--color-sidebar-text)]">
             {entry.label}
           </span>
         </div>

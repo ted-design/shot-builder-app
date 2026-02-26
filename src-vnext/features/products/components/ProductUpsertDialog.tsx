@@ -644,7 +644,7 @@ export function ProductUpsertDialog({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ImageIcon className="h-4 w-4 text-[var(--color-text-subtle)]" />
-                <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                <h3 className="label-meta">
                   Colorways
                 </h3>
               </div>

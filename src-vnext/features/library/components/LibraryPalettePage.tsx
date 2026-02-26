@@ -1,9 +1,10 @@
 import { useMemo, useRef, useState } from "react"
 import { orderBy } from "firebase/firestore"
-import { Palette, Trash2 } from "lucide-react"
+import { Palette, Search, Trash2 } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { Input } from "@/ui/input"
@@ -275,7 +276,7 @@ export default function LibraryPalettePage() {
     }
   }
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
     return (
@@ -297,7 +298,7 @@ export default function LibraryPalettePage() {
             </CardHeader>
             <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="flex-1">
-                <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                <div className="label-meta">
                   Name
                 </div>
                 <Input
@@ -308,7 +309,7 @@ export default function LibraryPalettePage() {
                 />
               </div>
               <div className="w-full sm:w-48">
-                <div className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                <div className="label-meta">
                   Hex
                 </div>
                 <Input
@@ -367,9 +368,13 @@ export default function LibraryPalettePage() {
               </CardHeader>
               <CardContent className="flex flex-col gap-2">
                 {filtered.length === 0 ? (
-                  <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                    <p className="text-sm text-[var(--color-text-muted)]">No results.</p>
-                  </div>
+                  <EmptyState
+                    icon={<Search className="h-12 w-12" />}
+                    title="No matching swatches"
+                    description="Try adjusting your search."
+                    actionLabel="Clear search"
+                    onAction={() => setQuery("")}
+                  />
                 ) : isMobile ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {filtered.map((s) => (
@@ -398,7 +403,7 @@ export default function LibraryPalettePage() {
                   </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-[36px_1fr_160px_84px] gap-3 border-b border-[var(--color-border)] pb-2 text-xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                    <div className="grid grid-cols-[36px_1fr_160px_84px] gap-3 border-b border-[var(--color-border)] pb-2 label-meta">
                       <div> </div>
                       <div>Name</div>
                       <div>Hex</div>

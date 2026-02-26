@@ -10,9 +10,15 @@
     <script>
       (function() {
         try {
-          const theme = localStorage.getItem('theme') ||
-            (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-          if (theme === 'dark') {
+          var stored = localStorage.getItem('sb:theme');
+          if (!stored) {
+            // Migrate from old key
+            var legacy = localStorage.getItem('theme');
+            if (legacy) { stored = legacy; localStorage.setItem('sb:theme', legacy); localStorage.removeItem('theme'); }
+          }
+          var isDark = stored === 'dark' ||
+            (stored !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) {
             document.documentElement.classList.add('dark');
           }
         } catch (e) {

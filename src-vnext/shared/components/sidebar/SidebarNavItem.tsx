@@ -33,10 +33,10 @@ export function SidebarNavItem({
       className={cn(
         "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
         active
-          ? "bg-[var(--color-sidebar-active)] text-white"
+          ? "bg-[var(--color-sidebar-active)] text-[var(--color-sidebar-text-active)]"
           : variant === "back"
-            ? "text-neutral-400 hover:bg-[var(--color-sidebar-hover)] hover:text-white"
-            : "text-neutral-300 hover:bg-[var(--color-sidebar-hover)] hover:text-white",
+            ? "text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-[var(--color-sidebar-text-active)]"
+            : "text-[var(--color-sidebar-text-active)] hover:bg-[var(--color-sidebar-hover)] hover:text-[var(--color-sidebar-text-active)]",
         collapsed && "justify-center px-2",
       )}
     >
@@ -46,7 +46,7 @@ export function SidebarNavItem({
       <NavIcon name={item.iconName} />
       {!collapsed && <span className="truncate">{item.label}</span>}
       {!collapsed && showBadge && item.surfaceBadge && (
-        <span className="ml-auto rounded bg-neutral-800 px-1.5 py-0.5 text-2xs font-medium text-neutral-500">
+        <span className="ml-auto rounded bg-[var(--color-sidebar-active)] px-1.5 py-0.5 text-2xs font-medium text-[var(--color-sidebar-text)]">
           {item.surfaceBadge}
         </span>
       )}

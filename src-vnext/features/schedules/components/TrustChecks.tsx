@@ -46,10 +46,10 @@ export function TrustChecks({
   if (warnings.length === 0) return null
 
   return (
-    <div className="flex flex-col gap-1.5 rounded-md border border-[var(--color-warning-muted,var(--color-border))] bg-[var(--color-warning-subtle,var(--color-surface))] p-3">
+    <div className="flex flex-col gap-1.5 rounded-md border border-[var(--color-warning-muted)] bg-[var(--color-warning-subtle)] p-3">
       <div className="flex items-center gap-1.5">
         <Info className="h-3.5 w-3.5 shrink-0 text-[var(--color-warning,#b45309)]" />
-        <span className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-warning,#b45309)]">
+        <span className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-warning,#b45309)]">
           Heads up
         </span>
       </div>

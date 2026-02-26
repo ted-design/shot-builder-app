@@ -64,7 +64,7 @@ describe("ShotCommentsSection", () => {
 
     render(<ShotCommentsSection shotId="s1" canComment />)
 
-    expect(screen.getByText("No comments yet.")).toBeInTheDocument()
+    expect(screen.getByText("No comments yet")).toBeInTheDocument()
     expect(screen.getByPlaceholderText("Leave a note for your team…")).toBeInTheDocument()
   })
 

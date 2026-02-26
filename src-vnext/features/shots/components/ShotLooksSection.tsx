@@ -15,8 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/select"
-import { ImagePlus, Plus, Star, Trash2, X, Loader2 } from "lucide-react"
+import { Image, ImagePlus, Plus, Star, Trash2, X, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import type { ProductAssignment, Shot, ShotLook, ShotReferenceImage } from "@/shared/types"
 
 function formatUploadError(err: unknown): string {
@@ -569,9 +570,10 @@ function ReferencesSection({
       </div>
 
       {refs.length === 0 ? (
-        <p className="text-xs text-[var(--color-text-subtle)]">
-          No reference images yet.
-        </p>
+        <InlineEmpty
+          icon={<Image className="h-8 w-8" />}
+          title="No reference images yet"
+        />
       ) : (
         <div className="grid grid-cols-3 gap-2">
           {refs.map((ref) => (
@@ -656,7 +658,7 @@ function ReferenceTile({
       )}
 
       {isCover && (
-        <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-2xs text-white">
+        <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-2xs text-[var(--color-text-inverted)]">
           Cover
         </span>
       )}

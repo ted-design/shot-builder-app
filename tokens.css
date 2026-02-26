@@ -102,6 +102,7 @@
   --color-primary-hover: #27272a;     /* zinc-800 */
   --color-primary-active: #09090b;    /* zinc-950 */
   --color-primary-light: #f4f4f5;     /* zinc-100 */
+  --color-primary-subtle: #f4f4f5;    /* zinc-100 — selected/active bg tint */
   --color-primary-text: #ffffff;
 
   /* --- Accent (Immediate Red — brand moments only) --- */
@@ -117,6 +118,8 @@
   /* --- Status Colors --- */
   --color-success: #10b981;           /* emerald-500 */
   --color-warning: #f59e0b;           /* amber-500 */
+  --color-warning-muted: #fde68a;     /* amber-200 — warning border/accent */
+  --color-warning-subtle: #fffbeb;    /* amber-50 — warning background tint */
   --color-error: #ef4444;             /* red-500 */
   --color-info: #3b82f6;              /* blue-500 */
 
@@ -181,6 +184,7 @@
 
   /* Top Bar / Header */
   --topbar-height: 52px;             /* Reduced from 65px */
+  --header-height: 52px;             /* Alias for ThreePanelLayout calc */
   --action-bar-height: 44px;
 
   /* Preview Area */
@@ -317,26 +321,79 @@
 }
 
 /* ============================================
- * DARK MODE OVERRIDES (Optional)
+ * DARK MODE OVERRIDES
+ * Activated by .dark class on <html> (Tailwind class strategy).
+ * ThemeProvider toggles the class; FOUC script applies it pre-React.
  * ============================================ */
 
-/* Uncomment to enable dark mode support (zinc-based)
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #09090b;
-    --color-surface: #18181b;
-    --color-surface-muted: #27272a;
-    --color-surface-subtle: #27272a;
-    --color-text: #fafafa;
-    --color-text-secondary: #d4d4d8;
-    --color-text-muted: #a1a1aa;
-    --color-text-subtle: #71717a;
-    --color-border: #3f3f46;
-    --color-border-muted: #27272a;
-    --color-border-strong: #52525b;
-  }
+.dark {
+  /* --- Surfaces (zinc scale inverted) --- */
+  --color-bg: #09090b;               /* zinc-950 */
+  --color-surface: #18181b;           /* zinc-900 */
+  --color-surface-muted: #27272a;     /* zinc-800 */
+  --color-surface-subtle: #1c1c1f;    /* between zinc-900/800 */
+
+  /* --- Text (zinc scale inverted) --- */
+  --color-text: #fafafa;              /* zinc-50 */
+  --color-text-secondary: #d4d4d8;    /* zinc-300 */
+  --color-text-muted: #a1a1aa;        /* zinc-400 */
+  --color-text-subtle: #71717a;       /* zinc-500 */
+  --color-text-inverted: #18181b;     /* zinc-900 — for use on light backgrounds */
+
+  /* --- Borders --- */
+  --color-border: #3f3f46;            /* zinc-700 */
+  --color-border-muted: #27272a;      /* zinc-800 */
+  --color-border-strong: #52525b;     /* zinc-600 */
+  --color-border-hover: #52525b;      /* zinc-600 */
+
+  /* --- Primary Action (invert: near-white on dark) --- */
+  --color-primary: #fafafa;           /* zinc-50 */
+  --color-primary-hover: #e4e4e7;     /* zinc-200 */
+  --color-primary-active: #d4d4d8;    /* zinc-300 */
+  --color-primary-light: #27272a;     /* zinc-800 */
+  --color-primary-subtle: #27272a;    /* zinc-800 */
+  --color-primary-text: #18181b;      /* zinc-900 */
+
+  /* --- Accent (stays vibrant, adjust tint) --- */
+  --color-accent-light: #7f1d1d;      /* red-900 tint */
+
+  /* --- Sidebar (already dark — stronger border to separate from dark content) --- */
+  --color-sidebar-border: #3f3f46;    /* zinc-700 */
+
+  /* --- Status Colors (brighter for dark bg) --- */
+  --color-success: #34d399;           /* emerald-400 */
+  --color-warning: #fbbf24;           /* amber-400 */
+  --color-warning-muted: #78350f;     /* amber-900 */
+  --color-warning-subtle: #451a03;    /* deep amber */
+  --color-error: #f87171;             /* red-400 */
+  --color-info: #60a5fa;              /* blue-400 */
+
+  /* --- Status Badge Colors --- */
+  --color-status-gray-bg: #27272a;       /* zinc-800 */
+  --color-status-gray-text: #d4d4d8;     /* zinc-300 */
+  --color-status-gray-border: #3f3f46;   /* zinc-700 */
+  --color-status-blue-bg: #172554;       /* blue-950 */
+  --color-status-blue-text: #93c5fd;     /* blue-300 */
+  --color-status-blue-border: #1e40af;   /* blue-800 */
+  --color-status-green-bg: #052e16;      /* green-950 */
+  --color-status-green-text: #6ee7b7;    /* emerald-300 */
+  --color-status-green-border: #047857;  /* emerald-700 */
+  --color-status-amber-bg: #451a03;      /* amber-950 */
+  --color-status-amber-text: #fcd34d;    /* amber-300 */
+  --color-status-amber-border: #b45309;  /* amber-700 */
+
+  /* --- Table --- */
+  --color-table-header-border: #52525b;  /* zinc-600 */
+  --color-table-row-border: rgba(63, 63, 70, 0.44); /* zinc-700 @ 44% */
+  --color-table-row-hover: #27272a;      /* zinc-800 */
+  --color-table-row-alt: #1c1c1f;
+
+  /* --- Shadows (more opaque on dark backgrounds) --- */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 4px -1px rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 4px 8px -2px rgba(0, 0, 0, 0.35), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 8px 16px -4px rgba(0, 0, 0, 0.35), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
 }
-*/
 
 /* ============================================
  * UTILITY CLASSES

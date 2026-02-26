@@ -364,12 +364,20 @@ export function mapCrewRecord(id: string, data: Record<string, unknown>): CrewRe
   return {
     id,
     name: (data["name"] as string) ?? "",
+    firstName: (data["firstName"] as string) ?? null,
+    lastName: (data["lastName"] as string) ?? null,
     department: data["department"] as string | undefined,
     position: data["position"] as string | undefined,
-    email: data["email"] as string | undefined,
-    phone: data["phone"] as string | undefined,
+    departmentId: (data["departmentId"] as string) ?? null,
+    positionId: (data["positionId"] as string) ?? null,
+    email: (data["email"] as string) ?? null,
+    phone: (data["phone"] as string) ?? null,
+    company: (data["company"] as string) ?? null,
     notes: data["notes"] as string | undefined,
     projectIds: Array.isArray(rawProjectIds) ? (rawProjectIds as string[]) : undefined,
+    createdAt: data["createdAt"],
+    updatedAt: data["updatedAt"],
+    createdBy: (data["createdBy"] as string) ?? null,
   }
 }
 
@@ -390,7 +398,18 @@ export function mapLocationRecord(id: string, data: Record<string, unknown>): Lo
     id,
     name: (data["name"] as string) ?? "",
     address: explicitAddress ?? (derivedAddress || undefined),
+    street: street ?? null,
+    unit: unit ?? null,
+    city: city ?? null,
+    province: province ?? null,
+    postal: postal ?? null,
+    phone: (data["phone"] as string) ?? null,
+    photoPath: (data["photoPath"] as string) ?? null,
+    photoUrl: (data["photoUrl"] as string) ?? null,
     notes: data["notes"] as string | undefined,
     projectIds: Array.isArray(rawProjectIds) ? (rawProjectIds as string[]) : undefined,
+    createdAt: data["createdAt"],
+    updatedAt: data["updatedAt"],
+    createdBy: (data["createdBy"] as string) ?? null,
   }
 }

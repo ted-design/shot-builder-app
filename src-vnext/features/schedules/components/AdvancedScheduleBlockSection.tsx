@@ -156,7 +156,7 @@ export function AdvancedScheduleBlockSection({
             borderColor: entry.highlight.color,
             borderLeftColor: entry.highlight.color,
             borderLeftWidth: "3px",
-            backgroundColor: "white",
+            backgroundColor: "var(--color-surface)",
           }
         : {
             borderColor: entry.highlight?.color,
@@ -168,7 +168,7 @@ export function AdvancedScheduleBlockSection({
 
     return (
       <div
-        className={`callsheet-block rounded border px-2.5 py-2 ${isRhythm ? "border-amber-200 bg-amber-50/40" : "border-[var(--color-border)] bg-white"}`}
+        className={`callsheet-block rounded border px-2.5 py-2 ${isRhythm ? "border-amber-200 bg-amber-50/40" : "border-[var(--color-border)] bg-[var(--color-surface)]"}`}
         style={highlightStyle}
       >
         <div className="flex items-start gap-2">
@@ -192,7 +192,7 @@ export function AdvancedScheduleBlockSection({
             <div className="flex items-baseline gap-2">
               {shotNumber && (
                 <span
-                  className="shrink-0 font-mono text-2xs font-semibold uppercase tracking-wide"
+                  className="shrink-0 font-mono text-2xs font-semibold uppercase tracking-wider"
                   style={{ color: "var(--doc-accent,#2563eb)" }}
                 >
                   {shotNumber}
@@ -223,7 +223,7 @@ export function AdvancedScheduleBlockSection({
                 {talentNames.length > 0 && (
                   <span className="truncate">
                     <span
-                      className="font-semibold uppercase tracking-wide"
+                      className="font-semibold uppercase tracking-wider"
                       style={{ color: "var(--doc-accent,#2563eb)" }}
                     >
                       Talent
@@ -234,7 +234,7 @@ export function AdvancedScheduleBlockSection({
                 {location && (
                   <span className="truncate">
                     <span
-                      className="font-semibold uppercase tracking-wide"
+                      className="font-semibold uppercase tracking-wider"
                       style={{ color: "var(--doc-accent,#2563eb)" }}
                     >
                       Location

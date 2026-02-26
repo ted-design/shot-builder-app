@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import type { ProductFamily, ProductSku } from "@/shared/types"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
@@ -8,6 +9,7 @@ import { canManageProducts } from "@/shared/lib/rbac"
 import { parseReturnToParam } from "@/shared/lib/returnTo"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { ProductImage } from "@/features/products/components/ProductImage"
 import {
@@ -273,7 +275,7 @@ function ColorwayRow({
 
           <div className="grid gap-2 md:col-span-8 md:grid-cols-3">
             <div className="flex flex-col gap-1">
-              <Label className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">SKU</Label>
+              <Label className="text-2xs uppercase tracking-wider text-[var(--color-text-subtle)]">SKU</Label>
               <Input
                 value={sku.skuCode}
                 disabled={disabled || isDeleted}
@@ -282,7 +284,7 @@ function ColorwayRow({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label className="text-2xs uppercase tracking-widest text-[var(--color-text-subtle)]">Status</Label>
+              <Label className="text-2xs uppercase tracking-wider text-[var(--color-text-subtle)]">Status</Label>
               <Select
                 value={sku.status}
                 onValueChange={(value) => onChange({ ...sku, status: value })}
@@ -585,7 +587,7 @@ export default function ProductEditorPage() {
     )
   }
 
-  if (mode === "edit" && familyLoading) return <LoadingState loading />
+  if (mode === "edit" && familyLoading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
 
   if (mode === "edit" && familyError) {
     return (
@@ -772,6 +774,7 @@ export default function ProductEditorPage() {
   const familyImagePath = (draft.thumbnailImagePath || draft.headerImagePath) ?? null
 
   return (
+    <ErrorBoundary>
     <div className="flex flex-col gap-6">
       <PageHeader
         title={title}
@@ -1218,5 +1221,6 @@ export default function ProductEditorPage() {
 
       </div>
     </div>
+    </ErrorBoundary>
   )
 }

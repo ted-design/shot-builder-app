@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react"
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom"
+import { NotFoundPage } from "@/shared/components/NotFoundPage"
 import { RequireAuth } from "@/app/routes/guards/RequireAuth"
 import { RequireDesktop } from "@/app/routes/guards/RequireDesktop"
 import { ProjectScopeProvider } from "@/app/providers/ProjectScopeProvider"
@@ -56,6 +57,12 @@ const LibraryLocationsPage = lazy(
 )
 const LibraryCrewPage = lazy(
   () => import("@/features/library/components/LibraryCrewPage"),
+)
+const CrewDetailPage = lazy(
+  () => import("@/features/library/components/CrewDetailPage"),
+)
+const LocationDetailPage = lazy(
+  () => import("@/features/library/components/LocationDetailPage"),
 )
 const LibraryPalettePage = lazy(
   () => import("@/features/library/components/LibraryPalettePage"),
@@ -178,7 +185,9 @@ export function AppRoutes() {
           <Route path="library" element={<Navigate to="/library/talent" replace />} />
           <Route path="library/talent" element={<LibraryTalentPage />} />
           <Route path="library/locations" element={<LibraryLocationsPage />} />
+          <Route path="library/locations/:locationId" element={<LocationDetailPage />} />
           <Route path="library/crew" element={<LibraryCrewPage />} />
+          <Route path="library/crew/:crewId" element={<CrewDetailPage />} />
           <Route path="library/palette" element={<LibraryPalettePage />} />
           {import.meta.env.DEV && (
             <Route path="dev/import-q2" element={<DevImportQ2 />} />
@@ -190,7 +199,7 @@ export function AppRoutes() {
             <Route path="dev/import-q1-hub-shots" element={<DevImportQ1HubShots />} />
           )}
         </Route>
-        <Route path="*" element={<Navigate to="/projects" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
   )

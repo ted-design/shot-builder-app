@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react"
 import { Package, Users, MapPin, Plus, HardHat } from "lucide-react"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { LoadingState } from "@/shared/components/LoadingState"
+import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -182,7 +183,7 @@ export default function ProjectAssetsPage() {
     }))
   }, [crew])
 
-  if (loading) return <LoadingState loading />
+  if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
     return (
@@ -322,7 +323,7 @@ export default function ProjectAssetsPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Images</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-6">
+          <CardContent className="flex flex-wrap gap-4">
             <div>
               <div className="text-2xl font-semibold text-[var(--color-text)]">
                 {heroCount}
@@ -368,7 +369,7 @@ function AssetUsageCard({
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2">
+      <CardContent className="flex flex-col gap-3">
         {rows.length === 0 ? (
           <p className="text-sm text-[var(--color-text-muted)]">{emptyLabel}</p>
         ) : (

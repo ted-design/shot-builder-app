@@ -228,35 +228,129 @@ Admin (role-gated: admin only)
 
 **Goal:** Professional and precise visual identity. Make the app look like it was built by a funded startup, not a side project. First impressions matter for stakeholder onboarding.
 
-**Status:** In progress — 6a audit done, 6b mockup done, awaiting 6c + approval.
+**Status:** COMPLETE — 6a-6k all committed.
 
 ### Sub-tasks
 
 - [x] **6a:** Audit current visual inconsistencies (colors, typography, spacing) (research)
 - [x] **6b:** Write mockups: color palette, typography scale, component showcase
-- [ ] **6c:** Write mockups: empty states, loading skeletons, error states, dark mode
-- [ ] **6d:** Get user approval on visual identity
-- [ ] **6e:** Implement brand identity (tokens.css updates, color palette, typography)
-- [ ] **6f:** Implement component polish (audit shadcn usage, standardize styles)
-- [ ] **6g:** Implement empty states for all list views
-- [ ] **6h:** Implement loading skeletons (replace spinners, stagger animation)
-- [ ] **6i:** Implement error states (toast, Sentry, offline banner, form errors)
-- [ ] **6j:** Implement presence indicators (avatar dots, edit conflict warning)
-- [ ] **6k:** Dark mode audit + verify acceptance criteria
+- [x] **6c:** Write mockups: empty states, loading skeletons, error states, dark mode
+- [x] **6d:** Get user approval on visual identity
+- [x] **6e:** Implement brand identity (tokens.css updates, color palette, typography)
+- [x] **6f:** Implement component polish (audit shadcn usage, standardize styles)
+- [x] **6g:** Implement empty states for all list views
+- [x] **6h:** Implement loading skeletons (replace spinners, stagger animation)
+- [x] **6i:** Implement error states (toast, Sentry, offline banner, form errors)
+- [x] **6j:** Implement presence indicators (avatar dots, edit conflict warning)
+- [x] **6k:** Dark mode audit + verify acceptance criteria
 
 ### Acceptance Criteria
 
-- [ ] Color palette defined in tokens.css and consistently applied
-- [ ] Typography hierarchy clear: headings, body, labels, captions
-- [ ] Every list view has an empty state with CTA
-- [ ] Loading skeletons on all async pages (no raw spinners)
-- [ ] Error states tested: network error, permission error, not found
-- [ ] Dark mode works correctly (all token-driven, no hardcoded colors)
+- [x] Color palette defined in tokens.css and consistently applied
+- [x] Typography hierarchy clear: headings, body, labels, captions
+- [x] Every list view has an empty state with CTA
+- [x] Loading skeletons on all async pages (no raw spinners)
+- [x] Error states tested: network error, permission error, not found
+- [x] Dark mode works correctly (all token-driven, no hardcoded colors)
 - [ ] A non-technical stakeholder would describe the app as "professional"
 
 ---
 
-## Phase 7: Feature Cleanup & Consolidation
+## Phase 7A: Bug Fixes & Quick Wins
+
+**Goal:** Fix broken workflows and add missing infrastructure before building new features.
+
+**Status:** COMPLETE.
+
+### Sub-tasks
+
+- [x] **7A.1:** Fix shoot date edit not persisting (EditProjectDialog useEffect dep bug)
+- [x] **7A.2:** Fix sidebar showing "Project" instead of project name (use useProject hook)
+- [x] **7A.3:** Add library RBAC helpers (canManageTalent, canManageCrew, canManageLocations)
+
+### Acceptance Criteria
+
+- [x] Shoot dates persist after editing in EditProjectDialog
+- [x] Sidebar shows actual project name when inside a project
+- [x] RBAC helpers exist for all library entities; talent page uses canManageTalent
+
+---
+
+## Phase 7B: Library Entity Completion
+
+**Goal:** Make crew, locations, and talent fully functional with CRUD. Port proven legacy patterns.
+
+**Status:** COMPLETE.
+
+### Sub-tasks
+
+- [x] **7B.1:** HTML mockups for crew & locations redesign (user approved table → detail page pattern)
+- [x] **7B.2:** Crew: types, hooks, and write functions (CrewRecord expansion, crewWrites.ts, useCrewLibrary.ts)
+- [x] **7B.3:** Crew pages: table list + detail page (replace 95-line read-only stub)
+- [x] **7B.4:** Locations: types, hooks, and write functions (LocationRecord expansion, locationWrites.ts, useLocationLibrary.ts)
+- [x] **7B.5:** Locations pages: table list + detail page (replace 87-line read-only stub)
+- [x] **7B.6:** Talent: measurements expansion (gender-specific fields, port legacy measurementOptions.js)
+- [x] **7B.7:** Talent: delete functionality (deleteTalent + Storage cleanup + ConfirmDialog)
+- [x] **7B.8:** Update picker data mappers (usePickerData.ts — enrich location + talent pickers)
+
+### Acceptance Criteria
+
+- [x] Crew page has full CRUD: search, create, inline edit, delete with confirmation
+- [x] Locations page has full CRUD: search, create, inline edit, photo upload, delete
+- [x] Talent has gender-specific measurements (9+ fields) and delete functionality
+- [ ] All pages correct at 375/768/1280px breakpoints (visual verification pending)
+- [x] Tests pass, lint clean, build clean
+
+---
+
+## Phase 7C: UI/UX Polish Pass
+
+**Goal:** Consistent density, interactions, navigation, and visual language across ALL pages. "Make it feel like one app."
+
+**Status:** Complete. All sub-tasks done. Deferred: M2 (shot card readiness styling — by design), M3 (toolbar overflow — needs analysis), H4 (library layout — needs user decision).
+
+### Sub-tasks
+
+- [x] **7C.1:** Cross-page UX audit at 3 breakpoints (375px, 768px, 1280px)
+- [x] **7C.2:** Mockups for density & interaction improvements (user approval required)
+- [x] **7C.3:** Information density improvements (card padding, metadata, gaps)
+- [x] **7C.4:** Hover states, transitions, and focus indicators
+- [x] **7C.5:** Navigation clarity (breadcrumbs, active states, "you are here")
+- [x] **7C.6:** Keyboard shortcuts expansion (library operations, help dialog update)
+
+### Acceptance Criteria
+
+- [ ] Every page correct at 375/768/1280px
+- [ ] All cards have hover states and cursor-pointer
+- [ ] No navigation dead-ends
+- [ ] Breadcrumbs on all detail pages via PageHeader
+
+---
+
+## Phase 7D: Products Editor Improvements
+
+**Goal:** Evolve products from basic CRUD to a managed workflow with taxonomy, better colorways, and sample tracking.
+
+**Status:** Not started.
+
+### Sub-tasks
+
+- [ ] **7D.1:** Products audit & mockups (user approval required)
+- [ ] **7D.2:** Managed taxonomy (productClassifications collection → Select pickers, type-to-create)
+- [ ] **7D.3:** Colorway workflow improvements (bulk create, visual display)
+- [ ] **7D.4:** Sample tracking improvements (status timeline, due date warnings)
+- [ ] **7D.5:** Product workspace navigation (simplify tab system)
+
+### Acceptance Criteria
+
+- [ ] Classification uses managed taxonomy (Select pickers, not free text)
+- [ ] Colorway bulk create works
+- [ ] Sample tracking has timeline visualization
+- [ ] Product navigation is intuitive (audit findings addressed)
+
+---
+
+## Phase 7E: Feature Cleanup & Consolidation
 
 **Goal:** Remove dead weight. Consolidate feature flag branches. Reduce maintenance surface.
 
@@ -264,15 +358,15 @@ Admin (role-gated: admin only)
 
 ### Sub-tasks
 
-- [ ] **7a:** Audit feature flags: list all V2/V3 flags, which are safe to consolidate (research)
-- [ ] **7b:** Audit dependencies: identify unused npm packages (research)
-- [ ] **7c:** Audit routes: identify orphaned/legacy redirects (research)
-- [ ] **7d:** Remove planner drag-and-drop + standalone planner route
-- [ ] **7e:** Consolidate V2/V3 feature flags (remove dead code paths)
-- [ ] **7f:** Clean up dev-only routes (gate behind import.meta.env.DEV)
-- [ ] **7g:** Remove unused npm dependencies
-- [ ] **7h:** Remove legacy redirect routes + update Architecture.md route map
-- [ ] **7i:** Measure bundle size before/after + verify acceptance criteria
+- [ ] **7E.1:** Audit feature flags: list all V2/V3 flags, which are safe to consolidate (research)
+- [ ] **7E.2:** Audit dependencies: identify unused npm packages (research)
+- [ ] **7E.3:** Audit routes: identify orphaned/legacy redirects (research)
+- [ ] **7E.4:** Remove planner drag-and-drop + standalone planner route
+- [ ] **7E.5:** Consolidate V2/V3 feature flags (remove dead code paths)
+- [ ] **7E.6:** Clean up dev-only routes (gate behind import.meta.env.DEV)
+- [ ] **7E.7:** Remove unused npm dependencies
+- [ ] **7E.8:** Remove legacy redirect routes + update Architecture.md route map
+- [ ] **7E.9:** Measure bundle size before/after + verify acceptance criteria
 
 ### Acceptance Criteria
 
@@ -281,6 +375,51 @@ Admin (role-gated: admin only)
 - [ ] `npm audit` shows no critical vulnerabilities
 - [ ] Bundle size reduced (measure before/after)
 - [ ] Architecture.md updated to reflect final route map and dependencies
+
+---
+
+## Phase 8: Shot Request Inbox (Future)
+
+**Goal:** Allow any team member to submit shot requests. Producers triage into existing or new projects.
+
+**Status:** Not started. Outline only — implementation after 7A-7E complete.
+
+### Key Concepts
+
+- New Firestore collection: `clients/{clientId}/shotRequests/{requestId}`
+- Fields: title, requester, products[], references, notes, deadline, priority, status (submitted/triaged/absorbed/rejected)
+- Flexible input: minimal (title + note) through structured brief (products, references, deadline)
+- Producer triage: absorb into existing project shot list, or create new project from request
+
+---
+
+## Phase 9: Casting Engine (Future)
+
+**Goal:** Searchable talent database with measurement-based matching and shot history.
+
+**Status:** Not started. Outline only.
+
+### Key Concepts
+
+- Filter talent by measurement ranges (height, bust, waist, etc.), gender, availability
+- Auto-match: given casting brief requirements, suggest matching talent
+- Shot history: auto-link every shot a model has appeared in (reverse lookup from shot.talent[])
+- Extend existing casting session infrastructure in talent page
+
+---
+
+## Phase 10: Asset Requirements & PLM (Future)
+
+**Goal:** Track per-product/colorway asset requirements and sample logistics.
+
+**Status:** Not started. Outline only.
+
+### Key Concepts
+
+- Per-product/colorway asset flags: needs e-comm, campaign, video, AI-generated
+- Product launch date tracking
+- Sample logistics: arrival, return, status timeline
+- Auto-suggest shoot dates based on sample availability + quantity thresholds
 
 ---
 
