@@ -298,6 +298,15 @@ Before implementing a Plan.md phase, **audit existing code first**. Phase 7D's a
 
 Pattern: (1) Explore vNext code, (2) Explore legacy code for reference, (3) Document findings, (4) Present revised scope for approval.
 
+### Incremental vs Full-Save Write Functions (Phase 7D)
+
+When adding child entities to an existing parent (e.g., SKUs to a product family), create a **dedicated incremental write function** rather than reusing the full-save function:
+- Full-save functions reconcile the entire entity set (creates, updates, deletes, image uploads) — overkill for "just add N items."
+- Incremental functions use `writeBatch` to add only new entities and update parent aggregates in one atomic operation.
+- Keep them separate in the same `{entity}Writes.ts` file alongside the full-save functions.
+
+Example: `bulkCreateSkus()` adds colorways without touching existing SKUs, while `updateProductFamilyWithSkus()` reconciles the entire SKU set.
+
 ### Context Budget Rules
 
 - Each Plan.md phase is broken into lettered sub-tasks that fit in one session
