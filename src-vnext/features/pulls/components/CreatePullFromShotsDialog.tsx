@@ -3,6 +3,10 @@ import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { createPullFromShots } from "@/features/pulls/lib/createPullFromShots"
+
+function defaultPullName(): string {
+  return `Pull - ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+}
 import {
   Dialog,
   DialogContent,
@@ -28,12 +32,12 @@ export function CreatePullFromShotsDialog({
 }) {
   const { clientId } = useAuth()
   const { projectId } = useProjectScope()
-  const [name, setName] = useState("")
+  const [name, setName] = useState(defaultPullName)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!open) return
-    setName("")
+    setName(defaultPullName())
     setSaving(false)
   }, [open])
 

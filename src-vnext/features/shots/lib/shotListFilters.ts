@@ -204,6 +204,18 @@ export function filterByTag(
   return shots.filter((s) => (s.tags ?? []).some((t) => tagIds.has(t.id)))
 }
 
+export function filterByProduct(
+  shots: ReadonlyArray<Shot>,
+  productFamilyId: string,
+): ReadonlyArray<Shot> {
+  const id = productFamilyId.trim()
+  if (!id) return shots
+  return shots.filter((s) => {
+    const assigned = extractShotAssignedProducts(s)
+    return assigned.some((p) => p.familyId === id)
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Utilities
 // ---------------------------------------------------------------------------
@@ -238,6 +250,7 @@ export function applyFiltersAndSort(
     readonly talentId: string
     readonly locationId: string
     readonly tagFilter: ReadonlySet<string>
+    readonly productFamilyId: string
     readonly query: string
     readonly sortKey: SortKey
     readonly sortDir: SortDir
@@ -248,8 +261,9 @@ export function applyFiltersAndSort(
   const step3 = filterByTalent(step2, params.talentId)
   const step4 = filterByLocation(step3, params.locationId)
   const step5 = filterByTag(step4, params.tagFilter)
-  const step6 = filterByQuery(step5, params.query)
-  return sortShots(step6, params.sortKey, params.sortDir)
+  const step6 = filterByProduct(step5, params.productFamilyId)
+  const step7 = filterByQuery(step6, params.query)
+  return sortShots(step7, params.sortKey, params.sortDir)
 }
 
 /**

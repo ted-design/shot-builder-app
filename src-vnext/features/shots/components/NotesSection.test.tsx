@@ -1,7 +1,6 @@
 /// <reference types="@testing-library/jest-dom" />
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, vi, afterEach } from "vitest"
 import { render, screen, waitFor, act, fireEvent } from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
 import { NotesSection } from "./NotesSection"
 
 describe("NotesSection", () => {
@@ -31,7 +30,7 @@ describe("NotesSection", () => {
     expect(screen.getByText("No notes yet")).toBeInTheDocument()
   })
 
-  it("keeps legacy notes read-only while showing one editable notes textarea", () => {
+  it("starts in read mode and enters edit mode on click", () => {
     render(
       <NotesSection
         notes="<p>Some notes</p>"
@@ -40,13 +39,17 @@ describe("NotesSection", () => {
         canEditAddendum={true}
       />,
     )
-    const textareas = document.querySelectorAll("textarea")
-    expect(textareas.length).toBe(1)
-    expect(textareas[0]!.getAttribute("data-testid")).toBe("notes-input")
+    // Read mode: no textarea visible
+    expect(screen.queryByTestId("notes-input")).not.toBeInTheDocument()
+    expect(screen.getByTestId("notes-read-mode")).toBeInTheDocument()
     expect(screen.getByText("Legacy Notes (Read-only)")).toBeInTheDocument()
+
+    // Click to enter edit mode
+    fireEvent.click(screen.getByTestId("notes-read-mode"))
+    expect(screen.getByTestId("notes-input")).toBeInTheDocument()
   })
 
-  it("prefills editable notes with existing content", () => {
+  it("prefills editable notes with existing content after entering edit mode", () => {
     render(
       <NotesSection
         notes={null}
@@ -55,6 +58,8 @@ describe("NotesSection", () => {
         canEditAddendum={true}
       />,
     )
+    // Click read mode to enter edit mode
+    fireEvent.click(screen.getByTestId("notes-read-mode"))
     const textarea = screen.getByTestId("notes-input") as HTMLTextAreaElement
     expect(textarea.value).toContain("Line one")
     expect(textarea.value).toContain("Line two")
@@ -72,6 +77,8 @@ describe("NotesSection", () => {
       />,
     )
 
+    // Enter edit mode
+    fireEvent.click(screen.getByTestId("notes-read-mode"))
     const textarea = screen.getByTestId("notes-input")
     fireEvent.change(textarea, { target: { value: "  Updated text  " } })
 
@@ -99,6 +106,8 @@ describe("NotesSection", () => {
       />,
     )
 
+    // Enter edit mode
+    fireEvent.click(screen.getByTestId("notes-read-mode"))
     const textarea = screen.getByTestId("notes-input")
     // Type the same trimmed value
     fireEvent.change(textarea, { target: { value: "Same" } })
@@ -120,6 +129,8 @@ describe("NotesSection", () => {
       />,
     )
 
+    // Enter edit mode
+    fireEvent.click(screen.getByTestId("notes-read-mode"))
     const textarea = screen.getByTestId("notes-input") as HTMLTextAreaElement
     fireEvent.change(textarea, { target: { value: "Important note" } })
 
@@ -158,5 +169,38 @@ describe("NotesSection", () => {
 
     const link = screen.getByRole("link", { name: "https://example.com/reference" })
     expect(link).toHaveAttribute("href", "https://example.com/reference")
+  })
+
+  it("shows placeholder text in read mode when addendum is empty", () => {
+    render(
+      <NotesSection
+        notes={null}
+        notesAddendum={null}
+        onSaveAddendum={() => Promise.resolve()}
+        canEditAddendum={true}
+      />,
+    )
+    expect(screen.getByText("Click to add notes...")).toBeInTheDocument()
+  })
+
+  it("exits edit mode on blur", async () => {
+    render(
+      <NotesSection
+        notes={null}
+        notesAddendum="Some text"
+        onSaveAddendum={() => Promise.resolve()}
+        canEditAddendum={true}
+      />,
+    )
+    // Enter edit mode
+    fireEvent.click(screen.getByTestId("notes-read-mode"))
+    expect(screen.getByTestId("notes-input")).toBeInTheDocument()
+
+    // Blur exits edit mode
+    fireEvent.blur(screen.getByTestId("notes-input"))
+    await waitFor(() => {
+      expect(screen.queryByTestId("notes-input")).not.toBeInTheDocument()
+      expect(screen.getByTestId("notes-read-mode")).toBeInTheDocument()
+    })
   })
 })

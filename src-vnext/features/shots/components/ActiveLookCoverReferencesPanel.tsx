@@ -359,7 +359,7 @@ function ReferenceTile({
   return (
     <div
       className={[
-        "relative overflow-hidden rounded-md border bg-[var(--color-surface-subtle)]",
+        "group relative overflow-hidden rounded-md border bg-[var(--color-surface-subtle)]",
         isCover ? "border-[var(--color-border-strong)]" : "border-[var(--color-border)]",
       ].join(" ")}
     >
@@ -378,36 +378,35 @@ function ReferenceTile({
         </div>
       )}
 
-      {isCover && (
-        <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-2xs text-white">
-          Cover
-        </span>
-      )}
-
+      {/* Hover-reveal action bar */}
       {canEdit && (
-        <div className="absolute right-1 top-1 flex items-center gap-1">
-          <Button
+        <div className="absolute bottom-0 left-0 right-0 flex border-t border-[var(--color-border)] bg-[var(--color-surface)]/90 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+          <button
             type="button"
-            variant="secondary"
-            size="icon"
-            className="h-7 w-7 opacity-90 hover:opacity-100"
+            className="flex flex-1 items-center justify-center py-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] disabled:opacity-50"
             onClick={onSetCover}
             title="Set as cover"
             disabled={disabled}
           >
             <Star className="h-3.5 w-3.5" />
-          </Button>
-          <Button
+          </button>
+          <div className="w-px bg-[var(--color-border)]" />
+          <button
             type="button"
-            variant="secondary"
-            size="icon"
-            className="h-7 w-7 opacity-90 hover:opacity-100"
+            className="flex flex-1 items-center justify-center py-1 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-error)] disabled:opacity-50"
             onClick={onRemove}
             title="Remove"
             disabled={disabled}
           >
             <X className="h-3.5 w-3.5" />
-          </Button>
+          </button>
+        </div>
+      )}
+
+      {/* Cover indicator — text strip below image, not overlay */}
+      {isCover && (
+        <div className="border-t border-[var(--color-border)] bg-[var(--color-surface-subtle)] py-0.5 text-center text-2xs font-medium text-[var(--color-text-muted)]">
+          Cover
         </div>
       )}
     </div>

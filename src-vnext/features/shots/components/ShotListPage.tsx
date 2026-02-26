@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
@@ -33,7 +33,8 @@ import { SORT_LABELS, STATUS_LABELS } from "@/features/shots/lib/shotListFilters
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { backfillMissingShotDates } from "@/features/shots/lib/backfillShotDates"
-import { useLocations, useTalent } from "@/features/shots/hooks/usePickerData"
+import { useLocations, useTalent, useProductFamilies } from "@/features/shots/hooks/usePickerData"
+import { KeyboardShortcutsDialog } from "@/features/shots/components/KeyboardShortcutsDialog"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ShotsPdfExportDialog } from "@/features/shots/components/ShotsPdfExportDialog"
 import { Skeleton } from "@/ui/skeleton"
@@ -50,6 +51,7 @@ export default function ShotListPage() {
   const isDesktop = useIsDesktop()
   const { data: talentRecords } = useTalent()
   const { data: locationRecords } = useLocations()
+  const { data: productFamilies } = useProductFamilies()
 
   // -- Three-panel state (desktop only) --
   const [selectedShotId, setSelectedShotId] = useState<string | null>(null)
@@ -63,14 +65,29 @@ export default function ShotListPage() {
     }
   }, [isDesktop, navigate, projectId])
 
-  // -- Dialog state --
+  // -- FAB integration: ?create=1 opens the dialog --
+  const [searchParams, setSearchParamsFab] = useSearchParams()
   const [createOpen, setCreateOpen] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setCreateOpen(true)
+      setSearchParamsFab((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete("create")
+        return next
+      }, { replace: true })
+    }
+  }, [searchParams, setSearchParamsFab])
+
+  // -- Dialog state --
   const [mobileOptimistic, setMobileOptimistic] = useState<ReadonlyArray<Shot> | null>(null)
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
   const [createPullOpen, setCreatePullOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [displayOpen, setDisplayOpen] = useState(false)
   const [repairOpen, setRepairOpen] = useState(false)
@@ -88,23 +105,24 @@ export default function ShotListPage() {
   // -- Lookup maps (computed from picker data, passed to list state hook) --
   const talentNameById = useMemo(() => new Map(talentRecords.map((t) => [t.id, t.name])), [talentRecords])
   const locationNameById = useMemo(() => new Map(locationRecords.map((l) => [l.id, l.name])), [locationRecords])
+  const productNameById = useMemo(() => new Map(productFamilies.map((p) => [p.id, p.styleName])), [productFamilies])
 
   // -- All filter / sort / view state --
   const {
     sortKey, sortDir, viewMode, groupKey, isCustomSort,
-    queryParam, talentParam, locationParam,
+    queryParam, talentParam, locationParam, productParam,
     statusFilter, missingFilter, tagFilter,
     queryDraft, setQueryDraft,
     setSortKey, setSortDir, setViewMode, setGroupKey,
     toggleStatus, toggleMissing, toggleTag,
-    setTalentFilter, setLocationFilter,
+    setTalentFilter, setLocationFilter, setProductFilter,
     clearFilters, clearQuery,
     fields, setFields,
     displayShots, insights, hasActiveFilters, hasActiveGrouping,
     shotGroups, activeFilterBadges, tagOptions,
     storageKeyBase,
   } = useShotListState({
-    shots, mobileOptimistic, clientId, projectId, talentNameById, locationNameById,
+    shots, mobileOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById,
   })
 
   // -- Keyboard shortcuts: 1-4 switch view mode (disabled when three-panel active) --
@@ -113,6 +131,7 @@ export default function ShotListPage() {
     { key: "2", handler: () => setViewMode("visual") },
     { key: "3", handler: () => setViewMode("table") },
     { key: "4", handler: () => setViewMode("board") },
+    { key: "?", shift: true, handler: () => setShortcutsOpen(true) },
   ], { enabled: !threePanelActive })
 
   // -- Existing shot titles (duplicate detection for create dialog) --
@@ -393,6 +412,9 @@ export default function ShotListPage() {
             locationParam={locationParam}
             onLocationChange={setLocationFilter}
             locationRecords={locationRecords}
+            productParam={productParam}
+            onProductChange={setProductFilter}
+            productFamilies={productFamilies}
             tagFilter={tagFilter}
             onToggleTag={toggleTag}
             tagOptions={tagOptions}
@@ -400,6 +422,11 @@ export default function ShotListPage() {
             onClearFilters={clearFilters}
             canRepair={canRepair}
             onRepairOpen={() => setRepairOpen(true)}
+          />
+
+          <KeyboardShortcutsDialog
+            open={shortcutsOpen}
+            onOpenChange={setShortcutsOpen}
           />
 
           <ShotListDisplaySheet
@@ -831,6 +858,7 @@ export default function ShotListPage() {
         <CreateShotDialog
           open={createOpen}
           onOpenChange={setCreateOpen}
+          shots={shots}
           onCreated={(shotId, title) => {
             const q = queryParam.trim().toLowerCase()
             const hiddenByQuery = q.length > 0 && !title.toLowerCase().includes(q)

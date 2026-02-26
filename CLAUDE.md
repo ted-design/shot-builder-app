@@ -249,6 +249,150 @@ The three-panel desktop layout (`ThreePanelLayout.tsx`) uses `react-resizable-pa
 
 **Breadcrumb hygiene:** Navigation breadcrumbs must not duplicate information already visible on screen. If the shot title is shown as an H2 directly below, the breadcrumb should only show the back-navigation ("← Shots"), not repeat the title.
 
+**Notes/Description click-to-edit pattern:** Read mode is default. Click anywhere on the text to enter edit mode with autoFocus. Blur saves via `useAutoSave.flush()` and returns to read mode. Empty state shows placeholder text like "Click to add notes..." with subtle styling.
+
+**List panel density tiers:** Three density levels driven by `ResizeObserver`, not viewport queries:
+- Compact (`< 200px`): Title + shot number only, no thumbnail/badge
+- Medium (`200–280px`): Title + shot number + thumbnail + status badge
+- Full (`> 280px`): All of medium + 2-line description preview
+
+**Reference tile hover-reveal action bar:** Default state shows clean image only. On hover, a frosted action bar appears at bottom with star (set cover) and X (remove) icons. Cover indicator is a text strip below the image, not overlaying it.
+
+**Display preferences localStorage key:** `sb:three-panel:list-prefs` — stores `{ showThumbnail, showShotNumber, showDescription, showStatusBadge }`. Managed by `useListDisplayPreferences` hook in `features/shots/hooks/`.
+
+## Session Learnings & Error Prevention
+
+These patterns were learned through implementation errors and should be followed to avoid repeating them.
+
+### Test Updates on Behavior Refactors
+
+When refactoring a component's interaction model (e.g., always-editable textarea to click-to-edit toggle), **existing tests will break**. Plan for this:
+- Tests that assume the old interaction (e.g., textarea immediately visible) must be updated to the new flow (e.g., click read-mode first, then interact with textarea).
+- Add `data-testid` attributes to new interaction states (e.g., `notes-read-mode`, `notes-input`) so tests can target them reliably.
+- After refactoring, add new tests covering the new states (placeholder text in read mode, blur-to-exit, etc.).
+
+### Design Token Hygiene
+
+- **Never reference a token before it exists in `tokens.css`.** The build won't catch missing CSS variables — they silently resolve to nothing. Verify the token exists before using `var(--color-*)`.
+- **Status badge colors belong in tokens**, not as hardcoded Tailwind classes. Use `var(--color-status-{color}-{bg|text|border})` so dark mode and theming work.
+- **Hardcoded `text-white`, `bg-black` inside token-driven components** are design-system violations. Use `var(--color-text-inverted)` and `var(--color-text)` instead.
+
+### External Store Patterns
+
+- `useSyncExternalStore` is the correct React 18 pattern for localStorage-backed state — not `useState` + `useEffect` + manual event listeners. It handles SSR, concurrent mode, and tearing correctly.
+- External store singletons (cached value + listeners Set + subscribe/getSnapshot) live at module scope, outside the component.
+
+### CSS-Only Hover Reveal
+
+- Use Tailwind `group` class on parent + `opacity-0 group-hover:opacity-100 transition-opacity` on children for hover-reveal UI. No JavaScript state or event handlers needed.
+- Frosted glass effect: `bg-[var(--color-surface)]/90 backdrop-blur-sm`.
+
+### Form Validation & Button Disabled Guards
+
+- When a submit button has `disabled={!value.trim()}`, **tests cannot trigger validation errors by clicking it with empty/whitespace input** — the click is swallowed. Two approaches:
+  1. Test that the button IS disabled (preferred for empty-state guard)
+  2. Test Zod validation via fields that CAN have invalid non-empty values (e.g., bad URL format)
+- For component tests on dialogs with disabled submit: test disabled state directly, test validation errors on fields that accept non-empty invalid input (URLs, etc.), and test the happy path via mock assertions.
+
+### Zod Validation Pattern (Phase 4)
+
+- `validateField(schema, value)` returns `string | null` — avoids try/catch boilerplate in form handlers.
+- Per-field errors stored in `Record<string, string | null>` state. Clear on keystroke for immediate feedback.
+- If a validation error is in a collapsed (progressive disclosure) section, auto-expand that section before showing the error.
+- Schemas live in `shared/lib/validation.ts` — reusable across create and edit dialogs.
+
+### Progressive Disclosure in Dialogs
+
+- Only worth doing when 3+ optional fields exist (project dialogs). For 1-2 field dialogs (shot, pull), collapsing is absurd overhead.
+- EditDialog auto-expands if ANY collapsed field already has data — never hide the user's existing values.
+- Use local `useState` for expand/collapse toggle — dialogs are ephemeral, no need for localStorage.
+
+### Shot Numbering Extraction Pattern
+
+- When the same logic is needed in 2+ components, extract to a `lib/` module immediately — don't copy-paste.
+- `shotNumbering.ts` is shared by `ShotQuickAdd` (inline quick-add) and `CreateShotDialog` (modal create). Both need `computeMaxShotNumber` + `formatShotNumber`.
+
+## Mobile & Tablet Patterns (Phase 5)
+
+### ResponsiveDialog
+
+`shared/components/ResponsiveDialog.tsx` — unified component that renders Sheet (side="bottom") on mobile and Dialog on desktop. All creation/edit dialogs (CreateShotDialog, CreatePullDialog, CreateProjectDialog, EditProjectDialog) use this. Props: `open`, `onOpenChange`, `title`, `description`, `children`, `footer`, `contentClassName`.
+
+### Touch Targets
+
+`tokens.css` provides `.touch-target` utility: `@media (pointer: coarse) { .touch-target { min-height: 44px; min-width: 44px; } }`. Apply to all interactive elements that need mobile-safe hit areas.
+
+### FloatingActionBar
+
+`shared/components/FloatingActionBar.tsx` — route-aware FAB rendered by AppShell when `!isDesktop`. Uses URL params with `replace: true` to communicate with pages:
+- Shot list (`/projects/:id/shots`): "New Shot" sets `?create=1`
+- Shot detail (`/projects/:id/shots/:sid`): "Mark Shot" sets `?status_picker=1`, "Add Note" sets `?focus=notes`
+- Target pages consume params via `useSearchParams` in a `useEffect`, then delete the param after handling.
+
+### ShotStatusTapRow
+
+`features/shots/components/ShotStatusTapRow.tsx` — 4 horizontal pill buttons for mobile 1-tap status changes. Replaces `ShotStatusSelect` dropdown on mobile. Uses canonical labels from `statusMappings.ts`. Optimistic update with rollback on error. All buttons have `min-h-[44px]` touch targets.
+
+### Hide-Not-Disable Pattern
+
+On mobile, when `canEdit = !isMobile && canManageX(role)` already prevents write form rendering, do NOT add redundant `disabled={... || isMobile}` props. This creates confusing grayed-out controls. Instead, conditionally render write forms only when `canEdit` is true, showing read-only values otherwise.
+
+### Warehouse Guided Pick Flow
+
+`/pulls/shared/:shareToken/guide` — full-screen stepper for one-handed warehouse operation. Components: `WarehousePickGuidePage` (shell + state), `WarehousePickStep` (item card), `WarehousePickProgress` (bar), `WarehousePickOutcomeBar` (3 action buttons). Local state only — no Firestore writes for substitute notes.
+
+## Visual Standardization Rules (Phase 6)
+
+These rules were established by the Phase 6a visual audit and 6b mockups. All new and modified components must follow them.
+
+### Typography Hierarchy
+
+Use semantic classes from `design-tokens.js`, not raw Tailwind:
+
+| Element | Class | Spec |
+|---|---|---|
+| Page title (h1) | `.heading-page` | 24px / font-light (300) / -0.02em / md:28px |
+| Section heading (h2) | `.heading-section` | 16px / font-semibold (600) / -0.01em |
+| Subsection heading (h3) | `.heading-subsection` | 14px / font-semibold (600) / -0.01em |
+| Meta label (uppercase) | `.label-meta` | 12px / font-semibold (600) / uppercase / 0.05em / text-subtle |
+
+- **One `<h1>` per page.** Never two.
+- **No arbitrary pixel sizes.** Use `text-sm` (13px) not `text-[13px]`, `text-2xs` (10px) not `text-[10px]`.
+
+### Text Color Hierarchy
+
+Four levels, clearly separated:
+
+| Token | Zinc | Use for |
+|---|---|---|
+| `--color-text` | 900 | Primary: titles, form values, active items |
+| `--color-text-secondary` | 600 | Supporting: descriptions, body, card subtitles |
+| `--color-text-muted` | 500 | Metadata: timestamps, counts, hints |
+| `--color-text-subtle` | 400 | Placeholders, disabled, label-meta |
+
+### Card Standards
+
+| Property | Standard |
+|---|---|
+| Border radius | `rounded-lg` (8px) — not `rounded-md` |
+| CardContent padding | `p-4` |
+| CardHeader bottom padding | `pb-2` |
+| Card grid gap | `gap-4` |
+
+### Badge Font Size
+
+All badges use `text-xxs` (11px) consistently — both on cards and detail pages.
+
+### Detail Page Navigation
+
+All detail pages use `PageHeader` with breadcrumbs for back navigation. No inline ghost buttons or icon-only back buttons.
+
+### Token Usage
+
+- `text-white` on dark backgrounds → use `text-[var(--color-text-inverted)]`
+- `bg-white` on surfaces → use `bg-[var(--color-surface)]`
+- Sidebar text → use `text-[var(--color-sidebar-text)]` not `text-neutral-*`
+
 ## Shot Status Labels
 
 Canonical labels (from `statusMappings.ts`). Use these everywhere — views, filters, PDFs, badges:

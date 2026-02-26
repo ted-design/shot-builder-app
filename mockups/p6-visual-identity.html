@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phase 6b — Visual Identity & Component Showcase</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Surfaces */
+      --color-bg: #fafafa;
+      --color-surface: #ffffff;
+      --color-surface-muted: #e4e4e7;
+      --color-surface-subtle: #f4f4f5;
+
+      /* Sidebar */
+      --color-sidebar: #09090b;
+      --color-sidebar-hover: #27272a;
+      --color-sidebar-active: #3f3f46;
+      --color-sidebar-text: #a1a1aa;
+      --color-sidebar-text-active: #ffffff;
+      --color-sidebar-border: #27272a;
+      --color-sidebar-indicator: #E31E24;
+
+      /* Text */
+      --color-text: #18181b;
+      --color-text-secondary: #52525b;
+      --color-text-muted: #71717a;
+      --color-text-subtle: #a1a1aa;
+      --color-text-inverted: #ffffff;
+
+      /* Borders */
+      --color-border: #e4e4e7;
+      --color-border-muted: #f4f4f5;
+      --color-border-strong: #d4d4d8;
+
+      /* Primary */
+      --color-primary: #18181b;
+      --color-primary-hover: #27272a;
+      --color-primary-text: #ffffff;
+
+      /* Accent */
+      --color-accent: #E31E24;
+      --color-accent-hover: #c91920;
+      --color-accent-light: #fee2e2;
+
+      /* Status */
+      --color-success: #10b981;
+      --color-warning: #f59e0b;
+      --color-error: #ef4444;
+      --color-info: #3b82f6;
+
+      /* Status Badges */
+      --color-status-gray-bg: #f4f4f5;
+      --color-status-gray-text: #3f3f46;
+      --color-status-gray-border: #e4e4e7;
+      --color-status-blue-bg: #eff6ff;
+      --color-status-blue-text: #1d4ed8;
+      --color-status-blue-border: #bfdbfe;
+      --color-status-green-bg: #ecfdf5;
+      --color-status-green-text: #047857;
+      --color-status-green-border: #a7f3d0;
+      --color-status-amber-bg: #fffbeb;
+      --color-status-amber-text: #b45309;
+      --color-status-amber-border: #fde68a;
+
+      /* NEW: Missing tokens to add */
+      --color-primary-subtle: #f4f4f5;
+      --color-warning-muted: #fde68a;
+      --color-warning-subtle: #fffbeb;
+    }
+
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Navigation ── */
+    .tab-bar {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .tab-bar-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; align-items: center; gap: 0;
+    }
+    .tab-btn {
+      padding: 14px 24px; font-size: 13px; font-weight: 500;
+      cursor: pointer; border: none; background: none;
+      color: var(--color-text-muted);
+      border-bottom: 2px solid transparent;
+      transition: all 150ms ease;
+      font-family: inherit;
+    }
+    .tab-btn:hover { color: var(--color-text); }
+    .tab-btn.active { color: var(--color-text); border-bottom-color: var(--color-primary); }
+
+    .panel { display: none; max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; }
+    .panel.active { display: block; }
+
+    /* ── Section labels ── */
+    .section-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+      color: var(--color-text-subtle); margin-bottom: 16px; margin-top: 48px;
+    }
+    .section-label:first-child { margin-top: 0; }
+
+    .section-note {
+      font-size: 12px; line-height: 1.6; color: var(--color-text-muted);
+      margin-bottom: 24px; max-width: 640px;
+    }
+
+    /* ── Color Swatches ── */
+    .swatch-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .swatch {
+      border-radius: 8px; overflow: hidden;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+    .swatch-color { height: 64px; position: relative; }
+    .swatch-info { padding: 8px 10px; }
+    .swatch-name { font-size: 11px; font-weight: 600; color: var(--color-text); }
+    .swatch-value { font-size: 10px; font-weight: 400; color: var(--color-text-muted); margin-top: 2px; font-family: ui-monospace, monospace; }
+    .swatch-token { font-size: 9px; font-weight: 400; color: var(--color-text-subtle); margin-top: 2px; font-family: ui-monospace, monospace; }
+
+    /* ── Typography specimens ── */
+    .type-specimen { margin-bottom: 32px; }
+    .type-specimen-row {
+      display: flex; align-items: baseline; gap: 24px;
+      padding: 16px 0; border-bottom: 1px solid var(--color-border-muted);
+    }
+    .type-specimen-meta {
+      min-width: 180px; flex-shrink: 0;
+    }
+    .type-specimen-class {
+      font-size: 11px; font-weight: 600; color: var(--color-accent);
+      font-family: ui-monospace, monospace; margin-bottom: 4px;
+    }
+    .type-specimen-props {
+      font-size: 10px; color: var(--color-text-subtle); line-height: 1.6;
+      font-family: ui-monospace, monospace;
+    }
+    .type-specimen-sample { flex: 1; }
+
+    /* ── Component cards ── */
+    .comp-row {
+      display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px;
+    }
+    .comp-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 24px;
+      flex: 1; min-width: 280px;
+    }
+    .comp-card-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+      text-transform: uppercase; color: var(--color-text-subtle); margin-bottom: 16px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 6px; border-radius: 6px; font-weight: 500; font-family: inherit;
+      cursor: pointer; transition: all 150ms ease; border: 1px solid transparent;
+      font-size: 14px; white-space: nowrap;
+    }
+    .btn-sm { height: 32px; padding: 0 12px; font-size: 13px; }
+    .btn-md { height: 40px; padding: 0 20px; }
+    .btn-lg { height: 46px; padding: 0 24px; }
+
+    .btn-primary {
+      background: var(--color-primary); color: var(--color-primary-text);
+      border-color: var(--color-primary);
+    }
+    .btn-primary:hover { background: var(--color-primary-hover); }
+
+    .btn-outline {
+      background: var(--color-surface); color: var(--color-text);
+      border-color: var(--color-border-strong);
+    }
+    .btn-outline:hover { background: var(--color-surface-subtle); }
+
+    .btn-ghost {
+      background: transparent; color: var(--color-text-secondary);
+      border-color: transparent;
+    }
+    .btn-ghost:hover { background: var(--color-surface-subtle); color: var(--color-text); }
+
+    .btn-destructive {
+      background: var(--color-error); color: white;
+      border-color: var(--color-error);
+    }
+    .btn-destructive:hover { opacity: 0.9; }
+
+    .btn-accent {
+      background: var(--color-accent); color: white;
+      border-color: var(--color-accent);
+    }
+    .btn-accent:hover { background: var(--color-accent-hover); }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 9999px;
+      font-size: 11px; font-weight: 500;
+      border: 1px solid; white-space: nowrap;
+    }
+    .badge-gray { background: var(--color-status-gray-bg); color: var(--color-status-gray-text); border-color: var(--color-status-gray-border); }
+    .badge-blue { background: var(--color-status-blue-bg); color: var(--color-status-blue-text); border-color: var(--color-status-blue-border); }
+    .badge-green { background: var(--color-status-green-bg); color: var(--color-status-green-text); border-color: var(--color-status-green-border); }
+    .badge-amber { background: var(--color-status-amber-bg); color: var(--color-status-amber-text); border-color: var(--color-status-amber-border); }
+
+    /* ── Form Inputs ── */
+    .input {
+      height: 40px; padding: 0 12px; border-radius: 6px;
+      border: 1px solid var(--color-border); background: var(--color-surface);
+      font-size: 14px; font-family: inherit; color: var(--color-text);
+      width: 100%; transition: border-color 150ms ease;
+    }
+    .input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(24,24,27,0.08); }
+    .input::placeholder { color: var(--color-text-subtle); }
+
+    .input-sm { height: 32px; font-size: 13px; padding: 0 10px; }
+
+    .form-label {
+      display: block; font-size: 14px; font-weight: 500;
+      color: var(--color-text); margin-bottom: 6px;
+    }
+    .form-hint {
+      font-size: 12px; color: var(--color-text-muted); margin-top: 4px;
+    }
+    .form-error {
+      font-size: 12px; color: var(--color-error); margin-top: 4px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 8px; /* STANDARD: rounded-lg = 8px = radius-lg */
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 16px 16px 8px; /* CardHeader pb-2 convention */
+    }
+    .card-content {
+      padding: 16px; /* STANDARD: p-4 */
+    }
+    .card-title {
+      font-size: 14px; font-weight: 600;
+      letter-spacing: -0.01em; color: var(--color-text);
+    }
+    .card-description {
+      font-size: 13px; color: var(--color-text-muted); margin-top: 4px;
+    }
+
+    /* ── Compare blocks ── */
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
+    .compare-block {
+      border-radius: 8px; padding: 24px;
+      border: 1px solid var(--color-border);
+    }
+    .compare-block.before { background: #fff5f5; border-color: #fecaca; }
+    .compare-block.after { background: #f0fdf4; border-color: #bbf7d0; }
+    .compare-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .compare-block.before .compare-label { color: #dc2626; }
+    .compare-block.after .compare-label { color: #16a34a; }
+
+    /* ── Sidebar mini preview ── */
+    .sidebar-mini {
+      width: 220px; border-radius: 12px; overflow: hidden;
+      background: var(--color-sidebar); padding: 12px 0;
+    }
+    .sidebar-mini-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 14px; margin: 1px 8px; border-radius: 6px;
+      font-size: 13px; color: var(--color-sidebar-text); cursor: default;
+      transition: all 120ms ease; position: relative;
+    }
+    .sidebar-mini-item:hover { background: var(--color-sidebar-hover); color: #d4d4d8; }
+    .sidebar-mini-item.active {
+      background: var(--color-sidebar-active);
+      color: var(--color-sidebar-text-active);
+    }
+    .sidebar-mini-item.active::before {
+      content: ''; position: absolute; left: -8px; top: 6px; bottom: 6px; width: 3px;
+      background: var(--color-sidebar-indicator); border-radius: 0 2px 2px 0;
+    }
+    .sidebar-mini-icon { width: 18px; height: 18px; opacity: 0.7; }
+    .sidebar-mini-item.active .sidebar-mini-icon { opacity: 1; }
+
+    /* ── Standardization blocks ── */
+    .standard-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .standard-table th {
+      text-align: left; font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+      text-transform: uppercase; color: var(--color-text-subtle);
+      padding: 8px 12px; border-bottom: 1px solid var(--color-border);
+    }
+    .standard-table td {
+      padding: 10px 12px; border-bottom: 1px solid var(--color-border-muted);
+      vertical-align: middle;
+    }
+    .standard-table code {
+      font-family: ui-monospace, monospace; font-size: 11px;
+      background: var(--color-surface-subtle); padding: 2px 6px; border-radius: 4px;
+      color: var(--color-text-secondary);
+    }
+    .standard-table .yes { color: var(--color-success); font-weight: 600; }
+    .standard-table .no { color: var(--color-error); font-weight: 600; }
+
+    /* ── Page header preview ── */
+    .page-preview {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 12px; padding: 32px; margin-bottom: 16px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .compare-grid { grid-template-columns: 1fr; }
+      .swatch-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+      .comp-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Tab Navigation -->
+<div class="tab-bar">
+  <div class="tab-bar-inner">
+    <button class="tab-btn active" onclick="showPanel('colors')">Colors</button>
+    <button class="tab-btn" onclick="showPanel('typography')">Typography</button>
+    <button class="tab-btn" onclick="showPanel('components')">Components</button>
+    <button class="tab-btn" onclick="showPanel('standards')">Standardization</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- PANEL 1: COLORS                            -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="colors" class="panel active">
+
+  <h1 style="font-size: 24px; font-weight: 300; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 8px;">
+    Color Palette
+  </h1>
+  <p class="section-note">Direction A: Near-Black Editorial. Zinc neutral scale, near-black primary, Immediate Red accent. Borders do separation work; shadows are minimal.</p>
+
+  <!-- Surfaces -->
+  <div class="section-label">Surfaces</div>
+  <div class="swatch-grid">
+    <div class="swatch">
+      <div class="swatch-color" style="background: #fafafa;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Background</div>
+        <div class="swatch-value">#fafafa</div>
+        <div class="swatch-token">--color-bg</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #ffffff;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Surface</div>
+        <div class="swatch-value">#ffffff</div>
+        <div class="swatch-token">--color-surface</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #f4f4f5;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Surface Subtle</div>
+        <div class="swatch-value">#f4f4f5</div>
+        <div class="swatch-token">--color-surface-subtle</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #e4e4e7;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Surface Muted</div>
+        <div class="swatch-value">#e4e4e7</div>
+        <div class="swatch-token">--color-surface-muted</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Text -->
+  <div class="section-label">Text</div>
+  <div class="swatch-grid">
+    <div class="swatch">
+      <div class="swatch-color" style="background: #18181b;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Primary Text</div>
+        <div class="swatch-value">#18181b</div>
+        <div class="swatch-token">--color-text</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #52525b;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Secondary</div>
+        <div class="swatch-value">#52525b</div>
+        <div class="swatch-token">--color-text-secondary</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #71717a;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Muted</div>
+        <div class="swatch-value">#71717a</div>
+        <div class="swatch-token">--color-text-muted</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #a1a1aa;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Subtle</div>
+        <div class="swatch-value">#a1a1aa</div>
+        <div class="swatch-token">--color-text-subtle</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #ffffff; border: 1px dashed #d4d4d8;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Inverted</div>
+        <div class="swatch-value">#ffffff</div>
+        <div class="swatch-token">--color-text-inverted</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="section-note" style="margin-top: 16px;">
+    <strong>Text hierarchy:</strong> <code>--color-text</code> (primary) &gt; <code>--color-text-secondary</code> (zinc-600, supporting content) &gt; <code>--color-text-muted</code> (zinc-500, timestamps/metadata) &gt; <code>--color-text-subtle</code> (zinc-400, placeholders/disabled). Eliminate overlapping usage.
+  </p>
+
+  <!-- Borders -->
+  <div class="section-label">Borders</div>
+  <div class="swatch-grid">
+    <div class="swatch">
+      <div class="swatch-color" style="background: #e4e4e7;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Default</div>
+        <div class="swatch-value">#e4e4e7</div>
+        <div class="swatch-token">--color-border</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #f4f4f5;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Muted</div>
+        <div class="swatch-value">#f4f4f5</div>
+        <div class="swatch-token">--color-border-muted</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #d4d4d8;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Strong</div>
+        <div class="swatch-value">#d4d4d8</div>
+        <div class="swatch-token">--color-border-strong</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Primary & Accent -->
+  <div class="section-label">Primary & Accent</div>
+  <div class="swatch-grid">
+    <div class="swatch">
+      <div class="swatch-color" style="background: #18181b;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Primary</div>
+        <div class="swatch-value">#18181b</div>
+        <div class="swatch-token">--color-primary</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #27272a;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Primary Hover</div>
+        <div class="swatch-value">#27272a</div>
+        <div class="swatch-token">--color-primary-hover</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #f4f4f5;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Primary Subtle</div>
+        <div class="swatch-value">#f4f4f5</div>
+        <div class="swatch-token">--color-primary-subtle <span style="color: var(--color-accent); font-weight: 700;">NEW</span></div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #E31E24;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Accent (Immediate Red)</div>
+        <div class="swatch-value">#E31E24</div>
+        <div class="swatch-token">--color-accent</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #fee2e2;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Accent Light</div>
+        <div class="swatch-value">#fee2e2</div>
+        <div class="swatch-token">--color-accent-light</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="section-label">Sidebar</div>
+  <div style="display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap;">
+    <div class="swatch-grid" style="flex: 1; min-width: 300px;">
+      <div class="swatch">
+        <div class="swatch-color" style="background: #09090b;"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Sidebar BG</div>
+          <div class="swatch-value">#09090b</div>
+          <div class="swatch-token">--color-sidebar</div>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #27272a;"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Hover</div>
+          <div class="swatch-value">#27272a</div>
+          <div class="swatch-token">--color-sidebar-hover</div>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #3f3f46;"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Active</div>
+          <div class="swatch-value">#3f3f46</div>
+          <div class="swatch-token">--color-sidebar-active</div>
+        </div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #a1a1aa;"></div>
+        <div class="swatch-info">
+          <div class="swatch-name">Text</div>
+          <div class="swatch-value">#a1a1aa</div>
+          <div class="swatch-token">--color-sidebar-text</div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-mini">
+      <div class="sidebar-mini-item">
+        <svg class="sidebar-mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="sidebar-mini-item active">
+        <svg class="sidebar-mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+        Shots
+      </div>
+      <div class="sidebar-mini-item">
+        <svg class="sidebar-mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+        Pull Sheets
+      </div>
+      <div class="sidebar-mini-item">
+        <svg class="sidebar-mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        Products
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Badges -->
+  <div class="section-label">Status Badges (Shot Statuses)</div>
+  <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+    <span class="badge badge-gray">Draft</span>
+    <span class="badge badge-blue">In Progress</span>
+    <span class="badge badge-amber">On Hold</span>
+    <span class="badge badge-green">Shot</span>
+  </div>
+
+  <!-- Functional Colors -->
+  <div class="section-label">Functional</div>
+  <div class="swatch-grid">
+    <div class="swatch">
+      <div class="swatch-color" style="background: #10b981;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Success</div>
+        <div class="swatch-value">#10b981</div>
+        <div class="swatch-token">--color-success</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #f59e0b;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Warning</div>
+        <div class="swatch-value">#f59e0b</div>
+        <div class="swatch-token">--color-warning</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #ef4444;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Error</div>
+        <div class="swatch-value">#ef4444</div>
+        <div class="swatch-token">--color-error</div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-color" style="background: #3b82f6;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Info</div>
+        <div class="swatch-value">#3b82f6</div>
+        <div class="swatch-token">--color-info</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New tokens -->
+  <div class="section-label">New Tokens (To Add)</div>
+  <p class="section-note">These tokens are referenced in existing code but not defined. Adding them fixes silent breakage.</p>
+  <div class="swatch-grid">
+    <div class="swatch" style="border-color: var(--color-accent);">
+      <div class="swatch-color" style="background: #f4f4f5;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Primary Subtle</div>
+        <div class="swatch-value">#f4f4f5 (zinc-100)</div>
+        <div class="swatch-token">--color-primary-subtle</div>
+      </div>
+    </div>
+    <div class="swatch" style="border-color: var(--color-accent);">
+      <div class="swatch-color" style="background: #fde68a;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Warning Muted</div>
+        <div class="swatch-value">#fde68a (amber-200)</div>
+        <div class="swatch-token">--color-warning-muted</div>
+      </div>
+    </div>
+    <div class="swatch" style="border-color: var(--color-accent);">
+      <div class="swatch-color" style="background: #fffbeb;"></div>
+      <div class="swatch-info">
+        <div class="swatch-name">Warning Subtle</div>
+        <div class="swatch-value">#fffbeb (amber-50)</div>
+        <div class="swatch-token">--color-warning-subtle</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- PANEL 2: TYPOGRAPHY                        -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="typography" class="panel">
+
+  <h1 style="font-size: 24px; font-weight: 300; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 8px;">
+    Typography Scale
+  </h1>
+  <p class="section-note">Direction A: Editorial. Light-weight page headings (300), negative tracking, Inter throughout. Semantic classes enforce consistency.</p>
+
+  <!-- Before / After comparison -->
+  <div class="section-label">Before / After: Page Heading</div>
+  <div class="compare-grid">
+    <div class="compare-block before">
+      <div class="compare-label">Current (Every Page)</div>
+      <h2 style="font-size: 20px; font-weight: 600; letter-spacing: 0; line-height: 1.4;">
+        All Shots
+      </h2>
+      <p style="font-size: 11px; color: #71717a; margin-top: 8px; font-family: monospace;">text-xl font-semibold (no tracking)</p>
+    </div>
+    <div class="compare-block after">
+      <div class="compare-label">Direction A Editorial</div>
+      <h2 style="font-size: 24px; font-weight: 300; letter-spacing: -0.02em; line-height: 1.2;">
+        All Shots
+      </h2>
+      <p style="font-size: 11px; color: #71717a; margin-top: 8px; font-family: monospace;">.heading-page: text-2xl font-light tracking-[-0.02em]</p>
+    </div>
+  </div>
+
+  <!-- Full type scale -->
+  <div class="section-label">Semantic Type Scale</div>
+  <div class="type-specimen">
+
+    <div class="type-specimen-row">
+      <div class="type-specimen-meta">
+        <div class="type-specimen-class">.heading-page</div>
+        <div class="type-specimen-props">
+          24px / 300 / -0.02em<br>
+          md: 28px
+        </div>
+      </div>
+      <div class="type-specimen-sample">
+        <span style="font-size: 24px; font-weight: 300; letter-spacing: -0.02em; line-height: 1.2;">
+          All Shots
+        </span>
+      </div>
+    </div>
+
+    <div class="type-specimen-row">
+      <div class="type-specimen-meta">
+        <div class="type-specimen-class">.heading-section</div>
+        <div class="type-specimen-props">
+          16px / 600 / -0.01em
+        </div>
+      </div>
+      <div class="type-specimen-sample">
+        <span style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3;">
+          Shot Details
+        </span>
+      </div>
+    </div>
+
+    <div class="type-specimen-row">
+      <div class="type-specimen-meta">
+        <div class="type-specimen-class">.heading-subsection</div>
+        <div class="type-specimen-props">
+          14px / 600 / -0.01em
+        </div>
+      </div>
+      <div class="type-specimen-sample">
+        <span style="font-size: 14px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3;">
+          Reference Images
+        </span>
+      </div>
+    </div>
+
+    <div class="type-specimen-row">
+      <div class="type-specimen-meta">
+        <div class="type-specimen-class">.body-text</div>
+        <div class="type-specimen-props">
+          13px / 400
+        </div>
+      </div>
+      <div class="type-specimen-sample">
+        <span style="font-size: 13px; font-weight: 400; color: #3f3f46;">
+          The quick brown fox jumps over the lazy dog. This is standard body text used for descriptions, notes, and paragraph content.
+        </span>
+      </div>
+    </div>
+
+    <div class="type-specimen-row">
+      <div class="type-specimen-meta">
+        <div class="type-specimen-class">.body-text-muted</div>
+        <div class="type-specimen-props">
+          13px / 400 / muted
+        </div>
+      </div>
+      <div class="type-specimen-sample">
+        <span style="font-size: 13px; font-weight: 400; color: #52525b;">
+          De-emphasized supporting text. Used for secondary descriptions and helper content.
+        </span>
+      </div>
+    </div>
+
+    <div class="type-specimen-row">
+      <div class="type-specimen-meta">
+        <div class="type-specimen-class">.caption</div>
+        <div class="type-specimen-props">
+          12px / 400 / secondary
+        </div>
+      </div>
+      <div class="type-specimen-sample">
+        <span style="font-size: 12px; font-weight: 400; color: #52525b;">
+          Last updated 2 hours ago &middot; Created by John Doe
+        </span>
+      </div>
+    </div>
+
+    <div class="type-specimen-row">
+      <div class="type-specimen-meta">
+        <div class="type-specimen-class">.label</div>
+        <div class="type-specimen-props">
+          13px / 500
+        </div>
+      </div>
+      <div class="type-specimen-sample">
+        <span style="font-size: 13px; font-weight: 500; color: var(--color-text);">
+          Shot Title
+        </span>
+      </div>
+    </div>
+
+    <div class="type-specimen-row">
+      <div class="type-specimen-meta">
+        <div class="type-specimen-class">.label-meta</div>
+        <div class="type-specimen-props">
+          12px / 600 / upper<br>
+          tracking: 0.05em
+        </div>
+      </div>
+      <div class="type-specimen-sample">
+        <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-subtle);">
+          PRODUCT DETAILS
+        </span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Label-meta consolidation -->
+  <div class="section-label">Label-Meta: 3 Variants to Consolidate</div>
+  <p class="section-note">125 occurrences across 20+ files. All should use the single <code>.label-meta</code> class.</p>
+  <div class="compare-grid">
+    <div class="compare-block before">
+      <div class="compare-label">Current (3 Variants)</div>
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div>
+          <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #a1a1aa;">
+            PRODUCTS (tracking-widest)
+          </span>
+          <div style="font-size: 10px; color: #a1a1aa; margin-top: 4px; font-family: monospace;">tracking: 0.1em + text-subtle</div>
+        </div>
+        <div>
+          <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.025em; color: #71717a;">
+            SCHEDULES (tracking-wide)
+          </span>
+          <div style="font-size: 10px; color: #a1a1aa; margin-top: 4px; font-family: monospace;">tracking: 0.025em + text-muted</div>
+        </div>
+        <div>
+          <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #a1a1aa;">
+            WAREHOUSE (tracking-wider)
+          </span>
+          <div style="font-size: 10px; color: #a1a1aa; margin-top: 4px; font-family: monospace;">tracking: 0.05em + text-subtle</div>
+        </div>
+      </div>
+    </div>
+    <div class="compare-block after">
+      <div class="compare-label">Standardized (.label-meta)</div>
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div>
+          <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #a1a1aa;">
+            PRODUCT DETAILS
+          </span>
+        </div>
+        <div>
+          <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #a1a1aa;">
+            SCHEDULE BLOCKS
+          </span>
+        </div>
+        <div>
+          <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #a1a1aa;">
+            PICK ITEMS
+          </span>
+        </div>
+        <div style="font-size: 10px; color: #a1a1aa; margin-top: 4px; font-family: monospace;">All: 12px / 600 / upper / 0.05em / text-subtle</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Font size scale -->
+  <div class="section-label">Complete Font Size Scale</div>
+  <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 24px;">
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: baseline; gap: 16px;">
+        <span style="min-width: 80px; font-size: 10px; font-family: monospace; color: var(--color-text-subtle);">text-3xs 9px</span>
+        <span style="font-size: 9px; color: var(--color-text);">The quick brown fox (micro badges, shot numbers)</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 16px;">
+        <span style="min-width: 80px; font-size: 10px; font-family: monospace; color: var(--color-text-subtle);">text-2xs 10px</span>
+        <span style="font-size: 10px; color: var(--color-text);">The quick brown fox (compact badges, metadata)</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 16px;">
+        <span style="min-width: 80px; font-size: 10px; font-family: monospace; color: var(--color-text-subtle);">text-xxs 11px</span>
+        <span style="font-size: 11px; color: var(--color-text);">The quick brown fox (dense table cells, timestamps)</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 16px;">
+        <span style="min-width: 80px; font-size: 10px; font-family: monospace; color: var(--color-text-subtle);">text-xs 12px</span>
+        <span style="font-size: 12px; color: var(--color-text);">The quick brown fox (labels, captions, small UI)</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 16px; background: var(--color-surface-subtle); margin: 0 -24px; padding: 8px 24px; border-radius: 4px;">
+        <span style="min-width: 80px; font-size: 10px; font-family: monospace; color: var(--color-text-muted);">text-sm 13px</span>
+        <span style="font-size: 13px; color: var(--color-text); font-weight: 500;">The quick brown fox (body text, table content, form inputs)</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 16px; background: var(--color-surface-subtle); margin: 0 -24px; padding: 8px 24px; border-radius: 4px;">
+        <span style="min-width: 80px; font-size: 10px; font-family: monospace; color: var(--color-text-muted);">text-base 14px</span>
+        <span style="font-size: 14px; color: var(--color-text); font-weight: 500;">The quick brown fox (buttons, navigation, form labels)</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 16px;">
+        <span style="min-width: 80px; font-size: 10px; font-family: monospace; color: var(--color-text-subtle);">text-lg 16px</span>
+        <span style="font-size: 16px; color: var(--color-text);">The quick brown fox (section headings)</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 16px;">
+        <span style="min-width: 80px; font-size: 10px; font-family: monospace; color: var(--color-text-subtle);">text-xl 18px</span>
+        <span style="font-size: 18px; color: var(--color-text);">The quick brown fox (detail page titles)</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 16px;">
+        <span style="min-width: 80px; font-size: 10px; font-family: monospace; color: var(--color-text-subtle);">text-2xl 24px</span>
+        <span style="font-size: 24px; font-weight: 300; letter-spacing: -0.02em; color: var(--color-text);">Page Headings (editorial light)</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 16px;">
+        <span style="min-width: 80px; font-size: 10px; font-family: monospace; color: var(--color-text-subtle);">text-3xl 28px</span>
+        <span style="font-size: 28px; font-weight: 300; letter-spacing: -0.02em; color: var(--color-text);">Desktop Headings (md breakpoint)</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- PANEL 3: COMPONENTS                        -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="components" class="panel">
+
+  <h1 style="font-size: 24px; font-weight: 300; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 8px;">
+    Component Showcase
+  </h1>
+  <p class="section-note">Standardized variants for buttons, badges, cards, and form elements. All using token values.</p>
+
+  <!-- Buttons -->
+  <div class="section-label">Buttons</div>
+  <div class="comp-row">
+    <div class="comp-card">
+      <div class="comp-card-label">Variants</div>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+        <button class="btn btn-md btn-primary">Primary</button>
+        <button class="btn btn-md btn-outline">Outline</button>
+        <button class="btn btn-md btn-ghost">Ghost</button>
+        <button class="btn btn-md btn-destructive">Destructive</button>
+      </div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-card-label">Sizes</div>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+        <button class="btn btn-sm btn-primary">Small (32px)</button>
+        <button class="btn btn-md btn-primary">Medium (40px)</button>
+        <button class="btn btn-lg btn-primary">Large (46px)</button>
+      </div>
+    </div>
+  </div>
+  <div class="comp-row">
+    <div class="comp-card">
+      <div class="comp-card-label">With Icons</div>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+        <button class="btn btn-sm btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          New Shot
+        </button>
+        <button class="btn btn-sm btn-outline">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+        <button class="btn btn-sm btn-ghost" style="padding: 0; width: 32px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-card-label">Accent (Brand Moments Only)</div>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+        <button class="btn btn-md btn-accent">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Create Project
+        </button>
+        <p style="font-size: 11px; color: var(--color-text-muted); max-width: 200px;">
+          Reserve accent for: logo, sidebar indicator, destructive states. Not general buttons.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Badges -->
+  <div class="section-label">Status Badges</div>
+  <div class="comp-row">
+    <div class="comp-card">
+      <div class="comp-card-label">Shot Status (Canonical)</div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+        <span class="badge badge-gray">Draft</span>
+        <span class="badge badge-blue">In Progress</span>
+        <span class="badge badge-amber">On Hold</span>
+        <span class="badge badge-green">Shot</span>
+      </div>
+      <div style="margin-top: 16px;">
+        <div class="comp-card-label">Standard Size: 11px (text-xxs)</div>
+        <p style="font-size: 11px; color: var(--color-text-muted);">
+          Use <code style="font-size: 10px; background: var(--color-surface-subtle); padding: 1px 4px; border-radius: 3px;">text-xxs</code> consistently for all badge text. Not text-2xs on cards and text-xs on detail pages.
+        </p>
+      </div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-card-label">Metadata Badges</div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+        <span style="display: inline-flex; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; border: 1px solid var(--color-border); color: var(--color-text-secondary); background: var(--color-surface);">
+          Womenswear
+        </span>
+        <span style="display: inline-flex; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; border: 1px solid var(--color-border); color: var(--color-text-muted); background: var(--color-surface);">
+          Archived
+        </span>
+        <span style="display: inline-flex; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; border: 1px solid var(--color-border); color: var(--color-text-muted); background: var(--color-surface);">
+          3 SKUs
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cards -->
+  <div class="section-label">Cards</div>
+  <p class="section-note"><strong>Standard:</strong> <code>rounded-lg</code> (8px), <code>p-4</code> content padding, <code>pb-2</code> header padding. All cards use <code>rounded-lg</code> (not rounded-md).</p>
+  <div class="comp-row">
+    <div class="comp-card" style="padding: 0;">
+      <div class="comp-card-label" style="padding: 24px 24px 0;">Card with Header</div>
+      <div style="padding: 0 24px 24px;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Summer 2025 Campaign</div>
+            <div class="card-description">12 shots planned &middot; 3 products</div>
+          </div>
+          <div class="card-content">
+            <div style="display: flex; gap: 8px;">
+              <span class="badge badge-blue">In Progress</span>
+              <span style="font-size: 12px; color: var(--color-text-muted);">Updated 2h ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="comp-card" style="padding: 0;">
+      <div class="comp-card-label" style="padding: 24px 24px 0;">Content-Only Card</div>
+      <div style="padding: 0 24px 24px;">
+        <div class="card">
+          <div class="card-content">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 40px; height: 40px; border-radius: 8px; background: var(--color-surface-subtle); display: flex; align-items: center; justify-content: center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              </div>
+              <div>
+                <div style="font-size: 14px; font-weight: 600; letter-spacing: -0.01em;">Studio A — Main Set</div>
+                <div style="font-size: 12px; color: var(--color-text-muted);">24 shots &middot; 8 products</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forms -->
+  <div class="section-label">Form Elements</div>
+  <div class="comp-row">
+    <div class="comp-card">
+      <div class="comp-card-label">Inputs</div>
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div>
+          <label class="form-label">Shot Title</label>
+          <input class="input" type="text" placeholder="e.g., Hero flat lay with props" />
+          <div class="form-hint">A descriptive name for this shot</div>
+        </div>
+        <div>
+          <label class="form-label">Reference URL</label>
+          <input class="input" type="text" value="https://invalid" style="border-color: var(--color-error);" />
+          <div class="form-error">Please enter a valid URL</div>
+        </div>
+        <div>
+          <label class="form-label">Search</label>
+          <input class="input input-sm" type="text" placeholder="Filter shots..." />
+        </div>
+      </div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-card-label">Form Layout</div>
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div>
+          <label class="form-label">Project Name *</label>
+          <input class="input" type="text" value="FW25 Campaign" />
+        </div>
+        <div>
+          <label class="form-label">Description</label>
+          <textarea style="width: 100%; min-height: 80px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--color-border); background: var(--color-surface); font-size: 14px; font-family: inherit; color: var(--color-text); resize: vertical;" placeholder="Optional project description..."></textarea>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; padding-top: 8px; border-top: 1px solid var(--color-border-muted);">
+          <button class="btn btn-sm btn-ghost">Cancel</button>
+          <button class="btn btn-sm btn-primary">Create Project</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page Header Preview -->
+  <div class="section-label">Page Header (Before / After)</div>
+  <div class="compare-grid">
+    <div class="compare-block before" style="padding: 0; overflow: hidden;">
+      <div class="compare-label" style="padding: 16px 24px 0;">Current</div>
+      <div style="padding: 24px;">
+        <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 4px;">
+          <span style="color: #71717a;">Projects</span> / <span>FW25 Campaign</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="font-size: 20px; font-weight: 600;">All Shots</h2>
+          <button class="btn btn-sm btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            New Shot
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="compare-block after" style="padding: 0; overflow: hidden;">
+      <div class="compare-label" style="padding: 16px 24px 0;">Direction A</div>
+      <div style="padding: 24px;">
+        <div style="font-size: 11px; color: #a1a1aa; margin-bottom: 4px;">
+          <span style="color: #71717a;">Projects</span> / <span>FW25 Campaign</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="font-size: 24px; font-weight: 300; letter-spacing: -0.02em; line-height: 1.2;">All Shots</h2>
+          <button class="btn btn-sm btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            New Shot
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- PANEL 4: STANDARDIZATION                   -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="standards" class="panel">
+
+  <h1 style="font-size: 24px; font-weight: 300; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 8px;">
+    Standardization Rules
+  </h1>
+  <p class="section-note">Decisions to enforce across all components. Each rule resolves an inconsistency found in the 6a audit.</p>
+
+  <!-- Card Standards -->
+  <div class="section-label">Card Standards</div>
+  <table class="standard-table">
+    <thead>
+      <tr><th>Property</th><th>Standard</th><th>Replaces</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Border radius</td>
+        <td><code>rounded-lg</code> (8px)</td>
+        <td>rounded-md (149x) + rounded-lg (28x) mixed usage</td>
+      </tr>
+      <tr>
+        <td>CardContent padding</td>
+        <td><code>p-4</code></td>
+        <td>p-4, py-4, p-3, py-6, py-5 variations</td>
+      </tr>
+      <tr>
+        <td>CardHeader bottom padding</td>
+        <td><code>pb-2</code></td>
+        <td>Already settled (10 instances)</td>
+      </tr>
+      <tr>
+        <td>Card grid gap</td>
+        <td><code>gap-4</code></td>
+        <td>gap-3 (7x) vs gap-4 (9x) mixed</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Text Hierarchy -->
+  <div class="section-label">Text Color Hierarchy</div>
+  <p class="section-note">Three tokens existed for "dimmed text" with overlapping usage. Here's the clear hierarchy:</p>
+  <table class="standard-table">
+    <thead>
+      <tr><th>Token</th><th>Zinc</th><th>Use For</th><th>Count</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>--color-text</code></td>
+        <td style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border-radius: 4px; background: #18181b; display: inline-block;"></span> zinc-900</td>
+        <td>Primary content: titles, form values, active items</td>
+        <td>-</td>
+      </tr>
+      <tr>
+        <td><code>--color-text-secondary</code></td>
+        <td style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border-radius: 4px; background: #52525b; display: inline-block;"></span> zinc-600</td>
+        <td>Supporting text: descriptions, body content, card subtitles</td>
+        <td>34x</td>
+      </tr>
+      <tr>
+        <td><code>--color-text-muted</code></td>
+        <td style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border-radius: 4px; background: #71717a; display: inline-block;"></span> zinc-500</td>
+        <td>Metadata: timestamps, counts, "last updated", hints</td>
+        <td>347x</td>
+      </tr>
+      <tr>
+        <td><code>--color-text-subtle</code></td>
+        <td style="display: flex; align-items: center; gap: 8px;"><span style="width: 16px; height: 16px; border-radius: 4px; background: #a1a1aa; display: inline-block;"></span> zinc-400</td>
+        <td>Placeholders, disabled, label-meta, de-emphasized UI</td>
+        <td>281x</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Heading Standards -->
+  <div class="section-label">Heading Standards</div>
+  <table class="standard-table">
+    <thead>
+      <tr><th>Element</th><th>Semantic Class</th><th>Replaces</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>&lt;h1&gt; (page title)</td>
+        <td><code>.heading-page</code><br><span style="font-size: 10px; color: var(--color-text-muted);">24px / 300 / -0.02em / md:28px</span></td>
+        <td>text-xl font-semibold, text-2xl font-semibold, text-2xl font-bold (4 variants)</td>
+      </tr>
+      <tr>
+        <td>&lt;h2&gt; (section)</td>
+        <td><code>.heading-section</code><br><span style="font-size: 10px; color: var(--color-text-muted);">16px / 600 / -0.01em</span></td>
+        <td>text-lg font-semibold, text-lg font-bold, text-base font-semibold (3 variants)</td>
+      </tr>
+      <tr>
+        <td>&lt;h3&gt; (subsection)</td>
+        <td><code>.heading-subsection</code><br><span style="font-size: 10px; color: var(--color-text-muted);">14px / 600 / -0.01em</span></td>
+        <td>text-sm font-semibold, text-xs font-semibold uppercase (2+ variants)</td>
+      </tr>
+      <tr>
+        <td>Meta label</td>
+        <td><code>.label-meta</code><br><span style="font-size: 10px; color: var(--color-text-muted);">12px / 600 / upper / 0.05em / subtle</span></td>
+        <td>125 instances with 3 tracking variants + 2 color variants</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Badge Standards -->
+  <div class="section-label">Badge Font Size Standard</div>
+  <table class="standard-table">
+    <thead>
+      <tr><th>Context</th><th>Standard</th><th>Replaces</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Status badges (all contexts)</td>
+        <td><code>text-xxs</code> (11px)</td>
+        <td>text-2xs on cards, text-xs on detail pages</td>
+      </tr>
+      <tr>
+        <td>Metadata badges</td>
+        <td><code>text-xxs</code> (11px)</td>
+        <td>text-2xs, text-xs mixed</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Back Navigation -->
+  <div class="section-label">Back Navigation Standard</div>
+  <p class="section-note">3 different patterns exist. Standardize on one:</p>
+  <table class="standard-table">
+    <thead>
+      <tr><th>Page Type</th><th>Pattern</th><th>Implementation</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>List pages</td>
+        <td>PageHeader with breadcrumbs</td>
+        <td>Already consistent (all list pages use PageHeader)</td>
+      </tr>
+      <tr>
+        <td>Detail pages</td>
+        <td>PageHeader with breadcrumbs</td>
+        <td>Replaces: inline ghost button (ShotDetail), icon-only button (PullDetail), PageHeader (ProductDetail)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Spacing -->
+  <div class="section-label">Spacing Constants</div>
+  <table class="standard-table">
+    <thead>
+      <tr><th>Context</th><th>Value</th><th>Tailwind</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Page padding (desktop)</td><td>24px</td><td><code>px-6 py-6</code></td></tr>
+      <tr><td>Page padding (mobile)</td><td>16px</td><td><code>px-4 py-6</code></td></tr>
+      <tr><td>Card content</td><td>16px</td><td><code>p-4</code></td></tr>
+      <tr><td>Section gap</td><td>24px</td><td><code>gap-6</code></td></tr>
+      <tr><td>Card grid gap</td><td>16px</td><td><code>gap-4</code></td></tr>
+      <tr><td>Component inner gap</td><td>8px</td><td><code>gap-2</code></td></tr>
+      <tr><td>Tight inner gap</td><td>4px</td><td><code>gap-1</code></td></tr>
+    </tbody>
+  </table>
+
+  <!-- Arbitrary size cleanup -->
+  <div class="section-label">Arbitrary Size Cleanup</div>
+  <table class="standard-table">
+    <thead>
+      <tr><th>Current</th><th>Replace With</th><th>Files</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>text-[13px]</code></td><td><code>text-sm</code> (13px)</td><td>7 files (schedule, board, batch)</td></tr>
+      <tr><td><code>text-[14px]</code></td><td><code>text-base</code> (14px)</td><td>ShotCard.tsx</td></tr>
+      <tr><td><code>text-[10px]</code></td><td><code>text-2xs</code> (10px)</td><td>BoardCard.tsx</td></tr>
+      <tr><td><code>text-[15px]</code></td><td><code>text-base</code> (14px)</td><td>ShotCard.tsx (accept 1px diff)</td></tr>
+    </tbody>
+  </table>
+
+</div>
+
+<script>
+  function showPanel(id) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    event.target.classList.add('active');
+  }
+</script>
+
+</body>
+</html>

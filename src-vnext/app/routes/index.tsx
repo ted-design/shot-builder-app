@@ -33,6 +33,9 @@ const PullDetailPage = lazy(
 const PublicPullViewPage = lazy(
   () => import("@/features/pulls/components/PublicPullViewPage"),
 )
+const WarehousePickGuidePage = lazy(
+  () => import("@/features/pulls/components/WarehousePickGuidePage"),
+)
 const CallSheetBuilderPage = lazy(
   () => import("@/features/schedules/components/CallSheetBuilderPage"),
 )
@@ -81,6 +84,7 @@ export function AppRoutes() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/pulls/shared/:shareToken" element={<PublicPullViewPage />} />
+        <Route path="/pulls/shared/:shareToken/guide" element={<WarehousePickGuidePage />} />
         <Route path="/shots/shared/:shareToken" element={<PublicShotSharePage />} />
         <Route
           element={

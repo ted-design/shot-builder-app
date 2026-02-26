@@ -5,52 +5,59 @@ import { shotsPath } from "@/shared/lib/paths"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { createShotVersionSnapshot } from "@/features/shots/lib/shotVersioning"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/dialog"
+import { nextShotNumber } from "@/features/shots/lib/shotNumbering"
+import { shotTitleSchema, validateField } from "@/shared/lib/validation"
+import { ResponsiveDialog } from "@/shared/components/ResponsiveDialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
 import { Textarea } from "@/ui/textarea"
+import type { Shot } from "@/shared/types"
 
 interface CreateShotDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly onCreated?: (shotId: string, title: string) => void
+  /** All shots in the project — used to auto-generate the next shot number. */
+  readonly shots?: ReadonlyArray<Shot>
 }
 
 export function CreateShotDialog({
   open,
   onOpenChange,
   onCreated,
+  shots = [],
 }: CreateShotDialogProps) {
   const { clientId, user } = useAuth()
   const { projectId } = useProjectScope()
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [titleError, setTitleError] = useState<string | null>(null)
+
+  const validate = (): boolean => {
+    const error = validateField(shotTitleSchema, title)
+    setTitleError(error)
+    return !error
+  }
 
   const handleCreate = async () => {
-    const trimmedTitle = title.trim()
-    if (!trimmedTitle) return
+    if (!validate()) return
     if (!clientId) {
-      setError("Missing client scope. Try refreshing, then sign in again.")
+      setTitleError("Missing client scope. Try refreshing, then sign in again.")
       return
     }
 
     setSaving(true)
-    setError(null)
+    setTitleError(null)
 
     try {
+      const trimmedTitle = title.trim()
       const path = shotsPath(clientId)
       const createdBy = user?.uid ?? ""
       const sortOrder = Date.now()
+      const shotNumber = nextShotNumber(shots)
+
       const ref = await addDoc(collection(db, path[0]!, ...path.slice(1)), {
         title: trimmedTitle,
         description: description.trim() || null,
@@ -60,6 +67,7 @@ export function CreateShotDialog({
         talent: [],
         products: [],
         sortOrder,
+        shotNumber,
         date: null,
         deleted: false,
         notes: null,
@@ -81,10 +89,10 @@ export function CreateShotDialog({
             talent: [],
             products: [],
             sortOrder,
+            shotNumber,
             deleted: false,
             notes: null,
             notesAddendum: null,
-            shotNumber: null,
             date: null,
             locationId: null,
             locationName: null,
@@ -97,65 +105,71 @@ export function CreateShotDialog({
           },
           user,
           changeType: "create",
-        }).catch((err) => {
-          console.error("[CreateShotDialog] Failed to write initial version:", err)
+        }).catch(() => {
+          // Version snapshot is non-critical
         })
       }
 
       setTitle("")
       setDescription("")
+      setTitleError(null)
       onOpenChange(false)
       onCreated?.(ref.id, trimmedTitle)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create shot")
+      setTitleError(err instanceof Error ? err.message : "Failed to create shot")
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create Shot</DialogTitle>
-          <DialogDescription className="sr-only">
-            Create a new shot in this project.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-4 py-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="shot-title">Title</Label>
-            <Input
-              id="shot-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Hero Banner - White Tee"
-              autoFocus
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="shot-description">Description (optional)</Label>
-            <Textarea
-              id="shot-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of the shot..."
-              rows={3}
-            />
-          </div>
-          {error && (
-            <p className="text-sm text-[var(--color-error)]">{error}</p>
-          )}
-        </div>
-        <DialogFooter>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Create Shot"
+      description="Create a new shot in this project."
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleCreate} disabled={!title.trim() || saving}>
             {saving ? "Creating..." : "Create"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4 py-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="shot-title">Title</Label>
+          <Input
+            id="shot-title"
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value)
+              if (titleError) setTitleError(null)
+            }}
+            placeholder="e.g. Hero Banner - White Tee"
+            autoFocus
+            data-testid="shot-title-input"
+          />
+          {titleError && (
+            <p className="text-xs text-[var(--color-error)]" data-testid="title-error">
+              {titleError}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="shot-description">Description (optional)</Label>
+          <Textarea
+            id="shot-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Brief description of the shot..."
+            rows={3}
+          />
+        </div>
+      </div>
+    </ResponsiveDialog>
   )
 }

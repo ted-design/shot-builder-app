@@ -106,6 +106,12 @@ This is where producers spend 80% of their time. Must be fast and fluid.
 - **No page refreshes.** No multi-step wizards for common actions.
 - **Auto-save** with debounce. No save button.
 
+**Three-panel UX refinements:**
+- **Notes** presented as editorial read-mode content (not always-editable textarea). Click to edit, blur to save.
+- **List panel** shows description preview and shot number for scanability. Three density tiers adapt to panel width.
+- **Reference images** use hover-reveal action bar (not persistent corner icon overlays). Cover indicator below image.
+- **Display preferences** let users toggle visible properties (thumbnails, shot number, description, status badge) in the list panel.
+
 ### Shot Status Model
 
 Every shot progresses through four statuses. These labels are canonical across all views, filters, badges, and exports.
@@ -180,6 +186,7 @@ Mouse is supported but not required for common workflows. (Inspired by Linear)
 | `1` / `2` / `3` / `4` | Shot list | Switch view: gallery / visual / table / board |
 | `Escape` | Shot detail | Return to shot list |
 | `Cmd+S` | Shot detail | Prevent browser save dialog (auto-save handles persistence) |
+| `?` | Shot list | Open keyboard shortcuts help dialog |
 
 ### 3. Inline editing by default
 

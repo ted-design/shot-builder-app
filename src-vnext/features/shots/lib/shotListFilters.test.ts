@@ -391,6 +391,7 @@ describe("applyFiltersAndSort", () => {
       talentId: "",
       locationId: "",
       tagFilter: new Set(),
+      productFamilyId: "",
       query: "",
       sortKey: "name",
       sortDir: "asc",

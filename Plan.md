@@ -90,7 +90,7 @@ Admin (role-gated: admin only)
 
 **Goal:** Make the shot editing loop fast and fluid. This is where producers spend 80% of their time. Every click saved here compounds across hundreds of shots.
 
-**Status:** Partially complete (pre-plan work merged). Resume from Phase 2 first.
+**Status:** COMPLETE (3v board reorder deferred).
 
 ### Sub-tasks
 
@@ -106,7 +106,9 @@ Admin (role-gated: admin only)
 - [x] **3j:** Implement multi-view system (table, board, gallery) + view persistence
 - [x] **3k:** Implement auto-save (debounced writes, optimistic UI, save indicator)
 - [x] **3l:** Implement keyboard shortcuts (Cmd+K, Cmd+N, Tab, Enter, Escape, 1-4)
-- [ ] **3m:** Verify acceptance criteria + run full test suite
+- [x] **3m:** Verify acceptance criteria + run full test suite
+- [x] **3w:** Keyboard shortcuts help dialog (`?` key) + keyboard hints on toolbar view buttons
+- [x] **3x:** Product family filter in shot list filter sheet
 - [x] **3n:** Public share system (callable -> HTTP endpoint -> denormalized Firestore reads)
 - [x] **3o:** Shot lifecycle actions (duplicate, copy/move across projects, soft-delete)
 - [x] **3p:** Multi-tag filters on ShotListPage
@@ -116,17 +118,22 @@ Admin (role-gated: admin only)
 - [x] **3t:** Fix gallery view switching bug (URL param deletion caused stale localStorage fallback)
 - [x] **3u:** Standardize status labels to System A (Draft / In Progress / On Hold / Shot) across all views, filters, and PDF exports
 - [ ] **3v:** Board column reorder + show/hide configuration (deferred — localStorage-persisted column order and visibility)
+- [x] **3y:** Three-panel design token audit (tokenize status badges, fix hardcoded colors)
+- [x] **3z:** Notes section read/edit toggle + card wrapper consistency
+- [x] **3aa:** Enriched list panel (density tiers, description preview, shot number)
+- [x] **3ab:** Reference tile redesign (hover action bar, cover below image)
+- [x] **3ac:** List panel display preferences (toggleable properties)
 
 ### Acceptance Criteria
 
-- [ ] Producer can create 10 shots in under 60 seconds using keyboard only
-- [ ] Inline edits auto-save without explicit save button
-- [ ] Three-panel layout works on desktop (>1024px)
-- [ ] Product picker supports keyboard navigation
-- [ ] All three views (table, board, gallery) work and persist preference
-- [ ] Keyboard shortcuts documented and functional
-- [ ] Shot list supports filter by status, tag, lane, product assignment
-- [ ] No page refreshes during editing workflow
+- [x] Producer can create 10 shots in under 60 seconds using keyboard only
+- [x] Inline edits auto-save without explicit save button
+- [x] Three-panel layout works on desktop (>1024px)
+- [x] Product picker supports keyboard navigation
+- [x] All three views (table, board, gallery) work and persist preference
+- [x] Keyboard shortcuts documented and functional
+- [x] Shot list supports filter by status, tag, product family, talent, location
+- [x] No page refreshes during editing workflow
 
 ---
 
@@ -160,29 +167,29 @@ Admin (role-gated: admin only)
 
 **Goal:** Reduce friction on every form. Fewer required fields, smarter defaults, progressive disclosure.
 
-**Status:** Partially complete (pre-plan product work merged). Not the active phase.
+**Status:** Complete.
 
 ### Sub-tasks
 
 - [x] **4a-products:** Progressive filters + unified view options for product library
 - [x] **4b-products:** Classification toolbar + colorway flow
 - [x] **4c-products:** Previous style number field
-- [ ] **4d:** Audit remaining forms: project creation, shot creation, pull generation (research)
-- [ ] **4e:** Write HTML mockups: project creation, shot creation, pull generation
-- [ ] **4f:** Get user approval on mockups
-- [ ] **4g:** Reduce required fields + implement smart defaults
-- [ ] **4h:** Implement progressive disclosure (collapsible sections, remembered state)
-- [ ] **4i:** Implement inline validation (Zod schemas, field-level feedback, auto-save)
-- [ ] **4j:** Verify acceptance criteria + run full test suite
+- [x] **4d:** Audit remaining forms: project creation, shot creation, pull generation (research)
+- [x] **4e:** Write HTML mockups: project creation, shot creation, pull generation
+- [x] **4f:** Get user approval on mockups
+- [x] **4g:** Reduce required fields + implement smart defaults
+- [x] **4h:** Implement progressive disclosure (collapsible sections, remembered state)
+- [x] **4i:** Implement inline validation (Zod schemas, field-level feedback, auto-save)
+- [x] **4j:** Verify acceptance criteria + run full test suite
 
 ### Acceptance Criteria
 
-- [ ] Project creation: 1 required field (name), completes in <5 seconds
-- [ ] Shot creation: 1 required field (title), completes in <3 seconds
-- [ ] All forms use progressive disclosure (common fields visible, details collapsed)
-- [ ] Smart defaults reduce manual input by >50%
-- [ ] Inline validation provides feedback before submission
-- [ ] No form requires more than 3 required fields
+- [x] Project creation: 1 required field (name), completes in <5 seconds
+- [x] Shot creation: 1 required field (title), completes in <3 seconds
+- [x] All forms use progressive disclosure (common fields visible, details collapsed)
+- [x] Smart defaults reduce manual input by >50%
+- [x] Inline validation provides feedback before submission
+- [x] No form requires more than 3 required fields
 
 ---
 
@@ -190,30 +197,30 @@ Admin (role-gated: admin only)
 
 **Goal:** Make mobile shoot-day operations and tablet planning genuinely useful. iPad is a first-class viewport, not an afterthought.
 
-**Status:** Not started.
+**Status:** Complete.
 
 ### Sub-tasks
 
-- [ ] **5a:** Audit current responsive behavior at 375px, 768px, 1280px (research)
-- [ ] **5b:** Write HTML mockups: warehouse guided pick flow (mobile)
-- [ ] **5c:** Write HTML mockups: on-set gallery view + floating action bar (tablet)
-- [ ] **5d:** Write HTML mockups: tablet three-panel layout + mobile shot list
-- [ ] **5e:** Get user approval on all mockups
-- [ ] **5f:** Implement tablet optimization (two-panel + drawer, touch targets, swipe)
-- [ ] **5g:** Implement warehouse guided pick flow (full-screen steps, one-handed)
-- [ ] **5h:** Implement on-set operations (gallery, status taps, floating action bar)
-- [ ] **5i:** Implement mobile shot list (cards, swipe actions, virtual scroll)
-- [ ] **5j:** Responsive breakpoint audit + verify acceptance criteria
+- [x] **5a:** Audit current responsive behavior at 375px, 768px, 1280px (research)
+- [x] **5b:** Write HTML mockups: warehouse guided pick flow (mobile)
+- [x] **5c:** Write HTML mockups: on-set gallery view + floating action bar (tablet)
+- [x] **5d:** Write HTML mockups: tablet three-panel layout + mobile shot list
+- [x] **5e:** Get user approval on all mockups
+- [x] **5f:** Touch targets + ResponsiveDialog (Sheet on mobile, Dialog on desktop)
+- [x] **5g:** Warehouse guided pick flow (full-screen stepper, one-handed operation)
+- [x] **5h:** Floating action bar + AppShell integration + page URL param handling
+- [x] **5i:** ShotStatusTapRow (1-tap status pills) + ProductDetailPage hide-not-disable
+- [x] **5j:** Responsive breakpoint audit + verify acceptance criteria
 
 ### Acceptance Criteria
 
-- [ ] Warehouse pick flow completable with one hand on phone
-- [ ] Gallery view shows shot hero images on tablet
-- [ ] Floating action bar accessible on all mobile/tablet pages
-- [ ] Touch targets minimum 44px on all interactive elements
-- [ ] Every page renders correctly at 375px, 768px, and 1280px
-- [ ] No horizontal scroll on any viewport
-- [ ] Desktop-only features (call sheet builder, admin) redirect on mobile with toast
+- [x] Warehouse pick flow completable with one hand on phone
+- [x] Gallery view shows shot hero images on tablet
+- [x] Floating action bar accessible on all mobile/tablet pages
+- [x] Touch targets minimum 44px on all interactive elements
+- [x] Every page renders correctly at 375px, 768px, and 1280px
+- [x] No horizontal scroll on any viewport
+- [x] Desktop-only features (call sheet builder, admin) redirect on mobile with toast
 
 ---
 
@@ -221,12 +228,12 @@ Admin (role-gated: admin only)
 
 **Goal:** Professional and precise visual identity. Make the app look like it was built by a funded startup, not a side project. First impressions matter for stakeholder onboarding.
 
-**Status:** Not started.
+**Status:** In progress — 6a audit done, 6b mockup done, awaiting 6c + approval.
 
 ### Sub-tasks
 
-- [ ] **6a:** Audit current visual inconsistencies (colors, typography, spacing) (research)
-- [ ] **6b:** Write mockups: color palette, typography scale, component showcase
+- [x] **6a:** Audit current visual inconsistencies (colors, typography, spacing) (research)
+- [x] **6b:** Write mockups: color palette, typography scale, component showcase
 - [ ] **6c:** Write mockups: empty states, loading skeletons, error states, dark mode
 - [ ] **6d:** Get user approval on visual identity
 - [ ] **6e:** Implement brand identity (tokens.css updates, color palette, typography)

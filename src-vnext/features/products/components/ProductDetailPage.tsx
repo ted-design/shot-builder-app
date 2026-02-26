@@ -757,12 +757,6 @@ export default function ProductDetailPage() {
                   )}
                 </div>
 
-                {isMobile && (
-                  <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs text-[var(--color-text-muted)]">
-                    Samples are read-only on mobile.
-                  </div>
-                )}
-
                 {samplesError && (
                   <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm text-[var(--color-error)]">
                     {samplesError.message}
@@ -1125,16 +1119,13 @@ export default function ProductDetailPage() {
                       <MessageSquare className="h-4 w-4 text-[var(--color-text-muted)]" />
                       Comments
                     </div>
-                    {isMobile && (
-                      <span className="text-xs text-[var(--color-text-subtle)]">Read-only on mobile</span>
-                    )}
                   </div>
 
                   {canEdit && !isFamilyDeleted && (
                     <div className="mt-3 flex flex-col gap-2">
                       <Textarea
                         value={commentDraft}
-                        disabled={commentSaving || isMobile}
+                        disabled={commentSaving}
                         onChange={(e) => setCommentDraft(e.target.value)}
                         placeholder="Leave a note for your team…"
                       />
@@ -1153,7 +1144,7 @@ export default function ProductDetailPage() {
                           type="button"
                           size="sm"
                           className="h-9"
-                          disabled={commentSaving || isMobile || !clientId || commentDraft.trim().length === 0}
+                          disabled={commentSaving || !clientId || commentDraft.trim().length === 0}
                           onClick={() => {
                             if (!clientId) return
                             setCommentSaving(true)
@@ -1311,7 +1302,7 @@ export default function ProductDetailPage() {
                 <Select
                   value={sampleDraft.type}
                   onValueChange={(value) => setSampleDraft((prev) => ({ ...prev, type: value as ProductSampleType }))}
-                  disabled={sampleSaving || isMobile}
+                  disabled={sampleSaving}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -1328,7 +1319,7 @@ export default function ProductDetailPage() {
                 <Select
                   value={sampleDraft.status}
                   onValueChange={(value) => setSampleDraft((prev) => ({ ...prev, status: value as ProductSampleStatus }))}
-                  disabled={sampleSaving || isMobile}
+                  disabled={sampleSaving}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -1352,7 +1343,7 @@ export default function ProductDetailPage() {
                   onValueChange={(value) =>
                     setSampleDraft((prev) => ({ ...prev, scopeSkuId: value === SCOPE_ALL_VALUE ? "" : value }))
                   }
-                  disabled={sampleSaving || isMobile}
+                  disabled={sampleSaving}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All colorways" />
@@ -1372,7 +1363,7 @@ export default function ProductDetailPage() {
                 <Input
                   type="date"
                   value={sampleDraft.eta}
-                  disabled={sampleSaving || isMobile}
+                  disabled={sampleSaving}
                   onChange={(e) => setSampleDraft((prev) => ({ ...prev, eta: e.target.value }))}
                 />
               </div>
@@ -1383,7 +1374,7 @@ export default function ProductDetailPage() {
                 <Label className="text-xs">Carrier</Label>
                 <Input
                   value={sampleDraft.carrier}
-                  disabled={sampleSaving || isMobile}
+                  disabled={sampleSaving}
                   onChange={(e) => setSampleDraft((prev) => ({ ...prev, carrier: e.target.value }))}
                   placeholder="UPS, FedEx…"
                 />
@@ -1392,7 +1383,7 @@ export default function ProductDetailPage() {
                 <Label className="text-xs">Tracking</Label>
                 <Input
                   value={sampleDraft.tracking}
-                  disabled={sampleSaving || isMobile}
+                  disabled={sampleSaving}
                   onChange={(e) => setSampleDraft((prev) => ({ ...prev, tracking: e.target.value }))}
                   placeholder="Optional"
                 />
@@ -1403,7 +1394,7 @@ export default function ProductDetailPage() {
               <Label className="text-xs">Size run (CSV)</Label>
               <Input
                 value={sampleDraft.sizeRunCsv}
-                disabled={sampleSaving || isMobile}
+                disabled={sampleSaving}
                 onChange={(e) => setSampleDraft((prev) => ({ ...prev, sizeRunCsv: e.target.value }))}
                 placeholder="XS, S, M"
               />
@@ -1413,7 +1404,7 @@ export default function ProductDetailPage() {
               <Label className="text-xs">Notes</Label>
               <Textarea
                 value={sampleDraft.notes}
-                disabled={sampleSaving || isMobile}
+                disabled={sampleSaving}
                 onChange={(e) => setSampleDraft((prev) => ({ ...prev, notes: e.target.value }))}
                 placeholder="Any context your team will need…"
               />
@@ -1432,7 +1423,7 @@ export default function ProductDetailPage() {
                 type="button"
                 variant="ghost"
                 className="mr-auto text-[var(--color-error)] hover:text-[var(--color-error)]"
-                disabled={sampleSaving || isMobile}
+                disabled={sampleSaving}
                 onClick={() => setSampleDeleteConfirmOpen(true)}
               >
                 <Trash2 className="h-4 w-4" />
@@ -1444,7 +1435,7 @@ export default function ProductDetailPage() {
             </Button>
             <Button
               type="button"
-              disabled={sampleSaving || isMobile || !clientId || isFamilyDeleted}
+              disabled={sampleSaving || !clientId || isFamilyDeleted}
               onClick={() => {
                 if (!clientId) return
                 setSampleSaving(true)

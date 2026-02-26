@@ -4,17 +4,18 @@ import { db } from "@/shared/lib/firebase"
 import { projectsPath } from "@/shared/lib/paths"
 import { useAuth } from "@/app/providers/AuthProvider"
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/dialog"
+  projectNameSchema,
+  optionalUrlSchema,
+  optionalNotesSchema,
+  validateField,
+} from "@/shared/lib/validation"
+import { ResponsiveDialog } from "@/shared/components/ResponsiveDialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
 import { Textarea } from "@/ui/textarea"
 import { ShootDatesField } from "@/features/projects/components/ShootDatesField"
+import { ChevronDown } from "lucide-react"
 import { toast } from "sonner"
 
 interface CreateProjectDialogProps {
@@ -32,33 +33,39 @@ export function CreateProjectDialog({
   const [briefUrl, setBriefUrl] = useState("")
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
 
-  const handleCreate = async () => {
-    const trimmed = name.trim()
-    if (!trimmed || !clientId) return
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({})
 
-    const brief = briefUrl.trim()
-    if (brief.length > 0) {
-      try {
-        const parsed = new URL(brief)
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-          setError("Brief URL must start with http:// or https://")
-          return
-        }
-      } catch {
-        setError("Brief URL must be a valid URL (include https://)")
-        return
-      }
+  const validate = (): boolean => {
+    const errors: Record<string, string | null> = {
+      name: validateField(projectNameSchema, name),
+      briefUrl: validateField(optionalUrlSchema, briefUrl),
+      notes: validateField(optionalNotesSchema, notes),
+    }
+    setFieldErrors(errors)
+
+    const hasUrlOrNotesError = errors.briefUrl || errors.notes
+    if (hasUrlOrNotesError && !expanded) {
+      setExpanded(true)
     }
 
+    return !errors.name && !errors.briefUrl && !errors.notes
+  }
+
+  const handleCreate = async () => {
+    if (!validate()) return
+    if (!clientId) return
+
+    const trimmedName = name.trim()
+    const brief = briefUrl.trim()
+
     setSaving(true)
-    setError(null)
 
     try {
       const path = projectsPath(clientId)
       await addDoc(collection(db, path[0]!, ...path.slice(1)), {
-        name: trimmed,
+        name: trimmedName,
         clientId,
         status: "active",
         shootDates,
@@ -71,11 +78,12 @@ export function CreateProjectDialog({
       setShootDates([])
       setBriefUrl("")
       setNotes("")
+      setFieldErrors({})
+      setExpanded(false)
       onOpenChange(false)
       toast.success("Project created")
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create project"
-      setError(message)
       toast.error("Failed to create project", { description: message })
     } finally {
       setSaving(false)
@@ -83,64 +91,115 @@ export function CreateProjectDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create Project</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-4 py-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="project-name">Project Name</Label>
-            <Input
-              id="project-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Spring Campaign 2026"
-              autoFocus
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>Shoot Dates</Label>
-            <ShootDatesField
-              value={shootDates}
-              onChange={setShootDates}
-              disabled={saving}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="project-brief-url">Brief URL</Label>
-            <Input
-              id="project-brief-url"
-              value={briefUrl}
-              onChange={(e) => setBriefUrl(e.target.value)}
-              placeholder="https://…"
-              disabled={saving}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="project-notes">Notes</Label>
-            <Textarea
-              id="project-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Optional context for the team…"
-              rows={4}
-              disabled={saving}
-            />
-          </div>
-          {error && (
-            <p className="text-sm text-[var(--color-error)]">{error}</p>
-          )}
-        </div>
-        <DialogFooter>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Create Project"
+      footer={
+        <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleCreate} disabled={!name.trim() || saving}>
             {saving ? "Creating..." : "Create"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4 py-4">
+        {/* Name — always visible */}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="project-name">Project Name</Label>
+          <Input
+            id="project-name"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value)
+              if (fieldErrors.name) {
+                setFieldErrors((prev) => ({ ...prev, name: null }))
+              }
+            }}
+            placeholder="e.g. Spring Campaign 2026"
+            autoFocus
+            data-testid="project-name-input"
+          />
+          {fieldErrors.name && (
+            <p className="text-xs text-[var(--color-error)]" data-testid="name-error">
+              {fieldErrors.name}
+            </p>
+          )}
+        </div>
+
+        {/* More options toggle */}
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+          data-testid="more-options-toggle"
+        >
+          <ChevronDown
+            className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+          />
+          More options
+        </button>
+
+        {/* Collapsible optional fields */}
+        {expanded && (
+          <div className="flex flex-col gap-4" data-testid="optional-fields">
+            <div className="flex flex-col gap-2">
+              <Label>Shoot Dates</Label>
+              <ShootDatesField
+                value={shootDates}
+                onChange={setShootDates}
+                disabled={saving}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="project-brief-url">Brief URL</Label>
+              <Input
+                id="project-brief-url"
+                value={briefUrl}
+                onChange={(e) => {
+                  setBriefUrl(e.target.value)
+                  if (fieldErrors.briefUrl) {
+                    setFieldErrors((prev) => ({ ...prev, briefUrl: null }))
+                  }
+                }}
+                placeholder="https://..."
+                disabled={saving}
+                data-testid="brief-url-input"
+              />
+              {fieldErrors.briefUrl && (
+                <p className="text-xs text-[var(--color-error)]" data-testid="brief-url-error">
+                  {fieldErrors.briefUrl}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="project-notes">Notes</Label>
+              <Textarea
+                id="project-notes"
+                value={notes}
+                onChange={(e) => {
+                  setNotes(e.target.value)
+                  if (fieldErrors.notes) {
+                    setFieldErrors((prev) => ({ ...prev, notes: null }))
+                  }
+                }}
+                placeholder="Optional context for the team..."
+                rows={4}
+                disabled={saving}
+                data-testid="notes-input"
+              />
+              {fieldErrors.notes && (
+                <p className="text-xs text-[var(--color-error)]" data-testid="notes-error">
+                  {fieldErrors.notes}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </ResponsiveDialog>
   )
 }

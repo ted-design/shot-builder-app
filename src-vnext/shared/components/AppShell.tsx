@@ -4,6 +4,7 @@ import { cn } from "@/shared/lib/utils"
 import { useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { OfflineBanner } from "@/shared/components/OfflineBanner"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
+import { FloatingActionBar } from "@/shared/components/FloatingActionBar"
 import { buildNavConfig, getMobileNavConfig } from "./sidebar/nav-config"
 import { useSidebarState } from "./sidebar/useSidebarState"
 import { DesktopSidebar } from "./sidebar/DesktopSidebar"
@@ -80,6 +81,8 @@ export function AppShell() {
           <Outlet />
         </ErrorBoundary>
       </main>
+
+      {!isDesktop && <FloatingActionBar />}
     </div>
   )
 }

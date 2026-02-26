@@ -85,7 +85,7 @@ src-vnext/
 │   ├── components/   # AppShell, sidebar/, OfflineBanner, ErrorBoundary
 │   │   └── sidebar/  # 11 nav components (DesktopSidebar, MobileDrawer, etc.)
 │   ├── hooks/        # useMediaQuery (isMobile/isTablet/isDesktop), useDebounce
-│   ├── lib/          # Firebase init, paths, rbac, utils
+│   ├── lib/          # Firebase init, paths, rbac, utils, validation (Zod schemas)
 │   └── types/        # Shared TypeScript types
 └── ui/               # shadcn/ui generated components (never modify inline)
 ```
@@ -102,6 +102,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 |-------|------|-------|
 | `/login` | LoginPage | Google sign-in. Statically imported (Safari OAuth). |
 | `/pulls/shared/:shareToken` | PullPublicViewPage | Public pull sheet (read-only) |
+| `/pulls/shared/:shareToken/guide` | WarehousePickGuidePage | Guided pick flow (full-screen stepper) |
 | `/demo/*` | DemoPage | Demo mode (blocks writes) |
 
 ### Authenticated Routes
@@ -363,13 +364,54 @@ Visual direction finalized. Zinc neutral scale (not Slate), near-black primary, 
 
 Single source of design truth. CSS custom properties for colors, spacing, typography, shadows, radius. Referenced by Tailwind config. Micro font sizes: `text-3xs` (9px), `text-2xs` (10px), `text-xxs` (11px).
 
+### design-tokens.js (Semantic Classes)
+
+`src/styles/design-tokens.js` — Tailwind plugin providing semantic typography and spacing classes. **Phase 6 mandates their use over raw Tailwind classes.**
+
+| Class | Spec | Usage |
+|---|---|---|
+| `.heading-page` | 24px / 300 / -0.02em / md:28px | Page-level `<h1>` (editorial light weight) |
+| `.heading-section` | 16px / 600 / -0.01em | Section `<h2>` |
+| `.heading-subsection` | 14px / 600 / -0.01em | Subsection `<h3>` |
+| `.label-meta` | 12px / 600 / upper / 0.05em / text-subtle | Uppercase meta labels |
+| `.body-text` | 13px / 400 | Standard body |
+| `.body-text-muted` | 13px / 400 / secondary | De-emphasized body |
+| `.caption` | 12px / 400 / secondary | Small secondary text |
+| `.label` | 13px / 500 | Form labels |
+
+Text color hierarchy: `--color-text` (primary) > `--color-text-secondary` (supporting) > `--color-text-muted` (metadata) > `--color-text-subtle` (placeholders/disabled).
+
+Card standards: `rounded-lg` (8px), `p-4` content, `pb-2` header, `gap-4` grid. Badge font: `text-xxs` (11px) everywhere.
+
 ### shadcn/ui
 
 Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext). Components: Avatar, Badge, Button, Card, Dialog, Dropdown, Label, Popover, Select, Separator, Sheet, Switch, Tabs, Toast, Tooltip. Customization via Tailwind config + tokens.css only -- never modify generated files inline.
 
 ### Custom UI Components
 
-`LoadingSpinner`, `EmptyState`, `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `SearchCommand`, `NotificationBell`, `FilterPresetManager`
+`LoadingSpinner`, `EmptyState`, `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`
+
+### Mobile & Tablet Components (Phase 5)
+
+| Component | Location | Purpose |
+|---|---|---|
+| `ResponsiveDialog` | `shared/components/` | Renders Sheet (side="bottom") on mobile, Dialog on desktop. Used by all 4 create/edit dialogs. |
+| `FloatingActionBar` | `shared/components/` | Route-aware FAB on mobile/tablet. Hides on scroll down. Uses URL params (`replace: true`) to communicate with pages. |
+| `ShotStatusTapRow` | `features/shots/components/` | 4 horizontal pill buttons for 1-tap status change on mobile (replaces ShotStatusSelect dropdown). |
+| `WarehousePickGuidePage` | `features/pulls/components/` | Full-screen guided pick stepper for one-handed warehouse operation. |
+| `WarehousePickStep` | `features/pulls/components/` | Single item card in guided pick flow (image, name, colorway, sizes, location). |
+| `WarehousePickProgress` | `features/pulls/components/` | Progress bar + "Item X of Y" for guided pick flow. |
+| `WarehousePickOutcomeBar` | `features/pulls/components/` | Three 64px action buttons: Picked (green), Not Available (red), Substitute (amber). |
+
+### Three-Panel Shot Editor Components
+
+| Component / Hook | Location | Purpose |
+|---|---|---|
+| `ThreePanelListPanel` | `features/shots/components/` | Left panel — shot list with 3-tier density (compact/medium/full via ResizeObserver) |
+| `ThreePanelCanvasPanel` | `features/shots/components/` | Center panel — shot detail with card-wrapped sections |
+| `NotesSection` | `features/shots/components/` | Read/edit toggle notes (click-to-edit, blur-to-save) |
+| `ActiveLookCoverReferencesPanel` | `features/shots/components/` | Reference tiles with hover-reveal action bar |
+| `useListDisplayPreferences` | `features/shots/hooks/` | localStorage-backed display preferences (`sb:three-panel:list-prefs`) |
 
 ---
 
@@ -406,6 +448,14 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 Hooks defined in `src-vnext/shared/hooks/useMediaQuery.ts`. `isDesktop` controls both sidebar visibility and main content margin. Desktop-only routes (Tags, Call Sheet) use `RequireDesktop` guard that redirects to dashboard with toast.
 
 Tablet is a first-class viewport, not an afterthought. iPad on-set usage is a primary use case.
+
+### Mobile Patterns (Phase 5)
+
+- **Touch targets:** `@media (pointer: coarse) { .touch-target { min-height: 44px; min-width: 44px; } }` in `tokens.css`. Apply to all interactive elements on touch devices.
+- **ResponsiveDialog:** Unified API — renders Sheet (bottom) on mobile, Dialog on desktop. All creation/edit dialogs use this.
+- **FAB communication:** FloatingActionBar sets URL params (`?create=1`, `?status_picker=1`, `?focus=notes`) with `replace: true`. Target pages read + consume params via `useSearchParams`.
+- **Hide-not-disable on mobile:** When `canEdit = !isMobile && canManageX(role)` already gates write form visibility, do not add redundant `disabled={... || isMobile}`. Hide write forms entirely instead of showing disabled controls.
+- **ShotStatusTapRow:** On mobile, status changes use 4 horizontal pill buttons instead of dropdown Select. Optimistic update with rollback on error.
 
 ---
 

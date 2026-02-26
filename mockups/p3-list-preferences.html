@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P3 — List Panel Display Preferences</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --color-text: #18181b;
+      --color-text-secondary: #52525b;
+      --color-text-muted: #71717a;
+      --color-text-subtle: #a1a1aa;
+      --color-surface: #ffffff;
+      --color-surface-subtle: #f4f4f5;
+      --color-border: #e4e4e7;
+      --color-border-strong: #d4d4d8;
+      --color-primary: #18181b;
+    }
+    body { font-family: 'Inter', sans-serif; background: #fafafa; }
+  </style>
+</head>
+<body class="p-8">
+
+  <h1 class="text-xl font-semibold mb-2" style="color: var(--color-text);">List Panel — Display Preferences</h1>
+  <p class="text-sm mb-8" style="color: var(--color-text-muted);">
+    Gear icon in header opens popover with 4 toggle switches. Preferences persist to localStorage.
+  </p>
+
+  <div class="flex gap-8 items-start">
+
+    <!-- List panel header with gear icon -->
+    <div style="width: 280px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); overflow: hidden;">
+      <div style="padding: 10px 12px; border-bottom: 1px solid var(--color-border);">
+        <div class="flex items-center justify-between">
+          <span style="font-size: 12px; font-weight: 600; color: var(--color-text);">Shots</span>
+          <div class="flex items-center gap-2">
+            <span style="font-size: 10px; color: var(--color-text-subtle);">4</span>
+            <!-- Gear icon button -->
+            <button style="padding: 2px; border-radius: 4px; color: var(--color-text-subtle); background: var(--color-surface-subtle);" title="Display preferences">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div style="padding: 20px 12px; text-align: center; font-size: 11px; color: var(--color-text-muted);">
+        Shot list items below...
+      </div>
+    </div>
+
+    <!-- Popover (shown on gear click) -->
+    <div style="width: 220px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); box-shadow: 0 4px 8px -2px rgba(0,0,0,0.08); padding: 12px;">
+      <p style="font-size: 11px; font-weight: 600; color: var(--color-text); margin-bottom: 10px;">Display preferences</p>
+
+      <!-- Toggle 1: Thumbnails ON -->
+      <div class="flex items-center justify-between" style="padding: 4px 0;">
+        <span style="font-size: 12px; color: var(--color-text-secondary);">Thumbnails</span>
+        <div style="width: 36px; height: 20px; border-radius: 10px; background: var(--color-primary); position: relative; cursor: pointer;">
+          <div style="width: 16px; height: 16px; border-radius: 50%; background: white; position: absolute; top: 2px; right: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></div>
+        </div>
+      </div>
+
+      <!-- Toggle 2: Shot number ON -->
+      <div class="flex items-center justify-between" style="padding: 4px 0;">
+        <span style="font-size: 12px; color: var(--color-text-secondary);">Shot number</span>
+        <div style="width: 36px; height: 20px; border-radius: 10px; background: var(--color-primary); position: relative; cursor: pointer;">
+          <div style="width: 16px; height: 16px; border-radius: 50%; background: white; position: absolute; top: 2px; right: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></div>
+        </div>
+      </div>
+
+      <!-- Toggle 3: Description ON -->
+      <div class="flex items-center justify-between" style="padding: 4px 0;">
+        <span style="font-size: 12px; color: var(--color-text-secondary);">Description</span>
+        <div style="width: 36px; height: 20px; border-radius: 10px; background: var(--color-primary); position: relative; cursor: pointer;">
+          <div style="width: 16px; height: 16px; border-radius: 50%; background: white; position: absolute; top: 2px; right: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></div>
+        </div>
+      </div>
+
+      <!-- Toggle 4: Status badge OFF -->
+      <div class="flex items-center justify-between" style="padding: 4px 0;">
+        <span style="font-size: 12px; color: var(--color-text-secondary);">Status badge</span>
+        <div style="width: 36px; height: 20px; border-radius: 10px; background: var(--color-border-strong); position: relative; cursor: pointer;">
+          <div style="width: 16px; height: 16px; border-radius: 50%; background: white; position: absolute; top: 2px; left: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="text-xs mt-6" style="color: var(--color-text-muted);">
+    <strong>Behavior:</strong> Preferences remove items from list items. Density tiers set the maximum visibility.
+    Both constraints apply — e.g. hiding thumbnails via preferences hides them even in "full" density.
+    Stored in localStorage at <code>sb:three-panel:list-prefs</code>.
+  </p>
+
+</body>
+</html>
