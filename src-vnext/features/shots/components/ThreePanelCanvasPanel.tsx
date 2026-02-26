@@ -117,15 +117,20 @@ export function ThreePanelCanvasPanel({
         </div>
 
         {/* Notes */}
-        <NotesSection
-          notes={shot.notes}
-          notesAddendum={shot.notesAddendum}
-          onSaveAddendum={async (value) => {
-            const ok = await save({ notesAddendum: value || null })
-            if (!ok) throw new Error("Failed to save addendum")
-          }}
-          canEditAddendum={canDoOperational}
-        />
+        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
+          <SectionLabel>Notes</SectionLabel>
+          <div className="mt-1.5">
+            <NotesSection
+              notes={shot.notes}
+              notesAddendum={shot.notesAddendum}
+              onSaveAddendum={async (value) => {
+                const ok = await save({ notesAddendum: value || null })
+                if (!ok) throw new Error("Failed to save addendum")
+              }}
+              canEditAddendum={canDoOperational}
+            />
+          </div>
+        </div>
 
         {/* Reference links */}
         <ShotReferenceLinksSection

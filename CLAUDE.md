@@ -249,6 +249,44 @@ The three-panel desktop layout (`ThreePanelLayout.tsx`) uses `react-resizable-pa
 
 **Breadcrumb hygiene:** Navigation breadcrumbs must not duplicate information already visible on screen. If the shot title is shown as an H2 directly below, the breadcrumb should only show the back-navigation ("← Shots"), not repeat the title.
 
+**Notes/Description click-to-edit pattern:** Read mode is default. Click anywhere on the text to enter edit mode with autoFocus. Blur saves via `useAutoSave.flush()` and returns to read mode. Empty state shows placeholder text like "Click to add notes..." with subtle styling.
+
+**List panel density tiers:** Three density levels driven by `ResizeObserver`, not viewport queries:
+- Compact (`< 200px`): Title + shot number only, no thumbnail/badge
+- Medium (`200–280px`): Title + shot number + thumbnail + status badge
+- Full (`> 280px`): All of medium + 2-line description preview
+
+**Reference tile hover-reveal action bar:** Default state shows clean image only. On hover, a frosted action bar appears at bottom with star (set cover) and X (remove) icons. Cover indicator is a text strip below the image, not overlaying it.
+
+**Display preferences localStorage key:** `sb:three-panel:list-prefs` — stores `{ showThumbnail, showShotNumber, showDescription, showStatusBadge }`. Managed by `useListDisplayPreferences` hook in `features/shots/hooks/`.
+
+## Session Learnings & Error Prevention
+
+These patterns were learned through implementation errors and should be followed to avoid repeating them.
+
+### Test Updates on Behavior Refactors
+
+When refactoring a component's interaction model (e.g., always-editable textarea to click-to-edit toggle), **existing tests will break**. Plan for this:
+- Tests that assume the old interaction (e.g., textarea immediately visible) must be updated to the new flow (e.g., click read-mode first, then interact with textarea).
+- Add `data-testid` attributes to new interaction states (e.g., `notes-read-mode`, `notes-input`) so tests can target them reliably.
+- After refactoring, add new tests covering the new states (placeholder text in read mode, blur-to-exit, etc.).
+
+### Design Token Hygiene
+
+- **Never reference a token before it exists in `tokens.css`.** The build won't catch missing CSS variables — they silently resolve to nothing. Verify the token exists before using `var(--color-*)`.
+- **Status badge colors belong in tokens**, not as hardcoded Tailwind classes. Use `var(--color-status-{color}-{bg|text|border})` so dark mode and theming work.
+- **Hardcoded `text-white`, `bg-black` inside token-driven components** are design-system violations. Use `var(--color-text-inverted)` and `var(--color-text)` instead.
+
+### External Store Patterns
+
+- `useSyncExternalStore` is the correct React 18 pattern for localStorage-backed state — not `useState` + `useEffect` + manual event listeners. It handles SSR, concurrent mode, and tearing correctly.
+- External store singletons (cached value + listeners Set + subscribe/getSnapshot) live at module scope, outside the component.
+
+### CSS-Only Hover Reveal
+
+- Use Tailwind `group` class on parent + `opacity-0 group-hover:opacity-100 transition-opacity` on children for hover-reveal UI. No JavaScript state or event handlers needed.
+- Frosted glass effect: `bg-[var(--color-surface)]/90 backdrop-blur-sm`.
+
 ## Shot Status Labels
 
 Canonical labels (from `statusMappings.ts`). Use these everywhere — views, filters, PDFs, badges:

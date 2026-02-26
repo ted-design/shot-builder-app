@@ -95,6 +95,7 @@
   --color-border: #e4e4e7;            /* Default border (zinc-200) */
   --color-border-muted: #f4f4f5;      /* Subtle border (zinc-100) */
   --color-border-strong: #d4d4d8;     /* Strong border (zinc-300) */
+  --color-border-hover: #d4d4d8;      /* Hovered border (zinc-300) */
 
   /* --- Primary Action (Near-Black) --- */
   --color-primary: #18181b;           /* zinc-900 */
@@ -118,6 +119,20 @@
   --color-warning: #f59e0b;           /* amber-500 */
   --color-error: #ef4444;             /* red-500 */
   --color-info: #3b82f6;              /* blue-500 */
+
+  /* --- Status Badge Colors (tokenized for StatusBadge component) --- */
+  --color-status-gray-bg: #f4f4f5;       /* zinc-100 */
+  --color-status-gray-text: #3f3f46;     /* zinc-700 */
+  --color-status-gray-border: #e4e4e7;   /* zinc-200 */
+  --color-status-blue-bg: #eff6ff;       /* blue-50 */
+  --color-status-blue-text: #1d4ed8;     /* blue-700 */
+  --color-status-blue-border: #bfdbfe;   /* blue-200 */
+  --color-status-green-bg: #ecfdf5;      /* emerald-50 */
+  --color-status-green-text: #047857;    /* emerald-700 */
+  --color-status-green-border: #a7f3d0;  /* emerald-200 */
+  --color-status-amber-bg: #fffbeb;      /* amber-50 */
+  --color-status-amber-text: #b45309;    /* amber-700 */
+  --color-status-amber-border: #fde68a;  /* amber-200 */
 
   /* --- Table Specific --- */
   --color-table-header-bg: transparent;

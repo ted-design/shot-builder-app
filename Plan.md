@@ -118,6 +118,11 @@ Admin (role-gated: admin only)
 - [x] **3t:** Fix gallery view switching bug (URL param deletion caused stale localStorage fallback)
 - [x] **3u:** Standardize status labels to System A (Draft / In Progress / On Hold / Shot) across all views, filters, and PDF exports
 - [ ] **3v:** Board column reorder + show/hide configuration (deferred — localStorage-persisted column order and visibility)
+- [x] **3y:** Three-panel design token audit (tokenize status badges, fix hardcoded colors)
+- [x] **3z:** Notes section read/edit toggle + card wrapper consistency
+- [x] **3aa:** Enriched list panel (density tiers, description preview, shot number)
+- [x] **3ab:** Reference tile redesign (hover action bar, cover below image)
+- [x] **3ac:** List panel display preferences (toggleable properties)
 
 ### Acceptance Criteria
 

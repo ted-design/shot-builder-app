@@ -46,13 +46,14 @@ function LinkifiedText({ value }: { readonly value: string }) {
 /**
  * Notes section for shot detail page.
  *
- * - Editable notes are stored in notesAddendum (plain text).
+ * - Read mode by default — click to enter edit mode (editable users only).
+ * - Edit mode: Textarea with autoFocus, auto-save on change, flush + exit on blur.
  * - Legacy HTML notes remain visible as read-only historical context.
  */
 function NotesSaveIndicator({ state }: { readonly state: SaveState }) {
   if (state === "idle") return null
   const label =
-    state === "saving" ? "Saving…" :
+    state === "saving" ? "Saving\u2026" :
     state === "saved" ? "Saved" :
     "Save failed"
   const color =
@@ -73,6 +74,7 @@ export function NotesSection({
   canEditAddendum,
 }: NotesSectionProps) {
   const [draft, setDraft] = useState(notesAddendum ?? "")
+  const [editing, setEditing] = useState(false)
   const { saveState, scheduleSave, flush, cancel } = useAutoSave()
 
   // Keep flush ref current for unmount cleanup
@@ -86,8 +88,10 @@ export function NotesSection({
 
   // Sync draft when server value changes (and user hasn't made local changes)
   useEffect(() => {
-    setDraft(notesAddendum ?? "")
-  }, [notesAddendum])
+    if (!editing) {
+      setDraft(notesAddendum ?? "")
+    }
+  }, [notesAddendum, editing])
 
   const normalizedInitial = (notesAddendum ?? "").trim()
 
@@ -106,35 +110,55 @@ export function NotesSection({
 
   const handleBlur = useCallback(() => {
     flush()
+    setEditing(false)
   }, [flush])
+
+  const enterEditMode = useCallback(() => {
+    setDraft(notesAddendum ?? "")
+    setEditing(true)
+  }, [notesAddendum])
 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-          Notes
-        </Label>
-        {canEditAddendum && (
-          <div className="mt-2 flex flex-col gap-1.5">
+        {/* Editable notes — read/edit toggle */}
+        {canEditAddendum && editing ? (
+          <div className="flex flex-col gap-1.5">
             <Textarea
               value={draft}
               onChange={(e) => handleChange(e.target.value)}
               onBlur={handleBlur}
+              autoFocus
               rows={4}
               placeholder="Add notes or reminders..."
               className="text-sm"
               data-testid="notes-input"
             />
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-[var(--color-text-subtle)]">
-                Add dedicated URLs in the Reference links section below.
-              </p>
+            <div className="flex items-center justify-end">
               <NotesSaveIndicator state={saveState} />
             </div>
           </div>
-        )}
-
-        {!canEditAddendum && (
+        ) : canEditAddendum && !editing ? (
+          <div
+            className="cursor-pointer rounded px-1.5 py-0.5 transition-colors hover:bg-[var(--color-surface-subtle)]"
+            onClick={enterEditMode}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") enterEditMode()
+            }}
+            data-testid="notes-read-mode"
+          >
+            {normalizedInitial ? (
+              <LinkifiedText value={normalizedInitial} />
+            ) : (
+              <p className="text-sm text-[var(--color-text-muted)]">
+                Click to add notes...
+              </p>
+            )}
+          </div>
+        ) : (
+          /* Read-only mode */
           normalizedInitial ? (
             <LinkifiedText value={normalizedInitial} />
           ) : (

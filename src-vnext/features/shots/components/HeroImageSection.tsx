@@ -125,8 +125,8 @@ export function HeroImageSection({
             </div>
           )}
           {uploading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-              <Loader2 className="h-6 w-6 animate-spin text-white" />
+            <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-text)]/30">
+              <Loader2 className="h-6 w-6 animate-spin text-[var(--color-text-inverted)]" />
             </div>
           )}
         </div>

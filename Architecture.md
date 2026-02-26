@@ -371,6 +371,16 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 
 `LoadingSpinner`, `EmptyState`, `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `SearchCommand`, `NotificationBell`, `FilterPresetManager`
 
+### Three-Panel Shot Editor Components
+
+| Component / Hook | Location | Purpose |
+|---|---|---|
+| `ThreePanelListPanel` | `features/shots/components/` | Left panel — shot list with 3-tier density (compact/medium/full via ResizeObserver) |
+| `ThreePanelCanvasPanel` | `features/shots/components/` | Center panel — shot detail with card-wrapped sections |
+| `NotesSection` | `features/shots/components/` | Read/edit toggle notes (click-to-edit, blur-to-save) |
+| `ActiveLookCoverReferencesPanel` | `features/shots/components/` | Reference tiles with hover-reveal action bar |
+| `useListDisplayPreferences` | `features/shots/hooks/` | localStorage-backed display preferences (`sb:three-panel:list-prefs`) |
+
 ---
 
 ## Performance Budgets

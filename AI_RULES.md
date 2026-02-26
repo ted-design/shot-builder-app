@@ -89,6 +89,22 @@ function updateShot(shot, status) { return { ...shot, status }; }
 - Mock Firestore in unit/component tests -- never hit real Firestore
 - Run `npm test` before marking any task complete
 
+### Refactor-Induced Test Breakage
+
+When refactoring a component's interaction model (e.g., always-visible textarea → click-to-edit toggle), **plan for test updates as part of the delta**:
+
+1. Identify tests that assume the old behavior (search for test selectors and interaction patterns)
+2. Update tests to follow the new interaction flow (e.g., click to enter edit mode before asserting on edit-mode elements)
+3. Add new tests for the new behavioral states (read mode, edit mode transitions, exit behavior)
+4. Never skip tests or mark a delta complete with failing tests
+
+### Design Token Verification
+
+Before referencing any CSS custom property (`var(--color-*)`) in a component:
+1. Verify the token exists in `tokens.css`
+2. Missing tokens silently resolve to nothing — the build won't catch them
+3. If a new token is needed, add it to `tokens.css` first (Delta 1 pattern)
+
 ---
 
 ## Off-Limits Without Approval
