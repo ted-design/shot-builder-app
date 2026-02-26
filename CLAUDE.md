@@ -9,7 +9,7 @@ This file governs all Claude Code work in the vNext worktree. Follow these rules
 **Root-level `PRD.md` and `Plan.md` are the authoritative specifications.** Product vision, user journeys, feature priorities, and the phased implementation plan are defined there.
 
 - `PRD.md` — Product vision, target users, core journeys, feature priority matrix, UX principles
-- `Plan.md` — 7-phase implementation plan with sub-task checkboxes (this is the todo tracker)
+- `Plan.md` — Multi-phase implementation plan (7A-7E + 8-10) with sub-task checkboxes (this is the todo tracker)
 - `AI_RULES.md` — Decision framework, code standards, context management rules
 - `Architecture.md` — Tech stack, routes, data model, file structure
 
@@ -190,7 +190,20 @@ All data is scoped by `clientId` from Firebase Auth custom claims.
 - Custom claims: `role` (admin|producer|crew|warehouse|viewer), `clientId`
 - Route guards: RequireAuth, RequireRole, RequireProject
 - Firestore rules enforce `clientId` scoping on every read/write
-- RBAC helpers in `shared/lib/rbac`
+- RBAC helpers in `shared/lib/rbac`:
+
+| Permission | Roles |
+|-----------|-------|
+| `canManageProjects` | admin, producer |
+| `canManageShots` | admin, producer, crew |
+| `canManageSchedules` | admin, producer |
+| `canManageProducts` | admin, producer |
+| `canManageTalent` | admin, producer |
+| `canManageCrew` | admin, producer |
+| `canManageLocations` | admin, producer |
+| `canGeneratePulls` | admin, producer |
+| `canManagePulls` | admin, producer, warehouse |
+| `canFulfillPulls` | admin, warehouse |
 
 ## Testing
 
@@ -263,6 +276,24 @@ The three-panel desktop layout (`ThreePanelLayout.tsx`) uses `react-resizable-pa
 ## Session Learnings & Error Prevention
 
 These patterns were learned through implementation errors and should be followed to avoid repeating them.
+
+### Firestore onSnapshot Form Reset (Phase 7A)
+
+When a dialog's `useEffect` initializes form state from a Firestore-subscribed object and depends on both `open` and the entity (e.g., `[open, project]`), every `onSnapshot` creates a new object reference — re-triggering the effect and resetting form state mid-edit. This silently discards the user's input.
+
+**Fix:** Use a `useRef` to track `wasOpen` and only initialize form state when `open` transitions from `false` to `true`:
+
+```tsx
+const wasOpen = useRef(false)
+useEffect(() => {
+  if (open && !wasOpen.current && entity) {
+    // Initialize form state here
+  }
+  wasOpen.current = open
+}, [open, entity])
+```
+
+**Do NOT use `eslint-disable-next-line react-hooks/exhaustive-deps`** to remove `entity` from deps — the ref approach keeps `entity` in the dependency array while preventing unwanted re-initialization.
 
 ### Test Updates on Behavior Refactors
 
@@ -507,6 +538,51 @@ Real-time collaborative editing awareness, ported from legacy JS to TypeScript v
 - **FOUC prevention:** `index.html` inline script applies `.dark` before React mounts, using `sb:theme` key with system preference fallback.
 - **System mode:** When set to `system`, ThemeProvider listens to `prefers-color-scheme` changes and updates dynamically.
 - **Legacy `src/` files:** Not converted. Schedule/callsheet preview components have extensive hardcoded `gray-*`/`slate-*` — these are out of scope until ported to vNext.
+
+## Library Entity Patterns (Phase 7B)
+
+### Navigation: Table List → Detail Page
+
+Library entities (crew, locations, talent) use a two-step navigation pattern:
+1. **List page** (`/library/crew`, `/library/locations`): Searchable table with key columns. Row click navigates to detail page.
+2. **Detail page** (`/library/crew/:crewId`, `/library/locations/:locationId`): Full editing with InlineEdit fields, delete with ConfirmDialog.
+
+This is NOT a master-detail split screen. Each is a separate route with its own lazy-loaded page component.
+
+### Write Function Pattern
+
+Each entity has a dedicated `{entity}Writes.ts` file in `features/library/lib/`:
+- `crewWrites.ts` — `createCrewMember`, `updateCrewMember`, `deleteCrewMember`
+- `locationWrites.ts` — `createLocation`, `updateLocation`, `deleteLocation`, `uploadLocationPhoto`
+- `talentWrites.ts` — `createTalent`, `updateTalent`, `deleteTalent`, `setTalentHeadshot`, `removeTalentHeadshot`, `uploadTalentPortfolioImages`, `uploadTalentCastingImages`
+
+All write functions take `clientId` from the caller (via `useAuth()`), never hardcoded. All set `updatedAt: serverTimestamp()` and `updatedBy: userId`.
+
+### Measurement System
+
+`features/library/lib/measurementOptions.ts` provides gender-specific measurement fields:
+- **Men:** height, waist, inseam, shoes, suit, collar, sleeve (7 fields)
+- **Women:** height, waist, hips, shoes, bust, dress (6 fields)
+- **Other/unset:** all fields combined
+
+Use `getMeasurementOptionsForGender(talent.gender)` — never hardcode a static measurement list.
+
+### Entity Delete Pattern
+
+Deleting entities with associated Storage files (talent images, location photos) must:
+1. Collect ALL image paths from the entity (headshot, gallery, casting session images)
+2. Delete Storage files first (best-effort, errors swallowed)
+3. Delete the Firestore document last
+4. Use `ConfirmDialog` with `destructive` prop for user confirmation
+
+### Dual Mapper Awareness
+
+When expanding entity types (adding fields to `CrewRecord`, `LocationRecord`, `TalentRecord`), update ALL mappers that produce that type:
+- **Library hooks** (`useCrewLibrary`, `useLocationLibrary`, `useTalentLibrary`) — primary, full-field mappers
+- **Picker data hooks** (`usePickerData.ts`) — independent mappers used by shot pickers, must also be enriched
+- **Schedule mappers** (`mapSchedule.ts`) — used by schedule/call sheet features
+
+Missing a mapper causes fields to silently be `undefined` even though Firestore has the data.
 
 ## Shot Status Labels
 

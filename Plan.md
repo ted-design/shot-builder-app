@@ -280,7 +280,7 @@ Admin (role-gated: admin only)
 
 **Goal:** Make crew, locations, and talent fully functional with CRUD. Port proven legacy patterns.
 
-**Status:** In progress (crew + locations done, talent remaining).
+**Status:** COMPLETE.
 
 ### Sub-tasks
 
@@ -295,11 +295,11 @@ Admin (role-gated: admin only)
 
 ### Acceptance Criteria
 
-- [ ] Crew page has full CRUD: search, create, inline edit, delete with confirmation
-- [ ] Locations page has full CRUD: search, create, inline edit, photo upload, delete
-- [ ] Talent has gender-specific measurements (9+ fields) and delete functionality
-- [ ] All pages correct at 375/768/1280px breakpoints
-- [ ] Tests pass, lint clean, build clean
+- [x] Crew page has full CRUD: search, create, inline edit, delete with confirmation
+- [x] Locations page has full CRUD: search, create, inline edit, photo upload, delete
+- [x] Talent has gender-specific measurements (9+ fields) and delete functionality
+- [ ] All pages correct at 375/768/1280px breakpoints (visual verification pending)
+- [x] Tests pass, lint clean, build clean
 
 ---
 

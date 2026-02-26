@@ -239,6 +239,22 @@ For large cross-directory standardization changes (e.g., adopting semantic class
 4. After all agents complete, run a single grep from main context to verify zero remaining violations
 5. This pattern was used in Phase 6f (component polish sweep, 44 files in one pass)
 
+### Firestore onSnapshot + Dialog Form State (Phase 7A Pattern)
+
+When a dialog initializes form state from a live Firestore entity, the `useEffect` dependency on the entity object causes form resets on every snapshot (new object reference). **Never use `eslint-disable` to remove the entity from deps.** Instead:
+1. Use a `useRef(false)` to track `wasOpen`
+2. Only initialize form state when `open && !wasOpen.current && entity`
+3. Keep the entity in the dependency array for correctness
+
+### Dual Mapper Consistency (Phase 7B Pattern)
+
+When expanding entity types (e.g., adding `street`, `city`, `phone` to `LocationRecord`), update ALL independent mappers that produce that type:
+- Library hooks (`useCrewLibrary`, `useLocationLibrary`) — primary full-field mappers
+- Picker data hooks (`usePickerData.ts`) — independent mappers used by shot assignment pickers
+- Schedule mappers (`mapSchedule.ts`) — used by schedule/call sheet features
+
+Missing a mapper causes fields to silently be `undefined` despite Firestore having the data.
+
 ### Legacy-to-vNext Porting (Phase 6j Pattern)
 
 When legacy `src/` code solves the same problem the current phase requires:

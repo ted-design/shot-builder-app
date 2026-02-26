@@ -126,9 +126,11 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/products/:productId` | ProductDetailPageV3 | Default (flags control V2/V3) |
 | `/import-products` | ImportProducts | CSV import |
 | `/library` | LibraryPage | Redirect -> `/library/talent` |
-| `/library/talent` | LibraryTalentPage | |
-| `/library/crew` | LibraryCrewPage | |
-| `/library/locations` | LibraryLocationsPage | |
+| `/library/talent` | LibraryTalentPage | Full CRUD: card grid, inline detail, measurements, portfolio, castings |
+| `/library/crew` | LibraryCrewPage | Table list with search, create dialog, row click to detail |
+| `/library/crew/:crewId` | CrewDetailPage | Inline edit all fields, notes, delete with confirmation |
+| `/library/locations` | LibraryLocationsPage | Table list with search, create dialog, row click to detail |
+| `/library/locations/:locationId` | LocationDetailPage | Photo upload, address sub-fields, inline edit, delete |
 | `/library/departments` | DepartmentsPage | |
 | `/library/tags` | TagManagementPage | |
 | `/library/palette` | PalettePage | Color swatches |
@@ -261,6 +263,8 @@ interface Pull {
 
 All Firestore paths built via `src-vnext/shared/lib/paths.ts`. Every function requires explicit `clientId` -- no hardcoded defaults. Returns string arrays for `collection()` / `doc()`.
 
+Key path builders: `projectsPath`, `shotsPath`, `productFamiliesPath`, `talentPath`, `locationsPath`, `crewPath`, `crewDocPath`, `locationDocPath`, `departmentsPath`, `departmentPositionsPath`.
+
 ---
 
 ## State Management
@@ -325,6 +329,9 @@ Defined in `src/lib/flags.js`. Overridable via localStorage and URL params.
 | `canManageShots` | admin, producer, crew |
 | `canManageSchedules` | admin, producer |
 | `canManageProducts` | admin, producer |
+| `canManageTalent` | admin, producer |
+| `canManageCrew` | admin, producer |
+| `canManageLocations` | admin, producer |
 | `canGeneratePulls` | admin, producer |
 | `canManagePulls` | admin, producer, warehouse |
 | `canFulfillPulls` | admin, warehouse |
@@ -393,7 +400,23 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 
 ### Custom UI Components
 
-`LoadingSpinner`, `LoadingState` (skeleton prop + stuck overlay), `EmptyState`, `InlineEmpty` (dashed border sub-section empties), `Skeleton` (SkeletonLine, SkeletonBlock, ListPageSkeleton, TableSkeleton, DetailPageSkeleton, CardSkeleton), `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `NetworkErrorBanner`, `ForbiddenPage` (403), `NotFoundPage` (404), `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`, `ActiveEditorsBar` (presence: expandable editor list), `CompactActiveEditors` (presence: avatar dots + ping)
+`LoadingSpinner`, `LoadingState` (skeleton prop + stuck overlay), `EmptyState`, `InlineEmpty` (dashed border sub-section empties), `Skeleton` (SkeletonLine, SkeletonBlock, ListPageSkeleton, TableSkeleton, DetailPageSkeleton, CardSkeleton), `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `NetworkErrorBanner`, `ForbiddenPage` (403), `NotFoundPage` (404), `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`, `ActiveEditorsBar` (presence: expandable editor list), `CompactActiveEditors` (presence: avatar dots + ping), `InlineEdit` (click-to-edit inline field), `ConfirmDialog` (destructive action confirmation)
+
+### Library Entity Modules (Phase 7B)
+
+| Module | Path | Purpose |
+|---|---|---|
+| `crewWrites.ts` | `features/library/lib/` | Create/update/delete crew members |
+| `locationWrites.ts` | `features/library/lib/` | Create/update/delete locations + photo upload |
+| `talentWrites.ts` | `features/library/lib/` | Full talent CRUD: create, update, delete, headshot, portfolio, casting images |
+| `measurementOptions.ts` | `features/library/lib/` | Gender-specific measurement field definitions (men: 7, women: 6, other: all) |
+| `useCrewLibrary.ts` | `features/library/hooks/` | Real-time Firestore subscription for crew list |
+| `useLocationLibrary.ts` | `features/library/hooks/` | Real-time Firestore subscription for locations list |
+| `useTalentLibrary.ts` | `features/library/hooks/` | Real-time Firestore subscription for talent list |
+| `CreateCrewDialog.tsx` | `features/library/components/` | ResponsiveDialog for creating crew members |
+| `CreateLocationDialog.tsx` | `features/library/components/` | ResponsiveDialog for creating locations |
+| `CrewDetailPage.tsx` | `features/library/components/` | Detail/edit page for crew members |
+| `LocationDetailPage.tsx` | `features/library/components/` | Detail/edit page with photo upload and address fields |
 
 ### Mobile & Tablet Components (Phase 5)
 
