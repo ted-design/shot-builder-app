@@ -46,7 +46,6 @@ import ProjectsPage from "./pages/ProjectsPage";
 const ShotsPage = lazy(() => import("./pages/ShotsPage"));
 const ShotEditorPageV3 = lazy(() => import("./pages/ShotEditorPageV3"));
 const ProductsPage = lazy(() => import("./pages/ProductsPage"));
-const ProductDetailPageV2 = lazy(() => import("./pages/ProductDetailPageV2"));
 const ProductDetailPageV3 = lazy(() => import("./pages/ProductDetailPageV3"));
 const ImportProducts = lazy(() => import("./pages/ImportProducts"));
 const TalentPage = lazy(() => import("./pages/TalentPage"));
@@ -354,38 +353,14 @@ function AppRoutes() {
                       </Suspense>
                     }
                   />
-                  {/* Product detail page - V3 takes priority over V2, V3 is default when flags OFF */}
-                  {FLAGS.productsV3 && (
-                    <Route
-                      path="/products/:productId"
-                      element={
-                        <Suspense fallback={<PageLoadingFallback />}>
-                          <ProductDetailPageV3 />
-                        </Suspense>
-                      }
-                    />
-                  )}
-                  {FLAGS.productsV2 && !FLAGS.productsV3 && (
-                    <Route
-                      path="/products/:productId"
-                      element={
-                        <Suspense fallback={<PageLoadingFallback />}>
-                          <ProductDetailPageV2 />
-                        </Suspense>
-                      }
-                    />
-                  )}
-                  {/* Default: ProductDetailPageV3 when both flags are OFF */}
-                  {!FLAGS.productsV3 && !FLAGS.productsV2 && (
-                    <Route
-                      path="/products/:productId"
-                      element={
-                        <Suspense fallback={<PageLoadingFallback />}>
-                          <ProductDetailPageV3 />
-                        </Suspense>
-                      }
-                    />
-                  )}
+                  <Route
+                    path="/products/:productId"
+                    element={
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <ProductDetailPageV3 />
+                      </Suspense>
+                    }
+                  />
                   <Route
                     path="/import-products"
                     element={
