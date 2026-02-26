@@ -15,7 +15,6 @@ const DEMO_FLAG_KEY = "flag.demoMode";
 const CALLSHEET_BUILDER_FLAG_KEY = "flag.callSheetBuilder";
 const PRODUCTS_V2_FLAG_KEY = "flag.productsV2";
 const PRODUCTS_V3_FLAG_KEY = "flag.productsV3";
-const SHOT_EDITOR_V3_FLAG_KEY = "flag.shotEditorV3";
 const PROJECT_ENV_DEFAULT = (() => {
   if (ENV.VITE_FEATURE_PROJECT_SCOPING != null) {
     return readBool(ENV.VITE_FEATURE_PROJECT_SCOPING);
@@ -62,7 +61,6 @@ let DEMO_OVERRIDE = null;
 let CALLSHEET_BUILDER_OVERRIDE = null;
 let PRODUCTS_V2_OVERRIDE = null;
 let PRODUCTS_V3_OVERRIDE = null;
-let SHOT_EDITOR_V3_OVERRIDE = null;
 try {
   if (typeof window !== "undefined") {
     // Allow quick enabling via query param e.g. ?demo=1
@@ -107,16 +105,6 @@ try {
           window.localStorage.setItem(PRODUCTS_V3_FLAG_KEY, readBool(productsV3Param) ? "1" : "0");
         }
       }
-      // Allow quick enabling via query param e.g. ?shotEditorV3=1 or ?ui=shot-editor-v3
-      const shotEditorV3Param = params.get("shotEditorV3") ?? (params.get("ui") === "shot-editor-v3" ? "1" : null);
-      if (shotEditorV3Param) {
-        const trimmed = shotEditorV3Param.trim().toLowerCase();
-        if (trimmed === "clear" || trimmed === "reset" || trimmed === "off" || trimmed === "0") {
-          window.localStorage.removeItem(SHOT_EDITOR_V3_FLAG_KEY);
-        } else {
-          window.localStorage.setItem(SHOT_EDITOR_V3_FLAG_KEY, readBool(shotEditorV3Param) ? "1" : "0");
-        }
-      }
     } catch {}
 
     AUTH_OVERRIDE = window.localStorage.getItem("flag.newAuthContext");
@@ -127,7 +115,6 @@ try {
     CALLSHEET_BUILDER_OVERRIDE = window.localStorage.getItem(CALLSHEET_BUILDER_FLAG_KEY);
     PRODUCTS_V2_OVERRIDE = window.localStorage.getItem(PRODUCTS_V2_FLAG_KEY);
     PRODUCTS_V3_OVERRIDE = window.localStorage.getItem(PRODUCTS_V3_FLAG_KEY);
-    SHOT_EDITOR_V3_OVERRIDE = window.localStorage.getItem(SHOT_EDITOR_V3_FLAG_KEY);
   }
 } catch {}
 
@@ -156,13 +143,6 @@ export const FLAGS = {
     PRODUCTS_V3_OVERRIDE != null
       ? readBool(PRODUCTS_V3_OVERRIDE)
       : readBool(ENV.VITE_FLAG_PRODUCTS_V3 ?? false),
-  // Shot Editor V3 is now the default editor (cutover completed in Delta I.8)
-  // The flag is always true by default. To force legacy editor for debugging,
-  // use query param ?legacyShotEditor=1 (NOT this flag).
-  shotEditorV3:
-    SHOT_EDITOR_V3_OVERRIDE != null
-      ? readBool(SHOT_EDITOR_V3_OVERRIDE)
-      : true, // Default ON after cutover (was: readBool(ENV.VITE_FLAG_SHOT_EDITOR_V3 ?? false))
 };
 
 export const FEATURE_PROJECT_SCOPING = FLAGS.projectScoping;
@@ -244,16 +224,6 @@ export function setProductsV3Override(value) {
   } catch {}
 }
 
-export function setShotEditorV3Override(value) {
-  try {
-    if (typeof window === "undefined") return;
-    if (value == null) {
-      window.localStorage.removeItem(SHOT_EDITOR_V3_FLAG_KEY);
-    } else {
-      window.localStorage.setItem(SHOT_EDITOR_V3_FLAG_KEY, value ? "1" : "0");
-    }
-  } catch {}
-}
 
 /**
  * Check if demo mode is currently active
