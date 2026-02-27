@@ -46,7 +46,6 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { useProjectScope } from "../context/ProjectScopeContext";
 import { toast } from "../lib/toast";
 import { FileText, MapPin } from "lucide-react";
-import { FLAGS } from "../lib/flags";
 // Optional: if you've created UI primitives (Card, Input, Button), import
 // them here.  Otherwise, plain HTML elements will work fine.
 
@@ -1125,14 +1124,12 @@ function PullDetailsModal({ pull, projectId, clientId, onClose, canManage, role,
               <p className="text-xs text-slate-500 dark:text-slate-400">Created {createdLabel}</p>
             </div>
             <div className="flex gap-2">
-              {FLAGS.pullsEditorV2 && (
-                <Button
-                  variant="secondary"
-                  onClick={() => navigate(`/pulls/${pull.id}/edit`)}
-                >
-                  Open full screen
-                </Button>
-              )}
+              <Button
+                variant="secondary"
+                onClick={() => navigate(`/pulls/${pull.id}/edit`)}
+              >
+                Open full screen
+              </Button>
               <Button variant="secondary" onClick={() => setExportModalOpen(true)}>
                 Export
               </Button>

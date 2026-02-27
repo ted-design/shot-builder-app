@@ -1,5 +1,4 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 
 /**
  * ProgressBar Component
@@ -53,13 +52,5 @@ const ProgressBar = ({
   );
 };
 
-ProgressBar.propTypes = {
-  label: PropTypes.string,
-  percentage: PropTypes.number.isRequired,
-  showPercentage: PropTypes.bool,
-  fillColor: PropTypes.string,
-  trackColor: PropTypes.string,
-  size: PropTypes.oneOf(['sm', 'md'])
-};
 
 export default ProgressBar;

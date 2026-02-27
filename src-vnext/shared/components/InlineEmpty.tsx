@@ -4,6 +4,7 @@ interface InlineEmptyProps {
   readonly icon?: ReactNode
   readonly title: string
   readonly description?: string
+  readonly action?: ReactNode
 }
 
 /**
@@ -12,7 +13,7 @@ interface InlineEmptyProps {
  *
  * Specs: min-h 120px, 32px icons, dashed border, centered, muted text.
  */
-export function InlineEmpty({ icon, title, description }: InlineEmptyProps) {
+export function InlineEmpty({ icon, title, description, action }: InlineEmptyProps) {
   return (
     <div className="flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--color-border)] p-6 text-center">
       {icon && (
@@ -26,6 +27,7 @@ export function InlineEmpty({ icon, title, description }: InlineEmptyProps) {
           {description}
         </p>
       )}
+      {action && <div className="mt-1">{action}</div>}
     </div>
   )
 }

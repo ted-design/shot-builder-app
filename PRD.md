@@ -218,7 +218,7 @@ Mouse is supported but not required for common workflows. (Inspired by Linear)
 | `Escape` | Shot detail | Return to shot list |
 | `Cmd+S` | Shot detail | Prevent browser save dialog (auto-save handles persistence) |
 | `?` | Shot list | Open keyboard shortcuts help dialog |
-| `C` | Library & Projects | Create new item (crew, location, talent, or project) |
+| `C` | Library, Products & Projects | Create new item (crew, location, talent, product, or project) |
 | `[` | Global | Toggle sidebar |
 
 ### 3. Inline editing by default

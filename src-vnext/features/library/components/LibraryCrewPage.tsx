@@ -73,7 +73,7 @@ export default function LibraryCrewPage() {
           actions={
             canCreate ? (
               isMobile ? (
-                <Button size="icon" onClick={() => setCreateOpen(true)}>
+                <Button size="icon" aria-label="New crew member" onClick={() => setCreateOpen(true)}>
                   <Plus className="h-4 w-4" />
                 </Button>
               ) : (

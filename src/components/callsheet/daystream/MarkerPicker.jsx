@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import PropTypes from "prop-types";
 import { X, ChevronDown } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { MARKER_ICONS, MARKER_COLORS } from "../../../types/schedule";
@@ -157,14 +156,3 @@ export default function MarkerPicker({ value = null, onChange, className = "" })
   );
 }
 
-MarkerPicker.propTypes = {
-  /** Current marker value ({ icon: string, color: string }) or null */
-  value: PropTypes.shape({
-    icon: PropTypes.string.isRequired,
-    color: PropTypes.string.isRequired,
-  }),
-  /** Callback when marker changes, receives marker object or null */
-  onChange: PropTypes.func.isRequired,
-  /** Additional CSS classes */
-  className: PropTypes.string,
-};

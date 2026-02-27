@@ -278,6 +278,35 @@ When legacy `src/` code solves the same problem the current phase requires:
 4. **Client-side TTL over Cloud Functions** when the data is tiny and short-lived (presence docs). Stale docs are harmless — the client filters them out.
 5. **useAuth() over prop drilling** for `clientId` in deeply nested components within the auth boundary.
 
+### Detail Page Decomposition Pattern (Phase 7D)
+
+When a detail page exceeds 800 lines because it has multiple workspace sections (tabs/panels), decompose it:
+1. **Parent is a thin shell** (~200 lines): data hooks, workspace nav, section routing, family-level dialogs
+2. **Each section is its own component file**: receives data as props, owns its own UI state (filters, drafts, modals)
+3. **Parent owns all Firestore hooks** to avoid double subscriptions. Pass data down; don't subscribe twice.
+4. **Shared helpers** (date formatters, sort keys, validation) go in `lib/{feature}DetailHelpers.ts`
+5. **Section-specific helpers** (DocumentRow, SampleRow) stay in the section file
+
+This pattern reduced `ProductDetailPage.tsx` from 1,631 to 240 lines.
+
+### Audit-Before-Build Pattern (Phase 7D)
+
+Before implementing a Plan.md phase, **audit existing code first**. Phase 7D's audit revealed 2 of 5 sub-tasks were already built (taxonomy pickers, workspace nav). Auditing prevents:
+- Duplicate implementation of features that already exist
+- Incorrect scope estimates (5 sub-tasks → 3 actual)
+- Wasted context on building what's already there
+
+Pattern: (1) Explore vNext code, (2) Explore legacy code for reference, (3) Document findings, (4) Present revised scope for approval.
+
+### Incremental vs Full-Save Write Functions (Phase 7D)
+
+When adding child entities to an existing parent (e.g., SKUs to a product family), create a **dedicated incremental write function** rather than reusing the full-save function:
+- Full-save functions reconcile the entire entity set (creates, updates, deletes, image uploads) — overkill for "just add N items."
+- Incremental functions use `writeBatch` to add only new entities and update parent aggregates in one atomic operation.
+- Keep them separate in the same `{entity}Writes.ts` file alongside the full-save functions.
+
+Example: `bulkCreateSkus()` adds colorways without touching existing SKUs, while `updateProductFamilyWithSkus()` reconciles the entire SKU set.
+
 ### Context Budget Rules
 
 - Each Plan.md phase is broken into lettered sub-tasks that fit in one session

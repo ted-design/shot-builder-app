@@ -64,7 +64,7 @@ export default function LibraryLocationsPage() {
           actions={
             canCreate ? (
               isMobile ? (
-                <Button size="icon" onClick={() => setCreateOpen(true)}>
+                <Button size="icon" aria-label="New location" onClick={() => setCreateOpen(true)}>
                   <Plus className="h-4 w-4" />
                 </Button>
               ) : (

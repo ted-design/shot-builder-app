@@ -1,7 +1,9 @@
 import {
   addDoc,
+  arrayUnion,
   collection,
   doc,
+  increment,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -375,6 +377,67 @@ export async function updateProductFamilyWithSkus(args: {
       })
     }
   }
+}
+
+export async function bulkCreateSkus(args: {
+  readonly clientId: string
+  readonly userId: string | null
+  readonly familyId: string
+  readonly colorNames: ReadonlyArray<string>
+  readonly existingColorNames: ReadonlyArray<string>
+  readonly familySizes: ReadonlyArray<string>
+}): Promise<number> {
+  const { clientId, userId, familyId, colorNames, existingColorNames, familySizes } = args
+  const existingSet = new Set(existingColorNames.map((n) => n.toLowerCase()))
+
+  const newNames = unique(
+    colorNames
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0 && !existingSet.has(n.toLowerCase())),
+  )
+
+  if (newNames.length === 0) return 0
+  if (newNames.length > 498) {
+    throw new Error(`Too many colorways (${newNames.length}). Please add up to 498 at a time.`)
+  }
+
+  const skuPath = productFamilySkusPath(familyId, clientId)
+  const skuCollection = collection(db, skuPath[0]!, ...skuPath.slice(1))
+  const batch = writeBatch(db)
+
+  for (const name of newNames) {
+    const ref = doc(skuCollection)
+    batch.set(ref, {
+      colorName: name,
+      skuCode: null,
+      sizes: [...familySizes],
+      status: "active",
+      archived: false,
+      imagePath: null,
+      colorKey: null,
+      hexColor: null,
+      deleted: false,
+      deletedAt: null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy: userId,
+      updatedBy: userId,
+    })
+  }
+
+  // Update family aggregates atomically to avoid race conditions
+  const famPath = productFamiliesPath(clientId)
+  const familyRef = doc(db, famPath[0]!, ...famPath.slice(1), familyId)
+  batch.update(familyRef, {
+    colorNames: arrayUnion(...newNames),
+    skuCount: increment(newNames.length),
+    activeSkuCount: increment(newNames.length),
+    updatedAt: serverTimestamp(),
+    updatedBy: userId,
+  })
+
+  await batch.commit()
+  return newNames.length
 }
 
 export async function setProductFamilyArchived(args: {

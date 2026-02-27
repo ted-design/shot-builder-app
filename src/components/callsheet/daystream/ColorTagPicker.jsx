@@ -1,5 +1,4 @@
 import React from "react";
-import PropTypes from "prop-types";
 import { X } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { COLOR_TAGS } from "../../../types/schedule";
@@ -54,11 +53,3 @@ export default function ColorTagPicker({ value = null, onChange, className = "" 
   );
 }
 
-ColorTagPicker.propTypes = {
-  /** Currently selected color tag ID (e.g., "red", "blue") or null */
-  value: PropTypes.string,
-  /** Callback when color selection changes, receives color ID or null */
-  onChange: PropTypes.func.isRequired,
-  /** Additional CSS classes for the container */
-  className: PropTypes.string,
-};
