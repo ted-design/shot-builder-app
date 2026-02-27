@@ -91,7 +91,7 @@ export function ShotBatchCreate({
           onChange={(e) => setText(e.target.value)}
           placeholder={PLACEHOLDER}
           rows={6}
-          className="min-h-[140px] resize-y border-[var(--color-border)] bg-transparent text-[13px] leading-relaxed text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus-visible:border-[var(--color-primary)] focus-visible:ring-0"
+          className="min-h-[140px] resize-y border-[var(--color-border)] bg-transparent text-xs leading-relaxed text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus-visible:border-[var(--color-primary)] focus-visible:ring-0"
           autoFocus
         />
 
