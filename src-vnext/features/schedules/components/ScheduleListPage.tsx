@@ -11,6 +11,7 @@ import { useSchedules } from "@/features/schedules/hooks/useSchedules"
 import { deleteSchedule } from "@/features/schedules/lib/scheduleWrites"
 import { ScheduleCard } from "@/features/schedules/components/ScheduleCard"
 import { CreateScheduleDialog } from "@/features/schedules/components/CreateScheduleDialog"
+import { EditScheduleDialog } from "@/features/schedules/components/EditScheduleDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { canManageSchedules } from "@/shared/lib/rbac"
@@ -28,6 +29,7 @@ export default function ScheduleListPage() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Schedule | null>(null)
+  const [editTarget, setEditTarget] = useState<Schedule | null>(null)
 
   const handleCreated = (scheduleId: string) => {
     navigate(`/projects/${projectId}/callsheet?scheduleId=${scheduleId}`)
@@ -85,6 +87,7 @@ export default function ScheduleListPage() {
               schedule={schedule}
               canManage={canManage}
               onDelete={setDeleteTarget}
+              onEdit={setEditTarget}
             />
           ))}
         </div>
@@ -95,6 +98,16 @@ export default function ScheduleListPage() {
           open={createOpen}
           onOpenChange={setCreateOpen}
           onCreated={handleCreated}
+        />
+      )}
+
+      {canManage && (
+        <EditScheduleDialog
+          open={editTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setEditTarget(null)
+          }}
+          schedule={editTarget}
         />
       )}
 

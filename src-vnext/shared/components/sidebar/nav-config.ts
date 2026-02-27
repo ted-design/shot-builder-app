@@ -3,6 +3,8 @@
  * Provides typed nav items and buildNavConfig() for sidebar/drawer rendering.
  */
 
+import { ROLE } from "@/shared/lib/rbac"
+
 export type NavItemIcon =
   | "layout-grid"
   | "camera"
@@ -55,23 +57,32 @@ const LIBRARY_CHILDREN: readonly NavItem[] = [
   { label: "Palette", to: "/library/palette", iconName: "palette" },
 ]
 
-export function buildNavConfig(projectId?: string): NavConfig {
+export function buildNavConfig(projectId?: string, role?: string): NavConfig {
   if (!projectId) {
-    return {
-      variant: "org",
-      entries: [
-        { type: "item", item: { label: "Dashboard", to: "/projects", iconName: "layout-grid" } },
-        { type: "item", item: { label: "Products", to: "/products", iconName: "package" } },
-        {
-          type: "group",
-          group: {
-            label: "Library",
-            iconName: "landmark",
-            children: LIBRARY_CHILDREN,
-          },
+    const entries: NavEntry[] = [
+      { type: "item", item: { label: "Dashboard", to: "/projects", iconName: "layout-grid" } },
+      { type: "item", item: { label: "Products", to: "/products", iconName: "package" } },
+      {
+        type: "group",
+        group: {
+          label: "Library",
+          iconName: "landmark",
+          children: LIBRARY_CHILDREN,
         },
-      ],
+      },
+    ]
+
+    if (role === ROLE.ADMIN) {
+      entries.push(
+        { type: "divider" },
+        {
+          type: "item",
+          item: { label: "Admin", to: "/admin", iconName: "shield-check", desktopOnly: true },
+        },
+      )
     }
+
+    return { variant: "org", entries }
   }
 
   const prefix = `/projects/${projectId}`
@@ -107,8 +118,8 @@ export function buildNavConfig(projectId?: string): NavConfig {
 }
 
 /** Flat list of library child routes for mobile (single "Library" link instead of group). */
-export function getMobileNavConfig(projectId?: string): NavConfig {
-  const config = buildNavConfig(projectId)
+export function getMobileNavConfig(projectId?: string, role?: string): NavConfig {
+  const config = buildNavConfig(projectId, role)
   const entries = config.entries.map((entry): NavEntry => {
     if (entry.type === "group") {
       return {

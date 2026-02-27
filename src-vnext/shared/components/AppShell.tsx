@@ -5,6 +5,7 @@ import { useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { OfflineBanner } from "@/shared/components/OfflineBanner"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { FloatingActionBar } from "@/shared/components/FloatingActionBar"
+import { useAuth } from "@/app/providers/AuthProvider"
 import { useProject } from "@/features/projects/hooks/useProject"
 import { buildNavConfig, getMobileNavConfig } from "./sidebar/nav-config"
 import { useSidebarState } from "./sidebar/useSidebarState"
@@ -19,6 +20,7 @@ export function AppShell() {
   const { collapsed, toggle } = useSidebarState()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
+  const { role } = useAuth()
   const { data: project } = useProject(projectId ?? null)
   const projectName = project?.name
 
@@ -39,8 +41,8 @@ export function AppShell() {
     )
   }
 
-  const desktopConfig = buildNavConfig(projectId)
-  const mobileConfig = getMobileNavConfig(projectId)
+  const desktopConfig = buildNavConfig(projectId, role)
+  const mobileConfig = getMobileNavConfig(projectId, role)
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">

@@ -117,6 +117,7 @@ All new vNext components must work in dark mode:
 4. **Image overlays** (`bg-black/*`): Leave as-is — intentionally dark over image content
 5. **Print portals:** Static white — leave as-is
 6. **Activation:** `.dark` CSS class on `<html>`, NOT `data-theme` attribute. localStorage key: `sb:theme`
+7. **FOUC prevention:** Three interconnected pieces must agree — `tokens.css` `.dark` selector, `ThemeProvider` class toggle, FOUC `<script>` in `index.html`. All three use `.dark` CSS class and `sb:theme` localStorage key. A mismatch between any two causes bugs.
 
 ---
 
@@ -306,6 +307,47 @@ When adding child entities to an existing parent (e.g., SKUs to a product family
 - Keep them separate in the same `{entity}Writes.ts` file alongside the full-save functions.
 
 Example: `bulkCreateSkus()` adds colorways without touching existing SKUs, while `updateProductFamilyWithSkus()` reconciles the entire SKU set.
+
+### Three-Panel Layout Rules
+
+Components inside `react-resizable-panels` must use `ResizeObserver` for width-aware layout — never viewport media queries (`sm:flex`, `md:hidden`). The panel can be narrow even on a wide viewport.
+
+- **Compact prop:** Shared components used in both full-width and narrow panel contexts accept an optional `compact` prop (shorter placeholder, hide kbd hints, reduce padding).
+- **Exit affordances:** Always provide 2+ visible ways to leave a modal/panel mode. Keyboard-only exits are easy to miss.
+- **Click-to-edit fields:** Read mode is default. Click to enter edit mode with autoFocus. Blur saves and returns to read mode. Empty state shows placeholder like "Click to add notes..."
+- **List density tiers:** Driven by `ResizeObserver`, not viewport. Compact (<200px): title only. Medium (200–280px): + thumbnail + badge. Full (>280px): + description preview.
+
+### Visual Standards
+
+All new and modified components follow these rules:
+
+- **One `<h1>` per page.** Never two.
+- **Semantic typography classes:** Use `.heading-page`, `.heading-section`, `.heading-subsection`, `.label-meta` from `design-tokens.js` — not raw Tailwind font/tracking combos.
+- **Card standards:** `rounded-lg` (8px), `p-4` content padding, `pb-2` header padding, `gap-4` grid gap.
+- **Badge font size:** `text-xxs` (11px) consistently — both on cards and detail pages.
+- **Token-safe colors:** `text-white` on dark backgrounds → `text-[var(--color-text-inverted)]`. `bg-white` on surfaces → `bg-[var(--color-surface)]`. Sidebar text → `text-[var(--color-sidebar-text)]`.
+- **Detail page navigation:** All detail pages use `PageHeader` with breadcrumbs. No inline ghost buttons or icon-only back buttons.
+
+### Composite Field Sync Pattern (Sprint S1)
+
+When a Firestore document has both granular fields (`firstName`, `lastName`) and a derived composite field (`name`), the write function must keep them in sync:
+
+1. The `handleFieldSave` function checks which field is being saved
+2. If it's a component of the composite (e.g., `firstName`), read the other component from the live entity in scope
+3. Compute the composite: `[first, last].filter(Boolean).join(" ") || "Fallback"`
+4. Spread both into the patch immutably: `{ ...patch, name: computed }`
+
+This avoids stale composite fields when users edit only one sub-field. The same pattern applies whenever a display field (page title, breadcrumb) derives from editable sub-fields.
+
+### CRUD Completeness Audit Pattern (Sprint S1)
+
+Before building new features, audit existing entity pages for missing edit paths. Common gaps:
+- **Read-only fields** that should be editable (department, position on detail pages)
+- **Missing rename** on detail pages (pull sheets, schedules — use `InlineEdit` conditional on `canEdit`)
+- **Missing destructive actions** on uploaded assets (photo removal — needs `ConfirmDialog`)
+- **Missing edit entry points** on list cards (add Edit to `DropdownMenu` before Delete)
+
+Each gap is a small fix (5-30 lines) but blocks real user workflows. Group by file overlap for parallel execution.
 
 ### Context Budget Rules
 

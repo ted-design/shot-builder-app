@@ -15,6 +15,7 @@ import {
   updateLocation,
   deleteLocation,
   uploadLocationPhoto,
+  removeLocationPhoto,
 } from "@/features/library/lib/locationWrites"
 import { Card, CardContent } from "@/ui/card"
 import { Button } from "@/ui/button"
@@ -38,6 +39,8 @@ export default function LocationDetailPage() {
   const [uploading, setUploading] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [removePhotoOpen, setRemovePhotoOpen] = useState(false)
+  const [removingPhoto, setRemovingPhoto] = useState(false)
   const [notesEditing, setNotesEditing] = useState(false)
   const [notesDraft, setNotesDraft] = useState("")
 
@@ -114,6 +117,25 @@ export default function LocationDetailPage() {
     void handlePhotoSelect(file)
   }
 
+  const handleRemovePhoto = async () => {
+    if (!clientId || !locationId) return
+    setRemovingPhoto(true)
+    try {
+      await removeLocationPhoto({
+        clientId,
+        userId: user?.uid ?? null,
+        locationId,
+        photoPath: location.photoPath,
+      })
+      toast.success("Photo removed.")
+      setRemovePhotoOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove photo.")
+    } finally {
+      setRemovingPhoto(false)
+    }
+  }
+
   const handleDelete = () => {
     if (!clientId || !locationId) return
     setDeleting(true)
@@ -164,15 +186,25 @@ export default function LocationDetailPage() {
             className="w-full max-h-60 rounded-lg object-cover"
           />
           {canEdit && (
-            <Button
-              variant="secondary"
-              size="sm"
-              className="absolute bottom-2 right-2"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {uploading ? "Uploading..." : "Change"}
-            </Button>
+            <div className="absolute bottom-2 right-2 flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={uploading || removingPhoto}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploading ? "Uploading..." : "Change"}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={uploading || removingPhoto}
+                onClick={() => setRemovePhotoOpen(true)}
+                className="text-[var(--color-error)]"
+              >
+                {removingPhoto ? "Removing..." : "Remove"}
+              </Button>
+            </div>
           )}
         </div>
       ) : canEdit ? (
@@ -294,7 +326,7 @@ export default function LocationDetailPage() {
         <div className="pt-2">
           <Button
             variant="ghost"
-            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+            className="text-[var(--color-error)]"
             disabled={deleting}
             onClick={() => setDeleteOpen(true)}
           >
@@ -303,6 +335,17 @@ export default function LocationDetailPage() {
           </Button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={removePhotoOpen}
+        onOpenChange={setRemovePhotoOpen}
+        title="Remove photo"
+        description="Are you sure you want to remove this photo? This action cannot be undone."
+        confirmLabel="Remove"
+        destructive
+        confirmDisabled={removingPhoto}
+        onConfirm={handleRemovePhoto}
+      />
 
       <ConfirmDialog
         open={deleteOpen}

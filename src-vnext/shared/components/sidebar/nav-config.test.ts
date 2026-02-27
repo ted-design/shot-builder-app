@@ -69,6 +69,34 @@ describe("buildNavConfig", () => {
       expect(shots.item.to).toBe("/projects/xyz/shots")
     }
   })
+
+  it("includes Admin entry for admin role in org view", () => {
+    const config = buildNavConfig(undefined, "admin")
+    const admin = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Admin",
+    )
+    expect(admin).toBeDefined()
+    if (admin?.type === "item") {
+      expect(admin.item.to).toBe("/admin")
+      expect(admin.item.desktopOnly).toBe(true)
+    }
+  })
+
+  it("excludes Admin entry for non-admin roles", () => {
+    const config = buildNavConfig(undefined, "producer")
+    const admin = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Admin",
+    )
+    expect(admin).toBeUndefined()
+  })
+
+  it("excludes Admin entry when no role provided", () => {
+    const config = buildNavConfig()
+    const admin = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Admin",
+    )
+    expect(admin).toBeUndefined()
+  })
 })
 
 describe("getMobileNavConfig", () => {
@@ -101,5 +129,13 @@ describe("getMobileNavConfig", () => {
         expect(config.entries[i - 1].type).not.toBe("divider")
       }
     }
+  })
+
+  it("excludes Admin entry on mobile even for admin role", () => {
+    const config = getMobileNavConfig(undefined, "admin")
+    const admin = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Admin",
+    )
+    expect(admin).toBeUndefined()
   })
 })

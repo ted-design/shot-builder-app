@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react"
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom"
 import { NotFoundPage } from "@/shared/components/NotFoundPage"
 import { RequireAuth } from "@/app/routes/guards/RequireAuth"
+import { RequireRole } from "@/app/routes/guards/RequireRole"
 import { RequireDesktop } from "@/app/routes/guards/RequireDesktop"
 import { ProjectScopeProvider } from "@/app/providers/ProjectScopeProvider"
 import { AppShell } from "@/shared/components/AppShell"
@@ -66,6 +67,9 @@ const LocationDetailPage = lazy(
 )
 const LibraryPalettePage = lazy(
   () => import("@/features/library/components/LibraryPalettePage"),
+)
+const AdminPage = lazy(
+  () => import("@/features/admin/components/AdminPage"),
 )
 const DevImportQ2 = lazy(
   () => import("@/features/products/components/DevImportQ2"),
@@ -189,6 +193,16 @@ export function AppRoutes() {
           <Route path="library/crew" element={<LibraryCrewPage />} />
           <Route path="library/crew/:crewId" element={<CrewDetailPage />} />
           <Route path="library/palette" element={<LibraryPalettePage />} />
+          <Route
+            path="admin"
+            element={
+              <RequireRole allowed={["admin"]}>
+                <RequireDesktop label="Admin">
+                  <AdminPage />
+                </RequireDesktop>
+              </RequireRole>
+            }
+          />
           {import.meta.env.DEV && (
             <Route path="dev/import-q2" element={<DevImportQ2 />} />
           )}

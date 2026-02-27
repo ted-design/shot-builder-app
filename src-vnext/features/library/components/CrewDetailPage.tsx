@@ -138,13 +138,24 @@ export default function CrewDetailPage() {
   const canEdit = !isMobile && canManageCrew(role as Role)
 
   const handleFieldSave = async (field: string, value: string) => {
-    if (!clientId || !crewId) return
+    if (!clientId || !crewId || !crew) return
+    const trimmedValue = value.trim() || null
+
+    let patch: Record<string, string | null> = { [field]: trimmedValue }
+
+    if (field === "firstName" || field === "lastName") {
+      const first = field === "firstName" ? (trimmedValue ?? "") : (crew.firstName ?? "")
+      const last = field === "lastName" ? (trimmedValue ?? "") : (crew.lastName ?? "")
+      const fullName = [first, last].filter(Boolean).join(" ") || "Unnamed"
+      patch = { ...patch, name: fullName }
+    }
+
     try {
       await updateCrewMember({
         clientId,
         userId: user?.uid ?? null,
         crewId,
-        patch: { [field]: value.trim() || null },
+        patch,
       })
       toast.success("Crew member updated")
     } catch (err) {
@@ -206,6 +217,22 @@ export default function CrewDetailPage() {
         <CardContent className="p-4">
           <div className="grid gap-2 sm:grid-cols-2">
             <FieldRow
+              icon={<User className="h-4 w-4" />}
+              label="First Name"
+              value={crew.firstName}
+              editable
+              disabled={!canEdit}
+              onSave={(v) => handleFieldSave("firstName", v)}
+            />
+            <FieldRow
+              icon={<User className="h-4 w-4" />}
+              label="Last Name"
+              value={crew.lastName}
+              editable
+              disabled={!canEdit}
+              onSave={(v) => handleFieldSave("lastName", v)}
+            />
+            <FieldRow
               icon={<Mail className="h-4 w-4" />}
               label="Email"
               value={crew.email}
@@ -233,11 +260,17 @@ export default function CrewDetailPage() {
               icon={<Briefcase className="h-4 w-4" />}
               label="Department"
               value={crew.department}
+              editable
+              disabled={!canEdit}
+              onSave={(v) => handleFieldSave("department", v)}
             />
             <FieldRow
-              icon={<User className="h-4 w-4" />}
+              icon={<Briefcase className="h-4 w-4" />}
               label="Position"
               value={crew.position}
+              editable
+              disabled={!canEdit}
+              onSave={(v) => handleFieldSave("position", v)}
             />
           </div>
         </CardContent>
