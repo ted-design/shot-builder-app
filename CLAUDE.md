@@ -15,7 +15,6 @@ This file governs all Claude Code work in the vNext worktree. Follow these rules
 | `Architecture.md` | Tech stack, module structure, routes, data model, auth/RBAC, design system, component inventory, performance budgets, security checklist |
 | `AI_RULES.md` | Decision framework, code standards, testing, implementation patterns (three-panel, visual, dark mode, permissions), context management |
 | `MEMORY.md` | Persistent cross-session memory: error patterns, phase summaries, user preferences |
-| `debugging.md` | Detailed debugging patterns with problem/fix/rule structure |
 
 **`docs-vnext/` is supplementary engineering reference** — slice specs, sprint proofs, and design details. When `docs-vnext/` conflicts with root docs, root docs win.
 

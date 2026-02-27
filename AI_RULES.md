@@ -328,6 +328,27 @@ All new and modified components follow these rules:
 - **Token-safe colors:** `text-white` on dark backgrounds → `text-[var(--color-text-inverted)]`. `bg-white` on surfaces → `bg-[var(--color-surface)]`. Sidebar text → `text-[var(--color-sidebar-text)]`.
 - **Detail page navigation:** All detail pages use `PageHeader` with breadcrumbs. No inline ghost buttons or icon-only back buttons.
 
+### Composite Field Sync Pattern (Sprint S1)
+
+When a Firestore document has both granular fields (`firstName`, `lastName`) and a derived composite field (`name`), the write function must keep them in sync:
+
+1. The `handleFieldSave` function checks which field is being saved
+2. If it's a component of the composite (e.g., `firstName`), read the other component from the live entity in scope
+3. Compute the composite: `[first, last].filter(Boolean).join(" ") || "Fallback"`
+4. Spread both into the patch immutably: `{ ...patch, name: computed }`
+
+This avoids stale composite fields when users edit only one sub-field. The same pattern applies whenever a display field (page title, breadcrumb) derives from editable sub-fields.
+
+### CRUD Completeness Audit Pattern (Sprint S1)
+
+Before building new features, audit existing entity pages for missing edit paths. Common gaps:
+- **Read-only fields** that should be editable (department, position on detail pages)
+- **Missing rename** on detail pages (pull sheets, schedules — use `InlineEdit` conditional on `canEdit`)
+- **Missing destructive actions** on uploaded assets (photo removal — needs `ConfirmDialog`)
+- **Missing edit entry points** on list cards (add Edit to `DropdownMenu` before Delete)
+
+Each gap is a small fix (5-30 lines) but blocks real user workflows. Group by file overlap for parallel execution.
+
 ### Context Budget Rules
 
 - Each Plan.md phase is broken into lettered sub-tasks that fit in one session

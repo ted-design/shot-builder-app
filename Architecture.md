@@ -301,10 +301,6 @@ Defined in `src/lib/flags.js`. Overridable via localStorage and URL params.
 | `newAuthContext` | ON | New auth context provider |
 | `projectScoping` | ON | Project-scoped routing |
 | `projectScopedAssets` | ON | Assets scoped to projects |
-| `shotEditorV3` | ON | V3 shot editor (canvas layout) -- now the default |
-| `productsV3` | OFF | V3 product detail page |
-| `productsV2` | OFF | V2 product detail page (superseded by V3) |
-| `pullsEditorV2` | OFF | V2 pulls editor |
 | `callSheetBuilder` | OFF | Call sheet builder surface |
 | `pdfExport` | OFF | PDF export modal |
 | `demoMode` | OFF | Demo mode (blocks writes, optimistic UI only) |
@@ -312,7 +308,7 @@ Defined in `src/lib/flags.js`. Overridable via localStorage and URL params.
 | `newNavbar` | OFF | New navbar design |
 | `calendarPlanner` | OFF | Calendar planner view |
 
-**Cleanup plan:** Flags defaulting to ON (`newAuthContext`, `projectScoping`, `projectScopedAssets`, `shotEditorV3`) should have their off-path code removed. Flags defaulting to OFF with V2/V3 suffixes should be consolidated when the older version is deprecated.
+**Cleanup status (Phase 7E):** `shotEditorV3`, `productsV2`, `productsV3`, `pullsEditorV2` flags removed — dead code paths consolidated. Remaining ON flags (`newAuthContext`, `projectScoping`, `projectScopedAssets`) can be removed when ready to drop their off-paths.
 
 ---
 
@@ -408,7 +404,7 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 | Module | Path | Purpose |
 |---|---|---|
 | `crewWrites.ts` | `features/library/lib/` | Create/update/delete crew members |
-| `locationWrites.ts` | `features/library/lib/` | Create/update/delete locations + photo upload |
+| `locationWrites.ts` | `features/library/lib/` | Create/update/delete locations + photo upload/removal |
 | `talentWrites.ts` | `features/library/lib/` | Full talent CRUD: create, update, delete, headshot, portfolio, casting images |
 | `measurementOptions.ts` | `features/library/lib/` | Gender-specific measurement field definitions (men: 7, women: 6, other: all) |
 | `useCrewLibrary.ts` | `features/library/hooks/` | Real-time Firestore subscription for crew list |
@@ -416,8 +412,9 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 | `useTalentLibrary.ts` | `features/library/hooks/` | Real-time Firestore subscription for talent list |
 | `CreateCrewDialog.tsx` | `features/library/components/` | ResponsiveDialog for creating crew members |
 | `CreateLocationDialog.tsx` | `features/library/components/` | ResponsiveDialog for creating locations |
-| `CrewDetailPage.tsx` | `features/library/components/` | Detail/edit page for crew members |
-| `LocationDetailPage.tsx` | `features/library/components/` | Detail/edit page with photo upload and address fields |
+| `CrewDetailPage.tsx` | `features/library/components/` | Detail/edit page for crew members (name, department, position, contact) |
+| `LocationDetailPage.tsx` | `features/library/components/` | Detail/edit page with photo upload/removal and address fields |
+| `EditScheduleDialog.tsx` | `features/schedules/components/` | Rename/re-date a schedule (ResponsiveDialog + wasOpen ref pattern) |
 
 ### Mobile & Tablet Components (Phase 5)
 
