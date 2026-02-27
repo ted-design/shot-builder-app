@@ -93,6 +93,8 @@ export function ProductColorwaysSection({
         userId={userId}
         familyId={family.id}
         existingColorNames={existingColorNames}
+        existingSkuCount={family.skuCount ?? 0}
+        existingActiveSkuCount={family.activeSkuCount ?? 0}
         familySizes={family.sizes ?? []}
       />
     </div>

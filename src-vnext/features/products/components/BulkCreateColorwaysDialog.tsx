@@ -20,6 +20,8 @@ interface BulkCreateColorwaysDialogProps {
   readonly userId: string | null
   readonly familyId: string
   readonly existingColorNames: ReadonlyArray<string>
+  readonly existingSkuCount: number
+  readonly existingActiveSkuCount: number
   readonly familySizes: ReadonlyArray<string>
 }
 
@@ -30,6 +32,8 @@ export function BulkCreateColorwaysDialog({
   userId,
   familyId,
   existingColorNames,
+  existingSkuCount,
+  existingActiveSkuCount,
   familySizes,
 }: BulkCreateColorwaysDialogProps) {
   const [raw, setRaw] = useState("")
@@ -56,6 +60,8 @@ export function BulkCreateColorwaysDialog({
         familyId,
         colorNames: newNames,
         existingColorNames,
+        existingSkuCount,
+        existingActiveSkuCount,
         familySizes,
       })
       toast({

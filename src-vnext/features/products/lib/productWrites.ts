@@ -383,14 +383,18 @@ export async function bulkCreateSkus(args: {
   readonly familyId: string
   readonly colorNames: ReadonlyArray<string>
   readonly existingColorNames: ReadonlyArray<string>
+  readonly existingSkuCount: number
+  readonly existingActiveSkuCount: number
   readonly familySizes: ReadonlyArray<string>
 }): Promise<number> {
-  const { clientId, userId, familyId, colorNames, existingColorNames, familySizes } = args
+  const { clientId, userId, familyId, colorNames, existingColorNames, existingSkuCount, existingActiveSkuCount, familySizes } = args
   const existingSet = new Set(existingColorNames.map((n) => n.toLowerCase()))
 
-  const newNames = colorNames
-    .map((n) => n.trim())
-    .filter((n) => n.length > 0 && !existingSet.has(n.toLowerCase()))
+  const newNames = unique(
+    colorNames
+      .map((n) => n.trim())
+      .filter((n) => n.length > 0 && !existingSet.has(n.toLowerCase())),
+  )
 
   if (newNames.length === 0) return 0
 
@@ -424,6 +428,8 @@ export async function bulkCreateSkus(args: {
   const mergedColorNames = unique([...existingColorNames, ...newNames])
   batch.update(familyRef, {
     colorNames: mergedColorNames,
+    skuCount: existingSkuCount + newNames.length,
+    activeSkuCount: existingActiveSkuCount + newNames.length,
     updatedAt: serverTimestamp(),
     updatedBy: userId,
   })
