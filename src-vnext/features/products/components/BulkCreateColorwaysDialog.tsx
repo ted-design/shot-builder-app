@@ -16,7 +16,7 @@ function parseColorwayNames(raw: string): ReadonlyArray<string> {
 interface BulkCreateColorwaysDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
-  readonly clientId: string
+  readonly clientId: string | null
   readonly userId: string | null
   readonly familyId: string
   readonly existingColorNames: ReadonlyArray<string>
@@ -41,13 +41,13 @@ export function BulkCreateColorwaysDialog({
     [existingColorNames],
   )
   const newNames = useMemo(
-    () => parsed.filter((n) => !existingSet.has(n.toLowerCase())),
+    () => [...new Set(parsed.filter((n) => !existingSet.has(n.toLowerCase())))],
     [parsed, existingSet],
   )
   const duplicateCount = parsed.length - newNames.length
 
   const handleSave = async () => {
-    if (newNames.length === 0) return
+    if (newNames.length === 0 || !clientId) return
     setSaving(true)
     try {
       const count = await bulkCreateSkus({
@@ -101,7 +101,7 @@ export function BulkCreateColorwaysDialog({
           <Button
             type="button"
             onClick={() => void handleSave()}
-            disabled={saving || newNames.length === 0}
+            disabled={saving || newNames.length === 0 || !clientId || !userId}
           >
             {saving ? "Creating..." : `Add ${newNames.length} colorway${newNames.length === 1 ? "" : "s"}`}
           </Button>

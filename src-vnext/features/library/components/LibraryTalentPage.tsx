@@ -737,7 +737,7 @@ export default function LibraryTalentPage() {
         actions={
           canCreate ? (
             isMobile ? (
-              <Button size="icon" onClick={() => setCreateOpen(true)}>
+              <Button size="icon" aria-label="New talent" onClick={() => setCreateOpen(true)}>
                 <Plus className="h-4 w-4" />
               </Button>
             ) : (

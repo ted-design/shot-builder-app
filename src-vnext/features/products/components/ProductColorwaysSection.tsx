@@ -14,7 +14,7 @@ interface ProductColorwaysSectionProps {
   readonly visibleSkus: ReadonlyArray<ProductSku>
   readonly canEdit: boolean
   readonly isFamilyDeleted: boolean
-  readonly clientId: string
+  readonly clientId: string | null
   readonly userId: string | null
   readonly onAddColorway?: () => void
 }

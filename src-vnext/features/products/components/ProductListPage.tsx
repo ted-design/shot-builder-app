@@ -238,7 +238,7 @@ export default function ProductListPage() {
 
             {canCreate && (
               isMobile ? (
-                <Button size="icon" onClick={navigateToCreate}>
+                <Button size="icon" aria-label="New product" onClick={navigateToCreate}>
                   <Plus className="h-4 w-4" />
                 </Button>
               ) : (

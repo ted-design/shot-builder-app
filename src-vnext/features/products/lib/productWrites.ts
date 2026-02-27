@@ -397,6 +397,9 @@ export async function bulkCreateSkus(args: {
   )
 
   if (newNames.length === 0) return 0
+  if (newNames.length > 498) {
+    throw new Error(`Too many colorways (${newNames.length}). Please add up to 498 at a time.`)
+  }
 
   const skuPath = productFamilySkusPath(familyId, clientId)
   const skuCollection = collection(db, skuPath[0]!, ...skuPath.slice(1))
