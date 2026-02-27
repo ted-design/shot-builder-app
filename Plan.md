@@ -320,10 +320,12 @@ Admin (role-gated: admin only)
 
 ### Acceptance Criteria
 
-- [ ] Every page correct at 375/768/1280px
-- [ ] All cards have hover states and cursor-pointer
-- [ ] No navigation dead-ends
-- [ ] Breadcrumbs on all detail pages via PageHeader
+> **Note:** Functional criteria (sub-tasks 7C.1–7C.6) are complete. The four criteria below are visual verification items deferred pending a dedicated review session. They do not block Phase 8.
+
+- [ ] Every page correct at 375/768/1280px (visual verification deferred)
+- [ ] All cards have hover states and cursor-pointer (visual verification deferred)
+- [ ] No navigation dead-ends (visual verification deferred)
+- [ ] Breadcrumbs on all detail pages via PageHeader (visual verification deferred)
 
 ---
 
@@ -432,18 +434,74 @@ Admin (role-gated: admin only)
 
 ---
 
-## Phase 8: Shot Request Inbox (Future)
+## Phase 8: Shot Request Inbox
 
-**Goal:** Allow any team member to submit shot requests. Producers triage into existing or new projects.
+**Goal:** Allow admin and producer roles to submit shot requests. Producers triage requests into existing projects. Closes the gap between creative briefs and formal shot planning.
 
-**Status:** Not started. Outline only — implementation after 7A-7E complete.
+**Status:** Not started. Planning complete — ready for implementation.
+
+**Rationale:** Producers currently have no structured intake channel. Shot ideas arrive via Slack/email and get lost. This phase adds a lightweight inbox that feeds the existing planning workflow.
+
+### Key Decisions (approved)
+
+- **Submit RBAC:** Admin + producer only (not all roles). Note: "producer" may be renamed to include client team members in the future — the role value stays the same.
+- **Triage RBAC:** Admin + producer only, desktop-only (via `RequireDesktop` guard on triage panel)
+- **Nav:** `/inbox` — org-level route, between Projects and Products in the sidebar
+- **No image uploads** at request stage — references are URL strings only
+- **No push notifications** in Phase 8 — requesters see status via their own /inbox view
+- **Transaction-based absorption** — `runTransaction` prevents duplicate shot creation
+- **"Create project from request"** — deferred to Phase 8.5 (too much scope for Phase 8)
+- **Data model:** `clients/{clientId}/shotRequests/{requestId}` — org-level, not project-scoped
+- **Status lifecycle:** `submitted` → `triaged` → `absorbed` | `rejected`
+- **File structure pattern:** Follow `features/admin/` as the canonical model
+
+### Sub-tasks
+
+- [ ] **8a:** Write HTML mockups — submission dialog (mobile-first), producer inbox (desktop two-panel), requester "my requests" view
+- [ ] **8b:** User approval on all mockups
+- [ ] **8c:** Foundation — types (`ShotRequest`, `ShotRequestStatus`, `ShotRequestPriority`), path helpers (`shotRequestsPath`, `shotRequestDocPath`), RBAC (`canTriageShotRequests`)
+- [ ] **8d:** Firestore security rules review + user approval (Hard Stop — do not proceed to 8e without this)
+- [ ] **8e:** Data layer — hooks (`useShotRequests`, `useShotRequest`), write functions (`submitRequest`, `triageAbsorb`, `triageReject`)
+- [ ] **8f:** Submission UI — `SubmitShotRequestDialog` (ResponsiveDialog, title required + progressive disclosure for products/deadline/notes, Zod validation)
+- [ ] **8g:** Inbox UI — `ShotRequestInboxPage` (two-panel on desktop: list + triage; single-column list on mobile), `ShotRequestCard`, `ShotRequestStatusBadge`
+- [ ] **8h:** Triage UI — `TriagePanel` (desktop right panel), `AbsorbDialog` (project picker + `runTransaction` shot creation), `RejectDialog` (optional reason field)
+- [ ] **8i:** Route + sidebar integration — `/inbox` route with `canTriageShotRequests` guard, sidebar "Inbox" entry with unread badge count for admin+producer, `RequireDesktop` for triage actions
+- [ ] **8j:** Tests + acceptance verification — unit tests for write functions and hooks, component tests for submission form + inbox list, run full test suite
+
+### Acceptance Criteria
+
+- [ ] Admin or producer can submit a shot request (title required, products/deadline/notes optional)
+- [ ] Requests appear in admin/producer inbox sorted by priority then date
+- [ ] Producer can absorb request into an existing project (creates shot via `runTransaction`)
+- [ ] Producer can reject a request with an optional reason
+- [ ] Requesters (admin/producer) can see their own submissions and their current status
+- [ ] `/inbox` route accessible to admin and producer roles
+- [ ] Triage actions (absorb/reject) are desktop-only (via `RequireDesktop` or conditional rendering)
+- [ ] Sidebar shows "Inbox" entry with unread badge count for admin+producer
+- [ ] Build clean, lint zero warnings, all tests pass
+
+### Implementation Notes
+
+- Follow the `features/admin/` module pattern: `features/requests/components/`, `features/requests/hooks/`, `features/requests/lib/`
+- `SubmitShotRequestDialog` uses `ResponsiveDialog` — works on mobile and desktop
+- Triage panel is desktop-only: hide (not disable) on mobile, consistent with `canEdit = !isMobile && canManageX(role)` pattern
+- `triageAbsorb` uses `runTransaction`: read target project, create shot doc, update request status atomically
+- Unread badge count: denormalize `unreadRequestCount` on the client doc, or compute via client-side count of `status === 'submitted'` requests the user hasn't actioned
+
+---
+
+## Phase 8.5: Shot Request — Create Project Flow (Future)
+
+**Goal:** Allow producers to create a new project directly from a shot request, not just absorb into an existing one.
+
+**Status:** Not started. Deferred from Phase 8 — scope was too large for a single phase.
 
 ### Key Concepts
 
-- New Firestore collection: `clients/{clientId}/shotRequests/{requestId}`
-- Fields: title, requester, products[], references, notes, deadline, priority, status (submitted/triaged/absorbed/rejected)
-- Flexible input: minimal (title + note) through structured brief (products, references, deadline)
-- Producer triage: absorb into existing project shot list, or create new project from request
+- Extend `AbsorbDialog` or add a separate `CreateProjectFromRequestDialog`
+- Requires project creation write function integrated with request absorption transaction
+- New project pre-populated from request fields (title from request title, shoot date from deadline if set)
+- After creation, request is marked absorbed and shot is linked to the new project
 
 ---
 

@@ -19,7 +19,7 @@ This document describes the **current reality** of the codebase, not aspirationa
 | Routing | React Router v6 | Lazy-loaded routes via React.lazy |
 | Rich Text | tiptap (via reactjs-tiptap-editor) | Shot notes, product descriptions |
 | Search | Fuse.js (client-side) + cmdk (command palette) | Cmd+K global search |
-| Drag & Drop | @dnd-kit | Planner, sortable lists |
+| Drag & Drop | @dnd-kit | Sortable lists |
 | Error Tracking | Sentry (@sentry/react) | Error boundaries + breadcrumbs |
 | PDF | @react-pdf/renderer | Pull sheet export |
 | Testing | Vitest + Testing Library + Playwright | See Testing section |
@@ -60,7 +60,7 @@ src/
 │   └── DemoModeAuthProvider.jsx
 ├── hooks/                 # Custom hooks (40+)
 ├── lib/                   # Utilities (firebase, paths, rbac, flags, utils)
-├── pages/                 # Route-level page components (38+)
+├── pages/                 # Route-level page components (48+)
 │   └── dev/               # Dev-only diagnostic pages
 ├── routes/                # Route guards (RequireRole, ProjectParamScope)
 ├── test-utils/            # Mock providers, test factories
@@ -114,7 +114,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/projects` | ProjectsPage | Statically imported (post-OAuth landing) |
 | `/projects/:id` | Redirect -> `dashboard` | |
 | `/projects/:id/dashboard` | ProjectDashboardPage | Readiness overview |
-| `/projects/:id/shots` | ShotsPage | Shot list + planner view toggle |
+| `/projects/:id/shots` | ShotsPage | Shot list (table / board / gallery views) |
 | `/projects/:id/shots/:sid` | ShotEditorPageV3 | V3 canvas editor (default) |
 | `/projects/:id/catalogue` | CataloguePage | People + locations |
 | `/projects/:id/catalogue/people` | CataloguePeoplePage | Talent + crew |
@@ -266,7 +266,7 @@ interface Pull {
 
 All Firestore paths built via `src-vnext/shared/lib/paths.ts`. Every function requires explicit `clientId` -- no hardcoded defaults. Returns string arrays for `collection()` / `doc()`.
 
-Key path builders: `projectsPath`, `shotsPath`, `productFamiliesPath`, `talentPath`, `locationsPath`, `crewPath`, `crewDocPath`, `locationDocPath`, `departmentsPath`, `departmentPositionsPath`.
+Key path builders: `projectsPath`, `shotsPath`, `productFamiliesPath`, `talentPath`, `locationsPath`, `crewPath`, `crewDocPath`, `locationDocPath`, `departmentsPath`, `departmentPositionsPath`, `usersPath`, `userDocPath`.
 
 ---
 
