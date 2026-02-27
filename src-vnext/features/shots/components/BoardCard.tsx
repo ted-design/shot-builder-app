@@ -65,7 +65,7 @@ export function BoardCard({ shot, isDragging, onOpenShot }: BoardCardProps) {
         )}
 
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-1 text-[13px] font-medium leading-tight text-[var(--color-text)]">
+          <p className="line-clamp-1 text-xs font-medium leading-tight text-[var(--color-text)]">
             {shot.title || "Untitled Shot"}
           </p>
           {shot.shotNumber && (
@@ -82,13 +82,13 @@ export function BoardCard({ shot, isDragging, onOpenShot }: BoardCardProps) {
           {visibleTags.map((tag) => (
             <span
               key={tag.id}
-              className="inline-flex rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-px text-[10px] font-medium text-[var(--color-text-secondary)]"
+              className="inline-flex rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-px text-2xs font-medium text-[var(--color-text-secondary)]"
             >
               {tag.label}
             </span>
           ))}
           {overflowCount > 0 && (
-            <span className="inline-flex rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-px text-[10px] font-medium text-[var(--color-text-subtle)]">
+            <span className="inline-flex rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-px text-2xs font-medium text-[var(--color-text-subtle)]">
               +{overflowCount}
             </span>
           )}

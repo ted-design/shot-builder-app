@@ -18,14 +18,14 @@ interface BoardColumnProps {
 // ---------------------------------------------------------------------------
 
 const ACCENT_COLORS: Record<ShotFirestoreStatus, string> = {
-  todo: "bg-zinc-400",
+  todo: "bg-neutral-400",
   in_progress: "bg-blue-500",
   on_hold: "bg-amber-500",
   complete: "bg-green-500",
 }
 
 const DOT_COLORS: Record<ShotFirestoreStatus, string> = {
-  todo: "bg-zinc-400",
+  todo: "bg-neutral-400",
   in_progress: "bg-blue-500",
   on_hold: "bg-amber-500",
   complete: "bg-green-500",
@@ -53,7 +53,7 @@ export function BoardColumn({ status, shots, renderCard }: BoardColumnProps) {
       <div className="flex items-center justify-between border-b border-[var(--color-border)] px-3.5 py-3">
         <div className="flex items-center gap-2">
           <div className={`h-2 w-2 rounded-full ${DOT_COLORS[status]}`} />
-          <span className="text-[13px] font-semibold text-[var(--color-text)]">
+          <span className="text-xs font-semibold text-[var(--color-text)]">
             {getShotStatusLabel(status)}
           </span>
         </div>

@@ -123,6 +123,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/projects/:id/callsheet` | CallSheetPage | Desktop-only |
 | `/projects/:id/departments` | ProjectDepartmentsPage | |
 | `/projects/:id/settings` | ProjectSettingsPage | |
+| `/inbox` | ShotRequestInboxPage | Org-level shot request inbox (Phase 8 — not yet built) |
 | `/products` | ProductsPage | Org-level product library |
 | `/products/new` | ProductEditorPage | Create new product (vNext) |
 | `/products/:productId` | ProductDetailPage | Thin shell + 5 section components (Overview, Colorways, Samples, Assets, Activity) |
@@ -196,7 +197,8 @@ All data scoped by `clientId` from Firebase Auth custom claims.
   ├── crew/{crewMemberId}/
   ├── colorSwatches/{swatchId}/
   ├── users/{userId}/
-  └── notifications/{notificationId}/
+  ├── notifications/{notificationId}/
+  └── shotRequests/{requestId}/          # Phase 8 — Shot Request Inbox (not yet built)
 
 /shotShares/{shareToken}               # Denormalized public share docs
 /systemAdmins/{email}                  # System admin list
@@ -332,6 +334,8 @@ Defined in `src/lib/flags.js`. Overridable via localStorage and URL params.
 | `canGeneratePulls` | admin, producer |
 | `canManagePulls` | admin, producer, warehouse |
 | `canFulfillPulls` | admin, warehouse |
+| `canSubmitShotRequests` | admin, producer |
+| `canTriageShotRequests` | admin, producer |
 
 - **Project-scoped roles:** `resolveEffectiveRole()` combines global role + per-project role override
 - **Cloud Function:** `setUserClaims` (admin-only, sets role + clientId on user)

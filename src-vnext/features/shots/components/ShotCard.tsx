@@ -178,7 +178,7 @@ export function ShotCard({
       <CardContent className="flex flex-col gap-2.5 px-4 py-3.5">
         <div className="flex items-start justify-between gap-2.5">
           <div className="min-w-0 flex-1 space-y-1">
-            <CardTitle className="line-clamp-2 text-[14px] font-semibold leading-[1.3] md:text-[15px]">
+            <CardTitle className="line-clamp-2 text-sm font-semibold leading-snug">
               {shot.title || "Untitled Shot"}
             </CardTitle>
             {fields.shotNumber && shot.shotNumber && (

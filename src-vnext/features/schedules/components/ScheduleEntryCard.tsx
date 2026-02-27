@@ -258,7 +258,7 @@ function InlineTitleField({
             setEditing(false)
           }
         }}
-        className={`${compact ? "h-6 text-[13px]" : "h-7 text-sm"}`}
+        className={`${compact ? "h-6 text-xs" : "h-7 text-sm"}`}
       />
     )
   }
@@ -271,7 +271,7 @@ function InlineTitleField({
         setEditing(true)
       }}
       className={`truncate rounded px-1 py-0.5 text-left font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-subtle)] ${
-        compact ? "text-[13px]" : "text-sm"
+        compact ? "text-xs" : "text-sm"
       }`}
       title="Click to edit title"
     >
