@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom"
-import { Calendar, MoreVertical, Trash2 } from "lucide-react"
+import { Calendar, MoreVertical, Pencil, Trash2 } from "lucide-react"
 import { Card, CardHeader, CardTitle } from "@/ui/card"
 import { Button } from "@/ui/button"
 import {
@@ -29,12 +29,14 @@ interface ScheduleCardProps {
   readonly schedule: Schedule
   readonly canManage: boolean
   readonly onDelete: (schedule: Schedule) => void
+  readonly onEdit: (schedule: Schedule) => void
 }
 
 export function ScheduleCard({
   schedule,
   canManage,
   onDelete,
+  onEdit,
 }: ScheduleCardProps) {
   const { projectId } = useProjectScope()
   const navigate = useNavigate()
@@ -72,6 +74,15 @@ export function ScheduleCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEdit(schedule)
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-[var(--color-error)]"
                 onClick={(e) => {

@@ -96,6 +96,28 @@ export async function deleteLocation(args: {
   await deleteDoc(doc(db, path[0]!, ...path.slice(1)))
 }
 
+export async function removeLocationPhoto(args: {
+  readonly clientId: string
+  readonly userId: string | null
+  readonly locationId: string
+  readonly photoPath: string | null
+}): Promise<void> {
+  if (args.photoPath) {
+    try {
+      await deleteObject(storageRef(storage, args.photoPath))
+    } catch {
+      // Best-effort cleanup only.
+    }
+  }
+
+  await updateLocation({
+    clientId: args.clientId,
+    userId: args.userId,
+    locationId: args.locationId,
+    patch: { photoPath: null, photoUrl: null },
+  })
+}
+
 export async function uploadLocationPhoto(args: {
   readonly clientId: string
   readonly locationId: string

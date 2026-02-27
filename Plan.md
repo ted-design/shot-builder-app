@@ -380,6 +380,29 @@ Admin (role-gated: admin only)
 
 ---
 
+## Sprint S1: Edit Paths & CRUD Completeness
+
+**Goal:** Close missing edit paths across crew, pulls, schedules, and locations. These gaps block basic workflows — users can't fix typos, rename entities, or remove photos.
+
+**Status:** COMPLETE.
+
+### Sub-tasks
+
+- [x] **S1-1:** Crew: firstName/lastName editable, department/position editable, composite name sync
+- [x] **S1-2:** Pull sheets: rename via InlineEdit on detail page
+- [x] **S1-3:** Schedules: rename/edit via EditScheduleDialog (name + date)
+- [x] **S1-4:** Locations: photo removal with confirmation
+
+### Acceptance Criteria
+
+- [x] Crew: edit first/last name → PageHeader title updates → department/position persist on reload
+- [x] Pull: click name on detail page → InlineEdit → rename persists
+- [x] Schedule: card dropdown → Edit → dialog with prefilled name/date → save → card updates
+- [x] Location: photo visible → Remove → confirm → photo disappears
+- [x] Build clean, lint zero warnings, tests pass
+
+---
+
 ## Phase 8: Shot Request Inbox (Future)
 
 **Goal:** Allow any team member to submit shot requests. Producers triage into existing or new projects.

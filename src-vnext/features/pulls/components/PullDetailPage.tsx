@@ -5,6 +5,7 @@ import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { StatusBadge } from "@/shared/components/StatusBadge"
+import { InlineEdit } from "@/shared/components/InlineEdit"
 import { FulfillmentToggle } from "@/features/pulls/components/FulfillmentToggle"
 import { usePull } from "@/features/pulls/hooks/usePull"
 import { updatePullField } from "@/features/pulls/lib/updatePull"
@@ -121,9 +122,20 @@ export default function PullDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold text-[var(--color-text)]">
-              {pull.name || "Pull Sheet"}
-            </h1>
+            {canEdit ? (
+              <InlineEdit
+                value={pull.name || ""}
+                placeholder="Pull Sheet"
+                onSave={(name) => {
+                  if (name.trim()) void save({ name: name.trim() })
+                }}
+                className="text-xl font-semibold"
+              />
+            ) : (
+              <h1 className="text-xl font-semibold text-[var(--color-text)]">
+                {pull.name || "Pull Sheet"}
+              </h1>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Select
