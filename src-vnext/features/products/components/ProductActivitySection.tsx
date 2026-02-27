@@ -45,28 +45,28 @@ export function ProductActivitySection({
 
   const visibleComments = comments.filter((c) => c.deleted !== true)
 
-  const handlePostComment = () => {
+  const handlePostComment = async () => {
     if (!clientId || !userId) return
     setCommentSaving(true)
-    void createProductComment({
-      clientId,
-      familyId: family.id,
-      body: commentDraft,
-      userId,
-      userName,
-      userAvatar,
-    })
-      .then(() => {
-        setCommentDraft("")
-        toast({ title: "Posted", description: "Comment added." })
+    try {
+      await createProductComment({
+        clientId,
+        familyId: family.id,
+        body: commentDraft,
+        userId,
+        userName,
+        userAvatar,
       })
-      .catch((err) => {
-        toast({
-          title: "Post failed",
-          description: err instanceof Error ? err.message : "Failed to post comment.",
-        })
+      setCommentDraft("")
+      toast({ title: "Posted", description: "Comment added." })
+    } catch (err) {
+      toast({
+        title: "Post failed",
+        description: err instanceof Error ? err.message : "Failed to post comment.",
       })
-      .finally(() => setCommentSaving(false))
+    } finally {
+      setCommentSaving(false)
+    }
   }
 
   return (
@@ -117,7 +117,7 @@ export function ProductActivitySection({
                 size="sm"
                 className="h-9"
                 disabled={commentSaving || !clientId || commentDraft.trim().length === 0}
-                onClick={handlePostComment}
+                onClick={() => void handlePostComment()}
               >
                 Post
               </Button>

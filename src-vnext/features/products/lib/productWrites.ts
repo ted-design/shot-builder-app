@@ -1,7 +1,9 @@
 import {
   addDoc,
+  arrayUnion,
   collection,
   doc,
+  increment,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -383,11 +385,9 @@ export async function bulkCreateSkus(args: {
   readonly familyId: string
   readonly colorNames: ReadonlyArray<string>
   readonly existingColorNames: ReadonlyArray<string>
-  readonly existingSkuCount: number
-  readonly existingActiveSkuCount: number
   readonly familySizes: ReadonlyArray<string>
 }): Promise<number> {
-  const { clientId, userId, familyId, colorNames, existingColorNames, existingSkuCount, existingActiveSkuCount, familySizes } = args
+  const { clientId, userId, familyId, colorNames, existingColorNames, familySizes } = args
   const existingSet = new Set(existingColorNames.map((n) => n.toLowerCase()))
 
   const newNames = unique(
@@ -422,14 +422,13 @@ export async function bulkCreateSkus(args: {
     })
   }
 
-  // Update family aggregates
+  // Update family aggregates atomically to avoid race conditions
   const famPath = productFamiliesPath(clientId)
   const familyRef = doc(db, famPath[0]!, ...famPath.slice(1), familyId)
-  const mergedColorNames = unique([...existingColorNames, ...newNames])
   batch.update(familyRef, {
-    colorNames: mergedColorNames,
-    skuCount: existingSkuCount + newNames.length,
-    activeSkuCount: existingActiveSkuCount + newNames.length,
+    colorNames: arrayUnion(...newNames),
+    skuCount: increment(newNames.length),
+    activeSkuCount: increment(newNames.length),
     updatedAt: serverTimestamp(),
     updatedBy: userId,
   })
