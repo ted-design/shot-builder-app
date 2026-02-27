@@ -95,3 +95,7 @@ export function canManageLocations(role: Role): boolean {
 export function isViewer(role: Role): boolean {
   return role === ROLE.VIEWER
 }
+
+export function isAdmin(role: Role): boolean {
+  return role === ROLE.ADMIN
+}

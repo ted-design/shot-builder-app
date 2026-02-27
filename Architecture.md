@@ -415,6 +415,12 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 | `CrewDetailPage.tsx` | `features/library/components/` | Detail/edit page for crew members (name, department, position, contact) |
 | `LocationDetailPage.tsx` | `features/library/components/` | Detail/edit page with photo upload/removal and address fields |
 | `EditScheduleDialog.tsx` | `features/schedules/components/` | Rename/re-date a schedule (ResponsiveDialog + wasOpen ref pattern) |
+| `adminWrites.ts` | `features/admin/lib/` | Invite/update user roles via `setUserClaims` CF + Firestore |
+| `useUsers.ts` | `features/admin/hooks/` | Real-time Firestore subscription for user roster |
+| `AdminPage.tsx` | `features/admin/components/` | Team roster table with inline role editing |
+| `InviteUserDialog.tsx` | `features/admin/components/` | ResponsiveDialog for inviting/updating users |
+| `UserRoleSelect.tsx` | `features/admin/components/` | Inline role dropdown with immediate save |
+| `PendingAccessPage.tsx` | `shared/components/` | Standalone page for users awaiting admin role assignment |
 
 ### Mobile & Tablet Components (Phase 5)
 

@@ -127,6 +127,19 @@ export const locationDocPath = (locationId: string, clientId: string): string[] 
   locationId,
 ]
 
+// --- Users (admin roster) ---
+
+export const usersPath = (clientId: string): string[] => [
+  "clients",
+  clientId,
+  "users",
+]
+
+export const userDocPath = (userId: string, clientId: string): string[] => [
+  ...usersPath(clientId),
+  userId,
+]
+
 // --- Crew ---
 
 export const crewPath = (clientId: string): string[] => [

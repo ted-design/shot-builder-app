@@ -423,6 +423,16 @@ export interface LocationRecord {
   readonly createdBy?: string | null
 }
 
+export interface UserProfile {
+  readonly id: string
+  readonly email: string
+  readonly displayName?: string | null
+  readonly role: Role
+  readonly projects?: Record<string, unknown>
+  readonly createdAt?: Timestamp
+  readonly updatedAt?: Timestamp
+}
+
 export interface AuthUser {
   readonly uid: string
   readonly email: string | null

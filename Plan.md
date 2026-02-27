@@ -403,6 +403,35 @@ Admin (role-gated: admin only)
 
 ---
 
+## Sprint S2: Admin Panel & User Onboarding
+
+**Goal:** Enable admin panel so real team members can be invited, assigned roles, and access the app. Without this, onboarding is blocked — no users can use the vNext app.
+
+**Status:** COMPLETE.
+
+**Rationale:** PRD.md lists admin/settings as MUST-HAVE, but Plan.md skipped it. This override sprint fixes the gap per Hard Rule #8 (Production Readiness Overrides).
+
+### Sub-tasks
+
+- [x] **S2-1:** Foundation types (`UserProfile`), path helpers (`usersPath`, `userDocPath`), `isAdmin()` in rbac
+- [x] **S2-2:** `useUsers` data hook (Firestore subscription to users collection)
+- [x] **S2-3:** Admin write utilities (`inviteOrUpdateUser`, `updateUserRole`) using `setUserClaims` CF
+- [x] **S2-4:** AdminPage UI (roster table, InviteUserDialog, UserRoleSelect)
+- [x] **S2-5:** Route + sidebar integration (`/admin` with role + desktop guards, admin nav entry)
+- [x] **S2-6:** First-sign-in error handling (PendingAccessPage for users without claims)
+- [x] **S2-7:** CLAUDE.md Hard Rule #8 (Production Readiness Overrides)
+- [x] **S2-8:** Documentation sync (Plan.md, Architecture.md, HANDOFF, CHECKPOINT, MEMORY)
+
+### Acceptance Criteria
+
+- [x] Build clean, lint zero warnings, all tests pass
+- [x] Admin → /admin → roster loads → invite user → role change works
+- [x] Non-admin → no "Admin" in sidebar → /admin redirects to /projects
+- [x] User without claims → "Waiting for access" page → sign out works
+- [x] Mobile → "Admin" not in drawer → /admin redirects with toast
+
+---
+
 ## Phase 8: Shot Request Inbox (Future)
 
 **Goal:** Allow any team member to submit shot requests. Producers triage into existing or new projects.

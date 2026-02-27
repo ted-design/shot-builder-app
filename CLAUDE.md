@@ -96,6 +96,14 @@ The authoritative tracking files are:
 | `docs/_runtime/CHECKPOINT.md` | Completed tasks list, what's next, critical file state | After every implementation session |
 | `MEMORY.md` | Current phase status line | When phase progress changes |
 
+### 8. Production Readiness Overrides
+
+Phase order is the default. Override when reality demands it:
+
+- **Onboarding blockers take priority.** If real users cannot sign in, get roles assigned, or access core workflows, fix that before continuing feature work. Check PRD.md's MUST-HAVE list — anything there that's missing from Plan.md is a candidate for an override sprint.
+- **On resume, ask:** "Can a new team member use this app today?" If no, the blocker is the next task — regardless of what Plan.md says is next.
+- **Override protocol:** (1) identify the blocker, (2) discuss with user, (3) add an override sprint to Plan.md before the next planned phase, (4) document rationale in MEMORY.md.
+
 ## Legacy Codebase Context
 
 The existing `src/` directory contains the **legacy JavaScript app** (~583 files, `.js`/`.jsx`). vNext is a **ground-up TypeScript rebuild** — not a migration or refactor of legacy files.
