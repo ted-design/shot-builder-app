@@ -51,7 +51,7 @@ export async function inviteOrUpdateUser({
       updatedAt: serverTimestamp(),
       createdAt: serverTimestamp(),
     },
-    { merge: true },
+    { mergeFields: ["email", "displayName", "role", "updatedAt"] },
   )
 
   return uid
@@ -65,8 +65,8 @@ interface UpdateUserRoleParams {
 }
 
 /**
- * Update an existing user's role in both Firestore and Auth custom claims.
- * Writes the Firestore doc first, then calls the CF to sync claims.
+ * Update an existing user's role in both Auth custom claims and Firestore.
+ * Calls the CF first (authoritative), then writes Firestore to keep roster in sync.
  */
 export async function updateUserRole({
   userId,
@@ -74,6 +74,13 @@ export async function updateUserRole({
   newRole,
   clientId,
 }: UpdateUserRoleParams): Promise<void> {
+  const callable = httpsCallable<
+    { targetEmail: string; role: Role; clientId: string },
+    SetUserClaimsResponse
+  >(functions, "setUserClaims")
+
+  await callable({ targetEmail: userEmail, role: newRole, clientId })
+
   const ref = doc(db, ...userDocPath(userId, clientId))
   await setDoc(
     ref,
@@ -83,11 +90,4 @@ export async function updateUserRole({
     },
     { merge: true },
   )
-
-  const callable = httpsCallable<
-    { targetEmail: string; role: Role; clientId: string },
-    SetUserClaimsResponse
-  >(functions, "setUserClaims")
-
-  await callable({ targetEmail: userEmail, role: newRole, clientId })
 }

@@ -200,7 +200,7 @@ export default function LocationDetailPage() {
                 size="sm"
                 disabled={uploading || removingPhoto}
                 onClick={() => setRemovePhotoOpen(true)}
-                className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                className="text-[var(--color-error)]"
               >
                 {removingPhoto ? "Removing..." : "Remove"}
               </Button>
@@ -326,7 +326,7 @@ export default function LocationDetailPage() {
         <div className="pt-2">
           <Button
             variant="ghost"
-            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+            className="text-[var(--color-error)]"
             disabled={deleting}
             onClick={() => setDeleteOpen(true)}
           >

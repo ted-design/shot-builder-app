@@ -3,6 +3,8 @@
  * Provides typed nav items and buildNavConfig() for sidebar/drawer rendering.
  */
 
+import { ROLE } from "@/shared/lib/rbac"
+
 export type NavItemIcon =
   | "layout-grid"
   | "camera"
@@ -70,7 +72,7 @@ export function buildNavConfig(projectId?: string, role?: string): NavConfig {
       },
     ]
 
-    if (role === "admin") {
+    if (role === ROLE.ADMIN) {
       entries.push(
         { type: "divider" },
         {
