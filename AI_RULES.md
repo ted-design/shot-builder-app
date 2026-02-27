@@ -117,6 +117,7 @@ All new vNext components must work in dark mode:
 4. **Image overlays** (`bg-black/*`): Leave as-is — intentionally dark over image content
 5. **Print portals:** Static white — leave as-is
 6. **Activation:** `.dark` CSS class on `<html>`, NOT `data-theme` attribute. localStorage key: `sb:theme`
+7. **FOUC prevention:** Three interconnected pieces must agree — `tokens.css` `.dark` selector, `ThemeProvider` class toggle, FOUC `<script>` in `index.html`. All three use `.dark` CSS class and `sb:theme` localStorage key. A mismatch between any two causes bugs.
 
 ---
 
@@ -306,6 +307,26 @@ When adding child entities to an existing parent (e.g., SKUs to a product family
 - Keep them separate in the same `{entity}Writes.ts` file alongside the full-save functions.
 
 Example: `bulkCreateSkus()` adds colorways without touching existing SKUs, while `updateProductFamilyWithSkus()` reconciles the entire SKU set.
+
+### Three-Panel Layout Rules
+
+Components inside `react-resizable-panels` must use `ResizeObserver` for width-aware layout — never viewport media queries (`sm:flex`, `md:hidden`). The panel can be narrow even on a wide viewport.
+
+- **Compact prop:** Shared components used in both full-width and narrow panel contexts accept an optional `compact` prop (shorter placeholder, hide kbd hints, reduce padding).
+- **Exit affordances:** Always provide 2+ visible ways to leave a modal/panel mode. Keyboard-only exits are easy to miss.
+- **Click-to-edit fields:** Read mode is default. Click to enter edit mode with autoFocus. Blur saves and returns to read mode. Empty state shows placeholder like "Click to add notes..."
+- **List density tiers:** Driven by `ResizeObserver`, not viewport. Compact (<200px): title only. Medium (200–280px): + thumbnail + badge. Full (>280px): + description preview.
+
+### Visual Standards
+
+All new and modified components follow these rules:
+
+- **One `<h1>` per page.** Never two.
+- **Semantic typography classes:** Use `.heading-page`, `.heading-section`, `.heading-subsection`, `.label-meta` from `design-tokens.js` — not raw Tailwind font/tracking combos.
+- **Card standards:** `rounded-lg` (8px), `p-4` content padding, `pb-2` header padding, `gap-4` grid gap.
+- **Badge font size:** `text-xxs` (11px) consistently — both on cards and detail pages.
+- **Token-safe colors:** `text-white` on dark backgrounds → `text-[var(--color-text-inverted)]`. `bg-white` on surfaces → `bg-[var(--color-surface)]`. Sidebar text → `text-[var(--color-sidebar-text)]`.
+- **Detail page navigation:** All detail pages use `PageHeader` with breadcrumbs. No inline ghost buttons or icon-only back buttons.
 
 ### Context Budget Rules
 
