@@ -71,17 +71,15 @@ const LibraryPalettePage = lazy(
 const AdminPage = lazy(
   () => import("@/features/admin/components/AdminPage"),
 )
-
-// Dev-only components — only imported in development to keep them out of production bundles
-const DevImportQ2 = import.meta.env.DEV
-  ? lazy(() => import("@/features/products/components/DevImportQ2"))
-  : null
-const DevImportQ2Shots = import.meta.env.DEV
-  ? lazy(() => import("@/features/shots/components/DevImportQ2Shots"))
-  : null
-const DevImportQ1HubShots = import.meta.env.DEV
-  ? lazy(() => import("@/features/shots/components/DevImportQ1HubShots"))
-  : null
+const DevImportQ2 = lazy(
+  () => import("@/features/products/components/DevImportQ2"),
+)
+const DevImportQ2Shots = lazy(
+  () => import("@/features/shots/components/DevImportQ2Shots"),
+)
+const DevImportQ1HubShots = lazy(
+  () => import("@/features/shots/components/DevImportQ1HubShots"),
+)
 
 function PageFallback() {
   return (
@@ -205,13 +203,13 @@ export function AppRoutes() {
               </RequireRole>
             }
           />
-          {import.meta.env.DEV && DevImportQ2 && (
+          {import.meta.env.DEV && (
             <Route path="dev/import-q2" element={<DevImportQ2 />} />
           )}
-          {import.meta.env.DEV && DevImportQ2Shots && (
+          {import.meta.env.DEV && (
             <Route path="dev/import-q2-shots" element={<DevImportQ2Shots />} />
           )}
-          {import.meta.env.DEV && DevImportQ1HubShots && (
+          {import.meta.env.DEV && (
             <Route path="dev/import-q1-hub-shots" element={<DevImportQ1HubShots />} />
           )}
         </Route>
