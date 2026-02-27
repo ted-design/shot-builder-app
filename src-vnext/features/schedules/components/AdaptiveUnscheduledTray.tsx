@@ -69,7 +69,7 @@ export function AdaptiveUnscheduledTray({
                     {shotNumber}
                   </span>
                 ) : null}
-                <span className="truncate text-xs font-semibold text-[var(--color-text)]">
+                <span className="truncate text-[13px] font-semibold text-[var(--color-text)]">
                   {entry.highlight?.emoji ? `${entry.highlight.emoji} ` : ""}
                   {entry.title}
                 </span>
