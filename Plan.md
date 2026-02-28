@@ -490,19 +490,19 @@ Admin (role-gated: admin only)
 
 **Goal:** Enable per-project access control so admins can assign users to specific projects. Without this, all users see all projects — a blocker for multi-team onboarding.
 
-**Status:** Not started.
+**Status:** COMPLETE (commit 4106d42).
 
 ### Sub-tasks
 
-- [ ] **S5b-1:** Firestore rules: add write rule for `projects/{pid}/members/{uid}` subcollection
-- [ ] **S5b-2:** Write functions: `addProjectMember`, `removeProjectMember` + `useProjectMembers` hook
-- [ ] **S5b-3:** Auto-membership on project create (`writeBatch` in CreateProjectDialog for atomic project + member doc)
-- [ ] **S5b-4:** Admin page: "Project Access" tab with project selector + member table
-- [ ] **S5b-5:** Add/remove member dialog (search existing users, assign project role)
-- [ ] **S5b-6:** Copy invite link UX (toast with copy button when user not found)
-- [ ] **S5b-7:** Pending invites section on admin page
-- [ ] **S5b-8:** Dashboard empty state for unassigned non-admin users ("No projects assigned. Contact your administrator.")
-- [ ] **S5b-9:** Tests + acceptance verification
+- [x] **S5b-1:** Firestore rules: add write rule for `projects/{pid}/members/{uid}` subcollection
+- [x] **S5b-2:** Write functions: `addProjectMember`, `removeProjectMember` + `useProjectMembers` hook
+- [x] **S5b-3:** Auto-membership on project create (`writeBatch` in CreateProjectDialog for atomic project + member doc)
+- [x] **S5b-4:** Admin page: "Project Access" tab with project selector + member table
+- [x] **S5b-5:** Add/remove member dialog (search existing users, assign project role)
+- [x] **S5b-6:** Copy invite link UX (toast with copy button when user not found)
+- [ ] **S5b-7:** Pending invites section on admin page — SKIPPED (no Firestore collection; copy-link UX covers intent)
+- [x] **S5b-8:** Dashboard empty state for unassigned non-admin users ("No projects assigned. Contact your administrator.")
+- [x] **S5b-9:** Tests + acceptance verification
 
 ### Acceptance Criteria
 
