@@ -16,11 +16,11 @@ Shot Builder is the production planning tool for fashion and commercial photogra
 
 | Tier | Scope | Phases | Status |
 |------|-------|--------|--------|
-| **Now** | Fix broken workflows, complete library entities (crew/locations/talent), polish UX consistency, clean up tech debt, admin panel + user onboarding, design system realignment | 7A-7E, S1-S4 | **COMPLETE** |
-| **Next** | Shot request inbox (admin + producer submit + triage), casting engine (measurement-based talent search + auto-match) | 8-9 | Phase 8 ready |
+| **Now** | Fix broken workflows, complete library entities (crew/locations/talent), polish UX consistency, clean up tech debt, admin panel + user onboarding, design system realignment, shot request inbox | 7A-7E, S1-S5b, 8 | **COMPLETE** |
+| **Next** | Create project from request flow, casting engine (measurement-based talent search + auto-match) | 8.5, 9 | Phase 8.5 ready |
 | **Future** | Per-product asset requirements, sample logistics (PLM), auto-suggest shoot dates from sample availability | 10+ | Not started |
 
-The "Now" tier is complete — Shot Builder is a full production workspace with admin onboarding, library CRUD, mobile operations, and visual polish. The "Next" tier expands it into a team-facing platform. The "Future" tier adds supply-chain intelligence.
+The "Now" tier is complete — Shot Builder is a full production workspace with admin onboarding, library CRUD, mobile operations, visual polish, and a shot request inbox for structured creative brief intake. The "Next" tier expands it into a team-facing platform. The "Future" tier adds supply-chain intelligence.
 
 ---
 

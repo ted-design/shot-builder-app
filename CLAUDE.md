@@ -151,3 +151,16 @@ Canonical labels (from `statusMappings.ts`). Use these everywhere — views, fil
 | `complete` | **Shot** |
 
 Do NOT use alternative labels (To do, Complete, Done). `statusMappings.ts` is the single source of truth.
+
+## Shot Request Status Labels
+
+Canonical labels (from `requestStatusMappings.ts`). Use these everywhere:
+
+| Firestore value | Display label | Color |
+|---|---|---|
+| `submitted` | **Submitted** | blue |
+| `triaged` | **Triaged** | amber |
+| `absorbed` | **Absorbed** | green |
+| `rejected` | **Rejected** | gray |
+
+`requestStatusMappings.ts` is the single source of truth for request statuses.

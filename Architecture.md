@@ -123,7 +123,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/projects/:id/callsheet` | CallSheetPage | Desktop-only |
 | `/projects/:id/departments` | ProjectDepartmentsPage | |
 | `/projects/:id/settings` | ProjectSettingsPage | |
-| `/inbox` | ShotRequestInboxPage | Org-level shot request inbox (Phase 8 — not yet built) |
+| `/inbox` | ShotRequestInboxPage | Org-level shot request inbox. Admin+producer only (RequireRole). Desktop: two-panel (list + triage). Mobile: list only. |
 | `/products` | ProductsPage | Org-level product library |
 | `/products/new` | ProductEditorPage | Create new product (vNext) |
 | `/products/:productId` | ProductDetailPage | Thin shell + 5 section components (Overview, Colorways, Samples, Assets, Activity) |
@@ -198,7 +198,7 @@ All data scoped by `clientId` from Firebase Auth custom claims.
   ├── colorSwatches/{swatchId}/
   ├── users/{userId}/
   ├── notifications/{notificationId}/
-  └── shotRequests/{requestId}/          # Phase 8 — Shot Request Inbox (not yet built)
+  └── shotRequests/{requestId}/          # Phase 8 — Shot Request Inbox
 
 /shotShares/{shareToken}               # Denormalized public share docs
 /systemAdmins/{email}                  # System admin list
@@ -262,11 +262,35 @@ interface Pull {
 }
 ```
 
+**ShotRequest:**
+```typescript
+interface ShotRequest {
+  id: string
+  clientId: string
+  status: 'submitted' | 'triaged' | 'absorbed' | 'rejected'
+  priority: 'normal' | 'urgent'
+  title: string
+  description?: string | null
+  referenceUrls?: string[] | null
+  deadline?: string | null
+  notes?: string | null
+  submittedBy: string
+  submittedByName?: string | null
+  submittedAt: Timestamp
+  updatedAt: Timestamp
+  triagedBy?: string | null
+  triagedAt?: Timestamp | null
+  absorbedIntoProjectId?: string | null
+  absorbedAsShotId?: string | null
+  rejectionReason?: string | null
+}
+```
+
 ### Path Builders
 
 All Firestore paths built via `src-vnext/shared/lib/paths.ts`. Every function requires explicit `clientId` -- no hardcoded defaults. Returns string arrays for `collection()` / `doc()`.
 
-Key path builders: `projectsPath`, `shotsPath`, `productFamiliesPath`, `talentPath`, `locationsPath`, `crewPath`, `crewDocPath`, `locationDocPath`, `departmentsPath`, `departmentPositionsPath`, `usersPath`, `userDocPath`, `projectMembersPath`, `projectMemberDocPath`.
+Key path builders: `projectsPath`, `shotsPath`, `productFamiliesPath`, `talentPath`, `locationsPath`, `crewPath`, `crewDocPath`, `locationDocPath`, `departmentsPath`, `departmentPositionsPath`, `usersPath`, `userDocPath`, `projectMembersPath`, `projectMemberDocPath`, `shotRequestsPath`, `shotRequestDocPath`.
 
 ---
 

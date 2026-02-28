@@ -402,6 +402,16 @@ When using multiple implementation agents in isolated worktrees:
 3. **writeBatch migration:** When converting `addDoc` to `writeBatch`, update ALL test assertions — mock targets change from `mockAddDoc` to `mockBatchSet`/`mockBatchCommit`.
 4. **Integration order:** Apply data layer first, then UI, then tests. Fix test failures last (they depend on both data + UI being correct).
 
+### Worktree Merge & Cross-Agent Reconciliation (Phase 8 Pattern)
+
+When merging parallel agent worktrees into the main branch:
+
+1. **Canonical data layer:** Data agent's versions of hooks and write functions are canonical. UI agents create stubs of the same files to compile — SKIP those stubs during merge, use only the data agent's versions.
+2. **Missing render for state:** When a page component declares state like `showSubmitDialog` but the UI agent didn't wire the dialog render, check for and add the missing `<SubmitDialog open={...} />` component render.
+3. **`entries.push(` vs `[` bracket mismatch:** When refactoring array initialization (`const arr = [...]`) to conditional push (`arr.push(...)`), the closing bracket changes from `]` to `)`. This is easy to miss in multi-line push calls with complex objects. TypeScript error will be "Argument expression expected" — look for `]` that should be `)`.
+4. **Verify all imports exist:** After merging, grep for every `import from` path in new files to confirm the target module exists on the main branch. Shared components (StatusBadge, EmptyState, PageHeader, ResponsiveDialog) and hooks (useFirestoreCollection, useProjects) must be verified.
+5. **Run feature tests first, then full suite:** `npm test -- src-vnext/features/{name}` catches import/signature issues fast before the slower full run.
+
 ### Context Budget Rules
 
 - Each Plan.md phase is broken into lettered sub-tasks that fit in one session
