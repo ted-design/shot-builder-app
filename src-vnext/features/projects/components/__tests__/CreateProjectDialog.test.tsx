@@ -50,6 +50,14 @@ describe("CreateProjectDialog", () => {
     expect(screen.getByTestId("project-name-input")).toBeInTheDocument()
   })
 
+  it("shows ShootDatesField without expanding 'More options'", () => {
+    renderDialog()
+    // ShootDatesField should be visible immediately (above fold)
+    expect(screen.getByTestId("shoot-dates-field")).toBeInTheDocument()
+    // Optional fields should NOT be visible
+    expect(screen.queryByTestId("optional-fields")).not.toBeInTheDocument()
+  })
+
   it("hides optional fields by default (progressive disclosure)", () => {
     renderDialog()
     expect(screen.queryByTestId("optional-fields")).not.toBeInTheDocument()

@@ -8,6 +8,7 @@ import { Package, Users, MapPin, StickyNote, Link2, Globe, Video, FileText } fro
 import { textPreview } from "@/shared/lib/textPreview"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { TagBadge } from "@/shared/components/TagBadge"
+import { sortTagsByCategory } from "@/shared/lib/tagSort"
 import { getShotNotesPreview, getShotPrimaryLookProductLabels, resolveIdsToNames, summarizeLabels } from "@/features/shots/lib/shotListSummaries"
 import { NotesPreviewText } from "@/features/shots/components/NotesPreviewText"
 import type { Shot, ShotReferenceLinkType } from "@/shared/types"
@@ -136,7 +137,7 @@ export function ShotCard({
     !showLocationDetails &&
     !showProductsDetails
   const showHeroImage = fields.heroThumb && !!heroUrl && imgVisible
-  const allTags = shot.tags ?? []
+  const allTags = sortTagsByCategory(shot.tags ?? [])
   const productPreview = productLabels.slice(0, PRODUCT_PREVIEW_LIMIT)
   const hiddenProductCount = Math.max(0, productLabels.length - productPreview.length)
   const referenceLinkPreview = referenceLinks.slice(0, REFERENCE_LINK_PREVIEW_LIMIT)

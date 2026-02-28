@@ -1,7 +1,9 @@
 import { Camera, Package, Users } from "lucide-react"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
+import { TagBadge } from "@/shared/components/TagBadge"
 import type { Shot } from "@/shared/types"
+import { sortTagsByCategory } from "@/shared/lib/tagSort"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -27,7 +29,7 @@ export function BoardCard({ shot, isDragging, onOpenShot }: BoardCardProps) {
   const heroCandidate = shot.heroImage?.downloadURL ?? shot.heroImage?.path
   const heroUrl = useStorageUrl(heroCandidate)
 
-  const tags = shot.tags ?? []
+  const tags = sortTagsByCategory(shot.tags ?? [])
   const visibleTags = tags.slice(0, MAX_VISIBLE_TAGS)
   const overflowCount = Math.max(0, tags.length - MAX_VISIBLE_TAGS)
 
@@ -80,12 +82,7 @@ export function BoardCard({ shot, isDragging, onOpenShot }: BoardCardProps) {
       {visibleTags.length > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1">
           {visibleTags.map((tag) => (
-            <span
-              key={tag.id}
-              className="inline-flex rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-px text-2xs font-medium text-[var(--color-text-secondary)]"
-            >
-              {tag.label}
-            </span>
+            <TagBadge key={tag.id} tag={tag} className="px-1.5 py-px text-2xs" />
           ))}
           {overflowCount > 0 && (
             <span className="inline-flex rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 py-px text-2xs font-medium text-[var(--color-text-subtle)]">
