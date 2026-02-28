@@ -41,6 +41,7 @@ function MemberTable({
   projectName,
   projectId,
   clientId,
+  currentUserId,
 }: {
   readonly members: readonly ProjectMember[]
   readonly users: ReadonlyArray<{ readonly id: string; readonly email: string; readonly displayName?: string | null }>

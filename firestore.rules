@@ -334,9 +334,15 @@ service cloud.firestore {
             (isAdmin() || hasProjectRole(projectId, ['producer', 'crew', 'warehouse', 'viewer']));
           // Admin-only member management
           allow create, update, delete: if clientMatches(clientId) && isAdmin();
-          // Self-membership: allow producers to add themselves when creating a project
-          // This solves the chicken-and-egg: producer creates project but has no member doc yet
-          allow create: if clientMatches(clientId) && isProducer() && memberId == request.auth.uid;
+          // Self-membership: allow producers to add themselves when creating a project.
+          // Validates: own UID only, must set addedBy to self, role must be 'producer',
+          // and only the expected fields are written (no extra data injection).
+          allow create: if clientMatches(clientId)
+            && isProducer()
+            && memberId == request.auth.uid
+            && request.resource.data.addedBy == request.auth.uid
+            && request.resource.data.role == 'producer'
+            && request.resource.data.keys().hasOnly(['role', 'addedAt', 'addedBy']);
         }
 
 	      // Project departments and positions (project-scoped role taxonomy)
