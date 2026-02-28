@@ -506,13 +506,13 @@ Admin (role-gated: admin only)
 
 ### Acceptance Criteria
 
-- [ ] Admin can add/remove users from a project via admin page
-- [ ] Creating a project auto-adds the creator as a member (atomic write)
-- [ ] Admin can copy an invite link for users who haven't signed in yet
-- [ ] Pending invites section shows attempted-invite users who haven't created accounts
-- [ ] Non-admin users with no project assignments see a clear empty state
-- [ ] Firestore rules enforce member subcollection write access
-- [ ] Build clean, lint zero warnings, all tests pass
+- [x] Admin can add/remove users from a project via admin page
+- [x] Creating a project auto-adds the creator as a member (atomic write)
+- [x] Admin can copy an invite link for users who haven't signed in yet
+- [ ] Pending invites section shows attempted-invite users who haven't created accounts — SKIPPED (S5b-7)
+- [x] Non-admin users with no project assignments see a clear empty state
+- [x] Firestore rules enforce member subcollection write access
+- [x] Build clean, lint zero warnings, all tests pass
 
 ---
 

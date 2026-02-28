@@ -266,7 +266,7 @@ interface Pull {
 
 All Firestore paths built via `src-vnext/shared/lib/paths.ts`. Every function requires explicit `clientId` -- no hardcoded defaults. Returns string arrays for `collection()` / `doc()`.
 
-Key path builders: `projectsPath`, `shotsPath`, `productFamiliesPath`, `talentPath`, `locationsPath`, `crewPath`, `crewDocPath`, `locationDocPath`, `departmentsPath`, `departmentPositionsPath`, `usersPath`, `userDocPath`.
+Key path builders: `projectsPath`, `shotsPath`, `productFamiliesPath`, `talentPath`, `locationsPath`, `crewPath`, `crewDocPath`, `locationDocPath`, `departmentsPath`, `departmentPositionsPath`, `usersPath`, `userDocPath`, `projectMembersPath`, `projectMemberDocPath`.
 
 ---
 
@@ -337,7 +337,7 @@ Defined in `src/lib/flags.js`. Overridable via localStorage and URL params.
 | `canSubmitShotRequests` | admin, producer |
 | `canTriageShotRequests` | admin, producer |
 
-- **Project-scoped roles:** `resolveEffectiveRole()` combines global role + per-project role override
+- **Project-scoped roles:** Per-project membership stored in `projects/{pid}/members/{uid}` subcollection. Each member doc has `role`, `addedAt`, `addedBy`. Project creation auto-adds creator as member via `writeBatch`. `resolveEffectiveRole()` (not yet implemented) will combine global role + per-project role.
 - **Cloud Function:** `setUserClaims` (admin-only, sets role + clientId on user)
 
 ### Cloud Functions
@@ -397,7 +397,7 @@ Card standards: `rounded-lg` (8px), `p-4` content, `pb-2` header, `gap-4` grid. 
 
 ### shadcn/ui
 
-Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext). Components: Avatar, Badge, Button, Card, Dialog, Dropdown, Label, Popover, Select, Separator, Sheet, Switch, Tabs, Toast, Tooltip. Customization via Tailwind config + tokens.css only -- never modify generated files inline.
+Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext). Components: AlertDialog, Avatar, Badge, Button, Card, Dialog, Dropdown, Label, Popover, Select, Separator, Sheet, Switch, Tabs, Toast, Tooltip. Customization via Tailwind config + tokens.css only -- never modify generated files inline.
 
 ### Custom UI Components
 
@@ -419,10 +419,14 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 | `CrewDetailPage.tsx` | `features/library/components/` | Detail/edit page for crew members (name, department, position, contact) |
 | `LocationDetailPage.tsx` | `features/library/components/` | Detail/edit page with photo upload/removal and address fields |
 | `EditScheduleDialog.tsx` | `features/schedules/components/` | Rename/re-date a schedule (ResponsiveDialog + wasOpen ref pattern) |
-| `adminWrites.ts` | `features/admin/lib/` | Invite/update user roles via `setUserClaims` CF + Firestore |
+| `adminWrites.ts` | `features/admin/lib/` | Invite/update user roles, add/remove project members |
+| `roleDescriptions.ts` | `shared/lib/` | Static `ROLE_DESCRIPTIONS` Record<Role, string> for UI |
 | `useUsers.ts` | `features/admin/hooks/` | Real-time Firestore subscription for user roster |
-| `AdminPage.tsx` | `features/admin/components/` | Team roster table with inline role editing |
-| `InviteUserDialog.tsx` | `features/admin/components/` | ResponsiveDialog for inviting/updating users |
+| `useProjectMembers.ts` | `features/admin/hooks/` | Real-time Firestore subscription for project member list |
+| `AdminPage.tsx` | `features/admin/components/` | Tabbed layout: Team roster + Project Access |
+| `ProjectAccessTab.tsx` | `features/admin/components/` | Project selector, member table, remove dialog, self-removal guard |
+| `AddProjectMemberDialog.tsx` | `features/admin/components/` | Add existing user to project with role selection |
+| `InviteUserDialog.tsx` | `features/admin/components/` | ResponsiveDialog for inviting/updating users + copy-link |
 | `UserRoleSelect.tsx` | `features/admin/components/` | Inline role dropdown with immediate save |
 | `PendingAccessPage.tsx` | `shared/components/` | Standalone page for users awaiting admin role assignment |
 
