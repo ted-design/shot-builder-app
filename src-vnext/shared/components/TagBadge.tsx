@@ -1,6 +1,5 @@
 import { X } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
-import { getTagColorClasses, resolveTagColorKey } from "@/shared/lib/tagColors"
 import type { ShotTag } from "@/shared/types"
 
 export function TagBadge({
@@ -16,13 +15,10 @@ export function TagBadge({
   const label = (tag.label ?? "").trim()
   if (!label) return null
 
-  const colorKey = resolveTagColorKey(tag.color, tag.id)
-
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 text-2xs font-medium",
-        getTagColorClasses(colorKey),
+        "inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xxs font-medium text-[var(--color-text-secondary)]",
         className,
       )}
     >

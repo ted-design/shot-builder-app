@@ -19,7 +19,7 @@ This document describes the **current reality** of the codebase, not aspirationa
 | Routing | React Router v6 | Lazy-loaded routes via React.lazy |
 | Rich Text | tiptap (via reactjs-tiptap-editor) | Shot notes, product descriptions |
 | Search | Fuse.js (client-side) + cmdk (command palette) | Cmd+K global search |
-| Drag & Drop | @dnd-kit | Planner, sortable lists |
+| Drag & Drop | @dnd-kit | Sortable lists |
 | Error Tracking | Sentry (@sentry/react) | Error boundaries + breadcrumbs |
 | PDF | @react-pdf/renderer | Pull sheet export |
 | Testing | Vitest + Testing Library + Playwright | See Testing section |
@@ -60,7 +60,7 @@ src/
 │   └── DemoModeAuthProvider.jsx
 ├── hooks/                 # Custom hooks (40+)
 ├── lib/                   # Utilities (firebase, paths, rbac, flags, utils)
-├── pages/                 # Route-level page components (38+)
+├── pages/                 # Route-level page components (48+)
 │   └── dev/               # Dev-only diagnostic pages
 ├── routes/                # Route guards (RequireRole, ProjectParamScope)
 ├── test-utils/            # Mock providers, test factories
@@ -114,7 +114,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/projects` | ProjectsPage | Statically imported (post-OAuth landing) |
 | `/projects/:id` | Redirect -> `dashboard` | |
 | `/projects/:id/dashboard` | ProjectDashboardPage | Readiness overview |
-| `/projects/:id/shots` | ShotsPage | Shot list + planner view toggle |
+| `/projects/:id/shots` | ShotsPage | Shot list (table / board / gallery views) |
 | `/projects/:id/shots/:sid` | ShotEditorPageV3 | V3 canvas editor (default) |
 | `/projects/:id/catalogue` | CataloguePage | People + locations |
 | `/projects/:id/catalogue/people` | CataloguePeoplePage | Talent + crew |
@@ -123,6 +123,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/projects/:id/callsheet` | CallSheetPage | Desktop-only |
 | `/projects/:id/departments` | ProjectDepartmentsPage | |
 | `/projects/:id/settings` | ProjectSettingsPage | |
+| `/inbox` | ShotRequestInboxPage | Org-level shot request inbox (Phase 8 — not yet built) |
 | `/products` | ProductsPage | Org-level product library |
 | `/products/new` | ProductEditorPage | Create new product (vNext) |
 | `/products/:productId` | ProductDetailPage | Thin shell + 5 section components (Overview, Colorways, Samples, Assets, Activity) |
@@ -196,7 +197,8 @@ All data scoped by `clientId` from Firebase Auth custom claims.
   ├── crew/{crewMemberId}/
   ├── colorSwatches/{swatchId}/
   ├── users/{userId}/
-  └── notifications/{notificationId}/
+  ├── notifications/{notificationId}/
+  └── shotRequests/{requestId}/          # Phase 8 — Shot Request Inbox (not yet built)
 
 /shotShares/{shareToken}               # Denormalized public share docs
 /systemAdmins/{email}                  # System admin list
@@ -264,7 +266,7 @@ interface Pull {
 
 All Firestore paths built via `src-vnext/shared/lib/paths.ts`. Every function requires explicit `clientId` -- no hardcoded defaults. Returns string arrays for `collection()` / `doc()`.
 
-Key path builders: `projectsPath`, `shotsPath`, `productFamiliesPath`, `talentPath`, `locationsPath`, `crewPath`, `crewDocPath`, `locationDocPath`, `departmentsPath`, `departmentPositionsPath`.
+Key path builders: `projectsPath`, `shotsPath`, `productFamiliesPath`, `talentPath`, `locationsPath`, `crewPath`, `crewDocPath`, `locationDocPath`, `departmentsPath`, `departmentPositionsPath`, `usersPath`, `userDocPath`.
 
 ---
 
@@ -332,6 +334,8 @@ Defined in `src/lib/flags.js`. Overridable via localStorage and URL params.
 | `canGeneratePulls` | admin, producer |
 | `canManagePulls` | admin, producer, warehouse |
 | `canFulfillPulls` | admin, warehouse |
+| `canSubmitShotRequests` | admin, producer |
+| `canTriageShotRequests` | admin, producer |
 
 - **Project-scoped roles:** `resolveEffectiveRole()` combines global role + per-project role override
 - **Cloud Function:** `setUserClaims` (admin-only, sets role + clientId on user)
@@ -366,7 +370,7 @@ Visual direction finalized. Zinc neutral scale (not Slate), near-black primary, 
 
 ### tokens.css
 
-Single source of design truth. CSS custom properties for colors, spacing, typography, shadows, radius. Referenced by Tailwind config. Micro font sizes: `text-3xs` (9px), `text-2xs` (10px), `text-xxs` (11px).
+Single source of design truth. CSS custom properties for colors, spacing, typography, shadows, radius. Referenced by Tailwind config. Micro font sizes: `text-3xs` (9px), `text-2xs` (10px), `text-xxs` (11px). Editorial body scale (Sprint S4): `text-xs` (12px), `text-sm` (13px), `text-base` (14px), `text-lg` (16px), `text-xl` (18px) — all 1-2px smaller than Tailwind defaults.
 
 **Dark mode:** `.dark` class selector block overrides all color tokens (surfaces, text, borders, primary, status badges, table, shadows). Activation via Tailwind `darkMode: 'class'` strategy. ThemeProvider applies `.dark` on `<html>`. FOUC prevention script in `index.html` applies it pre-React. localStorage key: `sb:theme` (`light | dark | system`).
 

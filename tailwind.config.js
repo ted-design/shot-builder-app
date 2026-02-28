@@ -100,6 +100,13 @@ export default {
         '2xs': ['0.625rem', { lineHeight: '0.875rem' }],   // 10px
         'xxs': ['0.6875rem', { lineHeight: '1rem' }],      // 11px
 
+        // Editorial body scale — 1-2px tighter than Tailwind defaults
+        'xs':   ['0.75rem',   { lineHeight: '1rem' }],      // 12px (explicit)
+        'sm':   ['0.8125rem', { lineHeight: '1.25rem' }],   // 13px (was 14px!)
+        'base': ['0.875rem',  { lineHeight: '1.375rem' }],  // 14px (was 16px!)
+        'lg':   ['1rem',      { lineHeight: '1.5rem' }],    // 16px (was 18px!)
+        'xl':   ['1.125rem',  { lineHeight: '1.625rem' }],  // 18px (was 20px!)
+
         // Heading overrides — tighter leading than Tailwind defaults
         '2xl': ['1.5rem', { lineHeight: '1.875rem' }],     // 24px / 30px (1.25)
         '3xl': ['1.75rem', { lineHeight: '2.125rem' }],    // 28px / 34px (1.21)

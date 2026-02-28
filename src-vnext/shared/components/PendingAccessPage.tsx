@@ -12,7 +12,7 @@ export function PendingAccessPage({ error }: PendingAccessPageProps) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[var(--color-bg)] p-6">
       <div className="flex flex-col items-center gap-2">
-        <h1 className="text-2xl font-bold text-[var(--color-text)]">
+        <h1 className="heading-page">
           Shot Builder
         </h1>
         <p className="text-sm text-[var(--color-text-muted)]">

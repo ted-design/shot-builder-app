@@ -129,10 +129,10 @@ export default function PullDetailPage() {
                 onSave={(name) => {
                   if (name.trim()) void save({ name: name.trim() })
                 }}
-                className="text-xl font-semibold"
+                className="heading-page"
               />
             ) : (
-              <h1 className="text-xl font-semibold text-[var(--color-text)]">
+              <h1 className="heading-page">
                 {pull.name || "Pull Sheet"}
               </h1>
             )}

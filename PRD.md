@@ -14,13 +14,13 @@ Shot Builder is the production planning tool for fashion and commercial photogra
 
 ### Tiered Vision
 
-| Tier | Scope | Phases |
-|------|-------|--------|
-| **Now** | Fix broken workflows, complete library entities (crew/locations/talent), polish UX consistency, clean up tech debt | 7A-7E |
-| **Next** | Shot request inbox (any team member → producer triage), casting engine (measurement-based talent search + auto-match) | 8-9 |
-| **Future** | Per-product asset requirements, sample logistics (PLM), auto-suggest shoot dates from sample availability | 10+ |
+| Tier | Scope | Phases | Status |
+|------|-------|--------|--------|
+| **Now** | Fix broken workflows, complete library entities (crew/locations/talent), polish UX consistency, clean up tech debt, admin panel + user onboarding, design system realignment | 7A-7E, S1-S4 | **COMPLETE** |
+| **Next** | Shot request inbox (admin + producer submit + triage), casting engine (measurement-based talent search + auto-match) | 8-9 | Phase 8 ready |
+| **Future** | Per-product asset requirements, sample logistics (PLM), auto-suggest shoot dates from sample availability | 10+ | Not started |
 
-The "Now" tier transforms Shot Builder from a producer's planning tool into a complete production workspace. The "Next" tier expands it into a team-facing platform. The "Future" tier adds supply-chain intelligence.
+The "Now" tier is complete — Shot Builder is a full production workspace with admin onboarding, library CRUD, mobile operations, and visual polish. The "Next" tier expands it into a team-facing platform. The "Future" tier adds supply-chain intelligence.
 
 ---
 
@@ -165,21 +165,28 @@ Every shot progresses through four statuses. These labels are canonical across a
 - Track: when products arrive, launch dates, sample availability, when to shoot.
 - Multiple input methods: CSV bulk import, manual entry, API integration (future).
 
-### Journey 7: Shot Request Inbox (Future — Phase 8)
+### Journey 7: Shot Request Inbox (Phase 8 — active)
 
-- Any team member submits a shot request: minimal (title + note) through structured brief (products, references, deadline).
-- Requests land in a producer-facing inbox with priority and deadline sorting.
-- Producer triages: absorb into existing project, create new project, or reject with reason.
-- Requesters see status updates on their submissions.
+**Submit RBAC:** admin and producer roles only. ("Producer" may be renamed to encompass client team members in a future phase — the role value stays the same.)
+**Triage RBAC:** admin and producer only, desktop-only via `RequireDesktop` guard.
 
-### Journey 8: Casting Engine (Future — Phase 9)
+- Admin or producer submits a shot request: title required, products / deadline / notes optional (progressive disclosure).
+- Requests land in a producer/admin inbox at `/inbox` (org-level, between Projects and Products in nav) sorted by priority then date.
+- Producer triages: absorb into an existing project (creates shot via `runTransaction`) or reject with an optional reason.
+- No image uploads at request stage — references are URL strings only.
+- Requesters see their own submission history and current status via the `/inbox` view.
+- No push notifications in Phase 8 — status visible on next app visit.
+- Data model: `clients/{clientId}/shotRequests/{requestId}`.
+- "Create new project from request" is deferred to Phase 8.5.
+
+### Journey 8: Casting Engine (Phase 9 — future)
 
 - Searchable talent database: filter by measurements (height range, bust, waist, gender), availability, past work.
 - Auto-match: given a casting brief's requirements, suggest top matching talent with similarity scores.
 - Shot history: every talent profile shows past shots they appeared in (reverse lookup from shot.talent[]).
 - Casting session workflow: shortlist → book → confirm → assign to shots.
 
-### Journey 9: Asset Requirements & PLM (Future — Phase 10)
+### Journey 9: Asset Requirements & PLM (Phase 10 — future)
 
 - Per-product/colorway asset flags: needs e-comm, campaign, video, AI-generated.
 - Product launch date tracking with shoot deadline calculation.
@@ -190,13 +197,14 @@ Every shot progresses through four statuses. These labels are canonical across a
 
 ## Feature Priority Matrix
 
-| Priority | Features |
-|----------|----------|
-| **Must-Have** | Projects + dashboard with readiness, shots (inline edit + detail panel), product assignment to shots, pull sheet generation + fulfillment + sharing, call sheets, Cmd+K command palette, keyboard shortcuts, mobile/tablet operations |
-| **Should-Have** | Product library CRUD, talent/crew/locations library, comments + activity feed, tags, notifications, admin/settings, board column reorder + show/hide |
-| **Nice-to-Have** | PDF export, CSV import/export, color palette/swatches, department management, demo mode |
-| **Cut / Simplify** | Planner/drag-and-drop board (users don't use it), advanced theming, deep versioning UI, offline writes, V2/V3 parallel surfaces |
-| **Future Wishlist** | Client-facing portal (TOP), reporting/analytics, AI-assisted planning, post-shoot asset management |
+| Priority | Features | Status |
+|----------|----------|--------|
+| **Must-Have** | Projects + dashboard with readiness, shots (inline edit + detail panel), product assignment to shots, pull sheet generation + fulfillment + sharing, call sheets, Cmd+K command palette, keyboard shortcuts, mobile/tablet operations, admin/settings + user onboarding | Shipped (Phases 2-7E, S1-S3) |
+| **Active** | Shot request inbox (admin+producer submit + triage) | Phase 8 — not started |
+| **Should-Have** | Product library CRUD, talent/crew/locations library, comments + activity feed, tags, notifications, board column reorder + show/hide | Largely shipped; notifications + board config outstanding |
+| **Nice-to-Have** | PDF export, CSV import/export, color palette/swatches, department management, demo mode | PDF shipped; others outstanding |
+| **Cut / Simplify** | Planner/drag-and-drop board (users don't use it), advanced theming, deep versioning UI, offline writes, V2/V3 parallel surfaces | Cut / consolidated (Phase 7E) |
+| **Future Wishlist** | Client-facing portal (TOP), reporting/analytics, AI-assisted planning, post-shoot asset management | Not started |
 
 ---
 

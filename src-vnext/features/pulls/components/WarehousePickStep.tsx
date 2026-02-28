@@ -31,7 +31,7 @@ export function WarehousePickStep({ item }: WarehousePickStepProps) {
 
       {/* Product details */}
       <div className="flex flex-col gap-2">
-        <h2 className="text-xl font-semibold text-[var(--color-text)]">{familyName}</h2>
+        <h2 className="heading-page">{familyName}</h2>
         {colourName && (
           <p className="text-sm text-[var(--color-text-secondary)]">Colorway: {colourName}</p>
         )}

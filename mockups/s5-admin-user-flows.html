@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S5 Admin User Flows</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #0a0a0a; color: #e5e5e5; font-family: system-ui, sans-serif; }
+    .card { background: #171717; border: 1px solid #262626; border-radius: 8px; }
+    h1 { font-size: 28px; font-weight: 300; letter-spacing: -0.02em; }
+    h2 { font-size: 20px; font-weight: 500; color: #e5e5e5; }
+    h3 { font-size: 16px; font-weight: 500; color: #d4d4d4; }
+    .muted { color: #737373; }
+    code { background: #262626; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #a3a3a3; }
+    .section-divider { border-top: 1px solid #262626; margin: 40px 0; }
+
+    /* Flow diagram styles */
+    .flow-container { display: flex; flex-direction: column; gap: 0; }
+    .flow-step {
+      display: flex; align-items: flex-start; gap: 16px;
+      position: relative; padding-left: 40px; padding-bottom: 20px;
+    }
+    .flow-step:last-child { padding-bottom: 0; }
+    .flow-step::before {
+      content: '';
+      position: absolute; left: 15px; top: 32px; bottom: 0;
+      width: 2px; background: #333;
+    }
+    .flow-step:last-child::before { display: none; }
+    .flow-number {
+      position: absolute; left: 4px; top: 4px;
+      width: 24px; height: 24px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; flex-shrink: 0;
+    }
+    .flow-number-default { background: #262626; color: #a3a3a3; border: 1px solid #404040; }
+    .flow-number-action { background: #1e3a5f; color: #60a5fa; border: 1px solid #2563eb; }
+    .flow-number-success { background: #052e16; color: #4ade80; border: 1px solid #14532d; }
+    .flow-number-error { background: #450a0a; color: #f87171; border: 1px solid #7f1d1d; }
+    .flow-number-decision { background: #422006; color: #fbbf24; border: 1px solid #713f12; }
+    .flow-content { flex: 1; }
+    .flow-actor { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; }
+    .flow-actor-admin { color: #60a5fa; }
+    .flow-actor-user { color: #a78bfa; }
+    .flow-actor-system { color: #737373; }
+    .flow-desc { font-size: 13px; color: #d4d4d4; line-height: 1.5; }
+    .flow-detail { font-size: 12px; color: #737373; margin-top: 4px; line-height: 1.5; }
+    .flow-branch {
+      margin-top: 8px; padding: 8px 12px; border-radius: 6px;
+      font-size: 12px; line-height: 1.5;
+    }
+    .flow-branch-yes { background: #052e16; border: 1px solid #14532d; color: #4ade80; }
+    .flow-branch-no { background: #450a0a; border: 1px solid #7f1d1d; color: #f87171; }
+    .flow-branch-alt { background: #1a1a2e; border: 1px solid #2d2d5e; color: #a78bfa; }
+
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+    .badge-green { background: #052e16; color: #4ade80; border: 1px solid #14532d; }
+    .badge-red { background: #450a0a; color: #f87171; border: 1px solid #7f1d1d; }
+    .badge-yellow { background: #422006; color: #fbbf24; border: 1px solid #713f12; }
+    .badge-blue { background: #0c1e3a; color: #60a5fa; border: 1px solid #1e3a5f; }
+  </style>
+</head>
+<body class="p-6 max-w-4xl mx-auto">
+
+  <!-- Header -->
+  <div class="mb-8">
+    <h1>Sprint S5: Admin User Flows</h1>
+    <p class="muted mt-2" style="font-size: 14px;">
+      Detailed step-by-step flows for admin panel interactions
+    </p>
+    <div class="flex gap-4 mt-4" style="font-size: 12px;">
+      <div class="flex items-center gap-2">
+        <div class="flow-number flow-number-default" style="position:static; width:18px; height:18px; font-size:9px;">1</div>
+        <span class="muted">Navigation</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flow-number flow-number-action" style="position:static; width:18px; height:18px; font-size:9px;">2</div>
+        <span class="muted">User action</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flow-number flow-number-decision" style="position:static; width:18px; height:18px; font-size:9px;">?</div>
+        <span class="muted">Decision</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flow-number flow-number-success" style="position:static; width:18px; height:18px; font-size:9px;">!</div>
+        <span class="muted">Success</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flow-number flow-number-error" style="position:static; width:18px; height:18px; font-size:9px;">X</div>
+        <span class="muted">Error</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FLOW 1: Invite New User ===== -->
+  <section class="mb-8">
+    <div class="card p-5">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="badge badge-blue">Flow 1</span>
+        <h2 class="text-lg">Admin Invites New User (Who Hasn't Signed In Yet)</h2>
+      </div>
+      <p class="muted mb-4" style="font-size: 13px;">
+        Current most common scenario: admin wants to add a team member who doesn't have an account yet.
+      </p>
+
+      <div class="flow-container">
+        <div class="flow-step">
+          <div class="flow-number flow-number-default">1</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">Navigates to <code>/admin</code> &rarr; clicks "Invite User" button</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">2</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">Fills in InviteUserDialog: email, optional display name, selects role</div>
+            <div class="flow-detail">Inline role description card shows what the selected role can do</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">3</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">Clicks "Apply Role"</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-decision">?</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System</div>
+            <div class="flow-desc">Calls <code>setUserClaims</code> Cloud Function</div>
+            <div class="flow-branch flow-branch-no">
+              <strong>User not found:</strong> CF throws <code>auth/user-not-found</code>.
+              Toast: "User must sign in once before being assigned a role."
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-success">4</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System</div>
+            <div class="flow-desc">Shows toast: "User must sign in once first" + <strong>"Copy Login Link"</strong> button</div>
+            <div class="flow-detail">Login link: <code>{origin}/login?invited=true</code></div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">5</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">Copies the login link and sends it to the team member via Slack/email/text</div>
+            <div class="flow-detail">Message: "Sign in to Shot Builder using this link, then I'll give you access."</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">6</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-user">New User</div>
+            <div class="flow-desc">Opens link &rarr; signs in with Google (Firebase Auth) &rarr; lands on <strong>PendingAccessPage</strong></div>
+            <div class="flow-detail">"Waiting for access. An administrator needs to grant you access."</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">7</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">Returns to <code>/admin</code> &rarr; clicks "Invite User" &rarr; enters same email + role &rarr; "Apply Role"</div>
+            <div class="flow-detail">This time <code>setUserClaims</code> succeeds because user exists in Firebase Auth</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-success">!</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System</div>
+            <div class="flow-desc">Toast: "Role applied for user@example.com" + <strong>"Copy Login Link"</strong> button</div>
+            <div class="flow-detail">User doc written to <code>clients/{cid}/users/{uid}</code>. User appears in roster.</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-success">8</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-user">New User</div>
+            <div class="flow-desc">Refreshes page (or token auto-refreshes) &rarr; PendingAccessPage disappears &rarr; lands on Dashboard</div>
+            <div class="flow-detail">AuthProvider re-reads claims with new role + clientId</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FLOW 2: Assign User to Project ===== -->
+  <section class="mb-8">
+    <div class="card p-5">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="badge badge-blue">Flow 2</span>
+        <h2 class="text-lg">Admin Assigns Existing User to a Project</h2>
+      </div>
+      <p class="muted mb-4" style="font-size: 13px;">
+        User already has a global role. Admin wants to give them access to a specific project.
+      </p>
+
+      <div class="flow-container">
+        <div class="flow-step">
+          <div class="flow-number flow-number-default">1</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">Navigates to <code>/admin</code> &rarr; clicks "Project Access" tab</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">2</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">Selects a project from the project dropdown</div>
+            <div class="flow-detail">Dropdown shows all projects (admin sees all). List loads from <code>useProjects()</code>.</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-default">3</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System</div>
+            <div class="flow-desc">Loads current project members from <code>projects/{pid}/members</code></div>
+            <div class="flow-detail">Shows table: Name | Email | Project Role | Remove button. Uses <code>useProjectMembers(pid)</code> hook.</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">4</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">Clicks "Add Member" button &rarr; dialog opens</div>
+            <div class="flow-detail">
+              Dialog shows: user selector (from org roster, excluding current members) + project role dropdown.
+              Project roles: producer, crew, warehouse, viewer.
+              Admin is NOT an option for project-level role (admin bypasses membership).
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">5</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">Selects user "Jane (jane@example.com)" + role "Producer" &rarr; clicks "Add"</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-success">6</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System</div>
+            <div class="flow-desc">
+              Writes doc: <code>projects/{pid}/members/{jane-uid}</code><br/>
+              <code>{ role: "producer", addedAt: serverTimestamp(), addedBy: adminUid }</code>
+            </div>
+            <div class="flow-detail">Toast: "Jane added as Producer on [Project Name]". Member table updates in real-time.</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-success">!</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-user">Jane</div>
+            <div class="flow-desc">Jane can now access the project. Firestore <code>hasProjectRole()</code> will resolve her membership.</div>
+            <div class="flow-detail">No token refresh needed -- project membership is checked via Firestore reads, not auth claims.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FLOW 3: Change Global Role ===== -->
+  <section class="mb-8">
+    <div class="card p-5">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="badge badge-blue">Flow 3</span>
+        <h2 class="text-lg">Admin Changes User's Global Role</h2>
+      </div>
+      <p class="muted mb-4" style="font-size: 13px;">
+        Already implemented. Documenting for completeness.
+      </p>
+
+      <div class="flow-container">
+        <div class="flow-step">
+          <div class="flow-number flow-number-default">1</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">On <code>/admin</code> "Team" tab, finds user in roster table</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">2</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">Changes role via inline <code>UserRoleSelect</code> dropdown</div>
+            <div class="flow-detail">Self-change is disabled (admin can't change own role). All 5 roles available.</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-default">3</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System</div>
+            <div class="flow-desc">
+              Calls <code>updateUserRole()</code> &rarr; <code>setUserClaims</code> CF &rarr; updates Firestore user doc
+            </div>
+            <div class="flow-detail">CF revokes refresh tokens. User's next auth will pick up new role.</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-success">!</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System</div>
+            <div class="flow-desc">Toast: "Updated user@example.com to Producer"</div>
+            <div class="flow-detail">Roster table updates in real-time via <code>useUsers()</code> subscription.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FLOW 4: Remove from Project ===== -->
+  <section class="mb-8">
+    <div class="card p-5">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="badge badge-blue">Flow 4</span>
+        <h2 class="text-lg">Admin Removes User from a Project</h2>
+      </div>
+
+      <div class="flow-container">
+        <div class="flow-step">
+          <div class="flow-number flow-number-default">1</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">On <code>/admin</code> "Project Access" tab, selects the project</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">2</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">Finds user in project members table &rarr; clicks "Remove" button (trash icon)</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-decision">?</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System</div>
+            <div class="flow-desc">Confirmation dialog: "Remove [Name] from [Project]? They will lose access to all project data."</div>
+            <div class="flow-branch flow-branch-no">
+              <strong>Cancel:</strong> Dialog closes, no action taken.
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">3</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">Confirms removal</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-success">4</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System</div>
+            <div class="flow-desc">
+              Deletes doc: <code>projects/{pid}/members/{uid}</code>
+            </div>
+            <div class="flow-detail">Toast: "[Name] removed from [Project]". Table updates in real-time.</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-error">!</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-user">Removed User</div>
+            <div class="flow-desc">User's next navigation to this project's data will fail with permission-denied</div>
+            <div class="flow-detail">Firestore <code>hasProjectRole()</code> returns false. If they're on the project page, their next real-time subscription will error.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FLOW 5: No Access ===== -->
+  <section class="mb-8">
+    <div class="card p-5">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="badge badge-blue">Flow 5</span>
+        <h2 class="text-lg">User Without Project Access Tries to Access a Project</h2>
+      </div>
+
+      <div class="flow-container">
+        <div class="flow-step">
+          <div class="flow-number flow-number-default">1</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-user">User (role: crew)</div>
+            <div class="flow-desc">Navigates to <code>/projects/abc123/shots</code> (a project they're not assigned to)</div>
+            <div class="flow-detail">This could happen via direct URL, bookmark, or shared link from a teammate.</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-default">2</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System</div>
+            <div class="flow-desc">Route resolves &rarr; <code>ProjectScopeProvider</code> renders &rarr; <code>useProject(id)</code> fires Firestore query</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-error">3</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System (Firestore)</div>
+            <div class="flow-desc">
+              Rule evaluation:<br/>
+              1. <code>isAdmin()</code> &rarr; false (user is "crew")<br/>
+              2. <code>hasProjectRole("abc123", [...])</code> &rarr; false (no member doc exists)<br/>
+              3. Result: <strong>PERMISSION_DENIED</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-decision">?</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System</div>
+            <div class="flow-desc">Hook catches Firestore error with code <code>permission-denied</code></div>
+            <div class="flow-branch flow-branch-alt">
+              <strong>Proposed UI:</strong> Show a centered message:<br/>
+              "You don't have access to this project. Contact your administrator to request access."<br/>
+              [Go to Dashboard] button
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">4</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-user">User</div>
+            <div class="flow-desc">Clicks "Go to Dashboard" &rarr; redirected to <code>/</code></div>
+            <div class="flow-detail">Dashboard only shows projects where user has membership (or all if admin).</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FLOW 6: New User Signup ===== -->
+  <section class="mb-8">
+    <div class="card p-5">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="badge badge-blue">Flow 6</span>
+        <h2 class="text-lg">New User Signs Up and Requests Access</h2>
+      </div>
+      <p class="muted mb-4" style="font-size: 13px;">
+        A new team member finds the app URL and signs in before being invited.
+      </p>
+
+      <div class="flow-container">
+        <div class="flow-step">
+          <div class="flow-number flow-number-default">1</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-user">New User</div>
+            <div class="flow-desc">Navigates to <code>/login</code> &rarr; clicks "Sign in with Google"</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-default">2</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System (Firebase Auth)</div>
+            <div class="flow-desc">Google OAuth flow completes. Firebase creates user record. Token issued.</div>
+            <div class="flow-detail">ID token has NO custom claims (no role, no clientId).</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-default">3</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System (AuthProvider)</div>
+            <div class="flow-desc">
+              Reads token claims: <code>clientId</code> = null &rarr; sets <code>claims: null</code><br/>
+              Error: "No clientId in auth claims. Contact your administrator."
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-default">4</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System (RequireAuth)</div>
+            <div class="flow-desc">
+              <code>claims === null</code> &rarr; renders <strong>PendingAccessPage</strong>
+            </div>
+            <div class="flow-detail">"Waiting for access. An administrator needs to grant you access."</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">5</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-user">New User</div>
+            <div class="flow-desc">Contacts admin via Slack/email: "I signed in, can you give me access?"</div>
+            <div class="flow-detail">Manual step. No in-app notification to admin (by design -- small team).</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">6</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-admin">Admin</div>
+            <div class="flow-desc">
+              Goes to <code>/admin</code> &rarr; "Invite User" &rarr; enters user's email &rarr; selects role &rarr; "Apply Role"
+            </div>
+            <div class="flow-detail">
+              This time <code>setUserClaims</code> succeeds because user has already signed in.
+              CF sets role + clientId. Firestore user doc created.
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-success">!</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-user">New User</div>
+            <div class="flow-desc">
+              Refreshes page &rarr; AuthProvider reads new claims &rarr; Dashboard loads
+            </div>
+            <div class="flow-detail">
+              If admin also assigned them to projects (Flow 2), those projects appear on dashboard.
+              If no project assignments yet, dashboard shows "No projects" empty state.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ===== FLOW 7: Project Creation Auto-Membership ===== -->
+  <section class="mb-8">
+    <div class="card p-5">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="badge badge-yellow">Flow 7 (New)</span>
+        <h2 class="text-lg">Non-Admin Creates Project (Auto-Membership)</h2>
+      </div>
+      <p class="muted mb-4" style="font-size: 13px;">
+        A producer creates a new project. Without auto-membership, they would immediately lose access to it.
+      </p>
+
+      <div class="flow-container">
+        <div class="flow-step">
+          <div class="flow-number flow-number-action">1</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-user">Producer</div>
+            <div class="flow-desc">On Dashboard &rarr; clicks "New Project" &rarr; fills in name/dates &rarr; clicks "Create"</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-default">2</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System</div>
+            <div class="flow-desc">
+              Creates project doc at <code>clients/{cid}/projects/{newId}</code>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-success">3</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-system">System</div>
+            <div class="flow-desc">
+              <strong>Immediately after project create:</strong> writes member doc<br/>
+              <code>projects/{newId}/members/{creatorUid}</code> = <code>{ role: "producer", addedAt: now, addedBy: creatorUid }</code>
+            </div>
+            <div class="flow-detail">
+              This is a client-side write (not a Cloud Function trigger) to keep it simple.
+              Uses <code>writeBatch</code> to atomically create project + member doc.
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-number flow-number-success">!</div>
+          <div class="flow-content">
+            <div class="flow-actor flow-actor-user">Producer</div>
+            <div class="flow-desc">Navigated to new project. <code>hasProjectRole()</code> resolves their membership. Full access.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 p-3 rounded" style="background: #422006; border: 1px solid #713f12; font-size: 12px;">
+        <strong class="text-yellow-400">Note:</strong> Admin users don't need this auto-membership because <code>isAdmin()</code> bypasses all project checks.
+        Only non-admin project creators need the member doc written.
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ===== Implementation Notes ===== -->
+  <section class="mb-10">
+    <h2 class="mb-4">Implementation Notes</h2>
+
+    <div class="card p-5 mb-4">
+      <h3 class="mb-3">New Files Needed</h3>
+      <div style="font-size: 13px; line-height: 2; font-family: monospace;" class="text-gray-400">
+        <div><code>features/admin/components/ProjectAccessTab.tsx</code> -- project selector + member table</div>
+        <div><code>features/admin/components/AddProjectMemberDialog.tsx</code> -- user picker + role selector</div>
+        <div><code>features/admin/hooks/useProjectMembers.ts</code> -- real-time subscription to members</div>
+        <div><code>features/admin/lib/adminWrites.ts</code> -- add <code>addProjectMember()</code>, <code>removeProjectMember()</code></div>
+        <div><code>shared/lib/roleDescriptions.ts</code> -- static role description text (used by InviteDialog + ProjectAccessTab)</div>
+      </div>
+    </div>
+
+    <div class="card p-5 mb-4">
+      <h3 class="mb-3">Modified Files</h3>
+      <div style="font-size: 13px; line-height: 2; font-family: monospace;" class="text-gray-400">
+        <div><code>features/admin/components/AdminPage.tsx</code> -- add tabbed layout</div>
+        <div><code>features/admin/components/InviteUserDialog.tsx</code> -- add role description card + copy link toast</div>
+        <div><code>features/projects/components/CreateProjectDialog.tsx</code> -- add auto-membership write</div>
+        <div><code>firestore.rules</code> -- add "warehouse" recognition (3-line fix for wardrobe/warehouse discrepancy)</div>
+      </div>
+    </div>
+
+    <div class="card p-5">
+      <h3 class="mb-3">Firestore Rules Change (Minimal)</h3>
+      <div class="p-3 rounded" style="background: #111; font-family: monospace; font-size: 12px; line-height: 1.8;">
+        <span class="text-gray-500">// In isProducer(), add:</span><br/>
+        role == 'warehouse' || role == 'Warehouse' || role == 'WAREHOUSE'<br/><br/>
+        <span class="text-gray-500">// In hasProjectRole(), add normalization:</span><br/>
+        : memberRole == 'Warehouse' ? 'warehouse'<br/>
+        : memberRole == 'WAREHOUSE' ? 'warehouse'
+      </div>
+      <p class="muted mt-2" style="font-size: 12px;">
+        This is the only rules change needed. It does not add new collections or fields.
+        It makes the rules recognize both "wardrobe" (legacy) and "warehouse" (vNext) role names.
+      </p>
+    </div>
+  </section>
+
+  <footer class="text-center py-8 border-t border-neutral-800">
+    <p class="muted" style="font-size: 12px;">
+      S5 Admin User Flows | Shot Builder vNext | Systems Architect Agent
+    </p>
+  </footer>
+
+</body>
+</html>

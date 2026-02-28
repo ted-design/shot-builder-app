@@ -205,7 +205,7 @@ export function AdaptiveEntryCard({
         {/* Title row */}
         <div className="flex shrink-0 items-baseline gap-1.5">
           <TypeIcon className="mt-0.5 h-3 w-3 shrink-0 text-[var(--color-text-muted)]" />
-          <span className="truncate text-[13px] font-semibold leading-tight text-[var(--color-text)]">
+          <span className="truncate text-sm font-semibold leading-tight text-[var(--color-text)]">
             {entry.highlight?.emoji ? `${entry.highlight.emoji} ` : ""}
             {entry.title}
           </span>

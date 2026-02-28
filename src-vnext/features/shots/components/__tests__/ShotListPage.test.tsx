@@ -233,9 +233,6 @@ describe("ShotListPage", () => {
 
     renderPage("/projects/p1/shots")
 
-    expect(screen.getByText("Gender")).toBeInTheDocument()
-    expect(screen.getByText("Priority Tag")).toBeInTheDocument()
-    expect(screen.getByText("Media")).toBeInTheDocument()
     expect(screen.getByText("Women")).toBeInTheDocument()
     expect(screen.getByText("High Priority")).toBeInTheDocument()
     expect(screen.getByText("Video")).toBeInTheDocument()

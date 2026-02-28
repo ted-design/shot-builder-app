@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S5 Admin & RBAC Architecture</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #0a0a0a; color: #e5e5e5; font-family: system-ui, sans-serif; }
+    .card { background: #171717; border: 1px solid #262626; border-radius: 8px; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+    .badge-green { background: #052e16; color: #4ade80; border: 1px solid #14532d; }
+    .badge-red { background: #450a0a; color: #f87171; border: 1px solid #7f1d1d; }
+    .badge-yellow { background: #422006; color: #fbbf24; border: 1px solid #713f12; }
+    .badge-blue { background: #0c1e3a; color: #60a5fa; border: 1px solid #1e3a5f; }
+    .badge-neutral { background: #262626; color: #a3a3a3; border: 1px solid #404040; }
+    .flow-arrow { color: #525252; font-size: 20px; }
+    .flow-box { background: #1a1a1a; border: 1px solid #333; border-radius: 6px; padding: 8px 14px; font-size: 13px; }
+    .flow-box-accent { background: #1a0a0a; border: 1px solid #7f1d1d; }
+    .flow-box-success { background: #0a1a0a; border: 1px solid #14532d; }
+    .section-divider { border-top: 1px solid #262626; margin: 32px 0; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #262626; padding: 8px 12px; text-align: left; font-size: 13px; }
+    th { background: #1a1a1a; font-weight: 600; color: #a3a3a3; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { color: #d4d4d4; }
+    h1 { font-size: 28px; font-weight: 300; letter-spacing: -0.02em; }
+    h2 { font-size: 20px; font-weight: 500; color: #e5e5e5; }
+    h3 { font-size: 16px; font-weight: 500; color: #d4d4d4; }
+    h4 { font-size: 13px; font-weight: 600; color: #a3a3a3; text-transform: uppercase; letter-spacing: 0.05em; }
+    .muted { color: #737373; }
+    .text-accent { color: #ef4444; }
+    code { background: #262626; padding: 1px 5px; border-radius: 3px; font-size: 12px; color: #a3a3a3; }
+  </style>
+</head>
+<body class="p-6 max-w-5xl mx-auto">
+
+  <!-- Header -->
+  <div class="mb-8">
+    <h1>Sprint S5: Admin Panel & RBAC Architecture</h1>
+    <p class="muted mt-2" style="font-size: 14px;">
+      Systems architecture analysis: current state, gaps, and proposed enhancements
+    </p>
+  </div>
+
+  <!-- ===== SECTION 1: Current State Audit ===== -->
+  <section class="mb-10">
+    <h2 class="mb-4">1. Current RBAC Infrastructure Audit</h2>
+
+    <div class="card p-5 mb-4">
+      <h3 class="mb-3">Auth Flow (As-Is)</h3>
+      <div class="flex flex-wrap items-center gap-3 mb-4">
+        <div class="flow-box">User signs in (Firebase Auth)</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box">Admin calls <code>setUserClaims</code> CF</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box">CF sets <code>role</code> + <code>clientId</code> on custom claims</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box">Token refreshed</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box flow-box-success">App reads claims via AuthProvider</div>
+      </div>
+      <p class="muted" style="font-size: 13px;">
+        <strong>Key constraint:</strong> <code>setUserClaims</code> requires the target user to have signed in at least once
+        (Firebase Auth <code>getUserByEmail</code> fails otherwise). This means true "invite before sign-up" is not supported today.
+      </p>
+    </div>
+
+    <div class="card p-5 mb-4">
+      <h3 class="mb-3">What Exists Today</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>5-role model</td>
+            <td><code>rbac.ts</code></td>
+            <td><span class="badge badge-green">Complete</span></td>
+            <td>admin, producer, crew, warehouse, viewer. 12 permission helpers.</td>
+          </tr>
+          <tr>
+            <td><code>resolveEffectiveRole()</code></td>
+            <td><code>rbac.ts</code></td>
+            <td><span class="badge badge-yellow">Unused</span></td>
+            <td>Exists but never called. Designed for project-role override of global role.</td>
+          </tr>
+          <tr>
+            <td>AuthProvider</td>
+            <td><code>providers/AuthProvider.tsx</code></td>
+            <td><span class="badge badge-green">Complete</span></td>
+            <td>Reads <code>role</code> + <code>clientId</code> from ID token claims. No project-level role.</td>
+          </tr>
+          <tr>
+            <td>Admin Page (roster)</td>
+            <td><code>features/admin/</code></td>
+            <td><span class="badge badge-green">Complete</span></td>
+            <td>User list table, invite dialog, inline role change. 51 tests.</td>
+          </tr>
+          <tr>
+            <td>Invite User Dialog</td>
+            <td><code>InviteUserDialog.tsx</code></td>
+            <td><span class="badge badge-green">Complete</span></td>
+            <td>Email + name + global role. Calls <code>inviteOrUpdateUser</code>.</td>
+          </tr>
+          <tr>
+            <td><code>setUserClaims</code> CF</td>
+            <td><code>functions/index.js</code></td>
+            <td><span class="badge badge-green">Complete</span></td>
+            <td>Validates caller is system admin. Sets role + clientId on target user.</td>
+          </tr>
+          <tr>
+            <td>Firestore rules: <code>hasProjectRole()</code></td>
+            <td><code>firestore.rules</code></td>
+            <td><span class="badge badge-green">Complete</span></td>
+            <td>Reads <code>projects/{id}/members/{uid}</code>. Used for project-scoped collections.</td>
+          </tr>
+          <tr>
+            <td>Legacy <code>useProjectMemberRole</code></td>
+            <td><code>src/hooks/</code></td>
+            <td><span class="badge badge-neutral">Legacy</span></td>
+            <td>Real-time subscription to member doc. Not ported to vNext.</td>
+          </tr>
+          <tr>
+            <td>Path helpers (<code>projectMembersPath</code>)</td>
+            <td><code>shared/lib/paths.ts</code></td>
+            <td><span class="badge badge-green">Complete</span></td>
+            <td>vNext path builder exists. No write function uses it.</td>
+          </tr>
+          <tr>
+            <td>PendingAccessPage</td>
+            <td><code>shared/components/</code></td>
+            <td><span class="badge badge-green">Complete</span></td>
+            <td>Shown when user has no claims. "Waiting for access" message + sign out.</td>
+          </tr>
+          <tr>
+            <td>RequireAuth guard</td>
+            <td><code>routes/guards/</code></td>
+            <td><span class="badge badge-green">Complete</span></td>
+            <td>Redirects to /login or PendingAccessPage based on auth state.</td>
+          </tr>
+          <tr>
+            <td>Project membership writes</td>
+            <td>N/A</td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td>No function exists to write to <code>projects/{id}/members/{uid}</code></td>
+          </tr>
+          <tr>
+            <td>Project membership UI</td>
+            <td>N/A</td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td>No UI to assign users to projects. Not in legacy code either.</td>
+          </tr>
+          <tr>
+            <td>Email notification</td>
+            <td>N/A</td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td>No mechanism to notify invited users</td>
+          </tr>
+          <tr>
+            <td>Role permissions visibility</td>
+            <td>N/A</td>
+            <td><span class="badge badge-red">Missing</span></td>
+            <td>Admins have no way to see what each role can do</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card p-5">
+      <h3 class="mb-3">Two-Tier Role Architecture (Critical Insight)</h3>
+      <p style="font-size: 13px; line-height: 1.6;" class="mb-3">
+        The system has a <strong>two-tier role model</strong> that is only partially implemented:
+      </p>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="card p-4" style="background: #111;">
+          <h4 class="mb-2">Tier 1: Global Role (Auth Claims)</h4>
+          <ul style="font-size: 13px; line-height: 1.8;" class="list-disc pl-5 text-gray-400">
+            <li>Set via <code>setUserClaims</code> CF</li>
+            <li>Stored on Firebase Auth token</li>
+            <li>Used by <code>isAdmin()</code> / <code>isProducer()</code> in firestore.rules</li>
+            <li>Determines org-level permissions (talent, crew, products, locations)</li>
+            <li><span class="badge badge-green">Fully implemented</span></li>
+          </ul>
+        </div>
+        <div class="card p-4" style="background: #111;">
+          <h4 class="mb-2">Tier 2: Project Role (Firestore Members)</h4>
+          <ul style="font-size: 13px; line-height: 1.8;" class="list-disc pl-5 text-gray-400">
+            <li>Stored at <code>clients/{cid}/projects/{pid}/members/{uid}</code></li>
+            <li>Used by <code>hasProjectRole()</code> in firestore.rules</li>
+            <li>Determines project-scoped access (shots, pulls, schedules)</li>
+            <li>Admin global role <strong>bypasses</strong> project membership checks</li>
+            <li><span class="badge badge-red">No write UI, no write functions, no vNext read hook</span></li>
+          </ul>
+        </div>
+      </div>
+      <p style="font-size: 13px; line-height: 1.6;" class="mt-3 text-yellow-600">
+        <strong>Current impact:</strong> Because no project membership documents exist, only users with
+        <code>isAdmin()</code> global role can access project-scoped data (shots, pulls, schedules).
+        Non-admin users with producer/crew/warehouse roles can sign in but likely get permission errors
+        when accessing any project content unless an admin manually writes member docs in Firestore Console.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ===== SECTION 2: Email Notification Options ===== -->
+  <section class="mb-10">
+    <h2 class="mb-4">2. Email Notification Analysis</h2>
+
+    <div class="card p-5 mb-4">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 120px;">Option</th>
+            <th>How It Works</th>
+            <th style="width: 100px;">Complexity</th>
+            <th style="width: 80px;">Cost</th>
+            <th>Pros</th>
+            <th>Cons</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>A: Firebase Trigger Email Extension</strong></td>
+            <td>Install Firebase Extension. Write to <code>mail</code> collection. Extension sends via SMTP (SendGrid, Mailgun, etc).</td>
+            <td><span class="badge badge-yellow">Medium</span></td>
+            <td>~$0.01/email</td>
+            <td>Managed, battle-tested, Firestore-native trigger</td>
+            <td>Requires SMTP provider setup. Extension install. New <code>mail</code> collection (schema change).</td>
+          </tr>
+          <tr>
+            <td><strong>B: Cloud Function + SendGrid API</strong></td>
+            <td>Add a CF <code>sendInviteEmail</code> triggered by <code>inviteOrUpdateUser</code>. CF calls SendGrid REST API.</td>
+            <td><span class="badge badge-yellow">Medium</span></td>
+            <td>~$0.01/email</td>
+            <td>Full control over templates. No new collections needed (CF-only).</td>
+            <td>Requires SendGrid account, API key secret, HTML template maintenance. Over-engineered for current team size.</td>
+          </tr>
+          <tr style="background: #0a1a0a;">
+            <td><strong>C: Copy Invite Link</strong></td>
+            <td>Admin clicks "Copy Link" after assigning role. Shares link via Slack/email manually. Link goes to <code>/login</code> with query param.</td>
+            <td><span class="badge badge-green">Low</span></td>
+            <td>$0</td>
+            <td>Zero infrastructure. Zero schema changes. Ships immediately. Admin controls the communication channel.</td>
+            <td>Manual step for admin. No automatic notification.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card p-5" style="border-color: #14532d;">
+      <h3 class="mb-2">Recommendation: Option C (Copy Invite Link)</h3>
+      <p style="font-size: 13px; line-height: 1.6;">
+        <strong>Rationale:</strong> The team is small (~5-15 users). Admin already knows who they are inviting and has a direct
+        communication channel (Slack, email, in-person). Adding email infrastructure violates the "no over-engineering" principle.
+        Option C can be upgraded to A or B later if the team grows beyond ~50 users.
+      </p>
+      <div class="mt-3 p-3 rounded" style="background: #111; font-size: 13px;">
+        <strong>Implementation:</strong> After successful <code>inviteOrUpdateUser</code> call, show a toast with a "Copy Link" button.
+        The link is <code>{origin}/login?invited=true</code>. No new collections, no new Cloud Functions, no external services.
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ===== SECTION 3: Project Access Control ===== -->
+  <section class="mb-10">
+    <h2 class="mb-4">3. Per-Project Access Control Architecture</h2>
+
+    <div class="card p-5 mb-4">
+      <h3 class="mb-3">Data Model (Already Exists in Firestore Rules)</h3>
+      <div class="p-4 rounded" style="background: #111; font-family: monospace; font-size: 13px; line-height: 1.8;">
+        <span class="text-gray-500">// Path:</span> clients/{clientId}/projects/{projectId}/members/{userId}<br/>
+        <span class="text-gray-500">// Document shape:</span><br/>
+        {<br/>
+        &nbsp;&nbsp;role: <span class="text-green-400">"producer"</span> | <span class="text-green-400">"wardrobe"</span> | <span class="text-green-400">"viewer"</span> | <span class="text-green-400">"crew"</span>,<br/>
+        &nbsp;&nbsp;addedAt: <span class="text-blue-400">Timestamp</span>,<br/>
+        &nbsp;&nbsp;addedBy: <span class="text-blue-400">string (uid)</span><br/>
+        }
+      </div>
+      <p class="muted mt-2" style="font-size: 12px;">
+        No schema change needed. The <code>hasProjectRole()</code> function in <code>firestore.rules</code> already reads this path.
+        We just need write functions + UI.
+      </p>
+    </div>
+
+    <div class="card p-5 mb-4">
+      <h3 class="mb-3">Proposed Access Resolution Flow</h3>
+      <div class="flex flex-wrap items-center gap-2 mb-4" style="font-size: 13px;">
+        <div class="flow-box">User navigates to <code>/projects/:id/shots</code></div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box">Firestore rule checks:<br/>1. <code>isAdmin()</code> (global) &rarr; allow<br/>2. <code>hasProjectRole(id, [...])</code> &rarr; allow<br/>3. Neither &rarr; <span class="text-red-400">deny</span></div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box">On deny: vNext shows<br/>"No access to this project"<br/>with link back to dashboard</div>
+      </div>
+    </div>
+
+    <div class="card p-5 mb-4">
+      <h3 class="mb-3">Key Design Decisions</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Question</th>
+            <th>Recommendation</th>
+            <th>Rationale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Where does project access UI live?</td>
+            <td><strong>Admin page, second tab: "Project Access"</strong></td>
+            <td>Centralizes all user management. Avoids scattering access controls across project settings pages.</td>
+          </tr>
+          <tr>
+            <td>Should producers see ALL projects?</td>
+            <td><strong>No. Only assigned projects + admin sees all.</strong></td>
+            <td>Matches firestore.rules behavior. <code>isAdmin()</code> bypasses; everyone else needs membership. Consistent with existing security model.</td>
+          </tr>
+          <tr>
+            <td>How to handle no-access project URL?</td>
+            <td><strong>Firestore permission error &rarr; catch in hook &rarr; show "No Access" UI</strong></td>
+            <td>No new guards needed. Firestore rules already enforce this. UI just needs to handle the error gracefully.</td>
+          </tr>
+          <tr>
+            <td>Auto-add creator to project members?</td>
+            <td><strong>Yes. On project create, write a member doc for the creator with role "producer".</strong></td>
+            <td>Without this, a non-admin producer who creates a project would immediately lose access to it.</td>
+          </tr>
+          <tr>
+            <td>Backward compatibility for projectless members?</td>
+            <td><strong>Legacy projects (no members subcollection) &rarr; fall back to global role access.</strong></td>
+            <td>Matches the <code>createShotShareLink</code> CF pattern (lines 511-521) which already checks "members configured" vs "no members exist."</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card p-5">
+      <h3 class="mb-3">UI: Admin Page Enhancement</h3>
+      <p style="font-size: 13px; line-height: 1.6;" class="mb-3">
+        Add a tabbed layout to AdminPage: <strong>Team Roster</strong> (existing) | <strong>Project Access</strong> (new).
+      </p>
+      <div class="grid grid-cols-1 gap-4">
+        <div class="card p-4" style="background: #111;">
+          <h4 class="mb-2">Project Access Tab Wireframe</h4>
+          <div class="space-y-2" style="font-size: 13px;">
+            <div class="p-3 rounded" style="background: #1a1a1a; border: 1px dashed #333;">
+              <strong>Project selector</strong> (dropdown of all projects) &rarr; selects project to manage
+            </div>
+            <div class="p-3 rounded" style="background: #1a1a1a; border: 1px dashed #333;">
+              <strong>Members table</strong> for selected project<br/>
+              Columns: Name | Email | Project Role | Actions (remove)<br/>
+              Shows users from <code>projects/{id}/members</code> joined with <code>users</code> data
+            </div>
+            <div class="p-3 rounded" style="background: #1a1a1a; border: 1px dashed #333;">
+              <strong>"Add Member" button</strong> &rarr; opens dialog<br/>
+              Select user from org roster (dropdown) + project role (producer/crew/warehouse/viewer)<br/>
+              Writes doc to <code>projects/{id}/members/{uid}</code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ===== SECTION 4: Role Permissions Matrix ===== -->
+  <section class="mb-10">
+    <h2 class="mb-4">4. Role Permissions Visibility</h2>
+
+    <div class="card p-5 mb-4">
+      <h3 class="mb-3">Options Evaluated</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Option</th>
+            <th>Complexity</th>
+            <th>UX</th>
+            <th>Recommendation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>A: Full permissions matrix page</td>
+            <td><span class="badge badge-red">High</span></td>
+            <td>Comprehensive but overwhelming for 5-15 users</td>
+            <td><span class="badge badge-red">Over-engineered</span></td>
+          </tr>
+          <tr style="background: #0a1a0a;">
+            <td>B: Expandable section under role selector</td>
+            <td><span class="badge badge-green">Low</span></td>
+            <td>Contextual, inline, no extra page</td>
+            <td><span class="badge badge-green">Recommended</span></td>
+          </tr>
+          <tr>
+            <td>C: Tooltip on hover over role name</td>
+            <td><span class="badge badge-green">Low</span></td>
+            <td>Too small for detailed permissions. Mobile-unfriendly.</td>
+            <td><span class="badge badge-yellow">Partial</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card p-5 mb-4" style="border-color: #14532d;">
+      <h3 class="mb-3">Recommended: Inline Role Description Card</h3>
+      <p style="font-size: 13px; line-height: 1.6; margin-bottom: 12px;">
+        When admin selects a role in the Invite dialog or changes a role inline, show a compact description card below the selector.
+        Static text driven from <code>rbac.ts</code> permission helpers.
+      </p>
+      <div class="grid grid-cols-5 gap-2" style="font-size: 12px;">
+        <div class="card p-3" style="background: #111;">
+          <div class="font-semibold text-white mb-1">Admin</div>
+          <div class="text-gray-500 leading-relaxed">
+            Full access to everything. Manages team, projects, settings. Bypasses project membership.
+          </div>
+        </div>
+        <div class="card p-3" style="background: #111;">
+          <div class="font-semibold text-white mb-1">Producer</div>
+          <div class="text-gray-500 leading-relaxed">
+            Manages assigned projects: shots, schedules, pulls, talent, crew. Cannot manage team.
+          </div>
+        </div>
+        <div class="card p-3" style="background: #111;">
+          <div class="font-semibold text-white mb-1">Crew</div>
+          <div class="text-gray-500 leading-relaxed">
+            Works on assigned projects: can manage shots. Read access to schedules and pulls.
+          </div>
+        </div>
+        <div class="card p-3" style="background: #111;">
+          <div class="font-semibold text-white mb-1">Warehouse</div>
+          <div class="text-gray-500 leading-relaxed">
+            Fulfills pulls and manages products. Read access to project data.
+          </div>
+        </div>
+        <div class="card p-3" style="background: #111;">
+          <div class="font-semibold text-white mb-1">Viewer</div>
+          <div class="text-gray-500 leading-relaxed">
+            Read-only access to assigned projects. Cannot create or edit anything.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-5">
+      <h3 class="mb-3">Full Permissions Matrix (Reference)</h3>
+      <p class="muted mb-3" style="font-size: 12px;">
+        Derived from <code>rbac.ts</code> helpers and <code>firestore.rules</code>.
+        Not proposed as a UI page -- this is reference documentation.
+      </p>
+      <table style="font-size: 12px;">
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th>Admin</th>
+            <th>Producer</th>
+            <th>Crew</th>
+            <th>Warehouse</th>
+            <th>Viewer</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Manage team (invite, role change)</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="muted">isAdmin() + systemAdmins</td>
+          </tr>
+          <tr>
+            <td>Create projects</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="muted">canManageProjects()</td>
+          </tr>
+          <tr>
+            <td>View all projects (without membership)</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="muted">firestore.rules isAdmin()</td>
+          </tr>
+          <tr>
+            <td>View assigned project data</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-green-400 text-center">Yes*</td>
+            <td class="text-green-400 text-center">Yes*</td>
+            <td class="text-green-400 text-center">Yes*</td>
+            <td class="text-green-400 text-center">Yes*</td>
+            <td class="muted">hasProjectRole() *requires member doc</td>
+          </tr>
+          <tr>
+            <td>Manage shots</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="muted">canManageShots()</td>
+          </tr>
+          <tr>
+            <td>Manage schedules</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="muted">canManageSchedules()</td>
+          </tr>
+          <tr>
+            <td>Manage pulls</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="muted">canManagePulls()</td>
+          </tr>
+          <tr>
+            <td>Fulfill pulls</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="muted">canFulfillPulls()</td>
+          </tr>
+          <tr>
+            <td>Manage talent library</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="muted">canManageTalent()</td>
+          </tr>
+          <tr>
+            <td>Manage crew library</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="muted">canManageCrew()</td>
+          </tr>
+          <tr>
+            <td>Manage products</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="muted">canManageProducts()</td>
+          </tr>
+          <tr>
+            <td>Manage locations</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-green-400 text-center">Yes</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="text-red-400 text-center">--</td>
+            <td class="muted">canManageLocations()</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ===== SECTION 5: Proposed Implementation Plan ===== -->
+  <section class="mb-10">
+    <h2 class="mb-4">5. Implementation Scope (Sprint S5)</h2>
+
+    <div class="card p-5 mb-4">
+      <h3 class="mb-3">What to Build (Minimal Viable Admin Enhancements)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th>Task</th>
+            <th style="width: 100px;">Files</th>
+            <th style="width: 80px;">Schema?</th>
+            <th style="width: 100px;">Priority</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td><strong>Project member write functions</strong><br/>
+              <code>addProjectMember()</code>, <code>removeProjectMember()</code> in <code>adminWrites.ts</code></td>
+            <td>1 file</td>
+            <td><span class="badge badge-green">No</span><br/>Uses existing collection</td>
+            <td><span class="badge badge-red">Critical</span></td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><strong>Auto-add creator on project create</strong><br/>
+              When a non-admin creates a project, write a member doc for them with role "producer"</td>
+            <td>1 file (CreateProjectDialog or a CF)</td>
+            <td><span class="badge badge-green">No</span></td>
+            <td><span class="badge badge-red">Critical</span></td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td><strong>Admin Page tabs</strong><br/>
+              Add "Project Access" tab alongside existing "Team" content</td>
+            <td>1-2 files</td>
+            <td><span class="badge badge-green">No</span></td>
+            <td><span class="badge badge-yellow">High</span></td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td><strong>Project Access tab UI</strong><br/>
+              Project selector + member table + add/remove member</td>
+            <td>2-3 new files</td>
+            <td><span class="badge badge-green">No</span></td>
+            <td><span class="badge badge-yellow">High</span></td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td><strong><code>useProjectMembers</code> hook</strong> (vNext)<br/>
+              Real-time subscription to <code>projects/{id}/members</code></td>
+            <td>1 file</td>
+            <td><span class="badge badge-green">No</span></td>
+            <td><span class="badge badge-yellow">High</span></td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td><strong>Role description cards</strong> in InviteUserDialog<br/>
+              Static text block below role selector showing what the role can do</td>
+            <td>1 file (InviteUserDialog.tsx)</td>
+            <td><span class="badge badge-green">No</span></td>
+            <td><span class="badge badge-blue">Medium</span></td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td><strong>Copy invite link toast</strong><br/>
+              After successful invite, show "Copy Link" in success toast</td>
+            <td>1 file (InviteUserDialog.tsx)</td>
+            <td><span class="badge badge-green">No</span></td>
+            <td><span class="badge badge-blue">Medium</span></td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td><strong>Graceful "no access" error handling</strong><br/>
+              Catch Firestore permission-denied in hooks, show friendly UI instead of error page</td>
+            <td>1-2 files</td>
+            <td><span class="badge badge-green">No</span></td>
+            <td><span class="badge badge-blue">Medium</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card p-5" style="border-color: #14532d;">
+      <h3 class="mb-2">What NOT to Build</h3>
+      <ul style="font-size: 13px; line-height: 2;" class="list-disc pl-5 text-gray-400">
+        <li><strong>Email notification system</strong> -- use copy link approach instead</li>
+        <li><strong>Full permissions matrix page</strong> -- inline role descriptions are sufficient</li>
+        <li><strong>Project settings page for member management</strong> -- centralize in admin page</li>
+        <li><strong>Batch member operations</strong> -- add one at a time; team is small</li>
+        <li><strong>Self-service project join/request</strong> -- admin explicitly assigns</li>
+        <li><strong>Audit log for access changes</strong> -- not needed at this scale</li>
+        <li><strong>New Firestore collections or fields</strong> -- only uses existing <code>members</code> subcollection</li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ===== SECTION 6: Constraints & Risks ===== -->
+  <section class="mb-10">
+    <h2 class="mb-4">6. Constraints & Risks</h2>
+
+    <div class="card p-5">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 200px;">Constraint</th>
+            <th>Impact</th>
+            <th>Mitigation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>CLAUDE.md Hard Rule #4 (no schema changes)</td>
+            <td>Cannot add new collections or fields</td>
+            <td>Using existing <code>members</code> subcollection -- <strong>zero schema changes</strong></td>
+          </tr>
+          <tr>
+            <td><code>setUserClaims</code> requires prior sign-in</td>
+            <td>Cannot invite users who haven't signed in yet</td>
+            <td>Admin shares login link. User signs in first. Then admin assigns role via <code>setUserClaims</code>. PendingAccessPage guides the user.</td>
+          </tr>
+          <tr>
+            <td>System admin vs org admin distinction</td>
+            <td><code>setUserClaims</code> CF only allows system admins (from <code>/systemAdmins/</code> collection)</td>
+            <td>This is correct behavior. Only system admins should be able to set auth claims. The admin page should be gated to <code>isAdmin()</code> role.</td>
+          </tr>
+          <tr>
+            <td>Project list shows ALL projects to admin</td>
+            <td><code>useProjects</code> queries all projects for admin users</td>
+            <td>This is correct -- admin sees everything. Non-admin users may need filtered project lists (show only projects where they have membership). Consider client-side filter or Firestore query adjustment.</td>
+          </tr>
+          <tr>
+            <td>Firestore rules use "wardrobe" not "warehouse"</td>
+            <td>Rules check for <code>wardrobe</code>/<code>Wardrobe</code> in <code>isProducer()</code> and <code>hasProjectRole()</code></td>
+            <td>The vNext RBAC uses "warehouse" as the role name. The CF stores whatever role name is passed. Need to ensure Firestore rules recognize "warehouse" OR update rules to normalize. <span class="text-accent">This is a pre-existing discrepancy.</span></td>
+          </tr>
+          <tr>
+            <td>Token refresh required after role change</td>
+            <td><code>setUserClaims</code> revokes refresh tokens, but user must re-auth to get new claims</td>
+            <td>The target user's next request will fail with stale token, triggering automatic token refresh. This is standard Firebase behavior. No action needed.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ===== SECTION 7: Firestore Rule Discrepancy ===== -->
+  <section class="mb-10">
+    <h2 class="mb-4">7. Critical Finding: "wardrobe" vs "warehouse" Discrepancy</h2>
+
+    <div class="card p-5" style="border-color: #7f1d1d;">
+      <p style="font-size: 13px; line-height: 1.6;" class="mb-3">
+        The Firestore security rules use <code>"wardrobe"</code> as a role name in both <code>isProducer()</code>
+        and <code>hasProjectRole()</code>. However, the vNext RBAC system uses <code>"warehouse"</code> as the canonical name.
+      </p>
+      <div class="grid grid-cols-2 gap-4 mb-3">
+        <div class="p-3 rounded" style="background: #1a0a0a; border: 1px solid #7f1d1d; font-size: 12px; font-family: monospace;">
+          <strong class="text-red-400">firestore.rules:</strong><br/><br/>
+          function isProducer() {<br/>
+          &nbsp;&nbsp;... role == 'wardrobe' || role == 'Wardrobe'<br/>
+          }<br/><br/>
+          function hasProjectRole() {<br/>
+          &nbsp;&nbsp;... 'Wardrobe' ? 'wardrobe'<br/>
+          &nbsp;&nbsp;... roles.hasAny([normalizedRole])<br/>
+          }<br/><br/>
+          // "warehouse" is NOT recognized!
+        </div>
+        <div class="p-3 rounded" style="background: #0a1a0a; border: 1px solid #14532d; font-size: 12px; font-family: monospace;">
+          <strong class="text-green-400">vNext rbac.ts:</strong><br/><br/>
+          ROLE = {<br/>
+          &nbsp;&nbsp;WAREHOUSE: "warehouse",<br/>
+          &nbsp;&nbsp;// "wardrobe" is NOT a valid role<br/>
+          }<br/><br/>
+          // Cloud Function accepts "warehouse"<br/>
+          // and stores it in claims<br/><br/>
+          // Firestore rules won't recognize it!
+        </div>
+      </div>
+      <div class="p-3 rounded" style="background: #422006; border: 1px solid #713f12; font-size: 13px;">
+        <strong class="text-yellow-400">Impact:</strong> A user assigned role "warehouse" via the vNext admin UI
+        will have that role in their auth claims, but Firestore rules will NOT recognize them as having
+        <code>isProducer()</code> privileges or the correct <code>hasProjectRole()</code> mapping.
+        They would effectively have no project-level write access.
+        <br/><br/>
+        <strong class="text-yellow-400">Fix options:</strong>
+        <br/>A) Update <code>firestore.rules</code> to also recognize "warehouse"/"Warehouse"/"WAREHOUSE" -- low risk, 3-line change
+        <br/>B) Change vNext RBAC to use "wardrobe" instead of "warehouse" -- high risk, touches many files
+        <br/>C) Have the CF normalize "warehouse" to "wardrobe" before writing to claims -- medium risk
+        <br/><br/>
+        <strong>Recommendation: Option A</strong> -- add warehouse recognition to firestore.rules alongside wardrobe.
+        Both names can coexist during migration. Zero impact on existing users.
+      </div>
+    </div>
+  </section>
+
+  <footer class="text-center py-8 border-t border-neutral-800">
+    <p class="muted" style="font-size: 12px;">
+      S5 Admin Architecture Analysis | Shot Builder vNext | Systems Architect Agent
+    </p>
+  </footer>
+
+</body>
+</html>

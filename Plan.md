@@ -320,10 +320,12 @@ Admin (role-gated: admin only)
 
 ### Acceptance Criteria
 
-- [ ] Every page correct at 375/768/1280px
-- [ ] All cards have hover states and cursor-pointer
-- [ ] No navigation dead-ends
-- [ ] Breadcrumbs on all detail pages via PageHeader
+> **Note:** Functional criteria (sub-tasks 7C.1–7C.6) are complete. The four criteria below are visual verification items deferred pending a dedicated review session. They do not block Phase 8.
+
+- [ ] Every page correct at 375/768/1280px (visual verification deferred)
+- [ ] All cards have hover states and cursor-pointer (visual verification deferred)
+- [ ] No navigation dead-ends (visual verification deferred)
+- [ ] Breadcrumbs on all detail pages via PageHeader (visual verification deferred)
 
 ---
 
@@ -432,18 +434,156 @@ Admin (role-gated: admin only)
 
 ---
 
-## Phase 8: Shot Request Inbox (Future)
+## Sprint S4: Design System Realignment
 
-**Goal:** Allow any team member to submit shot requests. Producers triage into existing or new projects.
+**Goal:** Fix the three-layer typography mismatch between `tokens.css`, `tailwind.config.js`, and component classNames. Align font sizes, heading weights, tag badges, and card density with the approved mockup (`mockups/p6-visual-identity.html`).
 
-**Status:** Not started. Outline only — implementation after 7A-7E complete.
+**Status:** COMPLETE.
+
+**Root cause:** `tailwind.config.js` was missing fontSize overrides for `xs`/`sm`/`base`/`lg`/`xl`, so every `text-sm` element rendered at 14px instead of the intended 13px. Page headings used semibold/bold instead of the editorial light (300) weight. Tag badges used rainbow colors instead of neutral styling.
+
+### Sub-tasks
+
+- [x] **S4-1:** Font size foundation — add `xs`/`sm`/`base`/`lg`/`xl` overrides to `tailwind.config.js`, replace all `text-[13px]`/`text-[10px]`/`text-[14px]`/`text-[15px]` workarounds (9 files)
+- [x] **S4-2:** Page heading weights — replace ad-hoc `text-xl font-semibold` / `text-2xl font-bold` with `heading-page` semantic class (8 files)
+- [x] **S4-3:** Tag badge neutralization — neutral styling in `TagBadge.tsx`, `rounded-full` → `rounded-md`
+- [x] **S4-4:** ShotCard density reduction — reduce default visible fields from 7→3, flatten tag rendering
+- [x] **S4-5:** Zinc cleanup — `bg-zinc-400` → `bg-neutral-400` in `BoardColumn.tsx`
+
+### Acceptance Criteria
+
+- [x] `text-sm` renders 13px in DevTools (not 14px)
+- [x] All page headings use weight 300 (light editorial)
+- [x] Tag badges are neutral (no rainbow colors)
+- [x] ShotCard shows only title + status + shot number + description + flat tags by default
+- [x] Zero `text-[13px]`, `text-[10px]`, `text-[14px]`, `text-[15px]` in src-vnext/
+- [x] Zero `bg-zinc-` in src-vnext/
+- [x] Build clean, lint zero warnings, tests pass (1,948)
+
+---
+
+## Sprint S5a: Dashboard Dates + Tag Accents + Wardrobe Fix
+
+**Goal:** Fix three UX issues surfaced during Sprint S5 research: shoot dates buried below fold in project dialogs, tags lack visual category distinction, and wardrobe/warehouse role mismatch in Firestore rules.
+
+**Status:** Not started.
+
+### Sub-tasks
+
+- [ ] **S5a-1:** Move ShootDatesField above "More options" in CreateProjectDialog + EditProjectDialog
+- [ ] **S5a-2:** TagBadge left-border accent by category (priority=warm, gender=cool, media=green, other=neutral) — 2.5px left border, neutral body preserved
+- [ ] **S5a-3:** Category-based tag sort (display-only) in ShotCard, BoardCard — priority → gender → media → other. Never mutate Firestore array.
+- [ ] **S5a-4:** Wardrobe/warehouse normalization in `firestore.rules` — update `hasProjectRole()` and `isProducer()` to recognize both "wardrobe" and "warehouse" variants
+- [ ] **S5a-5:** Tests + acceptance verification
+
+### Acceptance Criteria
+
+- [ ] ShootDatesField is visible without expanding "More options" in both project dialogs
+- [ ] Tags display a subtle 2.5px left-border accent matching their category color
+- [ ] Tags are sorted by category (priority → gender → media → other) in ShotCard and BoardCard
+- [ ] Users with "wardrobe" role in Firestore project members are recognized by `hasProjectRole()`
+- [ ] Build clean, lint zero warnings, all tests pass
+
+---
+
+## Sprint S5b: Admin RBAC — Project Access Management
+
+**Goal:** Enable per-project access control so admins can assign users to specific projects. Without this, all users see all projects — a blocker for multi-team onboarding.
+
+**Status:** Not started.
+
+### Sub-tasks
+
+- [ ] **S5b-1:** Firestore rules: add write rule for `projects/{pid}/members/{uid}` subcollection
+- [ ] **S5b-2:** Write functions: `addProjectMember`, `removeProjectMember` + `useProjectMembers` hook
+- [ ] **S5b-3:** Auto-membership on project create (`writeBatch` in CreateProjectDialog for atomic project + member doc)
+- [ ] **S5b-4:** Admin page: "Project Access" tab with project selector + member table
+- [ ] **S5b-5:** Add/remove member dialog (search existing users, assign project role)
+- [ ] **S5b-6:** Copy invite link UX (toast with copy button when user not found)
+- [ ] **S5b-7:** Pending invites section on admin page
+- [ ] **S5b-8:** Dashboard empty state for unassigned non-admin users ("No projects assigned. Contact your administrator.")
+- [ ] **S5b-9:** Tests + acceptance verification
+
+### Acceptance Criteria
+
+- [ ] Admin can add/remove users from a project via admin page
+- [ ] Creating a project auto-adds the creator as a member (atomic write)
+- [ ] Admin can copy an invite link for users who haven't signed in yet
+- [ ] Pending invites section shows attempted-invite users who haven't created accounts
+- [ ] Non-admin users with no project assignments see a clear empty state
+- [ ] Firestore rules enforce member subcollection write access
+- [ ] Build clean, lint zero warnings, all tests pass
+
+---
+
+## Phase 8: Shot Request Inbox
+
+**Goal:** Allow admin and producer roles to submit shot requests. Producers triage requests into existing projects. Closes the gap between creative briefs and formal shot planning.
+
+**Status:** Not started. Planning complete — ready for implementation.
+
+**Rationale:** Producers currently have no structured intake channel. Shot ideas arrive via Slack/email and get lost. This phase adds a lightweight inbox that feeds the existing planning workflow.
+
+### Key Decisions (approved)
+
+- **Submit RBAC:** Admin + producer only (not all roles). Note: "producer" may be renamed to include client team members in the future — the role value stays the same.
+- **Triage RBAC:** Admin + producer only, desktop-only (via `RequireDesktop` guard on triage panel)
+- **Nav:** `/inbox` — org-level route, between Projects and Products in the sidebar
+- **No image uploads** at request stage — references are URL strings only
+- **No push notifications** in Phase 8 — requesters see status via their own /inbox view
+- **Transaction-based absorption** — `runTransaction` prevents duplicate shot creation
+- **"Create project from request"** — deferred to Phase 8.5 (too much scope for Phase 8)
+- **Data model:** `clients/{clientId}/shotRequests/{requestId}` — org-level, not project-scoped
+- **Status lifecycle:** `submitted` → `triaged` → `absorbed` | `rejected`
+- **File structure pattern:** Follow `features/admin/` as the canonical model
+
+### Sub-tasks
+
+- [ ] **8a:** Write HTML mockups — submission dialog (mobile-first), producer inbox (desktop two-panel), requester "my requests" view
+- [ ] **8b:** User approval on all mockups
+- [ ] **8c:** Foundation — types (`ShotRequest`, `ShotRequestStatus`, `ShotRequestPriority`), path helpers (`shotRequestsPath`, `shotRequestDocPath`), RBAC (`canTriageShotRequests`)
+- [ ] **8d:** Firestore security rules review + user approval (Hard Stop — do not proceed to 8e without this)
+- [ ] **8e:** Data layer — hooks (`useShotRequests`, `useShotRequest`), write functions (`submitRequest`, `triageAbsorb`, `triageReject`)
+- [ ] **8f:** Submission UI — `SubmitShotRequestDialog` (ResponsiveDialog, title required + progressive disclosure for products/deadline/notes, Zod validation)
+- [ ] **8g:** Inbox UI — `ShotRequestInboxPage` (two-panel on desktop: list + triage; single-column list on mobile), `ShotRequestCard`, `ShotRequestStatusBadge`
+- [ ] **8h:** Triage UI — `TriagePanel` (desktop right panel), `AbsorbDialog` (project picker + `runTransaction` shot creation), `RejectDialog` (optional reason field)
+- [ ] **8i:** Route + sidebar integration — `/inbox` route with `canTriageShotRequests` guard, sidebar "Inbox" entry with unread badge count for admin+producer, `RequireDesktop` for triage actions
+- [ ] **8j:** Tests + acceptance verification — unit tests for write functions and hooks, component tests for submission form + inbox list, run full test suite
+
+### Acceptance Criteria
+
+- [ ] Admin or producer can submit a shot request (title required, products/deadline/notes optional)
+- [ ] Requests appear in admin/producer inbox sorted by priority then date
+- [ ] Producer can absorb request into an existing project (creates shot via `runTransaction`)
+- [ ] Producer can reject a request with an optional reason
+- [ ] Requesters (admin/producer) can see their own submissions and their current status
+- [ ] `/inbox` route accessible to admin and producer roles
+- [ ] Triage actions (absorb/reject) are desktop-only (via `RequireDesktop` or conditional rendering)
+- [ ] Sidebar shows "Inbox" entry with unread badge count for admin+producer
+- [ ] Build clean, lint zero warnings, all tests pass
+
+### Implementation Notes
+
+- Follow the `features/admin/` module pattern: `features/requests/components/`, `features/requests/hooks/`, `features/requests/lib/`
+- `SubmitShotRequestDialog` uses `ResponsiveDialog` — works on mobile and desktop
+- Triage panel is desktop-only: hide (not disable) on mobile, consistent with `canEdit = !isMobile && canManageX(role)` pattern
+- `triageAbsorb` uses `runTransaction`: read target project, create shot doc, update request status atomically
+- Unread badge count: denormalize `unreadRequestCount` on the client doc, or compute via client-side count of `status === 'submitted'` requests the user hasn't actioned
+
+---
+
+## Phase 8.5: Shot Request — Create Project Flow (Future)
+
+**Goal:** Allow producers to create a new project directly from a shot request, not just absorb into an existing one.
+
+**Status:** Not started. Deferred from Phase 8 — scope was too large for a single phase.
 
 ### Key Concepts
 
-- New Firestore collection: `clients/{clientId}/shotRequests/{requestId}`
-- Fields: title, requester, products[], references, notes, deadline, priority, status (submitted/triaged/absorbed/rejected)
-- Flexible input: minimal (title + note) through structured brief (products, references, deadline)
-- Producer triage: absorb into existing project shot list, or create new project from request
+- Extend `AbsorbDialog` or add a separate `CreateProjectFromRequestDialog`
+- Requires project creation write function integrated with request absorption transaction
+- New project pre-populated from request fields (title from request title, shoot date from deadline if set)
+- After creation, request is marked absorbed and shot is linked to the new project
 
 ---
 
