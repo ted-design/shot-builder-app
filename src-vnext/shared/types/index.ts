@@ -602,3 +602,30 @@ export interface CrewCallSheet {
   readonly updatedAt?: Timestamp
   readonly createdBy?: string
 }
+
+// --- Shot Requests ---
+
+export type ShotRequestStatus = "submitted" | "triaged" | "absorbed" | "rejected"
+
+export type ShotRequestPriority = "normal" | "urgent"
+
+export interface ShotRequest {
+  readonly id: string
+  readonly clientId: string
+  readonly status: ShotRequestStatus
+  readonly priority: ShotRequestPriority
+  readonly title: string
+  readonly description?: string | null
+  readonly referenceUrls?: readonly string[] | null
+  readonly deadline?: string | null
+  readonly notes?: string | null
+  readonly submittedBy: string
+  readonly submittedByName?: string | null
+  readonly submittedAt: Timestamp
+  readonly updatedAt: Timestamp
+  readonly triagedBy?: string | null
+  readonly triagedAt?: Timestamp | null
+  readonly absorbedIntoProjectId?: string | null
+  readonly absorbedAsShotId?: string | null
+  readonly rejectionReason?: string | null
+}

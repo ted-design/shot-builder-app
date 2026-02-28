@@ -11,6 +11,8 @@ import {
   canManagePulls,
   canFulfillPulls,
   isViewer,
+  canSubmitShotRequest,
+  canTriageShotRequests,
 } from "./rbac"
 
 describe("normalizeRole", () => {
@@ -202,6 +204,50 @@ describe("permission checks", () => {
 
     it("admin is not viewer", () => {
       expect(isViewer("admin")).toBe(false)
+    })
+  })
+
+  describe("canSubmitShotRequest", () => {
+    it("admin can submit shot requests", () => {
+      expect(canSubmitShotRequest("admin")).toBe(true)
+    })
+
+    it("producer can submit shot requests", () => {
+      expect(canSubmitShotRequest("producer")).toBe(true)
+    })
+
+    it("crew cannot submit shot requests", () => {
+      expect(canSubmitShotRequest("crew")).toBe(false)
+    })
+
+    it("warehouse cannot submit shot requests", () => {
+      expect(canSubmitShotRequest("warehouse")).toBe(false)
+    })
+
+    it("viewer cannot submit shot requests", () => {
+      expect(canSubmitShotRequest("viewer")).toBe(false)
+    })
+  })
+
+  describe("canTriageShotRequests", () => {
+    it("admin can triage shot requests", () => {
+      expect(canTriageShotRequests("admin")).toBe(true)
+    })
+
+    it("producer can triage shot requests", () => {
+      expect(canTriageShotRequests("producer")).toBe(true)
+    })
+
+    it("crew cannot triage shot requests", () => {
+      expect(canTriageShotRequests("crew")).toBe(false)
+    })
+
+    it("warehouse cannot triage shot requests", () => {
+      expect(canTriageShotRequests("warehouse")).toBe(false)
+    })
+
+    it("viewer cannot triage shot requests", () => {
+      expect(canTriageShotRequests("viewer")).toBe(false)
     })
   })
 })

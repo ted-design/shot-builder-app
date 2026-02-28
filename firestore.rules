@@ -173,6 +173,24 @@ service cloud.firestore {
 	        (isAdmin() || isProducer());
 	    }
 
+	    // Shot Requests - org-level request inbox for producers and admins
+	    match /clients/{clientId}/shotRequests/{requestId} {
+	      allow read: if clientMatches(clientId) &&
+	        (isAdmin() || isProducer());
+
+	      allow create: if clientMatches(clientId) && isAuthed() &&
+	        (isAdmin() || isProducer()) &&
+	        request.resource.data.submittedBy == request.auth.uid &&
+	        request.resource.data.status == 'submitted' &&
+	        request.resource.data.title is string &&
+	        request.resource.data.title.size() > 0;
+
+	      allow update: if clientMatches(clientId) && isAuthed() &&
+	        (isAdmin() || isProducer());
+
+	      allow delete: if clientMatches(clientId) && isAdmin();
+	    }
+
 	    match /clients/{clientId}/shots/{docId} {
 	      allow read: if clientMatches(clientId);
 	      allow create, update, delete: if clientMatches(clientId) && isAuthed();

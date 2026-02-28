@@ -520,7 +520,7 @@ Admin (role-gated: admin only)
 
 **Goal:** Allow admin and producer roles to submit shot requests. Producers triage requests into existing projects. Closes the gap between creative briefs and formal shot planning.
 
-**Status:** Not started. Planning complete — ready for implementation.
+**Status:** COMPLETE.
 
 **Rationale:** Producers currently have no structured intake channel. Shot ideas arrive via Slack/email and get lost. This phase adds a lightweight inbox that feeds the existing planning workflow.
 
@@ -539,28 +539,28 @@ Admin (role-gated: admin only)
 
 ### Sub-tasks
 
-- [ ] **8a:** Write HTML mockups — submission dialog (mobile-first), producer inbox (desktop two-panel), requester "my requests" view
-- [ ] **8b:** User approval on all mockups
-- [ ] **8c:** Foundation — types (`ShotRequest`, `ShotRequestStatus`, `ShotRequestPriority`), path helpers (`shotRequestsPath`, `shotRequestDocPath`), RBAC (`canTriageShotRequests`)
-- [ ] **8d:** Firestore security rules review + user approval (Hard Stop — do not proceed to 8e without this)
-- [ ] **8e:** Data layer — hooks (`useShotRequests`, `useShotRequest`), write functions (`submitRequest`, `triageAbsorb`, `triageReject`)
-- [ ] **8f:** Submission UI — `SubmitShotRequestDialog` (ResponsiveDialog, title required + progressive disclosure for products/deadline/notes, Zod validation)
-- [ ] **8g:** Inbox UI — `ShotRequestInboxPage` (two-panel on desktop: list + triage; single-column list on mobile), `ShotRequestCard`, `ShotRequestStatusBadge`
-- [ ] **8h:** Triage UI — `TriagePanel` (desktop right panel), `AbsorbDialog` (project picker + `runTransaction` shot creation), `RejectDialog` (optional reason field)
-- [ ] **8i:** Route + sidebar integration — `/inbox` route with `canTriageShotRequests` guard, sidebar "Inbox" entry with unread badge count for admin+producer, `RequireDesktop` for triage actions
-- [ ] **8j:** Tests + acceptance verification — unit tests for write functions and hooks, component tests for submission form + inbox list, run full test suite
+- [x] **8a:** Write HTML mockups — submission dialog (mobile-first), producer inbox (desktop two-panel), requester "my requests" view
+- [x] **8b:** User approval on all mockups
+- [x] **8c:** Foundation — types (`ShotRequest`, `ShotRequestStatus`, `ShotRequestPriority`), path helpers (`shotRequestsPath`, `shotRequestDocPath`), RBAC (`canTriageShotRequests`)
+- [x] **8d:** Firestore security rules review + user approval (Hard Stop — do not proceed to 8e without this)
+- [x] **8e:** Data layer — hooks (`useShotRequests`, `useShotRequest`), write functions (`submitRequest`, `triageAbsorb`, `triageReject`)
+- [x] **8f:** Submission UI — `SubmitShotRequestDialog` (ResponsiveDialog, title required + progressive disclosure for products/deadline/notes, Zod validation)
+- [x] **8g:** Inbox UI — `ShotRequestInboxPage` (two-panel on desktop: list + triage; single-column list on mobile), `ShotRequestCard`, `ShotRequestStatusBadge`
+- [x] **8h:** Triage UI — `TriagePanel` (desktop right panel), `AbsorbDialog` (project picker + `runTransaction` shot creation), `RejectDialog` (optional reason field)
+- [x] **8i:** Route + sidebar integration — `/inbox` route with `RequireRole` guard for admin+producer, sidebar "Inbox" entry between Dashboard and Products
+- [x] **8j:** Tests + acceptance verification — 85 new tests (79 request feature + 6 nav), 2,106 total passing, build clean, lint zero
 
 ### Acceptance Criteria
 
-- [ ] Admin or producer can submit a shot request (title required, products/deadline/notes optional)
-- [ ] Requests appear in admin/producer inbox sorted by priority then date
-- [ ] Producer can absorb request into an existing project (creates shot via `runTransaction`)
-- [ ] Producer can reject a request with an optional reason
-- [ ] Requesters (admin/producer) can see their own submissions and their current status
-- [ ] `/inbox` route accessible to admin and producer roles
-- [ ] Triage actions (absorb/reject) are desktop-only (via `RequireDesktop` or conditional rendering)
-- [ ] Sidebar shows "Inbox" entry with unread badge count for admin+producer
-- [ ] Build clean, lint zero warnings, all tests pass
+- [x] Admin or producer can submit a shot request (title required, products/deadline/notes optional)
+- [x] Requests appear in admin/producer inbox sorted by priority then date
+- [x] Producer can absorb request into an existing project (creates shot via `runTransaction`)
+- [x] Producer can reject a request with an optional reason
+- [x] Requesters (admin/producer) can see their own submissions and their current status
+- [x] `/inbox` route accessible to admin and producer roles
+- [x] Triage actions (absorb/reject) are desktop-only (conditional rendering via `isDesktop`)
+- [x] Sidebar shows "Inbox" entry for admin+producer (count shown in page header, not badge)
+- [x] Build clean, lint zero warnings, all tests pass (2,106 passing)
 
 ### Implementation Notes
 

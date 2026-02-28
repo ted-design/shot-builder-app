@@ -237,3 +237,16 @@ export const callSheetConfigPath = (
   "callSheet",
   "config",
 ]
+
+// --- Shot Requests (org-level) ---
+
+export const shotRequestsPath = (clientId: string): string[] => [
+  "clients",
+  clientId,
+  "shotRequests",
+]
+
+export const shotRequestDocPath = (
+  requestId: string,
+  clientId: string,
+): string[] => [...shotRequestsPath(clientId), requestId]

@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P8 — Triage: Absorb & Reject Dialogs</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --color-bg: #fafafa;
+      --color-surface: #ffffff;
+      --color-surface-subtle: #f4f4f5;
+      --color-text: #18181b;
+      --color-text-secondary: #52525b;
+      --color-text-muted: #71717a;
+      --color-text-subtle: #a1a1aa;
+      --color-border: #e4e4e7;
+      --color-border-strong: #d4d4d8;
+      --color-primary: #18181b;
+      --color-primary-text: #ffffff;
+      --color-error: #ef4444;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+
+      --color-status-blue-bg: #eff6ff;
+      --color-status-blue-text: #1d4ed8;
+      --color-status-blue-border: #bfdbfe;
+      --color-status-green-bg: #ecfdf5;
+      --color-status-green-text: #047857;
+      --color-status-green-border: #a7f3d0;
+      --color-status-amber-bg: #fffbeb;
+      --color-status-amber-text: #b45309;
+      --color-status-amber-border: #fde68a;
+      --color-status-gray-bg: #f4f4f5;
+      --color-status-gray-text: #3f3f46;
+      --color-status-gray-border: #e4e4e7;
+    }
+
+    body {
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .phase-label {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 4px;
+      z-index: 999;
+      letter-spacing: 0.02em;
+    }
+
+    .heading-page {
+      font-size: 18px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      color: var(--color-text);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 500;
+      border: 1px solid;
+    }
+
+    .status-submitted { background: var(--color-status-blue-bg); color: var(--color-status-blue-text); border-color: var(--color-status-blue-border); }
+    .status-triaged { background: var(--color-status-amber-bg); color: var(--color-status-amber-text); border-color: var(--color-status-amber-border); }
+    .status-absorbed { background: var(--color-status-green-bg); color: var(--color-status-green-text); border-color: var(--color-status-green-border); }
+    .status-rejected { background: var(--color-status-gray-bg); color: var(--color-status-gray-text); border-color: var(--color-status-gray-border); }
+
+    .priority-urgent {
+      width: 6px;
+      height: 6px;
+      border-radius: 9999px;
+      background: #ef4444;
+      flex-shrink: 0;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Dialog */
+    .dialog-overlay {
+      position: relative;
+      background: rgba(0, 0, 0, 0.08);
+      border-radius: 8px;
+      min-height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+    }
+
+    .dialog-content {
+      background: var(--color-surface);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+      width: 100%;
+      max-width: 440px;
+    }
+
+    .input-field {
+      width: 100%;
+      height: 40px;
+      padding: 8px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      background: var(--color-surface);
+      color: var(--color-text);
+    }
+
+    .textarea-field {
+      width: 100%;
+      min-height: 80px;
+      padding: 8px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      background: var(--color-surface);
+      color: var(--color-text);
+      font-family: inherit;
+      line-height: 1.5;
+      resize: vertical;
+    }
+
+    .label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text);
+      margin-bottom: 6px;
+    }
+
+    .label-optional {
+      font-weight: 400;
+      color: var(--color-text-muted);
+      font-size: 12px;
+    }
+
+    .btn-primary {
+      height: 36px;
+      padding: 0 16px;
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .btn-success {
+      height: 36px;
+      padding: 0 16px;
+      background: #047857;
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-success:hover { background: #065f46; }
+
+    .btn-danger-outline {
+      height: 36px;
+      padding: 0 16px;
+      background: transparent;
+      color: var(--color-error);
+      border: 1px solid #fecaca;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-danger-outline:hover { background: #fef2f2; }
+
+    .btn-ghost {
+      height: 36px;
+      padding: 0 16px;
+      background: transparent;
+      color: var(--color-text-secondary);
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .btn-ghost:hover { background: var(--color-surface-subtle); }
+
+    /* Select dropdown mock */
+    .select-field {
+      width: 100%;
+      height: 40px;
+      padding: 8px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      background: var(--color-surface);
+      color: var(--color-text);
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+
+    /* Triage panel (read-only detail view) */
+    .triage-panel {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+    }
+
+    /* Info callout */
+    .callout {
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .callout-info {
+      background: var(--color-status-blue-bg);
+      border: 1px solid var(--color-status-blue-border);
+      color: var(--color-status-blue-text);
+    }
+
+    .callout-success {
+      background: var(--color-status-green-bg);
+      border: 1px solid var(--color-status-green-border);
+      color: var(--color-status-green-text);
+    }
+
+    .callout-gray {
+      background: var(--color-status-gray-bg);
+      border: 1px solid var(--color-status-gray-border);
+      color: var(--color-status-gray-text);
+    }
+  </style>
+</head>
+<body>
+  <div class="phase-label">Phase 8 — Triage</div>
+
+  <!-- ===== SECTION 1: TRIAGE PANEL (Read-Only Detail) ===== -->
+  <div style="padding: 40px 24px;">
+    <h1 class="heading-page" style="margin-bottom: 24px;">Triage Panel — Read-Only Detail View (Desktop Right Panel)</h1>
+
+    <div class="triage-panel" style="max-width: 640px;">
+      <!-- Header -->
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <div class="priority-urgent"></div>
+            <span style="font-size: 12px; color: #ef4444; font-weight: 500;">Urgent</span>
+          </div>
+          <h2 style="font-size: 18px; font-weight: 500; letter-spacing: -0.01em;">Spring Campaign Hero Shots</h2>
+        </div>
+        <span class="status-badge status-submitted">Submitted</span>
+      </div>
+
+      <!-- Submitter info -->
+      <div style="font-size: 13px; color: var(--color-text-muted); margin-bottom: 20px;">
+        Submitted by <span style="color: var(--color-text); font-weight: 500;">Sarah Chen</span> &middot; February 28, 2026 at 10:34 AM
+      </div>
+
+      <!-- Detail fields -->
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div>
+          <div class="section-label" style="margin-bottom: 4px;">Description</div>
+          <p style="font-size: 13px; color: var(--color-text-secondary); line-height: 1.6;">
+            We need hero shots for the Spring 2026 campaign. Main focus on outerwear and transitional pieces.
+            Lifestyle setting, natural lighting preferred. Should feel aspirational but approachable.
+          </p>
+        </div>
+
+        <div>
+          <div class="section-label" style="margin-bottom: 4px;">Reference URLs</div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <a href="#" style="font-size: 13px; color: #1d4ed8; text-decoration: none;">https://pinterest.com/pin/spring-inspo-board</a>
+            <a href="#" style="font-size: 13px; color: #1d4ed8; text-decoration: none;">https://docs.google.com/creative-brief-v2</a>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div>
+            <div class="section-label" style="margin-bottom: 4px;">Deadline</div>
+            <p style="font-size: 13px; color: var(--color-text-secondary);">March 15, 2026</p>
+          </div>
+          <div>
+            <div class="section-label" style="margin-bottom: 4px;">Priority</div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <div class="priority-urgent"></div>
+              <span style="font-size: 13px; color: #ef4444; font-weight: 500;">Urgent</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-label" style="margin-bottom: 4px;">Notes</div>
+          <p style="font-size: 13px; color: var(--color-text-secondary); line-height: 1.6;">
+            Client wants to see first selects by end of month. Budget approved for 2-day shoot.
+          </p>
+        </div>
+      </div>
+
+      <!-- Triage actions bar -->
+      <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-border); display: flex; gap: 8px;">
+        <button class="btn-success">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          Absorb into Project
+        </button>
+        <button class="btn-danger-outline">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          Reject
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div style="border-top: 1px dashed var(--color-border-strong); margin: 40px 24px;"></div>
+
+  <!-- ===== SECTION 2: ABSORB DIALOG ===== -->
+  <div style="padding: 0 24px 40px;">
+    <h1 class="heading-page" style="margin-bottom: 24px;">Absorb Dialog — Project Picker</h1>
+
+    <div class="dialog-overlay">
+      <div class="dialog-content">
+        <div style="padding: 20px 24px 0;">
+          <h2 style="font-size: 16px; font-weight: 500; letter-spacing: -0.01em;">Absorb into Project</h2>
+          <p style="font-size: 13px; color: var(--color-text-muted); margin-top: 2px;">
+            This will create a new shot in the selected project from the request details.
+          </p>
+        </div>
+
+        <div style="padding: 20px 24px;">
+          <!-- Request summary -->
+          <div style="background: var(--color-surface-subtle); border-radius: var(--radius-md); padding: 12px; margin-bottom: 16px;">
+            <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px;">Request</div>
+            <div style="font-size: 13px; font-weight: 500; color: var(--color-text);">Spring Campaign Hero Shots</div>
+            <div style="font-size: 12px; color: var(--color-text-muted); margin-top: 2px;">by Sarah Chen &middot; Urgent</div>
+          </div>
+
+          <!-- Project picker -->
+          <div style="margin-bottom: 16px;">
+            <label class="label">Select Project <span style="color: var(--color-error);">*</span></label>
+            <select class="select-field">
+              <option value="" disabled>Choose a project...</option>
+              <option value="1" selected>Spring 2026 Campaign</option>
+              <option value="2">Q3 Lookbook</option>
+              <option value="3">Summer Editorial</option>
+              <option value="4">Fall Preview</option>
+            </select>
+          </div>
+
+          <!-- What will happen callout -->
+          <div class="callout callout-info">
+            <strong>What happens:</strong> A new shot titled "Spring Campaign Hero Shots" will be created
+            in the "Spring 2026 Campaign" project. The request will be marked as absorbed.
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="padding: 12px 24px 20px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--color-border);">
+          <button class="btn-ghost">Cancel</button>
+          <button class="btn-success">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Absorb Request
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div style="border-top: 1px dashed var(--color-border-strong); margin: 40px 24px;"></div>
+
+  <!-- ===== SECTION 3: REJECT DIALOG ===== -->
+  <div style="padding: 0 24px 40px;">
+    <h1 class="heading-page" style="margin-bottom: 24px;">Reject Dialog — Optional Reason</h1>
+
+    <div class="dialog-overlay">
+      <div class="dialog-content">
+        <div style="padding: 20px 24px 0;">
+          <h2 style="font-size: 16px; font-weight: 500; letter-spacing: -0.01em;">Reject Request</h2>
+          <p style="font-size: 13px; color: var(--color-text-muted); margin-top: 2px;">
+            Optionally provide a reason so the requester understands why.
+          </p>
+        </div>
+
+        <div style="padding: 20px 24px;">
+          <!-- Request summary -->
+          <div style="background: var(--color-surface-subtle); border-radius: var(--radius-md); padding: 12px; margin-bottom: 16px;">
+            <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px;">Request</div>
+            <div style="font-size: 13px; font-weight: 500; color: var(--color-text);">Packaging Shoot — Gift Box</div>
+            <div style="font-size: 12px; color: var(--color-text-muted); margin-top: 2px;">by Tom Rivera &middot; Normal priority</div>
+          </div>
+
+          <!-- Reason textarea -->
+          <div style="margin-bottom: 8px;">
+            <label class="label">Reason <span class="label-optional">(optional)</span></label>
+            <textarea class="textarea-field" placeholder="e.g. Already covered in the Fall Preview project..." style="min-height: 80px;">This was already captured in the Fall Preview project. The gift box shots were included in the holiday lookbook shoot.</textarea>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="padding: 12px 24px 20px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--color-border);">
+          <button class="btn-ghost">Cancel</button>
+          <button class="btn-danger-outline">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            Reject Request
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div style="border-top: 1px dashed var(--color-border-strong); margin: 40px 24px;"></div>
+
+  <!-- ===== SECTION 4: ALREADY TRIAGED STATES ===== -->
+  <div style="padding: 0 24px 40px;">
+    <h1 class="heading-page" style="margin-bottom: 24px;">Post-Triage States — Absorbed & Rejected Detail Views</h1>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+      <!-- Absorbed state -->
+      <div class="triage-panel">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px;">
+          <div>
+            <h2 style="font-size: 16px; font-weight: 500; letter-spacing: -0.01em;">Behind the Scenes — Winter Shoot</h2>
+          </div>
+          <span class="status-badge status-absorbed">Absorbed</span>
+        </div>
+
+        <div style="font-size: 13px; color: var(--color-text-muted); margin-bottom: 16px;">
+          Submitted by <span style="color: var(--color-text);">Sarah Chen</span> &middot; 5 days ago
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <div class="section-label" style="margin-bottom: 4px;">Description</div>
+          <p style="font-size: 13px; color: var(--color-text-secondary); line-height: 1.6;">
+            Behind the scenes content for social media and website from the winter shoot.
+          </p>
+        </div>
+
+        <!-- Absorbed info callout -->
+        <div class="callout callout-success" style="margin-top: 16px;">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <strong>Absorbed</strong>
+          </div>
+          Absorbed into <strong>Winter 2025 Lookbook</strong> as Shot #42 by Alex Kim on Feb 23, 2026.
+        </div>
+      </div>
+
+      <!-- Rejected state -->
+      <div class="triage-panel">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px;">
+          <div>
+            <h2 style="font-size: 16px; font-weight: 500; letter-spacing: -0.01em;">Packaging Shoot — Gift Box</h2>
+          </div>
+          <span class="status-badge status-rejected">Rejected</span>
+        </div>
+
+        <div style="font-size: 13px; color: var(--color-text-muted); margin-bottom: 16px;">
+          Submitted by <span style="color: var(--color-text);">Tom Rivera</span> &middot; 1 week ago
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <div class="section-label" style="margin-bottom: 4px;">Description</div>
+          <p style="font-size: 13px; color: var(--color-text-secondary); line-height: 1.6;">
+            Product shots of the new gift box packaging for the holiday season.
+          </p>
+        </div>
+
+        <!-- Rejected info callout -->
+        <div class="callout callout-gray" style="margin-top: 16px;">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <strong>Rejected</strong> by Alex Kim on Feb 21, 2026
+          </div>
+          This was already captured in the Fall Preview project. The gift box shots were included in the holiday lookbook shoot.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div style="border-top: 1px dashed var(--color-border-strong); margin: 40px 24px;"></div>
+
+  <!-- ===== SECTION 5: STATUS BADGE REFERENCE ===== -->
+  <div style="padding: 0 24px 80px;">
+    <h1 class="heading-page" style="margin-bottom: 24px;">Status Badge Reference</h1>
+
+    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+      <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 20px; text-align: center; width: 160px;">
+        <span class="status-badge status-submitted">Submitted</span>
+        <div style="font-size: 12px; color: var(--color-text-muted); margin-top: 8px;">Blue — Awaiting triage</div>
+      </div>
+      <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 20px; text-align: center; width: 160px;">
+        <span class="status-badge status-triaged">Triaged</span>
+        <div style="font-size: 12px; color: var(--color-text-muted); margin-top: 8px;">Amber — Under review</div>
+      </div>
+      <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 20px; text-align: center; width: 160px;">
+        <span class="status-badge status-absorbed">Absorbed</span>
+        <div style="font-size: 12px; color: var(--color-text-muted); margin-top: 8px;">Green — Created as shot</div>
+      </div>
+      <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 20px; text-align: center; width: 160px;">
+        <span class="status-badge status-rejected">Rejected</span>
+        <div style="font-size: 12px; color: var(--color-text-muted); margin-top: 8px;">Gray — Declined</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
