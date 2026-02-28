@@ -130,6 +130,16 @@ export function CreateProjectDialog({
           )}
         </div>
 
+        {/* Shoot Dates — always visible */}
+        <div className="flex flex-col gap-2">
+          <Label>Shoot Dates</Label>
+          <ShootDatesField
+            value={shootDates}
+            onChange={setShootDates}
+            disabled={saving}
+          />
+        </div>
+
         {/* More options toggle */}
         <button
           type="button"
@@ -146,14 +156,6 @@ export function CreateProjectDialog({
         {/* Collapsible optional fields */}
         {expanded && (
           <div className="flex flex-col gap-4" data-testid="optional-fields">
-            <div className="flex flex-col gap-2">
-              <Label>Shoot Dates</Label>
-              <ShootDatesField
-                value={shootDates}
-                onChange={setShootDates}
-                disabled={saving}
-              />
-            </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="project-brief-url">Brief URL</Label>
               <Input

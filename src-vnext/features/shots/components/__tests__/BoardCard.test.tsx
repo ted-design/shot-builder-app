@@ -9,6 +9,11 @@ vi.mock("@/shared/hooks/useStorageUrl", () => ({
   useStorageUrl: (candidate: string | undefined) => candidate ?? null,
 }))
 
+vi.mock("@/shared/lib/tagCategories", () => ({
+  resolveShotTagCategory: (tag: { category?: string }) =>
+    tag.category ?? "other",
+}))
+
 function makeShot(overrides: Partial<Shot> = {}): Shot {
   const now = Timestamp.fromMillis(Date.now())
   return {
@@ -103,5 +108,19 @@ describe("BoardCard", () => {
     render(<BoardCard {...defaultProps} shot={makeShot()} />)
     expect(screen.queryByRole("img")).not.toBeInTheDocument()
     expect(screen.getByLabelText("No image")).toBeInTheDocument()
+  })
+
+  it("renders tags sorted by category (priority -> gender -> media -> other)", () => {
+    const tags = [
+      { id: "t1", label: "Lifestyle", color: "#333", category: "other" as const },
+      { id: "t2", label: "High Priority", color: "#444", category: "priority" as const },
+      { id: "t3", label: "Women", color: "#555", category: "gender" as const },
+    ]
+    render(<BoardCard {...defaultProps} shot={makeShot({ tags })} />)
+    const tagElements = screen.getAllByText(/Lifestyle|High Priority|Women/)
+    // Sorted: High Priority (priority) -> Women (gender) -> Lifestyle (other)
+    expect(tagElements[0]).toHaveTextContent("High Priority")
+    expect(tagElements[1]).toHaveTextContent("Women")
+    expect(tagElements[2]).toHaveTextContent("Lifestyle")
   })
 })

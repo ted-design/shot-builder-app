@@ -68,10 +68,7 @@ export function EditProjectDialog({
       setStatus(project.status ?? "active")
       setFieldErrors({})
 
-      const hasOptionalData =
-        (project.shootDates && project.shootDates.length > 0) ||
-        !!project.briefUrl ||
-        !!project.notes
+      const hasOptionalData = !!project.briefUrl || !!project.notes
       setExpanded(!!hasOptionalData)
     }
     wasOpen.current = open
@@ -186,6 +183,12 @@ export function EditProjectDialog({
           </p>
         </div>
 
+        {/* Shoot Dates — always visible */}
+        <div className="flex flex-col gap-2">
+          <Label>Shoot Dates</Label>
+          <ShootDatesField value={shootDates} onChange={setShootDates} disabled={saving} />
+        </div>
+
         {/* More options toggle */}
         <button
           type="button"
@@ -202,11 +205,6 @@ export function EditProjectDialog({
         {/* Collapsible optional fields */}
         {expanded && (
           <div className="flex flex-col gap-4" data-testid="optional-fields">
-            <div className="flex flex-col gap-2">
-              <Label>Shoot Dates</Label>
-              <ShootDatesField value={shootDates} onChange={setShootDates} disabled={saving} />
-            </div>
-
             <div className="flex flex-col gap-2">
               <Label htmlFor="edit-project-brief-url">Brief URL</Label>
               <Input

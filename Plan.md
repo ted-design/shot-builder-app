@@ -466,23 +466,23 @@ Admin (role-gated: admin only)
 
 **Goal:** Fix three UX issues surfaced during Sprint S5 research: shoot dates buried below fold in project dialogs, tags lack visual category distinction, and wardrobe/warehouse role mismatch in Firestore rules.
 
-**Status:** Not started.
+**Status:** COMPLETE.
 
 ### Sub-tasks
 
-- [ ] **S5a-1:** Move ShootDatesField above "More options" in CreateProjectDialog + EditProjectDialog
-- [ ] **S5a-2:** TagBadge left-border accent by category (priority=warm, gender=cool, media=green, other=neutral) — 2.5px left border, neutral body preserved
-- [ ] **S5a-3:** Category-based tag sort (display-only) in ShotCard, BoardCard — priority → gender → media → other. Never mutate Firestore array.
-- [ ] **S5a-4:** Wardrobe/warehouse normalization in `firestore.rules` — update `hasProjectRole()` and `isProducer()` to recognize both "wardrobe" and "warehouse" variants
-- [ ] **S5a-5:** Tests + acceptance verification
+- [x] **S5a-1:** Move ShootDatesField above "More options" in CreateProjectDialog + EditProjectDialog
+- [x] **S5a-2:** TagBadge left-border accent by category (priority=warm, gender=cool, media=green, other=neutral) — 2.5px left border, neutral body preserved
+- [x] **S5a-3:** Category-based tag sort (display-only) in ShotCard, BoardCard — priority → gender → media → other. Never mutate Firestore array.
+- [x] **S5a-4:** Wardrobe/warehouse normalization in `firestore.rules` — update `hasProjectRole()` and `isProducer()` to recognize both "wardrobe" and "warehouse" variants
+- [x] **S5a-5:** Tests + acceptance verification
 
 ### Acceptance Criteria
 
-- [ ] ShootDatesField is visible without expanding "More options" in both project dialogs
-- [ ] Tags display a subtle 2.5px left-border accent matching their category color
-- [ ] Tags are sorted by category (priority → gender → media → other) in ShotCard and BoardCard
-- [ ] Users with "wardrobe" role in Firestore project members are recognized by `hasProjectRole()`
-- [ ] Build clean, lint zero warnings, all tests pass
+- [x] ShootDatesField is visible without expanding "More options" in both project dialogs
+- [x] Tags display a subtle 2.5px left-border accent matching their category color
+- [x] Tags are sorted by category (priority → gender → media → other) in ShotCard and BoardCard
+- [x] Users with "wardrobe" role in Firestore project members are recognized by `hasProjectRole()`
+- [x] Build clean, lint zero warnings, all tests pass
 
 ---
 
