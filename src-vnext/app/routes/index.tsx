@@ -71,6 +71,9 @@ const LibraryPalettePage = lazy(
 const AdminPage = lazy(
   () => import("@/features/admin/components/AdminPage"),
 )
+const ShotRequestInboxPage = lazy(
+  () => import("@/features/requests/components/ShotRequestInboxPage"),
+)
 
 // Dev-only components — only imported in development to keep them out of production bundles
 const DevImportQ2 = import.meta.env.DEV
@@ -182,6 +185,14 @@ export function AppRoutes() {
                   <CallSheetBuilderPage />
                 </RequireDesktop>
               </ProjectScopeProvider>
+            }
+          />
+          <Route
+            path="inbox"
+            element={
+              <RequireRole allowed={["admin", "producer"]}>
+                <ShotRequestInboxPage />
+              </RequireRole>
             }
           />
           <Route path="products" element={<ProductListPage />} />

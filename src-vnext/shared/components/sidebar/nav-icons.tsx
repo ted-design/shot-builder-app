@@ -5,6 +5,7 @@ import {
   ClipboardList,
   HardHat,
   Image,
+  Inbox,
   Landmark,
   LayoutGrid,
   MapPin,
@@ -20,6 +21,7 @@ import type { NavItemIcon } from "./nav-config"
 
 const ICON_MAP: Record<NavItemIcon, LucideIcon> = {
   "layout-grid": LayoutGrid,
+  inbox: Inbox,
   camera: Camera,
   "clipboard-list": ClipboardList,
   image: Image,

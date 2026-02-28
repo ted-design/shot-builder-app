@@ -99,3 +99,11 @@ export function isViewer(role: Role): boolean {
 export function isAdmin(role: Role): boolean {
   return role === ROLE.ADMIN
 }
+
+export function canSubmitShotRequest(role: Role): boolean {
+  return role === ROLE.ADMIN || role === ROLE.PRODUCER
+}
+
+export function canTriageShotRequests(role: Role): boolean {
+  return role === ROLE.ADMIN || role === ROLE.PRODUCER
+}

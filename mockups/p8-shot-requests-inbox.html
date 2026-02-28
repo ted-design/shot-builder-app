@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P8 — Shot Request Inbox</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --color-bg: #fafafa;
+      --color-surface: #ffffff;
+      --color-surface-subtle: #f4f4f5;
+      --color-surface-muted: #e4e4e7;
+      --color-text: #18181b;
+      --color-text-secondary: #52525b;
+      --color-text-muted: #71717a;
+      --color-text-subtle: #a1a1aa;
+      --color-border: #e4e4e7;
+      --color-border-strong: #d4d4d8;
+      --color-primary: #18181b;
+      --color-primary-text: #ffffff;
+      --color-primary-subtle: #f4f4f5;
+      --color-accent: #E31E24;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+
+      /* Status badge tokens */
+      --color-status-gray-bg: #f4f4f5;
+      --color-status-gray-text: #3f3f46;
+      --color-status-gray-border: #e4e4e7;
+      --color-status-blue-bg: #eff6ff;
+      --color-status-blue-text: #1d4ed8;
+      --color-status-blue-border: #bfdbfe;
+      --color-status-green-bg: #ecfdf5;
+      --color-status-green-text: #047857;
+      --color-status-green-border: #a7f3d0;
+      --color-status-amber-bg: #fffbeb;
+      --color-status-amber-text: #b45309;
+      --color-status-amber-border: #fde68a;
+    }
+
+    body {
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .phase-label {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 4px;
+      z-index: 999;
+      letter-spacing: 0.02em;
+    }
+
+    .heading-page {
+      font-size: 18px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      color: var(--color-text);
+    }
+
+    /* Status badges */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 500;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+
+    .status-submitted {
+      background: var(--color-status-blue-bg);
+      color: var(--color-status-blue-text);
+      border-color: var(--color-status-blue-border);
+    }
+
+    .status-triaged {
+      background: var(--color-status-amber-bg);
+      color: var(--color-status-amber-text);
+      border-color: var(--color-status-amber-border);
+    }
+
+    .status-absorbed {
+      background: var(--color-status-green-bg);
+      color: var(--color-status-green-text);
+      border-color: var(--color-status-green-border);
+    }
+
+    .status-rejected {
+      background: var(--color-status-gray-bg);
+      color: var(--color-status-gray-text);
+      border-color: var(--color-status-gray-border);
+    }
+
+    /* Priority dot */
+    .priority-urgent {
+      width: 6px;
+      height: 6px;
+      border-radius: 9999px;
+      background: #ef4444;
+      flex-shrink: 0;
+    }
+
+    /* Tab bar */
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .tab-item {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 150ms, border-color 150ms;
+    }
+
+    .tab-item.active {
+      color: var(--color-text);
+      border-bottom-color: var(--color-primary);
+    }
+
+    .tab-item:hover:not(.active) {
+      color: var(--color-text-secondary);
+    }
+
+    .tab-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 9999px;
+      background: var(--color-surface-subtle);
+      color: var(--color-text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 6px;
+    }
+
+    .tab-item.active .tab-count {
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+    }
+
+    /* Request card */
+    .request-card {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--color-border);
+      cursor: pointer;
+      transition: background 150ms;
+    }
+
+    .request-card:hover {
+      background: var(--color-surface-subtle);
+    }
+
+    .request-card.selected {
+      background: var(--color-primary-subtle);
+      border-left: 2px solid var(--color-primary);
+      padding-left: 14px;
+    }
+
+    .request-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text);
+      line-height: 1.3;
+    }
+
+    .request-meta {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      margin-top: 4px;
+    }
+
+    /* My requests toggle */
+    .toggle-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+    }
+
+    .toggle-track {
+      width: 36px;
+      height: 20px;
+      background: var(--color-surface-muted);
+      border-radius: 9999px;
+      position: relative;
+      cursor: pointer;
+      transition: background 150ms;
+    }
+
+    .toggle-track.active {
+      background: var(--color-primary);
+    }
+
+    .toggle-thumb {
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 9999px;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: transform 150ms;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .toggle-track.active .toggle-thumb {
+      transform: translateX(16px);
+    }
+
+    /* Btn */
+    .btn-primary {
+      height: 32px;
+      padding: 0 14px;
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-primary:hover {
+      background: #27272a;
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+      color: var(--color-text-muted);
+      text-align: center;
+    }
+
+    .empty-state-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--color-surface-subtle);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      color: var(--color-text-subtle);
+    }
+
+    /* List panel */
+    .list-panel {
+      width: 300px;
+      border-right: 1px solid var(--color-border);
+      background: var(--color-surface);
+      height: 100%;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .detail-panel {
+      flex: 1;
+      background: var(--color-surface);
+      overflow-y: auto;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+  <div class="phase-label">Phase 8 — Inbox</div>
+
+  <!-- ===== DESKTOP: TWO-PANEL LAYOUT ===== -->
+  <div style="padding: 40px 24px;">
+    <h1 class="heading-page" style="margin-bottom: 24px;">Desktop: Two-Panel Inbox (300px list + 1fr detail)</h1>
+
+    <div style="border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; height: 640px; display: flex; flex-direction: column;">
+      <!-- Page header -->
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <h1 class="heading-page">Inbox</h1>
+          <span style="font-size: 13px; color: var(--color-text-muted);">3 submitted</span>
+        </div>
+        <button class="btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          New Request
+        </button>
+      </div>
+
+      <div style="display: flex; flex: 1; min-height: 0;">
+        <!-- Left: List panel -->
+        <div class="list-panel">
+          <!-- Filter tabs + toggle -->
+          <div style="padding: 8px 12px 0;">
+            <div class="tab-bar" style="gap: 0;">
+              <button class="tab-item active">All<span class="tab-count">7</span></button>
+              <button class="tab-item">Submitted<span class="tab-count">3</span></button>
+              <button class="tab-item">Triaged</button>
+              <button class="tab-item">Done</button>
+            </div>
+          </div>
+          <div style="padding: 8px 12px; border-bottom: 1px solid var(--color-border);">
+            <div class="toggle-wrapper">
+              <div class="toggle-track" onclick="this.classList.toggle('active');">
+                <div class="toggle-thumb"></div>
+              </div>
+              <span style="font-size: 12px;">My requests</span>
+            </div>
+          </div>
+
+          <!-- Request cards -->
+          <div class="request-card selected">
+            <div style="display: flex; align-items: flex-start; gap: 8px;">
+              <div class="priority-urgent" style="margin-top: 5px;"></div>
+              <div style="flex: 1; min-width: 0;">
+                <div class="request-title">Spring Campaign Hero Shots</div>
+                <div class="request-meta">
+                  <span>Sarah Chen</span> &middot; <span>2h ago</span>
+                </div>
+              </div>
+              <span class="status-badge status-submitted">Submitted</span>
+            </div>
+          </div>
+
+          <div class="request-card">
+            <div style="display: flex; align-items: flex-start; gap: 8px;">
+              <div style="width: 6px; flex-shrink: 0;"></div>
+              <div style="flex: 1; min-width: 0;">
+                <div class="request-title">Product Flat Lays — Q3 Lookbook</div>
+                <div class="request-meta">
+                  <span>Tom Rivera</span> &middot; <span>5h ago</span>
+                </div>
+              </div>
+              <span class="status-badge status-submitted">Submitted</span>
+            </div>
+          </div>
+
+          <div class="request-card">
+            <div style="display: flex; align-items: flex-start; gap: 8px;">
+              <div class="priority-urgent" style="margin-top: 5px;"></div>
+              <div style="flex: 1; min-width: 0;">
+                <div class="request-title">Social Media Reel — New Arrivals</div>
+                <div class="request-meta">
+                  <span>Sarah Chen</span> &middot; <span>1d ago</span>
+                </div>
+              </div>
+              <span class="status-badge status-submitted">Submitted</span>
+            </div>
+          </div>
+
+          <div class="request-card">
+            <div style="display: flex; align-items: flex-start; gap: 8px;">
+              <div style="width: 6px; flex-shrink: 0;"></div>
+              <div style="flex: 1; min-width: 0;">
+                <div class="request-title">E-commerce Detail Shots — Denim</div>
+                <div class="request-meta">
+                  <span>Alex Kim</span> &middot; <span>3d ago</span>
+                </div>
+              </div>
+              <span class="status-badge status-triaged">Triaged</span>
+            </div>
+          </div>
+
+          <div class="request-card">
+            <div style="display: flex; align-items: flex-start; gap: 8px;">
+              <div style="width: 6px; flex-shrink: 0;"></div>
+              <div style="flex: 1; min-width: 0;">
+                <div class="request-title">Behind the Scenes — Winter Shoot</div>
+                <div class="request-meta">
+                  <span>Sarah Chen</span> &middot; <span>5d ago</span>
+                </div>
+              </div>
+              <span class="status-badge status-absorbed">Absorbed</span>
+            </div>
+          </div>
+
+          <div class="request-card">
+            <div style="display: flex; align-items: flex-start; gap: 8px;">
+              <div style="width: 6px; flex-shrink: 0;"></div>
+              <div style="flex: 1; min-width: 0;">
+                <div class="request-title">Packaging Shoot — Gift Box</div>
+                <div class="request-meta">
+                  <span>Tom Rivera</span> &middot; <span>1w ago</span>
+                </div>
+              </div>
+              <span class="status-badge status-rejected">Rejected</span>
+            </div>
+          </div>
+
+          <div class="request-card">
+            <div style="display: flex; align-items: flex-start; gap: 8px;">
+              <div style="width: 6px; flex-shrink: 0;"></div>
+              <div style="flex: 1; min-width: 0;">
+                <div class="request-title">Lifestyle — Beach Collection</div>
+                <div class="request-meta">
+                  <span>Alex Kim</span> &middot; <span>2w ago</span>
+                </div>
+              </div>
+              <span class="status-badge status-absorbed">Absorbed</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Triage detail panel (see p8-shot-requests-triage.html) -->
+        <div class="detail-panel" style="padding: 24px;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                <div class="priority-urgent"></div>
+                <span style="font-size: 12px; color: #ef4444; font-weight: 500;">Urgent</span>
+              </div>
+              <h2 style="font-size: 18px; font-weight: 500; letter-spacing: -0.01em;">Spring Campaign Hero Shots</h2>
+            </div>
+            <span class="status-badge status-submitted">Submitted</span>
+          </div>
+
+          <div style="font-size: 13px; color: var(--color-text-muted); margin-bottom: 20px;">
+            Submitted by <span style="color: var(--color-text);">Sarah Chen</span> &middot; 2 hours ago
+          </div>
+
+          <!-- Fields read-only -->
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div>
+              <div class="section-label" style="margin-bottom: 4px;">Description</div>
+              <p style="font-size: 13px; color: var(--color-text-secondary); line-height: 1.6;">
+                We need hero shots for the Spring 2026 campaign. Main focus on outerwear and transitional pieces.
+                Lifestyle setting, natural lighting preferred. Should feel aspirational but approachable.
+              </p>
+            </div>
+
+            <div>
+              <div class="section-label" style="margin-bottom: 4px;">Reference URLs</div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <a href="#" style="font-size: 13px; color: #1d4ed8; text-decoration: none;">https://pinterest.com/pin/spring-inspo-board</a>
+                <a href="#" style="font-size: 13px; color: #1d4ed8; text-decoration: none;">https://docs.google.com/creative-brief-v2</a>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <div>
+                <div class="section-label" style="margin-bottom: 4px;">Deadline</div>
+                <p style="font-size: 13px; color: var(--color-text-secondary);">March 15, 2026</p>
+              </div>
+              <div>
+                <div class="section-label" style="margin-bottom: 4px;">Priority</div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <div class="priority-urgent"></div>
+                  <span style="font-size: 13px; color: #ef4444; font-weight: 500;">Urgent</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="section-label" style="margin-bottom: 4px;">Notes</div>
+              <p style="font-size: 13px; color: var(--color-text-secondary); line-height: 1.6;">
+                Client wants to see first selects by end of month. Budget approved for 2-day shoot.
+              </p>
+            </div>
+          </div>
+
+          <!-- Triage actions -->
+          <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-border); display: flex; gap: 8px;">
+            <button style="height: 36px; padding: 0 20px; background: #047857; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Absorb into Project
+            </button>
+            <button style="height: 36px; padding: 0 20px; background: transparent; color: var(--color-text-muted); border: 1px solid var(--color-border); border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              Reject
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div style="border-top: 1px dashed var(--color-border-strong); margin: 40px 24px;"></div>
+
+  <!-- ===== DESKTOP: EMPTY STATE ===== -->
+  <div style="padding: 0 24px 40px;">
+    <h1 class="heading-page" style="margin-bottom: 24px;">Desktop: Empty State</h1>
+
+    <div style="border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; height: 400px; display: flex; flex-direction: column;">
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between;">
+        <h1 class="heading-page">Inbox</h1>
+        <button class="btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          New Request
+        </button>
+      </div>
+
+      <div style="display: flex; flex: 1;">
+        <div class="list-panel">
+          <div style="padding: 8px 12px 0;">
+            <div class="tab-bar">
+              <button class="tab-item active">All<span class="tab-count">0</span></button>
+              <button class="tab-item">Submitted</button>
+              <button class="tab-item">Triaged</button>
+              <button class="tab-item">Done</button>
+            </div>
+          </div>
+          <div class="empty-state" style="padding: 48px 20px;">
+            <div class="empty-state-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><polyline points="2 7 12 13 22 7"></polyline></svg>
+            </div>
+            <div style="font-size: 13px; font-weight: 500; color: var(--color-text); margin-bottom: 4px;">No requests yet</div>
+            <div style="font-size: 12px; color: var(--color-text-muted); max-width: 200px;">Submit a shot request to get started with production planning</div>
+          </div>
+        </div>
+        <div class="detail-panel">
+          <div class="empty-state">
+            <div style="font-size: 13px; color: var(--color-text-muted);">Select a request to view details</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div style="border-top: 1px dashed var(--color-border-strong); margin: 40px 24px;"></div>
+
+  <!-- ===== MOBILE: SINGLE COLUMN ===== -->
+  <div style="padding: 0 24px 80px;">
+    <h1 class="heading-page" style="margin-bottom: 24px;">Mobile: Single Column List (no triage actions)</h1>
+
+    <div style="background: #09090b; border-radius: 32px; width: 375px; height: 720px; margin: 0 auto; position: relative; overflow: hidden; border: 3px solid #27272a;">
+      <!-- Status bar -->
+      <div style="height: 48px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff;">9:41</div>
+
+      <!-- Content -->
+      <div style="background: var(--color-bg); height: calc(100% - 48px); overflow-y: auto;">
+        <!-- Header -->
+        <div style="padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+          <h1 style="font-size: 18px; font-weight: 300; letter-spacing: -0.02em;">Inbox</h1>
+          <button style="width: 32px; height: 32px; background: var(--color-primary); color: var(--color-primary-text); border: none; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+        </div>
+
+        <!-- Tabs -->
+        <div style="padding: 0 16px;">
+          <div class="tab-bar" style="overflow-x: auto;">
+            <button class="tab-item active" style="font-size: 12px; padding: 6px 10px;">All<span class="tab-count" style="font-size: 10px; min-width: 16px; height: 16px;">7</span></button>
+            <button class="tab-item" style="font-size: 12px; padding: 6px 10px;">Submitted<span class="tab-count" style="font-size: 10px; min-width: 16px; height: 16px;">3</span></button>
+            <button class="tab-item" style="font-size: 12px; padding: 6px 10px;">Triaged</button>
+            <button class="tab-item" style="font-size: 12px; padding: 6px 10px;">Done</button>
+          </div>
+        </div>
+
+        <!-- Toggle -->
+        <div style="padding: 8px 16px; border-bottom: 1px solid var(--color-border);">
+          <div class="toggle-wrapper">
+            <div class="toggle-track active" onclick="this.classList.toggle('active');">
+              <div class="toggle-thumb"></div>
+            </div>
+            <span style="font-size: 12px;">My requests</span>
+          </div>
+        </div>
+
+        <!-- Cards -->
+        <div class="request-card" style="padding: 12px 16px;">
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <div class="priority-urgent" style="margin-top: 5px;"></div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <div class="request-title" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Spring Campaign Hero Shots</div>
+                <span class="status-badge status-submitted" style="flex-shrink: 0;">Submitted</span>
+              </div>
+              <div class="request-meta" style="margin-top: 2px;">Sarah Chen &middot; 2h ago</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="request-card" style="padding: 12px 16px;">
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <div style="width: 6px; flex-shrink: 0;"></div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <div class="request-title" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Product Flat Lays — Q3 Lookbook</div>
+                <span class="status-badge status-submitted" style="flex-shrink: 0;">Submitted</span>
+              </div>
+              <div class="request-meta" style="margin-top: 2px;">Tom Rivera &middot; 5h ago</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="request-card" style="padding: 12px 16px;">
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <div class="priority-urgent" style="margin-top: 5px;"></div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <div class="request-title" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Social Media Reel — New Arrivals</div>
+                <span class="status-badge status-submitted" style="flex-shrink: 0;">Submitted</span>
+              </div>
+              <div class="request-meta" style="margin-top: 2px;">Sarah Chen &middot; 1d ago</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="request-card" style="padding: 12px 16px;">
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <div style="width: 6px; flex-shrink: 0;"></div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <div class="request-title" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">E-commerce Detail Shots — Denim</div>
+                <span class="status-badge status-triaged" style="flex-shrink: 0;">Triaged</span>
+              </div>
+              <div class="request-meta" style="margin-top: 2px;">Alex Kim &middot; 3d ago</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="request-card" style="padding: 12px 16px;">
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <div style="width: 6px; flex-shrink: 0;"></div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <div class="request-title" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Behind the Scenes — Winter Shoot</div>
+                <span class="status-badge status-absorbed" style="flex-shrink: 0;">Absorbed</span>
+              </div>
+              <div class="request-meta" style="margin-top: 2px;">Sarah Chen &middot; 5d ago</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

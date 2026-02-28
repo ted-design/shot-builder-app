@@ -7,6 +7,7 @@ import { ROLE } from "@/shared/lib/rbac"
 
 export type NavItemIcon =
   | "layout-grid"
+  | "inbox"
   | "camera"
   | "clipboard-list"
   | "image"
@@ -61,6 +62,16 @@ export function buildNavConfig(projectId?: string, role?: string): NavConfig {
   if (!projectId) {
     const entries: NavEntry[] = [
       { type: "item", item: { label: "Dashboard", to: "/projects", iconName: "layout-grid" } },
+    ]
+
+    if (role === ROLE.ADMIN || role === ROLE.PRODUCER) {
+      entries.push({
+        type: "item",
+        item: { label: "Inbox", to: "/inbox", iconName: "inbox" },
+      })
+    }
+
+    entries.push(
       { type: "item", item: { label: "Products", to: "/products", iconName: "package" } },
       {
         type: "group",
@@ -70,7 +81,7 @@ export function buildNavConfig(projectId?: string, role?: string): NavConfig {
           children: LIBRARY_CHILDREN,
         },
       },
-    ]
+    )
 
     if (role === ROLE.ADMIN) {
       entries.push(

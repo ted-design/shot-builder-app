@@ -97,6 +97,62 @@ describe("buildNavConfig", () => {
     )
     expect(admin).toBeUndefined()
   })
+
+  it("includes Inbox entry for admin role in org view", () => {
+    const config = buildNavConfig(undefined, "admin")
+    const inbox = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Inbox",
+    )
+    expect(inbox).toBeDefined()
+    if (inbox?.type === "item") {
+      expect(inbox.item.to).toBe("/inbox")
+      expect(inbox.item.iconName).toBe("inbox")
+    }
+  })
+
+  it("includes Inbox entry for producer role in org view", () => {
+    const config = buildNavConfig(undefined, "producer")
+    const inbox = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Inbox",
+    )
+    expect(inbox).toBeDefined()
+  })
+
+  it("excludes Inbox entry for crew role", () => {
+    const config = buildNavConfig(undefined, "crew")
+    const inbox = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Inbox",
+    )
+    expect(inbox).toBeUndefined()
+  })
+
+  it("excludes Inbox entry for warehouse role", () => {
+    const config = buildNavConfig(undefined, "warehouse")
+    const inbox = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Inbox",
+    )
+    expect(inbox).toBeUndefined()
+  })
+
+  it("excludes Inbox entry for viewer role", () => {
+    const config = buildNavConfig(undefined, "viewer")
+    const inbox = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Inbox",
+    )
+    expect(inbox).toBeUndefined()
+  })
+
+  it("places Inbox between Dashboard and Products for admin", () => {
+    const config = buildNavConfig(undefined, "admin")
+    const items = config.entries
+      .filter((e) => e.type === "item")
+      .map((e) => (e as { type: "item"; item: { label: string } }).item.label)
+    const dashIdx = items.indexOf("Dashboard")
+    const inboxIdx = items.indexOf("Inbox")
+    const productsIdx = items.indexOf("Products")
+    expect(inboxIdx).toBeGreaterThan(dashIdx)
+    expect(inboxIdx).toBeLessThan(productsIdx)
+  })
 })
 
 describe("getMobileNavConfig", () => {

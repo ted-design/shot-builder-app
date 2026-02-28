@@ -22,6 +22,8 @@ import {
   scheduleCrewCallsPath,
   scheduleClientCallsPath,
   callSheetConfigPath,
+  shotRequestsPath,
+  shotRequestDocPath,
 } from "./paths"
 
 const CLIENT = "test-client"
@@ -159,6 +161,20 @@ describe("Firestore Path Builders", () => {
     it("builds callSheetConfigPath (doc path)", () => {
       expect(callSheetConfigPath("proj-1", "sched-1", CLIENT)).toEqual([
         "clients", "test-client", "projects", "proj-1", "schedules", "sched-1", "callSheet", "config",
+      ])
+    })
+  })
+
+  describe("shot requests (org-level)", () => {
+    it("builds shotRequestsPath at client level", () => {
+      expect(shotRequestsPath(CLIENT)).toEqual([
+        "clients", "test-client", "shotRequests",
+      ])
+    })
+
+    it("builds shotRequestDocPath", () => {
+      expect(shotRequestDocPath("req-1", CLIENT)).toEqual([
+        "clients", "test-client", "shotRequests", "req-1",
       ])
     })
   })
