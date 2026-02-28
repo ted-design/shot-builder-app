@@ -3,6 +3,7 @@ import {
   projectsPath,
   projectPath,
   projectMembersPath,
+  projectMemberDocPath,
   shotsPath,
   shotPath,
   pullsPath,
@@ -40,6 +41,12 @@ describe("Firestore Path Builders", () => {
     it("builds projectMembersPath", () => {
       expect(projectMembersPath("proj-1", CLIENT)).toEqual([
         "clients", "test-client", "projects", "proj-1", "members",
+      ])
+    })
+
+    it("builds projectMemberDocPath", () => {
+      expect(projectMemberDocPath("user-1", "proj-1", CLIENT)).toEqual([
+        "clients", "test-client", "projects", "proj-1", "members", "user-1",
       ])
     })
   })

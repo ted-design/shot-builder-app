@@ -8,7 +8,7 @@ import { ProjectCard } from "@/features/projects/components/ProjectCard"
 import { CreateProjectDialog } from "@/features/projects/components/CreateProjectDialog"
 import { EditProjectDialog } from "@/features/projects/components/EditProjectDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
-import { canManageProjects } from "@/shared/lib/rbac"
+import { canManageProjects, isAdmin } from "@/shared/lib/rbac"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
@@ -342,13 +342,21 @@ export default function ProjectDashboard() {
       )}
 
       {baseProjects.length === 0 ? (
-        <EmptyState
-          icon={<FolderKanban className="h-12 w-12" />}
-          title="No projects yet"
-          description="Create your first project to start planning shots."
-          actionLabel={showCreate ? "Create Project" : undefined}
-          onAction={showCreate ? () => setCreateOpen(true) : undefined}
-        />
+        isAdmin(role) || canManage ? (
+          <EmptyState
+            icon={<FolderKanban className="h-12 w-12" />}
+            title="No projects yet"
+            description="Create your first project to start planning shots."
+            actionLabel={showCreate ? "Create Project" : undefined}
+            onAction={showCreate ? () => setCreateOpen(true) : undefined}
+          />
+        ) : (
+          <EmptyState
+            icon={<FolderKanban className="h-12 w-12" />}
+            title="No projects assigned"
+            description="Contact your administrator to get access to projects."
+          />
+        )
       ) : displayProjects.length === 0 ? (
         <EmptyState
           icon={<FolderKanban className="h-12 w-12" />}

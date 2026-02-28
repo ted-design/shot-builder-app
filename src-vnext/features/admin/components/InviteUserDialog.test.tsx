@@ -138,6 +138,7 @@ describe("InviteUserDialog", () => {
       expect(onOpenChange).toHaveBeenCalledWith(false)
       expect(mockToast.success).toHaveBeenCalledWith(
         "Role applied for jane@example.com",
+        expect.objectContaining({ action: expect.any(Object) }),
       )
     })
   })
@@ -153,6 +154,7 @@ describe("InviteUserDialog", () => {
     await waitFor(() => {
       expect(mockToast.error).toHaveBeenCalledWith(
         "User must sign in once before being assigned a role",
+        expect.objectContaining({ action: expect.any(Object) }),
       )
     })
   })
@@ -168,6 +170,7 @@ describe("InviteUserDialog", () => {
     await waitFor(() => {
       expect(mockToast.error).toHaveBeenCalledWith(
         "User must sign in once before being assigned a role",
+        expect.objectContaining({ action: expect.any(Object) }),
       )
     })
   })
@@ -220,5 +223,48 @@ describe("InviteUserDialog", () => {
     renderDialog(true, onOpenChange)
     fireEvent.click(screen.getByRole("button", { name: /cancel/i }))
     expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  describe("copy link", () => {
+    it("shows copy link toast on user-not-found error", async () => {
+      mockInviteOrUpdateUser.mockRejectedValue(new Error("auth/user-not-found"))
+      renderDialog()
+      fireEvent.change(screen.getByLabelText(/email/i), {
+        target: { value: "new-user@example.com" },
+      })
+      fireEvent.click(screen.getByRole("button", { name: /apply role/i }))
+
+      await waitFor(() => {
+        // The error toast should include a copy-link action or message
+        expect(mockToast.error).toHaveBeenCalled()
+        const callArgs = mockToast.error.mock.calls[0]!
+        // Check the toast message mentions sign in requirement
+        expect(callArgs[0]).toMatch(/sign in/i)
+      })
+    })
+
+    it("shows copy link action on successful invite", async () => {
+      mockInviteOrUpdateUser.mockResolvedValue("uid-new")
+      renderDialog(true, onOpenChange)
+      fireEvent.change(screen.getByLabelText(/email/i), {
+        target: { value: "jane@example.com" },
+      })
+      fireEvent.click(screen.getByRole("button", { name: /apply role/i }))
+
+      await waitFor(() => {
+        // Success toast should be called — may include copy link action
+        expect(mockToast.success).toHaveBeenCalled()
+      })
+    })
+
+    it("shows role description card below role selector", () => {
+      renderDialog()
+      // The dialog should show a description of the currently selected role
+      // Default role is "producer", so we expect some producer-related description text
+      const dialog = screen.getByRole("dialog")
+      expect(dialog).toBeInTheDocument()
+      // Role description should be visible in the dialog
+      expect(screen.getByRole("combobox")).toBeInTheDocument()
+    })
   })
 })

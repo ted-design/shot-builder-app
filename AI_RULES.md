@@ -384,6 +384,24 @@ Before building new features, audit existing entity pages for missing edit paths
 
 Each gap is a small fix (5-30 lines) but blocks real user workflows. Group by file overlap for parallel execution.
 
+### Firestore Rules: Wildcard Catch-All Pitfall (Sprint S5b)
+
+Firestore grants access if **any** applicable `match` block allows it. A more specific `match` does NOT deny access from a broader wildcard. This means:
+
+1. A wildcard catch-all like `match /{collectionId}/{docId}` that grants write to `producer` or `warehouse` roles will **also** grant write to subcollections like `/members/{memberId}` — even if you intend members to be admin-only.
+2. **Fix:** Add an explicit `match /members/{memberId}` block with restrictive rules. The explicit block's `allow` rules are what grant access to that path; the wildcard's `allow` rules also grant access independently.
+3. **Self-membership exception:** When a non-admin user (e.g., producer) creates a project and needs to add themselves as a member atomically, add a specific `allow create` rule: `allow create: if isProducer() && memberId == request.auth.uid`.
+4. **Audit checklist:** After adding any new subcollection, check whether existing wildcard catch-all rules inadvertently grant access to it.
+
+### Multi-Agent Worktree Integration Pattern (Sprint S5b)
+
+When using multiple implementation agents in isolated worktrees:
+
+1. **Function signatures diverge:** Data engineer and UI engineer may define different parameter lists for the same function. Always reconcile signatures during integration.
+2. **Toast assertions with action objects:** When implementation adds `{ action: { label, onClick } }` as a second arg to `toast.success()`/`toast.error()`, tests asserting `toHaveBeenCalledWith("msg")` will fail. Use `expect.objectContaining({ action: expect.any(Object) })` as the second matcher.
+3. **writeBatch migration:** When converting `addDoc` to `writeBatch`, update ALL test assertions — mock targets change from `mockAddDoc` to `mockBatchSet`/`mockBatchCommit`.
+4. **Integration order:** Apply data layer first, then UI, then tests. Fix test failures last (they depend on both data + UI being correct).
+
 ### Context Budget Rules
 
 - Each Plan.md phase is broken into lettered sub-tasks that fit in one session

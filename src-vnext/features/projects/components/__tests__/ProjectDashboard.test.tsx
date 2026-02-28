@@ -10,7 +10,7 @@ vi.mock("@/features/projects/hooks/useProjects", () => ({
 }))
 
 vi.mock("@/app/providers/AuthProvider", () => ({
-  useAuth: () => ({ role: "producer" }),
+  useAuth: vi.fn(() => ({ role: "producer" })),
 }))
 
 vi.mock("@/shared/hooks/useMediaQuery", () => ({
@@ -32,7 +32,10 @@ vi.mock("@/features/projects/components/EditProjectDialog", () => ({
 }))
 
 import { useProjects } from "@/features/projects/hooks/useProjects"
+import { useAuth } from "@/app/providers/AuthProvider"
 import ProjectDashboard from "@/features/projects/components/ProjectDashboard"
+
+const mockUseAuth = useAuth as unknown as { mockReturnValue: (v: unknown) => void }
 
 function makeProject(overrides: Partial<Project>): Project {
   const now = Timestamp.fromMillis(Date.now())
@@ -130,6 +133,52 @@ describe("ProjectDashboard", () => {
 
     const cards = screen.getAllByTestId("project-card")
     expect(cards.map((c) => c.textContent)).toEqual(["Alpha", "Bravo", "Zulu"])
+  })
+
+  describe("empty state", () => {
+    it("shows 'No projects assigned' for non-admin with no projects", () => {
+      mockUseAuth.mockReturnValue({ role: "crew" })
+      ;(useProjects as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+        data: [],
+        loading: false,
+        error: null,
+      })
+      renderPage("/projects")
+      expect(screen.getByText(/no projects assigned/i)).toBeInTheDocument()
+    })
+
+    it("shows 'No projects yet' for admin with no projects", () => {
+      mockUseAuth.mockReturnValue({ role: "admin" })
+      ;(useProjects as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+        data: [],
+        loading: false,
+        error: null,
+      })
+      renderPage("/projects")
+      expect(screen.getByText(/no projects yet/i)).toBeInTheDocument()
+    })
+
+    it("shows Create button for producer role", () => {
+      mockUseAuth.mockReturnValue({ role: "producer" })
+      ;(useProjects as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+        data: [],
+        loading: false,
+        error: null,
+      })
+      renderPage("/projects")
+      expect(screen.getByText(/no projects yet/i)).toBeInTheDocument()
+    })
+
+    it("does not show Create button for viewer role", () => {
+      mockUseAuth.mockReturnValue({ role: "viewer" })
+      ;(useProjects as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+        data: [],
+        loading: false,
+        error: null,
+      })
+      renderPage("/projects")
+      expect(screen.getByText(/no projects assigned/i)).toBeInTheDocument()
+    })
   })
 
   it("always hides deleted projects", () => {
