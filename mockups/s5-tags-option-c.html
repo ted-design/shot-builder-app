@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en" class="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S5 Tags — Option C: Per-Tag Custom Color (Firestore color field)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwindcss.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontSize: {
+            '3xs': ['0.5625rem', { lineHeight: '1' }],
+            '2xs': ['0.625rem', { lineHeight: '1.2' }],
+            'xxs': ['0.6875rem', { lineHeight: '1.3' }],
+            'xs': ['0.75rem', { lineHeight: '1.4' }],
+            'sm': ['0.8125rem', { lineHeight: '1.5' }],
+            'base': ['0.875rem', { lineHeight: '1.5' }],
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    :root {
+      --color-bg: #fafafa;
+      --color-surface: #ffffff;
+      --color-text: #18181b;
+      --color-text-secondary: #52525b;
+      --color-text-muted: #71717a;
+      --color-text-subtle: #a1a1aa;
+      --color-border: #e4e4e7;
+    }
+    .dark {
+      --color-bg: #09090b;
+      --color-surface: #18181b;
+      --color-text: #fafafa;
+      --color-text-secondary: #d4d4d8;
+      --color-text-muted: #a1a1aa;
+      --color-text-subtle: #71717a;
+      --color-border: #3f3f46;
+    }
+
+    /*
+      === OPTION C: Per-Tag Custom Color ===
+      Each tag uses its own `color` from Firestore.
+      Background is 8-10% opacity of the tag color.
+      Border is 20% opacity of the tag color.
+      Text stays dark/high-contrast for readability.
+
+      In real implementation, these would be computed from the
+      tag.color field using CSS custom properties or inline styles.
+      Here we show the default tag colors from defaultTags.ts.
+    */
+
+    /* Light mode per-tag colors */
+    .tag-color-red {
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.22);
+      color: #991b1b;
+    }
+    .tag-color-amber {
+      background: rgba(245, 158, 11, 0.08);
+      border-color: rgba(245, 158, 11, 0.22);
+      color: #92400e;
+    }
+    .tag-color-green {
+      background: rgba(34, 197, 94, 0.08);
+      border-color: rgba(34, 197, 94, 0.22);
+      color: #166534;
+    }
+    .tag-color-blue {
+      background: rgba(59, 130, 246, 0.08);
+      border-color: rgba(59, 130, 246, 0.22);
+      color: #1e40af;
+    }
+    .tag-color-pink {
+      background: rgba(236, 72, 153, 0.08);
+      border-color: rgba(236, 72, 153, 0.22);
+      color: #9d174d;
+    }
+    .tag-color-purple {
+      background: rgba(168, 85, 247, 0.08);
+      border-color: rgba(168, 85, 247, 0.22);
+      color: #6b21a8;
+    }
+    .tag-color-emerald {
+      background: rgba(16, 185, 129, 0.08);
+      border-color: rgba(16, 185, 129, 0.22);
+      color: #065f46;
+    }
+    .tag-color-orange {
+      background: rgba(249, 115, 22, 0.08);
+      border-color: rgba(249, 115, 22, 0.22);
+      color: #9a3412;
+    }
+    .tag-color-gray {
+      background: rgba(161, 161, 170, 0.08);
+      border-color: rgba(161, 161, 170, 0.22);
+      color: #3f3f46;
+    }
+
+    /* Dark mode per-tag colors */
+    .dark .tag-color-red {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.28);
+      color: #fca5a5;
+    }
+    .dark .tag-color-amber {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.28);
+      color: #fcd34d;
+    }
+    .dark .tag-color-green {
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(34, 197, 94, 0.28);
+      color: #86efac;
+    }
+    .dark .tag-color-blue {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(59, 130, 246, 0.28);
+      color: #93c5fd;
+    }
+    .dark .tag-color-pink {
+      background: rgba(236, 72, 153, 0.12);
+      border-color: rgba(236, 72, 153, 0.28);
+      color: #f9a8d4;
+    }
+    .dark .tag-color-purple {
+      background: rgba(168, 85, 247, 0.12);
+      border-color: rgba(168, 85, 247, 0.28);
+      color: #c4b5fd;
+    }
+    .dark .tag-color-emerald {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.28);
+      color: #6ee7b7;
+    }
+    .dark .tag-color-orange {
+      background: rgba(249, 115, 22, 0.12);
+      border-color: rgba(249, 115, 22, 0.28);
+      color: #fdba74;
+    }
+    .dark .tag-color-gray {
+      background: rgba(161, 161, 170, 0.10);
+      border-color: rgba(161, 161, 170, 0.22);
+      color: #a1a1aa;
+    }
+  </style>
+</head>
+<body class="bg-[var(--color-bg)] text-[var(--color-text)] p-6 transition-colors">
+
+  <!-- Dark mode toggle -->
+  <div class="fixed top-4 right-4 z-50">
+    <button onclick="document.documentElement.classList.toggle('dark')" class="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
+      Toggle Dark Mode
+    </button>
+  </div>
+
+  <div class="mx-auto max-w-4xl space-y-8">
+
+    <header class="space-y-2">
+      <h1 class="text-2xl font-light tracking-[-0.02em] text-[var(--color-text)]">Option C: Per-Tag Custom Color (Firestore)</h1>
+      <p class="text-sm text-[var(--color-text-muted)]">
+        Each tag uses its own <code class="rounded bg-[var(--color-surface)] px-1 text-xxs text-[var(--color-text-secondary)] border border-[var(--color-border)]">color</code> field from Firestore.
+        Background is 8% opacity of the tag's color. Border is 22% opacity. Text stays dark for readability.
+        Tags still sorted by category order: priority, gender, media, other.
+        Leverages the existing <code class="rounded bg-[var(--color-surface)] px-1 text-xxs text-[var(--color-text-secondary)] border border-[var(--color-border)]">tagColors.ts</code> palette.
+      </p>
+    </header>
+
+    <!-- Default tags from defaultTags.ts with their assigned colors -->
+    <section class="space-y-4">
+      <h2 class="text-base font-medium text-[var(--color-text)]">Default Tag Specimens (from defaultTags.ts)</h2>
+      <div class="space-y-3">
+        <div class="space-y-1">
+          <p class="text-3xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">Priority</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="tag-color-red inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">High Priority</span>
+            <span class="tag-color-amber inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Medium Priority</span>
+            <span class="tag-color-green inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Low Priority</span>
+          </div>
+        </div>
+        <div class="space-y-1">
+          <p class="text-3xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">Gender</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="tag-color-blue inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Men</span>
+            <span class="tag-color-pink inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Women</span>
+            <span class="tag-color-purple inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Unisex</span>
+          </div>
+        </div>
+        <div class="space-y-1">
+          <p class="text-3xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">Media</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="tag-color-emerald inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Photo</span>
+            <span class="tag-color-orange inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Video</span>
+          </div>
+        </div>
+        <div class="space-y-1">
+          <p class="text-3xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">Custom / Other</p>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="tag-color-gray inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Lifestyle</span>
+            <span class="tag-color-gray inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Studio</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Realistic ShotCard — Mobile (375px) -->
+    <section class="space-y-4">
+      <h2 class="text-base font-medium text-[var(--color-text)]">ShotCard — Mobile (375px)</h2>
+      <div class="mx-auto" style="max-width: 375px;">
+        <div class="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
+          <div class="flex flex-col gap-2.5 px-4 py-3.5">
+            <div class="flex items-start justify-between gap-2.5">
+              <div class="min-w-0 flex-1 space-y-1">
+                <h3 class="text-sm font-semibold leading-tight text-[var(--color-text)]">Hero Flat Lay — Campaign Header</h3>
+                <span class="block text-xxs text-[var(--color-text-subtle)]">#SH-042</span>
+                <p class="line-clamp-2 text-xxs leading-4 text-[var(--color-text-muted)]">
+                  Full product spread with lifestyle props. Capture from above with natural light.
+                </p>
+              </div>
+              <div class="flex-shrink-0">
+                <span class="inline-flex items-center rounded-full bg-[#ecfdf5] px-2 py-0.5 text-xxs font-medium text-[#065f46] ring-1 ring-inset ring-[#a7f3d0]">Shot</span>
+              </div>
+            </div>
+            <!-- Tags sorted by category, each tag colored individually -->
+            <div class="flex flex-wrap gap-1">
+              <span class="tag-color-red inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">High Priority</span>
+              <span class="tag-color-pink inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Women</span>
+              <span class="tag-color-emerald inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Photo</span>
+              <span class="tag-color-orange inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Video</span>
+              <span class="tag-color-gray inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Lifestyle</span>
+              <span class="tag-color-gray inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Studio</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Desktop card grid -->
+    <section class="space-y-4">
+      <h2 class="text-base font-medium text-[var(--color-text)]">ShotCard — Desktop Grid (3 cards)</h2>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
+        <!-- Card 1 -->
+        <div class="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
+          <div class="flex flex-col gap-2.5 px-4 py-3.5">
+            <div class="flex items-start justify-between gap-2.5">
+              <div class="min-w-0 flex-1 space-y-1">
+                <h3 class="text-sm font-semibold leading-tight text-[var(--color-text)]">Hero Flat Lay — Campaign Header</h3>
+                <span class="block text-xxs text-[var(--color-text-subtle)]">#SH-042</span>
+              </div>
+              <span class="inline-flex flex-shrink-0 items-center rounded-full bg-[#ecfdf5] px-2 py-0.5 text-xxs font-medium text-[#065f46] ring-1 ring-inset ring-[#a7f3d0]">Shot</span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span class="tag-color-red inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">High Priority</span>
+              <span class="tag-color-pink inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Women</span>
+              <span class="tag-color-emerald inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Photo</span>
+              <span class="tag-color-gray inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Lifestyle</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
+          <div class="flex flex-col gap-2.5 px-4 py-3.5">
+            <div class="flex items-start justify-between gap-2.5">
+              <div class="min-w-0 flex-1 space-y-1">
+                <h3 class="text-sm font-semibold leading-tight text-[var(--color-text)]">Model Close-Up — Jacket Detail</h3>
+                <span class="block text-xxs text-[var(--color-text-subtle)]">#SH-043</span>
+              </div>
+              <span class="inline-flex flex-shrink-0 items-center rounded-full bg-[#eff6ff] px-2 py-0.5 text-xxs font-medium text-[#1d4ed8] ring-1 ring-inset ring-[#bfdbfe]">In Progress</span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span class="tag-color-amber inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Medium Priority</span>
+              <span class="tag-color-blue inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Men</span>
+              <span class="tag-color-orange inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Video</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
+          <div class="flex flex-col gap-2.5 px-4 py-3.5">
+            <div class="flex items-start justify-between gap-2.5">
+              <div class="min-w-0 flex-1 space-y-1">
+                <h3 class="text-sm font-semibold leading-tight text-[var(--color-text)]">Full Look — Outdoor Editorial</h3>
+                <span class="block text-xxs text-[var(--color-text-subtle)]">#SH-044</span>
+              </div>
+              <span class="inline-flex flex-shrink-0 items-center rounded-full bg-[#f4f4f5] px-2 py-0.5 text-xxs font-medium text-[#3f3f46] ring-1 ring-inset ring-[#e4e4e7]">Draft</span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span class="tag-color-green inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Low Priority</span>
+              <span class="tag-color-purple inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Unisex</span>
+              <span class="tag-color-emerald inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Photo</span>
+              <span class="tag-color-orange inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Video</span>
+              <span class="tag-color-gray inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Studio</span>
+              <span class="tag-color-gray inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Outdoor</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Comparison: all 3 options -->
+    <section class="space-y-4">
+      <h2 class="text-base font-medium text-[var(--color-text)]">Side-by-Side: Same Tags, All 3 Approaches</h2>
+      <div class="grid gap-4 sm:grid-cols-3">
+        <div class="space-y-2">
+          <h3 class="text-3xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">Option A: Category BG</h3>
+          <div class="flex flex-wrap gap-1" style="--cat-priority-bg: #fef2f2; --cat-priority-border: #fecaca; --cat-priority-text: #991b1b;">
+            <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium" style="background: #fef2f2; border-color: #fecaca; color: #991b1b;">High Priority</span>
+            <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium" style="background: #eff6ff; border-color: #bfdbfe; color: #1e40af;">Women</span>
+            <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium" style="background: #ecfdf5; border-color: #a7f3d0; color: #065f46;">Photo</span>
+            <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium" style="background: #f4f4f5; border-color: #e4e4e7; color: #3f3f46;">Lifestyle</span>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <h3 class="text-3xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">Option B: Left Border</h3>
+          <div class="flex flex-wrap gap-1">
+            <span class="tag-base tag-accent-priority inline-flex items-center rounded-md px-2 py-0.5 text-xxs font-medium" style="background: var(--color-surface); border: 1px solid var(--color-border); border-left: 2.5px solid #ef4444; color: var(--color-text-secondary);">High Priority</span>
+            <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xxs font-medium" style="background: var(--color-surface); border: 1px solid var(--color-border); border-left: 2.5px solid #3b82f6; color: var(--color-text-secondary);">Women</span>
+            <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xxs font-medium" style="background: var(--color-surface); border: 1px solid var(--color-border); border-left: 2.5px solid #10b981; color: var(--color-text-secondary);">Photo</span>
+            <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xxs font-medium" style="background: var(--color-surface); border: 1px solid var(--color-border); border-left: 2.5px solid #a1a1aa; color: var(--color-text-secondary);">Lifestyle</span>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <h3 class="text-3xs font-semibold uppercase tracking-widest text-[var(--color-text-subtle)]">Option C: Per-Tag Color</h3>
+          <div class="flex flex-wrap gap-1">
+            <span class="tag-color-red inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">High Priority</span>
+            <span class="tag-color-pink inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Women</span>
+            <span class="tag-color-emerald inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Photo</span>
+            <span class="tag-color-gray inline-flex items-center rounded-md border px-2 py-0.5 text-xxs font-medium">Lifestyle</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Implementation notes -->
+    <section class="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 space-y-2">
+      <h3 class="text-sm font-semibold text-[var(--color-text)]">Design Notes</h3>
+      <ul class="list-disc pl-5 text-xxs leading-5 text-[var(--color-text-muted)] space-y-1">
+        <li><strong>Per-tag granularity</strong> — each tag gets its own color. "High Priority" (red) looks different from "Low Priority" (green).</li>
+        <li><strong>Uses existing data</strong> — the Firestore <code>color</code> field on each tag is already populated (preserved during Sprint S4 neutralization).</li>
+        <li><strong>Very subtle tints</strong> — bg at 8% opacity, border at 22% opacity. Keeps the editorial restraint of Direction A.</li>
+        <li><strong>Text stays high-contrast</strong> — dark text on light mode, light text on dark mode. Uses Tailwind-700 (light) / 300 (dark) levels.</li>
+        <li><strong>Sort order:</strong> priority → gender → media → other. Within each category, alphabetical.</li>
+        <li><strong>Size:</strong> text-xxs (11px), rounded-md, px-2 py-0.5. Same compact footprint.</li>
+        <li><strong>Implementation:</strong> Reuse <code>tagColors.ts</code> palette. Convert TAG_COLOR_CLASS_MAP to use rgba-based tints instead of Tailwind utility classes. Or use inline styles with CSS custom properties: <code>style="--tag-rgb: r,g,b"</code> and <code>bg-[rgba(var(--tag-rgb),0.08)]</code>.</li>
+        <li><strong>Pros:</strong> Most informational — each tag is visually unique. Leverages existing Firestore data. Users with custom tags can pick meaningful colors.</li>
+        <li><strong>Cons:</strong> More implementation work (need rgb values per color key). Could look rainbow-ish with many tags on one card (but 8% opacity keeps it subtle).</li>
+      </ul>
+    </section>
+
+    <!-- Recommendation -->
+    <section class="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-4 space-y-2">
+      <h3 class="text-sm font-semibold text-[var(--color-text)]">UX Researcher Recommendation</h3>
+      <p class="text-xxs leading-5 text-[var(--color-text-muted)]">
+        <strong>Option C (Per-Tag Custom Color)</strong> provides the best balance of information density and editorial restraint.
+        The 8% opacity tints are subtle enough not to clash with the near-black editorial direction, while providing meaningful
+        visual differentiation. It also leverages existing Firestore data that was specifically preserved during Sprint S4
+        for this future use. Combined with category-based sorting, it gives users both color and spatial grouping cues.
+      </p>
+      <p class="text-xxs leading-5 text-[var(--color-text-muted)]">
+        <strong>Option B (Left Border)</strong> is the safest fallback if Option C feels too colorful after visual testing.
+        Option A works but has less granularity (all priority tags look the same regardless of urgency level).
+      </p>
+    </section>
+
+  </div>
+</body>
+</html>

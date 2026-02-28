@@ -46,6 +46,9 @@ Every layout starts from the smallest viewport. Desktop adds density and editing
 - `src/styles/design-tokens.js` provides semantic Tailwind classes (`.heading-page`, `.heading-section`, `.label-meta`, etc.). Prefer these over ad-hoc class combinations.
 - Tailwind classes reference token values. No hardcoded hex colors or arbitrary spacing in components.
 - Use `text-3xs` (9px), `text-2xs` (10px), `text-xxs` (11px) for micro font sizes — never `text-[9px]`, `text-[10px]`, `text-[11px]`.
+- Use `text-sm` (13px), `text-base` (14px), `text-lg` (16px), `text-xl` (18px) — never `text-[13px]`, `text-[14px]`, `text-[15px]`. These sizes are overridden in `tailwind.config.js` to be 1-2px smaller than Tailwind defaults.
+- Page headings use `heading-page` semantic class (weight 300 editorial) — never `text-xl font-semibold` or `text-2xl font-bold`.
+- Tag badges use neutral body with subtle category-accent left borders — never use rainbow `getTagColorClasses()` on `TagBadge`.
 - Every surface uses the same building blocks. No one-off component variants for a single page.
 - Fewer surfaces, fewer modes. Each new page/modal must justify its existence.
 

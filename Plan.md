@@ -434,6 +434,88 @@ Admin (role-gated: admin only)
 
 ---
 
+## Sprint S4: Design System Realignment
+
+**Goal:** Fix the three-layer typography mismatch between `tokens.css`, `tailwind.config.js`, and component classNames. Align font sizes, heading weights, tag badges, and card density with the approved mockup (`mockups/p6-visual-identity.html`).
+
+**Status:** COMPLETE.
+
+**Root cause:** `tailwind.config.js` was missing fontSize overrides for `xs`/`sm`/`base`/`lg`/`xl`, so every `text-sm` element rendered at 14px instead of the intended 13px. Page headings used semibold/bold instead of the editorial light (300) weight. Tag badges used rainbow colors instead of neutral styling.
+
+### Sub-tasks
+
+- [x] **S4-1:** Font size foundation — add `xs`/`sm`/`base`/`lg`/`xl` overrides to `tailwind.config.js`, replace all `text-[13px]`/`text-[10px]`/`text-[14px]`/`text-[15px]` workarounds (9 files)
+- [x] **S4-2:** Page heading weights — replace ad-hoc `text-xl font-semibold` / `text-2xl font-bold` with `heading-page` semantic class (8 files)
+- [x] **S4-3:** Tag badge neutralization — neutral styling in `TagBadge.tsx`, `rounded-full` → `rounded-md`
+- [x] **S4-4:** ShotCard density reduction — reduce default visible fields from 7→3, flatten tag rendering
+- [x] **S4-5:** Zinc cleanup — `bg-zinc-400` → `bg-neutral-400` in `BoardColumn.tsx`
+
+### Acceptance Criteria
+
+- [x] `text-sm` renders 13px in DevTools (not 14px)
+- [x] All page headings use weight 300 (light editorial)
+- [x] Tag badges are neutral (no rainbow colors)
+- [x] ShotCard shows only title + status + shot number + description + flat tags by default
+- [x] Zero `text-[13px]`, `text-[10px]`, `text-[14px]`, `text-[15px]` in src-vnext/
+- [x] Zero `bg-zinc-` in src-vnext/
+- [x] Build clean, lint zero warnings, tests pass (1,948)
+
+---
+
+## Sprint S5a: Dashboard Dates + Tag Accents + Wardrobe Fix
+
+**Goal:** Fix three UX issues surfaced during Sprint S5 research: shoot dates buried below fold in project dialogs, tags lack visual category distinction, and wardrobe/warehouse role mismatch in Firestore rules.
+
+**Status:** Not started.
+
+### Sub-tasks
+
+- [ ] **S5a-1:** Move ShootDatesField above "More options" in CreateProjectDialog + EditProjectDialog
+- [ ] **S5a-2:** TagBadge left-border accent by category (priority=warm, gender=cool, media=green, other=neutral) — 2.5px left border, neutral body preserved
+- [ ] **S5a-3:** Category-based tag sort (display-only) in ShotCard, BoardCard — priority → gender → media → other. Never mutate Firestore array.
+- [ ] **S5a-4:** Wardrobe/warehouse normalization in `firestore.rules` — update `hasProjectRole()` and `isProducer()` to recognize both "wardrobe" and "warehouse" variants
+- [ ] **S5a-5:** Tests + acceptance verification
+
+### Acceptance Criteria
+
+- [ ] ShootDatesField is visible without expanding "More options" in both project dialogs
+- [ ] Tags display a subtle 2.5px left-border accent matching their category color
+- [ ] Tags are sorted by category (priority → gender → media → other) in ShotCard and BoardCard
+- [ ] Users with "wardrobe" role in Firestore project members are recognized by `hasProjectRole()`
+- [ ] Build clean, lint zero warnings, all tests pass
+
+---
+
+## Sprint S5b: Admin RBAC — Project Access Management
+
+**Goal:** Enable per-project access control so admins can assign users to specific projects. Without this, all users see all projects — a blocker for multi-team onboarding.
+
+**Status:** Not started.
+
+### Sub-tasks
+
+- [ ] **S5b-1:** Firestore rules: add write rule for `projects/{pid}/members/{uid}` subcollection
+- [ ] **S5b-2:** Write functions: `addProjectMember`, `removeProjectMember` + `useProjectMembers` hook
+- [ ] **S5b-3:** Auto-membership on project create (`writeBatch` in CreateProjectDialog for atomic project + member doc)
+- [ ] **S5b-4:** Admin page: "Project Access" tab with project selector + member table
+- [ ] **S5b-5:** Add/remove member dialog (search existing users, assign project role)
+- [ ] **S5b-6:** Copy invite link UX (toast with copy button when user not found)
+- [ ] **S5b-7:** Pending invites section on admin page
+- [ ] **S5b-8:** Dashboard empty state for unassigned non-admin users ("No projects assigned. Contact your administrator.")
+- [ ] **S5b-9:** Tests + acceptance verification
+
+### Acceptance Criteria
+
+- [ ] Admin can add/remove users from a project via admin page
+- [ ] Creating a project auto-adds the creator as a member (atomic write)
+- [ ] Admin can copy an invite link for users who haven't signed in yet
+- [ ] Pending invites section shows attempted-invite users who haven't created accounts
+- [ ] Non-admin users with no project assignments see a clear empty state
+- [ ] Firestore rules enforce member subcollection write access
+- [ ] Build clean, lint zero warnings, all tests pass
+
+---
+
 ## Phase 8: Shot Request Inbox
 
 **Goal:** Allow admin and producer roles to submit shot requests. Producers triage requests into existing projects. Closes the gap between creative briefs and formal shot planning.

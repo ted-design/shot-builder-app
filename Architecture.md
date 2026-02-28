@@ -370,7 +370,7 @@ Visual direction finalized. Zinc neutral scale (not Slate), near-black primary, 
 
 ### tokens.css
 
-Single source of design truth. CSS custom properties for colors, spacing, typography, shadows, radius. Referenced by Tailwind config. Micro font sizes: `text-3xs` (9px), `text-2xs` (10px), `text-xxs` (11px).
+Single source of design truth. CSS custom properties for colors, spacing, typography, shadows, radius. Referenced by Tailwind config. Micro font sizes: `text-3xs` (9px), `text-2xs` (10px), `text-xxs` (11px). Editorial body scale (Sprint S4): `text-xs` (12px), `text-sm` (13px), `text-base` (14px), `text-lg` (16px), `text-xl` (18px) — all 1-2px smaller than Tailwind defaults.
 
 **Dark mode:** `.dark` class selector block overrides all color tokens (surfaces, text, borders, primary, status badges, table, shadows). Activation via Tailwind `darkMode: 'class'` strategy. ThemeProvider applies `.dark` on `<html>`. FOUC prevention script in `index.html` applies it pre-React. localStorage key: `sb:theme` (`light | dark | system`).
 

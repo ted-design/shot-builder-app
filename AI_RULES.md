@@ -340,16 +340,21 @@ Violations of these rules break dark mode and visual consistency. They are treat
 
 **No arbitrary size values where token equivalents exist:**
 - `text-[9px]` → `text-3xs`, `text-[10px]` → `text-2xs`, `text-[11px]` → `text-xxs`
-- `text-[12px]` → `text-xs`, `text-[13px]` → `text-sm`
+- `text-[12px]` → `text-xs`, `text-[13px]` → `text-sm`, `text-[14px]` → `text-base`, `text-[15px]` → `text-base`
 - `p-[6px]`, `gap-[6px]` etc. → use Tailwind scale values or token-defined spacing
 
+**tailwind.config.js editorial body scale (Sprint S4):** `xs`=12px, `sm`=13px, `base`=14px, `lg`=16px, `xl`=18px. These are 1-2px smaller than Tailwind defaults. Do NOT use arbitrary `text-[Npx]` for any size in this range.
+
 **No raw Tailwind typography combos where semantic classes exist:**
+- `text-xl font-semibold`, `text-2xl font-bold`, `text-2xl font-semibold` → `.heading-page`
 - `text-2xl font-light tracking-tight` → `.heading-page`
 - `text-base font-semibold tracking-tight` → `.heading-section`
 - `text-sm font-semibold tracking-tight` → `.heading-subsection`
 - `text-xs font-semibold uppercase tracking-widest text-muted` → `.label-meta`
 - `text-sm text-muted-foreground` → `.body-text-muted`
 - `text-xs text-muted-foreground` → `.caption`
+
+**Tag badges use neutral body + category-accent left border:** Neutral body (`bg-[var(--color-surface)] text-xxs text-[var(--color-text-secondary)] rounded-md`) with a 2.5px left border colored by category: priority=warm, gender=cool, media=green, other=neutral. Do NOT use `getTagColorClasses()` or rainbow bg-red-100/bg-pink-100 on tag badges. Tags are sorted by category for display only (priority → gender → media → other) — never mutate the Firestore array order.
 
 **Verification checklist before committing a new component:**
 1. Grep for `bg-white`, `bg-zinc-`, `bg-slate-` — each hit must be justified (print portals, image overlays are OK)
