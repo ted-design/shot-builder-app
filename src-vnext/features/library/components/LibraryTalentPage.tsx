@@ -840,14 +840,14 @@ export default function LibraryTalentPage() {
                           <div className="label-meta">
                             Name
                           </div>
-                          <div className="mt-1 text-xl font-semibold text-[var(--color-text)]">
+                          <div className="mt-1 heading-page">
                             <div data-testid="talent-details-name">
                               <InlineEdit
                                 value={buildDisplayName(selected)}
                                 disabled={!canEdit || busy}
                                 placeholder="Untitled"
                                 onSave={(next) => void savePatch(selected.id, { name: next })}
-                                className="text-xl font-semibold"
+                                className="heading-page"
                               />
                             </div>
                           </div>

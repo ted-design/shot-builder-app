@@ -218,7 +218,7 @@ export default function PublicPullViewPage() {
             </span>
             <span className="text-xs text-[var(--color-text-muted)]">{respondLabel}</span>
           </div>
-          <h1 className="text-2xl font-semibold text-[var(--color-text)]">{title}</h1>
+          <h1 className="heading-page">{title}</h1>
         </div>
 
         {canRespond ? (

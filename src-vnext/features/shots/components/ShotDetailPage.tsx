@@ -169,10 +169,10 @@ export default function ShotDetailPage() {
               <InlineEdit
                 value={shot.title}
                 onSave={(title) => save({ title })}
-                className="text-xl font-semibold"
+                className="heading-page"
               />
             ) : (
-              <h1 className="text-xl font-semibold text-[var(--color-text)]">
+              <h1 className="heading-page">
                 {shot.title || "Untitled Shot"}
               </h1>
             )}

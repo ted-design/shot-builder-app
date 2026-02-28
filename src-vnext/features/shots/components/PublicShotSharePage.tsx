@@ -158,7 +158,7 @@ export default function PublicShotSharePage() {
               Print
             </Button>
           </div>
-          <h1 className="text-2xl font-semibold text-[var(--color-text)]">{title}</h1>
+          <h1 className="heading-page">{title}</h1>
           <p className="text-sm text-[var(--color-text-muted)]">
             {projectName} · {filtered.length} shots
           </p>

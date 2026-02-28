@@ -10,8 +10,7 @@ import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { TagBadge } from "@/shared/components/TagBadge"
 import { getShotNotesPreview, getShotPrimaryLookProductLabels, resolveIdsToNames, summarizeLabels } from "@/features/shots/lib/shotListSummaries"
 import { NotesPreviewText } from "@/features/shots/components/NotesPreviewText"
-import type { Shot, ShotReferenceLinkType, ShotTag } from "@/shared/types"
-import { getShotTagCategoryLabel, resolveShotTagCategory } from "@/shared/lib/tagCategories"
+import type { Shot, ShotReferenceLinkType } from "@/shared/types"
 
 interface ShotCardProps {
   readonly shot: Shot
@@ -40,15 +39,15 @@ export interface ShotCardVisibleFields {
 }
 
 const DEFAULT_VISIBLE_FIELDS: ShotCardVisibleFields = {
-  heroThumb: true,
+  heroThumb: false,
   shotNumber: true,
   description: true,
   notes: false,
-  readiness: true,
-  location: true,
-  products: true,
+  readiness: false,
+  location: false,
+  products: false,
   links: false,
-  talent: true,
+  talent: false,
   tags: true,
 }
 
@@ -67,32 +66,6 @@ function getReferenceLinkIcon(type: ShotReferenceLinkType) {
   }
 }
 
-function groupTagsByCategory(tags: ReadonlyArray<ShotTag>): ReadonlyArray<{
-  readonly key: "priority" | "gender" | "media" | "other"
-  readonly label: string
-  readonly tags: ReadonlyArray<ShotTag>
-}> {
-  if (tags.length === 0) return []
-
-  const grouped: Record<"priority" | "gender" | "media" | "other", ShotTag[]> = {
-    priority: [],
-    gender: [],
-    media: [],
-    other: [],
-  }
-
-  for (const tag of tags) {
-    grouped[resolveShotTagCategory(tag)].push(tag)
-  }
-
-  return (["priority", "gender", "media", "other"] as const)
-    .filter((key) => grouped[key].length > 0)
-    .map((key) => ({
-      key,
-      label: getShotTagCategoryLabel(key),
-      tags: grouped[key],
-    }))
-}
 
 export function ShotCard({
   shot,
@@ -163,7 +136,7 @@ export function ShotCard({
     !showLocationDetails &&
     !showProductsDetails
   const showHeroImage = fields.heroThumb && !!heroUrl && imgVisible
-  const tagGroups = groupTagsByCategory(shot.tags ?? [])
+  const allTags = shot.tags ?? []
   const productPreview = productLabels.slice(0, PRODUCT_PREVIEW_LIMIT)
   const hiddenProductCount = Math.max(0, productLabels.length - productPreview.length)
   const referenceLinkPreview = referenceLinks.slice(0, REFERENCE_LINK_PREVIEW_LIMIT)
@@ -178,7 +151,7 @@ export function ShotCard({
       <CardContent className="flex flex-col gap-2.5 px-4 py-3.5">
         <div className="flex items-start justify-between gap-2.5">
           <div className="min-w-0 flex-1 space-y-1">
-            <CardTitle className="line-clamp-2 text-[14px] font-semibold leading-[1.3] md:text-[15px]">
+            <CardTitle className="line-clamp-2 text-sm font-semibold leading-[1.3]">
               {shot.title || "Untitled Shot"}
             </CardTitle>
             {fields.shotNumber && shot.shotNumber && (
@@ -336,22 +309,11 @@ export function ShotCard({
           </div>
         )}
 
-        {fields.tags && tagGroups.length > 0 && (
-          <div className="border-t border-[var(--color-border)] pt-3">
-            <div className="grid gap-2.5 sm:grid-cols-2">
-              {tagGroups.map((group) => (
-                <div key={group.key} className="min-w-0 rounded-[var(--radius-sm)] px-1 py-1.5">
-                  <p className="text-3xs font-semibold uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                    {group.label}
-                  </p>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {group.tags.map((tag) => (
-                      <TagBadge key={tag.id} tag={tag} />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+        {fields.tags && allTags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {allTags.map((tag) => (
+              <TagBadge key={tag.id} tag={tag} />
+            ))}
           </div>
         )}
       </CardContent>
