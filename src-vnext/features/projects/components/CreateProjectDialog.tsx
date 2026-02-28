@@ -1,8 +1,9 @@
 import { useState } from "react"
-import { addDoc, collection, serverTimestamp } from "firebase/firestore"
+import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
-import { projectsPath } from "@/shared/lib/paths"
+import { projectMembersPath, projectsPath } from "@/shared/lib/paths"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { isAdmin } from "@/shared/lib/rbac"
 import {
   projectNameSchema,
   optionalUrlSchema,
@@ -27,7 +28,7 @@ export function CreateProjectDialog({
   open,
   onOpenChange,
 }: CreateProjectDialogProps) {
-  const { clientId } = useAuth()
+  const { clientId, user, role } = useAuth()
   const [name, setName] = useState("")
   const [shootDates, setShootDates] = useState<string[]>([])
   const [briefUrl, setBriefUrl] = useState("")
@@ -64,7 +65,10 @@ export function CreateProjectDialog({
 
     try {
       const path = projectsPath(clientId)
-      await addDoc(collection(db, path[0]!, ...path.slice(1)), {
+      const projectRef = doc(collection(db, path[0]!, ...path.slice(1)))
+      const batch = writeBatch(db)
+
+      batch.set(projectRef, {
         name: trimmedName,
         clientId,
         status: "active",
@@ -74,6 +78,19 @@ export function CreateProjectDialog({
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
+
+      // Auto-membership: non-admin creators get a member doc atomically
+      if (!isAdmin(role) && user) {
+        const memberPath = projectMembersPath(projectRef.id, clientId)
+        const memberRef = doc(db, memberPath[0]!, ...memberPath.slice(1), user.uid)
+        batch.set(memberRef, {
+          role: "producer",
+          addedAt: serverTimestamp(),
+          addedBy: user.uid,
+        })
+      }
+
+      await batch.commit()
       setName("")
       setShootDates([])
       setBriefUrl("")

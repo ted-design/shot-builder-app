@@ -23,6 +23,12 @@ export const projectMembersPath = (
   clientId: string,
 ): string[] => [...projectPath(projectId, clientId), "members"]
 
+export const projectMemberDocPath = (
+  userId: string,
+  projectId: string,
+  clientId: string,
+): string[] => [...projectMembersPath(projectId, clientId), userId]
+
 // --- Shots (global, not project-scoped) ---
 
 export const shotsPath = (clientId: string): string[] => [

@@ -1,7 +1,7 @@
-import { doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { deleteDoc, doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { httpsCallable } from "firebase/functions"
 import { db, functions } from "@/shared/lib/firebase"
-import { userDocPath } from "@/shared/lib/paths"
+import { projectMemberDocPath, userDocPath } from "@/shared/lib/paths"
 import type { Role } from "@/shared/types"
 
 interface InviteOrUpdateUserParams {
@@ -90,4 +90,44 @@ export async function updateUserRole({
     },
     { merge: true },
   )
+}
+
+// --- Project membership ---
+
+interface AddProjectMemberParams {
+  readonly projectId: string
+  readonly userId: string
+  readonly role: Role
+  readonly addedBy: string
+  readonly clientId: string
+}
+
+export async function addProjectMember({
+  projectId,
+  userId,
+  role,
+  addedBy,
+  clientId,
+}: AddProjectMemberParams): Promise<void> {
+  const ref = doc(db, ...projectMemberDocPath(userId, projectId, clientId))
+  await setDoc(ref, {
+    role,
+    addedAt: serverTimestamp(),
+    addedBy,
+  }, { merge: true })
+}
+
+interface RemoveProjectMemberParams {
+  readonly projectId: string
+  readonly userId: string
+  readonly clientId: string
+}
+
+export async function removeProjectMember({
+  projectId,
+  userId,
+  clientId,
+}: RemoveProjectMemberParams): Promise<void> {
+  const ref = doc(db, ...projectMemberDocPath(userId, projectId, clientId))
+  await deleteDoc(ref)
 }

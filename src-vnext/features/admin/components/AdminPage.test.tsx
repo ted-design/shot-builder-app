@@ -1,6 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { render, screen, fireEvent, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { Timestamp } from "firebase/firestore"
 import type { UserProfile } from "@/shared/types"
 
@@ -18,6 +19,10 @@ vi.mock("@/app/providers/AuthProvider", () => ({
 vi.mock("@/features/admin/components/InviteUserDialog", () => ({
   InviteUserDialog: ({ open }: { readonly open: boolean }) =>
     open ? <div data-testid="invite-dialog">InviteDialog</div> : null,
+}))
+
+vi.mock("@/features/admin/components/ProjectAccessTab", () => ({
+  ProjectAccessTab: () => <div data-testid="project-access-tab">ProjectAccessTab</div>,
 }))
 
 vi.mock("@/features/admin/components/UserRoleSelect", () => ({
@@ -209,6 +214,58 @@ describe("AdminPage", () => {
       const emptyStateButton = screen.getAllByRole("button", { name: /invite user/i })[0]!
       fireEvent.click(emptyStateButton)
       expect(screen.getByTestId("invite-dialog")).toBeInTheDocument()
+    })
+  })
+
+  describe("tabs", () => {
+    it("renders Team and Project Access tabs", () => {
+      mockUseUsers.mockReturnValue({ data: [makeUser()], loading: false, error: null })
+      renderPage()
+      expect(screen.getByRole("tab", { name: /team/i })).toBeInTheDocument()
+      expect(screen.getByRole("tab", { name: /project access/i })).toBeInTheDocument()
+    })
+
+    it("shows Team tab content by default", () => {
+      mockUseUsers.mockReturnValue({
+        data: [makeUser({ id: "u1", email: "alice@example.com", displayName: "Alice" })],
+        loading: false,
+        error: null,
+      })
+      renderPage()
+      // The roster table should be visible by default
+      expect(screen.getByText("alice@example.com")).toBeInTheDocument()
+      // ProjectAccessTab should not be visible
+      expect(screen.queryByTestId("project-access-tab")).not.toBeInTheDocument()
+    })
+
+    it("switches to Project Access tab on click", async () => {
+      mockUseUsers.mockReturnValue({ data: [makeUser()], loading: false, error: null })
+      renderPage()
+      const user = userEvent.setup()
+      await user.click(screen.getByRole("tab", { name: /project access/i }))
+      await waitFor(() => {
+        expect(screen.getByTestId("project-access-tab")).toBeInTheDocument()
+      })
+    })
+
+    it("switches back to Team tab from Project Access", async () => {
+      mockUseUsers.mockReturnValue({
+        data: [makeUser({ id: "u1", email: "alice@example.com" })],
+        loading: false,
+        error: null,
+      })
+      renderPage()
+      const user = userEvent.setup()
+      // Go to Project Access
+      await user.click(screen.getByRole("tab", { name: /project access/i }))
+      await waitFor(() => {
+        expect(screen.getByTestId("project-access-tab")).toBeInTheDocument()
+      })
+      // Go back to Team
+      await user.click(screen.getByRole("tab", { name: /team/i }))
+      await waitFor(() => {
+        expect(screen.getByText("alice@example.com")).toBeInTheDocument()
+      })
     })
   })
 })

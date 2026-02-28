@@ -3,6 +3,7 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { ROLE, roleLabel } from "@/shared/lib/rbac"
+import { ROLE_DESCRIPTIONS } from "@/shared/lib/roleDescriptions"
 import { inviteOrUpdateUser } from "@/features/admin/lib/adminWrites"
 import { ResponsiveDialog } from "@/shared/components/ResponsiveDialog"
 import { Button } from "@/ui/button"
@@ -30,6 +31,11 @@ const ROLE_OPTIONS: readonly Role[] = [
 interface InviteUserDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
+}
+
+function copyLoginLink() {
+  void navigator.clipboard.writeText(`${window.location.origin}/login?invited=true`)
+  toast.success("Login link copied to clipboard")
 }
 
 export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) {
@@ -78,12 +84,22 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
         clientId,
       })
 
-      toast.success(`Role applied for ${result.data}`)
+      toast.success(`Role applied for ${result.data}`, {
+        action: {
+          label: "Copy Login Link",
+          onClick: copyLoginLink,
+        },
+      })
       onOpenChange(false)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       if (message.includes("user-not-found") || message.includes("USER_NOT_FOUND")) {
-        toast.error("User must sign in once before being assigned a role")
+        toast.error("User must sign in once before being assigned a role", {
+          action: {
+            label: "Copy Login Link",
+            onClick: copyLoginLink,
+          },
+        })
       } else {
         toast.error(message)
       }
@@ -150,6 +166,9 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
               ))}
             </SelectContent>
           </Select>
+          <p className="text-xs text-[var(--color-text-muted)] rounded-md bg-[var(--color-surface-subtle)] p-2">
+            {ROLE_DESCRIPTIONS[role]}
+          </p>
         </div>
       </div>
     </ResponsiveDialog>
