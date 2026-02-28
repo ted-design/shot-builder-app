@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 // ---- Mocks ----
 
 const mockAddDoc = vi.fn()
-const mockUpdateDoc = vi.fn()
 const mockRunTransaction = vi.fn()
 const mockDoc = vi.fn((_db: unknown, ...segments: string[]) => segments.join("/"))
 const mockCollection = vi.fn((_db: unknown, ...segments: string[]) => segments.join("/"))
@@ -15,7 +14,6 @@ vi.mock("firebase/firestore", async () => {
     doc: (...args: unknown[]) => mockDoc(...args),
     collection: (...args: unknown[]) => mockCollection(...args),
     addDoc: (...args: unknown[]) => mockAddDoc(...args),
-    updateDoc: (...args: unknown[]) => mockUpdateDoc(...args),
     runTransaction: (...args: unknown[]) => mockRunTransaction(...args),
     serverTimestamp: () => "SERVER_TS",
   }
@@ -199,50 +197,33 @@ describe("triageAbsorbRequest", () => {
 describe("triageRejectRequest", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUpdateDoc.mockResolvedValue(undefined)
+    mockRunTransaction.mockResolvedValue(undefined)
   })
 
-  it("calls updateDoc with correct path", async () => {
+  it("calls runTransaction", async () => {
     await triageRejectRequest({
       requestId: "r1",
       clientId: "c1",
       triagedBy: "admin-1",
       rejectionReason: "Out of scope",
+    })
+
+    expect(mockRunTransaction).toHaveBeenCalledTimes(1)
+    expect(mockRunTransaction).toHaveBeenCalledWith({}, expect.any(Function))
+  })
+
+  it("builds correct request doc path", async () => {
+    await triageRejectRequest({
+      requestId: "r1",
+      clientId: "c1",
+      triagedBy: "admin-1",
     })
 
     expect(mockDoc).toHaveBeenCalledWith({}, "clients", "c1", "shotRequests", "r1")
-    expect(mockUpdateDoc).toHaveBeenCalledTimes(1)
   })
 
-  it("writes correct update shape with rejection reason", async () => {
-    await triageRejectRequest({
-      requestId: "r1",
-      clientId: "c1",
-      triagedBy: "admin-1",
-      rejectionReason: "Out of scope",
-    })
-
-    const [, data] = mockUpdateDoc.mock.calls[0]!
-    expect(data.status).toBe("rejected")
-    expect(data.triagedBy).toBe("admin-1")
-    expect(data.triagedAt).toBe("SERVER_TS")
-    expect(data.rejectionReason).toBe("Out of scope")
-    expect(data.updatedAt).toBe("SERVER_TS")
-  })
-
-  it("defaults rejectionReason to null when not provided", async () => {
-    await triageRejectRequest({
-      requestId: "r1",
-      clientId: "c1",
-      triagedBy: "admin-1",
-    })
-
-    const [, data] = mockUpdateDoc.mock.calls[0]!
-    expect(data.rejectionReason).toBeNull()
-  })
-
-  it("propagates Firestore errors", async () => {
-    mockUpdateDoc.mockRejectedValue(new Error("not-found"))
+  it("propagates transaction errors", async () => {
+    mockRunTransaction.mockRejectedValue(new Error("not-found"))
 
     await expect(
       triageRejectRequest({

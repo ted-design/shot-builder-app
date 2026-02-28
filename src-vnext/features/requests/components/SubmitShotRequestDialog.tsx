@@ -76,8 +76,8 @@ export function SubmitShotRequestDialog({
       return
     }
 
-    if (!clientId) {
-      toast.error("Missing client scope. Try refreshing, then sign in again.")
+    if (!clientId || !user?.uid) {
+      toast.error("Must be signed in to submit a request.")
       return
     }
 
@@ -93,8 +93,8 @@ export function SubmitShotRequestDialog({
         referenceUrls: filteredUrls.length > 0 ? filteredUrls : null,
         deadline: deadline || null,
         notes: notes.trim() || null,
-        submittedBy: user?.uid ?? "",
-        submittedByName: user?.displayName ?? null,
+        submittedBy: user.uid,
+        submittedByName: user.displayName ?? null,
       })
 
       toast.success("Shot request submitted")

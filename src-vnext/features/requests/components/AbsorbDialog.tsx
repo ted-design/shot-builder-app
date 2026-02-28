@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { toast } from "sonner"
 import { Info } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -27,6 +27,13 @@ export function AbsorbDialog({ open, onOpenChange, request }: AbsorbDialogProps)
   const { data: projects } = useProjects()
   const [selectedProjectId, setSelectedProjectId] = useState("")
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!open) {
+      setSelectedProjectId("")
+      setSaving(false)
+    }
+  }, [open])
 
   const activeProjects = useMemo(
     () => projects.filter((p) => p.status === "active"),

@@ -617,7 +617,6 @@ export interface ShotRequest {
   readonly title: string
   readonly description?: string | null
   readonly referenceUrls?: readonly string[] | null
-  readonly productIds?: readonly string[] | null
   readonly deadline?: string | null
   readonly notes?: string | null
   readonly submittedBy: string

@@ -175,7 +175,8 @@ service cloud.firestore {
 
 	    // Shot Requests - org-level request inbox for producers and admins
 	    match /clients/{clientId}/shotRequests/{requestId} {
-	      allow read: if clientMatches(clientId) && isAuthed();
+	      allow read: if clientMatches(clientId) &&
+	        (isAdmin() || isProducer());
 
 	      allow create: if clientMatches(clientId) && isAuthed() &&
 	        (isAdmin() || isProducer()) &&
@@ -184,7 +185,7 @@ service cloud.firestore {
 	        request.resource.data.title is string &&
 	        request.resource.data.title.size() > 0;
 
-	      allow update: if clientMatches(clientId) &&
+	      allow update: if clientMatches(clientId) && isAuthed() &&
 	        (isAdmin() || isProducer());
 
 	      allow delete: if clientMatches(clientId) && isAdmin();

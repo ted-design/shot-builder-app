@@ -226,7 +226,7 @@ describe("SubmitShotRequestDialog", () => {
 
     await waitFor(() => {
       expect(mockToast.error).toHaveBeenCalledWith(
-        expect.stringMatching(/missing client scope/i),
+        expect.stringMatching(/must be signed in/i),
       )
       expect(mockSubmitShotRequest).not.toHaveBeenCalled()
     })

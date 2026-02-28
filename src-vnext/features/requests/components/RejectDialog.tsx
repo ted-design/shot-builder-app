@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { triageRejectRequest } from "@/features/requests/lib/requestWrites"
@@ -18,6 +18,13 @@ export function RejectDialog({ open, onOpenChange, request }: RejectDialogProps)
   const { user, clientId } = useAuth()
   const [reason, setReason] = useState("")
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!open) {
+      setReason("")
+      setSaving(false)
+    }
+  }, [open])
 
   const handleSubmit = async () => {
     if (!clientId || !user) return

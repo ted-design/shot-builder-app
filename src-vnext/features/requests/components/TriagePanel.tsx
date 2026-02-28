@@ -64,8 +64,8 @@ export function TriagePanel({ request, projectName }: TriagePanelProps) {
         <div>
           <SectionLabel>References</SectionLabel>
           <ul className="flex flex-col gap-1">
-            {request.referenceUrls.map((url) => (
-              <li key={url}>
+            {request.referenceUrls.map((url, index) => (
+              <li key={index}>
                 <a
                   href={url}
                   target="_blank"

@@ -4,7 +4,6 @@ import {
   doc,
   runTransaction,
   serverTimestamp,
-  updateDoc,
 } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { shotRequestDocPath, shotRequestsPath, shotsPath } from "@/shared/lib/paths"
@@ -76,9 +75,10 @@ export async function triageAbsorbRequest(
       projectId: params.projectId,
       clientId: params.clientId,
       status: "todo",
+      deleted: false,
       talent: [],
       products: [],
-      sortOrder: 0,
+      sortOrder: Date.now(),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       createdBy: params.triagedBy,
@@ -111,12 +111,23 @@ interface RejectRequestParams {
 export async function triageRejectRequest(
   params: RejectRequestParams,
 ): Promise<void> {
-  const ref = doc(db, ...shotRequestDocPath(params.requestId, params.clientId))
-  await updateDoc(ref, {
-    status: "rejected",
-    triagedBy: params.triagedBy,
-    triagedAt: serverTimestamp(),
-    rejectionReason: params.rejectionReason ?? null,
-    updatedAt: serverTimestamp(),
+  const requestRef = doc(db, ...shotRequestDocPath(params.requestId, params.clientId))
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(requestRef)
+    if (!snap.exists()) throw new Error("Request not found")
+
+    const data = snap.data()
+    if (data.status !== "submitted" && data.status !== "triaged") {
+      throw new Error(`Cannot reject request with status "${data.status as string}"`)
+    }
+
+    tx.update(requestRef, {
+      status: "rejected",
+      triagedBy: params.triagedBy,
+      triagedAt: serverTimestamp(),
+      rejectionReason: params.rejectionReason ?? null,
+      updatedAt: serverTimestamp(),
+    })
   })
 }
