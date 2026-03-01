@@ -598,18 +598,19 @@ Admin (role-gated: admin only)
 
 ---
 
-## Phase 9: Casting Engine (Future)
+## Phase 9: Casting Engine — COMPLETE
 
 **Goal:** Searchable talent database with measurement-based matching and shot history.
 
-**Status:** Not started. Outline only.
+**Status:** COMPLETE. Committed `f6cbef5` on `vnext/sprint-s5b`. 89 new tests (2,211 total).
 
-### Key Concepts
+### Sub-tasks
 
-- Filter talent by measurement ranges (height, bust, waist, etc.), gender, availability
-- Auto-match: given casting brief requirements, suggest matching talent
-- Shot history: auto-link every shot a model has appeared in (reverse lookup from shot.talent[])
-- Extend existing casting session infrastructure in talent page
+- [x] **9a: Talent Search & Filter** — client-side filtering by gender, measurement ranges (min/max), agency, casting history. Filter sheet (responsive side/bottom). Active filter chips with dismiss.
+- [x] **9b: Auto-Match / Casting Brief** — ephemeral brief with measurement requirements → ranked talent with match scores. Per-field breakdown (in-range/close/out/missing). Gender hard gate, proximity scoring.
+- [x] **9c: Shot History** — reverse lookup via Firestore `array-contains` on `talentIds`. Grouped by project, status badges. Composite index added.
+- [x] **Infrastructure** — `measurementParsing.ts` (conservative parser), `talentFilters.ts`, `castingMatch.ts`, `useTalentShotHistory` hook, `--color-status-red-*` tokens.
+- [x] **Integration** — All 3 features integrated into LibraryTalentPage via tabs (Profile / Shot History / Casting Brief).
 
 ---
 

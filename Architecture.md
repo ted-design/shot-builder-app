@@ -130,7 +130,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/products/:fid/edit` | ProductEditorPage | Edit product (vNext) |
 | `/import-products` | ImportProducts | CSV import |
 | `/library` | LibraryPage | Redirect -> `/library/talent` |
-| `/library/talent` | LibraryTalentPage | Full CRUD: card grid, inline detail, measurements, portfolio, castings |
+| `/library/talent` | LibraryTalentPage | Full CRUD: card grid, inline detail, measurements, portfolio, castings. Phase 9: tabbed detail (Profile / Shot History / Casting Brief), search/filter toolbar (gender, measurement ranges, agency), auto-match scoring. |
 | `/library/crew` | LibraryCrewPage | Table list with search, create dialog, row click to detail |
 | `/library/crew/:crewId` | CrewDetailPage | Inline edit all fields, notes, delete with confirmation |
 | `/library/locations` | LibraryLocationsPage | Table list with search, create dialog, row click to detail |
@@ -409,6 +409,8 @@ Visual direction finalized. Zinc neutral scale (not Slate), near-black primary, 
 
 Single source of design truth. CSS custom properties for colors, spacing, typography, shadows, radius. Referenced by Tailwind config. Micro font sizes: `text-3xs` (9px), `text-2xs` (10px), `text-xxs` (11px). Editorial body scale (Sprint S4): `text-xs` (12px), `text-sm` (13px), `text-base` (14px), `text-lg` (16px), `text-xl` (18px) — all 1-2px smaller than Tailwind defaults.
 
+**Status color tokens:** `--color-status-{color}-bg`, `--color-status-{color}-text`, `--color-status-{color}-border` for blue (info/submitted), green (success/absorbed), amber (warning/triaged), red (error/out-of-range). Both light and dark theme variants defined. Added red tokens in Phase 9 for casting match out-of-range scores.
+
 **Dark mode:** `.dark` class selector block overrides all color tokens (surfaces, text, borders, primary, status badges, table, shadows). Activation via Tailwind `darkMode: 'class'` strategy. ThemeProvider applies `.dark` on `<html>`. FOUC prevention script in `index.html` applies it pre-React. localStorage key: `sb:theme` (`light | dark | system`).
 
 ### design-tokens.js (Semantic Classes)
@@ -448,9 +450,17 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 | `locationWrites.ts` | `features/library/lib/` | Create/update/delete locations + photo upload/removal |
 | `talentWrites.ts` | `features/library/lib/` | Full talent CRUD: create, update, delete, headshot, portfolio, casting images |
 | `measurementOptions.ts` | `features/library/lib/` | Gender-specific measurement field definitions (men: 7, women: 6, other: all) |
+| `measurementParsing.ts` | `features/library/lib/` | Conservative parser for free-form measurement strings (`5'9"`, `34"`, `40R`, `175cm`) → numeric values |
+| `talentFilters.ts` | `features/library/lib/` | TalentSearchFilters interface + filterTalent() pure function (gender, measurement ranges, agency, casting history) |
+| `castingMatch.ts` | `features/library/lib/` | CastingBrief interface, computeMatchScore() proximity scoring, rankTalentForBrief() sorted results |
+| `talentShotHistory.ts` | `features/library/lib/` | TalentShotHistoryEntry type definition for shot history reverse lookup |
 | `useCrewLibrary.ts` | `features/library/hooks/` | Real-time Firestore subscription for crew list |
 | `useLocationLibrary.ts` | `features/library/hooks/` | Real-time Firestore subscription for locations list |
 | `useTalentLibrary.ts` | `features/library/hooks/` | Real-time Firestore subscription for talent list |
+| `useTalentShotHistory.ts` | `features/library/hooks/` | Firestore `array-contains` query: all shots a talent appears in, grouped by project |
+| `TalentSearchFilters.tsx` | `features/library/components/` | Responsive filter sheet (side on desktop, bottom on mobile) — gender, measurement ranges, agency, casting history |
+| `CastingBriefMatcher.tsx` | `features/library/components/` | Brief form + ranked results with match score badges (green ≥80%, amber ≥50%, red <50%) |
+| `TalentShotHistory.tsx` | `features/library/components/` | Shot history grouped by project, status badges via getShotStatusColor() |
 | `CreateCrewDialog.tsx` | `features/library/components/` | ResponsiveDialog for creating crew members |
 | `CreateLocationDialog.tsx` | `features/library/components/` | ResponsiveDialog for creating locations |
 | `CrewDetailPage.tsx` | `features/library/components/` | Detail/edit page for crew members (name, department, position, contact) |
