@@ -57,6 +57,15 @@
         { "fieldPath": "actorId", "mode": "ASCENDING" },
         { "fieldPath": "createdAt", "mode": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "shots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "talentIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "deleted", "mode": "ASCENDING" },
+        { "fieldPath": "updatedAt", "mode": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
