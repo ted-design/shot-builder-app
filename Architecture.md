@@ -123,7 +123,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/projects/:id/callsheet` | CallSheetPage | Desktop-only |
 | `/projects/:id/departments` | ProjectDepartmentsPage | |
 | `/projects/:id/settings` | ProjectSettingsPage | |
-| `/inbox` | ShotRequestInboxPage | Org-level shot request inbox. Admin+producer only (RequireRole). Desktop: two-panel (list + triage). Mobile: list only. |
+| `/inbox` | ShotRequestInboxPage | Org-level shot request inbox. Admin+producer only (RequireRole). Desktop: two-panel (list + triage). Mobile: list only. Absorb dialog supports both "add to existing project" and "create new project" modes (Phase 8.5). |
 | `/products` | ProductsPage | Org-level product library |
 | `/products/new` | ProductEditorPage | Create new product (vNext) |
 | `/products/:productId` | ProductDetailPage | Thin shell + 5 section components (Overview, Colorways, Samples, Assets, Activity) |
@@ -198,7 +198,7 @@ All data scoped by `clientId` from Firebase Auth custom claims.
   ├── colorSwatches/{swatchId}/
   ├── users/{userId}/
   ├── notifications/{notificationId}/
-  └── shotRequests/{requestId}/          # Phase 8 — Shot Request Inbox
+  └── shotRequests/{requestId}/          # Phase 8/8.5 — Shot Request Inbox + Create Project from Request
 
 /shotShares/{shareToken}               # Denormalized public share docs
 /systemAdmins/{email}                  # System admin list
@@ -291,6 +291,19 @@ interface ShotRequest {
 All Firestore paths built via `src-vnext/shared/lib/paths.ts`. Every function requires explicit `clientId` -- no hardcoded defaults. Returns string arrays for `collection()` / `doc()`.
 
 Key path builders: `projectsPath`, `shotsPath`, `productFamiliesPath`, `talentPath`, `locationsPath`, `crewPath`, `crewDocPath`, `locationDocPath`, `departmentsPath`, `departmentPositionsPath`, `usersPath`, `userDocPath`, `projectMembersPath`, `projectMemberDocPath`, `shotRequestsPath`, `shotRequestDocPath`.
+
+### Shot Request Write Functions
+
+All in `src-vnext/features/requests/lib/requestWrites.ts`:
+
+| Function | Type | What it does |
+|----------|------|-------------|
+| `submitShotRequest` | `addDoc` | Creates a new shot request doc |
+| `triageAbsorbRequest` | `runTransaction` | Reads request, creates shot in existing project, marks request absorbed |
+| `createProjectFromRequest` | `runTransaction` | Reads request, creates project + member doc + shot, marks request absorbed (Phase 8.5) |
+| `triageRejectRequest` | `runTransaction` | Reads request, marks rejected with optional reason |
+
+`createProjectFromRequest` is the most complex — 4 writes in a single transaction: project doc, member doc (producer auto-membership via `projectMemberDocPath`), shot doc, request update.
 
 ---
 
