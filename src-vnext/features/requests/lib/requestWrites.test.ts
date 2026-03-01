@@ -27,9 +27,14 @@ vi.mock("@/shared/lib/paths", () => ({
     "clients", clientId, "shotRequests", requestId,
   ],
   shotsPath: (clientId: string) => ["clients", clientId, "shots"],
+  projectsPath: (clientId: string) => ["clients", clientId, "projects"],
+  projectMemberDocPath: (userId: string, projectId: string, clientId: string) => [
+    "clients", clientId, "projects", projectId, "members", userId,
+  ],
 }))
 
 import {
+  createProjectFromRequest,
   submitShotRequest,
   triageAbsorbRequest,
   triageRejectRequest,
@@ -232,5 +237,110 @@ describe("triageRejectRequest", () => {
         triagedBy: "admin-1",
       }),
     ).rejects.toThrow("not-found")
+  })
+})
+
+describe("createProjectFromRequest", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("calls runTransaction", async () => {
+    mockRunTransaction.mockResolvedValue({ projectId: "new-proj-id", shotId: "new-shot-id" })
+
+    await createProjectFromRequest({
+      clientId: "c1",
+      requestId: "r1",
+      projectName: "Spring Campaign",
+      createdBy: "admin-1",
+    })
+
+    expect(mockRunTransaction).toHaveBeenCalledTimes(1)
+    expect(mockRunTransaction).toHaveBeenCalledWith({}, expect.any(Function))
+  })
+
+  it("builds correct request doc path", async () => {
+    mockRunTransaction.mockResolvedValue({ projectId: "new-proj-id", shotId: "new-shot-id" })
+
+    await createProjectFromRequest({
+      clientId: "c1",
+      requestId: "r1",
+      projectName: "Spring Campaign",
+      createdBy: "admin-1",
+    })
+
+    expect(mockDoc).toHaveBeenCalledWith({}, "clients", "c1", "shotRequests", "r1")
+  })
+
+  it("builds correct project collection path", async () => {
+    mockRunTransaction.mockResolvedValue({ projectId: "new-proj-id", shotId: "new-shot-id" })
+
+    await createProjectFromRequest({
+      clientId: "c1",
+      requestId: "r1",
+      projectName: "Spring Campaign",
+      createdBy: "admin-1",
+    })
+
+    expect(mockCollection).toHaveBeenCalledWith({}, "clients", "c1", "projects")
+  })
+
+  it("builds correct shots collection path", async () => {
+    mockRunTransaction.mockResolvedValue({ projectId: "new-proj-id", shotId: "new-shot-id" })
+
+    await createProjectFromRequest({
+      clientId: "c1",
+      requestId: "r1",
+      projectName: "Spring Campaign",
+      createdBy: "admin-1",
+    })
+
+    expect(mockCollection).toHaveBeenCalledWith({}, "clients", "c1", "shots")
+  })
+
+  it("returns projectId and shotId", async () => {
+    mockRunTransaction.mockResolvedValue({ projectId: "new-proj-id", shotId: "new-shot-id" })
+
+    const result = await createProjectFromRequest({
+      clientId: "c1",
+      requestId: "r1",
+      projectName: "Spring Campaign",
+      createdBy: "admin-1",
+    })
+
+    expect(result).toEqual({ projectId: "new-proj-id", shotId: "new-shot-id" })
+  })
+
+  it("propagates transaction errors", async () => {
+    mockRunTransaction.mockRejectedValue(new Error("Request not found"))
+
+    await expect(
+      createProjectFromRequest({
+        clientId: "c1",
+        requestId: "r1",
+        projectName: "Spring Campaign",
+        createdBy: "admin-1",
+      }),
+    ).rejects.toThrow("Request not found")
+  })
+
+  it("rejects when request is already absorbed", async () => {
+    mockRunTransaction.mockImplementation(async (_db: unknown, callback: (tx: unknown) => Promise<unknown>) => {
+      const fakeTx = { get: vi.fn(), set: vi.fn(), update: vi.fn() }
+      fakeTx.get.mockResolvedValue({
+        exists: () => true,
+        data: () => ({ status: "absorbed", title: "Test" }),
+      })
+      return callback(fakeTx)
+    })
+
+    await expect(
+      createProjectFromRequest({
+        clientId: "c1",
+        requestId: "r1",
+        projectName: "Spring Campaign",
+        createdBy: "admin-1",
+      }),
+    ).rejects.toThrow('Cannot absorb request with status "absorbed"')
   })
 })

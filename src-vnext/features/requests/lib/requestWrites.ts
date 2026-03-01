@@ -6,7 +6,13 @@ import {
   serverTimestamp,
 } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
-import { shotRequestDocPath, shotRequestsPath, shotsPath } from "@/shared/lib/paths"
+import {
+  projectMemberDocPath,
+  projectsPath,
+  shotRequestDocPath,
+  shotRequestsPath,
+  shotsPath,
+} from "@/shared/lib/paths"
 import type { ShotRequestPriority } from "@/shared/types"
 
 // --- Submit ---
@@ -97,6 +103,80 @@ export async function triageAbsorbRequest(
   })
 
   return shotId
+}
+
+// --- Create Project from Request (Transaction) ---
+
+interface CreateProjectFromRequestParams {
+  readonly clientId: string
+  readonly requestId: string
+  readonly projectName: string
+  readonly shootDates?: readonly string[]
+  readonly createdBy: string
+}
+
+export async function createProjectFromRequest(
+  params: CreateProjectFromRequestParams,
+): Promise<{ projectId: string; shotId: string }> {
+  const requestRef = doc(db, ...shotRequestDocPath(params.requestId, params.clientId))
+  const projectsCollRef = collection(db, ...projectsPath(params.clientId))
+  const shotsCollRef = collection(db, ...shotsPath(params.clientId))
+
+  const result = await runTransaction(db, async (tx) => {
+    const requestSnap = await tx.get(requestRef)
+    if (!requestSnap.exists()) throw new Error("Request not found")
+
+    const requestData = requestSnap.data()
+    if (requestData.status !== "submitted" && requestData.status !== "triaged") {
+      throw new Error(`Cannot absorb request with status "${requestData.status as string}"`)
+    }
+
+    const newProjectRef = doc(projectsCollRef)
+    tx.set(newProjectRef, {
+      name: params.projectName.trim(),
+      clientId: params.clientId,
+      status: "active",
+      shootDates: params.shootDates ?? [],
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+
+    const memberRef = doc(db, ...projectMemberDocPath(params.createdBy, newProjectRef.id, params.clientId))
+    tx.set(memberRef, {
+      role: "producer",
+      addedAt: serverTimestamp(),
+      addedBy: params.createdBy,
+    })
+
+    const newShotRef = doc(shotsCollRef)
+    tx.set(newShotRef, {
+      title: requestData.title as string,
+      description: (requestData.description as string) ?? "",
+      projectId: newProjectRef.id,
+      clientId: params.clientId,
+      status: "todo",
+      deleted: false,
+      talent: [],
+      products: [],
+      sortOrder: Date.now(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy: params.createdBy,
+    })
+
+    tx.update(requestRef, {
+      status: "absorbed",
+      triagedBy: params.createdBy,
+      triagedAt: serverTimestamp(),
+      absorbedIntoProjectId: newProjectRef.id,
+      absorbedAsShotId: newShotRef.id,
+      updatedAt: serverTimestamp(),
+    })
+
+    return { projectId: newProjectRef.id, shotId: newShotRef.id }
+  })
+
+  return result
 }
 
 // --- Reject ---

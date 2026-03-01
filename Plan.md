@@ -572,18 +572,29 @@ Admin (role-gated: admin only)
 
 ---
 
-## Phase 8.5: Shot Request — Create Project Flow (Future)
+## Phase 8.5: Shot Request — Create Project Flow
 
 **Goal:** Allow producers to create a new project directly from a shot request, not just absorb into an existing one.
 
-**Status:** Not started. Deferred from Phase 8 — scope was too large for a single phase.
+**Status:** COMPLETE.
 
-### Key Concepts
+### Sub-tasks
 
-- Extend `AbsorbDialog` or add a separate `CreateProjectFromRequestDialog`
-- Requires project creation write function integrated with request absorption transaction
-- New project pre-populated from request fields (title from request title, shoot date from deadline if set)
-- After creation, request is marked absorbed and shot is linked to the new project
+- [x] **8.5a:** Research — read AbsorbDialog, requestWrites, CreateProjectDialog, paths to confirm approach
+- [x] **8.5b:** Data layer — `createProjectFromRequest()` transaction (create project + member + shot + update request)
+- [x] **8.5c:** UI layer — extend AbsorbDialog with Tabs mode toggle ("Existing Project" / "New Project")
+- [x] **8.5d:** Quality gate — senior code review (3 fixes: path helper, hover style, stale nameError)
+- [x] **8.5e:** Documentation — Plan.md, HANDOFF.md, CHECKPOINT.md, MEMORY.md
+
+### Acceptance Criteria
+
+- [x] AbsorbDialog has two modes: "Add to existing project" and "Create new project"
+- [x] "Create new project" requires project name, optional shoot dates
+- [x] Transaction atomically creates project + member + shot + updates request
+- [x] Creator auto-added as project member (producer role)
+- [x] Form validation: project name required (Zod), dates optional
+- [x] Desktop only (triage is desktop-only per Phase 8 decision)
+- [x] Build clean, lint zero warnings in new code, 2,122 tests pass
 
 ---
 
