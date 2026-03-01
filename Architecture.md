@@ -123,14 +123,14 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/projects/:id/callsheet` | CallSheetPage | Desktop-only |
 | `/projects/:id/departments` | ProjectDepartmentsPage | |
 | `/projects/:id/settings` | ProjectSettingsPage | |
-| `/inbox` | ShotRequestInboxPage | Org-level shot request inbox. Admin+producer only (RequireRole). Desktop: two-panel (list + triage). Mobile: list only. |
+| `/inbox` | ShotRequestInboxPage | Org-level shot request inbox. Admin+producer only (RequireRole). Desktop: two-panel (list + triage). Mobile: list only. Absorb dialog supports both "add to existing project" and "create new project" modes (Phase 8.5). |
 | `/products` | ProductsPage | Org-level product library |
 | `/products/new` | ProductEditorPage | Create new product (vNext) |
 | `/products/:productId` | ProductDetailPage | Thin shell + 5 section components (Overview, Colorways, Samples, Assets, Activity) |
 | `/products/:fid/edit` | ProductEditorPage | Edit product (vNext) |
 | `/import-products` | ImportProducts | CSV import |
 | `/library` | LibraryPage | Redirect -> `/library/talent` |
-| `/library/talent` | LibraryTalentPage | Full CRUD: card grid, inline detail, measurements, portfolio, castings |
+| `/library/talent` | LibraryTalentPage | Full CRUD: card grid, inline detail, measurements, portfolio, castings. Phase 9: tabbed detail (Profile / Shot History / Casting Brief), search/filter toolbar (gender, measurement ranges, agency), auto-match scoring. |
 | `/library/crew` | LibraryCrewPage | Table list with search, create dialog, row click to detail |
 | `/library/crew/:crewId` | CrewDetailPage | Inline edit all fields, notes, delete with confirmation |
 | `/library/locations` | LibraryLocationsPage | Table list with search, create dialog, row click to detail |
@@ -198,7 +198,7 @@ All data scoped by `clientId` from Firebase Auth custom claims.
   ├── colorSwatches/{swatchId}/
   ├── users/{userId}/
   ├── notifications/{notificationId}/
-  └── shotRequests/{requestId}/          # Phase 8 — Shot Request Inbox
+  └── shotRequests/{requestId}/          # Phase 8/8.5 — Shot Request Inbox + Create Project from Request
 
 /shotShares/{shareToken}               # Denormalized public share docs
 /systemAdmins/{email}                  # System admin list
@@ -291,6 +291,19 @@ interface ShotRequest {
 All Firestore paths built via `src-vnext/shared/lib/paths.ts`. Every function requires explicit `clientId` -- no hardcoded defaults. Returns string arrays for `collection()` / `doc()`.
 
 Key path builders: `projectsPath`, `shotsPath`, `productFamiliesPath`, `talentPath`, `locationsPath`, `crewPath`, `crewDocPath`, `locationDocPath`, `departmentsPath`, `departmentPositionsPath`, `usersPath`, `userDocPath`, `projectMembersPath`, `projectMemberDocPath`, `shotRequestsPath`, `shotRequestDocPath`.
+
+### Shot Request Write Functions
+
+All in `src-vnext/features/requests/lib/requestWrites.ts`:
+
+| Function | Type | What it does |
+|----------|------|-------------|
+| `submitShotRequest` | `addDoc` | Creates a new shot request doc |
+| `triageAbsorbRequest` | `runTransaction` | Reads request, creates shot in existing project, marks request absorbed |
+| `createProjectFromRequest` | `runTransaction` | Reads request, creates project + member doc + shot, marks request absorbed (Phase 8.5) |
+| `triageRejectRequest` | `runTransaction` | Reads request, marks rejected with optional reason |
+
+`createProjectFromRequest` is the most complex — 4 writes in a single transaction: project doc, member doc (producer auto-membership via `projectMemberDocPath`), shot doc, request update.
 
 ---
 
@@ -396,6 +409,8 @@ Visual direction finalized. Zinc neutral scale (not Slate), near-black primary, 
 
 Single source of design truth. CSS custom properties for colors, spacing, typography, shadows, radius. Referenced by Tailwind config. Micro font sizes: `text-3xs` (9px), `text-2xs` (10px), `text-xxs` (11px). Editorial body scale (Sprint S4): `text-xs` (12px), `text-sm` (13px), `text-base` (14px), `text-lg` (16px), `text-xl` (18px) — all 1-2px smaller than Tailwind defaults.
 
+**Status color tokens:** `--color-status-{color}-bg`, `--color-status-{color}-text`, `--color-status-{color}-border` for blue (info/submitted), green (success/absorbed), amber (warning/triaged), red (error/out-of-range). Both light and dark theme variants defined. Added red tokens in Phase 9 for casting match out-of-range scores.
+
 **Dark mode:** `.dark` class selector block overrides all color tokens (surfaces, text, borders, primary, status badges, table, shadows). Activation via Tailwind `darkMode: 'class'` strategy. ThemeProvider applies `.dark` on `<html>`. FOUC prevention script in `index.html` applies it pre-React. localStorage key: `sb:theme` (`light | dark | system`).
 
 ### design-tokens.js (Semantic Classes)
@@ -435,9 +450,17 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 | `locationWrites.ts` | `features/library/lib/` | Create/update/delete locations + photo upload/removal |
 | `talentWrites.ts` | `features/library/lib/` | Full talent CRUD: create, update, delete, headshot, portfolio, casting images |
 | `measurementOptions.ts` | `features/library/lib/` | Gender-specific measurement field definitions (men: 7, women: 6, other: all) |
+| `measurementParsing.ts` | `features/library/lib/` | Conservative parser for free-form measurement strings (`5'9"`, `34"`, `40R`, `175cm`) → numeric values |
+| `talentFilters.ts` | `features/library/lib/` | TalentSearchFilters interface + filterTalent() pure function (gender, measurement ranges, agency, casting history) |
+| `castingMatch.ts` | `features/library/lib/` | CastingBrief interface, computeMatchScore() proximity scoring, rankTalentForBrief() sorted results |
+| `talentShotHistory.ts` | `features/library/lib/` | TalentShotHistoryEntry type definition for shot history reverse lookup |
 | `useCrewLibrary.ts` | `features/library/hooks/` | Real-time Firestore subscription for crew list |
 | `useLocationLibrary.ts` | `features/library/hooks/` | Real-time Firestore subscription for locations list |
 | `useTalentLibrary.ts` | `features/library/hooks/` | Real-time Firestore subscription for talent list |
+| `useTalentShotHistory.ts` | `features/library/hooks/` | Firestore `array-contains` query: all shots a talent appears in, grouped by project |
+| `TalentSearchFilters.tsx` | `features/library/components/` | Responsive filter sheet (side on desktop, bottom on mobile) — gender, measurement ranges, agency, casting history |
+| `CastingBriefMatcher.tsx` | `features/library/components/` | Brief form + ranked results with match score badges (green ≥80%, amber ≥50%, red <50%) |
+| `TalentShotHistory.tsx` | `features/library/components/` | Shot history grouped by project, status badges via getShotStatusColor() |
 | `CreateCrewDialog.tsx` | `features/library/components/` | ResponsiveDialog for creating crew members |
 | `CreateLocationDialog.tsx` | `features/library/components/` | ResponsiveDialog for creating locations |
 | `CrewDetailPage.tsx` | `features/library/components/` | Detail/edit page for crew members (name, department, position, contact) |

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Users, Plus, X, Upload, Trash2, GripVertical, Search } from "lucide-react"
 import type { ChangeEvent } from "react"
 import {
@@ -51,6 +51,11 @@ import {
   updateTalent,
 } from "@/features/library/lib/talentWrites"
 import { getMeasurementOptionsForGender } from "@/features/library/lib/measurementOptions"
+import type { TalentSearchFilters } from "@/features/library/lib/talentFilters"
+import { EMPTY_TALENT_FILTERS, filterTalent } from "@/features/library/lib/talentFilters"
+import { TalentSearchFilterSheet, TalentFilterToolbar } from "@/features/library/components/TalentSearchFilters"
+import { CastingBriefMatcher } from "@/features/library/components/CastingBriefMatcher"
+import { TalentShotHistory } from "@/features/library/components/TalentShotHistory"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import {
   Dialog,
@@ -357,6 +362,9 @@ export default function LibraryTalentPage() {
   const [query, setQuery] = useState("")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [filters, setFilters] = useState<TalentSearchFilters>(EMPTY_TALENT_FILTERS)
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<"detail" | "casting" | "history">("detail")
 
   useKeyboardShortcuts([
     { key: "c", handler: () => { if (canCreate) setCreateOpen(true) } },
@@ -393,17 +401,19 @@ export default function LibraryTalentPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return talent
-    return talent.filter((t) => {
-      const name = buildDisplayName(t).toLowerCase()
-      const agency = (t.agency ?? "").toLowerCase()
-      const email = (t.email ?? "").toLowerCase()
-      const phone = (t.phone ?? "").toLowerCase()
-      return name.includes(q) || agency.includes(q) || email.includes(q) || phone.includes(q)
-    })
-  }, [query, talent])
+  const filtersWithQuery = useMemo(
+    (): TalentSearchFilters => ({ ...filters, query }),
+    [filters, query],
+  )
+
+  const filtered = useMemo(
+    () => filterTalent(talent, filtersWithQuery),
+    [talent, filtersWithQuery],
+  )
+
+  const handleFiltersChange = useCallback((next: TalentSearchFilters) => {
+    setFilters(next)
+  }, [])
 
   const selected = useMemo(() => {
     if (!selectedId) return null
@@ -764,11 +774,18 @@ export default function LibraryTalentPage() {
         />
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="max-w-md">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search talent…"
+          <div className="flex items-center gap-2">
+            <div className="max-w-md flex-1">
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search talent…"
+              />
+            </div>
+            <TalentFilterToolbar
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              onOpenSheet={() => setFilterSheetOpen(true)}
             />
           </div>
 
@@ -789,7 +806,10 @@ export default function LibraryTalentPage() {
                     <button
                       key={t.id}
                       type="button"
-                      onClick={() => setSelectedId((prev) => (prev === t.id ? null : t.id))}
+                      onClick={() => {
+                        setSelectedId((prev) => (prev === t.id ? null : t.id))
+                        setActiveTab("detail")
+                      }}
                       className={`rounded-md border p-3 text-left transition-[colors,box-shadow] ${
                         selected
                           ? "border-[var(--color-border)] bg-[var(--color-surface-subtle)]"
@@ -880,6 +900,46 @@ export default function LibraryTalentPage() {
                       </div>
                     </div>
 
+                    {/* Tab bar */}
+                    <div className="mt-4 flex gap-0 overflow-x-auto border-b border-[var(--color-border)]">
+                      {(
+                        [
+                          { key: "detail" as const, label: "Profile" },
+                          { key: "history" as const, label: "Shot History" },
+                          { key: "casting" as const, label: "Casting Brief" },
+                        ] as const
+                      ).map((tab) => (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          onClick={() => setActiveTab(tab.key)}
+                          className={`whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors ${
+                            activeTab === tab.key
+                              ? "border-b-2 border-[var(--color-primary)] text-[var(--color-text)]"
+                              : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Shot History tab */}
+                    {activeTab === "history" && clientId ? (
+                      <div className="mt-5">
+                        <TalentShotHistory talentId={selected.id} clientId={clientId} />
+                      </div>
+                    ) : null}
+
+                    {/* Casting Brief tab */}
+                    {activeTab === "casting" ? (
+                      <div className="mt-5">
+                        <CastingBriefMatcher talent={talent} />
+                      </div>
+                    ) : null}
+
+                    {/* Profile tab (existing detail content) */}
+                    {activeTab === "detail" ? (
                     <div className="mt-5 grid gap-6 lg:grid-cols-2">
                       <div className="flex flex-col gap-4">
                         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
@@ -1557,6 +1617,7 @@ export default function LibraryTalentPage() {
                         </div>
                       </div>
                     </div>
+                    ) : null}
                   </CardContent>
                 </Card>
               ) : null}
@@ -1564,6 +1625,14 @@ export default function LibraryTalentPage() {
           )}
         </div>
       )}
+
+      <TalentSearchFilterSheet
+        open={filterSheetOpen}
+        onOpenChange={setFilterSheetOpen}
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+        talent={talent}
+      />
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg">

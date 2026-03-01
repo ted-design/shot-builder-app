@@ -136,6 +136,9 @@
   --color-status-amber-bg: #fffbeb;      /* amber-50 */
   --color-status-amber-text: #b45309;    /* amber-700 */
   --color-status-amber-border: #fde68a;  /* amber-200 */
+  --color-status-red-bg: #fef2f2;        /* red-50 */
+  --color-status-red-text: #dc2626;      /* red-600 */
+  --color-status-red-border: #fecaca;    /* red-200 */
 
   /* --- Table Specific --- */
   --color-table-header-bg: transparent;
@@ -381,6 +384,9 @@
   --color-status-amber-bg: #451a03;      /* amber-950 */
   --color-status-amber-text: #fcd34d;    /* amber-300 */
   --color-status-amber-border: #b45309;  /* amber-700 */
+  --color-status-red-bg: #450a0a;        /* red-950 */
+  --color-status-red-text: #fca5a5;      /* red-300 */
+  --color-status-red-border: #b91c1c;    /* red-700 */
 
   /* --- Table --- */
   --color-table-header-border: #52525b;  /* zinc-600 */

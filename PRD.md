@@ -16,11 +16,11 @@ Shot Builder is the production planning tool for fashion and commercial photogra
 
 | Tier | Scope | Phases | Status |
 |------|-------|--------|--------|
-| **Now** | Fix broken workflows, complete library entities (crew/locations/talent), polish UX consistency, clean up tech debt, admin panel + user onboarding, design system realignment, shot request inbox | 7A-7E, S1-S5b, 8 | **COMPLETE** |
-| **Next** | Create project from request flow, casting engine (measurement-based talent search + auto-match) | 8.5, 9 | Phase 8.5 ready |
+| **Now** | Fix broken workflows, complete library entities (crew/locations/talent), polish UX consistency, clean up tech debt, admin panel + user onboarding, design system realignment, shot request inbox, create project from request | 7A-7E, S1-S5b, 8, 8.5 | **COMPLETE** |
+| **Next** | Casting engine (measurement-based talent search + auto-match) | 9 | **COMPLETE** |
 | **Future** | Per-product asset requirements, sample logistics (PLM), auto-suggest shoot dates from sample availability | 10+ | Not started |
 
-The "Now" tier is complete — Shot Builder is a full production workspace with admin onboarding, library CRUD, mobile operations, visual polish, and a shot request inbox for structured creative brief intake. The "Next" tier expands it into a team-facing platform. The "Future" tier adds supply-chain intelligence.
+The "Now" tier is complete — Shot Builder is a full production workspace with admin onboarding, library CRUD, mobile operations, visual polish, a shot request inbox for structured creative brief intake, and the ability to create new projects directly from requests. The "Next" tier expands it into a team-facing platform with casting intelligence. The "Future" tier adds supply-chain intelligence.
 
 ---
 
@@ -177,7 +177,7 @@ Every shot progresses through four statuses. These labels are canonical across a
 - Requesters see their own submission history and current status via the `/inbox` view.
 - No push notifications in Phase 8 — status visible on next app visit.
 - Data model: `clients/{clientId}/shotRequests/{requestId}`.
-- "Create new project from request" is deferred to Phase 8.5.
+- "Create new project from request" — AbsorbDialog has a mode toggle: absorb into existing project OR create a new project atomically (Phase 8.5, complete).
 
 ### Journey 8: Casting Engine (Phase 9 — future)
 

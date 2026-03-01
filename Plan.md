@@ -572,33 +572,45 @@ Admin (role-gated: admin only)
 
 ---
 
-## Phase 8.5: Shot Request — Create Project Flow (Future)
+## Phase 8.5: Shot Request — Create Project Flow
 
 **Goal:** Allow producers to create a new project directly from a shot request, not just absorb into an existing one.
 
-**Status:** Not started. Deferred from Phase 8 — scope was too large for a single phase.
+**Status:** COMPLETE.
 
-### Key Concepts
+### Sub-tasks
 
-- Extend `AbsorbDialog` or add a separate `CreateProjectFromRequestDialog`
-- Requires project creation write function integrated with request absorption transaction
-- New project pre-populated from request fields (title from request title, shoot date from deadline if set)
-- After creation, request is marked absorbed and shot is linked to the new project
+- [x] **8.5a:** Research — read AbsorbDialog, requestWrites, CreateProjectDialog, paths to confirm approach
+- [x] **8.5b:** Data layer — `createProjectFromRequest()` transaction (create project + member + shot + update request)
+- [x] **8.5c:** UI layer — extend AbsorbDialog with Tabs mode toggle ("Existing Project" / "New Project")
+- [x] **8.5d:** Quality gate — senior code review (3 fixes: path helper, hover style, stale nameError)
+- [x] **8.5e:** Documentation — Plan.md, HANDOFF.md, CHECKPOINT.md, MEMORY.md
+
+### Acceptance Criteria
+
+- [x] AbsorbDialog has two modes: "Add to existing project" and "Create new project"
+- [x] "Create new project" requires project name, optional shoot dates
+- [x] Transaction atomically creates project + member + shot + updates request
+- [x] Creator auto-added as project member (producer role)
+- [x] Form validation: project name required (Zod), dates optional
+- [x] Desktop only (triage is desktop-only per Phase 8 decision)
+- [x] Build clean, lint zero warnings in new code, 2,122 tests pass
 
 ---
 
-## Phase 9: Casting Engine (Future)
+## Phase 9: Casting Engine — COMPLETE
 
 **Goal:** Searchable talent database with measurement-based matching and shot history.
 
-**Status:** Not started. Outline only.
+**Status:** COMPLETE. Committed `f6cbef5` on `vnext/sprint-s5b`. 89 new tests (2,211 total).
 
-### Key Concepts
+### Sub-tasks
 
-- Filter talent by measurement ranges (height, bust, waist, etc.), gender, availability
-- Auto-match: given casting brief requirements, suggest matching talent
-- Shot history: auto-link every shot a model has appeared in (reverse lookup from shot.talent[])
-- Extend existing casting session infrastructure in talent page
+- [x] **9a: Talent Search & Filter** — client-side filtering by gender, measurement ranges (min/max), agency, casting history. Filter sheet (responsive side/bottom). Active filter chips with dismiss.
+- [x] **9b: Auto-Match / Casting Brief** — ephemeral brief with measurement requirements → ranked talent with match scores. Per-field breakdown (in-range/close/out/missing). Gender hard gate, proximity scoring.
+- [x] **9c: Shot History** — reverse lookup via Firestore `array-contains` on `talentIds`. Grouped by project, status badges. Composite index added.
+- [x] **Infrastructure** — `measurementParsing.ts` (conservative parser), `talentFilters.ts`, `castingMatch.ts`, `useTalentShotHistory` hook, `--color-status-red-*` tokens.
+- [x] **Integration** — All 3 features integrated into LibraryTalentPage via tabs (Profile / Shot History / Casting Brief).
 
 ---
 

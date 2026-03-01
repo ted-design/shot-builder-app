@@ -412,6 +412,40 @@ When merging parallel agent worktrees into the main branch:
 4. **Verify all imports exist:** After merging, grep for every `import from` path in new files to confirm the target module exists on the main branch. Shared components (StatusBadge, EmptyState, PageHeader, ResponsiveDialog) and hooks (useFirestoreCollection, useProjects) must be verified.
 5. **Run feature tests first, then full suite:** `npm test -- src-vnext/features/{name}` catches import/signature issues fast before the slower full run.
 
+### Measurement Parsing & Free-Form Data (Phase 9 Pattern)
+
+When Firestore stores measurements as free-form strings (user-entered), never assume clean numeric values. Build a **conservative parser** that:
+
+1. Handles common formats: `5'9"` (feet-inches → total inches), `34"` (strip quotes), `40R` (strip letter suffix), `175cm` (cm → inches), plain numbers
+2. Returns `null` for anything unparseable — never guess or coerce
+3. Tests against real-world messy inputs (spaces, mixed formats, empty strings, "N/A")
+4. Scoring algorithms treat `null` as "unmeasured" (field skipped), not "zero"
+
+### CSS Variable Token Verification (Phase 9 Pattern)
+
+Before using `var(--color-*)` in components, **verify the token exists in tokens.css**. Missing tokens silently resolve to nothing — the build won't catch them, and the UI silently breaks (invisible text, transparent backgrounds).
+
+When a new semantic color group is needed (e.g., `--color-status-red-*` for error/out-of-range states):
+1. Add tokens to BOTH light and dark theme blocks in tokens.css first
+2. Then reference them in components
+3. Reviewer should grep for `var(--color-` in new files and cross-check against tokens.css
+
+### Firestore Index Format Consistency (Phase 9 Pattern)
+
+`firestore.indexes.json` supports two field key formats: `"order": "ASCENDING"` and `"mode": "ASCENDING"`. **Use whichever format the existing file uses** — mixing formats works but creates confusion during review. Check the first index entry and match its style for all new entries.
+
+### 5-Round Agent Team Pattern (Phase 9 Pattern)
+
+The most efficient agent team cadence for a vertical slice:
+
+1. **Round 1 — Research** (parallel, read-only): UX Researcher + Data Architect. Cheap Explore/Plan agents. Shut down after reports.
+2. **Round 2 — Design**: Orchestrator synthesizes into typed contract (interfaces + function signatures). User approves.
+3. **Round 3 — Implementation** (parallel worktrees): Data Engineer + UI Engineer. Both code against the typed contract. Data layer is canonical.
+4. **Round 4 — Quality Gate**: Senior Reviewer checks design token compliance, RBAC, test coverage, immutability, Firestore rules safety.
+5. **Round 5 — Integration**: Merge data first, UI second. Full test suite + build + lint. Update all 4 tracking files.
+
+Key lessons: typed contracts prevent signature divergence between agents. Senior review catches hardcoded colors and format inconsistencies that pass tests but violate design system rules.
+
 ### Context Budget Rules
 
 - Each Plan.md phase is broken into lettered sub-tasks that fit in one session
