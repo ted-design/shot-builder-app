@@ -171,9 +171,16 @@ export function TalentShotHistory({ talentId, clientId }: TalentShotHistoryProps
   }
 
   if (error) {
+    if (error.isMissingIndex) {
+      return (
+        <div className="py-4 text-center text-sm text-[var(--color-text-muted)]">
+          Shot history is not available yet.
+        </div>
+      )
+    }
     return (
       <div className="py-4 text-center text-sm text-[var(--color-error)]">
-        {error instanceof Error ? error.message : "Failed to load shot history"}
+        {error.message}
       </div>
     )
   }

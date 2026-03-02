@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Casting Brief Panel — Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #fafafa; --surface: #ffffff; --surface-subtle: #f4f4f5;
+    --text: #18181b; --text-secondary: #52525b; --text-muted: #71717a;
+    --text-subtle: #a1a1aa; --border: #e4e4e7; --border-strong: #d4d4d8;
+    --primary: #18181b; --primary-text: #ffffff; --accent: #E31E24;
+    --status-green-bg: #ecfdf5; --status-green-text: #047857;
+    --status-amber-bg: #fffbeb; --status-amber-text: #b45309;
+    --status-gray-bg: #f4f4f5; --status-gray-text: #3f3f46;
+    --slider-track: #e4e4e7; --slider-fill: #18181b; --slider-thumb: #ffffff;
+    --slider-thumb-border: #d4d4d8;
+  }
+  .dark {
+    --bg: #09090b; --surface: #18181b; --surface-subtle: #1c1c1f;
+    --text: #fafafa; --text-secondary: #d4d4d8; --text-muted: #a1a1aa;
+    --text-subtle: #71717a; --border: #3f3f46; --border-strong: #52525b;
+    --primary: #fafafa; --primary-text: #18181b; --accent: #E31E24;
+    --status-green-bg: #052e16; --status-green-text: #6ee7b7;
+    --status-amber-bg: #451a03; --status-amber-text: #fcd34d;
+    --status-gray-bg: #27272a; --status-gray-text: #d4d4d8;
+    --slider-track: #3f3f46; --slider-fill: #fafafa; --slider-thumb: #fafafa;
+    --slider-thumb-border: #52525b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--text);
+    line-height: 1.5; font-size: 14px;
+    padding: 24px; max-width: 1200px; margin: 0 auto;
+  }
+
+  /* Header */
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .page-title {
+    font-size: 18px; font-weight: 300; letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 6px; font-size: 13px;
+    font-weight: 500; cursor: pointer; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--border-strong); }
+  .btn-primary {
+    background: var(--primary); color: var(--primary-text);
+    border-color: var(--primary);
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-active {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-icon {
+    width: 32px; height: 32px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); cursor: pointer;
+  }
+
+  /* Casting Brief Panel */
+  .casting-panel {
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface); margin-bottom: 20px;
+    overflow: hidden; transition: all 0.3s ease;
+  }
+  .casting-panel.collapsed .casting-body { display: none; }
+  .casting-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+  }
+  .casting-header-left { display: flex; align-items: center; gap: 10px; }
+  .casting-title {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.025em;
+    text-transform: uppercase; color: var(--text-muted);
+  }
+  .casting-badge {
+    font-size: 11px; font-weight: 600; padding: 2px 8px;
+    border-radius: 10px; background: var(--accent); color: #fff;
+  }
+  .casting-body { padding: 18px; }
+
+  /* Gender selector */
+  .gender-row {
+    display: flex; gap: 8px; margin-bottom: 18px;
+  }
+  .gender-chip {
+    padding: 5px 16px; border-radius: 20px; font-size: 12px;
+    font-weight: 500; cursor: pointer; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-muted); transition: all 0.15s;
+  }
+  .gender-chip.active {
+    background: var(--primary); color: var(--primary-text);
+    border-color: var(--primary);
+  }
+  .gender-chip:hover:not(.active) { border-color: var(--border-strong); }
+
+  /* Measurement sliders */
+  .slider-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px 24px;
+  }
+  @media (max-width: 640px) {
+    .slider-grid { grid-template-columns: 1fr; }
+  }
+  .slider-field { display: flex; flex-direction: column; gap: 6px; }
+  .slider-label-row {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .slider-label {
+    font-size: 12px; font-weight: 500; color: var(--text-secondary);
+  }
+  .slider-value {
+    font-size: 11px; font-weight: 600; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .slider-bounds {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--text-subtle); margin-top: 2px;
+  }
+
+  /* Dual-thumb range slider */
+  .range-slider {
+    position: relative; height: 20px; width: 100%;
+    display: flex; align-items: center;
+  }
+  .range-slider .track {
+    position: absolute; left: 0; right: 0; height: 4px;
+    background: var(--slider-track); border-radius: 2px;
+  }
+  .range-slider .fill {
+    position: absolute; height: 4px; border-radius: 2px;
+    background: var(--slider-fill); transition: left 0.1s, width 0.1s;
+  }
+  .range-slider input[type="range"] {
+    position: absolute; width: 100%; height: 20px;
+    -webkit-appearance: none; appearance: none;
+    background: transparent; pointer-events: none; z-index: 2;
+  }
+  .range-slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--slider-thumb); border: 2px solid var(--slider-thumb-border);
+    cursor: pointer; pointer-events: auto;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: transform 0.1s;
+  }
+  .range-slider input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+  }
+  .range-slider input[type="range"]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--slider-thumb); border: 2px solid var(--slider-thumb-border);
+    cursor: pointer; pointer-events: auto;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  /* Talent grid */
+  .talent-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 900px) { .talent-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 540px) { .talent-grid { grid-template-columns: 1fr; } }
+
+  .talent-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; transition: all 0.15s; position: relative;
+  }
+  .talent-card:hover {
+    background: var(--surface-subtle); box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .talent-avatar {
+    width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0;
+    background: var(--surface-subtle); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600; color: var(--text-muted);
+  }
+  .talent-info { min-width: 0; flex: 1; }
+  .talent-name {
+    font-size: 13px; font-weight: 500; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .talent-agency {
+    font-size: 12px; color: var(--text-muted); margin-top: 2px;
+  }
+
+  /* Score badge overlay */
+  .score-badge {
+    position: absolute; top: 8px; right: 8px;
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+    transition: all 0.3s ease;
+  }
+  .score-badge.hidden { opacity: 0; transform: scale(0.5); }
+  .score-badge.green { background: var(--status-green-bg); color: var(--status-green-text); }
+  .score-badge.amber { background: var(--status-amber-bg); color: var(--status-amber-text); }
+  .score-badge.gray { background: var(--status-gray-bg); color: var(--status-gray-text); }
+
+  /* Annotation */
+  .annotation {
+    margin-top: 24px; padding: 12px 16px;
+    border-radius: 6px; border: 1px dashed var(--border-strong);
+    font-size: 12px; color: var(--text-subtle); line-height: 1.6;
+  }
+  .annotation strong { color: var(--text-secondary); }
+
+  /* Section divider */
+  .divider {
+    height: 1px; background: var(--border); margin: 14px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1 class="page-title">Talent</h1>
+  <div class="header-actions">
+    <button class="btn" id="castingToggle" onclick="toggleCasting()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Casting Match
+    </button>
+    <button class="btn-icon" onclick="toggleTheme()" title="Toggle theme" id="themeBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Casting Brief Panel -->
+<div class="casting-panel collapsed" id="castingPanel">
+  <div class="casting-header">
+    <div class="casting-header-left">
+      <span class="casting-title">Casting Brief</span>
+      <span class="casting-badge" id="matchCount" style="display:none">0 matches</span>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button class="btn btn-sm" onclick="clearBrief()">Clear</button>
+      <button class="btn-icon" onclick="toggleCasting()" style="width:28px;height:28px;" title="Close">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="casting-body">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">
+      Define measurement requirements to find matching talent. Grid cards show match scores.
+    </div>
+
+    <!-- Gender -->
+    <div style="margin-bottom:6px;">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px;">Gender</div>
+      <div class="gender-row">
+        <div class="gender-chip active" data-gender="women" onclick="selectGender(this)">Women</div>
+        <div class="gender-chip" data-gender="men" onclick="selectGender(this)">Men</div>
+        <div class="gender-chip" data-gender="other" onclick="selectGender(this)">Other</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Measurement Range Sliders -->
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:12px;">Measurement Ranges</div>
+
+    <div class="slider-grid" id="sliderGrid">
+      <!-- Sliders injected by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- Talent Grid -->
+<div class="talent-grid" id="talentGrid">
+  <!-- Cards injected by JS -->
+</div>
+
+<!-- Annotation -->
+<div class="annotation">
+  <strong>Casting Brief Panel Behavior:</strong><br/>
+  - Shown as a collapsible card <strong>above</strong> the talent grid (not inside a detail panel).<br/>
+  - Gender selector + dual-thumb range sliders for each measurement field.<br/>
+  - Slider bounds are <strong>data-driven</strong>: min/max derived from actual talent measurement data.<br/>
+  - Grid cards show <strong>score badge overlay</strong> when casting mode is active (green &ge; 80%, amber &ge; 50%, gray &lt; 50%).<br/>
+  - Results sorted by <strong>match score descending</strong> (instead of alphabetical).<br/>
+  - On mobile: panel collapses to a summary line with "Edit" button.
+</div>
+
+<script>
+const TALENT = [
+  { id: 1, name: "Sarah Chen", initials: "SC", agency: "Elite Models", gender: "women",
+    measurements: { height: 69, bust: 34, waist: 25, hips: 35 } },
+  { id: 2, name: "Marcus Johnson", initials: "MJ", agency: "IMG", gender: "men",
+    measurements: { height: 73, bust: 40, waist: 32, hips: 38 } },
+  { id: 3, name: "Elena Rodriguez", initials: "ER", agency: "Wilhelmina", gender: "women",
+    measurements: { height: 67, bust: 33, waist: 24, hips: 34 } },
+  { id: 4, name: "James Park", initials: "JP", agency: "Ford", gender: "men",
+    measurements: { height: 71, bust: 38, waist: 30, hips: 36 } },
+  { id: 5, name: "Ava Mitchell", initials: "AM", agency: "Next", gender: "women",
+    measurements: { height: 70, bust: 35, waist: 26, hips: 36 } },
+  { id: 6, name: "David Thompson", initials: "DT", agency: "Storm", gender: "men",
+    measurements: { height: 74, bust: 42, waist: 34, hips: 40 } },
+]
+
+const FIELDS_WOMEN = [
+  { key: "height", label: "Height", unit: "in", step: 1, format: formatHeight },
+  { key: "bust", label: "Bust", unit: '"', step: 0.5, format: v => v + '"' },
+  { key: "waist", label: "Waist", unit: '"', step: 0.5, format: v => v + '"' },
+  { key: "hips", label: "Hips", unit: '"', step: 0.5, format: v => v + '"' },
+]
+const FIELDS_MEN = [
+  { key: "height", label: "Height", unit: "in", step: 1, format: formatHeight },
+  { key: "bust", label: "Chest", unit: '"', step: 0.5, format: v => v + '"' },
+  { key: "waist", label: "Waist", unit: '"', step: 0.5, format: v => v + '"' },
+  { key: "hips", label: "Hips", unit: '"', step: 0.5, format: v => v + '"' },
+]
+
+function formatHeight(inches) {
+  const ft = Math.floor(inches / 12)
+  const rem = Math.round(inches % 12)
+  return ft + "'" + rem + '"'
+}
+
+let castingActive = false
+let selectedGender = "women"
+let sliderState = {}
+
+function getFieldsForGender(g) { return g === "men" ? FIELDS_MEN : FIELDS_WOMEN }
+
+function getTalentForGender(g) {
+  return TALENT.filter(t => {
+    if (g === "women") return t.gender === "women"
+    if (g === "men") return t.gender === "men"
+    return true
+  })
+}
+
+function computeBounds(gender) {
+  const relevant = getTalentForGender(gender)
+  const fields = getFieldsForGender(gender)
+  const bounds = {}
+  for (const f of fields) {
+    const vals = relevant.map(t => t.measurements[f.key]).filter(v => v != null)
+    if (vals.length === 0) {
+      bounds[f.key] = { min: 0, max: 100 }
+    } else {
+      bounds[f.key] = {
+        min: Math.floor(Math.min(...vals) - f.step),
+        max: Math.ceil(Math.max(...vals) + f.step),
+      }
+    }
+  }
+  return bounds
+}
+
+function computeScore(talent) {
+  const fields = getFieldsForGender(selectedGender)
+  let totalScore = 0
+  let totalWeight = 0
+  for (const f of fields) {
+    const range = sliderState[f.key]
+    if (!range) continue
+    const bounds = computeBounds(selectedGender)[f.key]
+    if (range.lo <= bounds.min && range.hi >= bounds.max) continue
+    totalWeight += 1
+    const val = talent.measurements[f.key]
+    if (val == null) { totalScore += 0; continue }
+    if (val >= range.lo && val <= range.hi) { totalScore += 1; continue }
+    const dist = val < range.lo ? range.lo - val : val - range.hi
+    const maxDist = (bounds.max - bounds.min) * 0.3
+    const decay = Math.max(0, 1 - dist / maxDist)
+    totalScore += decay * 0.5
+  }
+  if (totalWeight === 0) return null
+  return totalScore / totalWeight
+}
+
+function renderGrid() {
+  const grid = document.getElementById("talentGrid")
+  const genderTalent = castingActive ? getTalentForGender(selectedGender) : TALENT
+
+  let scored = genderTalent.map(t => ({ ...t, score: castingActive ? computeScore(t) : null }))
+  if (castingActive) {
+    scored.sort((a, b) => (b.score ?? -1) - (a.score ?? -1))
+  }
+
+  grid.innerHTML = scored.map(t => {
+    const scoreClass = t.score == null ? "hidden" : t.score >= 0.8 ? "green" : t.score >= 0.5 ? "amber" : "gray"
+    const scorePct = t.score != null ? Math.round(t.score * 100) : ""
+    return `
+      <div class="talent-card">
+        <div class="talent-avatar">${t.initials}</div>
+        <div class="talent-info">
+          <div class="talent-name">${t.name}</div>
+          <div class="talent-agency">${t.agency}</div>
+        </div>
+        <div class="score-badge ${scoreClass}">${scorePct}${t.score != null ? "%" : ""}</div>
+      </div>
+    `
+  }).join("")
+
+  const badge = document.getElementById("matchCount")
+  if (castingActive) {
+    const hasReq = Object.values(sliderState).some(s => {
+      const bounds = computeBounds(selectedGender)[Object.keys(sliderState).find(k => sliderState[k] === s)]
+      return true
+    })
+    const matches = scored.filter(t => t.score != null && t.score >= 0.5).length
+    badge.textContent = matches + " match" + (matches !== 1 ? "es" : "")
+    badge.style.display = "inline"
+  } else {
+    badge.style.display = "none"
+  }
+}
+
+function renderSliders() {
+  const container = document.getElementById("sliderGrid")
+  const fields = getFieldsForGender(selectedGender)
+  const bounds = computeBounds(selectedGender)
+
+  container.innerHTML = fields.map(f => {
+    const b = bounds[f.key]
+    const lo = sliderState[f.key]?.lo ?? b.min
+    const hi = sliderState[f.key]?.hi ?? b.max
+    if (!sliderState[f.key]) sliderState[f.key] = { lo: b.min, hi: b.max }
+
+    return `
+      <div class="slider-field">
+        <div class="slider-label-row">
+          <span class="slider-label">${f.label}</span>
+          <span class="slider-value" id="val-${f.key}">${f.format(lo)} – ${f.format(hi)}</span>
+        </div>
+        <div class="range-slider">
+          <div class="track"></div>
+          <div class="fill" id="fill-${f.key}"></div>
+          <input type="range" min="${b.min}" max="${b.max}" step="${f.step}" value="${lo}"
+            id="lo-${f.key}" oninput="onSlider('${f.key}', 'lo', this.value)" />
+          <input type="range" min="${b.min}" max="${b.max}" step="${f.step}" value="${hi}"
+            id="hi-${f.key}" oninput="onSlider('${f.key}', 'hi', this.value)" />
+        </div>
+        <div class="slider-bounds">
+          <span>${f.format(b.min)}</span>
+          <span>${f.format(b.max)}</span>
+        </div>
+      </div>
+    `
+  }).join("")
+
+  fields.forEach(f => updateSliderFill(f.key))
+}
+
+function updateSliderFill(key) {
+  const bounds = computeBounds(selectedGender)[key]
+  const range = bounds.max - bounds.min
+  const lo = sliderState[key]?.lo ?? bounds.min
+  const hi = sliderState[key]?.hi ?? bounds.max
+  const fill = document.getElementById("fill-" + key)
+  if (!fill) return
+  const leftPct = ((lo - bounds.min) / range) * 100
+  const widthPct = ((hi - lo) / range) * 100
+  fill.style.left = leftPct + "%"
+  fill.style.width = widthPct + "%"
+}
+
+function onSlider(key, thumb, rawValue) {
+  const value = parseFloat(rawValue)
+  const fields = getFieldsForGender(selectedGender)
+  const field = fields.find(f => f.key === key)
+  if (!sliderState[key]) sliderState[key] = { lo: 0, hi: 100 }
+
+  if (thumb === "lo") {
+    sliderState[key] = { ...sliderState[key], lo: Math.min(value, sliderState[key].hi - field.step) }
+    document.getElementById("lo-" + key).value = sliderState[key].lo
+  } else {
+    sliderState[key] = { ...sliderState[key], hi: Math.max(value, sliderState[key].lo + field.step) }
+    document.getElementById("hi-" + key).value = sliderState[key].hi
+  }
+
+  const valEl = document.getElementById("val-" + key)
+  if (valEl) valEl.textContent = field.format(sliderState[key].lo) + " – " + field.format(sliderState[key].hi)
+  updateSliderFill(key)
+  renderGrid()
+}
+
+function selectGender(el) {
+  document.querySelectorAll(".gender-chip").forEach(c => c.classList.remove("active"))
+  el.classList.add("active")
+  selectedGender = el.dataset.gender
+  sliderState = {}
+  renderSliders()
+  renderGrid()
+}
+
+function toggleCasting() {
+  castingActive = !castingActive
+  const panel = document.getElementById("castingPanel")
+  const btn = document.getElementById("castingToggle")
+  if (castingActive) {
+    panel.classList.remove("collapsed")
+    btn.classList.add("btn-active")
+    sliderState = {}
+    renderSliders()
+  } else {
+    panel.classList.add("collapsed")
+    btn.classList.remove("btn-active")
+  }
+  renderGrid()
+}
+
+function clearBrief() {
+  sliderState = {}
+  renderSliders()
+  renderGrid()
+}
+
+function toggleTheme() {
+  document.documentElement.classList.toggle("dark")
+  const isDark = document.documentElement.classList.contains("dark")
+  document.getElementById("themeBtn").innerHTML = isDark
+    ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+    : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+}
+
+// Init
+renderGrid()
+</script>
+</body>
+</html>

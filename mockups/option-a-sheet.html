@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Option A — Right-Side Sheet (Talent Detail)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Design tokens ───────────────────────────── */
+    :root[data-theme="dark"] {
+      --bg:              #09090b;
+      --surface:         #18181b;
+      --surface-subtle:  #1c1c1f;
+      --surface-hover:   #27272a;
+      --text:            #fafafa;
+      --text-secondary:  #d4d4d8;
+      --text-muted:      #a1a1aa;
+      --text-subtle:     #71717a;
+      --border:          #3f3f46;
+      --border-strong:   #52525b;
+      --primary:         #fafafa;
+      --accent:          #E31E24;
+      --overlay:         rgba(0,0,0,0.6);
+      --status-green-bg: #052e16;
+      --status-green-text: #6ee7b7;
+      --status-amber-bg: #451a03;
+      --status-amber-text: #fcd34d;
+      --avatar-text:     #fafafa;
+      --input-bg:        #27272a;
+      --tag-bg:          #27272a;
+      --tab-inactive:    #71717a;
+      --shimmer:         rgba(255,255,255,0.04);
+    }
+
+    :root[data-theme="light"] {
+      --bg:              #fafafa;
+      --surface:         #ffffff;
+      --surface-subtle:  #f4f4f5;
+      --surface-hover:   #e4e4e7;
+      --text:            #09090b;
+      --text-secondary:  #3f3f46;
+      --text-muted:      #71717a;
+      --text-subtle:     #a1a1aa;
+      --border:          #e4e4e7;
+      --border-strong:   #d4d4d8;
+      --primary:         #09090b;
+      --accent:          #E31E24;
+      --overlay:         rgba(0,0,0,0.35);
+      --status-green-bg: #dcfce7;
+      --status-green-text: #166534;
+      --status-amber-bg: #fef9c3;
+      --status-amber-text: #854d0e;
+      --avatar-text:     #fafafa;
+      --input-bg:        #f4f4f5;
+      --tag-bg:          #f4f4f5;
+      --tab-inactive:    #a1a1aa;
+      --shimmer:         rgba(0,0,0,0.04);
+    }
+
+    /* ── Base ────────────────────────────────────── */
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    /* ── App Shell ───────────────────────────────── */
+    .app-shell {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* ── Top bar ─────────────────────────────────── */
+    .topbar {
+      height: 52px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .topbar-logo {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .topbar-logo-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .topbar-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-subtle);
+      margin-left: 4px;
+    }
+
+    .topbar-breadcrumb .sep {
+      color: var(--border-strong);
+    }
+
+    .topbar-breadcrumb .current {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .topbar-spacer { flex: 1; }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Theme toggle ────────────────────────────── */
+    .theme-toggle {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-subtle);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .theme-toggle:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+
+    .theme-toggle svg {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
+    }
+
+    /* ── Page content ────────────────────────────── */
+    .page-content {
+      flex: 1;
+      padding: 28px 24px 48px;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+
+    .page-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .page-heading {
+      font-size: 18px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .page-meta {
+      font-size: 12px;
+      color: var(--text-subtle);
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 14px;
+      height: 34px;
+      border-radius: 8px;
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover {
+      background: var(--surface-hover);
+    }
+
+    /* ── Talent grid ─────────────────────────────── */
+    .talent-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 860px) {
+      .talent-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 540px) {
+      .talent-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ── Talent card ─────────────────────────────── */
+    .talent-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      user-select: none;
+    }
+
+    .talent-card:hover {
+      border-color: var(--border-strong);
+      background: var(--surface-subtle);
+    }
+
+    .talent-card.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+
+    .talent-card-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 10px;
+      background: var(--surface-hover);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .talent-card-avatar .initials {
+      color: var(--text-muted);
+    }
+
+    .talent-card-avatar .avatar-accent {
+      position: absolute;
+      inset: 0;
+      opacity: 0.12;
+      border-radius: inherit;
+    }
+
+    .talent-card-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .talent-card-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .talent-card-agency {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .talent-card-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 7px;
+      border-radius: 5px;
+      margin-top: 6px;
+    }
+
+    .status-booked {
+      background: var(--status-green-bg);
+      color: var(--status-green-text);
+    }
+
+    .status-option {
+      background: var(--status-amber-bg);
+      color: var(--status-amber-text);
+    }
+
+    .talent-card-chevron {
+      color: var(--text-subtle);
+      flex-shrink: 0;
+      transition: color 0.15s;
+    }
+
+    .talent-card:hover .talent-card-chevron {
+      color: var(--text-muted);
+    }
+
+    /* ── Backdrop ────────────────────────────────── */
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      background: var(--overlay);
+      z-index: 40;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      backdrop-filter: blur(2px);
+    }
+
+    .backdrop.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* ── Sheet ───────────────────────────────────── */
+    .sheet {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100dvh;
+      width: 640px;
+      max-width: 100vw;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      overflow: hidden;
+    }
+
+    .sheet.open {
+      transform: translateX(0);
+    }
+
+    /* Mobile: bottom sheet */
+    @media (max-width: 640px) {
+      .sheet {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 90dvh;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        border-radius: 16px 16px 0 0;
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      }
+      .sheet.open {
+        transform: translateY(0);
+      }
+    }
+
+    /* ── Sheet header ─────────────────────────────── */
+    .sheet-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px 14px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .sheet-handle {
+      display: none;
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border-strong);
+      margin: 0 auto 10px;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 640px) {
+      .sheet-handle { display: block; }
+      .sheet-header {
+        flex-direction: column;
+        align-items: stretch;
+        padding-top: 8px;
+      }
+      .sheet-header-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+    }
+
+    .sheet-header-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .sheet-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sheet-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .sheet-title-stack {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .icon-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+      flex-shrink: 0;
+    }
+
+    .icon-btn:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+
+    .icon-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .icon-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .icon-btn-close {
+      border-color: transparent;
+    }
+
+    .nav-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 4px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .nav-group .icon-btn {
+      border: none;
+      background: transparent;
+      border-radius: 5px;
+    }
+
+    .nav-counter {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-subtle);
+      padding: 0 2px;
+      min-width: 28px;
+      text-align: center;
+    }
+
+    /* ── Tab bar ─────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      flex-shrink: 0;
+    }
+
+    .tab-item {
+      padding: 10px 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--tab-inactive);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+      margin-right: 20px;
+      user-select: none;
+    }
+
+    .tab-item:hover {
+      color: var(--text-secondary);
+    }
+
+    .tab-item.active {
+      color: var(--text);
+      border-bottom-color: var(--primary);
+    }
+
+    /* ── Sheet body ───────────────────────────────── */
+    .sheet-body {
+      flex: 1;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .sheet-body::-webkit-scrollbar {
+      width: 4px;
+    }
+    .sheet-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .sheet-body::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    /* ── Sheet hero ──────────────────────────────── */
+    .sheet-hero {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      padding: 24px 20px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sheet-avatar {
+      width: 88px;
+      height: 88px;
+      border-radius: 14px;
+      background: var(--surface-hover);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      color: var(--text-muted);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .sheet-avatar .avatar-bg {
+      position: absolute;
+      inset: 0;
+      opacity: 0.1;
+    }
+
+    .sheet-avatar-initials {
+      position: relative;
+      z-index: 1;
+    }
+
+    .sheet-hero-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .sheet-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
+
+    .sheet-name {
+      font-size: 20px;
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      color: var(--text);
+    }
+
+    .sheet-name-edit-icon {
+      color: var(--text-subtle);
+      opacity: 0;
+      transition: opacity 0.15s;
+      cursor: pointer;
+    }
+
+    .sheet-hero:hover .sheet-name-edit-icon {
+      opacity: 1;
+    }
+
+    .sheet-agency {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--tag-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .tag.booked {
+      background: var(--status-green-bg);
+      color: var(--status-green-text);
+      border-color: transparent;
+    }
+
+    .tag.option {
+      background: var(--status-amber-bg);
+      color: var(--status-amber-text);
+      border-color: transparent;
+    }
+
+    /* ── Sheet sections ──────────────────────────── */
+    .sheet-section {
+      padding: 20px 20px 0;
+    }
+
+    .sheet-section + .sheet-section {
+      margin-top: 4px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      margin-bottom: 12px;
+    }
+
+    /* ── Contact info ─────────────────────────────── */
+    .contact-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      transition: background 0.12s;
+    }
+
+    .contact-item:hover {
+      background: var(--surface-subtle);
+    }
+
+    .contact-icon {
+      width: 16px;
+      height: 16px;
+      color: var(--text-subtle);
+      flex-shrink: 0;
+    }
+
+    .contact-value {
+      font-size: 13px;
+      color: var(--text-secondary);
+      flex: 1;
+    }
+
+    .contact-label {
+      font-size: 11px;
+      color: var(--text-subtle);
+    }
+
+    /* ── Measurements grid ────────────────────────── */
+    .measurements-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    @media (max-width: 400px) {
+      .measurements-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .measurement-cell {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 10px 8px;
+      cursor: default;
+      transition: border-color 0.12s, background 0.12s;
+    }
+
+    .measurement-cell:hover {
+      border-color: var(--border-strong);
+    }
+
+    .measurement-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    .measurement-key {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      margin-top: 2px;
+    }
+
+    /* ── Project pills ────────────────────────────── */
+    .projects-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding-bottom: 20px;
+    }
+
+    .project-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--surface-subtle);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      cursor: default;
+      transition: border-color 0.12s, background 0.12s;
+    }
+
+    .project-pill:hover {
+      border-color: var(--border-strong);
+      background: var(--surface-hover);
+    }
+
+    .project-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Notes ────────────────────────────────────── */
+    .notes-area {
+      width: 100%;
+      min-height: 80px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text);
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s;
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    .notes-area::placeholder {
+      color: var(--text-subtle);
+    }
+
+    .notes-area:focus {
+      border-color: var(--border-strong);
+    }
+
+    /* ── Divider ─────────────────────────────────── */
+    .sheet-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0 0;
+    }
+
+    /* ── Shot history tab content ────────────────── */
+    .shot-history-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 24px;
+      gap: 10px;
+      color: var(--text-subtle);
+      text-align: center;
+    }
+
+    .shot-history-empty svg {
+      opacity: 0.3;
+      margin-bottom: 4px;
+    }
+
+    .shot-history-empty .empty-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .shot-history-empty .empty-sub {
+      font-size: 12px;
+      color: var(--text-subtle);
+    }
+
+    /* ── Mobile annotation ────────────────────────── */
+    .mobile-annotation {
+      margin-top: 36px;
+      padding: 14px 16px;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      background: var(--shimmer);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .mobile-annotation-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .mobile-annotation-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .mobile-annotation-text strong {
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    /* ── Mockup label ─────────────────────────────── */
+    .mockup-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: var(--status-amber-bg);
+      color: var(--status-amber-text);
+      border: 1px solid transparent;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── App Shell ─────────────────────────────────────────────── -->
+<div class="app-shell">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-logo-dot"></div>
+      Shot Builder
+    </div>
+    <nav class="topbar-breadcrumb">
+      <span class="sep">/</span>
+      <span>Spring Campaign 2026</span>
+      <span class="sep">/</span>
+      <span class="current">Talent</span>
+    </nav>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-actions">
+      <span class="mockup-badge">Option A · Sheet</span>
+      <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
+        <!-- Moon icon (shown in dark mode) -->
+        <svg id="iconMoon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <!-- Sun icon (shown in light mode) -->
+        <svg id="iconSun" style="display:none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Page content -->
+  <main class="page-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-heading">Talent</h1>
+        <p class="page-meta">6 talents · 3 booked · 2 on option</p>
+      </div>
+      <button class="btn-primary">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Talent
+      </button>
+    </div>
+
+    <!-- Talent grid -->
+    <div class="talent-grid" id="talentGrid"></div>
+
+    <!-- Mobile behavior annotation -->
+    <div class="mobile-annotation">
+      <div class="mobile-annotation-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-subtle)"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      </div>
+      <p class="mobile-annotation-text">
+        <strong>Mobile behavior:</strong> On viewports &le; 640px the detail panel renders as a <strong>bottom sheet</strong> anchored to the bottom of the viewport, reaching 90dvh height. The pill handle at the top provides a swipe-down gesture hint to dismiss. The backdrop tap also closes the sheet. Navigation Prev/Next buttons remain visible in the header row.
+      </p>
+    </div>
+  </main>
+</div>
+
+<!-- ── Backdrop ───────────────────────────────────────────────── -->
+<div class="backdrop" id="backdrop"></div>
+
+<!-- ── Sheet ─────────────────────────────────────────────────── -->
+<aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Talent detail">
+
+  <!-- Mobile pill handle -->
+  <div class="sheet-handle"></div>
+
+  <!-- Sheet header -->
+  <div class="sheet-header">
+    <div class="sheet-header-row">
+      <div class="sheet-title-stack">
+        <div class="sheet-title" id="sheetTitle">Sarah Chen</div>
+        <div class="sheet-subtitle" id="sheetSubtitle">Elite Models</div>
+      </div>
+      <div class="nav-group">
+        <button class="icon-btn" id="btnPrev" title="Previous talent" aria-label="Previous talent">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="nav-counter" id="navCounter">1 / 6</span>
+        <button class="icon-btn" id="btnNext" title="Next talent" aria-label="Next talent">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <button class="icon-btn icon-btn-close" id="btnClose" title="Close" aria-label="Close panel">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar" role="tablist">
+    <div class="tab-item active" role="tab" aria-selected="true" data-tab="profile" id="tabProfile">Profile</div>
+    <div class="tab-item" role="tab" aria-selected="false" data-tab="history" id="tabHistory">Shot History</div>
+  </div>
+
+  <!-- Sheet body -->
+  <div class="sheet-body">
+
+    <!-- Profile tab content -->
+    <div id="panelProfile">
+
+      <!-- Hero / headshot -->
+      <div class="sheet-hero">
+        <div class="sheet-avatar" id="sheetAvatar">
+          <div class="avatar-bg" id="sheetAvatarBg"></div>
+          <span class="sheet-avatar-initials" id="sheetAvatarInitials">SC</span>
+        </div>
+        <div class="sheet-hero-info">
+          <div class="sheet-name-row">
+            <span class="sheet-name" id="sheetName">Sarah Chen</span>
+            <svg class="sheet-name-edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </div>
+          <div class="sheet-agency" id="sheetAgency">Elite Models</div>
+          <div class="tag-row" id="sheetTags">
+            <span class="tag booked">Booked</span>
+            <span class="tag">Women</span>
+            <span class="tag">Print</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact -->
+      <div class="sheet-section">
+        <div class="section-label">Contact</div>
+        <div class="contact-list" id="sheetContact">
+          <div class="contact-item">
+            <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <span class="contact-value">sarah.chen@elitemodels.com</span>
+            <span class="contact-label">Booker</span>
+          </div>
+          <div class="contact-item">
+            <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.72h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span class="contact-value">+1 (212) 555-0147</span>
+            <span class="contact-label">Direct</span>
+          </div>
+          <div class="contact-item">
+            <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span class="contact-value">New York, NY</span>
+            <span class="contact-label">Market</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet-divider"></div>
+
+      <!-- Measurements -->
+      <div class="sheet-section" style="margin-top:20px">
+        <div class="section-label">Measurements</div>
+        <div class="measurements-grid" id="sheetMeasurements">
+          <div class="measurement-cell">
+            <div class="measurement-value">34"</div>
+            <div class="measurement-key">Bust</div>
+          </div>
+          <div class="measurement-cell">
+            <div class="measurement-value">24"</div>
+            <div class="measurement-key">Waist</div>
+          </div>
+          <div class="measurement-cell">
+            <div class="measurement-value">34"</div>
+            <div class="measurement-key">Hips</div>
+          </div>
+          <div class="measurement-cell">
+            <div class="measurement-value">5'9"</div>
+            <div class="measurement-key">Height</div>
+          </div>
+          <div class="measurement-cell">
+            <div class="measurement-value">2</div>
+            <div class="measurement-key">US Size</div>
+          </div>
+          <div class="measurement-cell">
+            <div class="measurement-value">34B</div>
+            <div class="measurement-key">Bra</div>
+          </div>
+          <div class="measurement-cell">
+            <div class="measurement-value">8.5</div>
+            <div class="measurement-key">Shoe</div>
+          </div>
+          <div class="measurement-cell">
+            <div class="measurement-value">Brown</div>
+            <div class="measurement-key">Hair</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet-divider"></div>
+
+      <!-- Projects -->
+      <div class="sheet-section" style="margin-top:20px">
+        <div class="section-label">Active Projects</div>
+        <div class="projects-list" id="sheetProjects">
+          <div class="project-pill">
+            <div class="project-dot" style="background:#6366f1"></div>
+            Spring Campaign 2026
+          </div>
+          <div class="project-pill">
+            <div class="project-dot" style="background:#0ea5e9"></div>
+            Holiday Lookbook
+          </div>
+          <div class="project-pill">
+            <div class="project-dot" style="background:#f59e0b"></div>
+            Brand Refresh Q2
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet-divider"></div>
+
+      <!-- Notes -->
+      <div class="sheet-section" style="margin-top:20px">
+        <div class="section-label">Notes</div>
+        <textarea class="notes-area" id="sheetNotes" placeholder="Add internal notes about this talent…" rows="3"></textarea>
+      </div>
+
+    </div>
+
+    <!-- Shot History tab content (hidden by default) -->
+    <div id="panelHistory" style="display:none">
+      <div class="shot-history-empty">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <p class="empty-label">No shots yet</p>
+        <p class="empty-sub">Shots assigned to this talent will appear here</p>
+      </div>
+    </div>
+
+  </div><!-- /sheet-body -->
+</aside>
+
+<!-- ── Script ─────────────────────────────────────────────────── -->
+<script>
+  'use strict';
+
+  /* ── Talent data ────────────────────────────────────────────── */
+  const TALENT = [
+    {
+      id: 1,
+      name: 'Sarah Chen',
+      agency: 'Elite Models',
+      initials: 'SC',
+      avatarColor: '#6366f1',
+      status: 'booked',
+      tags: ['Booked', 'Women', 'Print'],
+      email: 'sarah.chen@elitemodels.com',
+      phone: '+1 (212) 555-0147',
+      location: 'New York, NY',
+      measurements: [
+        { label: 'Bust', value: '34"' },
+        { label: 'Waist', value: '24"' },
+        { label: 'Hips', value: '34"' },
+        { label: 'Height', value: '5\'9"' },
+        { label: 'US Size', value: '2' },
+        { label: 'Bra', value: '34B' },
+        { label: 'Shoe', value: '8.5' },
+        { label: 'Hair', value: 'Brown' }
+      ],
+      notes: ''
+    },
+    {
+      id: 2,
+      name: 'Marcus Johnson',
+      agency: 'IMG Models',
+      initials: 'MJ',
+      avatarColor: '#0ea5e9',
+      status: 'booked',
+      tags: ['Booked', 'Men', 'Commercial'],
+      email: 'marcus@imgmodels.com',
+      phone: '+1 (310) 555-0284',
+      location: 'Los Angeles, CA',
+      measurements: [
+        { label: 'Chest', value: '40"' },
+        { label: 'Waist', value: '32"' },
+        { label: 'Hips', value: '38"' },
+        { label: 'Height', value: '6\'1"' },
+        { label: 'US Size', value: 'M' },
+        { label: 'Neck', value: '15.5"' },
+        { label: 'Shoe', value: '10.5' },
+        { label: 'Hair', value: 'Black' }
+      ],
+      notes: ''
+    },
+    {
+      id: 3,
+      name: 'Elena Rodriguez',
+      agency: 'Wilhelmina',
+      initials: 'ER',
+      avatarColor: '#f59e0b',
+      status: 'option',
+      tags: ['Option', 'Women', 'Runway'],
+      email: 'e.rodriguez@wilhelmina.com',
+      phone: '+1 (212) 555-0391',
+      location: 'Miami, FL',
+      measurements: [
+        { label: 'Bust', value: '32"' },
+        { label: 'Waist', value: '22"' },
+        { label: 'Hips', value: '32"' },
+        { label: 'Height', value: '5\'11"' },
+        { label: 'US Size', value: '0' },
+        { label: 'Bra', value: '32A' },
+        { label: 'Shoe', value: '9' },
+        { label: 'Hair', value: 'Black' }
+      ],
+      notes: ''
+    },
+    {
+      id: 4,
+      name: 'James Park',
+      agency: 'Ford Models',
+      initials: 'JP',
+      avatarColor: '#10b981',
+      status: 'option',
+      tags: ['Option', 'Men', 'Print'],
+      email: 'james.park@fordmodels.com',
+      phone: '+1 (212) 555-0452',
+      location: 'New York, NY',
+      measurements: [
+        { label: 'Chest', value: '38"' },
+        { label: 'Waist', value: '30"' },
+        { label: 'Hips', value: '36"' },
+        { label: 'Height', value: '6\'0"' },
+        { label: 'US Size', value: 'S/M' },
+        { label: 'Neck', value: '15"' },
+        { label: 'Shoe', value: '10' },
+        { label: 'Hair', value: 'Brown' }
+      ],
+      notes: ''
+    },
+    {
+      id: 5,
+      name: 'Ava Mitchell',
+      agency: 'Next Models',
+      initials: 'AM',
+      avatarColor: '#ec4899',
+      status: 'booked',
+      tags: ['Booked', 'Women', 'Commercial'],
+      email: 'ava.m@nextmodels.com',
+      phone: '+1 (323) 555-0519',
+      location: 'Los Angeles, CA',
+      measurements: [
+        { label: 'Bust', value: '35"' },
+        { label: 'Waist', value: '25"' },
+        { label: 'Hips', value: '35"' },
+        { label: 'Height', value: '5\'8"' },
+        { label: 'US Size', value: '4' },
+        { label: 'Bra', value: '34C' },
+        { label: 'Shoe', value: '8' },
+        { label: 'Hair', value: 'Blonde' }
+      ],
+      notes: ''
+    },
+    {
+      id: 6,
+      name: 'David Thompson',
+      agency: 'Storm Models',
+      initials: 'DT',
+      avatarColor: '#8b5cf6',
+      status: null,
+      tags: ['Men', 'Editorial'],
+      email: 'd.thompson@stormmodels.com',
+      phone: '+44 20 7555 0162',
+      location: 'London, UK',
+      measurements: [
+        { label: 'Chest', value: '42"' },
+        { label: 'Waist', value: '34"' },
+        { label: 'Hips', value: '40"' },
+        { label: 'Height', value: '6\'2"' },
+        { label: 'US Size', value: 'L' },
+        { label: 'Neck', value: '16"' },
+        { label: 'Shoe', value: '11' },
+        { label: 'Hair', value: 'Dark' }
+      ],
+      notes: ''
+    }
+  ];
+
+  /* ── State ─────────────────────────────────────────────────── */
+  let currentIndex = null;
+  let activeTab = 'profile';
+
+  /* ── DOM refs ───────────────────────────────────────────────── */
+  const grid       = document.getElementById('talentGrid');
+  const sheet      = document.getElementById('sheet');
+  const backdrop   = document.getElementById('backdrop');
+  const btnClose   = document.getElementById('btnClose');
+  const btnPrev    = document.getElementById('btnPrev');
+  const btnNext    = document.getElementById('btnNext');
+  const navCounter = document.getElementById('navCounter');
+  const tabProfile = document.getElementById('tabProfile');
+  const tabHistory = document.getElementById('tabHistory');
+  const panelProfile = document.getElementById('panelProfile');
+  const panelHistory = document.getElementById('panelHistory');
+  const themeToggle  = document.getElementById('themeToggle');
+  const iconMoon     = document.getElementById('iconMoon');
+  const iconSun      = document.getElementById('iconSun');
+
+  /* ── Build grid ─────────────────────────────────────────────── */
+  function buildGrid() {
+    grid.innerHTML = '';
+    TALENT.forEach(function(talent, idx) {
+      const card = document.createElement('div');
+      card.className = 'talent-card';
+      card.dataset.idx = idx;
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-label', 'Open ' + talent.name + ' detail');
+
+      const statusHtml = talent.status
+        ? '<div class="talent-card-status ' + (talent.status === 'booked' ? 'status-booked' : 'status-option') + '">' +
+          (talent.status === 'booked' ? 'Booked' : 'On Option') + '</div>'
+        : '';
+
+      card.innerHTML =
+        '<div class="talent-card-avatar">' +
+          '<div class="avatar-accent" style="background:' + talent.avatarColor + '"></div>' +
+          '<span class="initials" style="color:' + talent.avatarColor + '">' + talent.initials + '</span>' +
+        '</div>' +
+        '<div class="talent-card-info">' +
+          '<div class="talent-card-name">' + talent.name + '</div>' +
+          '<div class="talent-card-agency">' + talent.agency + '</div>' +
+          statusHtml +
+        '</div>' +
+        '<svg class="talent-card-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+
+      card.addEventListener('click', function() { openSheet(idx); });
+      card.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSheet(idx); }
+      });
+
+      grid.appendChild(card);
+    });
+  }
+
+  /* ── Open / close ───────────────────────────────────────────── */
+  function openSheet(idx) {
+    currentIndex = idx;
+    populateSheet(idx);
+    sheet.classList.add('open');
+    backdrop.classList.add('visible');
+    updateGridSelection(idx);
+    sheet.focus();
+  }
+
+  function closeSheet() {
+    sheet.classList.remove('open');
+    backdrop.classList.remove('visible');
+    updateGridSelection(null);
+    currentIndex = null;
+  }
+
+  function updateGridSelection(idx) {
+    document.querySelectorAll('.talent-card').forEach(function(card, i) {
+      card.classList.toggle('selected', i === idx);
+    });
+  }
+
+  /* ── Populate sheet ─────────────────────────────────────────── */
+  function populateSheet(idx) {
+    const t = TALENT[idx];
+
+    // Header
+    document.getElementById('sheetTitle').textContent = t.name;
+    document.getElementById('sheetSubtitle').textContent = t.agency;
+    navCounter.textContent = (idx + 1) + ' / ' + TALENT.length;
+    btnPrev.disabled = idx === 0;
+    btnNext.disabled = idx === TALENT.length - 1;
+
+    // Avatar
+    const avatarBg = document.getElementById('sheetAvatarBg');
+    avatarBg.style.background = t.avatarColor;
+    document.getElementById('sheetAvatarInitials').textContent = t.initials;
+
+    // Hero
+    document.getElementById('sheetName').textContent = t.name;
+    document.getElementById('sheetAgency').textContent = t.agency;
+
+    // Tags
+    const tagsEl = document.getElementById('sheetTags');
+    tagsEl.innerHTML = '';
+    t.tags.forEach(function(tag) {
+      const span = document.createElement('span');
+      const tagClass = tag === 'Booked' ? 'booked' : tag === 'Option' ? 'option' : '';
+      span.className = 'tag' + (tagClass ? ' ' + tagClass : '');
+      span.textContent = tag;
+      tagsEl.appendChild(span);
+    });
+
+    // Contact
+    document.getElementById('sheetContact').innerHTML =
+      '<div class="contact-item">' +
+        '<svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' +
+        '<span class="contact-value">' + t.email + '</span>' +
+        '<span class="contact-label">Booker</span>' +
+      '</div>' +
+      '<div class="contact-item">' +
+        '<svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.72h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' +
+        '<span class="contact-value">' + t.phone + '</span>' +
+        '<span class="contact-label">Direct</span>' +
+      '</div>' +
+      '<div class="contact-item">' +
+        '<svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>' +
+        '<span class="contact-value">' + t.location + '</span>' +
+        '<span class="contact-label">Market</span>' +
+      '</div>';
+
+    // Measurements
+    const measEl = document.getElementById('sheetMeasurements');
+    measEl.innerHTML = '';
+    t.measurements.forEach(function(m) {
+      const cell = document.createElement('div');
+      cell.className = 'measurement-cell';
+      cell.innerHTML =
+        '<div class="measurement-value">' + m.value + '</div>' +
+        '<div class="measurement-key">' + m.label + '</div>';
+      measEl.appendChild(cell);
+    });
+
+    // Notes
+    document.getElementById('sheetNotes').value = t.notes;
+
+    // Reset to profile tab
+    switchTab('profile');
+
+    // Scroll to top
+    document.querySelector('.sheet-body').scrollTop = 0;
+  }
+
+  /* ── Tab switching ──────────────────────────────────────────── */
+  function switchTab(name) {
+    activeTab = name;
+    tabProfile.classList.toggle('active', name === 'profile');
+    tabHistory.classList.toggle('active', name === 'history');
+    tabProfile.setAttribute('aria-selected', name === 'profile');
+    tabHistory.setAttribute('aria-selected', name === 'history');
+    panelProfile.style.display = name === 'profile' ? 'block' : 'none';
+    panelHistory.style.display = name === 'history' ? 'block' : 'none';
+  }
+
+  /* ── Navigation ─────────────────────────────────────────────── */
+  function navigate(direction) {
+    if (currentIndex === null) return;
+    const next = currentIndex + direction;
+    if (next < 0 || next >= TALENT.length) return;
+    // Save notes before navigating
+    TALENT[currentIndex].notes = document.getElementById('sheetNotes').value;
+    openSheet(next);
+  }
+
+  /* ── Theme toggle ───────────────────────────────────────────── */
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    if (theme === 'dark') {
+      iconMoon.style.display = '';
+      iconSun.style.display = 'none';
+    } else {
+      iconMoon.style.display = 'none';
+      iconSun.style.display = '';
+    }
+  }
+
+  /* ── Event listeners ────────────────────────────────────────── */
+  btnClose.addEventListener('click', closeSheet);
+  backdrop.addEventListener('click', closeSheet);
+
+  btnPrev.addEventListener('click', function() { navigate(-1); });
+  btnNext.addEventListener('click', function() { navigate(1); });
+
+  tabProfile.addEventListener('click', function() { switchTab('profile'); });
+  tabHistory.addEventListener('click', function() { switchTab('history'); });
+
+  themeToggle.addEventListener('click', function() {
+    const current = document.documentElement.getAttribute('data-theme');
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+  });
+
+  // Keyboard navigation
+  document.addEventListener('keydown', function(e) {
+    if (!sheet.classList.contains('open')) return;
+    if (e.key === 'Escape') { closeSheet(); return; }
+    if (e.key === 'ArrowLeft') { navigate(-1); return; }
+    if (e.key === 'ArrowRight') { navigate(1); return; }
+  });
+
+  // Save notes on blur
+  document.getElementById('sheetNotes').addEventListener('blur', function() {
+    if (currentIndex !== null) {
+      TALENT[currentIndex].notes = this.value;
+    }
+  });
+
+  /* ── Init ───────────────────────────────────────────────────── */
+  buildGrid();
+  applyTheme('dark');
+</script>
+</body>
+</html>

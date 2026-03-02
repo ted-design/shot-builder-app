@@ -28,6 +28,8 @@ export function parseMeasurementValue(
     return Number.isFinite(value) ? value : null
   }
 
+  if (typeof value !== "string") return null
+
   const trimmed = value.trim()
   if (trimmed === "") return null
 

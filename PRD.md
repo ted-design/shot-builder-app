@@ -18,9 +18,9 @@ Shot Builder is the production planning tool for fashion and commercial photogra
 |------|-------|--------|--------|
 | **Now** | Fix broken workflows, complete library entities (crew/locations/talent), polish UX consistency, clean up tech debt, admin panel + user onboarding, design system realignment, shot request inbox, create project from request | 7A-7E, S1-S5b, 8, 8.5 | **COMPLETE** |
 | **Next** | Casting engine (measurement-based talent search + auto-match) | 9 | **COMPLETE** |
-| **Future** | Per-product asset requirements, sample logistics (PLM), dashboard shoot readiness | 10 | **COMPLETE** |
+| **Future** | Per-product asset requirements, sample logistics (PLM), dashboard shoot readiness | 10 + 10R | **COMPLETE** |
 
-The "Now" tier is complete — Shot Builder is a full production workspace with admin onboarding, library CRUD, mobile operations, visual polish, a shot request inbox for structured creative brief intake, and the ability to create new projects directly from requests. The "Next" tier expands it into a team-facing platform with casting intelligence. The "Future" tier adds supply-chain intelligence — per-colorway asset flags, launch date tracking, sample condition/return logistics, and a dashboard shoot readiness widget.
+The "Now" tier is complete — Shot Builder is a full production workspace with admin onboarding, library CRUD, mobile operations, visual polish, a shot request inbox for structured creative brief intake, and the ability to create new projects directly from requests. The "Next" tier expands it into a team-facing platform with casting intelligence. The "Future" tier adds supply-chain intelligence — expanded asset types (6 canonical + Other + 3 legacy), 5-state flags (including AI Generated), chip-based progressive disclosure, per-colorway launch dates with family inheritance, identity images in Colorways with inline editing, Assets→Files rename, and a 3-tier dashboard shoot readiness widget with scheduling suggestions and confidence indicators.
 
 ---
 
