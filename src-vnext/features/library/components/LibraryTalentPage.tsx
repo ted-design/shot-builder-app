@@ -433,12 +433,12 @@ export default function LibraryTalentPage() {
     await updateCastingSessions(next, [], "Casting added")
   }
 
-  const submitCreate = async (fields: CreateTalentFields) => {
-    if (!clientId) return
+  const submitCreate = async (fields: CreateTalentFields): Promise<boolean> => {
+    if (!clientId) return false
     const name = fields.name.trim()
     if (!name) {
       toast.error("Name is required")
-      return
+      return false
     }
 
     setBusy(true)
@@ -459,10 +459,12 @@ export default function LibraryTalentPage() {
       toast.success("Talent created")
       setCreateOpen(false)
       setSelectedId(id)
+      return true
     } catch (err) {
       toast.error("Failed to create talent", {
         description: err instanceof Error ? err.message : "Unknown error",
       })
+      return false
     } finally {
       setBusy(false)
     }

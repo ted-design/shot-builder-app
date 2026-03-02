@@ -32,7 +32,7 @@ interface CreateTalentDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly busy: boolean
-  readonly onSubmit: (fields: CreateTalentFields) => Promise<void>
+  readonly onSubmit: (fields: CreateTalentFields) => Promise<boolean>
 }
 
 export function CreateTalentDialog({
@@ -60,7 +60,7 @@ export function CreateTalentDialog({
   }
 
   const handleSubmit = async () => {
-    await onSubmit({
+    const ok = await onSubmit({
       name: createName,
       agency: createAgency,
       email: createEmail,
@@ -69,7 +69,7 @@ export function CreateTalentDialog({
       url: createUrl,
       notes: createNotes,
     })
-    resetForm()
+    if (ok) resetForm()
   }
 
   return (

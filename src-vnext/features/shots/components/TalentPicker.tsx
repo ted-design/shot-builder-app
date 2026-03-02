@@ -36,7 +36,7 @@ export function TalentPicker({
   const { clientId } = useAuth()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<string[]>(selectedIds)
-  const repairRanRef = useRef(false)
+  const repairedProjectRef = useRef<string | null>(null)
 
   const visibleTalent = projectId
     ? talent.filter((t) => t.projectIds?.includes(projectId))
@@ -44,11 +44,11 @@ export function TalentPicker({
 
   // Auto-repair: if selectedIds contains talent not yet linked to the project,
   // silently backfill the link using arrayUnion (idempotent).
+  // Re-runs when projectId changes so different shots get repaired.
   useEffect(() => {
-    if (!projectId || !clientId || repairRanRef.current) return
+    if (!projectId || !clientId) return
+    if (repairedProjectRef.current === projectId) return
     if (selectedIds.length === 0 || talent.length === 0) return
-
-    repairRanRef.current = true
 
     const projectTalentIds = new Set(
       talent
@@ -57,11 +57,18 @@ export function TalentPicker({
     )
     const orphaned = selectedIds.filter((id) => !projectTalentIds.has(id))
 
-    if (orphaned.length === 0) return
+    if (orphaned.length === 0) {
+      repairedProjectRef.current = projectId
+      return
+    }
 
-    addTalentToProject({ clientId, projectId, ids: orphaned }).catch(() => {
-      // Silent failure — best-effort backfill
-    })
+    addTalentToProject({ clientId, projectId, ids: orphaned })
+      .then(() => {
+        repairedProjectRef.current = projectId
+      })
+      .catch(() => {
+        // Silent failure — will retry on next render cycle
+      })
   }, [projectId, clientId, selectedIds, talent])
 
   const handleOpenChange = (next: boolean) => {
