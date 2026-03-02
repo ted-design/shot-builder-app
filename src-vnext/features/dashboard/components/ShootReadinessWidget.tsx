@@ -124,8 +124,17 @@ function ReadinessCard({ item }: { readonly item: ShootReadinessItem }) {
             ? `${item.samplesArrived} sample${item.samplesArrived !== 1 ? "s" : ""} arrived`
             : `${item.samplesTotal} sample${item.samplesTotal !== 1 ? "s" : ""} tracked`}
         </p>
-        <p className="mt-1 text-2xs text-[var(--color-status-green-text)]">
-          Samples ready &mdash; available to schedule
+        <p
+          className={cn(
+            "mt-1 text-2xs",
+            item.samplesArrived > 0
+              ? "text-[var(--color-status-green-text)]"
+              : "text-[var(--color-text-muted)]",
+          )}
+        >
+          {item.samplesArrived > 0
+            ? "Samples ready \u2014 available to schedule"
+            : "Samples tracked \u2014 awaiting arrival"}
         </p>
       </div>
     )

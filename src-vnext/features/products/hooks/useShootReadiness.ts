@@ -44,8 +44,15 @@ export function useShootReadiness(): {
     if (eligible.length === 0) return []
 
     const readinessItems: ShootReadinessItem[] = eligible.map((family) => {
-      const effectiveLaunchDate =
-        family.earliestLaunchDate ?? family.launchDate ?? null
+      // Prefer the most upcoming (future) launch date to avoid showing
+      // past SKU dates when the family launch date is still upcoming.
+      const now = Date.now()
+      const familyMs = family.launchDate ? family.launchDate.toMillis() : null
+      const earliestMs = family.earliestLaunchDate ? family.earliestLaunchDate.toMillis() : null
+      let effectiveLaunchDate = family.earliestLaunchDate ?? family.launchDate ?? null
+      if (familyMs != null && earliestMs != null && earliestMs < now && familyMs >= now) {
+        effectiveLaunchDate = family.launchDate!
+      }
       const samplesTotal = family.sampleCount ?? 0
       const samplesArrived = family.samplesArrivedCount ?? 0
       const readinessPct =
